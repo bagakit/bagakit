@@ -1,0 +1,4 @@
+# Keep local scratch files out of commits.
+*.swp
+*.tmp
+.DS_Store
