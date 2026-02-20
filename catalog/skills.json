@@ -6,7 +6,7 @@
       "path": "skills/bagakit-feat-task-harness",
       "repo": "git@github.com:bagakit/bagakit-feat-task-harness.git",
       "branch": "main",
-      "commit": "58059963991a44dd323afc84c81c460e4b65dc65",
+      "commit": "5cbe8c2365edb5d9b1eba8be92c4f724b727258d",
       "dirty": false,
       "required_files": {
         "SKILL.md": true,
@@ -20,7 +20,7 @@
       "path": "skills/bagakit-living-docs",
       "repo": "git@github.com:bagakit/bagakit-living-docs.git",
       "branch": "main",
-      "commit": "544dea905ed535a8f6f2091c48774868dee0bf15",
+      "commit": "c5480bb80c13edece0050f8e216e7351071c59a6",
       "dirty": false,
       "required_files": {
         "SKILL.md": true,
@@ -34,7 +34,7 @@
       "path": "skills/bagakit-long-run",
       "repo": "git@github.com:bagakit/bagakit-long-run.git",
       "branch": "main",
-      "commit": "d126ca8dece2e58144f12e598fec9b3db389acaa",
+      "commit": "cb256b246a357f5ee2bad200048255db64931851",
       "dirty": false,
       "required_files": {
         "SKILL.md": true,
@@ -48,7 +48,7 @@
       "path": "skills/bagakit-skill-maker",
       "repo": "git@github.com:bagakit/bagakit-skill-maker.git",
       "branch": "main",
-      "commit": "5a273cb3fc0726dbed9126edb615759ebf7b5d1b",
+      "commit": "89a7be57ef711fafacdeb3c0c81bfc6df73bb596",
       "dirty": false,
       "required_files": {
         "SKILL.md": true,
