@@ -56,7 +56,7 @@ Behavior:
       bagakit-living-docs, bagakit-feat-task-harness, bagakit-long-run
   - Discovery checks repositories that contain SKILL.md at repo root.
   - If a repo provides SKILL_PAYLOAD.json at repo root, installs exactly those declared paths.
-  - Otherwise, falls back to a safe default payload (SKILL.md + scripts/references/agents/assets + optional README.md).
+  - Otherwise, falls back to a safe default payload (SKILL.md + scripts/references/agents/assets).
   - Never installs repo development/dogfooding files (docs/, Makefile, dist/, .codex/, etc.) unless explicitly declared.
 
 Examples:
@@ -326,11 +326,8 @@ PY
     done <<<"$payload_list"
   else
     # Fallback: safe default payload (avoid copying repo dogfooding docs, Makefile, dist, .codex, etc).
-    # Common skill structure: SKILL.md + scripts/ + references/ (+ optional agents/, assets/, README.md).
+    # Common skill structure: SKILL.md + scripts/ + references/ (+ optional agents/, assets/).
     include_paths+=("SKILL.md")
-    if [ -f "${clone_dir}/README.md" ]; then
-      include_paths+=("README.md")
-    fi
     if [ -d "${clone_dir}/scripts" ]; then
       include_paths+=("scripts")
     fi
