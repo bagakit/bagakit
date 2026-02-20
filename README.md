@@ -18,6 +18,7 @@ Meta repository that composes Bagakit skills as git submodules.
 - `docs/skill-delivery-profiles.md`: examples of per-skill output/archive design.
 - `scripts/install-bagakit-skills.sh`: public installer entry.
 - `scripts/update.sh`: sync or bump submodules.
+- `scripts/validate-changed-skills.sh`: run regression only for changed skill submodules.
 - `scripts/validate.sh`: validate catalog plus run each skill's tests.
 - `scripts/release.sh`: validate, refresh catalog, commit pointers, tag a release.
 
@@ -53,6 +54,9 @@ git submodule update --init --recursive
 
 # Validate everything.
 ./scripts/validate.sh
+
+# Validate only changed skill submodules against origin/main.
+./scripts/validate-changed-skills.sh --base-ref origin/main
 
 # Create release commit plus tag.
 ./scripts/release.sh v2026.02.20

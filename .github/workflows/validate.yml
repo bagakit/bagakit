@@ -7,13 +7,44 @@ on:
       - main
 
 jobs:
-  validate:
+  changed-skill-regression:
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
+          fetch-depth: 0
+          submodules: recursive
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Ensure pull request base ref is available
+        if: github.event_name == 'pull_request'
+        run: |
+          git fetch --no-tags --prune --depth=1 origin \
+            "${{ github.base_ref }}:refs/remotes/origin/${{ github.base_ref }}"
+
+      - name: Regress changed skill submodules
+        run: |
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            ./scripts/validate-changed-skills.sh --base-ref "origin/${{ github.base_ref }}"
+          else
+            ./scripts/validate-changed-skills.sh --base-ref "HEAD~1"
+          fi
+
+  meta-integration-regression:
+    runs-on: ubuntu-latest
+    needs: changed-skill-regression
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
           submodules: recursive
 
       - name: Setup Python

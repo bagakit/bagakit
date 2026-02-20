@@ -144,3 +144,18 @@ Policy:
 
 Reference examples are maintained in:
 - `docs/skill-delivery-profiles.md`
+
+## 7) Regression Chain (Changed Skill -> Meta Integration)
+
+This meta-repo uses a two-stage regression chain:
+
+1. Changed-skill regression:
+  - `scripts/validate-changed-skills.sh --base-ref <ref>`
+  - run only the submodules changed in the current branch/PR.
+2. Meta integration regression:
+  - `scripts/validate.sh`
+  - run full catalog + all skills validation.
+
+Policy:
+- A submodule pointer update should pass changed-skill regression first.
+- Merge/release gates should pass full meta integration regression.

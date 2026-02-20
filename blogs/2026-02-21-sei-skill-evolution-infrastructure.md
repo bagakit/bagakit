@@ -163,33 +163,15 @@
 4. 定义 action/memory/archive 完成态模型。  
 5. 把关键规则写进 validator（不是只写在文档里）。  
 6. 补 failure-first 回归测试。  
-7. 加入预算与命名规则控制长期熵增。
+7. 加入预算与命名规则 **控制长期熵增**。
 
 ## 下一步
 
-SEI 目前有两个优先方向：
+在此基础上的下一步更偏运营化与规模化：
 
-### A) Guidance-First 的 output/archive 强化（不走重 schema）
-
-这里不建议上“重结构 schema 约束”。更高上限的做法是：
-
-1. 在 `bagakit-skill-maker` 中补齐 guidance pack（模式库 + 反模式 + 样例）。  
-2. validator 仅校验硬不变量（section 存在、destination evidence、协议形状）。  
-3. 语义细节由 Agent 按 guidance 推理，不强制压成固定字段。  
-
-这样既保留灵活性，也能维持最低可靠边界。
-
-### B) 单 skill 回归与元仓回归打通（具体实现）
-
-可按下面顺序落地：
-
-1. 约定每个 skill repo 都有稳定回归入口：`./scripts_dev/test.sh`。  
-2. 在 `skills` 元仓新增“变更子模块优先验证”脚本，先只跑变更 skill。  
-3. 变更 skill 全通过后，再跑元仓 `./scripts/validate.sh` 做全量集成验证。  
-4. CI 拆成两层 gate：`changed-skill-regression` -> `meta-integration-regression`。  
-5. 只有两层都通过，才允许合并 submodule pointer 更新。  
-
-这条链路的关键价值是：先在本地语义闭环，再在集成层防止跨 skill 失配。
+1. 把 guidance pack 版本化（含“何时从 guidance 升级到 hard gate”的触发条件）。  
+2. 在 PR 模板中强制关联“变更 skill -> guidance pack 更新 -> gate 结果”。  
+3. 为高频失败模式建立“从故障到规则”的标准化回收流程，降低策略漂移时间。  
 
 ## 结语
 
