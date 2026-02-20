@@ -1,0 +1,311 @@
+#!/usr/bin/env python3
+"""Build a static GitHub Pages site from markdown files in blogs/."""
+
+from __future__ import annotations
+
+import argparse
+import datetime as dt
+import hashlib
+import html
+import re
+import shutil
+from pathlib import Path
+
+try:
+    import markdown  # type: ignore
+except ImportError as exc:  # pragma: no cover
+    raise SystemExit(
+        "Missing dependency: python-markdown. Install with: python3 -m pip install markdown"
+    ) from exc
+
+
+DATE_SLUG_RE = re.compile(r"^(?P<date>\d{4}-\d{2}-\d{2})-(?P<slug>.+)$")
+
+STYLE_CSS = """
+:root {
+  color-scheme: light dark;
+  --bg: #0b1020;
+  --card: #141a30;
+  --text: #e7ecff;
+  --muted: #aeb8e6;
+  --line: #2a335a;
+  --accent: #7ca7ff;
+}
+@media (prefers-color-scheme: light) {
+  :root {
+    --bg: #f6f8ff;
+    --card: #ffffff;
+    --text: #172040;
+    --muted: #5c678f;
+    --line: #dde3ff;
+    --accent: #2f5bdb;
+  }
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background: var(--bg);
+  color: var(--text);
+}
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+.container {
+  width: min(980px, 92vw);
+  margin: 0 auto;
+  padding: 2.2rem 0 3rem;
+}
+.hero { margin-bottom: 2rem; }
+.hero h1 { margin: 0 0 .4rem; font-size: 2rem; }
+.hero p { margin: 0; color: var(--muted); }
+.post-list { display: grid; gap: 1rem; }
+.post-card {
+  display: block;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--card);
+  padding: 1rem 1.1rem;
+}
+.post-card h2 { margin: 0 0 .35rem; font-size: 1.18rem; }
+.post-meta { color: var(--muted); font-size: .9rem; margin-bottom: .45rem; }
+.post-excerpt { color: var(--muted); margin: 0; line-height: 1.55; }
+.article {
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--card);
+  padding: 1.3rem 1.2rem;
+}
+.article h1, .article h2, .article h3 { line-height: 1.3; }
+.article p, .article li { line-height: 1.72; }
+.article code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.95em;
+}
+.article pre {
+  overflow: auto;
+  border-radius: 10px;
+  padding: .75rem;
+  border: 1px solid var(--line);
+}
+.topbar {
+  margin-bottom: .95rem;
+  color: var(--muted);
+  display: flex;
+  flex-wrap: wrap;
+  gap: .8rem;
+  align-items: center;
+}
+footer {
+  margin-top: 2rem;
+  color: var(--muted);
+  font-size: .9rem;
+}
+"""
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--input",
+        default="blogs",
+        help="Directory with markdown blog files",
+    )
+    parser.add_argument(
+        "--output",
+        default="site",
+        help="Output directory for generated static files",
+    )
+    parser.add_argument(
+        "--repo-url",
+        default="",
+        help="GitHub repository URL used for source links (optional)",
+    )
+    parser.add_argument(
+        "--default-branch",
+        default="main",
+        help="Branch name for source links",
+    )
+    return parser.parse_args()
+
+
+def extract_title(markdown_text: str, fallback_slug: str) -> str:
+    for line in markdown_text.splitlines():
+        stripped = line.strip()
+        if stripped.startswith("# "):
+            return stripped[2:].strip()
+    return fallback_slug.replace("-", " ")
+
+
+def extract_excerpt(markdown_text: str) -> str:
+    for line in markdown_text.splitlines():
+        stripped = line.strip()
+        if (
+            not stripped
+            or stripped.startswith("#")
+            or stripped.startswith(">")
+            or stripped.startswith("```")
+            or stripped.startswith("- ")
+            or re.match(r"^\d+\.\s", stripped)
+        ):
+            continue
+        plain = re.sub(r"[`*_#>]+", "", stripped).strip()
+        if plain:
+            return plain[:180]
+    return ""
+
+
+def normalize_slug(raw_slug: str, stable_key: str) -> str:
+    slug = re.sub(r"[^A-Za-z0-9._-]+", "-", raw_slug).strip("-").lower()
+    if slug:
+        return slug
+    short = hashlib.sha1(stable_key.encode("utf-8")).hexdigest()[:8]
+    return f"post-{short}"
+
+
+def parse_post_date(stem: str, fallback_ts: float) -> tuple[str, str]:
+    match = DATE_SLUG_RE.match(stem)
+    if match:
+        return match.group("date"), match.group("slug")
+    return dt.date.fromtimestamp(fallback_ts).isoformat(), stem
+
+
+def load_posts(input_dir: Path, repo_url: str, default_branch: str) -> list[dict[str, str]]:
+    posts: list[dict[str, str]] = []
+    for md_path in sorted(input_dir.glob("*.md")):
+        text = md_path.read_text(encoding="utf-8")
+        date_text, raw_slug = parse_post_date(md_path.stem, md_path.stat().st_mtime)
+        slug = normalize_slug(raw_slug, md_path.name)
+        title = extract_title(text, raw_slug)
+        excerpt = extract_excerpt(text)
+        article_html = markdown.markdown(
+            text,
+            extensions=[
+                "fenced_code",
+                "tables",
+                "toc",
+                "sane_lists",
+                "nl2br",
+            ],
+        )
+        source_link = ""
+        if repo_url:
+            source_link = f"{repo_url}/blob/{default_branch}/{md_path.as_posix()}"
+        posts.append(
+            {
+                "slug": slug,
+                "title": title,
+                "date": date_text,
+                "excerpt": excerpt,
+                "article_html": article_html,
+                "source_link": source_link,
+            }
+        )
+    posts.sort(key=lambda item: (item["date"], item["slug"]), reverse=True)
+    return posts
+
+
+def page_shell(title: str, body: str, style_href: str) -> str:
+    safe_title = html.escape(title)
+    safe_style_href = html.escape(style_href)
+    return f"""<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{safe_title}</title>
+  <link rel="stylesheet" href="{safe_style_href}">
+</head>
+<body>
+  <main class="container">
+{body}
+  </main>
+</body>
+</html>
+"""
+
+
+def build_index(output_dir: Path, posts: list[dict[str, str]]) -> None:
+    cards: list[str] = []
+    for post in posts:
+        title = html.escape(post["title"])
+        date_text = html.escape(post["date"])
+        excerpt = html.escape(post["excerpt"])
+        cards.append(
+            f"""      <a class="post-card" href="posts/{post['slug']}/">
+        <h2>{title}</h2>
+        <div class="post-meta">{date_text}</div>
+        <p class="post-excerpt">{excerpt}</p>
+      </a>"""
+        )
+    body = f"""    <section class="hero">
+      <h1>Bagakit Engineering Blog</h1>
+      <p>Notes on skill evolution, delivery systems, and agent engineering.</p>
+    </section>
+    <section class="post-list">
+{chr(10).join(cards) if cards else "      <p>No posts yet.</p>"}
+    </section>
+    <footer>
+      Source markdown is maintained in <code>blogs/</code>.
+    </footer>"""
+    (output_dir / "index.html").write_text(
+        page_shell("Bagakit Blog", body, "assets/style.css"),
+        encoding="utf-8",
+    )
+    (output_dir / "404.html").write_text(
+        page_shell("Not Found", body, "assets/style.css"),
+        encoding="utf-8",
+    )
+
+
+def build_posts(output_dir: Path, posts: list[dict[str, str]]) -> None:
+    posts_root = output_dir / "posts"
+    for post in posts:
+        post_dir = posts_root / post["slug"]
+        post_dir.mkdir(parents=True, exist_ok=True)
+        title = html.escape(post["title"])
+        date_text = html.escape(post["date"])
+        source_html = ""
+        if post["source_link"]:
+            source_link = html.escape(post["source_link"])
+            source_html = f'<a href="{source_link}">Markdown source</a>'
+        body = f"""    <div class="topbar">
+      <a href="../../">← Back to blog</a>
+      <span>{date_text}</span>
+      {source_html}
+    </div>
+    <article class="article">
+      {post["article_html"]}
+    </article>"""
+        (post_dir / "index.html").write_text(
+            page_shell(title, body, "../../assets/style.css"),
+            encoding="utf-8",
+        )
+
+
+def build_site(input_dir: Path, output_dir: Path, repo_url: str, default_branch: str) -> None:
+    if output_dir.exists():
+        shutil.rmtree(output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    assets_dir = output_dir / "assets"
+    assets_dir.mkdir(parents=True, exist_ok=True)
+    (assets_dir / "style.css").write_text(STYLE_CSS.strip() + "\n", encoding="utf-8")
+    (output_dir / ".nojekyll").write_text("", encoding="utf-8")
+
+    posts = load_posts(input_dir, repo_url, default_branch)
+    build_index(output_dir, posts)
+    build_posts(output_dir, posts)
+
+
+def main() -> None:
+    args = parse_args()
+    input_dir = Path(args.input)
+    output_dir = Path(args.output)
+    if not input_dir.exists():
+        raise SystemExit(f"Input directory does not exist: {input_dir}")
+    build_site(input_dir, output_dir, args.repo_url.strip(), args.default_branch.strip())
+    print(f"Generated {output_dir} from {input_dir}")
+
+
+if __name__ == "__main__":
+    main()

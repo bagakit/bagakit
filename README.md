@@ -40,6 +40,20 @@ git submodule update --init --recursive
 ./scripts/validate.sh
 ```
 
+## Engineering Blog (GitHub Pages)
+
+- Markdown sources: `blogs/*.md`
+- Publish workflow: `.github/workflows/blog-pages.yml`
+- Page URL: `https://bagakit.github.io/skills/`
+
+Local preview:
+
+```bash
+python3 -m pip install markdown
+python3 scripts/build-blog-pages.py --input blogs --output site --repo-url https://github.com/bagakit/skills
+python3 -m http.server --directory site 8000
+```
+
 ## Commands
 
 ```bash
