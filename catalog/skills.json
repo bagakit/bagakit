@@ -2,6 +2,20 @@
   "schema_version": "1.0.0",
   "skills": [
     {
+      "id": "bagakit-brainstorm",
+      "path": "skills/bagakit-brainstorm",
+      "repo": "git@github.com:bagakit/bagakit-brainstorm.git",
+      "branch": "main",
+      "commit": "937517580612e2cc9b04c535a8c91eaa44fc9a84",
+      "dirty": false,
+      "required_files": {
+        "SKILL.md": true,
+        "SKILL_PAYLOAD.json": true,
+        "scripts_dev/test.sh": true
+      },
+      "has_openai_agent": false
+    },
+    {
       "id": "bagakit-feat-task-harness",
       "path": "skills/bagakit-feat-task-harness",
       "repo": "git@github.com:bagakit/bagakit-feat-task-harness.git",

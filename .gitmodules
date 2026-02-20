@@ -14,3 +14,7 @@
 	path = skills/bagakit-skill-maker
 	url = git@github.com:bagakit/bagakit-skill-maker.git
 	branch = main
+[submodule "skills/bagakit-brainstorm"]
+	path = skills/bagakit-brainstorm
+	url = git@github.com:bagakit/bagakit-brainstorm.git
+	branch = main
