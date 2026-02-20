@@ -122,3 +122,25 @@ Each skill repository SHOULD enforce these rules via self-tests:
 - end-to-end sanity tests for runtime scripts.
 
 Development tests should run from `scripts_dev/` and must not be part of installed runtime payload by default.
+
+## 6) Delivery Profile Contract (Meta-Repo Requirement)
+
+For every submodule included in this repository, maintain one delivery profile entry in:
+
+- `catalog/delivery-profiles.json`
+
+The profile must describe:
+
+- deliverable classes (`action-handoff`, `memory-handoff`, `archive`);
+- default mode behavior when no external system is present;
+- optional inter-system linkage/adapters;
+- archive gate (how completion destinations are proven).
+
+Policy:
+- No submodule is considered "properly onboarded" until its delivery profile is present.
+- Pull requests that add or update submodules should update both:
+  - `catalog/skills.json` (generated),
+  - `catalog/delivery-profiles.json` (authored).
+
+Reference examples are maintained in:
+- `docs/skill-delivery-profiles.md`

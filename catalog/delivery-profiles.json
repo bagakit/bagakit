@@ -1,0 +1,100 @@
+{
+  "schema_version": "1.0.0",
+  "profiles": [
+    {
+      "id": "bagakit-brainstorm",
+      "archetype": "planning-and-ideation",
+      "deliverable_classes": {
+        "action_handoff": "Brainstorm action plan/checklist routed to feat-harness, openspec change, or local plan file.",
+        "memory_handoff": "Brainstorm summary routed to living-docs inbox when available, otherwise local summary file.",
+        "archive": "Archive record under .bagakit/brainstorm/archive with explicit destination evidence."
+      },
+      "default_mode": "Write local plan + local summary and archive their paths when no driver system is detected.",
+      "system_routes": [
+        "bagakit-feat-task-harness (feat handoff note)",
+        "openspec (change handoff note)",
+        "bagakit-living-docs (docs/.bagakit/inbox)"
+      ],
+      "archive_gate": [
+        "Action handoff destination resolved.",
+        "Memory handoff destination resolved.",
+        "Archive output records both destinations."
+      ]
+    },
+    {
+      "id": "bagakit-feat-task-harness",
+      "archetype": "execution-result-heavy",
+      "deliverable_classes": {
+        "action_handoff": "Feat/task lifecycle transitions with strict task commit protocol and final feat archive state.",
+        "memory_handoff": "Optional result/decision/gotcha summaries to living-docs inbox when detected.",
+        "archive": "Physical feat archive under .bagakit/ft-harness/feats-archived plus status transition evidence."
+      },
+      "default_mode": "Operate fully standalone using local harness state, worktrees, and script-driven transitions.",
+      "system_routes": [
+        "openspec (optional import/export adapters)",
+        "bagakit-living-docs (soft inbox sync)"
+      ],
+      "archive_gate": [
+        "Feat is merged and eligible for archive.",
+        "Worktree cleanup is complete.",
+        "Archived state and destination are explicit in harness state."
+      ]
+    },
+    {
+      "id": "bagakit-living-docs",
+      "archetype": "memory-and-governance",
+      "deliverable_classes": {
+        "action_handoff": "System docs, SOP, and managed AGENTS block updates applied in target project.",
+        "memory_handoff": "Inbox/memory capture and promotion under docs/.bagakit/{inbox,memory}.",
+        "archive": "Task completion evidence reported with updated docs and memory destinations."
+      },
+      "default_mode": "Operate on local docs and memory tree without requiring any external execution system.",
+      "system_routes": [
+        "Contract/signal exchange with other skills via optional artifacts"
+      ],
+      "archive_gate": [
+        "Documentation destinations are explicit.",
+        "Memory destinations are explicit.",
+        "Completion evidence includes touched docs/memory paths."
+      ]
+    },
+    {
+      "id": "bagakit-long-run",
+      "archetype": "process-driver",
+      "deliverable_classes": {
+        "action_handoff": "Single-item progression and next-action decisions in normalized execution table.",
+        "memory_handoff": "Execution handoff summary and rationale artifacts for next session.",
+        "archive": "Completion delegated to upstream system archive (for example feat-harness/openspec) or local fallback note."
+      },
+      "default_mode": "Drive .bagakit/long-run loop standalone with manual rows when no upstream adapter is available.",
+      "system_routes": [
+        "bagakit-feat-task-harness (bagakit-ft rows)",
+        "openspec rows",
+        "Manual adapter rows for other systems"
+      ],
+      "archive_gate": [
+        "Upstream target item is explicit.",
+        "If upstream archive exists, destination id/path is recorded.",
+        "If no upstream archive exists, local fallback archive destination is recorded."
+      ]
+    },
+    {
+      "id": "bagakit-skill-maker",
+      "archetype": "skill-governance",
+      "deliverable_classes": {
+        "action_handoff": "New/improved skill structure, trigger design, and validator-backed contract updates.",
+        "memory_handoff": "Design rationale captured in references and validation matrix outputs.",
+        "archive": "Validation evidence reports output routes and archive gate readiness."
+      },
+      "default_mode": "Scaffold and validate skill repos locally with standalone-first defaults.",
+      "system_routes": [
+        "Optional compatibility guidance for feat-harness, openspec, and living-docs adapters"
+      ],
+      "archive_gate": [
+        "Output map includes default and adapter routes.",
+        "Action/memory destinations are explicit in archive policy.",
+        "Validation gates pass."
+      ]
+    }
+  ]
+}
