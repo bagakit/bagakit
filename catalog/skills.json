@@ -6,21 +6,21 @@
       "path": "skills/bagakit-brainstorm",
       "repo": "git@github.com:bagakit/bagakit-brainstorm.git",
       "branch": "main",
-      "commit": "937517580612e2cc9b04c535a8c91eaa44fc9a84",
+      "commit": "08899eb8623ffe138d82b8783d181f37eda644a3",
       "dirty": false,
       "required_files": {
         "SKILL.md": true,
         "SKILL_PAYLOAD.json": true,
         "scripts_dev/test.sh": true
       },
-      "has_openai_agent": false
+      "has_openai_agent": true
     },
     {
       "id": "bagakit-feat-task-harness",
       "path": "skills/bagakit-feat-task-harness",
       "repo": "git@github.com:bagakit/bagakit-feat-task-harness.git",
       "branch": "main",
-      "commit": "5cbe8c2365edb5d9b1eba8be92c4f724b727258d",
+      "commit": "4f82a96f6d5ae5701173674e4715b0780744a9fe",
       "dirty": false,
       "required_files": {
         "SKILL.md": true,
@@ -34,7 +34,7 @@
       "path": "skills/bagakit-living-docs",
       "repo": "git@github.com:bagakit/bagakit-living-docs.git",
       "branch": "main",
-      "commit": "c5480bb80c13edece0050f8e216e7351071c59a6",
+      "commit": "a73bf49e4db172f421e425f9aa7485766c6348e1",
       "dirty": false,
       "required_files": {
         "SKILL.md": true,
@@ -48,7 +48,7 @@
       "path": "skills/bagakit-long-run",
       "repo": "git@github.com:bagakit/bagakit-long-run.git",
       "branch": "main",
-      "commit": "cb256b246a357f5ee2bad200048255db64931851",
+      "commit": "ecb6c8799e440bf6207b307278d45e160c55f1f8",
       "dirty": false,
       "required_files": {
         "SKILL.md": true,
@@ -62,7 +62,7 @@
       "path": "skills/bagakit-skill-maker",
       "repo": "git@github.com:bagakit/bagakit-skill-maker.git",
       "branch": "main",
-      "commit": "89a7be57ef711fafacdeb3c0c81bfc6df73bb596",
+      "commit": "c3fc17e80d43f5d3bb261effe56c69782c3db47a",
       "dirty": false,
       "required_files": {
         "SKILL.md": true,
