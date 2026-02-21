@@ -113,6 +113,20 @@ Notes:
 - `README.md` should stay repo-level and must not be part of runtime payload.
 - `scripts_dev/` should not be included unless intentionally shipped as runtime.
 
+## 3.1) Packaging Output Contract (`package-skill`)
+
+To keep meta-repo packaging deterministic, each skill `Makefile` should expose a stable `package-skill` target.
+
+Required contract:
+- Accept `DIST_DIR` override (default can be `dist`).
+- Emit one zip artifact at `<DIST_DIR>/<SKILL_NAME>.skill`.
+- Resolve relative `DIST_DIR` against the skill repo root (not caller shell CWD).
+- Do not hardcode `$(PWD)/$(DIST_DIR)`-style absolute concatenation in artifact paths.
+
+Recommended checks:
+- `make package-skill DIST_DIR=.dist-check` should always produce `.dist-check/<skill>.skill`.
+- External orchestrators (for example `scripts/package-all-skills.sh`) should be able to call every skill with a custom `DIST_DIR` without per-skill special casing.
+
 ## 4) AGENTS Driving Instructions (`[[BAGAKIT]]` Footer Contract)
 
 When a skill needs explicit execution-driving outputs, encode that in AGENTS managed instructions.

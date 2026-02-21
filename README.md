@@ -35,7 +35,13 @@ Quick placement rule:
 - `scripts/update.sh`: sync or bump submodules.
 - `scripts/validate-changed-skills.sh`: run regression only for changed skill submodules.
 - `scripts/validate.sh`: validate catalog plus run each skill's tests.
+- `scripts/package-all-skills.sh`: build all submodule skill artifacts into `dist/`.
 - `scripts/release.sh`: validate, refresh catalog, commit pointers, tag a release.
+- `Makefile`: ergonomic wrappers for validate/update/package/release flows.
+
+Packaging convention:
+- Every skill `Makefile` should provide `package-skill` and honor `DIST_DIR`.
+- Expected artifact path is `<DIST_DIR>/<SKILL_NAME>.skill` (relative paths resolved from skill repo root).
 
 ## Public Install
 
@@ -86,6 +92,17 @@ python3 -m http.server --directory site 8000
 
 # Validate only changed skill submodules against origin/main.
 ./scripts/validate-changed-skills.sh --base-ref origin/main
+
+# Package all skills to dist/.
+./scripts/package-all-skills.sh
+# or: make package-all
+# Output includes both:
+# - dist/<skill>.skill
+# - dist/<skill>/ (expanded, cleaned payload for manual install)
+
+# Package one skill only.
+./scripts/package-all-skills.sh --skill bagakit-long-run --no-clean
+# or: make package-one SKILL=bagakit-long-run
 
 # Create release commit plus tag.
 ./scripts/release.sh v2026.02.20
