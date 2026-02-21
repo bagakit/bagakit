@@ -9,6 +9,21 @@ Meta repository that composes Bagakit skills as git submodules.
 - This repository only orchestrates versions and validation.
 - Every submodule skill must publish a delivery profile (deliverables/default/adapters/archive gate).
 
+## Repository Tiers
+
+Bagakit skill repositories are split by governance scope, not by implementation language:
+
+| Tier | Typical Scope | Default Install | Where to Host |
+| --- | --- | --- | --- |
+| Core | Foundation capabilities used by most projects (orchestration/memory/harness/runtime governance) | Included by default | `bagakit/skills` submodules |
+| Domain Pack | Task/domain specific skills (for example code style guides, framework-specific coding helpers) | Opt-in only | Separate meta repo (for example `bagakit-code-style-guides`) |
+| Experimental | Incubating/high-change skills not ready for stable defaults | Never default | Separate incubator repo (for example `bagakit-experimental-skills`) |
+
+Quick placement rule:
+- If removing the skill would break baseline Bagakit flow, it may belong to Core.
+- If it mainly serves one class of tasks or one team context, it should be a Domain Pack.
+- If trigger boundaries or contracts are still unstable, keep it Experimental first.
+
 ## Layout
 
 - `skills/*`: skill repositories as git submodules.

@@ -13,6 +13,23 @@ When designing or refactoring any BAGAKIT skill, review both:
 
 Design decisions should be traceable to these references plus BAGAKIT-specific constraints below.
 
+## 0.1) Repository Placement Policy (Core vs Domain vs Experimental)
+
+Not every valid Bagakit skill should be onboarded into this meta-repo.
+
+Required policy:
+- `bagakit/skills` should host Core foundation skills only.
+- Domain- or task-specific skills should be grouped in separate opt-in repositories (for example `bagakit-code-style-guides`).
+- Unstable/high-change skills should live in an experimental/incubator repository until contracts and trigger boundaries stabilize.
+
+Core admission checklist (all should be true):
+- The skill is broadly useful across most Bagakit projects.
+- The skill defines or protects foundation contracts/gates (not only one task flavor).
+- Default installation does not create excessive context/runtime burden for general users.
+- Maintenance cadence is stable enough for release-tag governance.
+
+If any checklist item fails, route to a Domain Pack or Experimental repository.
+
 ## 1) Standalone-First Skills (No Hard External Dependency)
 
 Skills MUST be independently usable without requiring external ecosystems (for example OpenSpec or any other non-BAGAKIT system).
