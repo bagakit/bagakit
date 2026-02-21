@@ -22,83 +22,281 @@ except ImportError as exc:  # pragma: no cover
 DATE_SLUG_RE = re.compile(r"^(?P<date>\d{4}-\d{2}-\d{2})-(?P<slug>.+)$")
 
 STYLE_CSS = """
+@import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&family=IBM+Plex+Mono:wght@400;500&display=swap");
+
 :root {
-  color-scheme: light dark;
-  --bg: #0b1020;
-  --card: #141a30;
-  --text: #e7ecff;
-  --muted: #aeb8e6;
-  --line: #2a335a;
-  --accent: #7ca7ff;
+  color-scheme: light;
+  --bg: #f2f4ef;
+  --bg-soft: #f8faf5;
+  --ink: #171a17;
+  --muted: #5d645f;
+  --line: #d6dbd3;
+  --panel: rgba(255, 255, 255, 0.76);
+  --accent: #1b8a72;
+  --accent-strong: #126754;
+  --signal: #ef8f45;
+  --shadow: 0 14px 44px rgba(24, 40, 31, 0.1);
 }
-@media (prefers-color-scheme: light) {
+@media (prefers-color-scheme: dark) {
   :root {
-    --bg: #f6f8ff;
-    --card: #ffffff;
-    --text: #172040;
-    --muted: #5c678f;
-    --line: #dde3ff;
-    --accent: #2f5bdb;
+    color-scheme: dark;
+    --bg: #111511;
+    --bg-soft: #171c17;
+    --ink: #eff6ef;
+    --muted: #b6c0b7;
+    --line: #2a342c;
+    --panel: rgba(25, 31, 25, 0.8);
+    --accent: #5fd0b6;
+    --accent-strong: #7de1c9;
+    --signal: #f6b479;
+    --shadow: 0 18px 48px rgba(0, 0, 0, 0.32);
   }
 }
 * { box-sizing: border-box; }
+html, body { min-height: 100%; }
 body {
   margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  background: var(--bg);
-  color: var(--text);
+  color: var(--ink);
+  font-family: "Source Serif 4", "Iowan Old Style", "Palatino Linotype", serif;
+  background:
+    radial-gradient(1200px 640px at 12% -12%, rgba(27, 138, 114, 0.2), transparent 52%),
+    radial-gradient(900px 540px at 104% 8%, rgba(239, 143, 69, 0.18), transparent 48%),
+    linear-gradient(180deg, var(--bg-soft) 0%, var(--bg) 100%);
 }
-a { color: var(--accent); text-decoration: none; }
-a:hover { text-decoration: underline; }
+a {
+  color: var(--accent-strong);
+  text-underline-offset: 2px;
+  transition: color 160ms ease;
+}
+a:hover { color: var(--signal); }
 .container {
-  width: min(980px, 92vw);
+  width: min(1100px, 92vw);
   margin: 0 auto;
-  padding: 2.2rem 0 3rem;
+  padding: 2.8rem 0 3.6rem;
 }
-.hero { margin-bottom: 2rem; }
-.hero h1 { margin: 0 0 .4rem; font-size: 2rem; }
-.hero p { margin: 0; color: var(--muted); }
-.post-list { display: grid; gap: 1rem; }
+.hero {
+  position: relative;
+  margin-bottom: 2rem;
+  padding: 1.3rem 1.35rem 1.5rem;
+  border: 1px solid var(--line);
+  border-radius: 22px;
+  background: var(--panel);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(8px);
+}
+.hero::after {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: 22px;
+  pointer-events: none;
+  border: 1px solid color-mix(in oklab, var(--accent) 24%, transparent);
+  mask: linear-gradient(#000, #000) content-box, linear-gradient(#000, #000);
+  mask-composite: exclude;
+  padding: 1px;
+}
+.hero-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: .5rem;
+  margin-bottom: .65rem;
+  padding: .25rem .6rem;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  color: var(--muted);
+  font-family: "Space Grotesk", ui-sans-serif, sans-serif;
+  font-size: .72rem;
+  font-weight: 500;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+.hero-kicker::before {
+  content: "";
+  width: .45rem;
+  height: .45rem;
+  border-radius: 50%;
+  background: linear-gradient(120deg, var(--accent), var(--signal));
+}
+.hero h1 {
+  margin: 0 0 .5rem;
+  font-family: "Space Grotesk", ui-sans-serif, sans-serif;
+  font-size: clamp(1.9rem, 3.5vw, 3rem);
+  line-height: 1.08;
+  letter-spacing: -.02em;
+}
+.hero p {
+  margin: 0;
+  max-width: 64ch;
+  color: var(--muted);
+  font-size: 1.05rem;
+  line-height: 1.6;
+}
+.hero-meta {
+  margin-top: 1rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: .7rem;
+}
+.hero-chip {
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: .2rem .62rem;
+  color: var(--muted);
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: .76rem;
+}
+.post-list {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
 .post-card {
-  display: block;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 188px;
   border: 1px solid var(--line);
-  border-radius: 14px;
-  background: var(--card);
-  padding: 1rem 1.1rem;
+  border-radius: 18px;
+  background:
+    linear-gradient(140deg, color-mix(in oklab, var(--panel) 95%, white) 0%, var(--panel) 100%);
+  box-shadow: var(--shadow);
+  padding: 1.05rem 1.05rem 1rem;
+  text-decoration: none;
+  transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
 }
-.post-card h2 { margin: 0 0 .35rem; font-size: 1.18rem; }
-.post-meta { color: var(--muted); font-size: .9rem; margin-bottom: .45rem; }
-.post-excerpt { color: var(--muted); margin: 0; line-height: 1.55; }
-.article {
+.post-card:hover {
+  transform: translateY(-2px);
+  border-color: color-mix(in oklab, var(--accent) 42%, var(--line));
+  box-shadow: 0 20px 44px rgba(20, 42, 30, 0.18);
+}
+.post-card h2 {
+  margin: 0 0 .35rem;
+  font-family: "Space Grotesk", ui-sans-serif, sans-serif;
+  font-size: clamp(1.08rem, 2vw, 1.28rem);
+  line-height: 1.28;
+  color: var(--ink);
+}
+.post-meta {
+  color: var(--muted);
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: .77rem;
+  margin-bottom: .55rem;
+}
+.post-excerpt {
+  color: color-mix(in oklab, var(--ink) 72%, var(--muted));
+  margin: 0;
+  line-height: 1.6;
+}
+.post-read {
+  margin-top: .9rem;
+  color: var(--accent);
+  font-family: "Space Grotesk", ui-sans-serif, sans-serif;
+  font-size: .84rem;
+  font-weight: 500;
+}
+.article-shell {
   border: 1px solid var(--line);
-  border-radius: 14px;
-  background: var(--card);
-  padding: 1.3rem 1.2rem;
-}
-.article h1, .article h2, .article h3 { line-height: 1.3; }
-.article p, .article li { line-height: 1.72; }
-.article code {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: 0.95em;
-}
-.article pre {
-  overflow: auto;
-  border-radius: 10px;
-  padding: .75rem;
-  border: 1px solid var(--line);
+  border-radius: 22px;
+  background: var(--panel);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(8px);
+  overflow: hidden;
 }
 .topbar {
-  margin-bottom: .95rem;
+  padding: .88rem 1.08rem;
+  border-bottom: 1px solid var(--line);
   color: var(--muted);
   display: flex;
   flex-wrap: wrap;
   gap: .8rem;
   align-items: center;
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: .8rem;
+}
+.topbar a { color: var(--accent-strong); }
+.article {
+  padding: 1.3rem 1.2rem 1.55rem;
+  font-size: 1.02rem;
+}
+.article h1, .article h2, .article h3, .article h4 {
+  font-family: "Space Grotesk", ui-sans-serif, sans-serif;
+  line-height: 1.2;
+  letter-spacing: -.01em;
+}
+.article h1 { font-size: clamp(1.7rem, 3vw, 2.4rem); margin-top: 0; }
+.article h2 {
+  font-size: clamp(1.2rem, 2.3vw, 1.62rem);
+  border-top: 1px solid var(--line);
+  padding-top: 1rem;
+  margin-top: 1.4rem;
+}
+.article h3 { font-size: 1.1rem; margin-top: 1.2rem; }
+.article p, .article li { line-height: 1.76; }
+.article blockquote {
+  margin: 1.15rem 0;
+  padding: .25rem .9rem;
+  border-left: 3px solid var(--signal);
+  color: color-mix(in oklab, var(--ink) 75%, var(--muted));
+}
+.article code {
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: .9em;
+  background: color-mix(in oklab, var(--bg-soft) 85%, var(--line));
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: .08em .36em;
+}
+.article pre {
+  overflow: auto;
+  border-radius: 12px;
+  padding: .85rem;
+  border: 1px solid var(--line);
+  background: color-mix(in oklab, var(--bg-soft) 90%, var(--line));
+}
+.article pre code {
+  border: 0;
+  padding: 0;
+  background: transparent;
+}
+.article table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1rem 0;
+  font-size: .95rem;
+}
+.article th, .article td {
+  border: 1px solid var(--line);
+  padding: .52rem .55rem;
+  text-align: left;
+}
+.article th {
+  font-family: "Space Grotesk", ui-sans-serif, sans-serif;
+  background: color-mix(in oklab, var(--bg-soft) 88%, var(--line));
 }
 footer {
   margin-top: 2rem;
   color: var(--muted);
-  font-size: .9rem;
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: .8rem;
+}
+.fade-rise {
+  animation: fadeRise 560ms cubic-bezier(.17,.67,.34,.99) both;
+}
+.post-card:nth-child(2) { animation-delay: 70ms; }
+.post-card:nth-child(3) { animation-delay: 130ms; }
+.post-card:nth-child(4) { animation-delay: 180ms; }
+@keyframes fadeRise {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@media (max-width: 900px) {
+  .post-list { grid-template-columns: 1fr; }
+}
+@media (max-width: 720px) {
+  .container { width: min(700px, 94vw); padding: 1.3rem 0 2.3rem; }
+  .hero { padding: 1rem .95rem 1.1rem; }
+  .article { padding: 1.05rem .9rem 1.2rem; }
+  .topbar { padding: .75rem .9rem; }
 }
 """
 
@@ -189,7 +387,9 @@ def load_posts(input_dir: Path, repo_url: str, default_branch: str) -> list[dict
         )
         source_link = ""
         if repo_url:
-            source_link = f"{repo_url}/blob/{default_branch}/{md_path.as_posix()}"
+            source_rel = md_path.relative_to(input_dir).as_posix()
+            source_path = f"{input_dir.name}/{source_rel}"
+            source_link = f"{repo_url}/blob/{default_branch}/{source_path}"
         posts.append(
             {
                 "slug": slug,
@@ -231,15 +431,23 @@ def build_index(output_dir: Path, posts: list[dict[str, str]]) -> None:
         date_text = html.escape(post["date"])
         excerpt = html.escape(post["excerpt"])
         cards.append(
-            f"""      <a class="post-card" href="posts/{post['slug']}/">
+            f"""      <a class="post-card fade-rise" href="posts/{post['slug']}/">
         <h2>{title}</h2>
         <div class="post-meta">{date_text}</div>
         <p class="post-excerpt">{excerpt}</p>
+        <div class="post-read">Read article →</div>
       </a>"""
         )
+    post_count = len(posts)
+    latest = html.escape(posts[0]["date"]) if posts else "n/a"
     body = f"""    <section class="hero">
+      <div class="hero-kicker">Community Journal</div>
       <h1>Bagakit Engineering Blog</h1>
       <p>Notes on skill evolution, delivery systems, and agent engineering.</p>
+      <div class="hero-meta">
+        <span class="hero-chip">Posts: {post_count}</span>
+        <span class="hero-chip">Latest: {latest}</span>
+      </div>
     </section>
     <section class="post-list">
 {chr(10).join(cards) if cards else "      <p>No posts yet.</p>"}
@@ -268,14 +476,16 @@ def build_posts(output_dir: Path, posts: list[dict[str, str]]) -> None:
         if post["source_link"]:
             source_link = html.escape(post["source_link"])
             source_html = f'<a href="{source_link}">Markdown source</a>'
-        body = f"""    <div class="topbar">
+        body = f"""    <div class="article-shell fade-rise">
+    <div class="topbar">
       <a href="../../">← Back to blog</a>
       <span>{date_text}</span>
       {source_html}
     </div>
     <article class="article">
       {post["article_html"]}
-    </article>"""
+    </article>
+    </div>"""
         (post_dir / "index.html").write_text(
             page_shell(title, body, "../../assets/style.css"),
             encoding="utf-8",
