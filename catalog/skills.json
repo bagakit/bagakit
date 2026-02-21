@@ -30,11 +30,25 @@
       "has_openai_agent": true
     },
     {
+      "id": "bagakit-git-commit-spec",
+      "path": "skills/bagakit-git-commit-spec",
+      "repo": "../bagakit-git-commit-spec",
+      "branch": "main",
+      "commit": "d950581e2e5ab5ee6b4a5f01f74fffdd419e6c50",
+      "dirty": false,
+      "required_files": {
+        "SKILL.md": true,
+        "SKILL_PAYLOAD.json": true,
+        "scripts_dev/test.sh": true
+      },
+      "has_openai_agent": true
+    },
+    {
       "id": "bagakit-living-docs",
       "path": "skills/bagakit-living-docs",
       "repo": "git@github.com:bagakit/bagakit-living-docs.git",
       "branch": "main",
-      "commit": "a73bf49e4db172f421e425f9aa7485766c6348e1",
+      "commit": "7ba980fe4438ea06e798b7af45839fa6cf48f7c1",
       "dirty": false,
       "required_files": {
         "SKILL.md": true,

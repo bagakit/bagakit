@@ -18,3 +18,7 @@
 	path = skills/bagakit-brainstorm
 	url = git@github.com:bagakit/bagakit-brainstorm.git
 	branch = main
+[submodule "skills/bagakit-git-commit-spec"]
+	path = skills/bagakit-git-commit-spec
+	url = ../bagakit-git-commit-spec
+	branch = main

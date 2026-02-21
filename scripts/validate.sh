@@ -47,6 +47,7 @@ from pathlib import Path
 root = Path.cwd()
 catalog = json.loads((root / "catalog" / "skills.json").read_text(encoding="utf-8"))
 profiles_file = root / "catalog" / "delivery-profiles.json"
+layering_file = root / "catalog" / "skill-layering.json"
 errors: list[str] = []
 warnings: list[str] = []
 
@@ -56,10 +57,21 @@ if not profiles_file.is_file():
 else:
     profiles_payload = json.loads(profiles_file.read_text(encoding="utf-8"))
 
+if not layering_file.is_file():
+    errors.append(f"Missing skill layering file: {layering_file.relative_to(root)}")
+    layering_payload = {}
+else:
+    layering_payload = json.loads(layering_file.read_text(encoding="utf-8"))
+
 profiles = profiles_payload.get("profiles", [])
 if not isinstance(profiles, list):
     errors.append("catalog/delivery-profiles.json: 'profiles' must be a list")
     profiles = []
+
+layering = layering_payload.get("skills", [])
+if not isinstance(layering, list):
+    errors.append("catalog/skill-layering.json: 'skills' must be a list")
+    layering = []
 
 profile_map: dict[str, dict] = {}
 for item in profiles:
@@ -74,6 +86,32 @@ for item in profiles:
         errors.append(f"catalog/delivery-profiles.json: duplicated profile id: {skill_id}")
         continue
     profile_map[skill_id] = item
+
+layer_map: dict[str, dict] = {}
+valid_layers = {"macro-process", "macro-tool", "micro-pack"}
+for item in layering:
+    if not isinstance(item, dict):
+        errors.append("catalog/skill-layering.json: each skill entry must be an object")
+        continue
+    skill_id = item.get("id")
+    if not isinstance(skill_id, str) or not skill_id.strip():
+        errors.append("catalog/skill-layering.json: skill entry is missing non-empty 'id'")
+        continue
+    if skill_id in layer_map:
+        errors.append(f"catalog/skill-layering.json: duplicated skill id: {skill_id}")
+        continue
+    layer = item.get("layer")
+    if not isinstance(layer, str) or layer not in valid_layers:
+        errors.append(
+            f"{skill_id}: layering.layer must be one of {sorted(valid_layers)}"
+        )
+    group = item.get("group")
+    if not isinstance(group, str) or not group.strip():
+        errors.append(f"{skill_id}: layering.group is required")
+    tier = item.get("tier")
+    if not isinstance(tier, str) or not tier.strip():
+        errors.append(f"{skill_id}: layering.tier is required")
+    layer_map[skill_id] = item
 
 def non_empty_string(profile: dict, key: str, label: str, skill_id: str) -> None:
     value = profile.get(key)
@@ -111,6 +149,9 @@ for item in catalog.get("skills", []):
         errors.append(f"Missing delivery profile for {item['id']}")
         continue
 
+    if item["id"] not in layer_map:
+        errors.append(f"Missing skill layering entry for {item['id']}")
+
     non_empty_string(profile, "archetype", "archetype", item["id"])
     non_empty_string(profile, "default_mode", "default_mode", item["id"])
     non_empty_list_of_strings(profile, "system_routes", "system_routes (>=1)", item["id"], min_len=1)
@@ -129,6 +170,10 @@ catalog_ids = {item["id"] for item in catalog.get("skills", []) if isinstance(it
 for profile_id in profile_map:
     if profile_id not in catalog_ids:
         warnings.append(f"Delivery profile has unknown skill id: {profile_id}")
+
+for layer_id in layer_map:
+    if layer_id not in catalog_ids:
+        warnings.append(f"Skill layering has unknown skill id: {layer_id}")
 
 if errors:
     print("Catalog validation failed:")

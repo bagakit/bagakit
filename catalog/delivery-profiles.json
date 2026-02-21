@@ -41,6 +41,26 @@
       ]
     },
     {
+      "id": "bagakit-git-commit-spec",
+      "archetype": "operational-quality-tool",
+      "deliverable_classes": {
+        "action_handoff": "Atomic commit splits and spec-style commit messages with traceable evidence.",
+        "memory_handoff": "Session memory under .bagakit/commit-spec/<session>/memory.md (or living-docs inbox when available).",
+        "archive": "Archive record under .bagakit/commit-spec/<session>/archive.md with commit hashes/check evidence."
+      },
+      "default_mode": "Operate standalone in current Git repository and emit split/message/archive artifacts locally.",
+      "system_routes": [
+        "bagakit-feat-task-harness (optional task commit flow linkage)",
+        "openspec (optional change context linkage)",
+        "bagakit-living-docs (optional inbox/memory deposition)"
+      ],
+      "archive_gate": [
+        "Action handoff destination is explicit (branch/commit range).",
+        "Memory handoff destination is explicit (or none rationale).",
+        "Archive output records commit hashes and validation evidence."
+      ]
+    },
+    {
       "id": "bagakit-living-docs",
       "archetype": "memory-and-governance",
       "deliverable_classes": {

@@ -9,6 +9,19 @@ Meta repository that composes Bagakit skills as git submodules.
 - This repository only orchestrates versions and validation.
 - Every submodule skill must publish a delivery profile (deliverables/default/adapters/archive gate).
 
+## Capability Layering
+
+This repo now uses two macro layers for core onboarding:
+
+- `macro-process`: orchestration/governance workflows (for example `bagakit-long-run`, `bagakit-living-docs`).
+- `macro-tool`: cross-project operational tools (for example `bagakit-git-commit-spec`).
+
+Micro-level skills should not be onboarded as one-repo-per-skill in this core repository.
+Instead, group them into opt-in domain packs (for example language/framework packs) and manage them outside `bagakit/skills`.
+
+Layer metadata is tracked in:
+- `catalog/skill-layering.json`
+
 ## Repository Tiers
 
 Bagakit skill repositories are split by governance scope, not by implementation language:
@@ -29,6 +42,7 @@ Quick placement rule:
 - `skills/*`: skill repositories as git submodules.
 - `catalog/skills.json`: generated index (repo, commit, branch, required files).
 - `catalog/delivery-profiles.json`: per-skill delivery profile contract.
+- `catalog/skill-layering.json`: per-skill layer/group classification.
 - `docs/skill-development.md`: BAGAKIT skill development baseline.
 - `docs/skill-delivery-profiles.md`: examples of per-skill output/archive design.
 - `scripts/install-bagakit-skills.sh`: public installer entry.

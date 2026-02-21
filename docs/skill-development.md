@@ -30,6 +30,19 @@ Core admission checklist (all should be true):
 
 If any checklist item fails, route to a Domain Pack or Experimental repository.
 
+## 0.2) Capability Layering Policy (Macro vs Micro)
+
+Core meta-repo onboarding must also satisfy capability layering:
+
+- `macro-process`: foundation process drivers/governance loops.
+- `macro-tool`: foundation operational tools used across many projects.
+- `micro-pack`: task/domain-specific skills; must be grouped by domain pack, not one repository per micro skill in core.
+
+Required policy:
+- Core (`bagakit/skills`) may host `macro-process` and `macro-tool` skills.
+- `micro-pack` skills should be hosted in separate opt-in repositories and aggregated by group.
+- Keep layer metadata in `catalog/skill-layering.json` and keep it synchronized with catalog/profile updates.
+
 ## 1) Standalone-First Skills (No Hard External Dependency)
 
 Skills MUST be independently usable without requiring external ecosystems (for example OpenSpec or any other non-BAGAKIT system).
