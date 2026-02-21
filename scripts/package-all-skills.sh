@@ -90,6 +90,80 @@ if ! command -v unzip >/dev/null 2>&1; then
   exit 1
 fi
 
+payload_entries() {
+  local payload_file="$1"
+  python3 - "$payload_file" <<'PY'
+import json
+import sys
+from pathlib import PurePosixPath
+
+payload_path = sys.argv[1]
+with open(payload_path, "r", encoding="utf-8") as fh:
+    data = json.load(fh)
+
+if data.get("version") != 1:
+    raise SystemExit("SKILL_PAYLOAD.json version must be 1")
+
+include = data.get("include")
+if not isinstance(include, list) or not include:
+    raise SystemExit("SKILL_PAYLOAD.json include must be a non-empty array")
+
+seen = set()
+normalized = []
+for raw in include:
+    if not isinstance(raw, str) or not raw.strip():
+        raise SystemExit("SKILL_PAYLOAD.json include entries must be non-empty strings")
+    path = PurePosixPath(raw)
+    if path.is_absolute():
+        raise SystemExit(f"SKILL_PAYLOAD.json include path must be relative: {raw}")
+    if ".." in path.parts:
+        raise SystemExit(f"SKILL_PAYLOAD.json include path traversal is not allowed: {raw}")
+    value = path.as_posix()
+    if value in seen:
+        continue
+    seen.add(value)
+    normalized.append(value)
+
+if "SKILL.md" not in seen:
+    raise SystemExit("SKILL_PAYLOAD.json include must contain SKILL.md")
+
+for item in normalized:
+    print(item)
+PY
+}
+
+copy_runtime_payload() {
+  local source="$1"
+  local target="$2"
+  local skill="$3"
+  local payload_file="$source/SKILL_PAYLOAD.json"
+  local entry
+
+  if [[ ! -f "$payload_file" ]]; then
+    echo "Missing SKILL_PAYLOAD.json in packaged archive for $skill" >&2
+    return 1
+  fi
+
+  while IFS= read -r entry; do
+    [[ -n "$entry" ]] || continue
+    local src_path="$source/$entry"
+    local dest_path="$target/$entry"
+
+    if [[ ! -e "$src_path" ]]; then
+      echo "Payload entry missing in archive for $skill: $entry" >&2
+      return 1
+    fi
+
+    if [[ -d "$src_path" ]]; then
+      mkdir -p "$dest_path"
+      cp -R "$src_path"/. "$dest_path"/
+    else
+      mkdir -p "$(dirname "$dest_path")"
+      cp -f "$src_path" "$dest_path"
+    fi
+  done < <(payload_entries "$payload_file")
+}
+
 prepare_manual_dir() {
   local archive="$1"
   local skill="$2"
@@ -111,7 +185,7 @@ prepare_manual_dir() {
     echo "warn: expanded payload is empty for $skill ($archive)" >&2
     return
   fi
-  cp -R "$source"/. "$target"/
+  copy_runtime_payload "$source" "$target" "$skill"
   manual_dir_count=$((manual_dir_count + 1))
 }
 
