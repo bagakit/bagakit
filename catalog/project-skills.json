@@ -1,4 +1,14 @@
 {
   "schema_version": "1.0.0",
-  "project_skills": []
+  "project_skills": [
+    {
+      "id": "bagakit-paperwork-technical-writing",
+      "project": "bagakit-paperwork",
+      "submodule_path": "projects/bagakit-paperwork",
+      "skill_path": "bagakit-paperwork-technical-writing",
+      "layer": "micro-pack",
+      "group": "project-bagakit-paperwork",
+      "tier": "domain-pack"
+    }
+  ]
 }
