@@ -34,7 +34,7 @@
       "path": "skills/bagakit-git-commit-spec",
       "repo": "../bagakit-git-commit-spec",
       "branch": "main",
-      "commit": "d950581e2e5ab5ee6b4a5f01f74fffdd419e6c50",
+      "commit": "95a4bd85bf6548efb3701be00490534396647095",
       "dirty": false,
       "required_files": {
         "SKILL.md": true,
