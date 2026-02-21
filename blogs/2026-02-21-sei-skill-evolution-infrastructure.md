@@ -182,3 +182,31 @@
 同样重要的是，这条路径以“先能评估和迭代自己”为入口条件。没有这个入口条件，SEI 只会停留在口号层。
 
 当技能体系进入长期维护周期，真正决定上限的不是模板数量，而是 SEI 的质量。
+
+## 过程追加：用 `bagakit-git-commit-spec` 给自己做一次自举提交
+
+这次我们把 “commit 规范” 技能本身当成演示对象，按它定义的闭环流程完成一次真实提交，目的是验证规则不是停留在文档，而是能被工具链强制执行。
+
+执行顺序如下（在 `bagakit-git-commit-spec` 仓库）：
+
+1. 初始化会话并生成工件目录：
+   `sh scripts/bagakit-git-commit-spec.sh init --root . --topic "self-host closure gates and evidence" --install-hooks no`
+2. 生成 split inventory：
+   `sh scripts/bagakit-git-commit-spec.sh inventory --root . --dir .bagakit/commit-spec/2026-02-21-self-host-closure-gates-and-evidence`
+3. 生成并 lint 提交信息（frontmatter + GFM sections）：
+   `sh scripts/bagakit-git-commit-spec.sh draft-message ...`
+   `sh scripts/bagakit-git-commit-spec.sh lint-message --message <draft-file>`
+4. 执行 gate 验证：
+   `bash scripts_dev/test.sh`
+   `sh ../bagakit-skill-maker/scripts/bagakit_skill_maker.sh validate --skill-dir .`
+5. 用草拟 message 直接提交：
+   `git commit -F .bagakit/commit-spec/2026-02-21-self-host-closure-gates-and-evidence/draft-refactor-commit-spec.txt`
+6. 写入 archive 完成证据（强制 commit + check evidence）：
+   `sh scripts/bagakit-git-commit-spec.sh archive --root . --dir ... --action-dest "git:main" --memory-dest ... --commit 9ccb706 --check-evidence "..."`
+
+本次自举提交 hash：`9ccb706`
+
+这次过程验证了两个关键点已经从“建议”升级为“硬门禁”：
+
+- `lint-message` 会强校验 schema 关键字段与一致性（如 `kind/generated_at/session/module_count`）。
+- `archive` 必须显式提供 commit hash 与 check evidence，避免“最近几条提交”这类不确定归档。
