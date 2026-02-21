@@ -63,12 +63,12 @@ if ! git rev-parse --verify -q "$BASE_REF" >/dev/null; then
   exit 1
 fi
 
-SUBMODULES=()
+SKILL_PATHS=()
 while IFS= read -r path; do
-  SUBMODULES+=("$path")
-done < <(submodule_paths)
-if [[ "${#SUBMODULES[@]}" -eq 0 ]]; then
-  echo "No skill submodules found"
+  SKILL_PATHS+=("$path")
+done < <(skill_paths)
+if [[ "${#SKILL_PATHS[@]}" -eq 0 ]]; then
+  echo "No skill paths found"
   exit 0
 fi
 
@@ -80,8 +80,8 @@ done < <(git diff --name-only "$BASE_REF...HEAD")
 tmp_changed_skills="$(mktemp -t bagakit-changed-skills.XXXXXX)"
 trap 'rm -f "$tmp_changed_skills"' EXIT
 for path in "${CHANGED_PATHS[@]}"; do
-  for skill_path in "${SUBMODULES[@]}"; do
-    if [[ "$path" == "$skill_path" ]] || [[ "$path" == "$skill_path/"* ]]; then
+  for skill_path in "${SKILL_PATHS[@]}"; do
+    if [[ "$path" == "$skill_path" ]] || [[ "$path" == "$skill_path/"* ]] || [[ "$skill_path" == "$path/"* ]]; then
       printf "%s\n" "$skill_path" >>"$tmp_changed_skills"
     fi
   done
@@ -97,7 +97,7 @@ while IFS= read -r path; do
   CHANGED_SKILLS+=("$path")
 done < <(sort -u "$tmp_changed_skills")
 
-echo "Changed skill submodules (base=$BASE_REF):"
+echo "Changed skill paths (base=$BASE_REF):"
 for path in "${CHANGED_SKILLS[@]}"; do
   echo "- $path"
 done
@@ -113,8 +113,11 @@ for path in "${CHANGED_SKILLS[@]}"; do
     if [[ -x "$ROOT/$path/scripts_dev/test.sh" ]]; then
       (cd "$ROOT/$path" && ./scripts_dev/test.sh)
     else
-      echo "Missing executable test script: $path/scripts_dev/test.sh" >&2
-      exit 1
+      if [[ "$path" == skills/* && "$path" != skills/*/* ]]; then
+        echo "Missing executable test script: $path/scripts_dev/test.sh" >&2
+        exit 1
+      fi
+      echo "warn: optional test script missing for project skill path: $path/scripts_dev/test.sh"
     fi
   fi
 done

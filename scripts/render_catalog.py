@@ -54,7 +54,10 @@ def list_submodules() -> list[tuple[str, str]]:
     for line in raw.splitlines():
         key, path = line.split(maxsplit=1)
         name = key[len("submodule.") : -len(".path")]
-        modules.append((name, path.strip()))
+        rel_path = path.strip()
+        root_path = ROOT / rel_path
+        if (root_path / "SKILL.md").is_file() and (root_path / "SKILL_PAYLOAD.json").is_file():
+            modules.append((name, rel_path))
 
     modules.sort(key=lambda item: item[1])
     return modules

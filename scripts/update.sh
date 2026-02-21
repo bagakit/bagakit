@@ -14,7 +14,7 @@ Usage: scripts/update.sh [--remote] [--skill <skill-id-or-path>]
 
 Options:
   --remote          Update tracked submodules to latest origin/<branch>.
-  --skill <name>    Limit update to one skill (id or full submodule path).
+  --skill <name>    Limit update to one submodule (id or full submodule path).
   --help            Show this help message.
 USAGE
 }
@@ -27,7 +27,7 @@ while [[ $# -gt 0 ]]; do
       ;;
     --skill)
       [[ $# -ge 2 ]] || { echo "--skill requires a value" >&2; exit 1; }
-      TARGET_PATH="$(resolve_skill_path "$2")"
+      TARGET_PATH="$(resolve_submodule_path "$2")"
       shift 2
       ;;
     --help|-h)

@@ -186,8 +186,61 @@ for warning in warnings:
     print(f"warn: {warning}")
 PY
 
+python3 - <<'PY'
+import json
+import sys
+from pathlib import Path
+
+root = Path.cwd()
+catalog_path = root / "catalog" / "project-skills.json"
+if not catalog_path.is_file():
+    print(f"warn: optional project skill catalog not found: {catalog_path.relative_to(root)}")
+    raise SystemExit(0)
+
+data = json.loads(catalog_path.read_text(encoding="utf-8"))
+errors: list[str] = []
+entries = data.get("project_skills", [])
+if not isinstance(entries, list):
+    errors.append("catalog/project-skills.json: 'project_skills' must be a list")
+else:
+    ids: set[str] = set()
+    for item in entries:
+        if not isinstance(item, dict):
+            errors.append("catalog/project-skills.json: each entry must be an object")
+            continue
+        skill_id = item.get("id")
+        project = item.get("project")
+        submodule_path = item.get("submodule_path")
+        skill_path = item.get("skill_path")
+        for key, value in (
+            ("id", skill_id),
+            ("project", project),
+            ("submodule_path", submodule_path),
+            ("skill_path", skill_path),
+        ):
+            if not isinstance(value, str) or not value.strip():
+                errors.append(f"catalog/project-skills.json: missing {key}")
+        if isinstance(skill_id, str):
+            if skill_id in ids:
+                errors.append(f"catalog/project-skills.json: duplicate id: {skill_id}")
+            ids.add(skill_id)
+
+if errors:
+    print("Project skill catalog validation failed:")
+    for err in errors:
+        print(f"- {err}")
+    raise SystemExit(1)
+
+print(f"Project skill catalog validation passed for {len(entries)} project skill entries")
+PY
+
 while IFS= read -r path; do
   echo "Validating $path"
+
+  if [[ ! -d "$ROOT/$path" ]]; then
+    echo "Missing skill path: $path" >&2
+    exit 1
+  fi
 
   if compgen -G "$ROOT/$path/scripts/*.py" > /dev/null; then
     python3 -m py_compile "$ROOT/$path"/scripts/*.py
@@ -197,10 +250,13 @@ while IFS= read -r path; do
     if [[ -x "$ROOT/$path/scripts_dev/test.sh" ]]; then
       (cd "$ROOT/$path" && ./scripts_dev/test.sh)
     else
-      echo "Missing executable test script: $path/scripts_dev/test.sh" >&2
-      exit 1
+      if [[ "$path" == skills/* && "$path" != skills/*/* ]]; then
+        echo "Missing executable test script: $path/scripts_dev/test.sh" >&2
+        exit 1
+      fi
+      echo "warn: optional test script missing for project skill path: $path/scripts_dev/test.sh"
     fi
   fi
-done < <(submodule_paths)
+done < <(skill_paths)
 
 echo "Validation complete."

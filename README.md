@@ -8,6 +8,7 @@ Meta repository that composes Bagakit skills as git submodules.
 - Cross-skill exchange is optional and contract-driven (schema/rules), never direct flow coupling.
 - This repository only orchestrates versions and validation.
 - Every submodule skill must publish a delivery profile (deliverables/default/adapters/archive gate).
+- Project-scoped skills can be hosted under project submodules and packaged via explicit project-skill registry entries.
 
 ## Capability Layering
 
@@ -40,13 +41,17 @@ Quick placement rule:
 ## Layout
 
 - `skills/*`: skill repositories as git submodules.
+- `projects/*`: project repositories as git submodules (optional, for project-scoped skills).
 - `catalog/skills.json`: generated index (repo, commit, branch, required files).
 - `catalog/delivery-profiles.json`: per-skill delivery profile contract.
 - `catalog/skill-layering.json`: per-skill layer/group classification.
+- `catalog/project-skills.json`: project-scoped skill routing (submodule path + skill root path).
 - `docs/skill-development.md`: BAGAKIT skill development baseline.
 - `docs/skill-delivery-profiles.md`: examples of per-skill output/archive design.
+- `docs/project-skill-submodule-packaging.md`: onboarding flow for project-scoped skill submodules.
 - `scripts/install-bagakit-skills.sh`: public installer entry.
 - `scripts/update.sh`: sync or bump submodules.
+- `scripts/add-project-skill-submodule.sh`: add/register project-scoped skill entries.
 - `scripts/validate-changed-skills.sh`: run regression only for changed skill submodules.
 - `scripts/validate.sh`: validate catalog plus run each skill's tests.
 - `scripts/package-all-skills.sh`: build all submodule skill artifacts into `dist/`.
@@ -117,6 +122,17 @@ python3 -m http.server --directory site 8000
 # Package one skill only.
 ./scripts/package-all-skills.sh --skill bagakit-long-run --no-clean
 # or: make package-one SKILL=bagakit-long-run
+
+# Add/register a project-scoped skill (project submodule + catalog mapping).
+make project-skill-add \
+  PROJECT=bagakit-paperwork \
+  REPO=git@github.com:bagakit/bagakit-paperwork.git \
+  SKILL_ID=bagakit-paperwork-technical-writing \
+  SKILL_PATH=bagakit-paperwork-technical-writing
+
+# Package a project-scoped skill by id.
+./scripts/package-all-skills.sh --skill bagakit-paperwork-technical-writing --no-clean
+# or: make package-one SKILL=bagakit-paperwork-technical-writing
 
 # Create release commit plus tag.
 ./scripts/release.sh v2026.02.20

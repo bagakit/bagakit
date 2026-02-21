@@ -77,7 +77,7 @@ resolve_targets() {
   if [[ -n "$SKILL_FILTER" ]]; then
     resolve_skill_path "$SKILL_FILTER"
   else
-    submodule_paths
+    skill_paths
   fi
 }
 

@@ -4,7 +4,7 @@ ROOT := $(shell cd "$(dir $(lastword $(MAKEFILE_LIST)))" && pwd)
 SCRIPTS := $(ROOT)/scripts
 DIST_DIR ?= dist
 
-.PHONY: help package-all package-one validate validate-fast render-catalog update update-remote release clean
+.PHONY: help package-all package-one validate validate-fast render-catalog update update-remote release project-skill-add clean
 
 help:
 	@echo "Targets:"
@@ -15,6 +15,7 @@ help:
 	@echo "  make render-catalog              # regenerate catalog/skills.json"
 	@echo "  make update                      # sync submodules to pinned commits"
 	@echo "  make update-remote [SKILL=name]  # bump all (or one) submodule to origin/main"
+	@echo "  make project-skill-add PROJECT=<project> REPO=<url> SKILL_ID=<id> SKILL_PATH=<path> [REGISTER_ONLY=1]"
 	@echo "  make release VERSION=vYYYY.MM.DD # run release workflow"
 	@echo "  make clean                       # remove dist/"
 
@@ -46,6 +47,28 @@ update-remote:
 	else \
 		"$(SCRIPTS)/update.sh" --remote; \
 	fi
+
+project-skill-add:
+	@if [[ -z "$(PROJECT)" || -z "$(SKILL_ID)" || -z "$(SKILL_PATH)" ]]; then \
+		echo "Usage: make project-skill-add PROJECT=<project> REPO=<url> SKILL_ID=<id> SKILL_PATH=<path> [REGISTER_ONLY=1]" >&2; \
+		exit 1; \
+	fi
+	@args=(--project "$(PROJECT)" --skill-id "$(SKILL_ID)" --skill-path "$(SKILL_PATH)"); \
+	if [[ "$(REGISTER_ONLY)" == "1" ]]; then \
+		args+=(--register-only); \
+	else \
+		if [[ -z "$(REPO)" ]]; then \
+			echo "REPO is required unless REGISTER_ONLY=1" >&2; \
+			exit 1; \
+		fi; \
+		args+=(--repo "$(REPO)"); \
+	fi; \
+	if [[ -n "$(SUBMODULE_PATH)" ]]; then args+=(--submodule-path "$(SUBMODULE_PATH)"); fi; \
+	if [[ -n "$(BRANCH)" ]]; then args+=(--branch "$(BRANCH)"); fi; \
+	if [[ -n "$(LAYER)" ]]; then args+=(--layer "$(LAYER)"); fi; \
+	if [[ -n "$(GROUP)" ]]; then args+=(--group "$(GROUP)"); fi; \
+	if [[ -n "$(TIER)" ]]; then args+=(--tier "$(TIER)"); fi; \
+	"$(SCRIPTS)/add-project-skill-submodule.sh" "$${args[@]}"
 
 release:
 	@if [[ -z "$(VERSION)" ]]; then \
