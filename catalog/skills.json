@@ -7,7 +7,7 @@
       "repo": "git@github.com:bagakit/bagakit-brainstorm.git",
       "branch": "main",
       "commit": "08899eb8623ffe138d82b8783d181f37eda644a3",
-      "dirty": false,
+      "dirty": true,
       "required_files": {
         "SKILL.md": true,
         "SKILL_PAYLOAD.json": true,
@@ -20,8 +20,8 @@
       "path": "skills/bagakit-feat-task-harness",
       "repo": "git@github.com:bagakit/bagakit-feat-task-harness.git",
       "branch": "main",
-      "commit": "4f82a96f6d5ae5701173674e4715b0780744a9fe",
-      "dirty": false,
+      "commit": "668e303a6e307c48843360b4e8fd994617b4790d",
+      "dirty": true,
       "required_files": {
         "SKILL.md": true,
         "SKILL_PAYLOAD.json": true,
@@ -34,7 +34,7 @@
       "path": "skills/bagakit-git-commit-spec",
       "repo": "../bagakit-git-commit-spec",
       "branch": "main",
-      "commit": "95a4bd85bf6548efb3701be00490534396647095",
+      "commit": "c4fc5b161fac6c1139a4567153e37b32786223b5",
       "dirty": false,
       "required_files": {
         "SKILL.md": true,
@@ -48,8 +48,8 @@
       "path": "skills/bagakit-living-docs",
       "repo": "git@github.com:bagakit/bagakit-living-docs.git",
       "branch": "main",
-      "commit": "7ba980fe4438ea06e798b7af45839fa6cf48f7c1",
-      "dirty": false,
+      "commit": "e4d51df2306553661e88319b82c842fd380929de",
+      "dirty": true,
       "required_files": {
         "SKILL.md": true,
         "SKILL_PAYLOAD.json": true,
@@ -62,8 +62,8 @@
       "path": "skills/bagakit-long-run",
       "repo": "git@github.com:bagakit/bagakit-long-run.git",
       "branch": "main",
-      "commit": "ecb6c8799e440bf6207b307278d45e160c55f1f8",
-      "dirty": false,
+      "commit": "25bb97d105d567f2bf2a9d3dcd698c785696a020",
+      "dirty": true,
       "required_files": {
         "SKILL.md": true,
         "SKILL_PAYLOAD.json": true,
@@ -76,7 +76,7 @@
       "path": "skills/bagakit-skill-maker",
       "repo": "git@github.com:bagakit/bagakit-skill-maker.git",
       "branch": "main",
-      "commit": "c3fc17e80d43f5d3bb261effe56c69782c3db47a",
+      "commit": "feb2cc480f5023e3ee07bf229d3c0c6ccc923947",
       "dirty": false,
       "required_files": {
         "SKILL.md": true,
