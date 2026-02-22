@@ -54,7 +54,7 @@ Quick placement rule:
 - `scripts/add-project-skill-submodule.sh`: add/register project-scoped skill entries.
 - `scripts/validate-changed-skills.sh`: run regression only for changed skill submodules.
 - `scripts/validate.sh`: validate catalog plus run each skill's tests.
-- `scripts/package-all-skills.sh`: build all submodule skill artifacts into `dist/`.
+- `scripts/package-all-skills.sh`: build skill artifacts from submodule or local source (`dist/` or `dist_local/`).
 - `scripts/release.sh`: validate, refresh catalog, commit pointers, tag a release.
 - `Makefile`: ergonomic wrappers for validate/update/package/release flows.
 
@@ -79,6 +79,30 @@ cd skills
 git submodule update --init --recursive
 ./scripts/validate.sh
 ```
+
+## Bootstrap-First Usage (Recommended)
+
+For day-to-day install/update/distribution, prefer `bagakit-bootstrap` as the single entrypoint:
+
+```bash
+# Discover available skills from remote catalog.
+sh scripts/bagakit-bootstrap.sh skills --org bagakit --ref main
+
+# If local source exists, keep destination always latest via symlink.
+sh scripts/bagakit-bootstrap.sh update \
+  --source local-link \
+  --local-source-root /path/to/local-skills-root \
+  --dest ~/.codex/skills \
+  --all
+
+# If local source does not exist, pull from remote.
+sh scripts/bagakit-bootstrap.sh update \
+  --source remote \
+  --dest ~/.codex/skills \
+  --all
+```
+
+`bagakit/skills` remains the catalog + packaging/control-plane repository (submodule pointers, validation, release).
 
 ## Engineering Blog (GitHub Pages)
 
@@ -112,16 +136,25 @@ python3 -m http.server --directory site 8000
 # Validate only changed skill submodules against origin/main.
 ./scripts/validate-changed-skills.sh --base-ref origin/main
 
-# Package all skills to dist/.
+# Package all skills from submodules to dist/.
 ./scripts/package-all-skills.sh
 # or: make package-all
 # Output includes both:
 # - dist/<skill>.skill
 # - dist/<skill>/ (expanded, cleaned payload for manual install)
 
-# Package one skill only.
+# Package all skills from local workspace repos to dist_local/.
+./scripts/package-all-skills.sh --source local
+# or: make package-all-local
+# (equivalent to: make package-all PACKAGE_SOURCE=local)
+
+# Package one skill only (submodule source).
 ./scripts/package-all-skills.sh --skill bagakit-long-run --no-clean
 # or: make package-one SKILL=bagakit-long-run
+
+# Package one skill from local workspace repo to dist_local/.
+./scripts/package-all-skills.sh --source local --skill bagakit-long-run --no-clean
+# or: make package-one-local SKILL=bagakit-long-run
 
 # Add/register a project-scoped skill (project submodule + catalog mapping).
 make project-skill-add \
