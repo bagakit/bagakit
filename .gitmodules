@@ -20,7 +20,7 @@
 	branch = main
 [submodule "skills/bagakit-git-commit-spec"]
 	path = skills/bagakit-git-commit-spec
-	url = ../bagakit-git-commit-spec
+	url = git@github.com:bagakit/bagakit-git-commit-spec.git
 	branch = main
 [submodule "projects/bagakit-paperwork"]
 	path = projects/bagakit-paperwork

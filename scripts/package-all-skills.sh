@@ -5,15 +5,18 @@ set -euo pipefail
 source "$(cd "$(dirname "$0")" && pwd)/common.sh"
 
 ROOT="$(repo_root)"
-DIST_DIR="$ROOT/dist"
+WORKSPACE_ROOT="$(cd "$ROOT/.." && pwd)"
+DIST_DIR=""
 SKILL_FILTER=""
 CLEAN_DIST=1
+SOURCE_MODE="submodule"
 
 usage() {
   cat <<'USAGE'
-Usage: scripts/package-all-skills.sh [--dist <dir>] [--skill <name-or-path>] [--no-clean]
+Usage: scripts/package-all-skills.sh [--source <submodule|local>] [--dist <dir>] [--skill <name-or-path>] [--no-clean]
 
 Options:
+  --source <mode>  Packaging source. "submodule" (default) or "local".
   --dist <dir>   Output directory. Relative paths are resolved from repo root.
   --skill <id>   Package only one skill (submodule path or basename).
   --no-clean     Do not clear dist before packaging.
@@ -29,6 +32,22 @@ while [[ $# -gt 0 ]]; do
         exit 1
       }
       DIST_DIR="$2"
+      shift 2
+      ;;
+    --source)
+      [[ $# -ge 2 ]] || {
+        echo "Missing value for --source" >&2
+        exit 1
+      }
+      case "$2" in
+        submodule|local)
+          SOURCE_MODE="$2"
+          ;;
+        *)
+          echo "Unsupported --source mode: $2 (expected submodule or local)" >&2
+          exit 1
+          ;;
+      esac
       shift 2
       ;;
     --skill)
@@ -55,7 +74,13 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-if [[ "$DIST_DIR" != /* ]]; then
+if [[ -z "$DIST_DIR" ]]; then
+  if [[ "$SOURCE_MODE" == "local" ]]; then
+    DIST_DIR="$ROOT/dist_local"
+  else
+    DIST_DIR="$ROOT/dist"
+  fi
+elif [[ "$DIST_DIR" != /* ]]; then
   DIST_DIR="$ROOT/$DIST_DIR"
 fi
 
@@ -79,6 +104,42 @@ resolve_targets() {
   else
     skill_paths
   fi
+}
+
+resolve_source_skill_dir() {
+  local rel_path="$1"
+  local source_dir=""
+
+  if [[ "$SOURCE_MODE" == "submodule" ]]; then
+    source_dir="$ROOT/$rel_path"
+  else
+    case "$rel_path" in
+      skills/*)
+        local repo_name="${rel_path#skills/}"
+        repo_name="${repo_name%%/*}"
+        source_dir="$WORKSPACE_ROOT/$repo_name"
+        ;;
+      projects/*)
+        local remainder="${rel_path#projects/}"
+        local project_name="${remainder%%/*}"
+        local project_skill_rel="${remainder#*/}"
+        source_dir="$WORKSPACE_ROOT/$project_name"
+        if [[ "$project_skill_rel" != "$remainder" ]]; then
+          source_dir="$source_dir/$project_skill_rel"
+        fi
+        ;;
+      *)
+        source_dir=""
+        ;;
+    esac
+  fi
+
+  if [[ -z "$source_dir" || ! -d "$source_dir" ]]; then
+    echo "Missing skill source for $rel_path (mode=$SOURCE_MODE): $source_dir" >&2
+    return 1
+  fi
+
+  printf "%s\n" "$source_dir"
 }
 
 packaged_count=0
@@ -193,11 +254,11 @@ while IFS= read -r rel_path; do
   [[ -n "$rel_path" ]] || continue
   skill_count=$((skill_count + 1))
 
-  skill_dir="$ROOT/$rel_path"
+  skill_dir="$(resolve_source_skill_dir "$rel_path")"
   skill_name="$(basename "$rel_path")"
   skill_build_rel=".dist-build/$skill_name"
   skill_build_dir="$skill_dir/$skill_build_rel"
-  echo "Packaging $skill_name ($rel_path)"
+  echo "Packaging $skill_name ($rel_path -> $skill_dir)"
 
   if [[ ! -f "$skill_dir/Makefile" ]]; then
     echo "Missing Makefile: $rel_path/Makefile" >&2
@@ -210,7 +271,7 @@ while IFS= read -r rel_path; do
   if [[ -d "$skill_build_dir" ]]; then
     find "$skill_build_dir" -maxdepth 1 -type f -name "${skill_name}*.skill" -delete
   fi
-  if [[ -d "$ROOT/dist" ]]; then
+  if [[ "$SOURCE_MODE" == "submodule" && -d "$ROOT/dist" ]]; then
     find "$ROOT/dist" -maxdepth 1 -type f -name "${skill_name}*.skill" -delete
   fi
 
@@ -227,7 +288,7 @@ while IFS= read -r rel_path; do
   if [[ -d "$skill_dir/dist" ]]; then
     find "$skill_dir/dist" -maxdepth 1 -type f -name "*.skill" -newer "$stamp_file" | sort >> "$candidates_file"
   fi
-  if [[ -d "$ROOT/dist" ]]; then
+  if [[ "$SOURCE_MODE" == "submodule" && -d "$ROOT/dist" ]]; then
     find "$ROOT/dist" -maxdepth 1 -type f -name "*.skill" -newer "$stamp_file" | sort >> "$candidates_file"
   fi
   if [[ ! -s "$candidates_file" ]]; then
@@ -237,7 +298,7 @@ while IFS= read -r rel_path; do
     if [[ -d "$skill_dir/dist" ]]; then
       find "$skill_dir/dist" -maxdepth 1 -type f -name "${skill_name}*.skill" | sort >> "$candidates_file"
     fi
-    if [[ -d "$ROOT/dist" ]]; then
+    if [[ "$SOURCE_MODE" == "submodule" && -d "$ROOT/dist" ]]; then
       find "$ROOT/dist" -maxdepth 1 -type f -name "${skill_name}*.skill" | sort >> "$candidates_file"
     fi
   fi
@@ -265,7 +326,7 @@ while IFS= read -r rel_path; do
     if [[ "$artifact" == "$skill_build_dir"/* ]]; then
       rm -f "$artifact"
     fi
-    if [[ "$artifact" == "$ROOT"/dist/* && "$DIST_DIR" != "$ROOT/dist" ]]; then
+    if [[ "$SOURCE_MODE" == "submodule" && "$artifact" == "$ROOT"/dist/* && "$DIST_DIR" != "$ROOT/dist" ]]; then
       rm -f "$artifact"
     fi
   done < "$candidates_file"
@@ -285,7 +346,7 @@ while IFS= read -r rel_path; do
 done < <(resolve_targets)
 
 if [[ "$skill_count" -eq 0 ]]; then
-  echo "No submodule skills found to package." >&2
+  echo "No skills found to package." >&2
   exit 1
 fi
 
@@ -297,5 +358,6 @@ fi
 echo
 echo "Packaged $packaged_count artifact(s) from $skill_count skill(s)."
 echo "Prepared $manual_dir_count expanded skill directory(s)."
+echo "Source mode: $SOURCE_MODE"
 echo "Output: $DIST_DIR"
 echo "Manifest: $MANIFEST"

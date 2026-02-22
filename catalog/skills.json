@@ -32,7 +32,7 @@
     {
       "id": "bagakit-git-commit-spec",
       "path": "skills/bagakit-git-commit-spec",
-      "repo": "../bagakit-git-commit-spec",
+      "repo": "git@github.com:bagakit/bagakit-git-commit-spec.git",
       "branch": "main",
       "commit": "c4fc5b161fac6c1139a4567153e37b32786223b5",
       "dirty": false,
