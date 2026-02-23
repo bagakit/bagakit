@@ -100,10 +100,64 @@ MANIFEST="$DIST_DIR/manifest.txt"
 
 resolve_targets() {
   if [[ -n "$SKILL_FILTER" ]]; then
-    resolve_skill_path "$SKILL_FILTER"
+    if [[ "$SOURCE_MODE" == "local" ]]; then
+      resolve_local_skill_path "$SKILL_FILTER"
+    else
+      resolve_skill_path "$SKILL_FILTER"
+    fi
   else
-    skill_paths
+    if [[ "$SOURCE_MODE" == "local" ]]; then
+      local_skill_paths
+    else
+      skill_paths
+    fi
   fi
+}
+
+workspace_local_skill_paths() {
+  local dir name
+  while IFS= read -r -d '' dir; do
+    name="$(basename "$dir")"
+    if [[ -f "$dir/SKILL.md" && -f "$dir/SKILL_PAYLOAD.json" && -f "$dir/Makefile" ]]; then
+      printf "skills/%s\n" "$name"
+    fi
+  done < <(find "$WORKSPACE_ROOT" -mindepth 1 -maxdepth 1 -type d -name 'bagakit-*' -print0 | sort -z)
+}
+
+local_skill_paths() {
+  {
+    skill_paths
+    workspace_local_skill_paths
+  } | awk 'NF' | sort -u
+}
+
+resolve_local_skill_path() {
+  local wanted="$1"
+  local path
+  local matches=()
+  while IFS= read -r path; do
+    if [[ "$path" == "$wanted" ]] || [[ "$(basename "$path")" == "$wanted" ]]; then
+      matches+=("$path")
+    fi
+  done < <(local_skill_paths)
+
+  if [[ "${#matches[@]}" -eq 1 ]]; then
+    printf "%s\n" "${matches[0]}"
+    return 0
+  fi
+
+  if [[ "${#matches[@]}" -gt 1 ]]; then
+    {
+      echo "Ambiguous skill identifier: $wanted"
+      echo "Matches:"
+      printf -- "- %s\n" "${matches[@]}"
+      echo "Use full path (for example projects/<project>/<skill-dir>)."
+    } >&2
+    return 1
+  fi
+
+  echo "Unknown skill: $wanted" >&2
+  return 1
 }
 
 resolve_source_skill_dir() {
