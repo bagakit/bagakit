@@ -56,6 +56,8 @@ from silently reforming inside one new runtime unit.
 - the shared checked-in knowledge surface
 - the managed bootstrap reading surface
 - the path and root protocol for related systems
+- generated `must-sop.md` for maintenance-route guidance
+- reusable-items governance and starter catalogs inside the shared root
 - normalization, indexing, and recall over the shared knowledge surface
 
 It does not own:
@@ -63,9 +65,7 @@ It does not own:
 - research workspaces
 - task-level inbox or composition state
 - repository evolution memory
-- generated `must-sop.md`
-- repository-wide frontmatter governance for ordinary docs
-- reusable-items runtime behavior
+- mandatory repository-wide frontmatter governance for ordinary docs
 - learning-contract runtime behavior
 
 That split exists because `bagakit-living-docs` used to collapse too many jobs
@@ -80,9 +80,11 @@ re-absorbing the other runtime systems.
 - managed `AGENTS.md` bootstrap
 - progressive-loading `must-guidebook.md`
 - progressive-loading `must-authority.md`
+- generated `must-sop.md`
 - progressive-loading `must-recall.md`
 - shared knowledge normalization, indexing, recall, and reviewed ingestion
 - shared path protocol through `.bagakit/knowledge_conf.toml`
+- reusable-items governance and starter catalogs inside the shared root
 
 ### Moved Out
 
@@ -96,10 +98,9 @@ re-absorbing the other runtime systems.
 ### Removed From Core Contract
 
 - shared inbox to shared memory runtime
-- generated `must-sop.md`
 - mandatory frontmatter governance for ordinary docs
 - learning-contract exchange runtime
-- reusable-items runtime scaffolding
+- reusable-items search/runtime automation beyond governed shared pages
 
 These may still appear as ordinary host content or as part of another explicit
 skill contract.
@@ -188,16 +189,17 @@ Default pages:
   - shared reading map
 - `must-authority.md`
   - where truth lives and how to resolve conflicts
+- `must-sop.md`
+  - generated maintenance-route guidance from optional page frontmatter
 - `must-recall.md`
   - deterministic recall and quote-first workflow
 
 These pages inherit the useful loading behavior from old `must-*` without
 requiring `living-knowledge` to own every runtime surface.
 
-`must-sop.md` is intentionally not part of the default stable contract.
-If a repository wants maintenance-route guidance, it should express that as
-ordinary shared pages or through a future explicit generator contract owned by
-another skill.
+`must-sop.md` is part of the stable contract again.
+But it is generated from optional page metadata, not from mandatory
+repository-wide frontmatter enforcement.
 
 Rule:
 
@@ -236,7 +238,8 @@ Intended read path:
 1. `AGENTS.md`
 2. `<system_root>/must-guidebook.md`
 3. `<system_root>/must-authority.md`
-4. one topic page or directory under the shared root
+4. `<system_root>/must-sop.md` when the task needs maintenance-route guidance
+5. one topic page or directory under the shared root
 
 Recall rule:
 
@@ -266,6 +269,8 @@ Those systems may be inspected explicitly when the task actually needs them.
 - normalize shared path usage
 - ingest reviewed markdown into the shared knowledge root
 - rebuild shared guidebook indexes
+- rebuild `must-sop.md` from optional page frontmatter
+- scaffold reusable-items governance and starter catalogs inside the shared root
 
 It should not silently:
 
@@ -278,6 +283,26 @@ Those are now the job of peer systems plus explicit promotion decisions.
 Reviewed ingestion into the shared root is still allowed.
 What is disallowed is silently reintroducing a hidden shared inbox or reviewed
 memory runtime inside `living-knowledge`.
+
+## Reusable Items
+
+`living-knowledge` owns reusable-items as governed shared knowledge content.
+
+The stable entry surface is:
+
+- `<shared_root>/norms-maintaining-reusable-items.md`
+
+The default starter catalog is:
+
+- `<shared_root>/notes-reusable-items-knowledge.md`
+
+Other domain catalogs may be added as ordinary shared pages, for example:
+
+- `<shared_root>/notes-reusable-items-coding.md`
+- `<shared_root>/notes-reusable-items-design.md`
+- `<shared_root>/notes-reusable-items-writing.md`
+
+This is a content-governance capability, not a separate hidden runtime state.
 
 ## Related Runtime Surfaces
 

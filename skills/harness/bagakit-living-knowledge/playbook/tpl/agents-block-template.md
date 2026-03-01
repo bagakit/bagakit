@@ -10,6 +10,7 @@ Boot layer:
 
 - Read the resolved `must-guidebook.md` before relying on memory.
 - If a task needs shared knowledge rules, read `must-authority.md`.
+- If a task needs maintenance-route guidance or shared directives, read `must-sop.md`.
 - If a task needs prior decisions or facts, follow `must-recall.md`.
 - `AGENTS.md` is only the bootstrap layer; the shared checked-in knowledge root
   is configured in `.bagakit/knowledge_conf.toml`.
@@ -29,6 +30,8 @@ Substrate discipline:
 - Task-level composition/runtime belongs to `bagakit-skill-selector`.
 - Repository evolution memory belongs to `bagakit-skill-evolver`.
 - `living-knowledge` owns path protocol, normalization, indexing, and recall.
+- `living-knowledge` also owns generated `must-sop.md` and reusable-items
+  governance inside the shared knowledge root.
 
 Inspection helpers:
 

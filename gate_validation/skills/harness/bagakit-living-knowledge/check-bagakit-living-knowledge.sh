@@ -46,12 +46,17 @@ sh "$CMD" apply --root . >/dev/null
 test -f .bagakit/knowledge_conf.toml
 test -f docs/must-guidebook.md
 test -f docs/must-authority.md
+test -f docs/must-sop.md
 test -f docs/must-recall.md
+test -f docs/norms-maintaining-reusable-items.md
+test -f docs/notes-reusable-items-knowledge.md
 test -f .bagakit/living-knowledge/.generated/.gitignore
 grep -q "BAGAKIT:LIVING-KNOWLEDGE:START" .git/info/exclude
 grep -q "must-guidebook.md" AGENTS.md
 grep -q "must-authority.md" AGENTS.md
+grep -q "must-sop.md" AGENTS.md
 grep -q "must-recall.md" AGENTS.md
+grep -q "Maintaining Reusable Items" docs/norms-maintaining-reusable-items.md
 
 PATHS_OUT="$("$CMD" paths --root .)"
 grep -q "^shared_root: docs$" <<<"$PATHS_OUT"
@@ -61,10 +66,19 @@ grep -q "^evolver_root: .bagakit/evolver$" <<<"$PATHS_OUT"
 
 grep -q "docs" docs/must-guidebook.md
 grep -q ".bagakit/researcher" docs/must-authority.md
+grep -q "generated from optional frontmatter" docs/must-sop.md
 grep -q "recall search" docs/must-recall.md
 
 mkdir -p docs/notes
 cat > docs/notes/decision-shared-root.md <<'EOF'
+---
+title: Shared Root Decision
+sop:
+  - Review this note when changing the shared knowledge root.
+directives:
+  - Prefer repository-relative paths in follow-up edits.
+---
+
 # Shared Root Decision
 
 ## Summary
@@ -76,11 +90,14 @@ sh "$CMD" index --root . >/dev/null
 test -f .bagakit/living-knowledge/.generated/guidebook-map.md
 grep -q "docs/notes/decision-shared-root.md" .bagakit/living-knowledge/.generated/guidebook-map.md
 grep -q "docs/notes" docs/must-guidebook.md
+grep -q "### Shared Root Decision" docs/must-sop.md
+grep -q "Review this note when changing the shared knowledge root." docs/must-sop.md
+grep -q "Prefer repository-relative paths in follow-up edits." docs/must-sop.md
 
 SEARCH_OUT="$("$CMD" recall search --root . "shared checked-in knowledge root")"
 grep -q "docs/notes/decision-shared-root.md" <<<"$SEARCH_OUT"
 
-GET_OUT="$("$CMD" recall get --root . docs/notes/decision-shared-root.md --from 1 --lines 6)"
+GET_OUT="$("$CMD" recall get --root . docs/notes/decision-shared-root.md --from 1 --lines 16)"
 grep -q "^# Shared Root Decision$" <<<"$GET_OUT"
 
 AGENTS_OUT="$("$CMD" recall get --root . AGENTS.md --from 1 --lines 6)"
@@ -184,6 +201,15 @@ if git status --short | grep -q ".bagakit/living-knowledge/.generated"; then
   echo "generated helper outputs unexpectedly became visible in git status" >&2
   exit 1
 fi
+
+printf '\n<!-- drift -->\n' >> docs/must-sop.md
+if "$CMD" doctor --root . >"$TMP_DIR/drift.out" 2>"$TMP_DIR/drift.err"; then
+  echo "doctor unexpectedly accepted a drifted must-sop.md" >&2
+  exit 1
+fi
+grep -q "system page drifted from generated output" "$TMP_DIR/drift.err"
+sh "$CMD" index --root . >/dev/null
+sh "$CMD" doctor --root . >/dev/null
 
 git add -f .bagakit/living-knowledge/.generated/.gitignore
 if "$CMD" doctor --root . >"$TMP_DIR/tracked-generated.out" 2>"$TMP_DIR/tracked-generated.err"; then

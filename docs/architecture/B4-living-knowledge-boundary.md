@@ -23,16 +23,16 @@ That means it owns:
 - normalization, indexing, recall, and explicit reviewed ingestion into shared
   knowledge
 - progressive-loading system pages such as `must-guidebook.md`,
-  `must-authority.md`, and `must-recall.md`
+  `must-authority.md`, `must-sop.md`, and `must-recall.md`
+- reusable-items governance and starter catalogs inside the shared knowledge
+  root
 
 It does not own:
 
 - research workspaces
 - task-level inbox or composition state
 - repository-system memory and promotion state
-- global generated `must-sop.md`
-- repository-wide frontmatter governance for ordinary docs
-- reusable-items runtime behavior
+- mandatory repository-wide frontmatter governance for ordinary docs
 - learning-contract runtime behavior
 
 The old integrated skill is therefore being decomposed, not mechanically
@@ -59,10 +59,12 @@ That would recreate the same boundary blur that the split was meant to remove.
 
 - managed `AGENTS.md` bootstrap block
 - progressive-loading `must-*` reading surfaces
+- generated `must-sop.md`
 - shared path protocol through `.bagakit/knowledge_conf.toml`
 - shared knowledge normalization
 - deterministic recall over shared knowledge
 - explicit reviewed ingestion into the shared knowledge root
+- reusable-items governance and starter catalogs inside the shared root
 
 ### Moved To Peer Systems
 
@@ -76,10 +78,9 @@ That would recreate the same boundary blur that the split was meant to remove.
 ### Removed From The Core `living-knowledge` Contract
 
 - shared inbox to shared memory runtime
-- generated `must-sop.md`
 - mandatory frontmatter governance for ordinary docs
 - learning-contract exchange runtime
-- reusable-items runtime scaffolding
+- reusable-items search/runtime automation beyond governed shared pages
 
 These may still appear in one host repository as ordinary content or as part of
 another explicit skill contract.
@@ -92,18 +93,16 @@ They are not implicit obligations of `bagakit-living-knowledge`.
 
 The old skill used `must-*` as a broad governance shell.
 
-The new system keeps only the part that serves progressive loading and shared
-authority:
+The new system keeps only the part that serves progressive loading, shared
+authority, and maintenance-route guidance:
 
 - `must-guidebook.md`
 - `must-authority.md`
+- `must-sop.md`
 - `must-recall.md`
 
-It does not require one generated `must-sop.md` as a global control document.
-
-If a host wants maintenance-route guidance, that guidance should live as
-ordinary shared pages or as a future explicit generator contract owned by a
-different skill.
+`must-sop.md` comes back as a generated shared page, but it is driven by
+optional page metadata rather than mandatory repo-wide frontmatter governance.
 
 ### Frontmatter is no longer a repository-wide living-knowledge rule
 
@@ -114,16 +113,16 @@ knowledge substrate.
 
 Document-local schemas should be owned by the skill or surface that needs them.
 
-### Reusable items become content, not a hidden engine
+### Reusable items return as governed shared content
 
 If a repository wants reusable patterns, checklists, or examples, those may
-live as ordinary curated pages under the shared knowledge root.
+live as governed curated pages under the shared knowledge root.
 
-`living-knowledge` does not own a special reusable-items runtime, generator, or
-enforcement loop.
+`living-knowledge` owns the governance entry page and starter catalogs for this
+content family.
 
-If that behavior becomes important enough, it should be promoted as its own
-explicit canonical skill.
+What it still does not own is a separate hidden reusable-items runtime or
+automation engine beyond ordinary shared pages.
 
 ### Promotion is explicit
 

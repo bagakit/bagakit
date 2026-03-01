@@ -4,6 +4,8 @@ Shared filesystem-first knowledge substrate for repositories that need:
 
 - one configurable shared knowledge root
 - system pages for progressive loading
+- generated maintenance-route guidance through `must-sop.md`
+- reusable-items governance inside the shared knowledge root
 - deterministic recall over shared checked-in knowledge
 - a thin ingestion path for reviewed markdown
 
@@ -22,7 +24,11 @@ This skill does not own:
 - system pages under the shared root:
   - `must-guidebook.md`
   - `must-authority.md`
+  - `must-sop.md`
   - `must-recall.md`
+- governed reusable-items content:
+  - `norms-maintaining-reusable-items.md`
+  - starter `notes-reusable-items-knowledge.md`
 - local helper outputs:
   - `.bagakit/living-knowledge/.generated/`
 - bootstrap layer:
@@ -50,7 +56,8 @@ sh "$BAGAKIT_LIVING_KNOWLEDGE_SKILL_DIR/scripts/bagakit-living-knowledge.sh" doc
 
 ## Design Notes
 
-- `bagakit-living-knowledge` owns protocol, normalization, indexing, and recall.
+- `bagakit-living-knowledge` owns protocol, normalization, indexing, recall, generated `must-sop.md`, and reusable-items governance.
 - `bagakit-researcher` owns research evidence production.
 - `bagakit-skill-selector` owns task-level composition and usage evidence.
 - `bagakit-skill-evolver` owns repository evolution memory.
+- legacy `learning-contract` does not return here because it was an inbox/memory signal exchange mechanism, not a substrate mechanism.

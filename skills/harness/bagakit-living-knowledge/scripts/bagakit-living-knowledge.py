@@ -8,7 +8,7 @@ import subprocess
 import sys
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterable, Sequence
+from typing import Any, Iterable, Sequence
 
 ENV_SKILL_DIR = "BAGAKIT_LIVING_KNOWLEDGE_SKILL_DIR"
 START_TAG = "<!-- BAGAKIT:LIVING-KNOWLEDGE:START -->"
@@ -23,6 +23,7 @@ BOOTSTRAP_SHADOW_TOKENS = (
     "BAGAKIT_LIVING_KNOWLEDGE_SKILL_DIR",
 )
 REPO_ABSOLUTE_PATH_RE = re.compile(r"(?<![A-Za-z0-9_.-])/(?:Users|home|var|tmp|private)/")
+FRONTMATTER_RE = re.compile(r"\A---\n(.*?)\n---\n?", re.DOTALL)
 
 
 @dataclass(frozen=True)
@@ -46,6 +47,17 @@ class Surfaces:
     must_guidebook: Path
     must_authority: Path
     must_recall: Path
+    must_sop: Path
+    reusable_items_norms: Path
+    reusable_items_knowledge: Path
+
+
+@dataclass(frozen=True)
+class SopEntry:
+    path: Path
+    title: str
+    sop_items: tuple[str, ...]
+    directives: tuple[str, ...]
 
 
 def eprint(*items: object) -> None:
@@ -142,6 +154,49 @@ def read_title(path: Path) -> str:
     return path.name
 
 
+def parse_frontmatter(text: str) -> tuple[dict[str, Any], str]:
+    match = FRONTMATTER_RE.match(text)
+    if not match:
+        return {}, text
+    data: dict[str, Any] = {}
+    current_list_key: str | None = None
+    for raw_line in match.group(1).splitlines():
+        line = raw_line.rstrip()
+        stripped = line.strip()
+        if not stripped:
+            continue
+        if current_list_key and raw_line.startswith((" ", "\t")) and stripped.startswith("- "):
+            bucket = data.setdefault(current_list_key, [])
+            if isinstance(bucket, list):
+                bucket.append(stripped[2:].strip())
+            continue
+        if ":" in stripped and not raw_line.startswith((" ", "\t")):
+            key, raw_value = stripped.split(":", 1)
+            key = key.strip()
+            value = raw_value.strip().strip('"').strip("'")
+            if value:
+                data[key] = value
+                current_list_key = None
+            else:
+                data[key] = []
+                current_list_key = key
+            continue
+        current_list_key = None
+    return data, text[match.end() :]
+
+
+def frontmatter_scalar(frontmatter: dict[str, Any], key: str) -> str:
+    value = frontmatter.get(key)
+    return value.strip() if isinstance(value, str) else ""
+
+
+def frontmatter_list(frontmatter: dict[str, Any], key: str) -> list[str]:
+    value = frontmatter.get(key)
+    if not isinstance(value, list):
+        return []
+    return [str(item).strip() for item in value if str(item).strip()]
+
+
 def parse_simple_toml(path: Path) -> dict[str, dict[str, str]]:
     payload: dict[str, dict[str, str]] = {}
     current = ""
@@ -211,6 +266,9 @@ def surfaces(root: Path, config: KnowledgeConfig | None = None) -> Surfaces:
         must_guidebook=system_root / "must-guidebook.md",
         must_authority=system_root / "must-authority.md",
         must_recall=system_root / "must-recall.md",
+        must_sop=system_root / "must-sop.md",
+        reusable_items_norms=shared_root / "norms-maintaining-reusable-items.md",
+        reusable_items_knowledge=shared_root / "notes-reusable-items-knowledge.md",
     )
 
 
@@ -221,6 +279,14 @@ def write_if_needed(path: Path, text: str, force: bool) -> str:
             return f"skip: {path}"
         if not force:
             return f"skip: {path} already exists"
+    path.write_text(text, encoding="utf-8")
+    return f"write: {path}"
+
+
+def write_generated(path: Path, text: str) -> str:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    if path.exists() and path.read_text(encoding="utf-8") == text:
+        return f"skip: {path}"
     path.write_text(text, encoding="utf-8")
     return f"write: {path}"
 
@@ -397,6 +463,59 @@ def build_guidebook(root: Path, config: KnowledgeConfig, shared_root: Path, syst
     )
 
 
+def collect_sop_entries(root: Path, shared_root: Path) -> list[SopEntry]:
+    entries: list[SopEntry] = []
+    for path in iter_markdown(root, shared_root):
+        if path.name == "must-sop.md":
+            continue
+        text = path.read_text(encoding="utf-8", errors="replace")
+        frontmatter, _ = parse_frontmatter(text)
+        sop_items = tuple(frontmatter_list(frontmatter, "sop"))
+        directives = tuple(frontmatter_list(frontmatter, "directives"))
+        if not sop_items and not directives:
+            continue
+        title = frontmatter_scalar(frontmatter, "title") or read_title(path)
+        entries.append(SopEntry(path=path, title=title, sop_items=sop_items, directives=directives))
+    return entries
+
+
+def build_must_sop(root: Path, shared_root: Path, system_root: Path) -> str:
+    lines = [
+        "# SOP",
+        "",
+        "This page is generated from optional frontmatter in shared knowledge pages.",
+        "Do not hand-edit it directly.",
+        "",
+        "## Update Rules",
+        '- Refresh this page with `sh "$BAGAKIT_LIVING_KNOWLEDGE_SKILL_DIR/scripts/bagakit-living-knowledge.sh" index --root .`.',
+        "- Add or update route guidance in page frontmatter under `sop:` and optional `directives:`.",
+        "- Keep items short, concrete, and scoped to the source page.",
+        "",
+        "## Sources",
+        f"- shared root: `{relpath(root, shared_root)}`",
+        f"- system root: `{relpath(root, system_root)}`",
+        "",
+        "## SOP Items",
+        "",
+    ]
+    entries = collect_sop_entries(root, shared_root)
+    if not entries:
+        lines.append("_No SOP entries found._")
+        lines.append("")
+        return "\n".join(lines)
+    for entry in entries:
+        lines.append(f"### {entry.title}")
+        lines.append(f"Source: `{relpath(root, entry.path)}`")
+        for item in entry.sop_items:
+            lines.append(f"- {item}")
+        if entry.directives:
+            lines.append("- Directives:")
+            for item in entry.directives:
+                lines.append(f"  - {item}")
+        lines.append("")
+    return "\n".join(lines)
+
+
 def apply_command(args: argparse.Namespace) -> int:
     root = repo_root(args.root)
     default_cfg = KnowledgeConfig()
@@ -434,6 +553,33 @@ def apply_command(args: argparse.Namespace) -> int:
     )
     outputs.append(write_if_needed(s.must_recall, render_template("must-recall-template.md"), args.force))
     outputs.append(write_if_needed(s.must_guidebook, build_guidebook(root, cfg, s.shared_root, s.system_root), args.force))
+    outputs.append(
+        write_if_needed(
+            s.reusable_items_norms,
+            render_template(
+                "reusable-items/norms-maintaining-reusable-items-template.md",
+                {
+                    "SHARED_ROOT": relpath(root, s.shared_root),
+                    "SYSTEM_ROOT": relpath(root, s.system_root),
+                },
+            ),
+            args.force,
+        )
+    )
+    outputs.append(
+        write_if_needed(
+            s.reusable_items_knowledge,
+            render_template(
+                "reusable-items/notes-reusable-items-knowledge-template.md",
+                {
+                    "SHARED_ROOT": relpath(root, s.shared_root),
+                    "SYSTEM_ROOT": relpath(root, s.system_root),
+                },
+            ),
+            args.force,
+        )
+    )
+    outputs.append(write_generated(s.must_sop, build_must_sop(root, s.shared_root, s.system_root)))
 
     for line in outputs:
         print(line)
@@ -464,9 +610,11 @@ def index_command(args: argparse.Namespace) -> int:
     s = surfaces(root, cfg)
     s.generated_root.mkdir(parents=True, exist_ok=True)
     s.must_guidebook.write_text(build_guidebook(root, cfg, s.shared_root, s.system_root), encoding="utf-8")
+    s.must_sop.write_text(build_must_sop(root, s.shared_root, s.system_root), encoding="utf-8")
     map_path = s.generated_root / "guidebook-map.md"
     map_path.write_text(build_detailed_map(root, s.shared_root), encoding="utf-8")
     print(f"indexed: {relpath(root, s.must_guidebook)}")
+    print(f"indexed: {relpath(root, s.must_sop)}")
     print(f"indexed: {relpath(root, map_path)}")
     return 0
 
@@ -575,6 +723,7 @@ def inspect_stack_command(args: argparse.Namespace) -> int:
             f"- `{relpath(root, s.must_guidebook)}`",
             f"- `{relpath(root, s.must_authority)}`",
             f"- `{relpath(root, s.must_recall)}`",
+            f"- `{relpath(root, s.must_sop)}`",
         ]
     )
     output = "\n".join(lines) + "\n"
@@ -605,8 +754,17 @@ def doctor_command(args: argparse.Namespace) -> int:
         errors.append(f"missing system page: {relpath(root, s.must_authority)}")
     if not s.must_recall.is_file():
         errors.append(f"missing system page: {relpath(root, s.must_recall)}")
+    if not s.must_sop.is_file():
+        errors.append(f"missing system page: {relpath(root, s.must_sop)}")
+    if not s.reusable_items_norms.is_file():
+        errors.append(f"missing reusable-items governance page: {relpath(root, s.reusable_items_norms)}")
     if not (s.generated_root / ".gitignore").is_file():
         errors.append(f"missing generated-root gitignore: {relpath(root, s.generated_root / '.gitignore')}")
+    if s.must_sop.is_file():
+        expected_sop = build_must_sop(root, s.shared_root, s.system_root)
+        actual_sop = s.must_sop.read_text(encoding="utf-8", errors="replace")
+        if actual_sop != expected_sop:
+            errors.append(f"system page drifted from generated output: {relpath(root, s.must_sop)}")
 
     exclude = root / ".git" / "info" / "exclude"
     if exclude.is_file():

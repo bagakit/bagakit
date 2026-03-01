@@ -25,6 +25,8 @@ This skill owns:
 - shared knowledge path protocol
 - shared checked-in knowledge normalization
 - system pages for progressive loading
+- generated `must-sop.md` for maintenance-route guidance
+- reusable-items governance and starter catalogs inside the shared root
 - index and recall helpers over shared knowledge
 
 This skill does not own:
@@ -32,9 +34,7 @@ This skill does not own:
 - research runtime
 - selector runtime
 - evolver memory
-- generated `must-sop.md`
-- repository-wide frontmatter governance for ordinary docs
-- reusable-items runtime behavior
+- mandatory repository-wide frontmatter governance for ordinary docs
 - learning-contract runtime behavior
 
 Those are separate systems.
@@ -50,15 +50,15 @@ So it keeps:
 
 - managed `AGENTS.md` bootstrap
 - progressive-loading `must-*` reading surfaces
+- generated `must-sop.md`
 - shared path protocol
 - shared knowledge normalization, indexing, recall, and reviewed ingestion
+- reusable-items governance inside the shared root
 
 And it deliberately does not keep:
 
 - shared inbox to shared memory runtime
-- global generated `must-sop.md`
-- repository-wide frontmatter governance for ordinary docs
-- reusable-items runtime scaffolding
+- mandatory repository-wide frontmatter governance for ordinary docs
 - learning-contract runtime behavior
 
 If one of those removed mechanisms deserves a future canonical return, it
@@ -72,6 +72,8 @@ Use this skill when a repository needs:
 - one shared filesystem-first knowledge root
 - configurable path protocol under `.bagakit/knowledge_conf.toml`
 - system pages that make loading progressive instead of chat-dependent
+- generated maintenance-route guidance through `must-sop.md`
+- reusable-items governance and starter catalogs inside the shared root
 - deterministic recall over shared knowledge
 - a thin ingestion path for reviewed markdown
 
@@ -97,7 +99,13 @@ System pages under the configured `system_root`:
 
 - `must-guidebook.md`
 - `must-authority.md`
+- `must-sop.md`
 - `must-recall.md`
+
+Reusable-items governance inside the configured shared root:
+
+- `norms-maintaining-reusable-items.md`
+- starter `notes-reusable-items-knowledge.md`
 
 Local helper outputs:
 
@@ -148,6 +156,9 @@ sh "$BAGAKIT_LIVING_KNOWLEDGE_SKILL_DIR/scripts/bagakit-living-knowledge.sh" pat
 ```bash
 sh "$BAGAKIT_LIVING_KNOWLEDGE_SKILL_DIR/scripts/bagakit-living-knowledge.sh" index --root .
 ```
+
+This also refreshes `must-sop.md` from optional page frontmatter under the
+shared root.
 
 4. Recall shared knowledge:
 
