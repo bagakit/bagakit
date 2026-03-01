@@ -61,17 +61,17 @@ function buildDurableSurfaceLines(topic: TopicRecord): string[] {
   return topic.promotions.map((promotion) => formatPromotionLine(promotion));
 }
 
-function buildDecisionLines(topic: TopicRecord): string[] {
+function buildDecisionLines(topic: TopicRecord, limit: number | null = 5): string[] {
   const decisions = topic.notes
     .filter((note) => note.kind === "decision")
-    .sort((left, right) => right.created_at.localeCompare(left.created_at))
-    .slice(0, 5);
+    .sort((left, right) => right.created_at.localeCompare(left.created_at));
+  const bounded = limit === null ? decisions : decisions.slice(0, limit);
 
-  if (decisions.length === 0) {
+  if (bounded.length === 0) {
     return ["- none"];
   }
 
-  return decisions.map((note) => {
+  return bounded.map((note) => {
     const title = note.title ? `${quote(note.title)} | ` : "";
     const candidates = note.related_candidates?.length
       ? ` | candidates: ${note.related_candidates.map((candidate) => quote(candidate)).join(", ")}`
@@ -90,27 +90,27 @@ function buildSourceLines(topic: TopicRecord): string[] {
   });
 }
 
-function buildFeedbackLines(topic: TopicRecord): string[] {
+function buildFeedbackLines(topic: TopicRecord, limit: number | null = 5): string[] {
   if (topic.feedback.length === 0) {
     return ["- none"];
   }
 
-  return topic.feedback
-    .slice(-5)
+  const records = (limit === null ? topic.feedback : topic.feedback.slice(-limit))
     .reverse()
+  return records
     .map((feedback) => {
       return `- channel: ${quote(feedback.channel)} | signal: ${quote(feedback.signal)} | at: ${quote(feedback.created_at)}\n  - ${feedback.detail}`;
     });
 }
 
-function buildBenchmarkLines(topic: TopicRecord): string[] {
+function buildBenchmarkLines(topic: TopicRecord, limit: number | null = 5): string[] {
   if (topic.benchmarks.length === 0) {
     return ["- none"];
   }
 
-  return topic.benchmarks
-    .slice(-5)
+  const records = (limit === null ? topic.benchmarks : topic.benchmarks.slice(-limit))
     .reverse()
+  return records
     .map((benchmark) => {
       const baseline = benchmark.baseline ? ` | baseline: ${quote(benchmark.baseline)}` : "";
       const detail = benchmark.detail ? `\n  - ${benchmark.detail}` : "";
@@ -353,15 +353,25 @@ export function buildTopicArchive(
     "",
     "## Decision Trail",
     "",
-    ...buildDecisionLines(topic),
+    ...buildDecisionLines(topic, null),
     "",
     "## Promotion Trail",
     "",
     ...buildDurableSurfaceLines(topic),
     "",
-    "## Strongest Evidence At Archive Time",
+    "## Evidence Trail",
     "",
-    ...buildStrongestEvidenceLines(readiness),
+    "### Sources",
+    "",
+    ...buildSourceLines(topic),
+    "",
+    "### Feedback",
+    "",
+    ...buildFeedbackLines(topic, null),
+    "",
+    "### Benchmarks",
+    "",
+    ...buildBenchmarkLines(topic, null),
   ];
   return lines.join("\n") + "\n";
 }

@@ -78,7 +78,7 @@ Commands:
   add-feedback --topic <slug> --channel <name> --signal <signal> --detail <text> [--root <repo-root>]
   add-benchmark --topic <slug> --benchmark <id> --metric <name> --result <value> [--baseline <value>] [--detail <text>] [--root <repo-root>]
   add-note --topic <slug> --kind <kind> --text <text> [--root <repo-root>]
-  set-route --topic <slug> --decision <host|upstream|split> --rationale <text> [--host-target <repo-relative>] [--host-ref <repo-relative>] [--upstream-promotions <id[,id...]>] [--root <repo-root>]
+  set-route --topic <slug> --decision <host|upstream|split> --rationale <text> [--host-target <repo-relative-path>] [--host-ref <repo-relative-path>] [--upstream-promotions <id[,id...]>] [--root <repo-root>]
   add-context-ref --topic <slug> --ref <repo-relative-path> [--note <text>] [--root <repo-root>]
   remove-context-ref --topic <slug> --ref <repo-relative-path> [--root <repo-root>]
   record-decision --topic <slug> --decision <title> --rationale <text> [--candidate <id>] [--status <topic-status>] [--root <repo-root>]
@@ -422,7 +422,7 @@ function cmdSetRoute(flags: Map<string, string | boolean>): void {
   const topicSlug = toSlug(readStringFlag(flags, "topic", true)!);
   const decision = assertRouteDecision(readStringFlag(flags, "decision", true)!);
   const rationale = readStringFlag(flags, "rationale", true)!;
-  const hostTarget = readStringFlag(flags, "host-target");
+  const hostTarget = normalizeOptionalRepoRef(root, readStringFlag(flags, "host-target"));
   const hostRef = normalizeOptionalRepoRef(root, readStringFlag(flags, "host-ref"));
   const upstreamPromotionIds = readStringFlag(flags, "upstream-promotions")
     ?.split(",")
@@ -435,7 +435,7 @@ function cmdSetRoute(flags: Map<string, string | boolean>): void {
     decision,
     rationale,
     decided_at: nowIso(),
-    host_target: hostTarget ?? undefined,
+    host_target: hostTarget,
     host_ref: hostRef,
     upstream_promotion_ids: upstreamPromotionIds,
   };
@@ -729,7 +729,7 @@ function cmdCheck(flags: Map<string, string | boolean>): void {
     const rawTopic = readRawTopic(paths, entry.slug);
     validateTopicShape(rawTopic);
     validatePromotionRefSurface(rawTopic);
-    validateRoutingShape(rawTopic);
+    validateRoutingShape(rawTopic, paths.root);
     const topic = readTopic(paths, entry.slug);
     if (topic.slug !== entry.slug) {
       throw new Error(`topic/index slug mismatch: ${entry.slug}`);

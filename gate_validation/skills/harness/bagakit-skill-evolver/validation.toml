@@ -45,7 +45,7 @@ forbidden_paths = [
 [[suite]]
 id = "bagakit-skill-evolver-state"
 owner = "skills/harness/bagakit-skill-evolver"
-description = "Validate evolver project state, derived artifact freshness, and landed-promotion proof shape."
+description = "Validate repository evolver state when present, or else validate the operator contract against an isolated bootstrap layout."
 default = true
 validation_class = "tooling"
 groups = ["skills", "harness", "evolver", "smoke"]

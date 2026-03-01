@@ -259,7 +259,7 @@ export function validatePromotionRefSurface(topic: unknown): void {
   }
 }
 
-export function validateRoutingShape(topic: unknown): void {
+export function validateRoutingShape(topic: unknown, root: string): void {
   assertRecord(topic, "topic");
   if (!topic.routing) {
     return;
@@ -268,9 +268,11 @@ export function validateRoutingShape(topic: unknown): void {
   assertEnumValue(ROUTE_DECISIONS, topic.routing.decision, "routing decision");
   if (topic.routing.host_ref !== undefined) {
     assertNonEmptyString(topic.routing.host_ref, "routing host_ref");
+    normalizeRepoRelativeRef(root, topic.routing.host_ref);
   }
   if (topic.routing.host_target !== undefined) {
     assertNonEmptyString(topic.routing.host_target, "routing host_target");
+    normalizeRepoRelativeRef(root, topic.routing.host_target);
   }
   assertArray(topic.routing.upstream_promotion_ids, "routing upstream_promotion_ids");
 }

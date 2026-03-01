@@ -17,6 +17,7 @@ interface CaseReport {
   summary: string;
   status: "pass" | "fail";
   assertions: string[];
+  commands?: string[];
   outputs?: Record<string, unknown>;
   error?: string;
 }
@@ -81,14 +82,18 @@ function assertContains(text: string, fragment: string, label: string, assertion
 
 function evidenceIngestCase(): CaseReport {
   const assertions: string[] = [];
+  const commands: string[] = [];
   const tempRepo = createTempRepo();
   try {
+    const run = (argv: string[]): CommandResult => {
+      commands.push(`node --experimental-strip-types skills/harness/bagakit-skill-evolver/scripts/evolver.ts ${argv.join(" ")} --root <temp-repo>`);
+      return runEvolver(tempRepo, argv);
+    };
     writeTextFile(path.join(tempRepo, "docs", "specs", "signal.md"), "signal\n");
-    assert.equal(runEvolver(tempRepo, ["init-topic", "--slug", "evidence-loop", "--title", "Evidence Loop"]).status, 0);
-    assert.equal(runEvolver(tempRepo, ["preflight", "--topic", "evidence-loop", "--decision", "track", "--rationale", "repo-scope"]).status, 0);
+    assert.equal(run(["init-topic", "--slug", "evidence-loop", "--title", "Evidence Loop"]).status, 0);
+    assert.equal(run(["preflight", "--topic", "evidence-loop", "--decision", "track", "--rationale", "repo-scope"]).status, 0);
     assert.equal(
-      runEvolver(
-        tempRepo,
+      run(
         [
           "add-source",
           "--topic",
@@ -107,10 +112,10 @@ function evidenceIngestCase(): CaseReport {
       ).status,
       0,
     );
-    assert.equal(runEvolver(tempRepo, ["add-feedback", "--topic", "evidence-loop", "--channel", "maintainer", "--signal", "positive", "--detail", "worth keeping"]).status, 0);
-    assert.equal(runEvolver(tempRepo, ["add-benchmark", "--topic", "evidence-loop", "--benchmark", "b1", "--metric", "report_quality", "--result", "pass"]).status, 0);
-    assert.equal(runEvolver(tempRepo, ["record-decision", "--topic", "evidence-loop", "--decision", "Capture evidence", "--rationale", "repo-scope lesson"]).status, 0);
-    const readiness = runEvolver(tempRepo, ["promotion-readiness", "--topic", "evidence-loop", "--json"]);
+    assert.equal(run(["add-feedback", "--topic", "evidence-loop", "--channel", "maintainer", "--signal", "positive", "--detail", "worth keeping"]).status, 0);
+    assert.equal(run(["add-benchmark", "--topic", "evidence-loop", "--benchmark", "b1", "--metric", "report_quality", "--result", "pass"]).status, 0);
+    assert.equal(run(["record-decision", "--topic", "evidence-loop", "--decision", "Capture evidence", "--rationale", "repo-scope lesson"]).status, 0);
+    const readiness = run(["promotion-readiness", "--topic", "evidence-loop", "--json"]);
     assert.equal(readiness.status, 0);
     const payload = JSON.parse(readiness.stdout) as Record<string, unknown>;
     assert.equal(payload.state, "blocked");
@@ -124,6 +129,7 @@ function evidenceIngestCase(): CaseReport {
       summary: "Structured evidence records should accumulate before routing is set.",
       status: "pass",
       assertions,
+      commands,
       outputs: { readiness: payload },
     };
   } finally {
@@ -133,19 +139,24 @@ function evidenceIngestCase(): CaseReport {
 
 function reportQualityCase(): CaseReport {
   const assertions: string[] = [];
+  const commands: string[] = [];
   const tempRepo = createTempRepo();
   try {
+    const run = (argv: string[]): CommandResult => {
+      commands.push(`node --experimental-strip-types skills/harness/bagakit-skill-evolver/scripts/evolver.ts ${argv.join(" ")} --root <temp-repo>`);
+      return runEvolver(tempRepo, argv);
+    };
     writeTextFile(path.join(tempRepo, "docs", "specs", "report-rule.md"), "rule\n");
     writeTextFile(path.join(tempRepo, "docs", "specs", "report-rule-proof.md"), "proof\n");
-    assert.equal(runEvolver(tempRepo, ["init-topic", "--slug", "report-quality", "--title", "Report Quality"]).status, 0);
-    assert.equal(runEvolver(tempRepo, ["preflight", "--topic", "report-quality", "--decision", "track", "--rationale", "repo-scope"]).status, 0);
-    assert.equal(runEvolver(tempRepo, ["add-candidate", "--topic", "report-quality", "--candidate", "c1", "--kind", "local", "--source", "skills/demo", "--summary", "candidate"]).status, 0);
-    assert.equal(runEvolver(tempRepo, ["add-source", "--topic", "report-quality", "--source-id", "s1", "--kind", "doc", "--title", "Rule", "--origin", "manual", "--local-ref", "docs/specs/report-rule.md"]).status, 0);
-    assert.equal(runEvolver(tempRepo, ["record-decision", "--topic", "report-quality", "--decision", "Ship report rule", "--rationale", "durable"]).status, 0);
-    assert.equal(runEvolver(tempRepo, ["record-promotion", "--topic", "report-quality", "--surface", "spec", "--target", "docs/specs/report-rule.md", "--summary", "land rule", "--promotion", "report-rule", "--status", "landed", "--ref", "docs/specs/report-rule.md", "--proof-refs", "docs/specs/report-rule-proof.md"]).status, 0);
-    assert.equal(runEvolver(tempRepo, ["set-route", "--topic", "report-quality", "--decision", "upstream", "--rationale", "reusable", "--upstream-promotions", "report-rule"]).status, 0);
-    assert.equal(runEvolver(tempRepo, ["archive-topic", "--topic", "report-quality", "--summary", "archive report topic"]).status, 0);
-    assert.equal(runEvolver(tempRepo, ["check"]).status, 0);
+    assert.equal(run(["init-topic", "--slug", "report-quality", "--title", "Report Quality"]).status, 0);
+    assert.equal(run(["preflight", "--topic", "report-quality", "--decision", "track", "--rationale", "repo-scope"]).status, 0);
+    assert.equal(run(["add-candidate", "--topic", "report-quality", "--candidate", "c1", "--kind", "local", "--source", "skills/demo", "--summary", "candidate"]).status, 0);
+    assert.equal(run(["add-source", "--topic", "report-quality", "--source-id", "s1", "--kind", "doc", "--title", "Rule", "--origin", "manual", "--local-ref", "docs/specs/report-rule.md"]).status, 0);
+    assert.equal(run(["record-decision", "--topic", "report-quality", "--decision", "Ship report rule", "--rationale", "durable"]).status, 0);
+    assert.equal(run(["record-promotion", "--topic", "report-quality", "--surface", "spec", "--target", "docs/specs/report-rule.md", "--summary", "land rule", "--promotion", "report-rule", "--status", "landed", "--ref", "docs/specs/report-rule.md", "--proof-refs", "docs/specs/report-rule-proof.md"]).status, 0);
+    assert.equal(run(["set-route", "--topic", "report-quality", "--decision", "upstream", "--rationale", "reusable", "--upstream-promotions", "report-rule"]).status, 0);
+    assert.equal(run(["archive-topic", "--topic", "report-quality", "--summary", "archive report topic"]).status, 0);
+    assert.equal(run(["check"]).status, 0);
     const report = fs.readFileSync(path.join(tempRepo, ".bagakit", "evolver", "topics", "report-quality", "REPORT.md"), "utf8");
     const handoff = fs.readFileSync(path.join(tempRepo, ".bagakit", "evolver", "topics", "report-quality", "HANDOFF.md"), "utf8");
     const archive = fs.readFileSync(path.join(tempRepo, ".bagakit", "evolver", "topics", "report-quality", "ARCHIVE.md"), "utf8");
@@ -161,6 +172,7 @@ function reportQualityCase(): CaseReport {
       summary: "Derived reports should expose routing, proof, handoff, and archive closure.",
       status: "pass",
       assertions,
+      commands,
     };
   } finally {
     fs.rmSync(tempRepo, { recursive: true, force: true });
@@ -169,20 +181,25 @@ function reportQualityCase(): CaseReport {
 
 function promotionReadinessCase(): CaseReport {
   const assertions: string[] = [];
+  const commands: string[] = [];
   const tempRepo = createTempRepo();
   try {
+    const run = (argv: string[]): CommandResult => {
+      commands.push(`node --experimental-strip-types skills/harness/bagakit-skill-evolver/scripts/evolver.ts ${argv.join(" ")} --root <temp-repo>`);
+      return runEvolver(tempRepo, argv);
+    };
     writeTextFile(path.join(tempRepo, "docs", "specs", "promo.md"), "promo\n");
     writeTextFile(path.join(tempRepo, "docs", "specs", "promo-proof.md"), "proof\n");
-    assert.equal(runEvolver(tempRepo, ["init-topic", "--slug", "promo-ready", "--title", "Promo Ready"]).status, 0);
-    assert.equal(runEvolver(tempRepo, ["preflight", "--topic", "promo-ready", "--decision", "track", "--rationale", "repo-scope"]).status, 0);
-    assert.equal(runEvolver(tempRepo, ["add-source", "--topic", "promo-ready", "--source-id", "s1", "--kind", "doc", "--title", "Promo", "--origin", "manual", "--local-ref", "docs/specs/promo.md"]).status, 0);
-    assert.equal(runEvolver(tempRepo, ["record-decision", "--topic", "promo-ready", "--decision", "Land promotion", "--rationale", "ready"]).status, 0);
-    const badPromotion = runEvolver(tempRepo, ["record-promotion", "--topic", "promo-ready", "--surface", "spec", "--target", "docs/specs/promo.md", "--summary", "land promo", "--promotion", "promo", "--status", "landed", "--ref", "docs/specs/promo.md"]);
+    assert.equal(run(["init-topic", "--slug", "promo-ready", "--title", "Promo Ready"]).status, 0);
+    assert.equal(run(["preflight", "--topic", "promo-ready", "--decision", "track", "--rationale", "repo-scope"]).status, 0);
+    assert.equal(run(["add-source", "--topic", "promo-ready", "--source-id", "s1", "--kind", "doc", "--title", "Promo", "--origin", "manual", "--local-ref", "docs/specs/promo.md"]).status, 0);
+    assert.equal(run(["record-decision", "--topic", "promo-ready", "--decision", "Land promotion", "--rationale", "ready"]).status, 0);
+    const badPromotion = run(["record-promotion", "--topic", "promo-ready", "--surface", "spec", "--target", "docs/specs/promo.md", "--summary", "land promo", "--promotion", "promo", "--status", "landed", "--ref", "docs/specs/promo.md"]);
     assert.equal(badPromotion.status, 1);
     assertContains(badPromotion.stderr, "landed promotion requires --proof-refs", "record-promotion stderr", assertions);
-    assert.equal(runEvolver(tempRepo, ["record-promotion", "--topic", "promo-ready", "--surface", "spec", "--target", "docs/specs/promo.md", "--summary", "land promo", "--promotion", "promo", "--status", "landed", "--ref", "docs/specs/promo.md", "--proof-refs", "docs/specs/promo-proof.md"]).status, 0);
-    assert.equal(runEvolver(tempRepo, ["set-route", "--topic", "promo-ready", "--decision", "upstream", "--rationale", "reusable", "--upstream-promotions", "promo"]).status, 0);
-    const readiness = JSON.parse(runEvolver(tempRepo, ["promotion-readiness", "--topic", "promo-ready", "--json"]).stdout) as Record<string, unknown>;
+    assert.equal(run(["record-promotion", "--topic", "promo-ready", "--surface", "spec", "--target", "docs/specs/promo.md", "--summary", "land promo", "--promotion", "promo", "--status", "landed", "--ref", "docs/specs/promo.md", "--proof-refs", "docs/specs/promo-proof.md"]).status, 0);
+    assert.equal(run(["set-route", "--topic", "promo-ready", "--decision", "upstream", "--rationale", "reusable", "--upstream-promotions", "promo"]).status, 0);
+    const readiness = JSON.parse(run(["promotion-readiness", "--topic", "promo-ready", "--json"]).stdout) as Record<string, unknown>;
     assert.equal(readiness.state, "upstream-landed");
     assert.equal(readiness.archive_ready, true);
     assertions.push("landed promotion requires explicit proof refs and becomes upstream-landed");
@@ -192,6 +209,7 @@ function promotionReadinessCase(): CaseReport {
       summary: "Landed promotions should require proof refs and produce a landed readiness state.",
       status: "pass",
       assertions,
+      commands,
       outputs: { readiness },
     };
   } finally {
@@ -201,28 +219,33 @@ function promotionReadinessCase(): CaseReport {
 
 function routingCase(): CaseReport {
   const assertions: string[] = [];
+  const commands: string[] = [];
   const tempRepo = createTempRepo();
   try {
+    const run = (argv: string[]): CommandResult => {
+      commands.push(`node --experimental-strip-types skills/harness/bagakit-skill-evolver/scripts/evolver.ts ${argv.join(" ")} --root <temp-repo>`);
+      return runEvolver(tempRepo, argv);
+    };
     writeTextFile(path.join(tempRepo, "docs", "host-note.md"), "host\n");
     writeTextFile(path.join(tempRepo, "docs", "specs", "split.md"), "split\n");
     writeTextFile(path.join(tempRepo, "docs", "specs", "split-proof.md"), "proof\n");
 
-    assert.equal(runEvolver(tempRepo, ["init-topic", "--slug", "host-topic", "--title", "Host Topic"]).status, 0);
-    assert.equal(runEvolver(tempRepo, ["preflight", "--topic", "host-topic", "--decision", "track", "--rationale", "host case"]).status, 0);
-    assert.equal(runEvolver(tempRepo, ["add-source", "--topic", "host-topic", "--source-id", "s1", "--kind", "doc", "--title", "Host", "--origin", "manual", "--local-ref", "docs/host-note.md"]).status, 0);
-    assert.equal(runEvolver(tempRepo, ["record-decision", "--topic", "host-topic", "--decision", "Keep host-side", "--rationale", "host only"]).status, 0);
-    assert.equal(runEvolver(tempRepo, ["set-route", "--topic", "host-topic", "--decision", "host", "--rationale", "host adoption", "--host-target", "docs/host-note.md"]).status, 0);
-    const hostReadiness = JSON.parse(runEvolver(tempRepo, ["promotion-readiness", "--topic", "host-topic", "--json"]).stdout) as Record<string, unknown>;
+    assert.equal(run(["init-topic", "--slug", "host-topic", "--title", "Host Topic"]).status, 0);
+    assert.equal(run(["preflight", "--topic", "host-topic", "--decision", "track", "--rationale", "host case"]).status, 0);
+    assert.equal(run(["add-source", "--topic", "host-topic", "--source-id", "s1", "--kind", "doc", "--title", "Host", "--origin", "manual", "--local-ref", "docs/host-note.md"]).status, 0);
+    assert.equal(run(["record-decision", "--topic", "host-topic", "--decision", "Keep host-side", "--rationale", "host only"]).status, 0);
+    assert.equal(run(["set-route", "--topic", "host-topic", "--decision", "host", "--rationale", "host adoption", "--host-target", "docs/host-note.md"]).status, 0);
+    const hostReadiness = JSON.parse(run(["promotion-readiness", "--topic", "host-topic", "--json"]).stdout) as Record<string, unknown>;
     assert.equal(hostReadiness.state, "host-proposed");
     assertions.push("host route stays separate from upstream promotions");
 
-    assert.equal(runEvolver(tempRepo, ["init-topic", "--slug", "split-topic", "--title", "Split Topic"]).status, 0);
-    assert.equal(runEvolver(tempRepo, ["preflight", "--topic", "split-topic", "--decision", "track", "--rationale", "split case"]).status, 0);
-    assert.equal(runEvolver(tempRepo, ["add-source", "--topic", "split-topic", "--source-id", "s1", "--kind", "doc", "--title", "Split", "--origin", "manual", "--local-ref", "docs/specs/split.md"]).status, 0);
-    assert.equal(runEvolver(tempRepo, ["record-decision", "--topic", "split-topic", "--decision", "Split route", "--rationale", "mixed lesson"]).status, 0);
-    assert.equal(runEvolver(tempRepo, ["record-promotion", "--topic", "split-topic", "--surface", "spec", "--target", "docs/specs/split.md", "--summary", "land split spec", "--promotion", "split-spec", "--status", "proposed"]).status, 0);
-    assert.equal(runEvolver(tempRepo, ["set-route", "--topic", "split-topic", "--decision", "split", "--rationale", "host plus upstream", "--host-target", "docs/host-note.md", "--upstream-promotions", "split-spec"]).status, 0);
-    const splitReadiness = JSON.parse(runEvolver(tempRepo, ["promotion-readiness", "--topic", "split-topic", "--json"]).stdout) as Record<string, unknown>;
+    assert.equal(run(["init-topic", "--slug", "split-topic", "--title", "Split Topic"]).status, 0);
+    assert.equal(run(["preflight", "--topic", "split-topic", "--decision", "track", "--rationale", "split case"]).status, 0);
+    assert.equal(run(["add-source", "--topic", "split-topic", "--source-id", "s1", "--kind", "doc", "--title", "Split", "--origin", "manual", "--local-ref", "docs/specs/split.md"]).status, 0);
+    assert.equal(run(["record-decision", "--topic", "split-topic", "--decision", "Split route", "--rationale", "mixed lesson"]).status, 0);
+    assert.equal(run(["record-promotion", "--topic", "split-topic", "--surface", "spec", "--target", "docs/specs/split.md", "--summary", "land split spec", "--promotion", "split-spec", "--status", "proposed"]).status, 0);
+    assert.equal(run(["set-route", "--topic", "split-topic", "--decision", "split", "--rationale", "host plus upstream", "--host-target", "docs/host-note.md", "--upstream-promotions", "split-spec"]).status, 0);
+    const splitReadiness = JSON.parse(run(["promotion-readiness", "--topic", "split-topic", "--json"]).stdout) as Record<string, unknown>;
     assert.equal(splitReadiness.state, "split-proposed");
     assertions.push("split route keeps host target and upstream promotion ids together without collapsing them");
 
@@ -232,6 +255,7 @@ function routingCase(): CaseReport {
       summary: "Host, upstream, and split routes should remain explicit and repository-scoped.",
       status: "pass",
       assertions,
+      commands,
       outputs: { host: hostReadiness, split: splitReadiness },
     };
   } finally {
@@ -241,14 +265,19 @@ function routingCase(): CaseReport {
 
 function weakLinkRefsCase(): CaseReport {
   const assertions: string[] = [];
+  const commands: string[] = [];
   const tempRepo = createTempRepo();
   try {
-    assert.equal(runEvolver(tempRepo, ["init-topic", "--slug", "weak-links", "--title", "Weak Links"]).status, 0);
-    assert.equal(runEvolver(tempRepo, ["preflight", "--topic", "weak-links", "--decision", "track", "--rationale", "weak-link warning"]).status, 0);
-    assert.equal(runEvolver(tempRepo, ["add-source", "--topic", "weak-links", "--source-id", "s1", "--kind", "doc", "--title", "Missing Summary", "--origin", "manual", "--summary-ref", "docs/specs/missing-summary.md"]).status, 0);
-    assert.equal(runEvolver(tempRepo, ["add-context-ref", "--topic", "weak-links", "--ref", "docs/.research/missing-topic/index.md"]).status, 0);
-    assert.equal(runEvolver(tempRepo, ["record-decision", "--topic", "weak-links", "--decision", "Track weak refs", "--rationale", "warning only"]).status, 0);
-    const checkResult = runEvolver(tempRepo, ["check"]);
+    const run = (argv: string[]): CommandResult => {
+      commands.push(`node --experimental-strip-types skills/harness/bagakit-skill-evolver/scripts/evolver.ts ${argv.join(" ")} --root <temp-repo>`);
+      return runEvolver(tempRepo, argv);
+    };
+    assert.equal(run(["init-topic", "--slug", "weak-links", "--title", "Weak Links"]).status, 0);
+    assert.equal(run(["preflight", "--topic", "weak-links", "--decision", "track", "--rationale", "weak-link warning"]).status, 0);
+    assert.equal(run(["add-source", "--topic", "weak-links", "--source-id", "s1", "--kind", "doc", "--title", "Missing Summary", "--origin", "manual", "--summary-ref", "docs/specs/missing-summary.md"]).status, 0);
+    assert.equal(run(["add-context-ref", "--topic", "weak-links", "--ref", "docs/.research/missing-topic/index.md"]).status, 0);
+    assert.equal(run(["record-decision", "--topic", "weak-links", "--decision", "Track weak refs", "--rationale", "warning only"]).status, 0);
+    const checkResult = run(["check"]);
     assert.equal(checkResult.status, 0);
     assertContains(checkResult.stderr, "warn: weak-links: missing source ref target docs/specs/missing-summary.md", "check stderr", assertions);
     assertContains(checkResult.stderr, "warn: weak-links: missing weak ref target docs/.research/missing-topic/index.md", "check stderr", assertions);
@@ -259,6 +288,7 @@ function weakLinkRefsCase(): CaseReport {
       summary: "Weak refs should warn without invalidating the topic.",
       status: "pass",
       assertions,
+      commands,
       outputs: { stderr: checkResult.stderr },
     };
   } finally {
@@ -298,6 +328,7 @@ function main(): void {
         summary: "case execution failed",
         status: "fail",
         assertions: [],
+        commands: [],
         error: String(error),
       };
       reports.push(failed);

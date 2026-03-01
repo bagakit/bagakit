@@ -88,7 +88,7 @@ things go wrong:
 So the correct flow is:
 
 1. keep raw task-level selection and evaluation in selector
-2. route the result as `host`, `upstream`, or `split`
+2. hand off the likely routing outcome as `host`, `upstream`, or `split`
 3. only then open or update evolver when repository-level learning is real
 
 Selector may record that later routing is likely needed.

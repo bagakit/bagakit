@@ -105,7 +105,8 @@ Routing record fields:
 - `rationale`
 - `decided_at`
 - `host_target` (optional)
-  - intended host-side landing target when the route keeps material host-local
+  - repo-relative intended host-side landing path when the route keeps
+    material host-local
 - `host_ref` (optional)
   - repo-relative proof path for the host-side landing when it already exists
 - `upstream_promotion_ids[]`

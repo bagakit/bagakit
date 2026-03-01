@@ -46,6 +46,7 @@ if [[ ! -f "$ROOT/.bagakit/evolver/index.json" ]]; then
 }
 EOF
   TARGET_ROOT="$TMP_ROOT"
+  echo "note: repo evolver state not present; validating isolated bootstrap layout instead" >&2
 fi
 
 node --experimental-strip-types \

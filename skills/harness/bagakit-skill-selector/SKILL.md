@@ -368,10 +368,10 @@ This meta-skill should evolve using the same process:
 - record where it helped or failed
 - use feedback and metrics to decide the next iteration
 
-### 10) Routing rule
+### 10) Routing handoff rule
 
 Before turning task-level findings into repository-level change proposals,
-route them:
+record the likely routing direction for the later repository-level handoff:
 
 - `host`
   - host-only adoption or workflow learning
@@ -379,6 +379,11 @@ route them:
   - reusable Bagakit capability or contract learning
 - `split`
   - one host-specific part plus one reusable upstream part
+
+This is a selector-side handoff hint, not the authoritative repository-level
+route decision.
+
+Repository-level route state belongs to `bagakit-skill-evolver`.
 
 Do not automatically turn task evidence into an upstream evolver topic.
 

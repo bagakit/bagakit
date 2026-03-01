@@ -80,7 +80,8 @@ Evidence of done:
 
 Done means:
 
-- every promotion clearly routes to:
+- every repository-level topic with promotion intent clearly records whether it
+  routes to:
   - `host`
   - `upstream`
   - `split`
@@ -96,6 +97,7 @@ Evidence of done:
 
 - maintainers can answer:
   - what is still evidence only
+  - what route has been chosen and why
   - what is proposal state
   - what has landed
   - where it landed
@@ -128,7 +130,9 @@ Minimum required eval families:
 Evidence of done:
 
 - `evolver` has explicit eval cases and protocol docs under `gate_eval/`
-- promotions are backed by eval or benchmark evidence when they claim maturity
+- landed or maturity-claiming promotions carry explicit proof refs
+- when the maturity claim depends on eval or benchmark evidence, those proof
+  refs include the relevant eval or benchmark artifacts
 
 ## 6. Task-Level And Repo-Level Closure
 
