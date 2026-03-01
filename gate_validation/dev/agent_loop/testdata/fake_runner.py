@@ -24,6 +24,8 @@ def main() -> int:
     if mode == "invalid":
         runner_result_path.write_text("{not valid json}\n", encoding="utf-8")
         return 0
+    if mode == "missing":
+        return 0
     if mode == "cancelled":
         runner_result_path.write_text(
             json.dumps(
@@ -40,6 +42,11 @@ def main() -> int:
             encoding="utf-8",
         )
         return 0
+    if mode == "timeout":
+        import time
+
+        time.sleep(2)
+        return 0
 
     flow_runner_command = brief["flow_runner_command"]
     item = brief["item"]
@@ -54,9 +61,9 @@ def main() -> int:
         "--item",
         item_id,
         "--stage",
-        "review",
+        "inspect" if mode == "progress" else "review",
         "--session-status",
-        "gate_passed",
+        "progress" if mode == "progress" else "gate_passed",
         "--objective",
         "Review one bounded session",
         "--attempted",
@@ -69,10 +76,15 @@ def main() -> int:
         "yes",
         "--json",
     ]
-    if source_kind != "feature-tracker":
+    if source_kind != "feature-tracker" and mode != "progress":
         checkpoint_cmd.extend(["--item-status", "completed"])
 
     subprocess.run(checkpoint_cmd, cwd=repo_root, check=True)
+    if mode == "refresh-break":
+        flow_runner_link = repo_root / "skills" / "harness" / "bagakit-flow-runner"
+        broken_target = repo_root / "skills" / "harness" / "bagakit-flow-runner.broken"
+        if flow_runner_link.exists():
+            flow_runner_link.rename(broken_target)
     runner_result_path.write_text(
         json.dumps(
             {

@@ -25,7 +25,7 @@ test("refresh command parser keeps argv matrices", () => {
 
 test("apply initializes template config and marks it invalid until configured", () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "agent-loop-"));
-  const toolDir = path.resolve("dev/agent_loop");
+  const toolDir = path.resolve(path.dirname(new URL(import.meta.url).pathname), "..");
   const applied = applyAgentLoop(root, toolDir);
   assert.equal(applied, ".bagakit/agent-loop");
   const paths = new AgentLoopPaths(root);

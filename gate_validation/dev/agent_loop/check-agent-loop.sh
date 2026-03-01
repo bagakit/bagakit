@@ -53,7 +53,13 @@ bash "$FEATURE_TRACKER_DIR/scripts/feature-tracker.sh" assign-feature-workspace 
 bash "$FLOW_RUNNER_DIR/scripts/flow-runner.sh" apply --root "$TMP_DIR" >/dev/null
 bash "$FLOW_RUNNER_DIR/scripts/flow-runner.sh" ingest-feature-tracker --root "$TMP_DIR" >/dev/null
 bash "$FLOW_RUNNER_DIR/scripts/flow-runner.sh" add-item --root "$TMP_DIR" --item-id manual-one --title "Manual item" --source-kind manual --source-ref manual:one >/dev/null
+bash "$FLOW_RUNNER_DIR/scripts/flow-runner.sh" add-item --root "$TMP_DIR" --item-id manual-budget --title "Manual budget" --source-kind manual --source-ref manual:budget >/dev/null
 bash "$FLOW_RUNNER_DIR/scripts/flow-runner.sh" add-item --root "$TMP_DIR" --item-id manual-cancel --title "Manual cancel" --source-kind manual --source-ref manual:cancel >/dev/null
+bash "$FLOW_RUNNER_DIR/scripts/flow-runner.sh" add-item --root "$TMP_DIR" --item-id manual-exit --title "Manual exit" --source-kind manual --source-ref manual:exit >/dev/null
+bash "$FLOW_RUNNER_DIR/scripts/flow-runner.sh" add-item --root "$TMP_DIR" --item-id manual-launch --title "Manual launch" --source-kind manual --source-ref manual:launch >/dev/null
+bash "$FLOW_RUNNER_DIR/scripts/flow-runner.sh" add-item --root "$TMP_DIR" --item-id manual-timeout --title "Manual timeout" --source-kind manual --source-ref manual:timeout >/dev/null
+bash "$FLOW_RUNNER_DIR/scripts/flow-runner.sh" add-item --root "$TMP_DIR" --item-id manual-refresh --title "Manual refresh" --source-kind manual --source-ref manual:refresh >/dev/null
+bash "$FLOW_RUNNER_DIR/scripts/flow-runner.sh" add-item --root "$TMP_DIR" --item-id manual-missing --title "Manual missing" --source-kind manual --source-ref manual:missing >/dev/null
 bash "$FLOW_RUNNER_DIR/scripts/flow-runner.sh" add-item --root "$TMP_DIR" --item-id manual-invalid --title "Manual invalid" --source-kind manual --source-ref manual:invalid >/dev/null
 bash "$FLOW_RUNNER_DIR/scripts/flow-runner.sh" add-item --root "$TMP_DIR" --item-id manual-locked --title "Manual lock" --source-kind manual --source-ref manual:locked >/dev/null
 
@@ -129,6 +135,26 @@ assert payload["stop_reason"] == "operator_cancelled"
 assert payload["sessions_launched"] == 1
 PY
 
+BUDGET_JSON="$TMP_DIR/budget-run.json"
+bash "$AGENT_LOOP_DIR/agent-loop.sh" configure-runner --root "$TMP_DIR" --runner-name fake --argv-json "[\"python3\",\"$FAKE_RUNNER\",\"progress\",\"{repo_root}\",\"{session_brief}\",\"{runner_result}\"]" >/dev/null
+set +e
+bash "$AGENT_LOOP_DIR/agent-loop.sh" run --root "$TMP_DIR" --item manual-budget --max-sessions 1 --json > "$BUDGET_JSON"
+status=$?
+set -e
+if [[ "$status" -ne 1 ]]; then
+  echo "error: budget-limited run should stop with operator action required" >&2
+  exit 1
+fi
+python3 - "$BUDGET_JSON" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+payload = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+assert payload["stop_reason"] == "session_budget_exhausted"
+assert payload["sessions_launched"] == 1
+PY
+
 INVALID_JSON="$TMP_DIR/invalid-run.json"
 WATCH_JSON="$TMP_DIR/watch.json"
 bash "$AGENT_LOOP_DIR/agent-loop.sh" watch --root "$TMP_DIR" --json > "$WATCH_JSON"
@@ -138,11 +164,108 @@ import sys
 from pathlib import Path
 
 payload = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
-assert len(payload["recent_runs"]) >= 3
-assert len(payload["recent_sessions"]) >= 3
+assert len(payload["recent_runs"]) >= 4
+assert len(payload["recent_sessions"]) >= 4
 PY
 
 bash "$AGENT_LOOP_DIR/agent-loop.sh" validate --root "$TMP_DIR" >/dev/null
+
+EXIT_JSON="$TMP_DIR/exit-run.json"
+bash "$AGENT_LOOP_DIR/agent-loop.sh" configure-runner --root "$TMP_DIR" --runner-name fake --argv-json "[\"python3\",\"-c\",\"import sys; sys.exit(9)\"]" >/dev/null
+set +e
+bash "$AGENT_LOOP_DIR/agent-loop.sh" run --root "$TMP_DIR" --item manual-exit --max-sessions 1 --json > "$EXIT_JSON"
+status=$?
+set -e
+if [[ "$status" -ne 1 ]]; then
+  echo "error: nonzero runner exit should stop with operator action required" >&2
+  exit 1
+fi
+python3 - "$EXIT_JSON" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+payload = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+assert payload["stop_reason"] == "runner_exited_nonzero"
+PY
+
+LAUNCH_JSON="$TMP_DIR/launch-run.json"
+bash "$AGENT_LOOP_DIR/agent-loop.sh" configure-runner --root "$TMP_DIR" --runner-name fake --argv-json "[\"definitely-not-a-command\"]" >/dev/null
+set +e
+bash "$AGENT_LOOP_DIR/agent-loop.sh" run --root "$TMP_DIR" --item manual-launch --max-sessions 1 --json > "$LAUNCH_JSON"
+status=$?
+set -e
+if [[ "$status" -ne 1 ]]; then
+  echo "error: launch failure should stop with operator action required" >&2
+  exit 1
+fi
+python3 - "$LAUNCH_JSON" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+payload = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+assert payload["stop_reason"] == "runner_launch_failed"
+PY
+
+TIMEOUT_JSON="$TMP_DIR/timeout-run.json"
+bash "$AGENT_LOOP_DIR/agent-loop.sh" configure-runner --root "$TMP_DIR" --runner-name fake --timeout-seconds 1 --argv-json "[\"python3\",\"$FAKE_RUNNER\",\"timeout\",\"{repo_root}\",\"{session_brief}\",\"{runner_result}\"]" >/dev/null
+set +e
+bash "$AGENT_LOOP_DIR/agent-loop.sh" run --root "$TMP_DIR" --item manual-timeout --max-sessions 1 --json > "$TIMEOUT_JSON"
+status=$?
+set -e
+if [[ "$status" -ne 1 ]]; then
+  echo "error: timeout should stop with operator action required" >&2
+  exit 1
+fi
+python3 - "$TIMEOUT_JSON" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+payload = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+assert payload["stop_reason"] == "runner_timeout"
+PY
+
+REFRESH_JSON="$TMP_DIR/refresh-run.json"
+bash "$AGENT_LOOP_DIR/agent-loop.sh" configure-runner --root "$TMP_DIR" --runner-name fake --argv-json "[\"python3\",\"$FAKE_RUNNER\",\"refresh-break\",\"{repo_root}\",\"{session_brief}\",\"{runner_result}\"]" >/dev/null
+set +e
+bash "$AGENT_LOOP_DIR/agent-loop.sh" run --root "$TMP_DIR" --item manual-refresh --max-sessions 1 --json > "$REFRESH_JSON"
+status=$?
+set -e
+if [[ "$status" -ne 1 ]]; then
+  echo "error: refresh failure should stop with operator action required" >&2
+  exit 1
+fi
+python3 - "$REFRESH_JSON" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+payload = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+assert payload["stop_reason"] == "flow_runner_refresh_failed"
+PY
+mv "$TMP_DIR/skills/harness/bagakit-flow-runner.broken" "$TMP_DIR/skills/harness/bagakit-flow-runner"
+
+MISSING_JSON="$TMP_DIR/missing-run.json"
+bash "$AGENT_LOOP_DIR/agent-loop.sh" configure-runner --root "$TMP_DIR" --runner-name fake --argv-json "[\"python3\",\"$FAKE_RUNNER\",\"missing\",\"{repo_root}\",\"{session_brief}\",\"{runner_result}\"]" >/dev/null
+set +e
+bash "$AGENT_LOOP_DIR/agent-loop.sh" run --root "$TMP_DIR" --item manual-missing --max-sessions 1 --json > "$MISSING_JSON"
+status=$?
+set -e
+if [[ "$status" -ne 1 ]]; then
+  echo "error: missing runner result should stop with operator action required" >&2
+  exit 1
+fi
+python3 - "$MISSING_JSON" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+payload = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+assert payload["stop_reason"] == "runner_output_missing"
+assert payload["sessions_launched"] == 1
+PY
 
 bash "$AGENT_LOOP_DIR/agent-loop.sh" configure-runner --root "$TMP_DIR" --runner-name fake --argv-json "[\"python3\",\"$FAKE_RUNNER\",\"invalid\",\"{repo_root}\",\"{session_brief}\",\"{runner_result}\"]" >/dev/null
 set +e

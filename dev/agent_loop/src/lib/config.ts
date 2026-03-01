@@ -6,6 +6,7 @@ import {
   RUNNER_TRANSPORTS,
   type RunnerConfig,
   type RunnerConfigStatus,
+  type RunnerTransport,
 } from "./model.ts";
 import {
   assertNumber,
@@ -45,7 +46,7 @@ function validateRunnerConfigPayload(payload: unknown, filePath: string): Runner
   return {
     schema: RUNNER_CONFIG_SCHEMA,
     runner_name: assertString(record.runner_name, `${filePath}.runner_name`),
-    transport,
+    transport: transport as RunnerTransport,
     argv: assertStringArray(record.argv, `${filePath}.argv`),
     env,
     timeout_seconds: assertNumber(record.timeout_seconds, `${filePath}.timeout_seconds`),

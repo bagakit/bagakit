@@ -6,6 +6,7 @@ import { runnerConfigStatus } from "./config.ts";
 import {
   acquireRunLock,
   autoArchiveOwnedItem,
+  runnerResultIssue,
   recordRun,
   releaseRunLock,
   resultPathForSession,
@@ -25,8 +26,16 @@ import type {
   RunnerConfig,
   RunnerResult,
 } from "./model.ts";
-import { RUNNER_RESULT_SCHEMA } from "./model.ts";
 import { AgentLoopPaths } from "./paths.ts";
+
+type LaunchStop = Readonly<{
+  stop_reason: RunStopReason;
+  flow_next: FlowNextPayload;
+  operator_message: string;
+  next_safe_action: string;
+  can_resume: boolean;
+  run_status: AgentLoopRunPayload["run_status"];
+}>;
 
 type LaunchOutcome = Readonly<{
   stop_reason: RunStopReason | "";
@@ -97,35 +106,15 @@ function validateRunnerResult(result: RunnerResult | null, sessionId: string): {
   stopReason: RunStopReason | "";
   message: string;
 } {
+  const issue = runnerResultIssue(result, sessionId);
+  if (issue) {
+    return {
+      stopReason: result === null ? "runner_output_missing" : "runner_output_invalid",
+      message: issue,
+    };
+  }
   if (!result) {
-    return {
-      stopReason: "runner_output_missing",
-      message: "runner-result.json was not written",
-    };
-  }
-  if (result.schema !== RUNNER_RESULT_SCHEMA) {
-    return {
-      stopReason: "runner_output_invalid",
-      message: "runner-result.json has an invalid schema",
-    };
-  }
-  if (result.session_id !== sessionId) {
-    return {
-      stopReason: "runner_output_invalid",
-      message: "runner-result.json has a mismatched session_id",
-    };
-  }
-  if (result.status !== "completed" && result.status !== "operator_cancelled") {
-    return {
-      stopReason: "runner_output_invalid",
-      message: "runner-result.json has an unsupported status",
-    };
-  }
-  if (typeof result.checkpoint_written !== "boolean" || typeof result.note !== "string") {
-    return {
-      stopReason: "runner_output_invalid",
-      message: "runner-result.json has invalid field types",
-    };
+    throw new Error("runner-result validation expected a value");
   }
   if (result.status === "operator_cancelled") {
     return {
@@ -148,7 +137,7 @@ function checkpointObserved(before: FlowNextPayload, after: FlowNextPayload): bo
   return afterSession > beforeSession;
 }
 
-function stopForFlowState(flowNext: FlowNextPayload): Omit<LaunchOutcome, "runner_session_id" | "checkpoint_observed"> {
+function stopForFlowState(flowNext: FlowNextPayload): LaunchStop {
   if (flowNext.recommended_action === "clear_blocker") {
     return {
       stop_reason: "blocked_item",
@@ -218,7 +207,7 @@ function launchRunnerSession(root: string, config: RunnerConfig, flowNext: FlowN
 
   let stopReason: RunStopReason | "" = "";
   if (result.error) {
-    stopReason = (result.error as NodeJS.ErrnoException).code === "ETIMEDOUT" ? "runner_timeout" : "runner_launch_failed";
+    stopReason = (result.error as { code?: string }).code === "ETIMEDOUT" ? "runner_timeout" : "runner_launch_failed";
   } else if (result.signal === "SIGINT" || result.signal === "SIGTERM") {
     stopReason = "operator_cancelled";
   } else if ((result.status ?? 0) !== 0) {
@@ -274,7 +263,20 @@ function launchRunnerSession(root: string, config: RunnerConfig, flowNext: FlowN
     };
   }
 
-  const finalNext = loadNextAction(root, flowNext.item_id);
+  const finalNextAttempt = safeLoadNextAction(root, flowNext.item_id, refreshed);
+  if (finalNextAttempt.error) {
+    return {
+      stop_reason: "flow_runner_refresh_failed",
+      checkpoint_observed: observed,
+      runner_session_id: sessionId,
+      flow_next: finalNextAttempt.payload,
+      operator_message: finalNextAttempt.error,
+      next_safe_action: "inspect_flow_runner_state",
+      can_resume: true,
+      run_status: "operator_action_required",
+    };
+  }
+  const finalNext = finalNextAttempt.payload;
   return {
     stop_reason: "",
     checkpoint_observed: observed,
@@ -326,7 +328,7 @@ export function runAgentLoop(root: string, itemId: string | undefined, maxSessio
   const lockPath = lockAttempt.lockPath;
   try {
     if (configStatus.status === "missing") {
-      const flowNext = loadNextAction(root, currentItem);
+      const flowNext = safeLoadNextAction(root, currentItem).payload;
       return recordRun(root, flowNext.item_id || "none", sessionsLaunched, maxSessions, {
         run_status: "operator_action_required",
         stop_reason: "runner_config_required",
@@ -339,7 +341,7 @@ export function runAgentLoop(root: string, itemId: string | undefined, maxSessio
       });
     }
     if (configStatus.status === "invalid" || !configStatus.config) {
-      const flowNext = loadNextAction(root, currentItem);
+      const flowNext = safeLoadNextAction(root, currentItem).payload;
       return recordRun(root, flowNext.item_id || "none", sessionsLaunched, maxSessions, {
         run_status: "operator_action_required",
         stop_reason: "runner_config_invalid",
@@ -428,9 +430,10 @@ export function runAgentLoop(root: string, itemId: string | undefined, maxSessio
       sessionsLaunched += 1;
 
       if (launch.stop_reason) {
+        const stopReason = launch.stop_reason;
         return recordRun(root, flowNext.item_id || "none", sessionsLaunched, maxSessions, {
           run_status: launch.run_status,
-          stop_reason: launch.stop_reason,
+          stop_reason: stopReason,
           operator_message: launch.operator_message,
           next_safe_action: launch.next_safe_action,
           can_resume: launch.can_resume,
@@ -456,7 +459,7 @@ export function runAgentLoop(root: string, itemId: string | undefined, maxSessio
       if (launch.flow_next.recommended_action === "archive_closeout" && launch.flow_next.item_id) {
         autoArchiveOwnedItem(root, launch.flow_next.item_id);
         if (currentItem && currentItem === launch.flow_next.item_id) {
-          const terminalNext = loadNextAction(root);
+          const terminalNext = safeLoadNextAction(root).payload;
           return recordRun(root, launch.flow_next.item_id, sessionsLaunched, maxSessions, {
             run_status: "terminal",
             stop_reason: "item_archived",
@@ -474,9 +477,14 @@ export function runAgentLoop(root: string, itemId: string | undefined, maxSessio
       if (launch.flow_next.recommended_action !== "run_session") {
         const stop = stopForFlowState(launch.flow_next);
         return recordRun(root, launch.flow_next.item_id || flowNext.item_id || "none", sessionsLaunched, maxSessions, {
-          ...stop,
+          run_status: stop.run_status,
+          stop_reason: stop.stop_reason,
+          operator_message: stop.operator_message,
+          next_safe_action: stop.next_safe_action,
+          can_resume: stop.can_resume,
           checkpoint_observed: launch.checkpoint_observed,
           runner_session_id: launch.runner_session_id,
+          flow_next: stop.flow_next,
         });
       }
 

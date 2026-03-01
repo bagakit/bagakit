@@ -5,6 +5,7 @@
   "type": "module",
   "description": "Maintainer-only outer driver for Bagakit flow-runner sessions.",
   "scripts": {
-    "test": "node --test --experimental-strip-types test/*.test.ts"
+    "test": "node --test --experimental-strip-types test/*.test.ts",
+    "typecheck": "npx --yes -p typescript tsc -p tsconfig.json --noEmit"
   }
 }

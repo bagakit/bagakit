@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
-import { spawnSync, type SpawnSyncReturns } from "node:child_process";
+import { spawnSync } from "node:child_process";
 
 import type { FlowItemState, FlowNextPayload } from "../lib/model.ts";
 import { readJsonFile, readText } from "../lib/io.ts";
@@ -17,7 +17,7 @@ export function flowRunnerCommand(root: string): string[] {
   return ["bash", path.relative(root, script).split(path.sep).join("/")];
 }
 
-function runFlowRunner(root: string, args: string[], options: { input?: string; allowFailure?: boolean } = {}): SpawnSyncReturns<string> {
+function runFlowRunner(root: string, args: string[], options: { input?: string; allowFailure?: boolean } = {}): any {
   const command = flowRunnerCommand(root);
   const result = spawnSync(command[0], [...command.slice(1), ...args], {
     cwd: root,

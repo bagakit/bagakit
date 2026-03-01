@@ -140,17 +140,17 @@ function sortedRunRecords(paths: AgentLoopPaths): RunRecord[] {
   if (!fs.existsSync(paths.runsDir)) {
     return [];
   }
-  return fs
-    .readdirSync(paths.runsDir)
-    .filter((entry) => entry.endsWith(".json"))
-    .flatMap((entry) => {
+  const entries = fs.readdirSync(paths.runsDir) as string[];
+  return entries
+    .filter((entry: string) => entry.endsWith(".json"))
+    .flatMap((entry: string) => {
       try {
         return [readJsonFile<RunRecord>(path.join(paths.runsDir, entry))];
       } catch {
         return [];
       }
     })
-    .sort((left, right) => right.recorded_at.localeCompare(left.recorded_at));
+    .sort((left: RunRecord, right: RunRecord) => right.recorded_at.localeCompare(left.recorded_at));
 }
 
 type SessionSummary = Readonly<{
@@ -161,16 +161,36 @@ type SessionSummary = Readonly<{
   exit_code: number | null;
   result_status: RunnerResult["status"] | "";
   checkpoint_written: boolean | null;
+  issue?: string;
 }>;
+
+export function runnerResultIssue(result: RunnerResult | null, sessionId: string): string {
+  if (!result) {
+    return `session ${sessionId} is missing runner-result.json`;
+  }
+  if (result.schema !== RUNNER_RESULT_SCHEMA) {
+    return `session ${sessionId} has invalid runner-result schema`;
+  }
+  if (result.session_id !== sessionId) {
+    return `session ${sessionId} runner-result session_id mismatch`;
+  }
+  if (result.status !== "completed" && result.status !== "operator_cancelled") {
+    return `session ${sessionId} runner-result status is invalid`;
+  }
+  if (typeof result.checkpoint_written !== "boolean" || typeof result.note !== "string") {
+    return `session ${sessionId} runner-result field types are invalid`;
+  }
+  return "";
+}
 
 function sortedSessionSummaries(paths: AgentLoopPaths): SessionSummary[] {
   if (!fs.existsSync(paths.sessionsDir)) {
     return [];
   }
-  return fs
-    .readdirSync(paths.sessionsDir, { withFileTypes: true })
-    .filter((entry) => entry.isDirectory())
-    .map((entry) => {
+  const entries = fs.readdirSync(paths.sessionsDir, { withFileTypes: true }) as Array<{ name: string; isDirectory(): boolean }>;
+  const summaries: SessionSummary[] = entries
+    .filter((entry: any) => entry.isDirectory())
+    .map((entry: any) => {
       const briefPath = path.join(paths.sessionDir(entry.name), "session-brief.json");
       const metadataPath = path.join(paths.sessionDir(entry.name), "session-meta.json");
       const resultPath = path.join(paths.sessionDir(entry.name), "runner-result.json");
@@ -183,14 +203,18 @@ function sortedSessionSummaries(paths: AgentLoopPaths): SessionSummary[] {
         }>(briefPath);
         const metadata = loadJsonIfExists<{ exit_code: number | null }>(metadataPath);
         const result = loadJsonIfExists<RunnerResult>(resultPath);
+        const issue = runnerResultIssue(result, brief.session_id);
+        const resultStatus: RunnerResult["status"] | "" =
+          result?.status === "completed" || result?.status === "operator_cancelled" ? result.status : "";
         return {
           session_id: brief.session_id,
           item_id: brief.item.item_id,
           runner_name: brief.runner_name,
           started_at: brief.started_at,
           exit_code: metadata?.exit_code ?? null,
-          result_status: result?.status ?? "",
+          result_status: resultStatus,
           checkpoint_written: result?.checkpoint_written ?? null,
+          issue: issue || undefined,
         };
       } catch (error) {
         return {
@@ -199,23 +223,23 @@ function sortedSessionSummaries(paths: AgentLoopPaths): SessionSummary[] {
           runner_name: "",
           started_at: "",
           exit_code: null,
-          result_status: "",
+          result_status: "" as const,
           checkpoint_written: null,
           issue: error instanceof Error ? error.message : String(error),
         };
       }
-    })
-    .sort((left, right) => right.started_at.localeCompare(left.started_at));
+    });
+  return summaries.sort((left: SessionSummary, right: SessionSummary) => right.started_at.localeCompare(left.started_at));
 }
 
 function runRecordIssues(paths: AgentLoopPaths): string[] {
   if (!fs.existsSync(paths.runsDir)) {
     return [];
   }
-  return fs
-    .readdirSync(paths.runsDir)
-    .filter((entry) => entry.endsWith(".json"))
-    .flatMap((entry) => {
+  const entries = fs.readdirSync(paths.runsDir) as string[];
+  return entries
+    .filter((entry: string) => entry.endsWith(".json"))
+    .flatMap((entry: string) => {
       try {
         const record = readJsonFile<RunRecord>(path.join(paths.runsDir, entry));
         return record.schema === RUN_RECORD_SCHEMA ? [] : [`run record ${entry} has invalid schema`];
@@ -256,23 +280,22 @@ export function validateAgentLoop(root: string): string[] {
   }
   for (const session of sortedSessionSummaries(paths)) {
     const sessionDir = paths.sessionDir(session.session_id);
+    const hasSummaryIssue = Boolean(session.issue);
     if (session.issue) {
-      issues.push(`session ${session.session_id} is unreadable: ${session.issue}`);
-      continue;
+      issues.push(session.issue.startsWith("session ") ? session.issue : `session ${session.session_id} is unreadable: ${session.issue}`);
     }
     for (const required of ["session-brief.json", "prompt.txt", "stdout.txt", "stderr.txt", "session-meta.json"]) {
       if (!fs.existsSync(path.join(sessionDir, required))) {
         issues.push(`session ${session.session_id} is missing ${required}`);
       }
     }
+    if (hasSummaryIssue) {
+      continue;
+    }
     const result = loadJsonIfExists<RunnerResult>(path.join(sessionDir, "runner-result.json"));
-    if (result) {
-      if (result.schema !== RUNNER_RESULT_SCHEMA) {
-        issues.push(`session ${session.session_id} has invalid runner-result schema`);
-      }
-      if (result.session_id !== session.session_id) {
-        issues.push(`session ${session.session_id} runner-result session_id mismatch`);
-      }
+    const resultIssue = runnerResultIssue(result, session.session_id);
+    if (resultIssue) {
+      issues.push(resultIssue);
     }
   }
   issues.push(...runRecordIssues(paths));
@@ -308,7 +331,7 @@ export function acquireRunLock(root: string, runnerName: string): string {
       fs.writeFileSync(paths.runLockFile, `${JSON.stringify(payload, null, 2)}\n`, { flag: "wx" });
       return paths.runLockFile;
     } catch (error) {
-      const code = (error as NodeJS.ErrnoException).code;
+      const code = (error as { code?: string }).code;
       if (code !== "EEXIST") {
         throw error;
       }
