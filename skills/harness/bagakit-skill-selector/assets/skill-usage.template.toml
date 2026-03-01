@@ -1,0 +1,53 @@
+schema_version = "1.0"
+task_id = ""
+objective = ""
+owner = ""
+created_at = ""
+updated_at = ""
+status = "planning"
+
+[preflight]
+question = "Do we have enough skill coverage for this task?"
+answer = "pending"
+gap_summary = ""
+decision = "pending"
+
+[evaluation]
+quality_score = 0.0
+evidence_score = 0.0
+feedback_score = 0.0
+overall = "pending"
+summary = ""
+
+[next_actions]
+needs_feedback_confirmation = false
+needs_new_search = false
+next_search_query = ""
+notes = ""
+
+[attempt_policy]
+retry_backoff_threshold = 3
+
+# Append records below with [[recipe_log]], [[skill_plan]], [[usage_log]],
+# [[feedback_log]], [[search_log]], [[benchmark_log]], and [[error_pattern_log]].
+#
+# Historical note:
+# - [[skill_plan]] and skill_id remain the field names
+# - in composed mode, one skill_id may point to a runtime skill id, an external
+#   tool id, or another stable reference id when no runtime skill id exists
+#
+# Optional recipe fields:
+# - recipe_id = "<selector recipe id>"
+# - source = "skills/harness/bagakit-skill-selector/recipes/<recipe>.md"
+# - status = "considered" | "selected" | "used" | "skipped" | "rejected"
+#
+# Optional composition fields on [[skill_plan]]:
+# - composition_role = "standalone" | "composition_entrypoint" | "composition_peer"
+# - composition_id = "<task-local-composition-id>"
+# - activation_mode = "standalone" | "composed"
+# - fallback_strategy = "none" | "standalone_first"
+#
+# Optional error pattern fields:
+# - error_type = "<stable error cluster token>"
+# - message_pattern = "<repeat failure text pattern>"
+# - occurrence_index = <selector-counted repeat number for the same cluster>

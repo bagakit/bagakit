@@ -1,0 +1,87 @@
+version = 2
+
+[[suite]]
+id = "bagakit-living-knowledge-layout"
+owner = "skills/harness/bagakit-living-knowledge"
+description = "Require the canonical runtime layout and keep maintainer-only design material out of bagakit-living-knowledge."
+default = true
+validation_class = "structure"
+groups = ["skills", "harness", "living-knowledge", "structure"]
+
+[suite.runner]
+kind = "fs"
+required_dirs = [
+  "skills/harness/bagakit-living-knowledge",
+  "skills/harness/bagakit-living-knowledge/playbook/tpl",
+  "skills/harness/bagakit-living-knowledge/scripts",
+  "gate_validation/skills/harness/bagakit-living-knowledge",
+]
+required_files = [
+  "docs/specs/living-knowledge-system.md",
+  "skills/harness/bagakit-living-knowledge/README.md",
+  "skills/harness/bagakit-living-knowledge/SKILL.md",
+  "skills/harness/bagakit-living-knowledge/references/selector-driver.toml",
+  "skills/harness/bagakit-living-knowledge/scripts/bagakit-living-knowledge.sh",
+  "skills/harness/bagakit-living-knowledge/scripts/bagakit-living-knowledge.py",
+  "skills/harness/bagakit-living-knowledge/playbook/tpl/agents-block-template.md",
+  "skills/harness/bagakit-living-knowledge/playbook/tpl/knowledge-conf-template.toml",
+  "skills/harness/bagakit-living-knowledge/playbook/tpl/must-guidebook-template.md",
+  "skills/harness/bagakit-living-knowledge/playbook/tpl/must-authority-template.md",
+  "skills/harness/bagakit-living-knowledge/playbook/tpl/must-recall-template.md",
+  "skills/harness/bagakit-living-knowledge/playbook/tpl/shared-page-template.md",
+  "gate_validation/skills/harness/bagakit-living-knowledge/validation.toml",
+  "gate_validation/skills/harness/bagakit-living-knowledge/check-bagakit-living-knowledge.sh",
+  "gate_validation/skills/harness/bagakit-living-knowledge/check-spec-alignment.py",
+]
+forbidden_paths = [
+  "skills/harness/bagakit-living-knowledge/SKILL_PAYLOAD.json",
+  "skills/harness/bagakit-living-knowledge/agents",
+  "skills/harness/bagakit-living-knowledge/docs",
+  "skills/harness/bagakit-living-knowledge/gate",
+  "skills/harness/bagakit-living-knowledge/playbook/final-contract-draft.md",
+  "skills/harness/bagakit-living-knowledge/playbook/inherited-mechanisms.md",
+  "skills/harness/bagakit-living-knowledge/playbook/tpl/knowledge-root-readme-template.md",
+  "skills/harness/bagakit-living-knowledge/playbook/tpl/private-readme-template.md",
+  "skills/harness/bagakit-living-knowledge/playbook/tpl/retired-readme-template.md",
+  "skills/harness/bagakit-living-knowledge/playbook/tpl/runs-readme-template.md",
+  "skills/harness/bagakit-living-knowledge/playbook/tpl/signals-readme-template.md",
+  "skills/harness/bagakit-living-knowledge/playbook/tpl/topic-conventions-readme-template.md",
+  "skills/harness/bagakit-living-knowledge/playbook/tpl/topic-decisions-readme-template.md",
+  "skills/harness/bagakit-living-knowledge/playbook/tpl/topic-inbox-readme-template.md",
+  "skills/harness/bagakit-living-knowledge/playbook/tpl/topic-memory-readme-template.md",
+  "skills/harness/bagakit-living-knowledge/playbook/tpl/topic-project-readme-template.md",
+  "skills/harness/bagakit-living-knowledge/scripts/__pycache__",
+  "skills/harness/bagakit-living-knowledge/scripts_dev",
+]
+
+[[suite]]
+id = "bagakit-living-knowledge-smoke"
+owner = "skills/harness/bagakit-living-knowledge"
+description = "Run the canonical bagakit-living-knowledge substrate smoke checks."
+default = true
+validation_class = "smoke"
+groups = ["skills", "harness", "living-knowledge", "smoke"]
+
+[suite.runner]
+kind = "bash_script"
+script = "gate_validation/skills/harness/bagakit-living-knowledge/check-bagakit-living-knowledge.sh"
+args = [
+  "--root",
+  "{repo_root}",
+]
+
+[[suite]]
+id = "bagakit-living-knowledge-spec-alignment"
+owner = "skills/harness/bagakit-living-knowledge"
+description = "Keep the repository-owned living-knowledge spec aligned with the runtime docs and managed bootstrap template."
+default = true
+validation_class = "contract"
+groups = ["skills", "harness", "living-knowledge", "contract"]
+
+[suite.runner]
+kind = "python_script"
+script = "gate_validation/skills/harness/bagakit-living-knowledge/check-spec-alignment.py"
+args = [
+  "--root",
+  "{repo_root}",
+]

@@ -1,0 +1,17 @@
+version = 2
+
+[[suite]]
+id = "bagakit-skill-evolver-state"
+owner = "skills/harness/bagakit-skill-evolver"
+description = "Validate evolver project state and the skill-shipped operator contract."
+default = true
+validation_class = "tooling"
+groups = ["skills", "harness", "evolver", "smoke"]
+
+[suite.runner]
+kind = "bash_script"
+script = "gate_validation/skills/harness/bagakit-skill-evolver/check-evolver-state.sh"
+args = [
+  "--root",
+  "{repo_root}",
+]

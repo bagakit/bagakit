@@ -1,0 +1,24 @@
+{
+  "version": 1,
+  "description": "Required local feature-tracker references that must be read before strict tracker operations.",
+  "entries": [
+    {
+      "id": "feature-tracker-skill-contract",
+      "type": "file",
+      "location": "../SKILL.md",
+      "required": true
+    },
+    {
+      "id": "feature-tracker-readme",
+      "type": "file",
+      "location": "../README.md",
+      "required": true
+    },
+    {
+      "id": "feature-tracker-task-template",
+      "type": "file",
+      "location": "tpl/feature-tasks-template.md",
+      "required": true
+    }
+  ]
+}

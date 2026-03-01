@@ -1,0 +1,3052 @@
+"""Core implementation for bagakit-feature-tracker."""
+
+from __future__ import annotations
+
+import argparse
+import hashlib
+import json
+import os
+import re
+import shlex
+import shutil
+import subprocess
+import sys
+import tarfile
+import urllib.error
+import urllib.request
+from dataclasses import dataclass
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any, Iterable
+
+sys.dont_write_bytecode = True
+
+FEAT_ID_RE = re.compile(r"^f-\d{8}-[a-z0-9][a-z0-9-]*$")
+TASK_ID_RE = re.compile(r"^T-\d{3}$")
+FEAT_STATUS = {"proposal", "ready", "in_progress", "blocked", "done", "archived", "discarded"}
+TASK_STATUS = {"todo", "in_progress", "done", "blocked"}
+GATE_STATUS = {"pass", "fail"}
+WORKSPACE_MODES = {"worktree", "current_tree", "proposal_only"}
+CLOSED_FEAT_STATUS = {"archived", "discarded"}
+UNRESOLVED_ENV_RE = re.compile(r"\$\{?[A-Za-z_][A-Za-z0-9_]*")
+REFERENCE_SKILLS_ENV = "BAGAKIT_REFERENCE_SKILLS_HOME"
+RUNTIME_POLICY_FILENAME = "runtime-policy.json"
+LEGACY_CONFIG_FILENAME = "config.json"
+FEATURES_DAG_FILENAME = "FEATURES_DAG.json"
+
+
+def utc_now() -> str:
+    return (
+        datetime.now(timezone.utc)
+        .replace(microsecond=0)
+        .isoformat()
+        .replace("+00:00", "Z")
+    )
+
+
+def utc_day() -> str:
+    return datetime.now(timezone.utc).strftime("%Y%m%d")
+
+
+def sha256_bytes(data: bytes) -> str:
+    h = hashlib.sha256()
+    h.update(data)
+    return h.hexdigest()
+
+
+def sha256_file(path: Path) -> str:
+    h = hashlib.sha256()
+    with path.open("rb") as f:
+        for chunk in iter(lambda: f.read(65536), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def load_json(path: Path) -> Any:
+    with path.open("r", encoding="utf-8") as f:
+        return json.load(f)
+
+
+def save_json(path: Path, data: Any) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_suffix(path.suffix + ".tmp")
+    with tmp.open("w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+        f.write("\n")
+    tmp.replace(path)
+
+
+def read_text(path: Path) -> str:
+    with path.open("r", encoding="utf-8") as f:
+        return f.read()
+
+
+def write_text(path: Path, text: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(text, encoding="utf-8")
+
+
+def eprint(msg: str) -> None:
+    print(msg, file=sys.stderr)
+
+
+def run_cmd(cmd: list[str], *, cwd: Path | None = None) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        cmd,
+        cwd=str(cwd) if cwd else None,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+
+
+def run_shell(command: str, *, cwd: Path) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        command,
+        cwd=str(cwd),
+        text=True,
+        capture_output=True,
+        shell=True,
+        check=False,
+    )
+
+
+def ensure_git_repo(root: Path) -> None:
+    cp = run_cmd(["git", "-C", str(root), "rev-parse", "--is-inside-work-tree"])
+    if cp.returncode != 0 or cp.stdout.strip() != "true":
+        raise SystemExit(f"error: not a git repository: {root}")
+
+
+def command_exists(name: str) -> bool:
+    cp = run_cmd(["bash", "-lc", f"command -v {shlex.quote(name)} >/dev/null 2>&1"])
+    return cp.returncode == 0
+
+
+def current_branch(root: Path) -> str:
+    cp = run_cmd(["git", "-C", str(root), "rev-parse", "--abbrev-ref", "HEAD"])
+    if cp.returncode != 0:
+        return ""
+    branch = cp.stdout.strip()
+    return "" if branch == "HEAD" else branch
+
+
+def path_from_porcelain_line(line: str) -> str:
+    raw = line[3:] if len(line) > 3 else line
+    if " -> " in raw:
+        raw = raw.split(" -> ", 1)[1]
+    return raw.strip().strip('"')
+
+
+def is_harness_generated_gitignore(root: Path, rel_path: str) -> bool:
+    if rel_path != ".gitignore":
+        return False
+    target = root / rel_path
+    if not target.exists():
+        return False
+    lines = [line.strip() for line in target.read_text(encoding="utf-8").splitlines() if line.strip()]
+    return lines == [".worktrees"]
+
+
+def non_harness_git_status_lines(root: Path) -> list[str]:
+    cp = run_cmd(["git", "-C", str(root), "status", "--porcelain"])
+    if cp.returncode != 0:
+        raise SystemExit(cp.stderr.strip() or cp.stdout.strip() or "git status failed")
+
+    ignored_prefixes = (".bagakit/", ".worktrees/")
+    out: list[str] = []
+    for raw in cp.stdout.splitlines():
+        line = raw.rstrip()
+        if not line:
+            continue
+        path = path_from_porcelain_line(line)
+        if path.startswith(ignored_prefixes):
+            continue
+        if is_harness_generated_gitignore(root, path):
+            continue
+        out.append(line)
+    return out
+
+
+def recommend_workspace_mode(root: Path) -> tuple[str, str]:
+    changes = non_harness_git_status_lines(root)
+    if changes:
+        return (
+            "worktree",
+            "repository has non-harness changes; isolated worktree is safer",
+        )
+    return (
+        "current_tree",
+        "repository is clean aside from harness metadata; current_tree is lighter than a dedicated worktree",
+    )
+
+
+def slugify(value: str) -> str:
+    value = value.strip().lower()
+    value = re.sub(r"[^a-z0-9]+", "-", value)
+    value = re.sub(r"-+", "-", value).strip("-")
+    if not value:
+        raise SystemExit("error: slug became empty after normalization")
+    return value
+
+
+@dataclass
+class HarnessPaths:
+    root: Path
+
+    @property
+    def harness_dir(self) -> Path:
+        return self.root / ".bagakit" / "feature-tracker"
+
+    @property
+    def feats_dir(self) -> Path:
+        return self.harness_dir / "features"
+
+    @property
+    def feats_archived_dir(self) -> Path:
+        return self.harness_dir / "features-archived"
+
+    @property
+    def feats_discarded_dir(self) -> Path:
+        return self.harness_dir / "features-discarded"
+
+    @property
+    def index_dir(self) -> Path:
+        return self.harness_dir / "index"
+
+    @property
+    def artifacts_dir(self) -> Path:
+        return self.harness_dir / "artifacts"
+
+    @property
+    def index_file(self) -> Path:
+        return self.index_dir / "features.json"
+
+    @property
+    def runtime_policy_file(self) -> Path:
+        return self.harness_dir / RUNTIME_POLICY_FILENAME
+
+    @property
+    def legacy_config_file(self) -> Path:
+        return self.harness_dir / LEGACY_CONFIG_FILENAME
+
+    @property
+    def dag_file(self) -> Path:
+        return self.index_dir / FEATURES_DAG_FILENAME
+
+    @property
+    def dag_archive_dir(self) -> Path:
+        return self.index_dir / "archive"
+
+    @property
+    def ref_report_json(self) -> Path:
+        return self.artifacts_dir / "ref-read-report.json"
+
+    @property
+    def ref_report_md(self) -> Path:
+        return self.artifacts_dir / "ref-read-report.md"
+
+    def feat_dir(self, feat_id: str, *, status: str | None = None) -> Path:
+        if status == "archived":
+            base = self.feats_archived_dir
+        elif status == "discarded":
+            base = self.feats_discarded_dir
+        else:
+            base = self.feats_dir
+        return base / feat_id
+
+    def feat_state(self, feat_id: str, *, status: str | None = None) -> Path:
+        return self.feat_dir(feat_id, status=status) / "state.json"
+
+    def feat_tasks(self, feat_id: str, *, status: str | None = None) -> Path:
+        return self.feat_dir(feat_id, status=status) / "tasks.json"
+
+    def feat_summary(self, feat_id: str, *, status: str | None = None) -> Path:
+        return self.feat_dir(feat_id, status=status) / "summary.md"
+
+
+def load_index(paths: HarnessPaths) -> dict[str, Any]:
+    if not paths.index_file.exists():
+        raise SystemExit(f"error: missing harness index: {paths.index_file}")
+    data = load_json(paths.index_file)
+    if not isinstance(data, dict) or "features" not in data:
+        raise SystemExit(f"error: invalid index schema: {paths.index_file}")
+    return data
+
+
+def save_index(paths: HarnessPaths, index_data: dict[str, Any]) -> None:
+    index_data["updated_at"] = utc_now()
+    save_json(paths.index_file, index_data)
+
+
+def load_runtime_policy(paths: HarnessPaths) -> dict[str, Any]:
+    target = paths.runtime_policy_file
+    if not target.exists():
+        if paths.legacy_config_file.exists():
+            raise SystemExit(
+                "error: detected legacy policy file "
+                f"{paths.legacy_config_file}. "
+                "legacy compatibility is disabled; migrate manually by comparing current SKILL.md "
+                "and creating runtime-policy.json."
+            )
+        raise SystemExit(
+            f"error: missing runtime policy file: {paths.runtime_policy_file}. "
+            "run feature-tracker.sh initialize-tracker to scaffold the latest layout."
+        )
+    payload = load_json(target)
+    if not isinstance(payload, dict):
+        raise SystemExit(f"error: invalid runtime policy schema: {target}")
+    return payload
+
+
+def ensure_runtime_policy(paths: HarnessPaths, skill_dir: Path) -> Path:
+    if paths.runtime_policy_file.exists():
+        return paths.runtime_policy_file
+    if paths.legacy_config_file.exists():
+        raise SystemExit(
+            "error: detected legacy policy file "
+            f"{paths.legacy_config_file}. "
+            "automatic compatibility migration is disabled; migrate manually to runtime-policy.json."
+        )
+
+    copy_template_if_missing(skill_dir, "tpl/runtime-policy-template.json", paths.runtime_policy_file)
+    return paths.runtime_policy_file
+
+
+def resolve_workspace_mode(policy: dict[str, Any], requested: str | None) -> str:
+    workspace_cfg = policy.get("workspace", {}) if isinstance(policy, dict) else {}
+    raw = str(requested or workspace_cfg.get("default_mode", "proposal_only")).strip().lower()
+    if raw not in WORKSPACE_MODES:
+        raise SystemExit(
+            "error: invalid workspace mode: "
+            f"{raw}. expected one of {', '.join(sorted(WORKSPACE_MODES))}"
+        )
+    return raw
+
+
+def resolve_branch_prefix(policy: dict[str, Any], requested: str | None) -> str:
+    git_cfg = policy.get("git", {}) if isinstance(policy, dict) else {}
+    raw = str(requested if requested is not None else git_cfg.get("branch_prefix", "feat/")).strip()
+    if not raw:
+        raise SystemExit("error: branch prefix must not be empty")
+    return raw
+
+
+def workspace_mode_of(state: dict[str, Any]) -> str:
+    raw = str(state.get("workspace_mode") or "").strip().lower()
+    if raw not in WORKSPACE_MODES:
+        raise SystemExit(
+            "error: invalid or missing workspace_mode in feat state: "
+            f"{state.get('feat_id', '<unknown>')}"
+        )
+    return raw
+
+
+def make_worktree_assignment(
+    root: Path,
+    *,
+    feat_id: str,
+    branch_prefix: str,
+) -> tuple[str, str, str, Path, str]:
+    branch = f"{branch_prefix}{feat_id}"
+    wt_name = f"wt-{feat_id}"
+    wt_rel = str(Path(".worktrees") / wt_name)
+    wt_abs = root / wt_rel
+    base_ref = pick_base_branch(root)
+
+    ensure_worktrees_ignored(root)
+    (root / ".worktrees").mkdir(parents=True, exist_ok=True)
+
+    cp = run_cmd(
+        [
+            "git",
+            "-C",
+            str(root),
+            "worktree",
+            "add",
+            str(wt_abs),
+            "-b",
+            branch,
+            base_ref,
+        ]
+    )
+    if cp.returncode != 0:
+        err = cp.stderr.strip() or cp.stdout.strip() or "failed to create worktree"
+        raise SystemExit(f"error: {err}")
+
+    return branch, wt_name, wt_rel, wt_abs, base_ref
+
+
+def get_feat_index_entry(index_data: dict[str, Any], feat_id: str) -> dict[str, Any] | None:
+    for item in index_data.get("features", []):
+        if item.get("feat_id") == feat_id:
+            return item
+    return None
+
+
+def upsert_feat_index(paths: HarnessPaths, state: dict[str, Any]) -> None:
+    index_data = load_index(paths)
+    entries = index_data.setdefault("features", [])
+    payload = {
+        "feat_id": state["feat_id"],
+        "title": state.get("title", ""),
+        "status": state.get("status", "proposal"),
+        "workspace_mode": state.get("workspace_mode", ""),
+        "branch": state.get("branch", ""),
+        "worktree_name": state.get("worktree_name", ""),
+        "updated_at": state.get("updated_at", utc_now()),
+    }
+    for i, item in enumerate(entries):
+        if item.get("feat_id") == payload["feat_id"]:
+            entries[i] = payload
+            save_index(paths, index_data)
+            return
+    entries.append(payload)
+    entries.sort(key=lambda x: str(x.get("feat_id", "")))
+    save_index(paths, index_data)
+
+
+def feat_index_status(paths: HarnessPaths, feat_id: str) -> str:
+    index_data = load_index(paths)
+    entry = get_feat_index_entry(index_data, feat_id)
+    if entry is None:
+        raise SystemExit(f"error: feat not indexed: {feat_id}")
+    return str(entry.get("status") or "proposal")
+
+
+def load_feat(paths: HarnessPaths, feat_id: str) -> tuple[dict[str, Any], dict[str, Any]]:
+    status = feat_index_status(paths, feat_id)
+    state_file = paths.feat_state(feat_id, status=status)
+    tasks_file = paths.feat_tasks(feat_id, status=status)
+    if not state_file.exists():
+        raise SystemExit(f"error: missing feat state file: {state_file}")
+    if not tasks_file.exists():
+        raise SystemExit(f"error: missing feat tasks file: {tasks_file}")
+    state = load_json(state_file)
+    tasks = load_json(tasks_file)
+    return state, tasks
+
+
+def save_feat(paths: HarnessPaths, feat_id: str, state: dict[str, Any], tasks: dict[str, Any]) -> None:
+    state["updated_at"] = utc_now()
+    tasks["updated_at"] = utc_now()
+    status = str(state.get("status") or "")
+    save_json(paths.feat_state(feat_id, status=status), state)
+    save_json(paths.feat_tasks(feat_id, status=status), tasks)
+    sync_tasks_markdown(paths, feat_id, tasks, status=status)
+    upsert_feat_index(paths, state)
+
+
+def sync_tasks_markdown(
+    paths: HarnessPaths, feat_id: str, tasks: dict[str, Any], *, status: str | None = None
+) -> None:
+    target = paths.feat_dir(feat_id, status=status) / "tasks.md"
+    rows: list[str] = [f"# Feature Tasks: {feat_id}", "", "JSON SSOT: `tasks.json`", "", "## Task Checklist"]
+    for item in tasks.get("tasks", []):
+        checked = "x" if item.get("status") == "done" else " "
+        rows.append(f"- [{checked}] {item.get('id', '<id>')} {item.get('title', '')}")
+    rows += ["", "## Status Legend", "- todo", "- in_progress", "- done", "- blocked", ""]
+    write_text(target, "\n".join(rows))
+
+
+def find_task(tasks: dict[str, Any], task_id: str) -> dict[str, Any]:
+    for item in tasks.get("tasks", []):
+        if item.get("id") == task_id:
+            return item
+    raise SystemExit(f"error: task not found: {task_id}")
+
+
+def count_tasks(tasks: dict[str, Any], status: str) -> int:
+    return sum(1 for t in tasks.get("tasks", []) if t.get("status") == status)
+
+
+def ensure_harness_exists(paths: HarnessPaths) -> None:
+    if not paths.harness_dir.exists():
+        raise SystemExit(
+            "error: tracker not initialized. run feature-tracker.sh initialize-tracker first"
+        )
+
+
+def ensure_worktrees_ignored(root: Path) -> None:
+    gitignore = root / ".gitignore"
+    content = gitignore.read_text(encoding="utf-8") if gitignore.exists() else ""
+    lines = [line.strip() for line in content.splitlines()]
+    if ".worktrees" not in lines:
+        with gitignore.open("a", encoding="utf-8") as f:
+            if content and not content.endswith("\n"):
+                f.write("\n")
+            f.write(".worktrees\n")
+        print(f"write: {gitignore} (+.worktrees)")
+
+
+def load_template(skill_dir: Path, rel: str) -> str:
+    path = skill_dir / "references" / rel
+    if not path.exists():
+        raise SystemExit(f"error: missing template: {path}")
+    return read_text(path)
+
+
+def copy_template_if_missing(skill_dir: Path, rel: str, dest: Path) -> None:
+    if dest.exists():
+        return
+    write_text(dest, load_template(skill_dir, rel))
+    print(f"write: {dest}")
+
+
+def manifest_path(skill_dir: Path, path_override: str | None) -> Path:
+    if path_override:
+        return Path(path_override)
+    return skill_dir / "references" / "required-reading-manifest.json"
+
+
+def resolve_manifest_location(raw: str, *, manifest_dir: Path) -> tuple[Path | None, str | None]:
+    expanded = os.path.expanduser(os.path.expandvars(raw))
+    if UNRESOLVED_ENV_RE.search(expanded):
+        return None, "unresolved environment variable in location"
+    path = Path(expanded)
+    if not path.is_absolute():
+        path = (manifest_dir / path).resolve()
+    return path, None
+
+
+def portable_path_for_report(
+    path: Path,
+    *,
+    root: Path,
+    skill_dir: Path,
+    manifest_dir: Path,
+    reference_skills_home: Path | None,
+) -> str:
+    resolved = path.resolve()
+    bases: list[tuple[str, Path]] = [
+        ("<project-root>", root),
+        ("<skill-dir>", skill_dir),
+        ("<manifest-dir>", manifest_dir),
+    ]
+    if reference_skills_home is not None:
+        bases.append((f"${REFERENCE_SKILLS_ENV}", reference_skills_home))
+    bases.append(("$HOME", Path.home()))
+
+    for prefix, base in bases:
+        try:
+            rel = resolved.relative_to(base.resolve())
+        except ValueError:
+            continue
+        rel_text = rel.as_posix()
+        if rel_text in {"", "."}:
+            return prefix
+        return f"{prefix}/{rel_text}"
+    return "<absolute-path-redacted>"
+
+
+def report_location_label(
+    raw: str,
+    *,
+    root: Path,
+    skill_dir: Path,
+    manifest_dir: Path,
+    reference_skills_home: Path | None,
+) -> str:
+    expanded = os.path.expanduser(os.path.expandvars(raw))
+    if UNRESOLVED_ENV_RE.search(expanded):
+        return raw
+    path = Path(expanded)
+    if path.is_absolute():
+        return portable_path_for_report(
+            path,
+            root=root,
+            skill_dir=skill_dir,
+            manifest_dir=manifest_dir,
+            reference_skills_home=reference_skills_home,
+        )
+    return path.as_posix()
+
+
+def default_reference_skills_home() -> Path | None:
+    env_raw = os.environ.get(REFERENCE_SKILLS_ENV, "").strip()
+    if env_raw:
+        return Path(os.path.expanduser(os.path.expandvars(env_raw)))
+    return None
+
+
+def ensure_reference_skills_home() -> Path | None:
+    return default_reference_skills_home()
+
+
+def compute_manifest_hash(path: Path) -> str:
+    return sha256_file(path)
+
+
+def cmd_ref_read_gate(args: argparse.Namespace) -> int:
+    root = Path(args.root).resolve()
+    paths = HarnessPaths(root)
+    skill_dir = Path(args.skill_dir).resolve()
+    mpath = manifest_path(skill_dir, args.manifest)
+    manifest_dir = mpath.parent.resolve()
+    detected_ref_home = ensure_reference_skills_home()
+    manifest_path_label = portable_path_for_report(
+        mpath,
+        root=root,
+        skill_dir=skill_dir,
+        manifest_dir=manifest_dir,
+        reference_skills_home=detected_ref_home,
+    )
+
+    if not mpath.exists():
+        eprint(f"error: manifest not found: {mpath}")
+        return 1
+
+    manifest_data = load_json(mpath)
+    entries = manifest_data.get("entries", [])
+    if not isinstance(entries, list):
+        eprint("error: manifest 'entries' must be list")
+        return 1
+
+    result_entries: list[dict[str, Any]] = []
+    ok = True
+    needs_reference_skills_home = False
+
+    for entry in entries:
+        entry_id = str(entry.get("id", ""))
+        entry_type = str(entry.get("type", ""))
+        location = str(entry.get("location", ""))
+        if REFERENCE_SKILLS_ENV in location:
+            needs_reference_skills_home = True
+        location_label = report_location_label(
+            location,
+            root=root,
+            skill_dir=skill_dir,
+            manifest_dir=manifest_dir,
+            reference_skills_home=detected_ref_home,
+        )
+        resolved_location = location_label
+        required = bool(entry.get("required", True))
+        exists = False
+        digest = ""
+        error = ""
+
+        if not entry_id or entry_type not in {"file", "url"} or not location:
+            ok = False
+            error = "invalid manifest entry"
+        elif entry_type == "file":
+            resolved_path, resolve_error = resolve_manifest_location(location, manifest_dir=manifest_dir)
+            if resolve_error:
+                exists = False
+                error = resolve_error
+            else:
+                resolved_location = portable_path_for_report(
+                    resolved_path,
+                    root=root,
+                    skill_dir=skill_dir,
+                    manifest_dir=manifest_dir,
+                    reference_skills_home=detected_ref_home,
+                )
+                if resolved_path.exists() and resolved_path.is_file():
+                    exists = True
+                    digest = sha256_file(resolved_path)
+                else:
+                    exists = False
+                    error = "file not found"
+        elif entry_type == "url":
+            try:
+                with urllib.request.urlopen(location, timeout=20) as r:
+                    data = r.read()
+                exists = True
+                digest = sha256_bytes(data)
+            except (urllib.error.URLError, TimeoutError) as exc:
+                exists = False
+                error = f"url fetch failed: {exc}"
+
+        if required and not exists:
+            ok = False
+
+        result_entries.append(
+            {
+                "id": entry_id,
+                "type": entry_type,
+                "location": location_label,
+                "resolved_location": resolved_location,
+                "required": required,
+                "exists": exists,
+                "sha256": digest,
+                "error": error,
+            }
+        )
+
+    status = "VALID" if ok else "INVALID"
+    generated_at = utc_now()
+    mhash = compute_manifest_hash(mpath)
+
+    payload = {
+        "status": status,
+        "generated_at": generated_at,
+        "project_root": "<project-root>",
+        "manifest_path": manifest_path_label,
+        "manifest_sha256": mhash,
+        "entries": result_entries,
+    }
+
+    paths.artifacts_dir.mkdir(parents=True, exist_ok=True)
+    save_json(paths.ref_report_json, payload)
+
+    lines = [
+        "# Reference Read Report",
+        "",
+        f"Status: {status}",
+        f"Generated At (UTC): {generated_at}",
+        "Project Root: <project-root>",
+        f"Manifest Path: {manifest_path_label}",
+        f"Manifest SHA256: {mhash}",
+        "",
+        "## Entries",
+        "",
+        "| ID | Type | Required | Exists | SHA256 | Error |",
+        "|---|---|---|---|---|---|",
+    ]
+    for item in result_entries:
+        lines.append(
+            "| {id} | {type} | {required} | {exists} | {sha256} | {error} |".format(
+                id=item["id"],
+                type=item["type"],
+                required="yes" if item["required"] else "no",
+                exists="yes" if item["exists"] else "no",
+                sha256=item["sha256"] or "-",
+                error=(item["error"] or "-").replace("|", "/"),
+            )
+        )
+
+    lines += ["", "## Reading Notes", ""]
+    for item in result_entries:
+        lines += [
+            f"### {item['id']}",
+            "- Summary:",
+            "- Key takeaways:",
+            "",
+        ]
+
+    write_text(paths.ref_report_md, "\n".join(lines))
+
+    print(f"write: {paths.ref_report_json}")
+    print(f"write: {paths.ref_report_md}")
+    if detected_ref_home is not None:
+        detected_ref_home_label = portable_path_for_report(
+            detected_ref_home,
+            root=root,
+            skill_dir=skill_dir,
+            manifest_dir=manifest_dir,
+            reference_skills_home=detected_ref_home,
+        )
+        print(f"info: {REFERENCE_SKILLS_ENV}={detected_ref_home_label}")
+    elif needs_reference_skills_home:
+        eprint(
+            "warn: BAGAKIT_REFERENCE_SKILLS_HOME is required for manifests that reference external skills; "
+            "set it explicitly to the skills root before running this command"
+        )
+    if not ok:
+        eprint("error: reference read gate failed (missing required entries)")
+        return 1
+    print("ok: reference read report generated")
+    return 0
+
+
+def check_ref_report(paths: HarnessPaths, skill_dir: Path, manifest_override: str | None = None) -> list[str]:
+    ensure_reference_skills_home()
+    issues: list[str] = []
+    mpath = manifest_path(skill_dir, manifest_override)
+    if not mpath.exists():
+        issues.append(f"manifest missing: {mpath}")
+        return issues
+
+    if not paths.ref_report_json.exists():
+        issues.append(
+            "missing report: "
+            f"{paths.ref_report_json} "
+            f"(run feature-tracker.sh check-reference-readiness --root {paths.root})"
+        )
+        return issues
+
+    try:
+        report = load_json(paths.ref_report_json)
+    except Exception as exc:  # noqa: BLE001
+        issues.append(f"failed to read report json: {exc}")
+        return issues
+
+    if report.get("status") != "VALID":
+        issues.append("ref-read report status is not VALID")
+
+    expected_hash = compute_manifest_hash(mpath)
+    if report.get("manifest_sha256") != expected_hash:
+        issues.append("manifest hash mismatch; regenerate report")
+
+    entries = report.get("entries", [])
+    if not isinstance(entries, list):
+        issues.append("report entries malformed")
+        return issues
+
+    missing_required = [
+        item.get("id")
+        for item in entries
+        if item.get("required", True) and not item.get("exists", False)
+    ]
+    if missing_required:
+        needs_reference_skills_home = any(
+            REFERENCE_SKILLS_ENV in str(item.get("location", ""))
+            for item in entries
+            if isinstance(item, dict)
+        )
+        issues.append(f"missing required references: {', '.join(str(i) for i in missing_required)}")
+        if needs_reference_skills_home:
+            issues.append(
+                "hint: ensure required skills are installed and "
+                "set BAGAKIT_REFERENCE_SKILLS_HOME to the correct skills directory "
+                "(for one-shot shell calls, set it inline with the command)"
+            )
+        else:
+            issues.append("hint: ensure local manifest file entries exist and are readable")
+
+    return issues
+
+
+def cmd_check_ref_report(args: argparse.Namespace) -> int:
+    root = Path(args.root).resolve()
+    skill_dir = Path(args.skill_dir).resolve()
+    paths = HarnessPaths(root)
+    issues = check_ref_report(paths, skill_dir, args.manifest)
+    if issues:
+        for issue in issues:
+            eprint(f"error: {issue}")
+        return 1
+    print("ok")
+    return 0
+
+
+def cmd_apply(args: argparse.Namespace) -> int:
+    root = Path(args.root).resolve()
+    skill_dir = Path(args.skill_dir).resolve()
+    paths = HarnessPaths(root)
+
+    if args.strict:
+        issues = check_ref_report(paths, skill_dir, args.manifest)
+        if issues:
+            for issue in issues:
+                eprint(f"error: {issue}")
+            return 1
+
+    paths.harness_dir.mkdir(parents=True, exist_ok=True)
+    paths.feats_dir.mkdir(parents=True, exist_ok=True)
+    paths.feats_archived_dir.mkdir(parents=True, exist_ok=True)
+    paths.feats_discarded_dir.mkdir(parents=True, exist_ok=True)
+    paths.index_dir.mkdir(parents=True, exist_ok=True)
+    paths.dag_archive_dir.mkdir(parents=True, exist_ok=True)
+    paths.artifacts_dir.mkdir(parents=True, exist_ok=True)
+
+    copy_template_if_missing(skill_dir, "tpl/features-index-template.json", paths.index_file)
+    ensure_runtime_policy(paths, skill_dir)
+    copy_template_if_missing(skill_dir, "tpl/features-dag-template.json", paths.dag_file)
+
+    if not (paths.harness_dir / ".gitignore").exists():
+        write_text(paths.harness_dir / ".gitignore", "artifacts/*.log\n")
+        print(f"write: {paths.harness_dir / '.gitignore'}")
+
+    ensure_worktrees_ignored(root)
+    print(f"ok: harness initialized at {paths.harness_dir}")
+    return 0
+
+
+def pick_base_branch(root: Path) -> str:
+    for candidate in ("main", "master"):
+        cp = run_cmd(["git", "-C", str(root), "show-ref", "--verify", f"refs/heads/{candidate}"])
+        if cp.returncode == 0:
+            return candidate
+    cp = run_cmd(["git", "-C", str(root), "rev-parse", "--abbrev-ref", "HEAD"])
+    branch = cp.stdout.strip() if cp.returncode == 0 else ""
+    return branch or "HEAD"
+
+
+def unique_feat_id(paths: HarnessPaths, slug: str) -> str:
+    existing_ids = {str(item.get("feat_id", "")) for item in load_index(paths).get("features", [])}
+
+    def exists(feat_id: str) -> bool:
+        return (
+            feat_id in existing_ids
+            or paths.feat_dir(feat_id).exists()
+            or paths.feat_dir(feat_id, status="archived").exists()
+            or paths.feat_dir(feat_id, status="discarded").exists()
+        )
+
+    base = f"f-{utc_day()}-{slug}"
+    if not exists(base):
+        return base
+    i = 2
+    while True:
+        candidate = f"{base}-{i}"
+        if not exists(candidate):
+            return candidate
+        i += 1
+
+
+def cmd_feat_new(args: argparse.Namespace) -> int:
+    root = Path(args.root).resolve()
+    skill_dir = Path(args.skill_dir).resolve()
+    ensure_git_repo(root)
+    paths = HarnessPaths(root)
+    ensure_harness_exists(paths)
+
+    if args.strict:
+        issues = check_ref_report(paths, skill_dir, args.manifest)
+        if issues:
+            for issue in issues:
+                eprint(f"error: {issue}")
+            return 1
+
+    title = args.title.strip()
+    goal = args.goal.strip()
+    slug = slugify(args.slug if args.slug else title)
+    feat_id = unique_feat_id(paths, slug)
+    if not FEAT_ID_RE.match(feat_id):
+        eprint(f"error: generated invalid feat id: {feat_id}")
+        return 1
+
+    policy = load_runtime_policy(paths)
+    workspace_mode = resolve_workspace_mode(policy, args.workspace_mode)
+    branch_prefix = resolve_branch_prefix(policy, args.branch_prefix)
+    base_ref = pick_base_branch(root)
+    root_branch = current_branch(root)
+    branch = ""
+    wt_name = ""
+    wt_rel = ""
+    wt_abs: Path | None = None
+
+    if workspace_mode == "worktree":
+        try:
+            branch, wt_name, wt_rel, wt_abs, base_ref = make_worktree_assignment(
+                root,
+                feat_id=feat_id,
+                branch_prefix=branch_prefix,
+            )
+        except SystemExit as exc:
+            eprint(str(exc))
+            return 1
+
+    feat_dir = paths.feat_dir(feat_id)
+    feat_dir.mkdir(parents=True, exist_ok=False)
+    (feat_dir / "spec-deltas").mkdir(parents=True, exist_ok=True)
+    (feat_dir / "artifacts").mkdir(parents=True, exist_ok=True)
+    (feat_dir / "gate").mkdir(parents=True, exist_ok=True)
+
+    proposal = load_template(skill_dir, "tpl/feature-proposal-template.md")
+    proposal = (
+        proposal.replace("<feat-id>", feat_id)
+        .replace("<feature-id>", feat_id)
+        .replace("<goal>", goal)
+    )
+    write_text(feat_dir / "proposal.md", proposal)
+
+    tasks_md = (
+        load_template(skill_dir, "tpl/feature-tasks-template.md")
+        .replace("<feat-id>", feat_id)
+        .replace("<feature-id>", feat_id)
+    )
+    write_text(feat_dir / "tasks.md", tasks_md)
+
+    spec_delta = load_template(skill_dir, "tpl/feature-spec-delta-template.md").replace("<capability>", "core")
+    write_text(feat_dir / "spec-deltas" / "core.md", spec_delta)
+
+    state: dict[str, Any] = {
+        "version": 1,
+        "feat_id": feat_id,
+        "title": title,
+        "slug": slug,
+        "goal": goal,
+        "status": "proposal",
+        "workspace_mode": workspace_mode,
+        "base_ref": base_ref,
+        "branch": branch,
+        "worktree_name": wt_name,
+        "worktree_path": wt_rel,
+        "created_at": utc_now(),
+        "updated_at": utc_now(),
+        "current_task_id": None,
+        "counters": {
+            "gate_fail_streak": 0,
+            "no_progress_rounds": 0,
+            "round_count": 0,
+        },
+        "gate": {
+            "last_result": None,
+            "last_task_id": None,
+            "last_checked_at": None,
+            "last_check_commands": [],
+            "last_log_path": None,
+        },
+        "history": [
+            {
+                "at": utc_now(),
+                "action": "feat_created",
+                "detail": (
+                    f"workspace_mode={workspace_mode}; base_ref={base_ref}; "
+                    f"root_branch={root_branch or 'detached'}"
+                ),
+            }
+        ],
+    }
+
+    tasks: dict[str, Any] = {
+        "version": 1,
+        "feat_id": feat_id,
+        "updated_at": utc_now(),
+        "tasks": [
+            {
+                "id": "T-001",
+                "title": "Implement first scoped change for this feat",
+                "status": "todo",
+                "summary": "Replace this placeholder with actual task detail.",
+                "gate_result": None,
+                "last_gate_at": None,
+                "last_gate_commands": [],
+                "last_commit_hash": None,
+                "started_at": None,
+                "finished_at": None,
+                "updated_at": utc_now(),
+                "notes": [],
+            }
+        ],
+    }
+
+    save_feat(paths, feat_id, state, tasks)
+    write_text(
+        feat_dir / "gate" / "ui-verification.md",
+        load_template(skill_dir, "tpl/ui-gate-template.md"),
+    )
+
+    print(f"write: {feat_dir / 'state.json'}")
+    print(f"write: {feat_dir / 'tasks.json'}")
+    print(f"workspace_mode: {workspace_mode}")
+    print(f"branch: {branch}")
+    print(f"worktree: {wt_abs if wt_abs is not None else ''}")
+    print(f"feature_id: {feat_id}")
+    return 0
+
+
+def cmd_assign_feat_workspace(args: argparse.Namespace) -> int:
+    root = Path(args.root).resolve()
+    paths = HarnessPaths(root)
+    ensure_harness_exists(paths)
+    ensure_git_repo(root)
+
+    state, tasks = load_feat(paths, args.feat)
+    if str(state.get("status") or "") in CLOSED_FEAT_STATUS:
+        eprint(f"error: cannot assign workspace for closed feat: {args.feat}")
+        return 1
+
+    current_mode = workspace_mode_of(state)
+    if current_mode == "worktree" or str(state.get("worktree_path") or "").strip():
+        eprint(
+            f"error: feat already has worktree assignment: {args.feat}. "
+            "manual cleanup is required before reassigning."
+        )
+        return 1
+
+    policy = load_runtime_policy(paths)
+    target_mode = resolve_workspace_mode(policy, args.workspace_mode)
+    if target_mode == "proposal_only":
+        eprint("error: assign-feature-workspace only supports worktree or current_tree")
+        return 1
+    if target_mode == current_mode:
+        print(f"ok: workspace already assigned {args.feat} => {target_mode}")
+        return 0
+
+    branch = ""
+    wt_name = ""
+    wt_rel = ""
+    wt_abs: Path | None = None
+    base_ref = str(state.get("base_ref") or pick_base_branch(root))
+
+    if target_mode == "worktree":
+        branch_prefix = resolve_branch_prefix(policy, args.branch_prefix)
+        try:
+            branch, wt_name, wt_rel, wt_abs, base_ref = make_worktree_assignment(
+                root,
+                feat_id=args.feat,
+                branch_prefix=branch_prefix,
+            )
+        except SystemExit as exc:
+            eprint(str(exc))
+            return 1
+
+    state["workspace_mode"] = target_mode
+    state["base_ref"] = base_ref
+    state["branch"] = branch
+    state["worktree_name"] = wt_name
+    state["worktree_path"] = wt_rel
+    state.setdefault("history", []).append(
+        {
+            "at": utc_now(),
+            "action": "workspace_assigned",
+            "detail": (
+                f"{current_mode} -> {target_mode}; root_branch={current_branch(root) or 'detached'}"
+                if current_mode != target_mode
+                else f"{target_mode}; root_branch={current_branch(root) or 'detached'}"
+            ),
+        }
+    )
+    save_feat(paths, args.feat, state, tasks)
+
+    print(f"ok: workspace assigned {args.feat} => {target_mode}")
+    print(f"branch: {branch}")
+    print(f"worktree: {wt_abs if wt_abs is not None else ''}")
+    return 0
+
+
+def cmd_feat_status(args: argparse.Namespace) -> int:
+    root = Path(args.root).resolve()
+    paths = HarnessPaths(root)
+    ensure_harness_exists(paths)
+    index_data = load_index(paths)
+    feats = index_data.get("features", [])
+
+    if args.feat:
+        state, tasks = load_feat(paths, args.feat)
+        payload = {
+            "feature": state,
+            "tasks": tasks,
+        }
+        if args.json:
+            print(json.dumps(payload, ensure_ascii=False, indent=2))
+            return 0
+        print(f"feature_id: {state['feat_id']}")
+        print(f"title: {state.get('title', '')}")
+        print(f"status: {state.get('status', '')}")
+        print(f"workspace_mode: {state.get('workspace_mode', '')}")
+        print(f"branch: {state.get('branch', '')}")
+        print(f"worktree: {state.get('worktree_path', '')}")
+        print(f"current_task: {state.get('current_task_id')}")
+        print(
+            "tasks: "
+            f"todo={count_tasks(tasks, 'todo')} "
+            f"in_progress={count_tasks(tasks, 'in_progress')} "
+            f"done={count_tasks(tasks, 'done')} "
+            f"blocked={count_tasks(tasks, 'blocked')}"
+        )
+        return 0
+
+    if args.json:
+        print(json.dumps({"features": feats}, ensure_ascii=False, indent=2))
+        return 0
+
+    if not feats:
+        print("no features")
+        return 0
+
+    print("feature_id	status	workspace	title	branch	updated_at")
+    for item in feats:
+        print(
+            f"{item.get('feat_id','')}\t{item.get('status','')}\t{item.get('workspace_mode','')}\t"
+            f"{item.get('title','')}\t{item.get('branch','')}\t{item.get('updated_at','')}"
+        )
+    return 0
+
+
+def cmd_task_start(args: argparse.Namespace) -> int:
+    root = Path(args.root).resolve()
+    paths = HarnessPaths(root)
+    ensure_harness_exists(paths)
+    ensure_git_repo(root)
+    state, tasks = load_feat(paths, args.feat)
+    workspace_mode = workspace_mode_of(state)
+    if workspace_mode == "proposal_only":
+        recommended_mode, reason = recommend_workspace_mode(root)
+        next_cmd = (
+            "feature-tracker.sh assign-feature-workspace "
+            f"--root {shlex.quote(str(root))} --feature {args.feat} --workspace-mode {recommended_mode}"
+        )
+        alternative = (
+            "feature-tracker.sh assign-feature-workspace "
+            f"--root {shlex.quote(str(root))} --feature {args.feat} "
+            f"--workspace-mode {'worktree' if recommended_mode == 'current_tree' else 'current_tree'}"
+        )
+        eprint(
+            f"error: feat {args.feat} is proposal_only; "
+            "assign a workspace first with feature-tracker.sh assign-feature-workspace"
+        )
+        print(f"recommendation: {recommended_mode} ({reason})")
+        print(f"next: {next_cmd}")
+        print(f"alternative: {alternative}")
+        return 1
+
+    task_id = args.task
+    if not TASK_ID_RE.match(task_id):
+        eprint(f"error: invalid task id: {task_id}")
+        return 1
+
+    for t in tasks.get("tasks", []):
+        if t.get("status") == "in_progress" and t.get("id") != task_id:
+            eprint(f"error: another task is already in_progress: {t.get('id')}")
+            return 1
+
+    target = find_task(tasks, task_id)
+    if target.get("status") not in {"todo", "blocked"}:
+        eprint(f"error: task {task_id} cannot be started from status={target.get('status')}")
+        return 1
+
+    target["status"] = "in_progress"
+    target["started_at"] = target.get("started_at") or utc_now()
+    target["updated_at"] = utc_now()
+    state["status"] = "in_progress"
+    state["current_task_id"] = task_id
+    state.setdefault("history", []).append(
+        {"at": utc_now(), "action": "task_started", "detail": task_id}
+    )
+    save_feat(paths, args.feat, state, tasks)
+    print(f"ok: task started {args.feat}/{task_id}")
+    return 0
+
+
+def detect_project_type(root: Path, config: dict[str, Any]) -> str:
+    gate_cfg = config.get("gate", {}) if isinstance(config, dict) else {}
+    explicit = str(gate_cfg.get("project_type", "auto"))
+    if explicit in {"ui", "non_ui"}:
+        return explicit
+
+    rules = gate_cfg.get("project_type_rules", {})
+    if isinstance(rules, dict):
+        ui_rules = rules.get("ui", {})
+        non_ui_rules = rules.get("non_ui", {})
+        default_type = str(rules.get("default", "non_ui"))
+        if default_type not in {"ui", "non_ui"}:
+            default_type = "non_ui"
+
+        def matches(rule_set: Any) -> bool:
+            if not isinstance(rule_set, dict):
+                return False
+            any_paths = rule_set.get("any_path_exists", [])
+            if isinstance(any_paths, list) and any_paths:
+                for rel in any_paths:
+                    if (root / str(rel)).exists():
+                        return True
+            all_paths = rule_set.get("all_paths_exist", [])
+            if isinstance(all_paths, list) and all_paths:
+                if all((root / str(rel)).exists() for rel in all_paths):
+                    return True
+            return False
+
+        if matches(ui_rules):
+            return "ui"
+        if matches(non_ui_rules):
+            return "non_ui"
+        return default_type
+
+    # Default behavior when no detection rules are configured.
+    return "non_ui"
+
+
+def collect_non_ui_commands(root: Path, config: dict[str, Any]) -> list[str]:
+    gate_cfg = config.get("gate", {}) if isinstance(config, dict) else {}
+    custom = gate_cfg.get("non_ui_commands", [])
+    if isinstance(custom, list) and custom:
+        return [str(c) for c in custom]
+
+    commands: list[str] = []
+    if (root / "pyproject.toml").exists() or (root / "requirements.txt").exists() or (root / "pytest.ini").exists():
+        if command_exists("pytest"):
+            commands.append("pytest -q")
+    if (root / "go.mod").exists() and command_exists("go"):
+        commands.append("go test ./...")
+    if (root / "Cargo.toml").exists() and command_exists("cargo"):
+        commands.append("cargo test -q")
+    package_json = root / "package.json"
+    if package_json.exists() and command_exists("npm"):
+        try:
+            data = load_json(package_json)
+            scripts = data.get("scripts", {}) if isinstance(data, dict) else {}
+            if isinstance(scripts, dict) and "test" in scripts:
+                commands.append("npm test --silent")
+        except Exception:  # noqa: BLE001
+            pass
+    return commands
+
+
+def validate_ui_evidence(evidence_file: Path) -> list[str]:
+    errors: list[str] = []
+    if not evidence_file.exists():
+        return [f"missing UI verification file: {evidence_file}"]
+    text = read_text(evidence_file)
+    for heading in ("## Critical Paths", "## Screenshots", "## Console Errors"):
+        if heading not in text:
+            errors.append(f"missing heading in UI evidence: {heading}")
+    if "console errors: none" not in text.lower():
+        errors.append("UI evidence must declare 'Console Errors: none'")
+    return errors
+
+
+def cmd_task_gate(args: argparse.Namespace) -> int:
+    root = Path(args.root).resolve()
+    paths = HarnessPaths(root)
+    ensure_harness_exists(paths)
+
+    state, tasks = load_feat(paths, args.feat)
+    feat_dir = paths.feat_dir(args.feat, status=str(state.get("status") or ""))
+    task = find_task(tasks, args.task)
+    if task.get("status") != "in_progress":
+        eprint(f"error: task {args.task} must be in_progress before gate")
+        return 1
+    if state.get("current_task_id") != args.task:
+        eprint("error: current feature current_task_id does not match requested task")
+        return 1
+
+    config = load_runtime_policy(paths)
+    project_type = detect_project_type(root, config)
+
+    records: list[dict[str, Any]] = []
+    failed = False
+    fail_reasons: list[str] = []
+
+    if project_type == "ui":
+        evidence = feat_dir / "gate" / "ui-verification.md"
+        ui_errors = validate_ui_evidence(evidence)
+        if ui_errors:
+            failed = True
+            fail_reasons.extend(ui_errors)
+        ui_cmds = config.get("gate", {}).get("ui_commands", []) if isinstance(config, dict) else []
+        if isinstance(ui_cmds, list):
+            for cmd in ui_cmds:
+                cp = run_shell(str(cmd), cwd=root)
+                rec = {
+                    "command": str(cmd),
+                    "exit_code": cp.returncode,
+                    "status": "pass" if cp.returncode == 0 else "fail",
+                }
+                records.append(rec)
+                if cp.returncode != 0:
+                    failed = True
+                    fail_reasons.append(f"ui command failed: {cmd}")
+    else:
+        commands = collect_non_ui_commands(root, config)
+        if not commands:
+            failed = True
+            fail_reasons.append(
+                "no non-ui gate command available; "
+                f"set gate.non_ui_commands in {paths.runtime_policy_file.relative_to(root)}"
+            )
+        else:
+            for cmd in commands:
+                cp = run_shell(cmd, cwd=root)
+                rec = {
+                    "command": cmd,
+                    "exit_code": cp.returncode,
+                    "status": "pass" if cp.returncode == 0 else "fail",
+                }
+                records.append(rec)
+                if cp.returncode != 0:
+                    failed = True
+                    fail_reasons.append(f"command failed: {cmd}")
+
+    gate_result = "fail" if failed else "pass"
+    ts = utc_now()
+
+    logs_dir = feat_dir / "artifacts"
+    logs_dir.mkdir(parents=True, exist_ok=True)
+    log_file = logs_dir / f"gate-{ts.replace(':', '').replace('-', '')}.log"
+    lines = [f"gate_time={ts}", f"project_type={project_type}", f"result={gate_result}"]
+    if fail_reasons:
+        lines.append("reasons:")
+        for r in fail_reasons:
+            lines.append(f"- {r}")
+    lines.append("commands:")
+    for rec in records:
+        lines.append(f"- {rec['command']} => {rec['status']} ({rec['exit_code']})")
+    write_text(log_file, "\n".join(lines) + "\n")
+
+    counters = state.setdefault("counters", {})
+    counters["round_count"] = int(counters.get("round_count", 0)) + 1
+    counters["no_progress_rounds"] = int(counters.get("no_progress_rounds", 0)) + 1
+    if gate_result == "pass":
+        counters["gate_fail_streak"] = 0
+    else:
+        counters["gate_fail_streak"] = int(counters.get("gate_fail_streak", 0)) + 1
+
+    state["gate"] = {
+        "last_result": gate_result,
+        "last_task_id": args.task,
+        "last_checked_at": ts,
+        "last_check_commands": records,
+        "last_log_path": str(log_file.relative_to(root)),
+    }
+    state.setdefault("history", []).append(
+        {
+            "at": ts,
+            "action": "task_gate",
+            "detail": f"{args.task} => {gate_result}",
+        }
+    )
+
+    task["gate_result"] = gate_result
+    task["last_gate_at"] = ts
+    task["last_gate_commands"] = records
+    task["updated_at"] = ts
+
+    save_feat(paths, args.feat, state, tasks)
+
+    if gate_result == "fail":
+        eprint(f"error: gate failed for {args.feat}/{args.task}")
+        for reason in fail_reasons:
+            eprint(f"error: {reason}")
+        print(f"gate_log: {log_file}")
+        return 1
+
+    print(f"ok: gate passed {args.feat}/{args.task}")
+    print(f"gate_log: {log_file}")
+    return 0
+
+
+def build_commit_message(
+    state: dict[str, Any],
+    task: dict[str, Any],
+    summary: str,
+    task_status: str,
+    gate_result: str,
+) -> str:
+    feat_id = state["feat_id"]
+    task_id = task["id"]
+    checks = task.get("last_gate_commands", [])
+    check_lines = []
+    if checks:
+        for rec in checks:
+            check_lines.append(
+                f"- `{rec.get('command','')}` => {rec.get('status','unknown').upper()}"
+            )
+    else:
+        check_lines.append("- No gate command records found")
+
+    body = [
+        f"feature({feat_id}): task({task_id}) {summary}",
+        "",
+        "Plan:",
+        f"- Feat Goal: {state.get('goal','')}",
+        f"- Task: {task.get('title','')}",
+        "",
+        "Check:",
+        *check_lines,
+        "",
+        "Learn:",
+        "- Add key learnings, risks, or follow-up notes here.",
+        "",
+        f"Feature-ID: {feat_id}",
+        f"Task-ID: {task_id}",
+        f"Gate-Result: {gate_result}",
+        f"Task-Status: {task_status}",
+        "",
+    ]
+    return "\n".join(body)
+
+
+def parse_trailers(lines: list[str]) -> dict[str, str]:
+    trailers: dict[str, str] = {}
+    for line in lines:
+        m = re.match(r"^([A-Za-z0-9-]+):\s*(.+)$", line.strip())
+        if m:
+            trailers[m.group(1)] = m.group(2)
+    return trailers
+
+
+def validate_commit_message(
+    text: str,
+    expected_feat: str,
+    expected_task: str,
+    expected_task_status: str,
+    expected_gate_result: str,
+) -> list[str]:
+    errors: list[str] = []
+    lines = text.splitlines()
+    if not lines:
+        return ["empty commit message"]
+
+    subj = lines[0].strip()
+    m = re.match(r"^feature\((f-\d{8}-[a-z0-9][a-z0-9-]*)\): task\((T-\d{3})\) .+$", subj)
+    if not m:
+        errors.append("invalid subject format")
+    else:
+        if m.group(1) != expected_feat:
+            errors.append("subject feature-id mismatch")
+        if m.group(2) != expected_task:
+            errors.append("subject task-id mismatch")
+
+    blob = "\n".join(lines)
+    for marker in ("\nPlan:\n", "\nCheck:\n", "\nLearn:\n"):
+        if marker not in f"\n{blob}\n":
+            errors.append(f"missing section: {marker.strip()}")
+
+    trailers = parse_trailers(lines)
+    required = {
+        "Feature-ID": expected_feat,
+        "Task-ID": expected_task,
+        "Gate-Result": expected_gate_result,
+        "Task-Status": expected_task_status,
+    }
+    for k, v in required.items():
+        if trailers.get(k) != v:
+            errors.append(f"missing or invalid trailer {k}")
+
+    if expected_task_status == "done" and expected_gate_result != "pass":
+        errors.append("done status requires gate_result=pass")
+
+    return errors
+
+
+def cmd_task_commit(args: argparse.Namespace) -> int:
+    root = Path(args.root).resolve()
+    paths = HarnessPaths(root)
+    ensure_harness_exists(paths)
+    ensure_git_repo(root)
+
+    state, tasks = load_feat(paths, args.feat)
+    feat_dir = paths.feat_dir(args.feat, status=str(state.get("status") or ""))
+    task = find_task(tasks, args.task)
+    if task.get("status") != "in_progress":
+        eprint(f"error: task must be in_progress before commit: {args.task}")
+        return 1
+
+    gate_result = str(task.get("gate_result") or "")
+    if gate_result not in GATE_STATUS:
+        eprint("error: task gate_result is missing; run feature-tracker.sh run-task-gate first")
+        return 1
+
+    task_status = args.task_status
+    if task_status == "done" and gate_result != "pass":
+        eprint("error: Task-Status done requires Gate-Result pass")
+        return 1
+
+    msg = build_commit_message(state, task, args.summary.strip(), task_status, gate_result)
+    msg_file = (
+        Path(args.message_out).resolve()
+        if args.message_out
+        else feat_dir
+        / "artifacts"
+        / f"commit-{args.task}-{utc_now().replace(':', '').replace('-', '')}.msg"
+    )
+    write_text(msg_file, msg)
+
+    errors = validate_commit_message(
+        msg,
+        expected_feat=args.feat,
+        expected_task=args.task,
+        expected_task_status=task_status,
+        expected_gate_result=gate_result,
+    )
+    if errors:
+        for err in errors:
+            eprint(f"error: {err}")
+        return 1
+
+    print(f"message_file: {msg_file}")
+    print(
+        "next: git add -A && "
+        f"git commit -F {shlex.quote(str(msg_file))}"
+    )
+
+    if args.execute:
+        cp = run_cmd(["git", "-C", str(root), "commit", "-F", str(msg_file)])
+        if cp.returncode != 0:
+            eprint(cp.stderr.strip() or cp.stdout.strip() or "git commit failed")
+            return 1
+        head = run_cmd(["git", "-C", str(root), "rev-parse", "HEAD"])
+        if head.returncode == 0:
+            task["last_commit_hash"] = head.stdout.strip()
+            task["updated_at"] = utc_now()
+            save_feat(paths, args.feat, state, tasks)
+            print(f"commit_hash: {task['last_commit_hash']}")
+
+    return 0
+
+
+def cmd_task_finish(args: argparse.Namespace) -> int:
+    root = Path(args.root).resolve()
+    paths = HarnessPaths(root)
+    ensure_harness_exists(paths)
+
+    state, tasks = load_feat(paths, args.feat)
+    task = find_task(tasks, args.task)
+
+    if task.get("status") != "in_progress":
+        eprint(f"error: task is not in_progress: {args.task}")
+        return 1
+    if state.get("current_task_id") != args.task:
+        eprint("error: state current_task_id mismatch")
+        return 1
+
+    result = args.result
+    if result == "done" and task.get("gate_result") != "pass":
+        eprint("error: cannot finish task as done without gate pass")
+        return 1
+
+    ts = utc_now()
+    task["status"] = result
+    task["finished_at"] = ts
+    task["updated_at"] = ts
+
+    state["current_task_id"] = None
+    state.setdefault("counters", {})["no_progress_rounds"] = 0
+    state.setdefault("history", []).append(
+        {"at": ts, "action": "task_finished", "detail": f"{args.task} => {result}"}
+    )
+
+    if result == "blocked":
+        state["status"] = "blocked"
+    else:
+        if count_tasks(tasks, "todo") == 0 and count_tasks(tasks, "in_progress") == 0:
+            state["status"] = "done"
+        else:
+            state["status"] = "ready"
+
+    save_feat(paths, args.feat, state, tasks)
+    print(f"ok: task finished {args.feat}/{args.task} => {result}")
+    print(f"feat_status: {state['status']}")
+    if state["status"] == "done":
+        root_q = shlex.quote(str(root))
+        archive_cmd = f"feature-tracker.sh archive-feature --root {root_q} --feature {args.feat}"
+        discard_cmd = (
+            "feature-tracker.sh discard-feature "
+            f"--root {root_q} --feature {args.feat} --reason superseded"
+        )
+        if workspace_mode_of(state) == "worktree":
+            branch = str(state.get("branch") or "")
+            base_ref = str(state.get("base_ref") or pick_base_branch(root))
+            branch_merged = bool(branch and git_local_branch_exists(root, branch) and git_branch_merged_into(root, branch, base_ref))
+            if branch and not branch_merged:
+                print(
+                    "next: git -C "
+                    f"{root_q} checkout {shlex.quote(base_ref)} "
+                    f"&& git -C {root_q} merge --no-ff {shlex.quote(branch)}"
+                )
+                print(f"after_merge: {archive_cmd}")
+            else:
+                print(f"next: {archive_cmd}")
+        else:
+            print(f"next: {archive_cmd}")
+        print(f"alternative: {discard_cmd}")
+    return 0
+
+
+def render_summary(state: dict[str, Any], tasks: dict[str, Any]) -> str:
+    feat_id = state["feat_id"]
+    workspace_mode = state.get("workspace_mode", "")
+    todo = count_tasks(tasks, "todo")
+    in_prog = count_tasks(tasks, "in_progress")
+    done = count_tasks(tasks, "done")
+    blocked = count_tasks(tasks, "blocked")
+    counters = state.get("counters", {})
+    cleanup = {}
+    for key in ("archived_cleanup", "discarded_cleanup"):
+        val = state.get(key)
+        if isinstance(val, dict):
+            cleanup = val
+            break
+    closed_at = state.get("archived_at") or state.get("discarded_at") or utc_now()
+
+    return "\n".join(
+        [
+            f"# Feature Summary: {feat_id}",
+            "",
+            f"- Title: {state.get('title', '')}",
+            f"- Goal: {state.get('goal', '')}",
+            f"- Final Status: {state.get('status', '')}",
+            f"- Closed From Status: {state.get('closed_from_status', '')}",
+            f"- Workspace Mode: {workspace_mode}",
+            f"- Base Ref: {state.get('base_ref', '')}",
+            f"- Branch: {state.get('branch', '')}",
+            f"- Worktree: {state.get('worktree_path', '')}",
+            f"- Closed At (UTC): {closed_at}",
+            f"- Discard Reason: {state.get('discard_reason') or ''}",
+            f"- Replacement Feat: {state.get('replacement_feat_id') or ''}",
+            "",
+            "## Closure Cleanup",
+            f"- Branch Merged: {cleanup.get('branch_merged', '')}",
+            f"- Worktree Removed: {cleanup.get('worktree_removed', '')}",
+            f"- Worktree Pruned: {cleanup.get('worktree_pruned', '')}",
+            f"- Branch Deleted: {cleanup.get('branch_deleted', '')}",
+            f"- Worktree Patch: {cleanup.get('worktree_patch', '')}",
+            f"- Worktree Staged Patch: {cleanup.get('worktree_staged_patch', '')}",
+            f"- Branch Patch: {cleanup.get('branch_patch', '')}",
+            f"- Untracked Archive: {cleanup.get('untracked_archive', '')}",
+            f"- Cleanup Note: {cleanup.get('note', '')}",
+            "",
+            "## Task Stats",
+            f"- todo: {todo}",
+            f"- in_progress: {in_prog}",
+            f"- done: {done}",
+            f"- blocked: {blocked}",
+            "",
+            "## Counters",
+            f"- gate_fail_streak: {counters.get('gate_fail_streak', 0)}",
+            f"- no_progress_rounds: {counters.get('no_progress_rounds', 0)}",
+            f"- round_count: {counters.get('round_count', 0)}",
+            "",
+            "## Notes",
+            "- Promote durable decisions and gotchas to living docs memory when applicable.",
+            "",
+        ]
+    )
+
+
+def apply_template(template: str, replacements: dict[str, str]) -> str:
+    out = template
+    for k, v in replacements.items():
+        out = out.replace(k, v)
+    return out
+
+
+def resolve_worktree_abs(root: Path, raw: str) -> Path:
+    p = Path(raw)
+    if p.is_absolute():
+        return p
+    return (root / p).resolve()
+
+
+def git_local_branch_exists(root: Path, branch: str) -> bool:
+    cp = run_cmd(["git", "-C", str(root), "show-ref", "--verify", f"refs/heads/{branch}"])
+    return cp.returncode == 0
+
+
+def git_branch_merged_into(root: Path, branch: str, base_ref: str) -> bool:
+    cp = run_cmd(["git", "-C", str(root), "merge-base", "--is-ancestor", branch, base_ref])
+    return cp.returncode == 0
+
+
+def git_worktree_paths(root: Path) -> set[Path]:
+    cp = run_cmd(["git", "-C", str(root), "worktree", "list", "--porcelain"])
+    if cp.returncode != 0:
+        return set()
+    out: set[Path] = set()
+    for raw in cp.stdout.splitlines():
+        line = raw.strip()
+        if not line.startswith("worktree "):
+            continue
+        path = line[len("worktree ") :].strip()
+        if not path:
+            continue
+        out.add(Path(path).resolve())
+    return out
+
+
+def export_discard_artifacts(
+    root: Path,
+    feat_dir: Path,
+    *,
+    base_ref: str,
+    branch: str,
+    wt_abs: Path | None,
+) -> dict[str, str]:
+    cleanup: dict[str, str] = {}
+    artifacts_dir = feat_dir / "artifacts"
+    artifacts_dir.mkdir(parents=True, exist_ok=True)
+
+    if wt_abs is not None and wt_abs.exists():
+        cp = run_cmd(["git", "-C", str(wt_abs), "diff", "--binary"])
+        if cp.returncode != 0:
+            raise SystemExit(cp.stderr.strip() or cp.stdout.strip() or "git diff failed in worktree")
+        if cp.stdout.strip():
+            patch_file = artifacts_dir / "discard-worktree.patch"
+            write_text(patch_file, cp.stdout)
+            cleanup["worktree_patch"] = patch_file.name
+
+        cp = run_cmd(["git", "-C", str(wt_abs), "diff", "--cached", "--binary"])
+        if cp.returncode != 0:
+            raise SystemExit(cp.stderr.strip() or cp.stdout.strip() or "git diff --cached failed in worktree")
+        if cp.stdout.strip():
+            patch_file = artifacts_dir / "discard-worktree-staged.patch"
+            write_text(patch_file, cp.stdout)
+            cleanup["worktree_staged_patch"] = patch_file.name
+
+        cp = run_cmd(["git", "-C", str(wt_abs), "ls-files", "--others", "--exclude-standard", "-z"])
+        if cp.returncode != 0:
+            raise SystemExit(cp.stderr.strip() or cp.stdout.strip() or "git ls-files failed in worktree")
+        untracked = [item for item in cp.stdout.split("\0") if item]
+        if untracked:
+            archive_file = artifacts_dir / "discard-untracked.tar.gz"
+            with tarfile.open(archive_file, "w:gz") as tf:
+                for rel in untracked:
+                    target = wt_abs / rel
+                    if target.exists():
+                        tf.add(target, arcname=rel, recursive=True)
+            cleanup["untracked_archive"] = archive_file.name
+
+    if branch and git_local_branch_exists(root, branch):
+        cp = run_cmd(["git", "-C", str(root), "diff", "--binary", f"{base_ref}...{branch}"])
+        if cp.returncode != 0:
+            raise SystemExit(cp.stderr.strip() or cp.stdout.strip() or "git branch diff failed")
+        if cp.stdout.strip():
+            patch_file = artifacts_dir / "discard-branch.patch"
+            write_text(patch_file, cp.stdout)
+            cleanup["branch_patch"] = patch_file.name
+
+    return cleanup
+
+
+def cmd_feat_archive(args: argparse.Namespace) -> int:
+    root = Path(args.root).resolve()
+    skill_dir = Path(args.skill_dir).resolve()
+    paths = HarnessPaths(root)
+    ensure_harness_exists(paths)
+    ensure_git_repo(root)
+
+    state, tasks = load_feat(paths, args.feat)
+    workspace_mode = workspace_mode_of(state)
+    current_status = str(state.get("status") or "")
+    if current_status not in {"done", "blocked", "archived"}:
+        eprint(
+            "error: feat must be done/blocked before archive "
+            f"(current={current_status})"
+        )
+        return 1
+
+    branch = str(state.get("branch") or "")
+    base_ref = str(state.get("base_ref") or pick_base_branch(root))
+    worktree_path = str(state.get("worktree_path") or "")
+    wt_abs = resolve_worktree_abs(root, worktree_path) if worktree_path else None
+
+    branch_exists = bool(branch) and git_local_branch_exists(root, branch)
+    branch_merged = bool(branch_exists and git_branch_merged_into(root, branch, base_ref))
+    if workspace_mode == "worktree" and branch and not branch_merged:
+        eprint(f"error: feature branch is not merged into {base_ref}: {branch}")
+        eprint(
+            "hint: merge the feature branch into base before archiving"
+        )
+        return 1
+
+    if workspace_mode == "current_tree":
+        changes = non_harness_git_status_lines(root)
+        if changes:
+            eprint("error: current_tree feature has non-harness changes; archive is not fail-closed")
+            eprint("hint: clean the root tree or use discard-feature after preserving the work elsewhere")
+            return 1
+
+    # Safety: don't remove a dirty worktree.
+    if wt_abs is not None and wt_abs.exists():
+        cp = run_cmd(["git", "-C", str(wt_abs), "status", "--porcelain"])
+        if cp.returncode != 0:
+            eprint(cp.stderr.strip() or cp.stdout.strip() or "git status failed")
+            return 1
+        if cp.stdout.strip():
+            eprint(f"error: worktree has uncommitted changes: {wt_abs}")
+            eprint("hint: commit/stash/clean the worktree before archiving this feat")
+            return 1
+
+    # Remove worktree first (branch deletion is blocked while checked out).
+    worktree_removed = False
+    worktree_pruned = False
+    if wt_abs is not None and wt_abs.exists():
+        cp = run_cmd(["git", "-C", str(root), "worktree", "remove", str(wt_abs)])
+        if cp.returncode != 0:
+            eprint(cp.stderr.strip() or cp.stdout.strip() or "git worktree remove failed")
+            return 1
+        worktree_removed = True
+        print(f"ok: worktree removed {wt_abs}")
+        cp = run_cmd(["git", "-C", str(root), "worktree", "prune"])
+        if cp.returncode != 0:
+            eprint(cp.stderr.strip() or cp.stdout.strip() or "git worktree prune failed")
+            return 1
+        worktree_pruned = True
+
+    # Verify no stale worktree registration remains.
+    if wt_abs is not None and wt_abs in git_worktree_paths(root):
+        eprint(f"error: worktree entry still registered after cleanup: {wt_abs}")
+        return 1
+
+    branch_deleted = False
+    if branch_exists and branch_merged:
+        cp = run_cmd(["git", "-C", str(root), "branch", "-D", branch])
+        if cp.returncode != 0:
+            eprint(cp.stderr.strip() or cp.stdout.strip() or "git branch delete failed")
+            return 1
+        branch_deleted = True
+        print(f"ok: branch deleted {branch}")
+
+    if current_status != "archived":
+        state["closed_from_status"] = current_status
+    state["status"] = "archived"
+    state["archived_at"] = state.get("archived_at") or utc_now()
+    state["archived_cleanup"] = {
+        "workspace_mode": workspace_mode,
+        "base_ref": base_ref,
+        "branch_merged": branch_merged,
+        "worktree_removed": worktree_removed,
+        "worktree_pruned": worktree_pruned,
+        "branch_deleted": branch_deleted,
+        "note": (
+            "worktree mode removes/prunes worktree and deletes merged branch; "
+            "current_tree/proposal_only only archive feat metadata"
+        ),
+    }
+    state.setdefault("history", []).append(
+        {"at": utc_now(), "action": "feat_archived", "detail": "moved + cleaned"}
+    )
+
+    # Physical archive: move feat dir into features-archived/.
+    if current_status != "archived":
+        src_dir = paths.feat_dir(args.feat, status=current_status)
+        dst_dir = paths.feat_dir(args.feat, status="archived")
+        if not src_dir.exists():
+            eprint(f"error: missing feature directory: {src_dir}")
+            return 1
+        if dst_dir.exists():
+            eprint(f"error: archived feature directory already exists: {dst_dir}")
+            return 1
+        dst_dir.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            src_dir.rename(dst_dir)
+        except OSError:
+            shutil.move(str(src_dir), str(dst_dir))
+        print(f"ok: feat dir moved {src_dir} -> {dst_dir}")
+
+    # Write summary into the archived directory (source of truth after move).
+    summary = render_summary(state, tasks)
+    summary_file = paths.feat_summary(args.feat, status="archived")
+    write_text(summary_file, summary)
+    print(f"write: {summary_file}")
+
+    save_feat(paths, args.feat, state, tasks)
+    print(f"ok: feat archived {args.feat}")
+    return 0
+
+
+def cmd_feat_discard(args: argparse.Namespace) -> int:
+    root = Path(args.root).resolve()
+    paths = HarnessPaths(root)
+    ensure_harness_exists(paths)
+    ensure_git_repo(root)
+
+    state, tasks = load_feat(paths, args.feat)
+    current_status = str(state.get("status") or "")
+    if current_status == "discarded":
+        print(f"ok: feat already discarded {args.feat}")
+        return 0
+    if current_status == "archived":
+        eprint(f"error: archived feat cannot be discarded: {args.feat}")
+        return 1
+    if current_status not in {"proposal", "ready", "in_progress", "blocked", "done"}:
+        eprint(f"error: feat cannot be discarded from status={current_status}")
+        return 1
+    if current_status == "in_progress" and not args.force:
+        eprint("error: in_progress feat requires --force before discard")
+        return 1
+
+    replacement = str(args.replacement or "").strip()
+    if replacement:
+        if replacement == args.feat:
+            eprint("error: replacement feat must differ from discarded feat")
+            return 1
+        if get_feat_index_entry(load_index(paths), replacement) is None:
+            eprint(f"error: replacement feat not indexed: {replacement}")
+            return 1
+
+    ts = utc_now()
+    if current_status == "in_progress":
+        for task in tasks.get("tasks", []):
+            if task.get("status") == "in_progress":
+                task["status"] = "blocked"
+                task["finished_at"] = task.get("finished_at") or ts
+                task["updated_at"] = ts
+                task.setdefault("notes", []).append("force-discarded before task completion")
+        state["current_task_id"] = None
+
+    workspace_mode = workspace_mode_of(state)
+    branch = str(state.get("branch") or "")
+    base_ref = str(state.get("base_ref") or pick_base_branch(root))
+    worktree_path = str(state.get("worktree_path") or "")
+    wt_abs = resolve_worktree_abs(root, worktree_path) if worktree_path else None
+    feat_dir = paths.feat_dir(args.feat, status=current_status)
+
+    cleanup = export_discard_artifacts(root, feat_dir, base_ref=base_ref, branch=branch, wt_abs=wt_abs)
+
+    if workspace_mode == "current_tree":
+        changes = non_harness_git_status_lines(root)
+        if changes:
+            eprint("error: current_tree feature has non-harness changes; discard is not fail-closed")
+            eprint("hint: preserve or clean the root tree before discarding this feature")
+            return 1
+
+    worktree_removed = False
+    worktree_pruned = False
+    if wt_abs is not None and wt_abs.exists():
+        cp = run_cmd(["git", "-C", str(root), "worktree", "remove", "--force", str(wt_abs)])
+        if cp.returncode != 0:
+            eprint(cp.stderr.strip() or cp.stdout.strip() or "git worktree remove failed")
+            return 1
+        worktree_removed = True
+        print(f"ok: worktree removed {wt_abs}")
+        cp = run_cmd(["git", "-C", str(root), "worktree", "prune"])
+        if cp.returncode != 0:
+            eprint(cp.stderr.strip() or cp.stdout.strip() or "git worktree prune failed")
+            return 1
+        worktree_pruned = True
+
+    if wt_abs is not None and wt_abs in git_worktree_paths(root):
+        eprint(f"error: worktree entry still registered after discard cleanup: {wt_abs}")
+        return 1
+
+    branch_deleted = False
+    branch_merged = bool(branch and git_local_branch_exists(root, branch) and git_branch_merged_into(root, branch, base_ref))
+    if branch and git_local_branch_exists(root, branch):
+        cp = run_cmd(["git", "-C", str(root), "branch", "-D", branch])
+        if cp.returncode != 0:
+            eprint(cp.stderr.strip() or cp.stdout.strip() or "git branch delete failed")
+            return 1
+        branch_deleted = True
+        print(f"ok: branch deleted {branch}")
+
+    state["closed_from_status"] = current_status
+    state["status"] = "discarded"
+    state["discard_reason"] = args.reason
+    state["replacement_feat_id"] = replacement or None
+    state["discarded_at"] = state.get("discarded_at") or ts
+    state.setdefault("history", []).append(
+        {
+            "at": ts,
+            "action": "feat_discarded",
+            "detail": f"reason={args.reason}; replacement={replacement or 'none'}",
+        }
+    )
+
+    src_dir = paths.feat_dir(args.feat, status=current_status)
+    dst_dir = paths.feat_dir(args.feat, status="discarded")
+    if not src_dir.exists():
+        eprint(f"error: missing feature directory: {src_dir}")
+        return 1
+    if dst_dir.exists():
+        eprint(f"error: discarded feature directory already exists: {dst_dir}")
+        return 1
+    dst_dir.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        src_dir.rename(dst_dir)
+    except OSError:
+        shutil.move(str(src_dir), str(dst_dir))
+    print(f"ok: feat dir moved {src_dir} -> {dst_dir}")
+
+    discarded_artifacts_dir = dst_dir / "artifacts"
+    state["discarded_cleanup"] = {
+        "workspace_mode": workspace_mode,
+        "base_ref": base_ref,
+        "branch_merged": branch_merged,
+        "worktree_removed": worktree_removed,
+        "worktree_pruned": worktree_pruned,
+        "branch_deleted": branch_deleted,
+        "worktree_patch": (
+            str((discarded_artifacts_dir / cleanup["worktree_patch"]).relative_to(root))
+            if cleanup.get("worktree_patch")
+            else ""
+        ),
+        "worktree_staged_patch": (
+            str((discarded_artifacts_dir / cleanup["worktree_staged_patch"]).relative_to(root))
+            if cleanup.get("worktree_staged_patch")
+            else ""
+        ),
+        "branch_patch": (
+            str((discarded_artifacts_dir / cleanup["branch_patch"]).relative_to(root))
+            if cleanup.get("branch_patch")
+            else ""
+        ),
+        "untracked_archive": (
+            str((discarded_artifacts_dir / cleanup["untracked_archive"]).relative_to(root))
+            if cleanup.get("untracked_archive")
+            else ""
+        ),
+        "note": (
+            "discard closes stale/superseded work while preserving feat artifacts; "
+            "worktree mode force-removes worktree and deletes branch after exporting patches when available"
+        ),
+    }
+
+    summary = render_summary(state, tasks)
+    summary_file = paths.feat_summary(args.feat, status="discarded")
+    write_text(summary_file, summary)
+    print(f"write: {summary_file}")
+
+    save_feat(paths, args.feat, state, tasks)
+    print(f"ok: feat discarded {args.feat}")
+    return 0
+
+
+def validate_feat(paths: HarnessPaths, root: Path, feat_id: str) -> list[str]:
+    errors: list[str] = []
+    state, tasks = load_feat(paths, feat_id)
+
+    if not FEAT_ID_RE.match(feat_id):
+        errors.append(f"invalid feat id format: {feat_id}")
+
+    status = state.get("status")
+    if status not in FEAT_STATUS:
+        errors.append(f"{feat_id}: invalid feature status: {status}")
+
+    if state.get("feat_id") != feat_id:
+        errors.append(f"{feat_id}: state feat_id mismatch")
+
+    index_entry = get_feat_index_entry(load_index(paths), feat_id)
+    if index_entry is None:
+        errors.append(f"{feat_id}: missing feature index entry")
+    else:
+        if str(index_entry.get("status") or "") != str(state.get("status") or ""):
+            errors.append(f"{feat_id}: index status drift from state.json")
+        if str(index_entry.get("title") or "") != str(state.get("title") or ""):
+            errors.append(f"{feat_id}: index title drift from state.json")
+        if str(index_entry.get("workspace_mode") or "") != str(state.get("workspace_mode") or ""):
+            errors.append(f"{feat_id}: index workspace_mode drift from state.json")
+        if str(index_entry.get("branch") or "") != str(state.get("branch") or ""):
+            errors.append(f"{feat_id}: index branch drift from state.json")
+
+    workspace_mode = str(state.get("workspace_mode") or "").strip()
+    if workspace_mode not in WORKSPACE_MODES:
+        errors.append(f"{feat_id}: invalid workspace_mode: {workspace_mode or '<missing>'}")
+    else:
+        branch = str(state.get("branch") or "").strip()
+        wt_name = str(state.get("worktree_name") or "").strip()
+        wt_path = str(state.get("worktree_path") or "").strip()
+        if workspace_mode == "worktree":
+            if not branch:
+                errors.append(f"{feat_id}: worktree mode requires branch")
+            if not wt_name:
+                errors.append(f"{feat_id}: worktree mode requires worktree_name")
+            if not wt_path:
+                errors.append(f"{feat_id}: worktree mode requires worktree_path")
+        else:
+            if branch:
+                errors.append(f"{feat_id}: {workspace_mode} mode must not track dedicated branch")
+            if wt_name or wt_path:
+                errors.append(f"{feat_id}: {workspace_mode} mode must not track worktree fields")
+
+    counters = state.get("counters", {})
+    for key in ("gate_fail_streak", "no_progress_rounds", "round_count"):
+        try:
+            val = int(counters.get(key, 0))
+            if val < 0:
+                errors.append(f"{feat_id}: counter {key} must be >= 0")
+        except Exception:  # noqa: BLE001
+            errors.append(f"{feat_id}: counter {key} not integer")
+
+    task_items = tasks.get("tasks")
+    if not isinstance(task_items, list) or not task_items:
+        errors.append(f"{feat_id}: tasks.json missing tasks array")
+        return errors
+
+    seen: set[str] = set()
+    in_progress: list[str] = []
+    for task in task_items:
+        tid = str(task.get("id", ""))
+        if not TASK_ID_RE.match(tid):
+            errors.append(f"{feat_id}: invalid task id: {tid}")
+        if tid in seen:
+            errors.append(f"{feat_id}: duplicate task id: {tid}")
+        seen.add(tid)
+
+        tstatus = task.get("status")
+        if tstatus not in TASK_STATUS:
+            errors.append(f"{feat_id}/{tid}: invalid task status: {tstatus}")
+        if tstatus == "in_progress":
+            in_progress.append(tid)
+
+    if len(in_progress) > 1:
+        errors.append(f"{feat_id}: more than one in_progress task: {', '.join(in_progress)}")
+
+    cur = state.get("current_task_id")
+    if cur is not None and cur not in in_progress:
+        errors.append(f"{feat_id}: current_task_id does not match in_progress task")
+    if workspace_mode == "proposal_only" and in_progress:
+        errors.append(f"{feat_id}: proposal_only feat must not have in_progress tasks")
+
+    # Validate tracked commit messages for tasks that have commit hash.
+    for task in task_items:
+        commit_hash = task.get("last_commit_hash")
+        if not commit_hash:
+            continue
+        cp = run_cmd(["git", "-C", str(root), "show", "-s", "--format=%B", str(commit_hash)])
+        if cp.returncode != 0:
+            errors.append(f"{feat_id}/{task.get('id')}: commit hash not found: {commit_hash}")
+            continue
+        text = cp.stdout
+        gate_result = str(task.get("gate_result") or "pass")
+        task_status = str(task.get("status") or "done")
+        msg_errors = validate_commit_message(
+            text,
+            expected_feat=feat_id,
+            expected_task=str(task.get("id")),
+            expected_task_status=task_status if task_status in {"done", "blocked"} else "done",
+            expected_gate_result=gate_result if gate_result in GATE_STATUS else "pass",
+        )
+        if msg_errors:
+            errors.append(
+                f"{feat_id}/{task.get('id')}: commit message invalid ({'; '.join(msg_errors)})"
+            )
+
+    return errors
+
+
+def cmd_validate(args: argparse.Namespace) -> int:
+    root = Path(args.root).resolve()
+    paths = HarnessPaths(root)
+    ensure_harness_exists(paths)
+    ensure_git_repo(root)
+
+    errors: list[str] = []
+    if not paths.index_file.exists():
+        errors.append(f"missing index file: {paths.index_file}")
+    if not paths.runtime_policy_file.exists():
+        if paths.legacy_config_file.exists():
+            errors.append(
+                "legacy policy file is not supported: "
+                f"{paths.legacy_config_file}. "
+                "migrate manually to runtime-policy.json."
+            )
+        else:
+            errors.append(f"missing runtime policy file: {paths.runtime_policy_file}")
+
+    legacy_dirs = [
+        paths.harness_dir / "feats",
+        paths.harness_dir / "feats-archived",
+        paths.harness_dir / "feats-discarded",
+    ]
+    for legacy_dir in legacy_dirs:
+        if legacy_dir.exists():
+            errors.append(f"legacy feature-tracker runtime path is not supported: {legacy_dir}")
+
+    feats: list[str] = []
+    feat_status_by_id: dict[str, str] = {}
+    if paths.index_file.exists():
+        try:
+            index_data = load_index(paths)
+            for item in index_data.get("features", []):
+                feat_id = str(item.get("feat_id", ""))
+                if not feat_id:
+                    continue
+                feats.append(feat_id)
+                feat_status_by_id[feat_id] = str(item.get("status") or "")
+        except SystemExit as exc:
+            errors.append(str(exc))
+
+    for feat_id in feats:
+        errors.extend(validate_feat(paths, root, feat_id))
+
+    # Validate physical archive layout.
+    registered_worktrees = git_worktree_paths(root)
+    for feat_id, status in feat_status_by_id.items():
+        active_dir = paths.feat_dir(feat_id)
+        archived_dir = paths.feat_dir(feat_id, status="archived")
+        discarded_dir = paths.feat_dir(feat_id, status="discarded")
+        if status in CLOSED_FEAT_STATUS:
+            if active_dir.exists():
+                errors.append(f"{feat_id}: closed feat dir must not exist in feats/: {active_dir}")
+            closed_dir = archived_dir if status == "archived" else discarded_dir
+            if not closed_dir.exists():
+                errors.append(f"{feat_id}: {status} feat dir missing: {closed_dir}")
+            try:
+                state, _ = load_feat(paths, feat_id)
+            except SystemExit as exc:
+                errors.append(str(exc))
+                continue
+            wt_raw = str(state.get("worktree_path") or "").strip()
+            if wt_raw:
+                wt_abs = resolve_worktree_abs(root, wt_raw)
+                if wt_abs in registered_worktrees:
+                    errors.append(
+                        f"{feat_id}: closed feat still has registered git worktree entry: {wt_abs}"
+                    )
+        else:
+            if not active_dir.exists():
+                errors.append(f"{feat_id}: feat dir missing: {active_dir}")
+            if archived_dir.exists():
+                errors.append(
+                    f"{feat_id}: non-archived feat dir must not exist in features-archived/: {archived_dir}"
+                )
+            if discarded_dir.exists():
+                errors.append(
+                    f"{feat_id}: non-discarded feat dir must not exist in features-discarded/: {discarded_dir}"
+                )
+
+    # Detect feat directories missing from index (active + archived).
+    if paths.feats_dir.exists():
+        for child in sorted(paths.feats_dir.iterdir()):
+            if child.is_dir() and child.name not in feats:
+                errors.append(f"feature directory not indexed: {child.name}")
+    if paths.feats_archived_dir.exists():
+        for child in sorted(paths.feats_archived_dir.iterdir()):
+            if child.is_dir() and child.name not in feats:
+                errors.append(f"archived feature directory not indexed: {child.name}")
+    if paths.feats_discarded_dir.exists():
+        for child in sorted(paths.feats_discarded_dir.iterdir()):
+            if child.is_dir() and child.name not in feats:
+                errors.append(f"discarded feature directory not indexed: {child.name}")
+
+    if paths.dag_file.exists():
+        try:
+            dag = load_json(paths.dag_file)
+        except Exception as exc:  # noqa: BLE001
+            errors.append(f"failed to load dag file: {exc}")
+        else:
+            if not isinstance(dag, dict):
+                errors.append(f"invalid dag schema: {paths.dag_file}")
+            else:
+                layers = dag.get("layers", [])
+                if not isinstance(layers, list):
+                    errors.append(f"invalid dag layers schema: {paths.dag_file}")
+                else:
+                    known_feats = set(feats)
+                    for layer in layers:
+                        if not isinstance(layer, dict):
+                            errors.append("invalid dag layer entry: expected object")
+                            continue
+                        feat_ids = layer.get("feat_ids", [])
+                        if not isinstance(feat_ids, list):
+                            errors.append("invalid dag layer feat_ids: expected list")
+                            continue
+                        for feat_id in feat_ids:
+                            if str(feat_id) not in known_feats:
+                                errors.append(f"dag references feat not in index: {feat_id}")
+
+    if errors:
+        for err in errors:
+            eprint(f"error: {err}")
+        eprint(f"failed: {len(errors)} validation error(s)")
+        return 1
+
+    print("ok: validation passed")
+    return 0
+
+
+def cmd_doctor(args: argparse.Namespace) -> int:
+    root = Path(args.root).resolve()
+    paths = HarnessPaths(root)
+    ensure_harness_exists(paths)
+
+    val_code = cmd_validate(
+        argparse.Namespace(
+            root=str(root),
+        )
+    )
+    if val_code != 0:
+        eprint("doctor: validation failed first")
+        return 1
+
+    config = load_runtime_policy(paths)
+    thresholds = config.get("stop_thresholds", {}) if isinstance(config, dict) else {}
+    gate_fail_limit = int(thresholds.get("gate_fail_streak", 3))
+    no_progress_limit = int(thresholds.get("no_progress_rounds", 2))
+    max_round = int(thresholds.get("max_round_count", 8))
+    lifecycle_cfg = config.get("lifecycle", {}) if isinstance(config, dict) else {}
+    done_close_due_days = int(lifecycle_cfg.get("done_close_due_days", 3))
+    proposal_stale_days = int(lifecycle_cfg.get("proposal_stale_days", 7))
+    ready_stale_days = int(lifecycle_cfg.get("ready_stale_days", 5))
+    in_progress_stale_days = int(lifecycle_cfg.get("in_progress_stale_days", 3))
+    blocked_stale_days = int(lifecycle_cfg.get("blocked_stale_days", 10))
+
+    index_data = load_index(paths)
+    warnings: list[str] = []
+
+    for item in index_data.get("features", []):
+        feat_id = str(item.get("feat_id", ""))
+        state, tasks = load_feat(paths, feat_id)
+        counters = state.get("counters", {})
+        fail_streak = int(counters.get("gate_fail_streak", 0))
+        no_progress = int(counters.get("no_progress_rounds", 0))
+        rounds = int(counters.get("round_count", 0))
+        created_at = str(state.get("created_at") or "")
+        updated_at = str(state.get("updated_at") or created_at)
+        status = str(state.get("status") or "")
+
+        if fail_streak >= gate_fail_limit:
+            warnings.append(
+                f"{feat_id}: gate_fail_streak={fail_streak} reached threshold {gate_fail_limit}"
+            )
+        if no_progress >= no_progress_limit:
+            warnings.append(
+                f"{feat_id}: no_progress_rounds={no_progress} reached threshold {no_progress_limit}"
+            )
+        if rounds >= max_round:
+            warnings.append(
+                f"{feat_id}: round_count={rounds} reached threshold {max_round}"
+            )
+
+        if status == "in_progress" and count_tasks(tasks, "in_progress") == 0:
+            warnings.append(f"{feat_id}: feature status in_progress but no task in_progress")
+
+        if status in CLOSED_FEAT_STATUS:
+            summary_file = paths.feat_summary(feat_id, status=status)
+            if not summary_file.exists():
+                warnings.append(f"{feat_id}: {status} feat missing summary.md")
+            continue
+
+        age_basis = updated_at or created_at
+        try:
+            age_days = int((datetime.now(timezone.utc) - datetime.fromisoformat(age_basis.replace("Z", "+00:00"))).total_seconds() // 86400)
+        except Exception:  # noqa: BLE001
+            age_days = -1
+
+        if status == "done" and age_days >= done_close_due_days >= 0:
+            warnings.append(
+                f"{feat_id}: status done for {age_days} day(s); close with archive-feature or discard-feature"
+            )
+        if status == "proposal" and age_days >= proposal_stale_days >= 0:
+            warnings.append(f"{feat_id}: proposal stale for {age_days} day(s); consider discard or activation")
+        if status == "ready" and age_days >= ready_stale_days >= 0:
+            warnings.append(f"{feat_id}: ready stale for {age_days} day(s); consider start-task or discard")
+        if status == "in_progress" and age_days >= in_progress_stale_days >= 0:
+            warnings.append(
+                f"{feat_id}: in_progress for {age_days} day(s); investigate current task or discard/supersede the feat"
+            )
+        if status == "blocked" and age_days >= blocked_stale_days >= 0:
+            warnings.append(f"{feat_id}: blocked for {age_days} day(s); consider discard or superseding plan")
+        if str(state.get("workspace_mode") or "") == "worktree" and int(counters.get("round_count", 0)) == 0:
+            if age_days >= ready_stale_days >= 0:
+                warnings.append(f"{feat_id}: worktree assigned but no task rounds recorded for {age_days} day(s)")
+
+    print("== doctor report ==")
+    if warnings:
+        for w in warnings:
+            print(f"warn: {w}")
+    else:
+        print("no warnings")
+
+    print("\nrecommended next steps:")
+    print("1) Address threshold warnings before starting next task.")
+    print("2) Run feature-tracker.sh run-task-gate before every task commit.")
+    print("3) Close stale feats explicitly with archive-feature or discard-feature.")
+    return 0
+
+
+def parse_dependency_spec(raw: str) -> tuple[str, list[str]]:
+    if ":" not in raw:
+        raise SystemExit(
+            "error: invalid dependency spec. expected '<feat-id>:<dep-id>[,<dep-id>...]'"
+        )
+    feat_id, dep_blob = raw.split(":", 1)
+    feat_id = feat_id.strip()
+    if not FEAT_ID_RE.match(feat_id):
+        raise SystemExit(f"error: invalid feat id in dependency spec: {feat_id}")
+
+    deps: list[str] = []
+    seen: set[str] = set()
+    dep_blob = dep_blob.strip()
+    if dep_blob:
+        for raw_dep in dep_blob.split(","):
+            dep = raw_dep.strip()
+            if not dep:
+                continue
+            if not FEAT_ID_RE.match(dep):
+                raise SystemExit(f"error: invalid dependency feat id: {dep}")
+            if dep == feat_id:
+                raise SystemExit(f"error: feat cannot depend on itself: {feat_id}")
+            if dep in seen:
+                continue
+            seen.add(dep)
+            deps.append(dep)
+    return feat_id, deps
+
+
+def feat_is_completed(status: str) -> bool:
+    return status in CLOSED_FEAT_STATUS
+
+
+def build_layered_dag(
+    feat_ids: list[str],
+    deps_by_feat: dict[str, set[str]],
+    *,
+    parallel_limit: int | None,
+) -> list[list[str]]:
+    if parallel_limit is not None and parallel_limit <= 0:
+        raise SystemExit("error: parallel_limit must be >= 1")
+
+    remaining: set[str] = set(feat_ids)
+    unresolved: dict[str, set[str]] = {
+        feat_id: set(deps_by_feat.get(feat_id, set())) for feat_id in feat_ids
+    }
+    dependents: dict[str, set[str]] = {feat_id: set() for feat_id in feat_ids}
+    for feat_id, deps in unresolved.items():
+        for dep in deps:
+            dependents.setdefault(dep, set()).add(feat_id)
+
+    layers: list[list[str]] = []
+    while remaining:
+        ready = sorted(feat_id for feat_id in remaining if not unresolved.get(feat_id, set()))
+        if not ready:
+            cycle_nodes = sorted(remaining)
+            raise SystemExit(
+                "error: dependency cycle detected among feats: " + ", ".join(cycle_nodes)
+            )
+
+        chosen = ready if parallel_limit is None else ready[:parallel_limit]
+        layers.append(chosen)
+        for feat_id in chosen:
+            remaining.remove(feat_id)
+        for feat_id in chosen:
+            for child in dependents.get(feat_id, set()):
+                if child in remaining:
+                    unresolved[child].discard(feat_id)
+
+    return layers
+
+
+def unique_dag_archive_path(paths: HarnessPaths, ts: str) -> Path:
+    stem = ts.replace("-", "").replace(":", "")
+    candidate = paths.dag_archive_dir / f"{stem}.json"
+    n = 2
+    while candidate.exists():
+        candidate = paths.dag_archive_dir / f"{stem}-{n}.json"
+        n += 1
+    return candidate
+
+
+def dag_is_complete(payload: dict[str, Any]) -> bool:
+    layers = payload.get("layers", [])
+    if not isinstance(layers, list) or not layers:
+        return True
+    for layer in layers:
+        if not isinstance(layer, dict):
+            return False
+        if not bool(layer.get("is_completed", False)):
+            return False
+    return True
+
+
+def archive_existing_dag(paths: HarnessPaths, payload: dict[str, Any]) -> Path:
+    now = utc_now()
+    archived = json.loads(json.dumps(payload, ensure_ascii=False))
+    archived["archived_at"] = now
+    archived["completed_at"] = now if dag_is_complete(payload) else None
+    target = unique_dag_archive_path(paths, now)
+    save_json(target, archived)
+    return target
+
+
+def load_non_archived_feats(paths: HarnessPaths) -> tuple[dict[str, dict[str, Any]], dict[str, dict[str, Any]]]:
+    index_data = load_index(paths)
+    states: dict[str, dict[str, Any]] = {}
+    tasks_by_feat: dict[str, dict[str, Any]] = {}
+    for item in index_data.get("features", []):
+        feat_id = str(item.get("feat_id", ""))
+        if not feat_id:
+            continue
+        status = str(item.get("status") or "")
+        if status in CLOSED_FEAT_STATUS:
+            continue
+        state, tasks = load_feat(paths, feat_id)
+        states[feat_id] = state
+        tasks_by_feat[feat_id] = tasks
+    return states, tasks_by_feat
+
+
+def cmd_replan_feats(args: argparse.Namespace) -> int:
+    root = Path(args.root).resolve()
+    paths = HarnessPaths(root)
+    ensure_harness_exists(paths)
+
+    policy = load_runtime_policy(paths)
+    dag_policy = policy.get("dag", {}) if isinstance(policy, dict) else {}
+
+    requested_mode = str(args.execution_mode or dag_policy.get("execution_mode", "auto")).strip().lower()
+    if requested_mode not in {"auto", "serial", "parallel"}:
+        eprint(f"error: invalid execution mode: {requested_mode}")
+        return 1
+
+    max_parallel = args.max_parallel if args.max_parallel is not None else int(dag_policy.get("max_parallel", 2))
+    if max_parallel < 1:
+        eprint("error: --max-parallel must be >= 1")
+        return 1
+
+    states, tasks_by_feat = load_non_archived_feats(paths)
+    feat_ids = sorted(states.keys())
+    if not feat_ids:
+        payload = {
+            "version": 1,
+            "generated_by": "bagakit-feature-tracker",
+            "generated_at": utc_now(),
+            "execution_mode": "serial",
+            "max_parallel": max_parallel,
+            "parallel_recommendation": {
+                "recommended": False,
+                "reason": "no non-archived feats",
+                "natural_max_layer_width": 0,
+            },
+            "features": [],
+            "layers": [],
+            "first_unfinished_layer": None,
+        }
+        archived_path: Path | None = None
+        if paths.dag_file.exists():
+            archived_path = archive_existing_dag(paths, load_json(paths.dag_file))
+        save_json(paths.dag_file, payload)
+        print(f"write: {paths.dag_file}")
+        if archived_path:
+            print(f"archive: {archived_path}")
+        if args.json:
+            print(json.dumps(payload, ensure_ascii=False, indent=2))
+        return 0
+
+    clear_ids = {str(item).strip() for item in (args.clear_dependencies or []) if str(item).strip()}
+    for feat_id in clear_ids:
+        if not FEAT_ID_RE.match(feat_id):
+            eprint(f"error: invalid feat id in --clear-dependencies: {feat_id}")
+            return 1
+        if feat_id not in states:
+            eprint(f"error: feat not found (non-archived): {feat_id}")
+            return 1
+
+    set_deps: dict[str, list[str]] = {}
+    for raw in args.dependency or []:
+        feat_id, deps = parse_dependency_spec(str(raw))
+        if feat_id not in states:
+            eprint(f"error: feat not found (non-archived): {feat_id}")
+            return 1
+        set_deps[feat_id] = deps
+
+    changed_feats: set[str] = set()
+    for feat_id in clear_ids:
+        state = states[feat_id]
+        if state.get("depends_on") != []:
+            state["depends_on"] = []
+            state.setdefault("history", []).append(
+                {
+                    "at": utc_now(),
+                    "action": "dag_dependencies_updated",
+                    "detail": "depends_on=none",
+                }
+            )
+            changed_feats.add(feat_id)
+
+    for feat_id, deps in set_deps.items():
+        state = states[feat_id]
+        if state.get("depends_on") != deps:
+            state["depends_on"] = deps
+            state.setdefault("history", []).append(
+                {
+                    "at": utc_now(),
+                    "action": "dag_dependencies_updated",
+                    "detail": "depends_on=" + (",".join(deps) if deps else "none"),
+                }
+            )
+            changed_feats.add(feat_id)
+
+    for feat_id in sorted(changed_feats):
+        save_feat(paths, feat_id, states[feat_id], tasks_by_feat[feat_id])
+
+    archived_status: dict[str, str] = {}
+    for item in load_index(paths).get("features", []):
+        fid = str(item.get("feat_id", ""))
+        if fid:
+            archived_status[fid] = str(item.get("status") or "")
+
+    notes: list[str] = []
+    deps_by_feat: dict[str, set[str]] = {}
+    for feat_id, state in states.items():
+        raw_deps = state.get("depends_on", [])
+        if not isinstance(raw_deps, list):
+            raw_deps = []
+        deps: set[str] = set()
+        for raw_dep in raw_deps:
+            dep = str(raw_dep).strip()
+            if not dep:
+                continue
+            if dep == feat_id:
+                eprint(f"error: feat cannot depend on itself: {feat_id}")
+                return 1
+            dep_status = archived_status.get(dep, "")
+            if dep_status == "archived":
+                notes.append(f"{feat_id} depends on archived feat {dep}; treated as already satisfied")
+                continue
+            if dep_status == "discarded":
+                eprint(f"error: {feat_id} depends on discarded feat {dep}; update dependencies before replanning")
+                return 1
+            if dep not in states:
+                notes.append(f"{feat_id} dependency missing from active DAG set: {dep}")
+                continue
+            deps.add(dep)
+        deps_by_feat[feat_id] = deps
+
+    natural_layers = build_layered_dag(feat_ids, deps_by_feat, parallel_limit=None)
+    natural_max_width = max((len(layer) for layer in natural_layers), default=0)
+    parallel_recommended = natural_max_width > 1
+
+    if requested_mode == "serial":
+        resolved_mode = "serial"
+    elif requested_mode == "parallel":
+        resolved_mode = "parallel"
+    else:
+        resolved_mode = "parallel" if parallel_recommended and max_parallel > 1 else "serial"
+
+    parallel_limit = max_parallel if resolved_mode == "parallel" else 1
+    layers = build_layered_dag(feat_ids, deps_by_feat, parallel_limit=parallel_limit)
+
+    layer_by_feat: dict[str, int] = {}
+    for i, layer in enumerate(layers):
+        for feat_id in layer:
+            layer_by_feat[feat_id] = i
+
+    dependents_by_feat: dict[str, list[str]] = {feat_id: [] for feat_id in feat_ids}
+    for feat_id, deps in deps_by_feat.items():
+        for dep in sorted(deps):
+            dependents_by_feat.setdefault(dep, []).append(feat_id)
+
+    layer_payload: list[dict[str, Any]] = []
+    first_unfinished: int | None = None
+    for i, layer in enumerate(layers):
+        is_completed = all(feat_is_completed(str(states[feat_id].get("status") or "")) for feat_id in layer)
+        layer_payload.append(
+            {
+                "layer": i,
+                "feat_ids": layer,
+                "is_completed": is_completed,
+            }
+        )
+        if not is_completed and first_unfinished is None:
+            first_unfinished = i
+
+    feats_payload: list[dict[str, Any]] = []
+    for feat_id in feat_ids:
+        status = str(states[feat_id].get("status") or "proposal")
+        feats_payload.append(
+            {
+                "feat_id": feat_id,
+                "title": str(states[feat_id].get("title") or ""),
+                "status": status,
+                "workspace_mode": str(states[feat_id].get("workspace_mode") or ""),
+                "depends_on": sorted(deps_by_feat.get(feat_id, set())),
+                "dependents": sorted(dependents_by_feat.get(feat_id, [])),
+                "layer": layer_by_feat.get(feat_id),
+                "is_completed": feat_is_completed(status),
+            }
+        )
+
+    if parallel_recommended:
+        recommendation_reason = (
+            f"independent layer width up to {natural_max_width}; parallel mode can reduce waiting time"
+        )
+    else:
+        recommendation_reason = "dependency chain is mostly linear; serial mode is sufficient"
+
+    payload = {
+        "version": 1,
+        "generated_by": "bagakit-feature-tracker",
+        "generated_at": utc_now(),
+        "execution_mode": resolved_mode,
+        "max_parallel": max_parallel,
+        "parallel_recommendation": {
+            "recommended": parallel_recommended,
+            "reason": recommendation_reason,
+            "natural_max_layer_width": natural_max_width,
+        },
+        "features": feats_payload,
+        "layers": layer_payload,
+        "first_unfinished_layer": first_unfinished,
+        "notes": sorted(set(notes)),
+    }
+
+    archived_path: Path | None = None
+    if paths.dag_file.exists():
+        archived_path = archive_existing_dag(paths, load_json(paths.dag_file))
+    save_json(paths.dag_file, payload)
+
+    print(f"write: {paths.dag_file}")
+    if archived_path:
+        print(f"archive: {archived_path}")
+    print(f"execution_mode: {resolved_mode}")
+    print(f"max_parallel: {max_parallel}")
+    print(
+        "parallel_recommended: "
+        + ("yes" if parallel_recommended else "no")
+        + f" ({recommendation_reason})"
+    )
+    print(f"next: feature-tracker.sh show-feature-dag --root {root}")
+
+    if args.json:
+        print(json.dumps(payload, ensure_ascii=False, indent=2))
+    return 0
+
+
+def cmd_show_feat_dag(args: argparse.Namespace) -> int:
+    root = Path(args.root).resolve()
+    paths = HarnessPaths(root)
+    ensure_harness_exists(paths)
+    if not paths.dag_file.exists():
+        eprint(f"error: dag file missing: {paths.dag_file}")
+        eprint("hint: run feature-tracker.sh replan-features first")
+        return 1
+
+    payload = load_json(paths.dag_file)
+    if not isinstance(payload, dict):
+        eprint(f"error: invalid dag schema: {paths.dag_file}")
+        return 1
+
+    if args.json:
+        print(json.dumps(payload, ensure_ascii=False, indent=2))
+        return 0
+
+    print(f"dag_file: {paths.dag_file}")
+    print(f"generated_at: {payload.get('generated_at', '')}")
+    print(f"execution_mode: {payload.get('execution_mode', '')}")
+    print(f"max_parallel: {payload.get('max_parallel', '')}")
+    rec = payload.get("parallel_recommendation", {})
+    if isinstance(rec, dict):
+        print(
+            "parallel_recommended: "
+            + ("yes" if rec.get("recommended") else "no")
+            + f" ({rec.get('reason', '')})"
+        )
+    first_unfinished = payload.get("first_unfinished_layer")
+    print(f"first_unfinished_layer: {first_unfinished if first_unfinished is not None else 'none'}")
+
+    layers = payload.get("layers", [])
+    if not isinstance(layers, list) or not layers:
+        print("layers: none")
+        return 0
+
+    print("layers:")
+    for layer in layers:
+        if not isinstance(layer, dict):
+            continue
+        layer_id = layer.get("layer")
+        feat_ids = layer.get("feat_ids", [])
+        if not isinstance(feat_ids, list):
+            feat_ids = []
+        done_flag = "done" if layer.get("is_completed") else "pending"
+        print(f"- L{layer_id} [{done_flag}] {' '.join(str(fid) for fid in feat_ids)}")
+    return 0
+
+
+def query_list(paths: HarnessPaths) -> list[dict[str, Any]]:
+    index_data = load_index(paths)
+    out: list[dict[str, Any]] = []
+    for item in index_data.get("features", []):
+        feat_id = str(item.get("feat_id", ""))
+        try:
+            state, tasks = load_feat(paths, feat_id)
+        except SystemExit:
+            continue
+        out.append(
+            {
+                "feat_id": feat_id,
+                "title": state.get("title", ""),
+                "status": state.get("status", ""),
+                "workspace_mode": state.get("workspace_mode", ""),
+                "branch": state.get("branch", ""),
+                "worktree": state.get("worktree_path", ""),
+                "updated_at": state.get("updated_at", ""),
+                "task_stats": {
+                    "todo": count_tasks(tasks, "todo"),
+                    "in_progress": count_tasks(tasks, "in_progress"),
+                    "done": count_tasks(tasks, "done"),
+                    "blocked": count_tasks(tasks, "blocked"),
+                },
+            }
+        )
+    return out
+
+
+def query_one(paths: HarnessPaths, feat_id: str) -> dict[str, Any]:
+    state, tasks = load_feat(paths, feat_id)
+    return {"state": state, "tasks": tasks}
+
+
+def query_filter(
+    paths: HarnessPaths,
+    *,
+    feat_status: str | None,
+    task_status: str | None,
+    contains: str | None,
+) -> list[dict[str, Any]]:
+    items = query_list(paths)
+    out: list[dict[str, Any]] = []
+    needle = contains.lower() if contains else None
+
+    for item in items:
+        if feat_status and item.get("status") != feat_status:
+            continue
+        if task_status and int(item.get("task_stats", {}).get(task_status, 0)) == 0:
+            continue
+        if needle:
+            hay = (
+                f"{item.get('feat_id','')} "
+                f"{item.get('title','')} "
+                f"{item.get('branch','')} "
+                f"{item.get('workspace_mode','')}"
+            ).lower()
+            if needle not in hay:
+                continue
+        out.append(item)
+    return out
+
+
+def cmd_query_list(args: argparse.Namespace) -> int:
+    paths = HarnessPaths(Path(args.root).resolve())
+    ensure_harness_exists(paths)
+    print(json.dumps({"features": query_list(paths)}, ensure_ascii=False, indent=2))
+    return 0
+
+
+def cmd_query_get(args: argparse.Namespace) -> int:
+    paths = HarnessPaths(Path(args.root).resolve())
+    ensure_harness_exists(paths)
+    print(json.dumps(query_one(paths, args.feat), ensure_ascii=False, indent=2))
+    return 0
+
+
+def cmd_query_filter(args: argparse.Namespace) -> int:
+    paths = HarnessPaths(Path(args.root).resolve())
+    ensure_harness_exists(paths)
+    print(
+        json.dumps(
+            {
+                "features": query_filter(
+                    paths,
+                    feat_status=args.status,
+                    task_status=args.task_status,
+                    contains=args.contains,
+                )
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
+    )
+    return 0
+
+
+def build_parser() -> argparse.ArgumentParser:
+    p = argparse.ArgumentParser(description="bagakit feature tracker")
+    sub = p.add_subparsers(dest="cmd", required=True)
+
+    def add_common(sp: argparse.ArgumentParser) -> None:
+        sp.add_argument("--root", default=".")
+        sp.add_argument("--skill-dir", default=str(Path(__file__).resolve().parent.parent))
+
+    sp = sub.add_parser("check-reference-readiness", help="generate reference read report")
+    add_common(sp)
+    sp.add_argument("--manifest", default=None)
+    sp.set_defaults(func=cmd_ref_read_gate)
+
+    sp = sub.add_parser("validate-reference-report", help="validate strict ref-read report")
+    add_common(sp)
+    sp.add_argument("--manifest", default=None)
+    sp.set_defaults(func=cmd_check_ref_report)
+
+    sp = sub.add_parser("initialize-tracker", help="apply tracker files into project")
+    add_common(sp)
+    sp.add_argument("--manifest", default=None)
+    sp.add_argument("--strict", dest="strict", action="store_true")
+    sp.add_argument("--no-strict", dest="strict", action="store_false")
+    sp.set_defaults(strict=True, func=cmd_apply)
+
+    sp = sub.add_parser("create-feature", help="create feature with explicit workspace mode")
+    add_common(sp)
+    sp.add_argument("--manifest", default=None)
+    sp.add_argument("--strict", dest="strict", action="store_true")
+    sp.add_argument("--no-strict", dest="strict", action="store_false")
+    sp.add_argument("--title", required=True)
+    sp.add_argument("--slug", default="")
+    sp.add_argument("--goal", required=True)
+    sp.add_argument("--workspace-mode", choices=sorted(WORKSPACE_MODES), default=None)
+    sp.add_argument("--branch-prefix", default=None)
+    sp.set_defaults(strict=True, func=cmd_feat_new)
+
+    sp = sub.add_parser("assign-feature-workspace", help="assign current_tree/worktree to an existing feature")
+    add_common(sp)
+    sp.add_argument("--feature", dest="feat", required=True)
+    sp.add_argument("--workspace-mode", choices=["current_tree", "worktree"], required=True)
+    sp.add_argument("--branch-prefix", default=None)
+    sp.set_defaults(func=cmd_assign_feat_workspace)
+
+    sp = sub.add_parser("show-feature-status", help="show feature status")
+    add_common(sp)
+    sp.add_argument("--feature", dest="feat", default=None)
+    sp.add_argument("--json", action="store_true")
+    sp.set_defaults(func=cmd_feat_status)
+
+    sp = sub.add_parser("start-task", help="start a task")
+    add_common(sp)
+    sp.add_argument("--feature", dest="feat", required=True)
+    sp.add_argument("--task", required=True)
+    sp.set_defaults(func=cmd_task_start)
+
+    sp = sub.add_parser("run-task-gate", help="execute gate checks")
+    add_common(sp)
+    sp.add_argument("--feature", dest="feat", required=True)
+    sp.add_argument("--task", required=True)
+    sp.set_defaults(func=cmd_task_gate)
+
+    sp = sub.add_parser("prepare-task-commit", help="generate/validate structured commit message")
+    add_common(sp)
+    sp.add_argument("--feature", dest="feat", required=True)
+    sp.add_argument("--task", required=True)
+    sp.add_argument("--summary", required=True)
+    sp.add_argument("--task-status", choices=["done", "blocked"], default="done")
+    sp.add_argument("--message-out", default="")
+    sp.add_argument("--execute", action="store_true")
+    sp.set_defaults(func=cmd_task_commit)
+
+    sp = sub.add_parser("finish-task", help="finish task with result")
+    add_common(sp)
+    sp.add_argument("--feature", dest="feat", required=True)
+    sp.add_argument("--task", required=True)
+    sp.add_argument("--result", choices=["done", "blocked"], required=True)
+    sp.set_defaults(func=cmd_task_finish)
+
+    sp = sub.add_parser("archive-feature", help="archive feature (move dir + cleanup worktree)")
+    add_common(sp)
+    sp.add_argument("--feature", dest="feat", required=True)
+    sp.set_defaults(func=cmd_feat_archive)
+
+    sp = sub.add_parser("discard-feature", help="discard feature and preserve reference artifacts")
+    add_common(sp)
+    sp.add_argument("--feature", dest="feat", required=True)
+    sp.add_argument("--reason", choices=["stale", "superseded", "cancelled", "invalid"], required=True)
+    sp.add_argument("--replacement", default="")
+    sp.add_argument("--force", action="store_true")
+    sp.set_defaults(func=cmd_feat_discard)
+
+    sp = sub.add_parser("validate-tracker", help="validate tracker consistency")
+    add_common(sp)
+    sp.set_defaults(func=cmd_validate)
+
+    sp = sub.add_parser("diagnose-tracker", help="run doctor checks")
+    add_common(sp)
+    sp.set_defaults(func=cmd_doctor)
+
+    sp = sub.add_parser("replan-features", help="recompute feature DAG plan and archive previous DAG")
+    add_common(sp)
+    sp.add_argument("--execution-mode", choices=["auto", "serial", "parallel"], default=None)
+    sp.add_argument("--max-parallel", type=int, default=None)
+    sp.add_argument(
+        "--dependency",
+        action="append",
+        default=[],
+        help="dependency override in '<feature-id>:<dep1>,<dep2>' format",
+    )
+    sp.add_argument("--clear-dependencies", action="append", default=[])
+    sp.add_argument("--json", action="store_true")
+    sp.set_defaults(func=cmd_replan_feats)
+
+    sp = sub.add_parser("show-feature-dag", help="show current feature DAG")
+    add_common(sp)
+    sp.add_argument("--json", action="store_true")
+    sp.set_defaults(func=cmd_show_feat_dag)
+
+    sp = sub.add_parser("list-features", help="query features list")
+    add_common(sp)
+    sp.set_defaults(func=cmd_query_list)
+
+    sp = sub.add_parser("get-feature", help="query one feature")
+    add_common(sp)
+    sp.add_argument("--feature", dest="feat", required=True)
+    sp.set_defaults(func=cmd_query_get)
+
+    sp = sub.add_parser("filter-features", help="query features with filters")
+    add_common(sp)
+    sp.add_argument("--status", default=None)
+    sp.add_argument("--task-status", choices=["todo", "in_progress", "done", "blocked"], default=None)
+    sp.add_argument("--contains", default=None)
+    sp.set_defaults(func=cmd_query_filter)
+
+    return p
+
+
+def main(argv: Iterable[str] | None = None) -> int:
+    parser = build_parser()
+    args = parser.parse_args(list(argv) if argv is not None else None)
+    return int(args.func(args))
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

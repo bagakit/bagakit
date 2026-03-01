@@ -1,0 +1,8 @@
+version = 1
+insert_target = "bagakit_footer"
+summary_line = "- Brainstorm: Stage=<input_and_qa|finding_and_analyze|expert_forum_review|outcome_and_handoff>; Evidence=<md sources + decision matrix + forum minutes + handoff>; Next=<confirm or refine>"
+
+[[directive]]
+id = "FORUM"
+when = "brainstorm materially shaped the task result"
+instruction = "cite the deciding brainstorm artifact or forum output when that reference is available"

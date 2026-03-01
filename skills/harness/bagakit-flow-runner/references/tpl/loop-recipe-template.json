@@ -1,0 +1,27 @@
+{
+  "schema": "bagakit/flow-runner/recipe/v2",
+  "recipe_id": "default",
+  "recipe_version": "1",
+  "stage_chain": [
+    {
+      "stage_key": "inspect",
+      "goal": "Confirm the current execution target and boundary."
+    },
+    {
+      "stage_key": "plan",
+      "goal": "Define one bounded next session."
+    },
+    {
+      "stage_key": "execute",
+      "goal": "Run one bounded implementation session."
+    },
+    {
+      "stage_key": "review",
+      "goal": "Validate evidence and decide the next action."
+    },
+    {
+      "stage_key": "closeout",
+      "goal": "Archive or cancel the item only after refreshed confirmation."
+    }
+  ]
+}

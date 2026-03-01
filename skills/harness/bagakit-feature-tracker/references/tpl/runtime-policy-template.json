@@ -1,0 +1,61 @@
+{
+  "version": 1,
+  "strict_mode_default": true,
+  "git": {
+    "branch_prefix": "feat/"
+  },
+  "workspace": {
+    "default_mode": "proposal_only"
+  },
+  "stop_thresholds": {
+    "gate_fail_streak": 3,
+    "no_progress_rounds": 2,
+    "max_round_count": 8,
+    "max_session_minutes": 90
+  },
+  "lifecycle": {
+    "proposal_stale_days": 7,
+    "ready_stale_days": 5,
+    "in_progress_stale_days": 3,
+    "blocked_stale_days": 10,
+    "done_close_due_days": 3
+  },
+  "gate": {
+    "project_type": "auto",
+    "project_type_rules": {
+      "ui": {
+        "any_path_exists": [
+          "vite.config.js",
+          "vite.config.ts",
+          "next.config.js",
+          "next.config.mjs",
+          "tailwind.config.js",
+          "tailwind.config.ts",
+          "src/components",
+          "components",
+          "frontend",
+          "web",
+          "app",
+          "pages"
+        ]
+      },
+      "non_ui": {
+        "any_path_exists": [
+          "pyproject.toml",
+          "requirements.txt",
+          "pytest.ini",
+          "go.mod",
+          "Cargo.toml",
+          "package.json"
+        ]
+      },
+      "default": "non_ui"
+    },
+    "ui_commands": [],
+    "non_ui_commands": []
+  },
+  "dag": {
+    "execution_mode": "auto",
+    "max_parallel": 2
+  }
+}

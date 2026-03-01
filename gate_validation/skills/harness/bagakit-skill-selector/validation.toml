@@ -1,0 +1,51 @@
+version = 2
+
+[[suite]]
+id = "bagakit-skill-selector-structure"
+owner = "skills/harness/bagakit-skill-selector"
+description = "Require selector runtime files, recipes, and references that define explicit task-level composition behavior."
+default = true
+validation_class = "structure"
+groups = ["skills", "harness", "usage-loop", "structure"]
+
+[suite.runner]
+kind = "fs"
+required_dirs = [
+  "skills/harness/bagakit-skill-selector",
+  "skills/harness/bagakit-skill-selector/recipes",
+  "skills/harness/bagakit-skill-selector/references",
+  "skills/harness/bagakit-skill-selector/scripts",
+  "skills/harness/bagakit-skill-selector/scripts/lib",
+  "gate_validation/skills/harness/bagakit-skill-selector",
+]
+required_files = [
+  "skills/harness/bagakit-skill-selector/README.md",
+  "skills/harness/bagakit-skill-selector/SKILL.md",
+  "skills/harness/bagakit-skill-selector/assets/skill-usage.template.toml",
+  "skills/harness/bagakit-skill-selector/recipes/README.md",
+  "skills/harness/bagakit-skill-selector/recipes/brainstorm-with-research.md",
+  "skills/harness/bagakit-skill-selector/recipes/research-to-knowledge.md",
+  "skills/harness/bagakit-skill-selector/recipes/brainstorm-review-loop.md",
+  "skills/harness/bagakit-skill-selector/references/selector-driver.toml",
+  "skills/harness/bagakit-skill-selector/references/skill-usage-file-spec.md",
+  "skills/harness/bagakit-skill-selector/scripts/skill_selector.ts",
+  "skills/harness/bagakit-skill-selector/scripts/lib/reports.ts",
+  "gate_validation/skills/harness/bagakit-skill-selector/check-skill-selector.sh",
+  "gate_validation/skills/harness/bagakit-skill-selector/validation.toml",
+]
+
+[[suite]]
+id = "bagakit-skill-selector-smoke"
+owner = "skills/harness/bagakit-skill-selector"
+description = "Run a minimal task-level skill-selector lifecycle with explicit composition and strict validation."
+default = true
+validation_class = "smoke"
+groups = ["skills", "harness", "usage-loop", "smoke"]
+
+[suite.runner]
+kind = "bash_script"
+script = "gate_validation/skills/harness/bagakit-skill-selector/check-skill-selector.sh"
+args = [
+  "--root",
+  "{repo_root}",
+]

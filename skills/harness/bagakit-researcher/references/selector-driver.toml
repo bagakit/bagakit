@@ -1,0 +1,8 @@
+version = 1
+insert_target = "bagakit_footer"
+summary_line = "- Researcher: Topic=<topic-class/topic>; Evidence=<index + summaries + source refs>; Next=<one deterministic next action>"
+
+[[directive]]
+id = "EVIDENCE"
+when = "researcher materially shaped the task result"
+instruction = "cite the local topic index or summary path that supplied the evidence when that reference is available"

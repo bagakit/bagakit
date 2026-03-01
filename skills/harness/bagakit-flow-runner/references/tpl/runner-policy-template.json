@@ -1,0 +1,8 @@
+{
+  "schema": "bagakit/flow-runner/policy/v2",
+  "safety": {
+    "snapshot_before_session": true,
+    "checkpoint_before_stop": true,
+    "persist_state_before_stop": true
+  }
+}
