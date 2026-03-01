@@ -6,7 +6,9 @@ export interface EvolverPaths {
   indexPath: string;
   topicsRoot: string;
   topicDir: (slug: string) => string;
+  topicArchive: (slug: string) => string;
   topicFile: (slug: string) => string;
+  topicHandoff: (slug: string) => string;
   topicReadme: (slug: string) => string;
   topicReport: (slug: string) => string;
 }
@@ -22,7 +24,9 @@ export function resolvePaths(rootArg?: string): EvolverPaths {
     indexPath: path.join(stateRoot, "index.json"),
     topicsRoot,
     topicDir: (slug) => path.join(topicsRoot, slug),
+    topicArchive: (slug) => path.join(topicsRoot, slug, "ARCHIVE.md"),
     topicFile: (slug) => path.join(topicsRoot, slug, "topic.json"),
+    topicHandoff: (slug) => path.join(topicsRoot, slug, "HANDOFF.md"),
     topicReadme: (slug) => path.join(topicsRoot, slug, "README.md"),
     topicReport: (slug) => path.join(topicsRoot, slug, "REPORT.md"),
   };

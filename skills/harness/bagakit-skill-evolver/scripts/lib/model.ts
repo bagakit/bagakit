@@ -4,6 +4,9 @@ export type CandidateKind = (typeof CANDIDATE_KINDS)[number];
 export const PREFLIGHT_DECISIONS = ["skip", "note-only", "track"] as const;
 export type PreflightDecision = (typeof PREFLIGHT_DECISIONS)[number];
 
+export const ROUTE_DECISIONS = ["host", "upstream", "split"] as const;
+export type RouteDecision = (typeof ROUTE_DECISIONS)[number];
+
 export const CANDIDATE_STATUSES = [
   "planned",
   "trial",
@@ -55,6 +58,15 @@ export interface PreflightRecord {
   assessed_at: string;
 }
 
+export interface RoutingRecord {
+  decision: RouteDecision;
+  rationale: string;
+  decided_at: string;
+  host_target?: string;
+  host_ref?: string;
+  upstream_promotion_ids: string[];
+}
+
 export interface SourceRecord {
   id: string;
   kind: SourceKind;
@@ -88,6 +100,7 @@ export interface PromotionRecord {
   target: string;
   summary: string;
   ref?: string;
+  proof_refs: string[];
   created_at: string;
   updated_at: string;
 }
@@ -100,6 +113,7 @@ export interface TopicRecord {
   created_at: string;
   updated_at: string;
   preflight?: PreflightRecord;
+  routing?: RoutingRecord;
   local_context_refs: string[];
   candidates: CandidateRecord[];
   sources: SourceRecord[];

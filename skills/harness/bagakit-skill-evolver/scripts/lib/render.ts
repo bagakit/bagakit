@@ -6,6 +6,8 @@ import type {
   TopicRecord,
 } from "./model.ts";
 import type { EvolverPaths } from "./paths.ts";
+import type { PromotionReadinessSummary } from "./readiness.ts";
+import { evaluatePromotionReadiness } from "./readiness.ts";
 
 function quote(value: string): string {
   return `\`${value}\``;
@@ -45,7 +47,11 @@ function formatCandidateLine(candidate: CandidateRecord): string {
 
 function formatPromotionLine(promotion: PromotionRecord): string {
   const refText = promotion.ref ? ` | ref: ${quote(promotion.ref)}` : "";
-  return `- ${quote(promotion.id)} | surface: ${quote(promotion.surface)} | status: ${quote(promotion.status)} | target: ${quote(promotion.target)}${refText}\n  - ${promotion.summary}`;
+  const proofText =
+    promotion.proof_refs.length > 0
+      ? `\n  - proof: ${promotion.proof_refs.map((ref) => quote(ref)).join(", ")}`
+      : "";
+  return `- ${quote(promotion.id)} | surface: ${quote(promotion.surface)} | status: ${quote(promotion.status)} | target: ${quote(promotion.target)}${refText}\n  - ${promotion.summary}${proofText}`;
 }
 
 function buildDurableSurfaceLines(topic: TopicRecord): string[] {
@@ -113,52 +119,55 @@ function buildBenchmarkLines(topic: TopicRecord): string[] {
 }
 
 function buildReadinessLines(topic: TopicRecord): string[] {
-  const lines: string[] = [];
-
-  if (!topic.preflight) {
-    lines.push("- missing preflight decision");
+  const readiness = evaluatePromotionReadiness(topic);
+  const lines = [
+    `- readiness state: ${quote(readiness.state)}`,
+    `- route decision: ${quote(readiness.route_decision)}`,
+    `- archive ready: ${quote(readiness.archive_ready ? "yes" : "no")}`,
+  ];
+  for (const blocker of readiness.blockers) {
+    lines.push(`- blocker: ${blocker}`);
   }
-  if (topic.candidates.length === 0) {
-    lines.push("- no candidate comparison recorded");
+  if (readiness.blockers.length === 0) {
+    lines.push("- no blocking readiness issues");
   }
-  const decisionCount = topic.notes.filter((note) => note.kind === "decision").length;
-  if (decisionCount === 0) {
-    lines.push("- no preserved decision rationale");
-  }
-  if (
-    topic.sources.length === 0 &&
-    topic.feedback.length === 0 &&
-    topic.benchmarks.length === 0
-  ) {
-    lines.push("- no structured evidence recorded yet");
-  }
-  if (topic.promotions.length === 0) {
-    lines.push("- no durable promotion tracked yet");
-  } else if (!topic.promotions.some((promotion) => promotion.status === "landed")) {
-    lines.push("- promotion proposals exist, but none are landed yet");
-  }
-
-  return lines.length > 0 ? lines : ["- topic is evidence-bearing and has at least one landed or tracked durable promotion"];
+  return lines;
 }
 
 function buildRecommendedMove(topic: TopicRecord): string {
-  if (!topic.preflight) {
-    return "Record a preflight decision before the topic grows further.";
+  return evaluatePromotionReadiness(topic).recommended_next_move;
+}
+
+function buildRoutingLines(topic: TopicRecord): string[] {
+  if (!topic.routing) {
+    return ["- none"];
   }
-  if (
-    topic.sources.length === 0 &&
-    topic.feedback.length === 0 &&
-    topic.benchmarks.length === 0
-  ) {
-    return "Add the strongest available evidence before promoting this topic upward.";
+  const lines = [
+    `- decision: ${quote(topic.routing.decision)}`,
+    `- rationale: ${topic.routing.rationale}`,
+    `- decided_at: ${quote(topic.routing.decided_at)}`,
+  ];
+  if (topic.routing.host_target) {
+    lines.push(`- host_target: ${quote(topic.routing.host_target)}`);
   }
-  if (topic.promotions.length === 0) {
-    return "Prepare the first durable promotion target once the evidence is strong enough.";
+  if (topic.routing.host_ref) {
+    lines.push(`- host_ref: ${quote(topic.routing.host_ref)}`);
   }
-  if (!topic.promotions.some((promotion) => promotion.status === "landed")) {
-    return "Either land the open promotion proposal or explicitly retire it.";
+  if (topic.routing.upstream_promotion_ids.length > 0) {
+    lines.push(
+      `- upstream_promotions: ${topic.routing.upstream_promotion_ids
+        .map((promotionId) => quote(promotionId))
+        .join(", ")}`,
+    );
   }
-  return "Decide whether the topic should stay active for another increment or move toward archival.";
+  return lines;
+}
+
+function buildStrongestEvidenceLines(readiness: PromotionReadinessSummary): string[] {
+  if (readiness.strongest_evidence.length === 0) {
+    return ["- none"];
+  }
+  return readiness.strongest_evidence.map((line) => `- ${line}`);
 }
 
 export function buildTopicReadme(paths: EvolverPaths, topic: TopicRecord): string {
@@ -192,6 +201,7 @@ export function buildTopicReadme(paths: EvolverPaths, topic: TopicRecord): strin
 }
 
 export function buildTopicReport(paths: EvolverPaths, topic: TopicRecord): string {
+  const readiness = evaluatePromotionReadiness(topic);
   const runtimeRoot = path.relative(paths.root, paths.topicDir(topic.slug)).split(path.sep).join("/");
   const researchRefs = joinRepoRefs(topic).filter((ref) => isHiddenDocsRef(ref));
   const durableSurfaceLines = buildDurableSurfaceLines(topic);
@@ -236,9 +246,17 @@ export function buildTopicReport(paths: EvolverPaths, topic: TopicRecord): strin
     "",
     ...durableSurfaceLines,
     "",
+    "## Routing Decision",
+    "",
+    ...buildRoutingLines(topic),
+    "",
     "## Promotion Readiness",
     "",
     ...readinessLines,
+    "",
+    "## Strongest Evidence",
+    "",
+    ...buildStrongestEvidenceLines(readiness),
     "",
     "## Recommended Next Move",
     "",
@@ -267,5 +285,83 @@ export function buildTopicReport(paths: EvolverPaths, topic: TopicRecord): strin
     ...buildDecisionLines(topic),
   ];
 
+  return lines.join("\n") + "\n";
+}
+
+export function buildTopicHandoff(
+  paths: EvolverPaths,
+  topic: TopicRecord,
+  readiness: PromotionReadinessSummary = evaluatePromotionReadiness(topic),
+): string {
+  const runtimeRoot = path.relative(paths.root, paths.topicDir(topic.slug)).split(path.sep).join("/");
+  const lines = [
+    `# ${topic.title} Handoff`,
+    "",
+    `- slug: ${quote(topic.slug)}`,
+    `- status: ${quote(topic.status)}`,
+    `- route: ${quote(readiness.route_decision)}`,
+    `- readiness: ${quote(readiness.state)}`,
+    `- archive_ready: ${quote(readiness.archive_ready ? "yes" : "no")}`,
+    "",
+    "## Strongest Evidence",
+    "",
+    ...buildStrongestEvidenceLines(readiness),
+    "",
+    "## Open Blockers",
+    "",
+    ...(readiness.blockers.length > 0 ? readiness.blockers.map((line) => `- ${line}`) : ["- none"]),
+    "",
+    "## Open Promotion Actions",
+    "",
+    ...(readiness.referenced_promotions.length > 0
+      ? readiness.referenced_promotions.map((promotion) => formatPromotionLine(promotion))
+      : ["- none"]),
+    "",
+    "## Recommended Next Move",
+    "",
+    `- ${readiness.recommended_next_move}`,
+    "",
+    "## Next Commands",
+    "",
+    `- ${quote(`node --experimental-strip-types skills/harness/bagakit-skill-evolver/scripts/evolver.ts promotion-readiness --topic ${topic.slug} --root . --json`)}`,
+    `- ${quote(`node --experimental-strip-types skills/harness/bagakit-skill-evolver/scripts/evolver.ts status --topic ${topic.slug} --root .`)}`,
+    `- topic file under ${quote(runtimeRoot)}: ${quote("topic.json")}`,
+  ];
+  return lines.join("\n") + "\n";
+}
+
+export function buildTopicArchive(
+  paths: EvolverPaths,
+  topic: TopicRecord,
+  readiness: PromotionReadinessSummary = evaluatePromotionReadiness(topic),
+): string {
+  const archiveNote = topic.notes
+    .filter((note) => note.kind === "decision" && note.title === "archive-topic")
+    .sort((left, right) => right.created_at.localeCompare(left.created_at))[0];
+  const lines = [
+    `# ${topic.title} Archive`,
+    "",
+    `- slug: ${quote(topic.slug)}`,
+    `- status: ${quote(topic.status)}`,
+    `- route: ${quote(readiness.route_decision)}`,
+    `- final readiness: ${quote(readiness.state)}`,
+    `- archived_at: ${quote(topic.updated_at)}`,
+    "",
+    "## Close Summary",
+    "",
+    ...(archiveNote ? [`- ${archiveNote.text}`] : ["- no archive-topic summary recorded"]),
+    "",
+    "## Decision Trail",
+    "",
+    ...buildDecisionLines(topic),
+    "",
+    "## Promotion Trail",
+    "",
+    ...buildDurableSurfaceLines(topic),
+    "",
+    "## Strongest Evidence At Archive Time",
+    "",
+    ...buildStrongestEvidenceLines(readiness),
+  ];
   return lines.join("\n") + "\n";
 }

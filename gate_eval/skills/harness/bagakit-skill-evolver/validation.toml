@@ -1,0 +1,17 @@
+version = 2
+
+[[suite]]
+id = "bagakit-skill-evolver-deterministic-eval"
+owner = "gate_eval/skills/harness/bagakit-skill-evolver"
+description = "Run deterministic non-gating eval for the evolver runtime closure surface."
+default = true
+validation_class = "quality"
+groups = ["skills", "harness", "evolver", "eval", "quality"]
+
+[suite.runner]
+kind = "executable"
+command = "{node}"
+args = [
+  "--experimental-strip-types",
+  "gate_eval/skills/harness/bagakit-skill-evolver/run_eval.ts",
+]

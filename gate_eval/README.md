@@ -25,6 +25,9 @@ Current implemented slices:
 - `backbone/skill/`
   - deterministic eval for the repo skill surface: listing, linking, layout,
     and distribution packaging
+- `skills/harness/bagakit-skill-evolver/`
+  - deterministic eval for evolver evidence ingest, report quality, promotion
+    readiness, routing, and weak-link warning behavior
 
 Registration:
 

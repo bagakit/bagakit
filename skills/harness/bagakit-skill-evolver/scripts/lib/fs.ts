@@ -1,9 +1,16 @@
 import fs from "node:fs";
 import path from "node:path";
 
-import type { EvolverIndex, TopicRecord, TopicIndexEntry } from "./model.ts";
+import type {
+  EvolverIndex,
+  PromotionRecord,
+  RoutingRecord,
+  TopicRecord,
+  TopicIndexEntry,
+} from "./model.ts";
 import type { EvolverPaths } from "./paths.ts";
-import { buildTopicReadme, buildTopicReport } from "./render.ts";
+import { buildTopicArchive, buildTopicHandoff, buildTopicReadme, buildTopicReport } from "./render.ts";
+import { evaluatePromotionReadiness } from "./readiness.ts";
 
 function ensureDir(dir: string): void {
   fs.mkdirSync(dir, { recursive: true });
@@ -35,6 +42,42 @@ function normalizeIndexEntry(raw: Partial<TopicIndexEntry>): TopicIndexEntry {
   };
 }
 
+function normalizeRoutingRecord(raw: unknown): RoutingRecord | undefined {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+    return undefined;
+  }
+  const record = raw as Partial<RoutingRecord>;
+  return {
+    decision: String(record.decision ?? "") as RoutingRecord["decision"],
+    rationale: String(record.rationale ?? ""),
+    decided_at: String(record.decided_at ?? ""),
+    host_target: record.host_target === undefined ? undefined : String(record.host_target),
+    host_ref: record.host_ref === undefined ? undefined : String(record.host_ref),
+    upstream_promotion_ids: Array.isArray(record.upstream_promotion_ids)
+      ? record.upstream_promotion_ids.map((value) => String(value))
+      : [],
+  };
+}
+
+function normalizePromotionRecord(raw: unknown): PromotionRecord {
+  const record = (raw && typeof raw === "object" && !Array.isArray(raw)
+    ? raw
+    : {}) as Partial<PromotionRecord>;
+  return {
+    id: String(record.id ?? ""),
+    surface: String(record.surface ?? "spec") as PromotionRecord["surface"],
+    status: String(record.status ?? "proposed") as PromotionRecord["status"],
+    target: String(record.target ?? ""),
+    summary: String(record.summary ?? ""),
+    ref: record.ref === undefined ? undefined : String(record.ref),
+    proof_refs: Array.isArray(record.proof_refs)
+      ? record.proof_refs.map((value) => String(value))
+      : [],
+    created_at: String(record.created_at ?? ""),
+    updated_at: String(record.updated_at ?? ""),
+  };
+}
+
 function normalizeTopicRecord(raw: Partial<TopicRecord>, fallbackSlug: string): TopicRecord {
   return {
     version: 1,
@@ -44,12 +87,13 @@ function normalizeTopicRecord(raw: Partial<TopicRecord>, fallbackSlug: string): 
     created_at: String(raw.created_at ?? ""),
     updated_at: String(raw.updated_at ?? ""),
     preflight: raw.preflight,
+    routing: normalizeRoutingRecord(raw.routing),
     local_context_refs: Array.isArray(raw.local_context_refs) ? raw.local_context_refs : [],
     candidates: Array.isArray(raw.candidates) ? raw.candidates : [],
     sources: Array.isArray(raw.sources) ? raw.sources : [],
     feedback: Array.isArray(raw.feedback) ? raw.feedback : [],
     benchmarks: Array.isArray(raw.benchmarks) ? raw.benchmarks : [],
-    promotions: Array.isArray(raw.promotions) ? raw.promotions : [],
+    promotions: Array.isArray(raw.promotions) ? raw.promotions.map((item) => normalizePromotionRecord(item)) : [],
     notes: Array.isArray(raw.notes) ? raw.notes : [],
   };
 }
@@ -143,6 +187,25 @@ export function writeTopicReadme(
 export function writeTopicReport(paths: EvolverPaths, topic: TopicRecord): void {
   ensureDir(paths.topicDir(topic.slug));
   fs.writeFileSync(paths.topicReport(topic.slug), buildTopicReport(paths, topic), "utf8");
+}
+
+export function writeTopicHandoff(paths: EvolverPaths, topic: TopicRecord): void {
+  ensureDir(paths.topicDir(topic.slug));
+  const readiness = evaluatePromotionReadiness(topic);
+  fs.writeFileSync(paths.topicHandoff(topic.slug), buildTopicHandoff(paths, topic, readiness), "utf8");
+}
+
+export function writeTopicArchive(paths: EvolverPaths, topic: TopicRecord): void {
+  const archiveFile = paths.topicArchive(topic.slug);
+  if (topic.status !== "archived") {
+    if (fs.existsSync(archiveFile)) {
+      fs.rmSync(archiveFile, { force: true });
+    }
+    return;
+  }
+  ensureDir(paths.topicDir(topic.slug));
+  const readiness = evaluatePromotionReadiness(topic);
+  fs.writeFileSync(archiveFile, buildTopicArchive(paths, topic, readiness), "utf8");
 }
 
 export function syncIndexEntry(

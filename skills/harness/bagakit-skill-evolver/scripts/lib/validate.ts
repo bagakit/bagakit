@@ -6,6 +6,7 @@ import {
   FEEDBACK_SIGNALS,
   NOTE_KINDS,
   PREFLIGHT_DECISIONS,
+  ROUTE_DECISIONS,
   PROMOTION_SURFACES,
   PROMOTION_STATUSES,
   SOURCE_KINDS,
@@ -105,6 +106,23 @@ export function validateTopicShape(topic: unknown): void {
     assertNonEmptyString(topic.preflight.assessed_at, "preflight assessed_at");
   }
 
+  if (topic.routing !== undefined) {
+    assertRecord(topic.routing, "routing");
+    assertEnumValue(ROUTE_DECISIONS, topic.routing.decision, "routing decision");
+    assertNonEmptyString(topic.routing.rationale, "routing rationale");
+    assertNonEmptyString(topic.routing.decided_at, "routing decided_at");
+    if (topic.routing.host_target !== undefined) {
+      assertNonEmptyString(topic.routing.host_target, "routing host_target");
+    }
+    if (topic.routing.host_ref !== undefined) {
+      assertNonEmptyString(topic.routing.host_ref, "routing host_ref");
+    }
+    assertArray(topic.routing.upstream_promotion_ids, "routing upstream_promotion_ids");
+    for (const promotionId of topic.routing.upstream_promotion_ids) {
+      assertNonEmptyString(promotionId, "routing upstream promotion id");
+    }
+  }
+
   assertArray(topic.candidates, "candidates");
   const candidateIds = new Set<string>();
   for (const candidate of topic.candidates) {
@@ -177,10 +195,25 @@ export function validateTopicShape(topic: unknown): void {
     if (promotion.ref !== undefined) {
       assertNonEmptyString(promotion.ref, "promotion ref");
     }
+    assertArray(promotion.proof_refs, "promotion proof_refs");
+    for (const proofRef of promotion.proof_refs) {
+      assertNonEmptyString(proofRef, "promotion proof_ref");
+    }
+    if (promotion.status === "landed" && promotion.proof_refs.length === 0) {
+      throw new Error(`landed promotion must include proof_refs in ${topic.slug}: ${promotion.id}`);
+    }
     if (promotionIds.has(promotion.id)) {
       throw new Error(`duplicate promotion id in ${topic.slug}: ${promotion.id}`);
     }
     promotionIds.add(promotion.id);
+  }
+
+  if (topic.routing) {
+    for (const promotionId of topic.routing.upstream_promotion_ids) {
+      if (!promotionIds.has(promotionId)) {
+        throw new Error(`routing references unknown promotion in ${topic.slug}: ${promotionId}`);
+      }
+    }
   }
 
   assertArray(topic.notes, "notes");
@@ -210,6 +243,9 @@ export function validatePromotionRefSurface(topic: unknown): void {
   for (const promotion of topic.promotions) {
     assertRecord(promotion, "promotion");
     if (!promotion.ref) {
+      if (promotion.proof_refs !== undefined && !Array.isArray(promotion.proof_refs)) {
+        throw new Error(`promotion proof_refs must be an array for ${topic.slug}`);
+      }
       continue;
     }
     assertEnumValue(PROMOTION_SURFACES, promotion.surface, "promotion surface");
@@ -221,6 +257,22 @@ export function validatePromotionRefSurface(topic: unknown): void {
       );
     }
   }
+}
+
+export function validateRoutingShape(topic: unknown): void {
+  assertRecord(topic, "topic");
+  if (!topic.routing) {
+    return;
+  }
+  assertRecord(topic.routing, "routing");
+  assertEnumValue(ROUTE_DECISIONS, topic.routing.decision, "routing decision");
+  if (topic.routing.host_ref !== undefined) {
+    assertNonEmptyString(topic.routing.host_ref, "routing host_ref");
+  }
+  if (topic.routing.host_target !== undefined) {
+    assertNonEmptyString(topic.routing.host_target, "routing host_target");
+  }
+  assertArray(topic.routing.upstream_promotion_ids, "routing upstream_promotion_ids");
 }
 
 export function normalizeRepoRelativeRef(root: string, ref: string): string {

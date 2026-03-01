@@ -102,7 +102,9 @@ Evidence of done:
 
 ## 5. Validation And Eval Completion
 
-This is the biggest missing area today.
+This used to be the biggest missing area.
+The baseline eval surface now exists, but closure quality still needs to keep
+improving over time.
 
 Done means:
 
@@ -168,28 +170,31 @@ Current Bagakit status is:
 - evidence model:
   - partially in place
 - promotion model:
-  - partially in place
+  - mostly in place
 - validation:
-  - partially in place
+  - mostly in place
 - eval:
-  - not complete
+  - baseline slice exists
+  - still needs broader comparative depth over time
 - handoff/archive ergonomics:
-  - not complete
+  - baseline derived artifacts exist
+  - still needs more real-world steward iteration
 
 So the system is:
 
 - usable
 - structurally coherent
+- materially closer to done
 - not yet done
 
 ## Immediate Next Steps
 
 To move `evolver` toward done, the best next sequence is:
 
-1. create a real `gate_eval/skills/harness/bagakit-skill-evolver/` surface
-2. define practice-evidence patterns, not just research-evidence patterns
-3. harden promotion-readiness checks
-4. add better handoff and archive behavior
+1. expand eval depth now that the real `gate_eval/skills/harness/bagakit-skill-evolver/` surface exists
+2. keep practice-evidence patterns explicit without importing raw selector logs into evolver
+3. strengthen steward-facing promotion ergonomics on top of the current readiness contract
+4. refine archive and handoff quality through real topic usage rather than widening scope
 
 ## Non-Goals
 
