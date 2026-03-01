@@ -30,6 +30,7 @@ export const RUN_STOP_REASONS = [
   "runner_exited_nonzero",
   "runner_output_missing",
   "runner_output_invalid",
+  "flow_runner_refresh_failed",
   "checkpoint_missing",
   "operator_cancelled",
 ] as const;
@@ -243,6 +244,7 @@ export type AgentLoopWatchPayload = Readonly<{
     exit_code: number | null;
     result_status: RunnerResultStatus | "";
     checkpoint_written: boolean | null;
+    issue?: string;
   }>;
 }>;
 

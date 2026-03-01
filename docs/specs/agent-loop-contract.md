@@ -112,6 +112,11 @@ This file is advisory host exhaust.
 
 `agent_loop` still refreshes from flow-runner after each launch.
 
+If the runner fails or emits malformed host exhaust, `agent_loop` returns a
+typed stop.
+
+It does not synthesize flow-runner checkpoints on the runner's behalf.
+
 ## Run Payload Contract
 
 `run` currently emits schema `bagakit/agent-loop/run/v1`.
@@ -138,5 +143,6 @@ Stable fields:
 - session budget exhaustion must return a typed stop
 - runner output without a valid `runner-result.json` must not be treated as
   success
+- runner failure must not cause `agent_loop` to invent flow-runner checkpoints
 - tracker-sourced items must not be archived by `agent_loop`
 - host exhaust must not become selection or lifecycle truth

@@ -1,6 +1,8 @@
 import fs from "node:fs";
 import path from "node:path";
 
+let uniqueCounter = 0;
+
 export function ensureDir(dirPath: string): void {
   fs.mkdirSync(dirPath, { recursive: true });
 }
@@ -61,9 +63,10 @@ export function sanitizeSegment(value: string): string {
 
 export function uniqueStampedId(prefix: string, label: string): string {
   const iso = new Date().toISOString();
-  const trimmed = `${iso.slice(0, 19)}Z`;
-  const stamp = trimmed.split("-").join("").split(":").join("");
-  return `${prefix}${stamp}-${sanitizeSegment(label)}`;
+  const stamp = iso.split("-").join("").split(":").join("").split(".").join("");
+  uniqueCounter += 1;
+  const counter = String(uniqueCounter).padStart(4, "0");
+  return `${prefix}${stamp}-${process.pid}-${counter}-${sanitizeSegment(label)}`;
 }
 
 export function assertRecord(value: unknown, label: string): Record<string, unknown> {

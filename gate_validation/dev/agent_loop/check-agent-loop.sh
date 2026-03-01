@@ -53,6 +53,9 @@ bash "$FEATURE_TRACKER_DIR/scripts/feature-tracker.sh" assign-feature-workspace 
 bash "$FLOW_RUNNER_DIR/scripts/flow-runner.sh" apply --root "$TMP_DIR" >/dev/null
 bash "$FLOW_RUNNER_DIR/scripts/flow-runner.sh" ingest-feature-tracker --root "$TMP_DIR" >/dev/null
 bash "$FLOW_RUNNER_DIR/scripts/flow-runner.sh" add-item --root "$TMP_DIR" --item-id manual-one --title "Manual item" --source-kind manual --source-ref manual:one >/dev/null
+bash "$FLOW_RUNNER_DIR/scripts/flow-runner.sh" add-item --root "$TMP_DIR" --item-id manual-cancel --title "Manual cancel" --source-kind manual --source-ref manual:cancel >/dev/null
+bash "$FLOW_RUNNER_DIR/scripts/flow-runner.sh" add-item --root "$TMP_DIR" --item-id manual-invalid --title "Manual invalid" --source-kind manual --source-ref manual:invalid >/dev/null
+bash "$FLOW_RUNNER_DIR/scripts/flow-runner.sh" add-item --root "$TMP_DIR" --item-id manual-locked --title "Manual lock" --source-kind manual --source-ref manual:locked >/dev/null
 
 bash "$AGENT_LOOP_DIR/agent-loop.sh" apply --root "$TMP_DIR" >/dev/null
 bash "$AGENT_LOOP_DIR/agent-loop.sh" configure-runner --root "$TMP_DIR" --runner-name fake --argv-json "[\"python3\",\"$FAKE_RUNNER\",\"{repo_root}\",\"{session_brief}\",\"{runner_result}\"]" >/dev/null
@@ -106,6 +109,27 @@ assert payload["sessions_launched"] == 1
 assert payload["checkpoint_observed"] is True
 PY
 
+CANCEL_JSON="$TMP_DIR/cancel-run.json"
+bash "$AGENT_LOOP_DIR/agent-loop.sh" configure-runner --root "$TMP_DIR" --runner-name fake --argv-json "[\"python3\",\"$FAKE_RUNNER\",\"cancelled\",\"{repo_root}\",\"{session_brief}\",\"{runner_result}\"]" >/dev/null
+set +e
+bash "$AGENT_LOOP_DIR/agent-loop.sh" run --root "$TMP_DIR" --item manual-cancel --max-sessions 1 --json > "$CANCEL_JSON"
+status=$?
+set -e
+if [[ "$status" -ne 1 ]]; then
+  echo "error: cancelled runner should stop with operator action required" >&2
+  exit 1
+fi
+python3 - "$CANCEL_JSON" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+payload = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+assert payload["stop_reason"] == "operator_cancelled"
+assert payload["sessions_launched"] == 1
+PY
+
+INVALID_JSON="$TMP_DIR/invalid-run.json"
 WATCH_JSON="$TMP_DIR/watch.json"
 bash "$AGENT_LOOP_DIR/agent-loop.sh" watch --root "$TMP_DIR" --json > "$WATCH_JSON"
 python3 - "$WATCH_JSON" <<'PY'
@@ -114,10 +138,121 @@ import sys
 from pathlib import Path
 
 payload = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
-assert len(payload["recent_runs"]) >= 2
-assert len(payload["recent_sessions"]) >= 2
+assert len(payload["recent_runs"]) >= 3
+assert len(payload["recent_sessions"]) >= 3
 PY
 
 bash "$AGENT_LOOP_DIR/agent-loop.sh" validate --root "$TMP_DIR" >/dev/null
+
+bash "$AGENT_LOOP_DIR/agent-loop.sh" configure-runner --root "$TMP_DIR" --runner-name fake --argv-json "[\"python3\",\"$FAKE_RUNNER\",\"invalid\",\"{repo_root}\",\"{session_brief}\",\"{runner_result}\"]" >/dev/null
+set +e
+bash "$AGENT_LOOP_DIR/agent-loop.sh" run --root "$TMP_DIR" --item manual-invalid --max-sessions 1 --json > "$INVALID_JSON"
+status=$?
+set -e
+if [[ "$status" -ne 1 ]]; then
+  echo "error: invalid runner result should stop with operator action required" >&2
+  exit 1
+fi
+python3 - "$INVALID_JSON" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+payload = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+assert payload["stop_reason"] == "runner_output_invalid"
+assert payload["sessions_launched"] == 1
+PY
+
+POST_INVALID_WATCH="$TMP_DIR/post-invalid-watch.json"
+bash "$AGENT_LOOP_DIR/agent-loop.sh" watch --root "$TMP_DIR" --json > "$POST_INVALID_WATCH"
+python3 - "$POST_INVALID_WATCH" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+payload = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+assert any(session.get("issue") for session in payload["recent_sessions"])
+PY
+
+python3 - "$TMP_DIR" <<'PY'
+import json
+import os
+import sys
+from pathlib import Path
+
+root = Path(sys.argv[1])
+lock_path = root / ".bagakit" / "agent-loop" / "run.lock"
+lock_path.write_text(
+    json.dumps(
+        {
+            "schema": "bagakit/agent-loop/run-lock/v1",
+            "pid": os.getppid(),
+            "created_at": "2026-01-01T00:00:00Z",
+            "runner_name": "fake",
+        },
+        indent=2,
+    )
+    + "\n",
+    encoding="utf-8",
+)
+PY
+
+LOCK_JSON="$TMP_DIR/lock-run.json"
+set +e
+bash "$AGENT_LOOP_DIR/agent-loop.sh" run --root "$TMP_DIR" --item manual-locked --max-sessions 1 --json > "$LOCK_JSON"
+status=$?
+set -e
+if [[ "$status" -ne 1 ]]; then
+  echo "error: live lock should stop with operator action required" >&2
+  exit 1
+fi
+python3 - "$LOCK_JSON" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+payload = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+assert payload["stop_reason"] == "run_lock_conflict"
+PY
+rm -f "$TMP_DIR/.bagakit/agent-loop/run.lock"
+
+python3 - "$TMP_DIR" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+root = Path(sys.argv[1])
+session_dirs = sorted((root / ".bagakit" / "agent-loop" / "runner-sessions").iterdir())
+(session_dirs[0] / "session-brief.json").write_text("oops\n", encoding="utf-8")
+PY
+
+CORRUPT_WATCH="$TMP_DIR/corrupt-watch.json"
+bash "$AGENT_LOOP_DIR/agent-loop.sh" watch --root "$TMP_DIR" --json > "$CORRUPT_WATCH"
+python3 - "$CORRUPT_WATCH" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+payload = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+assert any(session.get("issue") for session in payload["recent_sessions"])
+PY
+
+CORRUPT_VALIDATE="$TMP_DIR/corrupt-validate.json"
+set +e
+bash "$AGENT_LOOP_DIR/agent-loop.sh" validate --root "$TMP_DIR" --json > "$CORRUPT_VALIDATE"
+status=$?
+set -e
+if [[ "$status" -ne 1 ]]; then
+  echo "error: corrupt host exhaust should fail validation" >&2
+  exit 1
+fi
+python3 - "$CORRUPT_VALIDATE" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+payload = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+assert any("unreadable" in issue for issue in payload["issues"])
+PY
 
 echo "ok: agent-loop smoke passed"

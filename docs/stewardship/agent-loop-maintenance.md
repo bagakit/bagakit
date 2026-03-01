@@ -18,6 +18,7 @@ Maintainers should treat `agent_loop` as host-side orchestration around
 
 - redefine current-item selection in host-local caches
 - scrape runner stdout as execution truth
+- synthesize flow-runner checkpoints after runner failure
 - archive tracker-sourced items
 - decide feature closeout
 - introduce a second hidden progress ledger
@@ -48,6 +49,8 @@ Bad uses:
   runner-result artifacts together
 - run records point back to typed stop reasons instead of raw runner output
 - refresh commands update normalized item state without creating hidden truth
+- runner failure paths stop cleanly without mutating flow-runner truth on their
+  own
 - `agent_loop` still consumes flow-runner contract surfaces, not ad hoc text
 
 ## Boundary Reminder

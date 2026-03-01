@@ -1,7 +1,7 @@
 import { spawnSync } from "node:child_process";
 import path from "node:path";
 
-import { appendCheckpoint, captureSnapshot, itemExists, loadNextAction } from "../adapters/flow_runner.ts";
+import { captureSnapshot, itemExists, loadNextAction } from "../adapters/flow_runner.ts";
 import { runnerConfigStatus } from "./config.ts";
 import {
   acquireRunLock,
@@ -60,37 +60,83 @@ function runRefreshCommands(root: string, config: RunnerConfig): void {
   }
 }
 
-function validateRunnerResult(result: RunnerResult | null, sessionId: string): string {
-  if (!result) {
-    return "runner_output_missing";
-  }
-  if (result.schema !== RUNNER_RESULT_SCHEMA) {
-    return "runner_output_invalid";
-  }
-  if (result.session_id !== sessionId) {
-    return "runner_output_invalid";
-  }
-  return "";
+function fallbackNextPayload(): FlowNextPayload {
+  return {
+    schema: "bagakit/flow-runner/next-action/v2",
+    command: "next",
+    recommended_action: "stop",
+    action_reason: "no_actionable_item",
+    session_contract: {
+      launch_bounded_session: false,
+      persist_state_before_stop: false,
+      checkpoint_before_stop: false,
+      snapshot_before_session: false,
+      archive_only_closeout: false,
+    },
+  };
 }
 
-function fallbackCheckpoint(root: string, flowNext: FlowNextPayload, stopReason: RunStopReason): void {
-  if (!flowNext.item_id || !flowNext.current_stage) {
-    return;
+function safeLoadNextAction(root: string, itemId?: string, fallback?: FlowNextPayload): {
+  payload: FlowNextPayload;
+  error: string;
+} {
+  try {
+    return {
+      payload: loadNextAction(root, itemId),
+      error: "",
+    };
+  } catch (error) {
+    return {
+      payload: fallback ?? fallbackNextPayload(),
+      error: error instanceof Error ? error.message : String(error),
+    };
   }
-  if (!flowNext.session_contract.checkpoint_before_stop) {
-    return;
+}
+
+function validateRunnerResult(result: RunnerResult | null, sessionId: string): {
+  stopReason: RunStopReason | "";
+  message: string;
+} {
+  if (!result) {
+    return {
+      stopReason: "runner_output_missing",
+      message: "runner-result.json was not written",
+    };
   }
-  appendCheckpoint(
-    root,
-    flowNext.item_id,
-    flowNext.current_stage,
-    "blocked",
-    `stabilize agent-loop after ${stopReason}`,
-    "observed runner failure",
-    `agent-loop stopped because ${stopReason}`,
-    "repair runner state and resume the bounded session",
-    "unknown",
-  );
+  if (result.schema !== RUNNER_RESULT_SCHEMA) {
+    return {
+      stopReason: "runner_output_invalid",
+      message: "runner-result.json has an invalid schema",
+    };
+  }
+  if (result.session_id !== sessionId) {
+    return {
+      stopReason: "runner_output_invalid",
+      message: "runner-result.json has a mismatched session_id",
+    };
+  }
+  if (result.status !== "completed" && result.status !== "operator_cancelled") {
+    return {
+      stopReason: "runner_output_invalid",
+      message: "runner-result.json has an unsupported status",
+    };
+  }
+  if (typeof result.checkpoint_written !== "boolean" || typeof result.note !== "string") {
+    return {
+      stopReason: "runner_output_invalid",
+      message: "runner-result.json has invalid field types",
+    };
+  }
+  if (result.status === "operator_cancelled") {
+    return {
+      stopReason: "operator_cancelled",
+      message: "runner reported operator_cancelled",
+    };
+  }
+  return {
+    stopReason: "",
+    message: "",
+  };
 }
 
 function checkpointObserved(before: FlowNextPayload, after: FlowNextPayload): boolean {
@@ -179,28 +225,49 @@ function launchRunnerSession(root: string, config: RunnerConfig, flowNext: FlowN
     stopReason = "runner_exited_nonzero";
   }
 
-  const refreshed = loadNextAction(root, flowNext.item_id);
+  const refreshedAttempt = safeLoadNextAction(root, flowNext.item_id, flowNext);
+  if (refreshedAttempt.error) {
+    return {
+      stop_reason: "flow_runner_refresh_failed",
+      checkpoint_observed: false,
+      runner_session_id: sessionId,
+      flow_next: refreshedAttempt.payload,
+      operator_message: refreshedAttempt.error,
+      next_safe_action: "inspect_flow_runner_state",
+      can_resume: true,
+      run_status: "operator_action_required",
+    };
+  }
+  const refreshed = refreshedAttempt.payload;
   const observed = checkpointObserved(flowNext, refreshed);
-  const runnerResult = loadRunnerResult(root, sessionId);
-  const outputStop = validateRunnerResult(runnerResult, sessionId) as RunStopReason | "";
+  let runnerResult: RunnerResult | null = null;
+  let outputStop: RunStopReason | "" = "";
+  let outputMessage = "";
+  try {
+    runnerResult = loadRunnerResult(root, sessionId);
+    const validation = validateRunnerResult(runnerResult, sessionId);
+    outputStop = validation.stopReason;
+    outputMessage = validation.message;
+  } catch (error) {
+    outputStop = "runner_output_invalid";
+    outputMessage = error instanceof Error ? error.message : String(error);
+  }
   if (!stopReason && outputStop) {
     stopReason = outputStop;
   }
   if (!stopReason && runnerResult && !runnerResult.checkpoint_written && !observed) {
     stopReason = "checkpoint_missing";
   }
-  if (stopReason && !observed) {
-    fallbackCheckpoint(root, refreshed, stopReason);
-  }
 
   if (stopReason) {
-    const fresh = loadNextAction(root, flowNext.item_id);
+    const freshAttempt = safeLoadNextAction(root, flowNext.item_id, refreshed);
+    const fresh = freshAttempt.payload;
     return {
       stop_reason: stopReason,
       checkpoint_observed: observed || ((fresh.session_number ?? 0) > (flowNext.session_number ?? 0)),
       runner_session_id: sessionId,
       flow_next: fresh,
-      operator_message: `runner session stopped because ${stopReason.replaceAll("_", " ")}`,
+      operator_message: outputMessage || `runner session stopped because ${stopReason.replaceAll("_", " ")}`,
       next_safe_action: stopReason === "checkpoint_missing" ? "repair_runner_result" : "inspect_runner_session",
       can_resume: stopReason !== "operator_cancelled",
       run_status: "operator_action_required",
@@ -228,9 +295,35 @@ export function runAgentLoop(root: string, itemId: string | undefined, maxSessio
 
   const configStatus = runnerConfigStatus(paths);
   const runnerName = configStatus.config?.runner_name ?? "unset";
-  const lockPath = acquireRunLock(root, runnerName);
+  const lockAttempt = (() => {
+    try {
+      return {
+        lockPath: acquireRunLock(root, runnerName),
+        error: "",
+      };
+    } catch (error) {
+      return {
+        lockPath: "",
+        error: error instanceof Error ? error.message : String(error),
+      };
+    }
+  })();
   let sessionsLaunched = 0;
   let currentItem = itemId;
+  if (lockAttempt.error) {
+    const attempt = safeLoadNextAction(root, currentItem);
+    return recordRun(root, attempt.payload.item_id || currentItem || "none", sessionsLaunched, maxSessions, {
+      run_status: "operator_action_required",
+      stop_reason: "run_lock_conflict",
+      operator_message: lockAttempt.error,
+      next_safe_action: "inspect_run_lock",
+      can_resume: true,
+      checkpoint_observed: false,
+      runner_session_id: "",
+      flow_next: attempt.payload,
+    });
+  }
+  const lockPath = lockAttempt.lockPath;
   try {
     if (configStatus.status === "missing") {
       const flowNext = loadNextAction(root, currentItem);
@@ -263,7 +356,8 @@ export function runAgentLoop(root: string, itemId: string | undefined, maxSessio
       try {
         runRefreshCommands(root, configStatus.config);
       } catch (error) {
-        const flowNext = loadNextAction(root, currentItem);
+        const attempt = safeLoadNextAction(root, currentItem);
+        const flowNext = attempt.payload;
         return recordRun(root, flowNext.item_id || "none", sessionsLaunched, maxSessions, {
           run_status: "operator_action_required",
           stop_reason: "runner_config_invalid",
@@ -275,12 +369,25 @@ export function runAgentLoop(root: string, itemId: string | undefined, maxSessio
           flow_next: flowNext,
         });
       }
-      let flowNext = loadNextAction(root, currentItem);
+      const nextAttempt = safeLoadNextAction(root, currentItem);
+      if (nextAttempt.error) {
+        return recordRun(root, currentItem || "none", sessionsLaunched, maxSessions, {
+          run_status: "operator_action_required",
+          stop_reason: "flow_runner_refresh_failed",
+          operator_message: nextAttempt.error,
+          next_safe_action: "inspect_flow_runner_state",
+          can_resume: true,
+          checkpoint_observed: false,
+          runner_session_id: "",
+          flow_next: nextAttempt.payload,
+        });
+      }
+      let flowNext = nextAttempt.payload;
 
       if (flowNext.recommended_action === "archive_closeout" && flowNext.item_id) {
         autoArchiveOwnedItem(root, flowNext.item_id);
         if (currentItem && currentItem === flowNext.item_id) {
-          const terminalNext = loadNextAction(root);
+          const terminalNext = safeLoadNextAction(root).payload;
           return recordRun(root, flowNext.item_id, sessionsLaunched, maxSessions, {
             run_status: "terminal",
             stop_reason: "item_archived",
@@ -374,7 +481,7 @@ export function runAgentLoop(root: string, itemId: string | undefined, maxSessio
       }
 
       if (currentItem && !itemExists(root, currentItem)) {
-        const terminalNext = loadNextAction(root);
+        const terminalNext = safeLoadNextAction(root).payload;
         return recordRun(root, currentItem, sessionsLaunched, maxSessions, {
           run_status: "terminal",
           stop_reason: "item_archived",

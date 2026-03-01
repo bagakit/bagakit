@@ -143,7 +143,13 @@ function sortedRunRecords(paths: AgentLoopPaths): RunRecord[] {
   return fs
     .readdirSync(paths.runsDir)
     .filter((entry) => entry.endsWith(".json"))
-    .map((entry) => readJsonFile<RunRecord>(path.join(paths.runsDir, entry)))
+    .flatMap((entry) => {
+      try {
+        return [readJsonFile<RunRecord>(path.join(paths.runsDir, entry))];
+      } catch {
+        return [];
+      }
+    })
     .sort((left, right) => right.recorded_at.localeCompare(left.recorded_at));
 }
 
@@ -168,25 +174,55 @@ function sortedSessionSummaries(paths: AgentLoopPaths): SessionSummary[] {
       const briefPath = path.join(paths.sessionDir(entry.name), "session-brief.json");
       const metadataPath = path.join(paths.sessionDir(entry.name), "session-meta.json");
       const resultPath = path.join(paths.sessionDir(entry.name), "runner-result.json");
-      const brief = readJsonFile<{
-        session_id: string;
-        started_at: string;
-        runner_name: string;
-        item: { item_id: string };
-      }>(briefPath);
-      const metadata = loadJsonIfExists<{ exit_code: number | null }>(metadataPath);
-      const result = loadJsonIfExists<RunnerResult>(resultPath);
-      return {
-        session_id: brief.session_id,
-        item_id: brief.item.item_id,
-        runner_name: brief.runner_name,
-        started_at: brief.started_at,
-        exit_code: metadata?.exit_code ?? null,
-        result_status: result?.status ?? "",
-        checkpoint_written: result?.checkpoint_written ?? null,
-      };
+      try {
+        const brief = readJsonFile<{
+          session_id: string;
+          started_at: string;
+          runner_name: string;
+          item: { item_id: string };
+        }>(briefPath);
+        const metadata = loadJsonIfExists<{ exit_code: number | null }>(metadataPath);
+        const result = loadJsonIfExists<RunnerResult>(resultPath);
+        return {
+          session_id: brief.session_id,
+          item_id: brief.item.item_id,
+          runner_name: brief.runner_name,
+          started_at: brief.started_at,
+          exit_code: metadata?.exit_code ?? null,
+          result_status: result?.status ?? "",
+          checkpoint_written: result?.checkpoint_written ?? null,
+        };
+      } catch (error) {
+        return {
+          session_id: entry.name,
+          item_id: "",
+          runner_name: "",
+          started_at: "",
+          exit_code: null,
+          result_status: "",
+          checkpoint_written: null,
+          issue: error instanceof Error ? error.message : String(error),
+        };
+      }
     })
     .sort((left, right) => right.started_at.localeCompare(left.started_at));
+}
+
+function runRecordIssues(paths: AgentLoopPaths): string[] {
+  if (!fs.existsSync(paths.runsDir)) {
+    return [];
+  }
+  return fs
+    .readdirSync(paths.runsDir)
+    .filter((entry) => entry.endsWith(".json"))
+    .flatMap((entry) => {
+      try {
+        const record = readJsonFile<RunRecord>(path.join(paths.runsDir, entry));
+        return record.schema === RUN_RECORD_SCHEMA ? [] : [`run record ${entry} has invalid schema`];
+      } catch (error) {
+        return [`run record ${entry} is unreadable: ${error instanceof Error ? error.message : String(error)}`];
+      }
+    });
 }
 
 export function watchAgentLoop(root: string, itemId?: string): AgentLoopWatchPayload {
@@ -220,6 +256,10 @@ export function validateAgentLoop(root: string): string[] {
   }
   for (const session of sortedSessionSummaries(paths)) {
     const sessionDir = paths.sessionDir(session.session_id);
+    if (session.issue) {
+      issues.push(`session ${session.session_id} is unreadable: ${session.issue}`);
+      continue;
+    }
     for (const required of ["session-brief.json", "prompt.txt", "stdout.txt", "stderr.txt", "session-meta.json"]) {
       if (!fs.existsSync(path.join(sessionDir, required))) {
         issues.push(`session ${session.session_id} is missing ${required}`);
@@ -235,11 +275,7 @@ export function validateAgentLoop(root: string): string[] {
       }
     }
   }
-  for (const record of sortedRunRecords(paths)) {
-    if (record.schema !== RUN_RECORD_SCHEMA) {
-      issues.push(`run record ${record.run_id} has invalid schema`);
-    }
-  }
+  issues.push(...runRecordIssues(paths));
   try {
     validateFlowRunner(root);
   } catch (error) {
