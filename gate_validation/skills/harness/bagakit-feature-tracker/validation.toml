@@ -27,6 +27,7 @@ required_files = [
   "skills/harness/bagakit-feature-tracker/scripts/export-feature-to-openspec.py",
   "gate_validation/skills/harness/bagakit-feature-tracker/validation.toml",
   "gate_validation/skills/harness/bagakit-feature-tracker/check-feature-tracker.sh",
+  "gate_validation/skills/harness/bagakit-feature-tracker/check-feature-tracker-regression.sh",
 ]
 forbidden_paths = [
   "skills/harness/bagakit-feature-tracker/SKILL_PAYLOAD.json",
@@ -53,6 +54,22 @@ groups = ["skills", "harness", "feature-tracker", "smoke"]
 [suite.runner]
 kind = "bash_script"
 script = "gate_validation/skills/harness/bagakit-feature-tracker/check-feature-tracker.sh"
+args = [
+  "--root",
+  "{repo_root}",
+]
+
+[[suite]]
+id = "bagakit-feature-tracker-legacy-regression"
+owner = "skills/harness/bagakit-feature-tracker"
+description = "Keep legacy inbox seams and pre-v2 tracker runtime layouts rejected while the canonical lifecycle stays isolated in smoke."
+default = true
+validation_class = "quality"
+groups = ["skills", "harness", "feature-tracker", "quality", "legacy"]
+
+[suite.runner]
+kind = "bash_script"
+script = "gate_validation/skills/harness/bagakit-feature-tracker/check-feature-tracker-regression.sh"
 args = [
   "--root",
   "{repo_root}",
