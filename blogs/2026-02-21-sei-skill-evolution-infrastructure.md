@@ -1,212 +1,81 @@
-# SEI：构建可回归的技能演进基建
+# SEI：把 Skill 高风险规则漂移变成可回归问题
 
-**SEI = Skill Evolution Infrastructure**
+> TL;DR
+>
+> Skill 系统在第二十次修改时暴露出来的主损耗，往往来自高风险规则悄悄改义。
+> SEI 解决的是这一类漂移：同步更新规则定义、校验逻辑和失败样例，让每次修改都留下可回放证据。
+> 第一轮落地不用铺满治理框架，先盯住高风险术语、完成态字段和 failure-first 回归就够了。
 
-## 摘要
+一次看起来普通的文案清理，删掉了某个 skill 里的 `trigger boundary`。review 没有人报警，因为改动看上去只是文字整理。第二天路由器把一批离线任务送进了需要联网的技能。另一个 skill 里的 `fallback` 同时被写成“允许跳过关键步骤”，完成态也从 action、memory、archive 三向交接退化成“有产物就算完成”。这是一种会连锁扩散的规则漂移。
 
-这篇文章记录一次典型的自举：我们用 `bagakit-skill-maker` 迭代 `bagakit-skill-maker` 本身。目标不是“优化文案”，而是建立一套可持续的技能演进基建：规则可表达、可执行、可回归。
+SEI 只解决这一类问题：高风险规则在迭代中悄悄改义，而系统没有留下足够早的告警和回放证据。这里说的 SEI，是一套把规则定义、校验逻辑和失败回归绑在一起的演进基础设施。它不负责替代所有设计判断，只负责让那些会直接改变执行结果的规则不再靠作者记忆维持一致。
 
-核心结论：技能系统要想长期稳定，不应把“最佳实践”停留在说明文档，而要把它们编译进 gate、测试和完成态定义。
+一旦把问题限定在这里，系统该做什么就清楚了。先找出最容易分叉的术语和完成态字段，再把对应定义、校验和失败样例绑成一条闭环。规则能被重写、被重构、被交接，仍然保持同一判定，Skill 演进才真正进入可回归状态。
 
-本文的中心命题是：
+## 先收敛高风险术语和完成态字段
 
-> 如果一个技能框架不能稳定评估和迭代自己，它就不可能稳定评估和迭代别的技能。
+真正需要先收敛的，是那些一旦改义就会改变执行结果的术语和字段。`fallback` 算一类，`trigger boundary` 算一类，完成态字段也算一类。它们的问题不在抽象，而在于两个 skill 只要把同名字段写成不同意思，系统就会出现协议分叉。
 
-## 背景：为什么要把重点放在 Evolution
+一个简单的判据是“同名规则是否同判定”。A skill 把 `fallback` 定义成“可离线执行”，B skill 却把它写成“可以跳过关键步骤”，两边都叫 `fallback`，执行结果却完全不同。再比如一次“文案清理”删掉 `trigger boundary`，作者可能觉得删的是说明文字，自动路由器拿到的却是一个缺了边界条件的技能入口。
 
-技能工程的主要风险不是功能不足，而是语义漂移：
+这也是 SEI 的取舍起点。第一轮工作优先修复高风险语义分叉，低风险的文风、排版、表达习惯先停留在建议层。因为只有前者会直接改变执行结果，后者更多影响阅读体验。
 
-- 原本通用的规则，逐步变成生态强耦合。
-- 原本明确的完成态，退化为“有产物但无去向”。
-- 原本统一的响应协议，最终只剩“口头约定”。
+## 规则定义、校验逻辑和失败回归必须一起更新
 
-这类问题本质上都是演进问题（evolution problem），不是一次性设计问题（design-time problem）。
+真正的问题不在“规则有没有写下来”，而在“规则改了以后，系统会不会用同一个口径发现它”。如果 `trigger boundary` 只写在文档里，重写时最先丢的就是它。如果只有 validator 没有失败样例，下一次重构就可能把旧 bug 带回来。SEI 要守住的，正是这条从定义到校验再到回归的最短链路。
 
-所以我们把“能否自评、自改、自回归”作为第一性约束，而不是把它当成额外优化项。
+| 层级 | 必须产物 | 典型失败信号 |
+| --- | --- | --- |
+| 规则定义 | Core/Profile 边界说明 | 同一概念出现多种口径 |
+| 校验逻辑 | validator、lint、contract | 规则只存在于说明文档 |
+| 失败回归 | failure-first tests、回放记录 | 旧 bug 在重构后重复出现 |
 
-## 设计目标
+一条新规则至少要落三处：文档段落、校验分支、失败样例。比如把 `archive destination evidence` 从建议级提升到错误级门禁，文档需要更新 `references/bagakit-profile-guide.md`，校验器需要更新 `scripts/bagakit_skill_maker.py`，测试需要更新 `scripts_dev/test.sh`。三处缺一，规则就只完成了部分迁移。
 
-本轮把 `bagakit-skill-maker` 的演进目标收敛为四点：
+下面这张图描述的是 SEI 的最小闭环。它只保留三件事：定义规则、执行校验、记录失败回归。闭环一旦少掉其中一环，高风险术语就会重新退回“作者记得就算一致”的状态。
 
-1. **通用优先**：默认输出 portable skill 规则。  
-2. **生态兼容**：Bagakit 系列 skill 保持统一协议。  
-3. **完成可审计**：所有完成态都有 handoff destination + archive evidence。  
-4. **可回归**：策略变化必须进入 validator 与 tests。
+```mermaid
+flowchart LR
+    A["定义高风险规则"] --> B["更新校验逻辑"]
+    B --> C["补失败回归样例"]
+    C --> D["用技能自举验证"]
+    D --> E["进入周度审计"]
+    E --> F{"判定一致?"}
+    F -- "是" --> G["继续沿用"]
+    F -- "否" --> A
+```
 
-这四点本质上都服务同一个目标：先让框架对自己成立，再让它对其他技能成立。
+## 自举验证比设计说明更能证明规则落地
 
-## SEI 架构：三层闭环
+SEI 最有说服力的证据，是一条系统用自己跑通的验证链。系统能要求别人遵守某条规则，前提是它已经能要求自己遵守这条规则。
 
-我们把演进基建拆成三层：
+把固定 footer 字段、handoff destination、archive evidence 从“建议级”提升到“错误级门禁”，就是一个典型的自举动作。它直接回答三个问题：规则有没有被定义，校验有没有真的执行，失败时能不能留下明确证据。正文里不需要堆满完整 runbook，看一段最小回放就够了：
 
-- **Policy Layer**：Core 规则 + Profile 叠加规则。
-- **Execution Layer**：validator、lint、runtime contracts。
-- **Feedback Layer**：failure-first tests + 回归结果。
+```bash
+sh scripts/bagakit_skill_maker.sh validate --skill-dir .
+bash scripts_dev/test.sh
+git show --stat --oneline --no-patch HEAD
+git rev-parse --short HEAD
+```
 
-这三层必须联动；单独增强任意一层，都不足以长期抑制漂移。
+如果这条最小回放都给不出来，后面的治理语言通常都不成立。release note 只写“规则已升级”，没有日志路径和关键哈希，审计就会退回主观判断。测试更新了，却没有 failure-first 样例，下一轮重构之后也没人能说明旧 bug 是否真的被挡住。
 
-## 本轮自举中最有价值的实践
+## 最小门禁和周度审计足以压住第一轮熵增
 
-### 1) Core / Profile 分层（可移植性与一致性的平衡点）
+SEI 的第一轮目标是让漂移越来越难发生。对高风险规则来说，最小门禁往往已经够用：Core/Profile 触发条件可机检，固定 footer 结构可解析且字段完整，action、memory、archive 缺失关键字段即失败，每条高风险规则都有 failure-first 用例，每个变更请求都附 gate 结果与回归记录。
 
-`bagakit-skill-maker` 现在明确区分：
+周度审计的价值，在于把一次次局部失败翻译成一份可比较的长期信号。比如 `python3 scripts/audit_sei.py --window 14d --output reports/sei-weekly.json` 可以生成最近两周的规则漂移视图，再用 `rg -n "drift|mismatch|recovery" reports/sei-weekly.json` 抽取异常。第一次试运行时，`drift_rate > 0.15` 和 `recovery_time_p95 > 2d` 这类数字更像起步阈值，不应被包装成永远正确的制度常量。它们的作用，是让团队先把“什么时候算分叉，什么时候算修得太慢”说清。
 
-- **Core（始终必选）**：standalone-first、触发边界、输出闭环、fallback。
-- **Bagakit Profile（条件必选）**：当 skill 名是 `bagakit-*` 时强制启用。
+为了让跨周对比保持同一口径，还需要一张轻量审计卡。字段越稳定，周报越能用来做趋势判断，也越容易摆脱每周重新解释口径的成本。
 
-这条分层规则避免了两个常见失败模式：
+```text
+policy_id=DRIFT-001
+failure_case_id=F-20260221-03
+recovery_owner=platform-qa
+recovery_eta=2026-02-28
+evidence_path=reports/sei-weekly.json
+```
 
-- 过度通用，导致生态内协作语义不一致；
-- 过度耦合，导致框架失去跨项目可移植性。
+这类审计卡故意保持克制。它不承担解释世界的任务，只负责把 `policy_id`、`failure_case_id`、`recovery_owner`、`recovery_eta`、`evidence_path` 固定下来，让后续比较和追责不再依赖口头上下文。
 
-### 2) RFDP 协议化（把“驱动语句”变成工程协议）
-
-统一 footer 机制定义为：
-
-- **RFDP (Response Footer Driven Protocol)**
-
-并且固定结构不允许漂移：
-
-- anchor 行必须是 `[[BAGAKIT]]`
-- 后续必须是 peer `- ...` 行
-- 禁止嵌套 bullet
-
-这使得响应协议从“写作风格”升级为“可机检结构”。
-
-### 3) 输出闭环模型（action / memory / archive）
-
-完成态不再用“任务结束”表达，而用三类输出状态表达：
-
-- `action-handoff`
-- `memory-handoff`（允许 `none`，但必须给理由）
-- `archive`（必须有 destination evidence）
-
-这是把“交付”与“沉淀”同时纳入完成定义，避免只交付不沉淀，或只沉淀不落地。
-
-### 4) Progressive Disclosure（把大文档压力转化为结构优势）
-
-文档结构从单文件说明改为：
-
-- `SKILL.md`：执行地图
-- `references/core-design-guide.md`：通用规则
-- `references/bagakit-profile-guide.md`：Profile 规则
-
-这不是文档拆分技巧，而是上下文治理策略：
-
-- 主流程保持短路径；
-- 细则按需展开；
-- 审核和维护定位更快。
-
-### 5) Validator 作为策略编译器（Policy Compiler）
-
-关键改动不在“新增规则”，而在“规则进入可执行判定”：
-
-- `bagakit-*` 缺失 RFDP -> error
-- generic skill 缺失 RFDP -> warning
-- output/archive 缺失关键信息 -> error
-- 强耦合检查从“词命中”升级为“语义命中”
-
-这使 validator 从格式检查器转变为策略执行器。
-
-### 6) Failure-First 测试设计（先证明会失败，再证明可通过）
-
-`scripts_dev/test.sh` 的价值是：
-
-- 先构造缺失 section / 缺失 footer / 硬耦合等失败样例；
-- 再恢复到合法状态并验证通过。
-
-这种测试方式比“只验证 happy path”更适合演进阶段，因为它能持续锁住边界条件。
-
-### 7) 负担控制规则（防止技能再次膨胀）
-
-看似细节，但对自举很关键：
-
-- `SKILL.md` 行数预算（防止主协议膨胀）
-- runtime payload 边界（避免仓库噪声进入运行时）
-- runtime 命名规范（避免“临时文件名”长期化）
-
-这些规则减少了系统熵增速度，是长期演进可持续的基础。
-
-### 8) 约束升级准则（Guidance Pack -> SOP/程序化校验）
-
-这次我们明确了一条实用判断：
-
-- 如果 agent 和人执行方式本应一致，且高质量主要依赖清晰标准/示例，优先用 guidance pack。  
-- 如果不论谁执行都必须严格门禁，且“发挥自主性”不会带来更好结果，就升级为程序化校验或严格 SOP。  
-
-这条准则避免了两种常见误区：
-
-- 该灵活的地方被过度程序化；
-- 该严格的地方只靠口头 guidance。
-
-## 结果：为什么这套方法有效
-
-本轮之后，`bagakit-skill-maker` 的变化不只体现在“内容更好”，而体现在“演进能力更强”：
-
-- 规则可以分层表达；
-- 规则可以自动执行；
-- 规则变更可以回归验证；
-- 完成态可以被审计追踪。
-
-这四点共同构成了 SEI 的最小闭环。
-
-换句话说，这次不是在“写一个更好的技能说明”，而是在验证前面的中心命题：  
-框架先证明自己可以被自己稳定评估与迭代，才有资格成为其他技能的演进基础设施。
-
-## 可复用模板（给其他 Bagakit skill）
-
-如果要把这套方法推广到其他 skill，建议按这个顺序推进：
-
-1. 先定 Core/Profile 边界。  
-2. 先用本 skill 对自己跑一轮“自评 -> 自改 -> 回归”。  
-3. 定义统一响应协议并做结构化校验。  
-4. 定义 action/memory/archive 完成态模型。  
-5. 把关键规则写进 validator（不是只写在文档里）。  
-6. 补 failure-first 回归测试。  
-7. 加入预算与命名规则 **控制长期熵增**。
-
-## 下一步
-
-在此基础上的下一步更偏运营化与规模化：
-
-1. 把 guidance pack 版本化（含“何时从 guidance 升级到 hard gate”的触发条件）。  
-2. 在 PR 模板中强制关联“变更 skill -> guidance pack 更新 -> gate 结果”。  
-3. 为高频失败模式建立“从故障到规则”的标准化回收流程，降低策略漂移时间。  
-
-## 结语
-
-这次自举的意义不在“工具自我迭代”本身，而在于验证了一条工程路径：
-
-> 先把演进规则变成可执行策略，再把可执行策略变成可回归基建。
-
-同样重要的是，这条路径以“先能评估和迭代自己”为入口条件。没有这个入口条件，SEI 只会停留在口号层。
-
-当技能体系进入长期维护周期，真正决定上限的不是模板数量，而是 SEI 的质量。
-
-## 过程追加：用 `bagakit-git-commit-spec` 给自己做一次自举提交
-
-这次我们把 “commit 规范” 技能本身当成演示对象，按它定义的闭环流程完成一次真实提交，目的是验证规则不是停留在文档，而是能被工具链强制执行。
-
-执行顺序如下（在 `bagakit-git-commit-spec` 仓库）：
-
-1. 初始化会话并生成工件目录：
-   `sh scripts/bagakit-git-commit-spec.sh init --root . --topic "self-host closure gates and evidence" --install-hooks no`
-2. 生成 split inventory：
-   `sh scripts/bagakit-git-commit-spec.sh inventory --root . --dir .bagakit/commit-spec/2026-02-21-self-host-closure-gates-and-evidence`
-3. 生成并 lint 提交信息（frontmatter + GFM sections）：
-   `sh scripts/bagakit-git-commit-spec.sh draft-message ...`
-   `sh scripts/bagakit-git-commit-spec.sh lint-message --message <draft-file>`
-4. 执行 gate 验证：
-   `bash scripts_dev/test.sh`
-   `sh ../bagakit-skill-maker/scripts/bagakit_skill_maker.sh validate --skill-dir .`
-5. 用草拟 message 直接提交：
-   `git commit -F .bagakit/commit-spec/2026-02-21-self-host-closure-gates-and-evidence/draft-refactor-commit-spec.txt`
-6. 写入 archive 完成证据（强制 commit + check evidence）：
-   `sh scripts/bagakit-git-commit-spec.sh archive --root . --dir ... --action-dest "git:main" --memory-dest ... --commit 9ccb706 --check-evidence "..."`
-
-本次自举提交 hash：`9ccb706`
-
-这次过程验证了两个关键点已经从“建议”升级为“硬门禁”：
-
-- `lint-message` 会强校验 schema 关键字段与一致性（如 `kind/generated_at/session/module_count`）。
-- `archive` 必须显式提供 commit hash 与 check evidence，避免“最近几条提交”这类不确定归档。
+SEI 的第一轮推进其实很短：先统一高风险术语和完成态字段，再把对应规则补进 validator 与 failure-first 测试，最后用自举验证和周度审计把证据链闭上。下一次遇到会直接改变执行结果的规则调整时，可以先按这三步试运行。如果同名字段再次出现不同判定，或者修复时间持续高于 2 天，就说明定义和回归还没真正绑在一起。优化是否生效，看两个结果就够了：高风险术语分叉数能否回到 0，修复链是否能稳定压回 2 天内。
