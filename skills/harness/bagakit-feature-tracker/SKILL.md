@@ -1,6 +1,6 @@
 ---
 name: bagakit-feature-tracker
-description: Track feature and task execution truth with explicit workspace modes, JSON SSOT transitions, task-level gate evidence, and archive or discard lifecycle. Use when a repository needs a durable feature planning surface before repeated flow execution.
+description: Track feature and task planning truth with explicit workspace modes, JSON SSOT transitions, task-level gate evidence, and archive or discard lifecycle. Use when a repository needs a durable planning surface before repeated flow execution.
 metadata:
   bagakit:
     harness_layer: l1-execution
@@ -14,7 +14,7 @@ metadata:
 - You need explicit workspace assignment such as `worktree`,
   `current_tree`, or `proposal_only`.
 - You need task-level gate evidence and structured commit preparation.
-- You need archive or discard flows that keep execution state explicit.
+- You need archive or discard flows that keep planning state explicit.
 
 ## When Not to Use
 
@@ -37,6 +37,7 @@ It does not own:
 
 - repeated outer-loop scheduling
 - generic normalized work-item orchestration
+- external system bridges
 - repository-level learning or promotion
 
 ## Quick Start
@@ -77,16 +78,11 @@ bash "$BAGAKIT_FEATURE_TRACKER_SKILL_DIR/scripts/feature-tracker.sh" create-feat
 - `feature-tracker.sh get-feature`
 - `feature-tracker.sh filter-features`
 
-Optional adapters:
+External bridges live outside this skill.
 
-- `import-openspec-change.py`
-- `export-feature-to-openspec.py`
+Example:
 
-Adapter rule:
-
-- OpenSpec helpers are explicit opt-in adapters.
-- They do not change the canonical tracker runtime contract.
-- The tracker must not probe or write legacy `docs/.bagakit/inbox/` surfaces.
+- `bagakit-feature-tracker-openspec-adapter`
 
 ## Runtime Contract
 
@@ -99,6 +95,7 @@ Stable runtime surfaces:
 - `.bagakit/feature-tracker/features/<feature-id>/tasks.json`
 
 The canonical runtime contract does not include hidden docs-side inbox outputs.
+It also does not include external-system bridge scripts.
 
 ## Commit Contract
 

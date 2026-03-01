@@ -23,8 +23,6 @@ required_files = [
   "skills/harness/bagakit-feature-tracker/references/required-reading-manifest.json",
   "skills/harness/bagakit-feature-tracker/scripts/feature-tracker.sh",
   "skills/harness/bagakit-feature-tracker/scripts/feature-tracker.py",
-  "skills/harness/bagakit-feature-tracker/scripts/import-openspec-change.py",
-  "skills/harness/bagakit-feature-tracker/scripts/export-feature-to-openspec.py",
   "gate_validation/skills/harness/bagakit-feature-tracker/validation.toml",
   "gate_validation/skills/harness/bagakit-feature-tracker/check-feature-tracker.sh",
   "gate_validation/skills/harness/bagakit-feature-tracker/check-feature-tracker-regression.sh",
@@ -37,6 +35,8 @@ forbidden_paths = [
   "skills/harness/bagakit-feature-tracker/scripts_dev",
   "skills/harness/bagakit-feature-tracker/scripts/feat-task-harness.sh",
   "skills/harness/bagakit-feature-tracker/scripts/feat-task-harness.py",
+  "skills/harness/bagakit-feature-tracker/scripts/import-openspec-change.py",
+  "skills/harness/bagakit-feature-tracker/scripts/export-feature-to-openspec.py",
   "skills/harness/bagakit-feature-tracker/references/required-reading-manifest-openspec.json",
   "skills/harness/bagakit-feature-tracker/references/tpl/inbox-decision-template.md",
   "skills/harness/bagakit-feature-tracker/references/tpl/inbox-gotcha-template.md",
@@ -62,7 +62,7 @@ args = [
 [[suite]]
 id = "bagakit-feature-tracker-legacy-regression"
 owner = "skills/harness/bagakit-feature-tracker"
-description = "Keep legacy inbox seams and pre-v2 tracker runtime layouts rejected while the canonical lifecycle stays isolated in smoke."
+description = "Keep legacy docs-side inbox writes absent on archive paths and keep pre-v2 tracker runtime layouts rejected while the canonical lifecycle stays isolated in smoke."
 default = true
 validation_class = "quality"
 groups = ["skills", "harness", "feature-tracker", "quality", "legacy"]

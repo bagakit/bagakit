@@ -1,6 +1,6 @@
 # bagakit-feature-tracker
 
-Feature and task tracking for repositories that need:
+Feature and task planning truth for repositories that need:
 
 - one checked-in planning surface for feature work
 - explicit workspace assignment per feature
@@ -9,7 +9,7 @@ Feature and task tracking for repositories that need:
 
 ## Boundary
 
-This skill owns feature or task execution truth:
+This skill owns canonical feature and task planning truth:
 
 - feature identity and feature lifecycle
 - current task selection
@@ -18,8 +18,13 @@ This skill owns feature or task execution truth:
 - task commit preparation
 - archive and discard state
 
-It does not own repeated outer-loop execution. That belongs to
-`bagakit-flow-runner`.
+It does not own:
+
+- repeated execution flow
+- host-side orchestration
+- external system bridges
+
+Use `bagakit-flow-runner` for repeated execution flow.
 
 ## Quick Start
 
@@ -81,16 +86,11 @@ Runtime state lives under:
 - `get-feature`
 - `filter-features`
 
-Optional adapters:
+External bridges live outside this skill.
 
-- `scripts/import-openspec-change.py`
-- `scripts/export-feature-to-openspec.py`
+Example:
 
-Adapter note:
-
-- OpenSpec helpers are explicit opt-in adapters.
-- They do not change the canonical tracker runtime contract.
-- The tracker does not probe or write legacy `docs/.bagakit/inbox/` surfaces.
+- `bagakit-feature-tracker-openspec-adapter`
 
 ## Design Notes
 
@@ -98,5 +98,7 @@ Adapter note:
 - Markdown files are projections of that runtime truth.
 - The tracker does not assume `bagakit-living-docs` or `bagakit-living-knowledge`
   repository seams.
+- The tracker does not ship external-system bridge logic in its canonical
+  surface.
 - No backward-compatibility shims are kept for older tracker layouts.
 - Old projects must migrate their local runtime paths explicitly.
