@@ -13,6 +13,7 @@ Current capability set:
 
 - topic lifecycle
 - preflight
+- repository-level route decisions
 - candidates
 - sources
 - feedback
@@ -20,6 +21,8 @@ Current capability set:
 - promotions
 - weak local context refs
 - steward-facing topic reports
+- next-session handoff artifacts
+- archive receipts for archived topics
 - explicit durable promotion surfaces
 - explicit promotion status
 - stable promotion identities for proposal-to-landing tracking
@@ -27,5 +30,5 @@ Current capability set:
 Current known next optimizations:
 
 - add richer promotion workflows into stable repository surfaces
-- add session-end handoff digests for long-running topics
+- add stronger promotion-readiness eval and routing coverage
 - add better steward-facing views over source, feedback, and benchmark evidence

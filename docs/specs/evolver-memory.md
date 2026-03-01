@@ -24,6 +24,8 @@ Current structure:
 ├── index.json
 └── topics/
     └── <topic-slug>/
+        ├── ARCHIVE.md
+        ├── HANDOFF.md
         ├── REPORT.md
         ├── README.md
         └── topic.json
@@ -65,6 +67,7 @@ Current fields:
 - `created_at`
 - `updated_at`
 - `preflight`
+- `routing`
 - `local_context_refs[]`
 - `candidates[]`
 - `sources[]`
@@ -87,6 +90,29 @@ Preflight record fields:
 - `decision`
 - `rationale`
 - `assessed_at`
+
+Routing record fields:
+
+- `decision`
+  - `host`
+  - `upstream`
+  - `split`
+- `rationale`
+- `decided_at`
+- `host_target` (optional)
+  - intended host-side landing target when the route keeps material host-local
+- `host_ref` (optional)
+  - repo-relative proof path for the host-side landing when it already exists
+- `upstream_promotion_ids[]`
+  - promotion ids that carry the upstream part of the route
+
+Routing rule:
+
+- routing is a repository-level decision-plane record
+- it is not a task-level selector hint
+- a route may exist before every referenced promotion is landed
+- `split` exists so one topic can explicitly keep one host-side outcome and one
+  upstream durable promotion trail without forcing them into one fake target
 
 Source record fields:
 
@@ -190,6 +216,9 @@ Promotion rule:
 - a promotion may move from `proposed` to `landed`
 - the stable identity is `id`
 - `landed` promotions must include `ref`
+- promotion records describe durable-upstream landing tracks
+- routing remains separate so `host` and `split` decisions do not need to
+  pretend that every outcome is one upstream promotion
 
 ## Ownership
 
@@ -206,6 +235,11 @@ Each topic has two derived steward-facing artifacts:
 - `REPORT.md`
   - steward-facing topic synthesis with the layer map, evidence summary, and
     promotion summary
+- `HANDOFF.md`
+  - next-session compression artifact with route state, blockers, and the
+    recommended next move
+- `ARCHIVE.md`
+  - archive receipt and evidence/promotion summary for archived topics only
 
 These files are derived from `topic.json`.
 
@@ -218,8 +252,61 @@ It should refresh:
 - `index.json`
 - topic `README.md`
 - topic `REPORT.md`
+- topic `HANDOFF.md`
+- topic `ARCHIVE.md` when the topic status is `archived`
 
 It should not rewrite `topic.json`.
+
+## Routing And Promotion Readiness
+
+Evolver should answer two different questions without collapsing them:
+
+1. what route this lesson takes:
+   - `host`
+   - `upstream`
+   - `split`
+2. what maturity state the durable-upstream portion is in:
+   - evidence only
+   - proposal only
+   - landed
+
+The route belongs to `routing`.
+
+The durable-upstream track belongs to `promotions`.
+
+This split exists so Bagakit can preserve:
+
+- host-side adoption outcomes
+- upstream promotion state
+- split outcomes that contain both
+
+without forcing one field to impersonate all three.
+
+Selector may inform the route.
+Selector does not own the repository-level route decision.
+
+## Practice-Evidence Pattern
+
+Research evidence is only one input to evolver.
+
+Repository-level practice evidence may also enter through:
+
+- summarized selector findings
+- host-side feedback digests
+- benchmark summaries
+- incident or review notes that survive beyond one task
+
+The evolver memory surface does not own the raw task logs for those sources.
+
+Instead, it owns the repository-level compression layer:
+
+- summarized source records
+- feedback records
+- benchmark records
+- routing and promotion state
+
+That preserves the selector-versus-evolver boundary while still letting
+practice evidence become repository learning.
 
 ## Four-Layer Upgrade Rule
 

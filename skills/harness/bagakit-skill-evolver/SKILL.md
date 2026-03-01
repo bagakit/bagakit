@@ -32,10 +32,16 @@ It does:
 
 - decide when evolver tracking is worth using
 - record `preflight` decisions before a topic grows
+- record repository-level route decisions:
+  - `host`
+  - `upstream`
+  - `split`
 - structure the topic, candidate, decision, and status loop
 - record sources, summaries, feedback, benchmarks, and promotions
 - optionally attach weak local context refs to researcher-owned workspaces
 - maintain derived steward-facing topic reports from topic state
+- maintain derived next-session handoff artifacts from topic state
+- maintain archive receipts for archived topics
 - keep durable promotions typed by repository surface
 - keep promotion intent distinct from landed durable changes
 - keep promotion identities stable across updates
@@ -44,6 +50,8 @@ It does not:
 
 - run the repository's research workflow itself
 - treat hidden docs workspaces as required inputs
+- own raw per-task selector logs
+- own task-local evaluation
 - replace ordinary docs or straightforward execution
 
 Conceptually, `evolver` contains two planes:
@@ -105,14 +113,23 @@ Do not collapse these into one giant memory bucket.
 
 5. Record decisions only when the rationale is worth preserving.
 
-6. Add `local_context_refs` only as optional repo-relative pointers.
+6. Record one repository-level route decision when the topic is mature enough to
+   decide:
+   - `host`
+   - `upstream`
+   - `split`
 
-7. Promote stable conclusions upward:
+   Do not force selector-owned task evidence to impersonate this decision.
+
+7. Add `local_context_refs` only as optional repo-relative pointers.
+
+8. Promote stable conclusions upward:
    - stable repository rules -> `docs/specs/`
    - maintainer procedures -> `docs/stewardship/`
    - runtime-facing capabilities -> `skills/`
 
-8. Use the steward-facing topic report as the compression layer before durable
+9. Use the steward-facing topic report plus the next-session handoff artifact as
+   the compression layer before durable
    promotion.
 
 ## Operator Preference
@@ -138,9 +155,11 @@ A good evolver topic should answer:
 - what candidates exist
 - what evidence exists
 - what decisions were made
+- what route was chosen and why
 - what status the topic is in
 - which local context refs are useful, if any
 - what durable surface, if any, the topic is ready to promote into
+- what the next steward should do if the topic stays open
 
 A bad evolver topic is one that duplicates ordinary notes without adding
 structured decision value.
@@ -149,6 +168,7 @@ structured decision value.
 
 The current implementation direction after this baseline is:
 
-1. add stronger promotion workflows into stable repository surfaces
-2. add topic archival and reporting ergonomics
-3. add maintainer-friendly views over source and benchmark evidence
+1. harden route and promotion-readiness workflow
+2. add stronger promotion workflows into stable repository surfaces
+3. keep handoff and archive ergonomics derived from topic SSOT instead of
+   adding ad hoc side channels

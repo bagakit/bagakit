@@ -33,8 +33,8 @@ Those belong respectively in:
 
 | Surface | Primary question | Owns | Does not own |
 | --- | --- | --- | --- |
-| `bagakit-skill-selector` | "Do we have enough skill coverage for this task, and what actually happened when we tried it?" | task-local or host-local coverage preflight, candidate planning, explicit composition, usage evidence, task-local evaluation, task-local recipes, selector-loaded drivers | repository-level decision memory, durable promotion routing, evolver topic state |
-| `bagakit-skill-evolver` | "Which lessons are reusable at repository scope, and where should they be promoted?" | repository-level topic memory, candidate comparison, decision memory, promotion routing, promotion state, durable promotion preparation | raw per-task selector logs, task-local composition control, mandatory wrappers around ordinary work |
+| `bagakit-skill-selector` | "Do we have enough skill coverage for this task, and what actually happened when we tried it?" | task-local or host-local coverage preflight, candidate planning, explicit composition, usage evidence, task-local evaluation, task-local recipes, selector-loaded drivers | repository-level decision memory, durable promotion routing, repository-level handoff/archive artifacts, evolver topic state |
+| `bagakit-skill-evolver` | "Which lessons are reusable at repository scope, and what route and durable surface should they take?" | repository-level topic memory, candidate comparison, routing decisions, decision memory, promotion routing, promotion state, durable promotion preparation, repository-level handoff/archive artifacts | raw per-task selector logs, task-local composition control, mandatory wrappers around ordinary work |
 
 The split is about authority, not importance.
 
@@ -91,6 +91,14 @@ So the correct flow is:
 2. route the result as `host`, `upstream`, or `split`
 3. only then open or update evolver when repository-level learning is real
 
+Selector may record that later routing is likely needed.
+
+Selector must not become the owner of:
+
+- repository-level route decisions
+- evolver promotion readiness
+- repository-level handoff or archive receipts
+
 ## Recipe And Driver Rule
 
 Selector-owned recipes and selector-loaded drivers are task-local aids.
@@ -104,7 +112,8 @@ They may define:
 They must not define:
 
 - evolver topic creation policy
-- repository-level promotion routing
+- repository-level route decisions
+- repository-level promotion readiness
 - durable repository decision memory
 - a blanket rule that every task must use selector
 
