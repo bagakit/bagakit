@@ -1,0 +1,10 @@
+[complexity_guardrails]
+section_heading = "Complexity Guardrails"
+min_bullet_count = 5
+
+[complexity_guardrails.required_terms]
+"preset-heavy" = ["preset-heavy", "预设偏多", "default path"]
+"implementation-heavy" = ["implementation-heavy", "实现偏重", "template"]
+"too-many-defaults" = ["too-many-defaults", "默认行为太多", "default"]
+"over-hard-validation" = ["over-hard-validation", "校验过硬", "warning", "objective invariants"]
+"scattered-constraints" = ["scattered constraints", "约束分散", "single source"]

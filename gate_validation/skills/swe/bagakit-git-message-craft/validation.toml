@@ -1,0 +1,61 @@
+version = 2
+
+[[suite]]
+id = "bagakit-git-message-craft-layout"
+owner = "skills/swe/bagakit-git-message-craft"
+description = "Require the canonical runtime layout and keep maintainer-only payload out of bagakit-git-message-craft."
+default = true
+validation_class = "structure"
+groups = ["skills", "swe", "git-message-craft", "structure"]
+
+[suite.runner]
+kind = "fs"
+required_dirs = [
+  "skills/swe/bagakit-git-message-craft",
+  "gate_validation/skills/swe/bagakit-git-message-craft",
+]
+required_files = [
+  "skills/swe/bagakit-git-message-craft/README.md",
+  "skills/swe/bagakit-git-message-craft/SKILL.md",
+  "skills/swe/bagakit-git-message-craft/scripts/bagakit-git-message-craft.sh",
+  "skills/swe/bagakit-git-message-craft/scripts/bagakit-git-message-craft.py",
+  "skills/swe/bagakit-git-message-craft/scripts/templates/commit-msg-template.sh",
+  "skills/swe/bagakit-git-message-craft/references/commit-message-spec-guide.md",
+  "skills/swe/bagakit-git-message-craft/references/hook-install-guide.md",
+  "skills/swe/bagakit-git-message-craft/references/meta-schema.md",
+  "skills/swe/bagakit-git-message-craft/references/split-strategy-guide.md",
+  "skills/swe/bagakit-git-message-craft/templates/mr/README.md",
+  "skills/swe/bagakit-git-message-craft/templates/mr/title.outcome-first.md",
+  "skills/swe/bagakit-git-message-craft/templates/mr/title.scope-first.md",
+  "skills/swe/bagakit-git-message-craft/templates/mr/body.green-refresh.md",
+  "skills/swe/bagakit-git-message-craft/templates/mr/body.status-refresh.md",
+  "gate_validation/skills/swe/bagakit-git-message-craft/validation.toml",
+  "gate_validation/skills/swe/bagakit-git-message-craft/check-bagakit-git-message-craft.sh",
+  "gate_validation/skills/swe/bagakit-git-message-craft/check-anti-patterns.py",
+  "gate_validation/skills/swe/bagakit-git-message-craft/rules.toml",
+]
+forbidden_paths = [
+  "skills/swe/bagakit-git-message-craft/SKILL_PAYLOAD.json",
+  "skills/swe/bagakit-git-message-craft/agents",
+  "skills/swe/bagakit-git-message-craft/docs",
+  "skills/swe/bagakit-git-message-craft/gate",
+  "skills/swe/bagakit-git-message-craft/reference",
+  "skills/swe/bagakit-git-message-craft/references/discovery-log.md",
+  "skills/swe/bagakit-git-message-craft/scripts_dev",
+]
+
+[[suite]]
+id = "bagakit-git-message-craft-smoke"
+owner = "skills/swe/bagakit-git-message-craft"
+description = "Run the canonical bagakit-git-message-craft lint, archive, and payload-boundary smoke checks."
+default = true
+validation_class = "smoke"
+groups = ["skills", "swe", "git-message-craft", "smoke"]
+
+[suite.runner]
+kind = "bash_script"
+script = "gate_validation/skills/swe/bagakit-git-message-craft/check-bagakit-git-message-craft.sh"
+args = [
+  "--root",
+  "{repo_root}",
+]
