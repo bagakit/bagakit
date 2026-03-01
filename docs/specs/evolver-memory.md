@@ -323,7 +323,9 @@ purpose.
 The intended layers are:
 
 1. hidden research
-   - local evidence and exploratory material under `docs/.<topic-class>/...`
+   - local evidence and exploratory material under
+     `.bagakit/researcher/topics/<topic-class>/<topic>/`
+   - or the standalone hidden-docs fallback `docs/.<topic-class>/...`
 2. structured decision memory
    - topic-local evidence and decisions under `.bagakit/evolver/topics/<slug>/`
 3. project runtime state

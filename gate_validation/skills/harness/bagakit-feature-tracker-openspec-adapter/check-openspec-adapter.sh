@@ -104,9 +104,12 @@ tasks_path = root / ".bagakit" / "feature-tracker" / "features" / imported["feat
 state = json.loads(state_path.read_text(encoding="utf-8"))
 tasks = json.loads(tasks_path.read_text(encoding="utf-8"))
 assert state["status"] == "ready"
+assert state["workspace_mode"] == "worktree"
 assert state["branch"].startswith("feat/")
 assert len(tasks["tasks"]) == 2
 assert tasks["tasks"][1]["status"] == "done"
 PY
+
+bash "$TRACKER_DIR/scripts/feature-tracker.sh" validate-tracker --root "$TMP_DIR" >/dev/null
 
 echo "ok: bagakit-feature-tracker-openspec-adapter smoke passed"

@@ -166,6 +166,7 @@ def cmd_import_change(args: argparse.Namespace) -> int:
         "slug": runtime.slugify(args.change),
         "goal": f"Imported from openspec/changes/{args.change}",
         "status": "ready",
+        "workspace_mode": "worktree",
         "base_ref": base_ref,
         "branch": branch,
         "worktree_name": wt_name,
