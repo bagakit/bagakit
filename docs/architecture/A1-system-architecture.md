@@ -352,6 +352,13 @@ The relationship is:
 It exists because repeated rounds, next-item selection, and host-side
 orchestration are behavior concerns, not just one-off execution concerns.
 
+Current maintainer-side host tool:
+
+- `dev/agent_loop/`
+  - drives repeated bounded sessions above `bagakit-flow-runner`
+  - owns repo-local lock, launch config, and host exhaust only
+  - does not own item truth or closeout authority
+
 ### framework surfaces
 
 Framework surfaces own:

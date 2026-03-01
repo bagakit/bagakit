@@ -1,5 +1,16 @@
 # Living Knowledge Redefinition Plan
 
+Historical note:
+
+- this is a pre-implementation migration planning note
+- it is preserved as background rationale, not as the current canonical
+  `living-knowledge` contract
+- the remaining body is preserved largely as-written from the planning phase
+  and may still use active design language from that time
+- for current contract and runtime boundary, use:
+  - `docs/specs/living-knowledge-system.md`
+  - `skills/harness/bagakit-living-knowledge/README.md`
+
 ## Purpose
 
 Define the re-absorption plan for `bagakit-living-docs` into the canonical
@@ -9,7 +20,7 @@ This plan exists before runtime implementation on purpose.
 The goal is to lock the architectural stance first and only then land the new
 runtime contract.
 
-## Decision Anchors
+## Historical Decision Anchors
 
 - independent distribution is a hard principle
 - the current repository should adapt to the final `living-knowledge` system
@@ -25,7 +36,7 @@ runtime contract.
 - maintainer planning and migration notes belong in `mem/`, not in runtime
   payload
 
-## First-Principles Definition
+## Historical First-Principles Definition
 
 `bagakit-living-knowledge` should be treated as a standalone project knowledge
 system that can be distributed into any host repository.

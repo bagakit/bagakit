@@ -322,6 +322,11 @@ Current execution-surface naming direction is:
 - `bagakit-flow-runner`
   - adjustable repeated execution flow over normalized work items
 
+Current maintainer-side outer-driver tool:
+
+- `dev/agent_loop/`
+  - host orchestration around bounded flow-runner sessions
+
 The `researcher` role is architecture-stable even if its final canonical
 harness runtime unit is still evolving.
 

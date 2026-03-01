@@ -1,6 +1,19 @@
 # Source Harness Import Review
 
-Status: draft review note
+Historical note:
+
+- this is an earlier migration review note, kept for traceability
+- it is not the active canonical contract for the current runner or tracker
+  split
+- the remaining body is preserved largely as-written from the migration phase
+  and may still use active recommendation language from that time
+- for current boundary and ownership rules, use:
+  - `skills/harness/bagakit-feature-tracker/README.md`
+  - `skills/harness/bagakit-flow-runner/README.md`
+  - `docs/specs/flow-runner-contract.md`
+  - `docs/stewardship/flow-runner-maintenance.md`
+
+Status: historical draft review snapshot
 
 Scope:
 
@@ -279,7 +292,8 @@ Source idea:
 
 Why import:
 
-- Bagakit already has `catalog/canonical-skills.json` for skill identity
+- Bagakit already has a canonical skill-identity surface through the monorepo
+  skill registry and directory protocol
 - it still lacks an equally explicit registry for shared runtime token truth
 - importing this pattern would reduce drift between `skills/`, `docs/specs/`,
   and validation

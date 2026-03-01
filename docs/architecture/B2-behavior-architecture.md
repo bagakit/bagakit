@@ -191,6 +191,13 @@ Current naming direction for the main runtime unit at this layer:
   - drives normalized work items exported from upstream execution systems
   - does not own feature or ticket planning truth
 
+Current maintainer-side host tool above that runtime unit:
+
+- `dev/agent_loop/`
+  - launches bounded runner sessions
+  - persists host exhaust under `.bagakit/agent-loop/`
+  - stays subordinate to flow-runner contract truth
+
 ## Inputs
 
 L2 may consume:

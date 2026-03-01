@@ -37,6 +37,24 @@ Keep `policy.json` small.
 - ownership rules do not belong there
 - archive authority and fail-closed selection stay hard rules in code and docs
 
+## Host Driver Rule
+
+Use `dev/agent_loop/` when maintainers need repeated bounded sessions around
+flow-runner items.
+
+That host driver may:
+
+- launch runner sessions
+- hold one repo-local run lock
+- persist host exhaust under `.bagakit/agent-loop/`
+- call `archive-item` for runner-owned closeout only
+
+It must not:
+
+- redefine flow-runner item truth
+- archive tracker-sourced items
+- scrape stdout as state truth
+
 ## Runner-Owned Items
 
 When `source_kind` is not `feature-tracker`:

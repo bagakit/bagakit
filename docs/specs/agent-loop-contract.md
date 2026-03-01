@@ -1,0 +1,142 @@
+# Agent Loop Contract
+
+This document defines the stable host-side runtime contract for `dev/agent_loop`.
+
+## Scope
+
+This contract covers:
+
+- repo-local runner launch configuration
+- repo-local run locking
+- per-session host exhaust
+- per-run host summaries
+- typed host stop payloads
+
+This contract does not define:
+
+- feature or ticket lifecycle truth
+- flow-runner item state
+- checkpoint semantics
+- archive authority for tracker-sourced items
+
+Those remain owned by `bagakit-flow-runner` and, when applicable,
+`bagakit-feature-tracker`.
+
+## Runtime Surfaces
+
+Stable host surfaces live under:
+
+- `.bagakit/agent-loop/runner.json`
+- `.bagakit/agent-loop/run.lock`
+- `.bagakit/agent-loop/runner-sessions/<session-id>/session-brief.json`
+- `.bagakit/agent-loop/runner-sessions/<session-id>/prompt.txt`
+- `.bagakit/agent-loop/runner-sessions/<session-id>/stdout.txt`
+- `.bagakit/agent-loop/runner-sessions/<session-id>/stderr.txt`
+- `.bagakit/agent-loop/runner-sessions/<session-id>/session-meta.json`
+- `.bagakit/agent-loop/runner-sessions/<session-id>/runner-result.json`
+- `.bagakit/agent-loop/runs/<run-id>.json`
+
+`runner-sessions/` is host exhaust.
+
+`runs/` is host summary exhaust.
+
+Neither surface becomes flow-runner truth.
+
+## Source-Of-Truth Rule
+
+Hosts should trust:
+
+- `.bagakit/flow-runner/items/<item-id>/state.json`
+- `.bagakit/flow-runner/next-action.json`
+- `.bagakit/flow-runner/resume-candidates.json`
+- flow-runner checkpoint and progress receipts
+
+Hosts must not trust:
+
+- runner stdout as control-plane truth
+- `.bagakit/agent-loop/` host exhaust as execution truth
+- local caches as hidden current-item selection truth
+
+`agent_loop` may read host exhaust for watch or inspection, but must not feed it
+back into selection or closeout decisions.
+
+## Runner Config Contract
+
+`runner.json` currently uses schema `bagakit/agent-loop/runner-config/v1`.
+
+Supported fields:
+
+- `runner_name`
+- `transport`
+- `argv[]`
+- `env{}`
+- `timeout_seconds`
+- `refresh_commands[][]`
+
+Current supported transport:
+
+- `stdin_prompt`
+
+`refresh_commands` are host-side refresh hooks.
+
+They may refresh normalized item mirrors before or after a session, but they
+must not create a second truth surface.
+
+## Session Brief Contract
+
+`session-brief.json` currently uses schema `bagakit/agent-loop/session-brief/v1`.
+
+It exists to hand one bounded session enough context to operate without giving
+the runner ownership of host state.
+
+It may contain:
+
+- selected item identity
+- current flow-runner next payload
+- repo-relative paths to handoff and host artifacts
+- explicit boundary reminders
+- required completion steps
+
+## Runner Result Contract
+
+`runner-result.json` currently uses schema `bagakit/agent-loop/runner-result/v1`.
+
+Supported fields:
+
+- `session_id`
+- `status`
+- `checkpoint_written`
+- `note`
+
+This file is advisory host exhaust.
+
+`agent_loop` still refreshes from flow-runner after each launch.
+
+## Run Payload Contract
+
+`run` currently emits schema `bagakit/agent-loop/run/v1`.
+
+Stable fields:
+
+- `run_status`
+- `stop_reason`
+- `operator_message`
+- `next_safe_action`
+- `can_resume`
+- `item_id`
+- `sessions_launched`
+- `session_budget`
+- `checkpoint_observed`
+- `runner_session_id`
+- `run_record_path`
+- `flow_next`
+
+## Fail-Closed Rules
+
+- run lock acquisition must be atomic
+- stale lock recovery is allowed only when the recorded pid is dead
+- session budget exhaustion must return a typed stop
+- runner output without a valid `runner-result.json` must not be treated as
+  success
+- tracker-sourced items must not be archived by `agent_loop`
+- host exhaust must not become selection or lifecycle truth

@@ -24,11 +24,16 @@ Current structure:
 ├── index.json
 └── topics/
     └── <topic-slug>/
-        ├── ARCHIVE.md
         ├── HANDOFF.md
         ├── REPORT.md
         ├── README.md
         └── topic.json
+```
+
+Archived topics additionally carry:
+
+```text
+.bagakit/evolver/topics/<topic-slug>/ARCHIVE.md
 ```
 
 ## Files
@@ -148,6 +153,7 @@ Promotion record fields:
 - `target`
 - `summary`
 - `ref` (optional)
+- `proof_refs[]`
 - `created_at`
 - `updated_at`
 
@@ -216,6 +222,7 @@ Promotion rule:
 - a promotion may move from `proposed` to `landed`
 - the stable identity is `id`
 - `landed` promotions must include `ref`
+- `landed` promotions must include one or more `proof_refs`
 - promotion records describe durable-upstream landing tracks
 - routing remains separate so `host` and `split` decisions do not need to
   pretend that every outcome is one upstream promotion
@@ -228,7 +235,7 @@ Promotion rule:
 
 ## Derived Artifacts
 
-Each topic has two derived steward-facing artifacts:
+Each topic may have up to four derived steward-facing artifacts:
 
 - `README.md`
   - concise topic registry view

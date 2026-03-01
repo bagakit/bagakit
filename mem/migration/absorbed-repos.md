@@ -1,9 +1,13 @@
-# Absorbed Standalone Repos
+# Standalone Repo Absorption And Lineage Ledger
 
-This file records standalone repositories that have already been absorbed into
-the canonical Bagakit monorepo as the primary authoring surface.
+This file records standalone repositories whose canonical Bagakit outcome is
+already settled enough to be part of the migration ledger.
 
-Absorbed here means:
+This file also carries explicit lineage coverage for legacy repos whose current
+Bagakit outcome is split or partial, so migration status stays visible without
+pretending that those cases already have one full successor.
+
+For fully absorbed entries, absorbed here means:
 
 - the monorepo path is now the intended canonical authoring source
 - the standalone repo should no longer be treated as equal architectural truth
@@ -11,6 +15,8 @@ Absorbed here means:
   freeze target until projection flow is finalized
 
 ## Current Entries
+
+This section is limited to full absorbed-successor cases.
 
 ### `bagakit-git-commit-spec`
 
@@ -137,3 +143,56 @@ Add a standalone repo here only when:
 - the standalone repo should no longer be treated as equal truth
 
 Do not add a repo here merely because a copy exists.
+
+## Explicit Non-Absorbed Lineage Coverage
+
+Use this section when a legacy standalone repo needs migration coverage but the
+current canonical architecture does not support a "fully absorbed into one
+successor" claim.
+
+### `bagakit-feat-task-harness`
+
+- ledger status:
+  - split carry-forward
+- current canonical surfaces:
+  - `skills/harness/bagakit-feature-tracker/`
+  - `skills/harness/bagakit-flow-runner/`
+- carried into `bagakit-feature-tracker`:
+  - feature and task planning truth
+  - workspace assignment and workspace mode
+  - task-gate evidence, commit preparation, and feature closeout lifecycle
+- carried into `bagakit-flow-runner`:
+  - bounded repeated execution flow over normalized work items
+  - next-action selection, checkpoint receipts, resume candidates, and
+    runner-local incident or plan-revision sidecars
+- non-claim:
+  - neither canonical skill is the full one-to-one successor on its own
+  - the current Bagakit model is an intentional split between planning truth
+    and repeated execution runtime
+- pending outer layer:
+  - any host-side outer driver remains separate work above
+    `bagakit-flow-runner`
+  - do not read this entry as claiming that the full old harness envelope has
+    already landed in one current skill
+
+### `bagakit-long-run`
+
+- ledger status:
+  - partial conceptual carry
+  - pending outer layer
+- current canonical surface:
+  - `skills/harness/bagakit-flow-runner/`
+- carried conceptually into `bagakit-flow-runner`:
+  - bounded repeated execution framing
+  - checkpoint and resume discipline for live work
+  - explicit runner-side handoff and closeout support for execution sessions
+- not carried as a full successor:
+  - `bagakit-flow-runner` is the current bounded repeated execution runtime,
+    not a full recreation of `bagakit-long-run`
+  - feature or task planning truth is still a separate boundary and remains
+    with `bagakit-feature-tracker` when the source is tracker-backed
+- pending outer layer:
+  - `outer_driver` or equivalent host-side continuous orchestration remains
+    pending
+  - until that layer is designed and landed, do not describe
+    `bagakit-flow-runner` as the full successor of `bagakit-long-run`
