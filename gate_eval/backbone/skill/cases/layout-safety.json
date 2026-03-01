@@ -1,0 +1,32 @@
+{
+  "id": "layout-safety",
+  "fixture": "layout-safety",
+  "title": "Layout Safety",
+  "summary": "Measure directory-protocol layout drift and safety issue reporting.",
+  "focus": [
+    "directory-discovery-detection",
+    "payload-manifest-ban",
+    "symlink-safety",
+    "local-noise-rejection"
+  ],
+  "probes": [
+    {
+      "id": "report-layout-issues",
+      "title": "Report forbidden payloads, local noise, and unsafe symlinks",
+      "argv": [
+        "check-layout",
+        "--json"
+      ],
+      "expect": {
+        "exitCode": 1,
+        "stdoutJson": {
+          "issues": [
+            "installable skill must not ship SKILL_PAYLOAD.json: skills/harness/alpha/SKILL_PAYLOAD.json",
+            "installable skill must not contain local noise: skills/harness/alpha/.DS_Store",
+            "installable skill symlink target must be relative: skills/harness/alpha/link.txt"
+          ]
+        }
+      }
+    }
+  ]
+}

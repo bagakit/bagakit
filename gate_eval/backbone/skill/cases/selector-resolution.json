@@ -1,0 +1,130 @@
+{
+  "id": "selector-resolution",
+  "fixture": "selector-resolution",
+  "title": "Selector Resolution",
+  "summary": "Measure directory-protocol list ordering and selector resolution semantics.",
+  "focus": [
+    "inventory-ordering",
+    "family-precedence",
+    "qualified-selector-resolution",
+    "skill-id-resolution"
+  ],
+  "probes": [
+    {
+      "id": "list-canonical-order",
+      "title": "List installable skill sources in sorted selector order",
+      "argv": [
+        "list",
+        "--json"
+      ],
+      "expect": {
+        "exitCode": 0,
+        "stdoutJson": [
+          {
+            "family": "gamemaker",
+            "skillId": "render",
+            "selector": "gamemaker/render",
+            "path": "skills/gamemaker/render"
+          },
+          {
+            "family": "harness",
+            "skillId": "paperwork",
+            "selector": "harness/paperwork",
+            "path": "skills/harness/paperwork"
+          },
+          {
+            "family": "human-improvement",
+            "skillId": "solo",
+            "selector": "human-improvement/solo",
+            "path": "skills/human-improvement/solo"
+          },
+          {
+            "family": "paperwork",
+            "skillId": "guide",
+            "selector": "paperwork/guide",
+            "path": "skills/paperwork/guide"
+          }
+        ]
+      }
+    },
+    {
+      "id": "resolve-family-precedence",
+      "title": "Prefer family selection over bare skill-id selection",
+      "argv": [
+        "list",
+        "--selector",
+        "paperwork",
+        "--json"
+      ],
+      "expect": {
+        "exitCode": 0,
+        "stdoutJson": [
+          {
+            "family": "paperwork",
+            "skillId": "guide",
+            "selector": "paperwork/guide",
+            "path": "skills/paperwork/guide"
+          }
+        ]
+      }
+    },
+    {
+      "id": "resolve-qualified-selector",
+      "title": "Resolve an exact family-qualified selector",
+      "argv": [
+        "list",
+        "--selector",
+        "harness/paperwork",
+        "--json"
+      ],
+      "expect": {
+        "exitCode": 0,
+        "stdoutJson": [
+          {
+            "family": "harness",
+            "skillId": "paperwork",
+            "selector": "harness/paperwork",
+            "path": "skills/harness/paperwork"
+          }
+        ]
+      }
+    },
+    {
+      "id": "resolve-unique-skill-id",
+      "title": "Resolve a globally unique bare skill id",
+      "argv": [
+        "list",
+        "--selector",
+        "solo",
+        "--json"
+      ],
+      "expect": {
+        "exitCode": 0,
+        "stdoutJson": [
+          {
+            "family": "human-improvement",
+            "skillId": "solo",
+            "selector": "human-improvement/solo",
+            "path": "skills/human-improvement/solo"
+          }
+        ]
+      }
+    },
+    {
+      "id": "reject-unknown-selector",
+      "title": "Reject an unknown selector",
+      "argv": [
+        "list",
+        "--selector",
+        "missing",
+        "--json"
+      ],
+      "expect": {
+        "exitCode": 1,
+        "stderrContains": [
+          "bagakit-skill: unknown selector: missing"
+        ]
+      }
+    }
+  ]
+}

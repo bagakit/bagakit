@@ -2,6 +2,11 @@
 *.swp
 *.tmp
 .DS_Store
+# Ignore first-level hidden working directories under docs.
+docs/.*/
 site/
 dist/
 dist_*/
+.dist-*
+.bagakit
+mem/

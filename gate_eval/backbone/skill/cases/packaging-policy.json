@@ -1,0 +1,118 @@
+{
+  "id": "packaging-policy",
+  "fixture": "packaging-policy",
+  "title": "Packaging Policy",
+  "summary": "Measure package archive generation, archive hygiene, and selector handling.",
+  "focus": [
+    "package-archive-generation",
+    "archive-symlink-retention",
+    "selector-handling"
+  ],
+  "probes": [
+    {
+      "id": "package-default-selection",
+      "title": "Package every discovered installable skill source by default",
+      "argv": [
+        "distribute-package",
+        "--dist",
+        "dist-default",
+        "--json"
+      ],
+      "expect": {
+        "exitCode": 0,
+        "stdoutJson": {
+          "selector": null,
+          "dist": "dist-default",
+          "clean": true,
+          "results": [
+            {
+              "selector": "gamemaker/render",
+              "archivePath": "dist-default/gamemaker/render.skill"
+            },
+            {
+              "selector": "harness/alpha",
+              "archivePath": "dist-default/harness/alpha.skill"
+            },
+            {
+              "selector": "paperwork/beta",
+              "archivePath": "dist-default/paperwork/beta.skill"
+            }
+          ]
+        }
+      },
+      "assertFs": [
+        {
+          "kind": "exists",
+          "path": "dist-default/gamemaker/render.skill"
+        },
+        {
+          "kind": "exists",
+          "path": "dist-default/harness/alpha.skill"
+        },
+        {
+          "kind": "exists",
+          "path": "dist-default/paperwork/beta.skill"
+        }
+      ],
+      "assertArchives": [
+        {
+          "path": "dist-default/gamemaker/render.skill",
+          "mustInclude": [
+            "render/SKILL.md"
+          ]
+        },
+        {
+          "path": "dist-default/harness/alpha.skill",
+          "mustInclude": [
+            "alpha/SKILL.md",
+            "alpha/nested/notes.txt",
+            "alpha/nested/target.txt",
+            "alpha/link.txt"
+          ],
+          "symlinks": [
+            {
+              "path": "alpha/link.txt",
+              "target": "nested/target.txt"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "package-explicit-family-selector",
+      "title": "Package every installable skill source for an explicit family selector",
+      "argv": [
+        "distribute-package",
+        "--selector",
+        "paperwork",
+        "--dist",
+        "dist-explicit",
+        "--json"
+      ],
+      "expect": {
+        "exitCode": 0,
+        "stdoutJson": {
+          "selector": "paperwork",
+          "dist": "dist-explicit",
+          "clean": true,
+          "results": [
+            {
+              "selector": "paperwork/beta",
+              "archivePath": "dist-explicit/paperwork/beta.skill"
+            }
+          ]
+        }
+      },
+      "assertFs": [
+        {
+          "kind": "exists",
+          "path": "dist-explicit/paperwork/beta.skill"
+        },
+        {
+          "kind": "absent",
+          "path": "dist-explicit/harness/alpha.skill"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,157 @@
+version = 2
+
+[[suite]]
+id = "repo-structure"
+owner = "gate_validation/backbone"
+description = "Require the canonical repository layout for the validator-era monorepo."
+default = true
+validation_class = "structure"
+groups = ["repo", "backbone", "structure"]
+
+[suite.runner]
+kind = "fs"
+required_dirs = [
+  ".github",
+  "blogs",
+  "catalog",
+  "docs",
+  "docs/specs",
+  "docs/stewardship",
+  "dev",
+  "dev/validator",
+  "dev/skill_quality",
+  "dev/release_projection",
+  "dev/host_tools",
+  "gate_validation",
+  "gate_validation/backbone",
+  "gate_validation/dev",
+  "gate_validation/skills",
+  "gate_eval",
+  "gate_eval/backbone",
+  "mem",
+  "scripts",
+  "skills",
+  "skills/harness",
+]
+required_files = [
+  ".gitignore",
+  "AGENTS.md",
+  "Makefile",
+  "README.md",
+  "docs/specs/tooling-rules.md",
+  "docs/specs/validation-system.md",
+  "docs/stewardship/roles.md",
+  "docs/stewardship/sop/validation-sop.md",
+  "dev/README.md",
+  "dev/validator/README.md",
+  "gate_validation/README.md",
+  "gate_validation/validation.toml",
+  "gate_validation/backbone/check-canonical-packaging.sh",
+  "gate_validation/backbone/check-canonical-skill-layout.sh",
+  "gate_validation/backbone/validation.toml",
+  "gate_eval/README.md",
+  "gate_eval/validation.toml",
+  "scripts/gate.sh",
+  "scripts/skill.sh",
+  "scripts/skill.ts",
+  "skills/README.md",
+  "skills/harness/README.md",
+]
+
+[[suite]]
+id = "repo-legacy-cut"
+owner = "gate_validation/backbone"
+description = "Keep removed legacy control planes, legacy installer surfaces, and payload manifests out of the canonical repo."
+default = true
+validation_class = "policy"
+groups = ["repo", "backbone", "policy"]
+
+[suite.runner]
+kind = "fs"
+forbidden_paths = [
+  ".gitmodules",
+  "projects",
+  "scripts/add-project-skill-submodule.sh",
+  "scripts/common.sh",
+  "scripts/install-bagakit-skills.sh",
+  "scripts/link-canonical-skill.sh",
+  "scripts/package-all-skills.sh",
+  "scripts/render_catalog.py",
+  "scripts/render_catalog.sh",
+  "scripts/release.sh",
+  "scripts/update.sh",
+  "scripts/validate-repo.sh",
+  "scripts/validate-changed-skills.sh",
+  "scripts/validate.sh",
+  "docs/project-skill-submodule-packaging.md",
+  "catalog/canonical-skills.json",
+  "catalog/project-skills.json",
+  "catalog/skills.json",
+  "catalog/skill-layering.json",
+  "skills/bagakit-brainstorm",
+  "skills/bagakit-feat-task-harness",
+  "skills/bagakit-git-commit-craft",
+  "skills/bagakit-git-commit-spec",
+  "skills/bagakit-git-message-craft",
+  "skills/bagakit-living-docs",
+  "skills/harness/bagakit-living-docs",
+  "skills/bagakit-long-run",
+  "skills/bagakit-skill-maker",
+  "dev/evolver",
+  "dev/skill",
+  "dev/skill_ops",
+  "mem/evolver",
+  "gate_eval/dev/skill",
+  "gate_eval/dev/skill_ops",
+  "gate_validation/dev/skill",
+  "gate_validation/dev/skill_ops",
+]
+
+[[suite]]
+id = "canonical-skill-layout"
+owner = "gate_validation/backbone"
+description = "Require install-ready directory-protocol skill discovery semantics and reject manifest-based payload control."
+default = true
+validation_class = "tooling"
+groups = ["repo", "backbone", "tooling"]
+
+[suite.runner]
+kind = "bash_script"
+script = "gate_validation/backbone/check-canonical-skill-layout.sh"
+args = [
+  "--root",
+  "{repo_root}",
+]
+
+[[suite]]
+id = "canonical-packaging-smoke"
+owner = "gate_validation/backbone"
+description = "Package discovered installable skills and verify the expected archives are emitted."
+default = true
+validation_class = "smoke"
+groups = ["repo", "backbone", "smoke"]
+
+[suite.runner]
+kind = "bash_script"
+script = "gate_validation/backbone/check-canonical-packaging.sh"
+args = [
+  "--root",
+  "{repo_root}",
+]
+
+[[suite]]
+id = "skill-surface-tests"
+owner = "gate_validation/backbone"
+description = "Run the repo skill-surface regression tests."
+default = true
+validation_class = "quality"
+groups = ["repo", "backbone", "quality", "skill-surface"]
+
+[suite.runner]
+kind = "executable"
+command = "{node}"
+args = [
+  "--test",
+  "--experimental-strip-types",
+  "gate_validation/backbone/skill-surface.test.ts",
+]

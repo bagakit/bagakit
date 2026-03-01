@@ -1,0 +1,44 @@
+version = 2
+
+[[suite]]
+id = "validator-framework-config"
+owner = "dev/validator"
+description = "Load and normalize the repo validation graph through the validator framework."
+default = true
+validation_class = "tooling"
+groups = ["validator", "smoke"]
+default_params = ["baseline"]
+
+[suite.runner]
+kind = "executable"
+command = "{node}"
+args = [
+  "--experimental-strip-types",
+  "dev/validator/src/cli.ts",
+  "check-config",
+]
+
+[suite.params]
+baseline = [
+  "--root",
+  "{repo_root}",
+  "--config",
+  "gate_validation/validation.toml",
+]
+
+[[suite]]
+id = "validator-tests"
+owner = "dev/validator"
+description = "Run the validator framework regression suite."
+default = true
+validation_class = "quality"
+groups = ["validator", "quality"]
+
+[suite.runner]
+kind = "executable"
+command = "{node}"
+args = [
+  "--test",
+  "--experimental-strip-types",
+  "dev/validator/test/validator.test.ts",
+]

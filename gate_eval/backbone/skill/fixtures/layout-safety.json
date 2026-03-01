@@ -1,0 +1,20 @@
+{
+  "id": "layout-safety",
+  "skillSources": [
+    {
+      "selector": "harness/alpha",
+      "files": {
+        ".DS_Store": "noise\n",
+        "SKILL_PAYLOAD.json": "{}\n",
+        "nested/target.txt": "hello\n"
+      },
+      "symlinks": [
+        {
+          "path": "link.txt",
+          "mode": "repo-root-absolute",
+          "target": "skills/harness/alpha/nested/target.txt"
+        }
+      ]
+    }
+  ]
+}

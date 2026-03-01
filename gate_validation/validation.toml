@@ -1,0 +1,15 @@
+version = 2
+
+[project]
+discovery_roots = [
+  "gate_validation/backbone",
+  "gate_validation/dev",
+  "gate_validation/skills",
+]
+
+[[skip_alias]]
+id = "local-fast"
+description = "Skip non-essential tool-quality suites for quick local iteration."
+selectors = [
+  "group:quality",
+]

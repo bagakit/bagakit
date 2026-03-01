@@ -1,0 +1,17 @@
+{
+  "id": "selector-resolution",
+  "skillSources": [
+    {
+      "selector": "harness/paperwork"
+    },
+    {
+      "selector": "paperwork/guide"
+    },
+    {
+      "selector": "human-improvement/solo"
+    },
+    {
+      "selector": "gamemaker/render"
+    }
+  ]
+}

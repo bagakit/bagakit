@@ -1,0 +1,13 @@
+{
+  "name": "@bagakit/validator",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Config-first validation framework for the Bagakit skills monorepo.",
+  "scripts": {
+    "check-config": "node --experimental-strip-types src/cli.ts check-config --root ../.. --config ../../gate_validation/validation.toml",
+    "plan": "node --experimental-strip-types src/cli.ts plan --root ../.. --config ../../gate_validation/validation.toml",
+    "run-default": "node --experimental-strip-types src/cli.ts run-default --root ../.. --config ../../gate_validation/validation.toml",
+    "test": "node --test --experimental-strip-types test/*.test.ts"
+  }
+}

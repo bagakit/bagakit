@@ -1,0 +1,7 @@
+version = 2
+
+[project]
+discovery_roots = [
+  "gate_eval/backbone",
+  "gate_eval/skills",
+]

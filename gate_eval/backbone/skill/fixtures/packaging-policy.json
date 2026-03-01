@@ -1,0 +1,25 @@
+{
+  "id": "packaging-policy",
+  "skillSources": [
+    {
+      "selector": "harness/alpha",
+      "files": {
+        "nested/notes.txt": "hello\n",
+        "nested/target.txt": "hello\n"
+      },
+      "symlinks": [
+        {
+          "path": "link.txt",
+          "mode": "literal",
+          "target": "nested/target.txt"
+        }
+      ]
+    },
+    {
+      "selector": "paperwork/beta"
+    },
+    {
+      "selector": "gamemaker/render"
+    }
+  ]
+}

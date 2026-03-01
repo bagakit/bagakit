@@ -18,9 +18,12 @@ Design decisions should be traceable to these references plus BAGAKIT-specific c
 Not every valid Bagakit skill should be onboarded into this meta-repo.
 
 Required policy:
-- `bagakit/skills` should host Core foundation skills only.
-- Domain- or task-specific skills should be grouped in separate opt-in repositories (for example `bagakit-code-style-guides`).
-- Unstable/high-change skills should live in an experimental/incubator repository until contracts and trigger boundaries stabilize.
+- this monorepo should host installable Bagakit skill sources that are ready to share one
+  repository authority surface.
+- domain- or task-specific skills should still be grouped by clear family
+  boundaries instead of flattening unrelated semantics together.
+- unstable/high-change skill work should not silently become canonical without
+  clear validation and stewardship coverage.
 
 Core admission checklist (all should be true):
 - The skill is broadly useful across most Bagakit projects.
@@ -39,11 +42,14 @@ Core meta-repo onboarding must also satisfy capability layering:
 - `micro-pack`: task/domain-specific skills; must be grouped by domain pack, not one repository per micro skill in core.
 
 Required policy:
-- Core (`bagakit/skills`) may host `macro-process` and `macro-tool` skills.
-- `micro-pack` skills should be hosted in separate opt-in repositories and aggregated by group.
-- Keep layer metadata in `catalog/skill-layering.json` and keep it synchronized with catalog/profile updates.
+- installable Bagakit skill sources should stay broad enough to justify shared
+  repository-level stewardship.
+- narrowly task-specific skills should be grouped under the right family or kept
+  outside the canonical set until they stabilize.
+- keep layering metadata in the repo metadata surface that is currently in use;
+  do not revive removed legacy catalog files as a second control plane.
 
-## 1) Standalone-First Skills (No Hard External Dependency)
+## 1) Self-Contained Skills (No Hard External Dependency)
 
 Skills MUST be independently usable without requiring external ecosystems (for example OpenSpec or any other non-BAGAKIT system).
 
@@ -55,22 +61,25 @@ Required policy:
 
 Recommended checks:
 - Add repository tests that fail if default profiles reintroduce required external dependencies.
-- Keep compatibility profiles separate from core/default profiles.
+- Do not add compatibility profiles that weaken the canonical contract.
 
 ## 1.1) Cross-Skill Signal Contract (Optional, Rule-Driven, No Direct Flow Call)
 
 If skills exchange signals, they MUST do so via optional data contracts, not direct orchestration coupling.
 
 Required policy:
-- Cross-skill exchange is optional; missing contract must not break standalone execution.
+- Cross-skill exchange is optional; missing contract must not break
+  self-contained execution.
 - Contract discovery/validation must be rule-driven (schema version, required keys, field semantics), not skill-name-driven.
 - Skills must not directly call another skill's process flow as a required step in default mode.
   - Example anti-pattern: hard-require `bash .bagakit/<other-skill>/...` before current skill can proceed.
-- If contract is absent/invalid, fallback to local standalone behavior and emit a clear warning/action hint.
+- If contract is absent or invalid, fallback to local self-contained behavior
+  and emit a clear warning or action hint.
 
 Recommended checks:
 - Add schema validation tests for contract files and version compatibility.
-- Add fallback-path tests to ensure standalone mode still works when no external contract exists.
+- Add fallback-path tests to ensure self-contained mode still works when no
+  external contract exists.
 
 Minimal contract example:
 
@@ -93,52 +102,64 @@ Minimal contract example:
 
 Skill repositories MUST clearly separate runtime payload from development/dogfooding files.
 
-Required layout intent:
-- `scripts/` => runtime scripts used by installed skills.
-- `scripts_dev/` => development-only scripts (self-tests, local validation helpers, release checks).
-- `docs/`, `Makefile`, `.codex/`, `dist/`, etc. => repository development assets, not skill runtime payload by default.
+Required layout intent for canonical monorepo skills:
+- the skill directory itself is the runtime payload boundary
+- runtime scripts that belong to the skill should live inside that directory
+- maintainer-only validation or eval assets should live outside the skill
+  directory under `gate_validation/`, `gate_eval/`, or `dev/`
+- do not stash repository-only frameworks inside the skill just to make
+  packaging work
+- do not rely on manifests to hide files that should never have been placed in
+  the skill directory
 
-## 3) `SKILL_PAYLOAD.json` Is Required
+## 3) Directory-Is-Payload Contract
 
-Each skill repository MUST provide `SKILL_PAYLOAD.json` at repo root.
+Canonical monorepo skills must not use `SKILL_PAYLOAD.json`.
 
 Purpose:
-- Explicitly declare installable runtime payload.
-- Prevent accidental installation of non-runtime repository files.
-- Allow installer tooling to be deterministic and auditable.
+- keep the installable boundary obvious
+- make direct local linking possible without extra packaging manifests
+- keep repo-level frameworks outside the skill instead of shipping them by
+  accident
 
-Minimum example:
+Required policy:
+- `SKILL.md` must exist at the skill root
+- the skill directory should contain only runtime-appropriate files
+- maintainer-only helpers should move out to repo-level surfaces
+- if a file should not be link-installed with the skill, it probably does not
+  belong inside the skill directory
+- do not add compatibility manifests to compensate for poor directory hygiene
 
-```json
-{
-  "version": 1,
-  "include": [
-    "SKILL.md",
-    "references",
-    "scripts"
-  ]
-}
-```
+## 3.1) Packaging Output Contract
 
-Notes:
-- All `include` paths must be relative.
-- `SKILL.md` must always be included.
-- `README.md` should stay repo-level and must not be part of runtime payload.
-- `scripts_dev/` should not be included unless intentionally shipped as runtime.
-
-## 3.1) Packaging Output Contract (`package-skill`)
-
-To keep meta-repo packaging deterministic, each skill `Makefile` should expose a stable `package-skill` target.
+To keep monorepo packaging deterministic, the repo-level packaging flow should
+archive the whole installable skill directory.
 
 Required contract:
-- Accept `DIST_DIR` override (default can be `dist`).
-- Emit one zip artifact at `<DIST_DIR>/<SKILL_NAME>.skill`.
-- Resolve relative `DIST_DIR` against the skill repo root (not caller shell CWD).
-- Do not hardcode `$(PWD)/$(DIST_DIR)`-style absolute concatenation in artifact paths.
+- accept `DIST_DIR` override
+- emit one zip artifact at `<DIST_DIR>/<family>/<skill-id>.skill`
+- resolve relative `DIST_DIR` against the repo root
+- treat the skill directory as the packaging boundary
+- discover installable skill sources directly from `skills/<family>/<skill-id>/`
+  with `SKILL.md`
+- `package-all`, and `SELECTOR=all`, should package every discovered
+  installable skill source
+- any other explicit selector should package only the resolved family or exact
+  skill selection
+
+Naming principle:
+
+- call this distribution packaging
+- do not confuse distribution packaging with installability
+- installability already comes from the skill directory itself
+- packaging must not depend on catalog metadata for this archive step
+- packaging must not depend on delivery-profile metadata
 
 Recommended checks:
-- `make package-skill DIST_DIR=.dist-check` should always produce `.dist-check/<skill>.skill`.
-- External orchestrators (for example `scripts/package-all-skills.sh`) should be able to call every skill with a custom `DIST_DIR` without per-skill special casing.
+- `make package-one SELECTOR=<family/skill-id> DIST_DIR=.dist-check` should
+  always produce `.dist-check/<family>/<skill>.skill`
+- the repo packager should not require per-skill manifest files to reconstruct
+  payload
 
 ## 4) AGENTS Driving Instructions (`[[BAGAKIT]]` Footer Contract)
 
@@ -147,13 +168,13 @@ When a skill needs explicit execution-driving outputs, encode that in AGENTS man
 Required style:
 - Use `[[BAGAKIT]]` as the footer block anchor.
 - Add skill-specific driving lines as peers under the same block.
-- Keep `- LivingDoc: ...` and skill-specific lines parallel, not nested under each other.
+- Keep `- LivingKnowledge: ...` and skill-specific lines parallel, not nested under each other.
 
 Example:
 
 ```md
 [[BAGAKIT]]
-- LivingDoc: Updated docs/must-sop.md for this change.
+- LivingKnowledge: Updated shared wiki surfaces for this change.
 - LongRun: Item=EXEC::foo; Status=in_progress; Evidence=tests passed; Next=run doctor.
 ```
 
@@ -161,45 +182,26 @@ Example:
 
 Each skill repository SHOULD enforce these rules via self-tests:
 - docs policy assertions (policy text exists in canonical docs);
-- payload assertions (`SKILL_PAYLOAD.json` correctness);
+- payload-boundary assertions (runtime files stay inside the skill directory and
+  gate-only assets stay outside it);
 - manifest/profile assertions (core profile has no hard external dependency);
 - end-to-end sanity tests for runtime scripts.
 
-Development tests should run from `scripts_dev/` and must not be part of installed runtime payload by default.
+Development tests should be registered through `gate_validation/` or `gate_eval/`
+and must not be part of installed runtime payload by default.
 
-## 6) Delivery Profile Contract (Meta-Repo Requirement)
+## 6) Regression Chain
 
-For every submodule included in this repository, maintain one delivery profile entry in:
+This repository should use a repository-first regression chain:
 
-- `catalog/delivery-profiles.json`
-
-The profile must describe:
-
-- deliverable classes (`action-handoff`, `memory-handoff`, `archive`);
-- default mode behavior when no external system is present;
-- optional inter-system linkage/adapters;
-- archive gate (how completion destinations are proven).
+1. Repository validation:
+  - `make validate-repo`
+2. Owner-local tool or skill validation:
+  - register through `gate_validation/<path>/validation.toml`
 
 Policy:
-- No submodule is considered "properly onboarded" until its delivery profile is present.
-- Pull requests that add or update submodules should update both:
-  - `catalog/skills.json` (generated),
-  - `catalog/delivery-profiles.json` (authored).
-
-Reference examples are maintained in:
-- `docs/skill-delivery-profiles.md`
-
-## 7) Regression Chain (Changed Skill -> Meta Integration)
-
-This meta-repo uses a two-stage regression chain:
-
-1. Changed-skill regression:
-  - `scripts/validate-changed-skills.sh --base-ref <ref>`
-  - run only the submodules changed in the current branch/PR.
-2. Meta integration regression:
-  - `scripts/validate.sh`
-  - run full catalog + all skills validation.
-
-Policy:
-- A submodule pointer update should pass changed-skill regression first.
-- Merge/release gates should pass full meta integration regression.
+- Repository changes should pass repository validation first.
+- Owner-local validations should be added where concrete tools or canonical
+  skills exist.
+- User-facing command taxonomy should be `gate validate` / `gate eval`, while
+  `dev/validator` remains the implementation engine.

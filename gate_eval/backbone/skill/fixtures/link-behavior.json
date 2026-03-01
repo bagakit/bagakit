@@ -1,0 +1,11 @@
+{
+  "id": "link-behavior",
+  "skillSources": [
+    {
+      "selector": "harness/alpha"
+    },
+    {
+      "selector": "human-improvement/solo"
+    }
+  ]
+}

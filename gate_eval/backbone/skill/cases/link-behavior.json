@@ -1,0 +1,145 @@
+{
+  "id": "link-behavior",
+  "fixture": "link-behavior",
+  "title": "Link Behavior",
+  "summary": "Measure link creation, idempotence, and conflict handling.",
+  "focus": [
+    "link-create",
+    "link-idempotence",
+    "link-force-conflict"
+  ],
+  "probes": [
+    {
+      "id": "link-solo-first-run",
+      "title": "Create a symlink for a unique skill-id selector",
+      "argv": [
+        "link",
+        "--selector",
+        "solo",
+        "--dest",
+        "linked",
+        "--json"
+      ],
+      "expect": {
+        "exitCode": 0,
+        "stdoutJson": {
+          "selector": "solo",
+          "kind": "skill-id",
+          "destination": "linked",
+          "results": [
+            {
+              "selector": "human-improvement/solo",
+              "status": "linked",
+              "destinationPath": "linked/solo",
+              "sourcePath": "skills/human-improvement/solo"
+            }
+          ]
+        }
+      },
+      "assertFs": [
+        {
+          "kind": "symlink",
+          "path": "linked/solo",
+          "resolvesTo": "skills/human-improvement/solo"
+        }
+      ]
+    },
+    {
+      "id": "link-solo-second-run",
+      "title": "Keep the same link unchanged on the second run",
+      "argv": [
+        "link",
+        "--selector",
+        "solo",
+        "--dest",
+        "linked",
+        "--json"
+      ],
+      "expect": {
+        "exitCode": 0,
+        "stdoutJson": {
+          "selector": "solo",
+          "kind": "skill-id",
+          "destination": "linked",
+          "results": [
+            {
+              "selector": "human-improvement/solo",
+              "status": "unchanged",
+              "destinationPath": "linked/solo",
+              "sourcePath": "skills/human-improvement/solo"
+            }
+          ]
+        }
+      },
+      "assertFs": [
+        {
+          "kind": "symlink",
+          "path": "linked/solo",
+          "resolvesTo": "skills/human-improvement/solo"
+        }
+      ]
+    },
+    {
+      "id": "reject-alpha-conflict-without-force",
+      "title": "Reject a conflicting destination path without force",
+      "setup": [
+        {
+          "type": "write_file",
+          "path": "linked/alpha",
+          "content": "occupied"
+        }
+      ],
+      "argv": [
+        "link",
+        "--selector",
+        "harness/alpha",
+        "--dest",
+        "linked",
+        "--json"
+      ],
+      "expect": {
+        "exitCode": 1,
+        "stderrContains": [
+          "bagakit-skill: link would overwrite existing paths; rerun with --force to replace them:",
+          "- linked/alpha already exists and does not point to harness/alpha"
+        ]
+      }
+    },
+    {
+      "id": "force-replace-alpha-conflict",
+      "title": "Replace a conflicting destination path with force",
+      "argv": [
+        "link",
+        "--selector",
+        "harness/alpha",
+        "--dest",
+        "linked",
+        "--force",
+        "--json"
+      ],
+      "expect": {
+        "exitCode": 0,
+        "stdoutJson": {
+          "selector": "harness/alpha",
+          "kind": "qualified",
+          "destination": "linked",
+          "results": [
+            {
+              "selector": "harness/alpha",
+              "status": "linked",
+              "destinationPath": "linked/alpha",
+              "sourcePath": "skills/harness/alpha"
+            }
+          ]
+        }
+      },
+      "assertFs": [
+        {
+          "kind": "symlink",
+          "path": "linked/alpha",
+          "resolvesTo": "skills/harness/alpha"
+        }
+      ]
+    }
+  ]
+}

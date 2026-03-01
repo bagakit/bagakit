@@ -1,0 +1,16 @@
+version = 2
+
+[[suite]]
+id = "skill-surface-deterministic-eval"
+owner = "gate_eval/backbone/skill"
+description = "Run the deterministic non-gating eval suite for the repo skill surface."
+default = true
+validation_class = "quality"
+groups = ["skill", "eval", "deterministic", "quality", "backbone"]
+
+[suite.runner]
+kind = "executable"
+command = "{node}"
+args = [
+  "gate_eval/backbone/skill/run_eval.mjs",
+]
