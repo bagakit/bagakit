@@ -1,0 +1,180 @@
+{
+  "format": "bagakit-migration-execution-checklist/v1-draft",
+  "checklist_id": "harness-devloop-alignment-execution",
+  "topic": "Align Bagakit with the verified harness-devloop user-demand loop requirements",
+  "objective": "Execute the first stable Bagakit slice: lock the target boundary, define a planning-entry handoff contract, and record the execution path in one machine-readable checklist.",
+  "status": "done",
+  "created_at": "2026-04-26T00:00:00Z",
+  "updated_at": "2026-04-26T02:00:00Z",
+  "source_notes": [
+    "mem/migration/harness-devloop-alignment-evolution-plan.md"
+  ],
+  "items": [
+    {
+      "id": "selector-preflight",
+      "title": "Record task-local selector preflight for this non-trivial Bagakit-shaped change",
+      "kind": "execution_evidence",
+      "status": "done",
+      "depends_on": [],
+      "deliverables": [
+        ".bagakit/skill-selector/tasks/harness-devloop-alignment-checklist-execution/skill-usage.toml"
+      ],
+      "verification": [
+        "Selector preflight is recorded with a non-pending answer and one selected skill plan."
+      ],
+      "evidence_refs": [
+        ".bagakit/skill-selector/tasks/harness-devloop-alignment-checklist-execution/skill-usage.toml"
+      ],
+      "next_action": ""
+    },
+    {
+      "id": "freeze-boundary",
+      "title": "Freeze the Bagakit-side target boundary in a migration note",
+      "kind": "boundary_decision",
+      "status": "done",
+      "depends_on": [],
+      "deliverables": [
+        "mem/migration/harness-devloop-alignment-evolution-plan.md"
+      ],
+      "verification": [
+        "The note keeps Bagakit clean-room boundaries and rejects bundled runtime expansion as the immediate next step."
+      ],
+      "evidence_refs": [
+        "mem/migration/harness-devloop-alignment-evolution-plan.md"
+      ],
+      "next_action": ""
+    },
+    {
+      "id": "define-handoff-contract",
+      "title": "Define the first stable planning-entry handoff contract",
+      "kind": "stable_contract",
+      "status": "done",
+      "depends_on": [
+        "freeze-boundary"
+      ],
+      "deliverables": [
+        "docs/specs/planning-entry-handoff-contract.md"
+      ],
+      "verification": [
+        "The contract defines a stable payload shape, trust rule, and downstream materialization gate.",
+        "The contract keeps brainstorm, feature-tracker, flow-runner, and outer-driver ownership separate."
+      ],
+      "evidence_refs": [
+        "docs/specs/planning-entry-handoff-contract.md"
+      ],
+      "next_action": ""
+    },
+    {
+      "id": "index-new-artifacts",
+      "title": "Index the new migration and spec artifacts in their owning surfaces",
+      "kind": "documentation_index",
+      "status": "done",
+      "depends_on": [
+        "freeze-boundary",
+        "define-handoff-contract"
+      ],
+      "deliverables": [
+        "mem/migration/README.md",
+        "docs/specs/README.md"
+      ],
+      "verification": [
+        "The new artifacts are discoverable from the owning surface README files."
+      ],
+      "evidence_refs": [
+        "mem/migration/README.md",
+        "docs/specs/README.md"
+      ],
+      "next_action": ""
+    },
+    {
+      "id": "capture-json-checklist",
+      "title": "Capture the execution plan itself as one machine-readable JSON checklist",
+      "kind": "execution_plan",
+      "status": "done",
+      "depends_on": [
+        "freeze-boundary"
+      ],
+      "deliverables": [
+        "mem/migration/harness-devloop-alignment-execution-checklist.json"
+      ],
+      "verification": [
+        "The checklist is valid JSON and records done versus pending phases with explicit evidence references."
+      ],
+      "evidence_refs": [
+        "mem/migration/harness-devloop-alignment-execution-checklist.json"
+      ],
+      "next_action": ""
+    },
+    {
+      "id": "materialize-brainstorm-to-feature",
+      "title": "Materialize one explicit brainstorm to feature-tracker bridge above the approved handoff contract",
+      "kind": "runtime_bridge",
+      "status": "done",
+      "depends_on": [
+        "define-handoff-contract"
+      ],
+      "deliverables": [
+        "skills/harness/bagakit-feature-tracker/scripts/feature-tracker.py",
+        "gate_validation/skills/harness/bagakit-feature-tracker/check-feature-tracker.sh",
+        "gate_eval/skills/harness/bagakit-feature-tracker/suite.ts"
+      ],
+      "verification": [
+        "One approved planning-entry handoff can initialize or update canonical tracker truth without scraping brainstorm prose."
+      ],
+      "evidence_refs": [
+        "skills/harness/bagakit-feature-tracker/scripts/feature-tracker.py",
+        "gate_validation/skills/harness/bagakit-feature-tracker/check-feature-tracker.sh",
+        "gate_eval/skills/harness/bagakit-feature-tracker/suite.ts"
+      ],
+      "next_action": ""
+    },
+    {
+      "id": "materialize-feature-to-flow",
+      "title": "Tighten the explicit feature-tracker to flow-runner activation contract",
+      "kind": "runtime_bridge",
+      "status": "done",
+      "depends_on": [
+        "materialize-brainstorm-to-feature"
+      ],
+      "deliverables": [
+        "skills/harness/bagakit-flow-runner/scripts/lib/core.ts",
+        "skills/harness/bagakit-flow-runner/scripts/flow-runner.ts",
+        "gate_validation/skills/harness/bagakit-flow-runner/check-flow-runner.sh",
+        "gate_validation/skills/harness/bagakit-flow-runner/test-flow-runner.ts",
+        "gate_eval/skills/harness/bagakit-flow-runner/suite.ts"
+      ],
+      "verification": [
+        "Execution-ready activation is explicit and replayable once planning truth is canonical."
+      ],
+      "evidence_refs": [
+        "skills/harness/bagakit-flow-runner/scripts/lib/core.ts",
+        "skills/harness/bagakit-flow-runner/scripts/flow-runner.ts",
+        "gate_validation/skills/harness/bagakit-flow-runner/check-flow-runner.sh",
+        "gate_validation/skills/harness/bagakit-flow-runner/test-flow-runner.ts",
+        "gate_eval/skills/harness/bagakit-flow-runner/suite.ts"
+      ],
+      "next_action": ""
+    },
+    {
+      "id": "end-to-end-proof",
+      "title": "Add one end-to-end planning-entry regression for the full route",
+      "kind": "validation",
+      "status": "done",
+      "depends_on": [
+        "materialize-brainstorm-to-feature",
+        "materialize-feature-to-flow"
+      ],
+      "deliverables": [
+        "gate_eval/skills/harness/bagakit-flow-runner/suite.ts"
+      ],
+      "verification": [
+        "One deterministic or minimally mocked regression proves the route from clarification to execution-ready state."
+      ],
+      "evidence_refs": [
+        "gate_eval/skills/harness/bagakit-flow-runner/suite.ts"
+      ],
+      "next_action": ""
+    }
+  ],
+  "next_action": "Promote the stabilized semantics into the next canonical architecture or stewardship surface when the repo wants to elevate this migration result."
+}

@@ -13,7 +13,36 @@ When designing or refactoring any BAGAKIT skill, review both:
 
 Design decisions should be traceable to these references plus BAGAKIT-specific constraints below.
 
-## 0.1) Repository Placement Policy (Core vs Domain vs Experimental)
+## 0.1) Documentation Shape For Canonical Skills
+
+Canonical skill docs should be boundary-first and self-explanatory.
+
+Required policy:
+
+- `README.md` and `SKILL.md` must agree on the skill's owning boundary.
+- If the skill is replacing or narrowing a legacy bundled surface, say so
+  explicitly instead of implying one-to-one inheritance.
+- If legacy mechanisms were kept, moved, or removed, document that split
+  explicitly.
+- Runtime docs should explain the owning surface before listing commands.
+- Repo-level authority or migration reasoning belongs under `docs/`, not copied
+  into runtime payload prose unless the runtime truly needs it.
+
+Preferred documentation shape for canonical skills when it fits the surface:
+
+- `First Principle`
+- `Successor Boundary` when relevant
+- `When To Use`
+- `When Not To Use`
+- `Core Surfaces` or `Runtime Contract`
+- `Recommended Flow`
+- `Composition`
+- `Stable Spec`
+
+Do not force this exact outline onto every skill.
+Use it as the default when the skill defines one clear bounded runtime surface.
+
+## 0.2) Repository Placement Policy (Core vs Domain vs Experimental)
 
 Not every valid Bagakit skill should be onboarded into this meta-repo.
 
@@ -33,7 +62,7 @@ Core admission checklist (all should be true):
 
 If any checklist item fails, route to a Domain Pack or Experimental repository.
 
-## 0.2) Capability Layering Policy (Macro vs Micro)
+## 0.3) Capability Layering Policy (Macro vs Micro)
 
 Core meta-repo onboarding must also satisfy capability layering:
 
