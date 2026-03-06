@@ -38,7 +38,7 @@ Commands:
   configure-runner [--root <repo-root>] [--runner-name <name>] (--preset <codex|claude> | --argv-json <json>) [--timeout-seconds <n>] [--refresh-command-json <json> ...]
   next [--root <repo-root>] [--item <item-id>] [--json]
   run [--root <repo-root>] [--item <item-id>] [--max-sessions <n>] [--json]
-  resume --item <item-id> [--root <repo-root>] [--max-sessions <n>] [--json]
+  resume [--item <item-id>] [--root <repo-root>] [--max-sessions <n>] [--json]
   watch [--root <repo-root>] [--item <item-id>] [--json] [--once] [--refresh-seconds <n>]
   validate [--root <repo-root>] [--json]`);
 }
@@ -129,6 +129,7 @@ function cmdRun(argv: string[], forceItem?: string): number {
     path.resolve(values.root),
     forceItem || values.item || undefined,
     parsePositiveInteger(values["max-sessions"], "--max-sessions"),
+    { resume_mode: false },
   );
   if (values.json) {
     console.log(JSON.stringify(payload, null, 2));
@@ -163,18 +164,24 @@ function cmdResume(argv: string[]): number {
     strict: true,
     allowPositionals: false,
   });
-  if (!values.item) {
-    throw new Error("resume requires --item");
+  const payload = runAgentLoop(
+    path.resolve(values.root),
+    values.item || undefined,
+    parsePositiveInteger(values["max-sessions"], "--max-sessions"),
+    { resume_mode: true },
+  );
+  if (values.json) {
+    console.log(JSON.stringify(payload, null, 2));
+  } else {
+    console.log(`resume: ${payload.run_status} / ${payload.stop_reason}`);
+    console.log(`item: ${payload.item_id}`);
+    console.log(`next-safe-action: ${payload.next_safe_action}`);
+    console.log(`message: ${payload.operator_message}`);
+    if (payload.resume_candidates) {
+      console.log(`resume-candidates: live=${payload.resume_candidates.live.length} closeout=${payload.resume_candidates.closeout.length}`);
+    }
   }
-  return cmdRun([
-    "--root",
-    values.root,
-    "--item",
-    values.item,
-    "--max-sessions",
-    values["max-sessions"],
-    ...(values.json ? ["--json"] : []),
-  ]);
+  return payload.run_status === "terminal" ? 0 : 1;
 }
 
 async function cmdWatch(argv: string[]): Promise<number> {

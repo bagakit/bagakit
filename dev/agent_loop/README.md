@@ -36,6 +36,9 @@ It does not own:
 `watch` supports one-shot snapshot rendering and live terminal refresh when
 stdout is a TTY.
 
+`resume` may pin one explicit item with `--item`, or auto-resolve one live
+candidate from flow-runner when exactly one exists.
+
 ## Core Rule
 
 `agent_loop` is a host driver, not a second state machine.

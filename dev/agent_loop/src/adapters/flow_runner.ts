@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 
-import type { FlowItemState, FlowNextPayload } from "../lib/model.ts";
+import type { FlowItemState, FlowNextPayload, FlowResumeCandidatesPayload } from "../lib/model.ts";
 import { readJsonFile, readText } from "../lib/io.ts";
 
 function flowRunnerScript(root: string): string {
@@ -37,6 +37,11 @@ export function loadNextAction(root: string, itemId?: string): FlowNextPayload {
   }
   const result = runFlowRunner(root, args);
   return JSON.parse(result.stdout) as FlowNextPayload;
+}
+
+export function loadResumeCandidates(root: string): FlowResumeCandidatesPayload {
+  const result = runFlowRunner(root, ["resume-candidates", "--root", ".", "--json"]);
+  return JSON.parse(result.stdout) as FlowResumeCandidatesPayload;
 }
 
 export function validateFlowRunner(root: string): void {

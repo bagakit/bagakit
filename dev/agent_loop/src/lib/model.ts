@@ -23,6 +23,8 @@ export const RUN_STOP_REASONS = [
   "blocked_item",
   "closeout_pending",
   "run_lock_conflict",
+  "resume_target_required",
+  "resume_target_ambiguous",
   "runner_config_required",
   "runner_config_invalid",
   "session_budget_exhausted",
@@ -150,6 +152,35 @@ export type FlowItemState = Readonly<{
   runtime: FlowItemRuntime;
 }>;
 
+export type FlowResumeCandidate = Readonly<{
+  item_id: string;
+  item_path: string;
+  title: string;
+  source_kind: string;
+  source_ref: string;
+  item_status: FlowItemStatus;
+  resolution: string;
+  current_stage: string;
+  current_step_status: string;
+  active_plan_revision_id: string;
+  active_action_id: string;
+  session_number: number;
+  progress_log_path: string;
+  current_safe_anchor?: {
+    kind: string;
+    ref: string;
+    summary: string;
+  } | null;
+  open_incident_ids: string[];
+}>;
+
+export type FlowResumeCandidatesPayload = Readonly<{
+  schema: string;
+  command: "resume-candidates";
+  live: FlowResumeCandidate[];
+  closeout: FlowResumeCandidate[];
+}>;
+
 export type AgentLoopPathsShape = Readonly<{
   session_dir: string;
   session_brief: string;
@@ -235,6 +266,7 @@ export type RunRecord = Readonly<{
   checkpoint_observed: boolean;
   runner_session_id: string;
   host_notification_request?: HostNotificationRequest;
+  resume_candidates?: FlowResumeCandidatesPayload;
 }>;
 
 export type AgentLoopRunPayload = Readonly<{
@@ -254,6 +286,7 @@ export type AgentLoopRunPayload = Readonly<{
   run_record_path: string;
   flow_next: FlowNextPayload;
   host_notification_request?: HostNotificationRequest;
+  resume_candidates?: FlowResumeCandidatesPayload;
 }>;
 
 export type RunLockState = Readonly<{

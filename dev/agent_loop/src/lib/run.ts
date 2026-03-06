@@ -6,6 +6,7 @@ import { runnerConfigStatus } from "./config.ts";
 import {
   acquireRunLock,
   autoArchiveOwnedItem,
+  computeResumeCandidates,
   runnerResultIssue,
   recordRun,
   releaseRunLock,
@@ -22,6 +23,7 @@ import { ensureDir, repoRelative } from "./io.ts";
 import type {
   AgentLoopRunPayload,
   FlowNextPayload,
+  FlowResumeCandidatesPayload,
   RunStopReason,
   RunnerConfig,
   RunnerResult,
@@ -100,6 +102,78 @@ function safeLoadNextAction(root: string, itemId?: string, fallback?: FlowNextPa
       error: error instanceof Error ? error.message : String(error),
     };
   }
+}
+
+function safeLoadResumeCandidates(root: string): { payload: FlowResumeCandidatesPayload; error: string } {
+  try {
+    return {
+      payload: computeResumeCandidates(root),
+      error: "",
+    };
+  } catch (error) {
+    return {
+      payload: {
+        schema: "bagakit/flow-runner/resume-candidates/v1",
+        command: "resume-candidates",
+        live: [],
+        closeout: [],
+      },
+      error: error instanceof Error ? error.message : String(error),
+    };
+  }
+}
+
+function resolveResumeTarget(root: string, requestedItem: string | undefined): {
+  itemId: string | undefined;
+  stop?: {
+    stop_reason: RunStopReason;
+    operator_message: string;
+    next_safe_action: string;
+    can_resume: boolean;
+    resume_candidates?: FlowResumeCandidatesPayload;
+  };
+} {
+  if (requestedItem) {
+    return { itemId: requestedItem };
+  }
+  const candidatesAttempt = safeLoadResumeCandidates(root);
+  if (candidatesAttempt.error) {
+    return {
+      itemId: undefined,
+      stop: {
+        stop_reason: "flow_runner_refresh_failed",
+        operator_message: candidatesAttempt.error,
+        next_safe_action: "inspect_flow_runner_state",
+        can_resume: false,
+      },
+    };
+  }
+  const live = candidatesAttempt.payload.live;
+  if (live.length === 1) {
+    return { itemId: live[0]?.item_id };
+  }
+  if (live.length === 0) {
+    return {
+      itemId: undefined,
+      stop: {
+        stop_reason: "resume_target_required",
+        operator_message: "no live resume candidate is available; choose an item explicitly or use run",
+        next_safe_action: "inspect_resume_candidates",
+        can_resume: false,
+        resume_candidates: candidatesAttempt.payload,
+      },
+    };
+  }
+  return {
+    itemId: undefined,
+    stop: {
+      stop_reason: "resume_target_ambiguous",
+      operator_message: "multiple live resume candidates are available; choose one item explicitly before resuming",
+      next_safe_action: "inspect_resume_candidates",
+      can_resume: false,
+      resume_candidates: candidatesAttempt.payload,
+    },
+  };
 }
 
 function validateRunnerResult(result: RunnerResult | null, sessionId: string): {
@@ -289,7 +363,12 @@ function launchRunnerSession(root: string, config: RunnerConfig, flowNext: FlowN
   };
 }
 
-export function runAgentLoop(root: string, itemId: string | undefined, maxSessions: number): AgentLoopRunPayload {
+export function runAgentLoop(
+  root: string,
+  itemId: string | undefined,
+  maxSessions: number,
+  options: { resume_mode?: boolean } = {},
+): AgentLoopRunPayload {
   const paths = new AgentLoopPaths(root);
   ensureDir(paths.loopDir);
   ensureDir(paths.sessionsDir);
@@ -312,6 +391,24 @@ export function runAgentLoop(root: string, itemId: string | undefined, maxSessio
   })();
   let sessionsLaunched = 0;
   let currentItem = itemId;
+  if (options.resume_mode) {
+    const resolvedTarget = resolveResumeTarget(root, itemId);
+    currentItem = resolvedTarget.itemId;
+    if (resolvedTarget.stop) {
+      const attempt = safeLoadNextAction(root, currentItem);
+      return recordRun(root, currentItem || "none", sessionsLaunched, maxSessions, {
+        run_status: "operator_action_required",
+        stop_reason: resolvedTarget.stop.stop_reason,
+        operator_message: resolvedTarget.stop.operator_message,
+        next_safe_action: resolvedTarget.stop.next_safe_action,
+        can_resume: resolvedTarget.stop.can_resume,
+        checkpoint_observed: false,
+        runner_session_id: "",
+        flow_next: attempt.payload,
+        resume_candidates: resolvedTarget.stop.resume_candidates,
+      });
+    }
+  }
   if (lockAttempt.error) {
     const attempt = safeLoadNextAction(root, currentItem);
     return recordRun(root, attempt.payload.item_id || currentItem || "none", sessionsLaunched, maxSessions, {

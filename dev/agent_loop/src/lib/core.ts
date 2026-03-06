@@ -5,6 +5,7 @@ import {
   archiveItem,
   flowRunnerCommand,
   loadNextAction,
+  loadResumeCandidates,
   readItemState,
   validateFlowRunner,
 } from "../adapters/flow_runner.ts";
@@ -30,6 +31,7 @@ import type {
   AgentLoopRunPayload,
   AgentLoopWatchPayload,
   FlowNextPayload,
+  FlowResumeCandidatesPayload,
   HostNotificationRequest,
   NotificationSeverity,
   RunLockPayload,
@@ -54,6 +56,7 @@ type StopEnvelope = Readonly<{
   checkpoint_observed: boolean;
   runner_session_id: string;
   flow_next: FlowNextPayload;
+  resume_candidates?: FlowResumeCandidatesPayload;
 }>;
 
 function notificationSeverity(stopReason: AgentLoopRunPayload["stop_reason"]): NotificationSeverity {
@@ -124,6 +127,8 @@ function nextCommandExample(itemId: string, stop: StopEnvelope, sessionBudget: n
       return `cat .bagakit/agent-loop/run.lock`;
     case "inspect_flow_runner_state":
       return `bash "skills/harness/bagakit-flow-runner/scripts/flow-runner.sh" next --root . --item ${itemId} --json`;
+    case "inspect_resume_candidates":
+      return `bash "skills/harness/bagakit-flow-runner/scripts/flow-runner.sh" resume-candidates --root . --json`;
     case "archive_owned_item":
       return `bash "skills/harness/bagakit-flow-runner/scripts/flow-runner.sh" archive-item --root . --item ${itemId}`;
     default:
@@ -215,6 +220,10 @@ export function computeNext(root: string, itemId?: string): AgentLoopNextPayload
   };
 }
 
+export function computeResumeCandidates(root: string): FlowResumeCandidatesPayload {
+  return loadResumeCandidates(root);
+}
+
 function buildRunRecord(
   runId: string,
   stop: StopEnvelope,
@@ -240,6 +249,7 @@ function buildRunRecord(
     checkpoint_observed: stop.checkpoint_observed,
     runner_session_id: stop.runner_session_id,
     host_notification_request: hostNotificationRequest,
+    resume_candidates: stop.resume_candidates,
   };
 }
 
@@ -689,6 +699,7 @@ export function recordRun(
     run_record_path: repoRelative(root, paths.runRecordFile(runId)),
     flow_next: stop.flow_next,
     host_notification_request: record.host_notification_request,
+    resume_candidates: stop.resume_candidates,
   };
 }
 

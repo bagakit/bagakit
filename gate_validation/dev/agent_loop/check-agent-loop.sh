@@ -66,6 +66,25 @@ bash "$FLOW_RUNNER_DIR/scripts/flow-runner.sh" add-item --root "$TMP_DIR" --item
 bash "$AGENT_LOOP_DIR/agent-loop.sh" apply --root "$TMP_DIR" >/dev/null
 bash "$AGENT_LOOP_DIR/agent-loop.sh" configure-runner --root "$TMP_DIR" --runner-name fake --argv-json "[\"python3\",\"$FAKE_RUNNER\",\"{repo_root}\",\"{session_brief}\",\"{runner_result}\"]" >/dev/null
 
+AMBIGUOUS_RESUME="$TMP_DIR/ambiguous-resume.json"
+set +e
+bash "$AGENT_LOOP_DIR/agent-loop.sh" resume --root "$TMP_DIR" --max-sessions 1 --json > "$AMBIGUOUS_RESUME"
+status=$?
+set -e
+if [[ "$status" -ne 1 ]]; then
+  echo "error: ambiguous resume should stop with operator action required" >&2
+  exit 1
+fi
+python3 - "$AMBIGUOUS_RESUME" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+payload = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+assert payload["stop_reason"] == "resume_target_ambiguous"
+assert payload["resume_candidates"]["live"]
+PY
+
 NEXT_JSON="$TMP_DIR/agent-next.json"
 bash "$AGENT_LOOP_DIR/agent-loop.sh" next --root "$TMP_DIR" --item manual-one --json > "$NEXT_JSON"
 python3 - "$NEXT_JSON" <<'PY'
@@ -405,6 +424,55 @@ from pathlib import Path
 
 payload = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
 assert any("unreadable" in issue for issue in payload["issues"])
+PY
+
+RESUME_TMP_DIR="$(mktemp -d)"
+trap 'rm -rf "$TMP_DIR" "$RESUME_TMP_DIR"' EXIT
+
+git -C "$RESUME_TMP_DIR" init -q -b main
+git -C "$RESUME_TMP_DIR" config user.name "Bagakit"
+git -C "$RESUME_TMP_DIR" config user.email "bagakit@example.com"
+printf '# resume\n' > "$RESUME_TMP_DIR/README.md"
+git -C "$RESUME_TMP_DIR" add README.md
+git -C "$RESUME_TMP_DIR" commit -q -m "init"
+mkdir -p "$RESUME_TMP_DIR/skills/harness"
+ln -s "$FLOW_RUNNER_DIR" "$RESUME_TMP_DIR/skills/harness/bagakit-flow-runner"
+
+bash "$FLOW_RUNNER_DIR/scripts/flow-runner.sh" apply --root "$RESUME_TMP_DIR" >/dev/null
+bash "$FLOW_RUNNER_DIR/scripts/flow-runner.sh" add-item --root "$RESUME_TMP_DIR" --item-id single-live --title "Single live" --source-kind manual --source-ref manual:single >/dev/null
+bash "$AGENT_LOOP_DIR/agent-loop.sh" apply --root "$RESUME_TMP_DIR" >/dev/null
+bash "$AGENT_LOOP_DIR/agent-loop.sh" configure-runner --root "$RESUME_TMP_DIR" --runner-name fake --argv-json "[\"python3\",\"$FAKE_RUNNER\",\"{repo_root}\",\"{session_brief}\",\"{runner_result}\"]" >/dev/null
+
+SINGLE_RESUME="$RESUME_TMP_DIR/single-resume.json"
+bash "$AGENT_LOOP_DIR/agent-loop.sh" resume --root "$RESUME_TMP_DIR" --max-sessions 1 --json > "$SINGLE_RESUME"
+python3 - "$SINGLE_RESUME" "$RESUME_TMP_DIR" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+payload = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+root = Path(sys.argv[2])
+assert payload["stop_reason"] == "item_archived"
+assert (root / ".bagakit" / "flow-runner" / "archive" / "single-live").is_dir()
+PY
+
+EMPTY_RESUME="$RESUME_TMP_DIR/empty-resume.json"
+set +e
+bash "$AGENT_LOOP_DIR/agent-loop.sh" resume --root "$RESUME_TMP_DIR" --max-sessions 1 --json > "$EMPTY_RESUME"
+status=$?
+set -e
+if [[ "$status" -ne 1 ]]; then
+  echo "error: empty resume should stop with operator action required" >&2
+  exit 1
+fi
+python3 - "$EMPTY_RESUME" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+payload = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+assert payload["stop_reason"] == "resume_target_required"
+assert payload["resume_candidates"]["live"] == []
 PY
 
 echo "ok: agent-loop smoke passed"

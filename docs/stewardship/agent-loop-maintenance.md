@@ -56,6 +56,16 @@ Bad uses:
   own
 - `agent_loop` still consumes flow-runner contract surfaces, not ad hoc text
 
+## Front-Door Rule
+
+`resume` should trust flow-runner `resume-candidates`.
+
+That means:
+
+- if exactly one live candidate exists, auto-resolve it
+- if zero or multiple live candidates exist, fail closed with a typed host stop
+- do not invent a second host-local current-item resolver
+
 ## Watch Rule
 
 `watch` is read-only.

@@ -140,6 +140,7 @@ Stable fields:
 - `run_record_path`
 - `flow_next`
 - optional `host_notification_request`
+- optional `resume_candidates`
 
 `host_notification_request` is host-plane intent.
 
@@ -147,6 +148,10 @@ It may tell the host how much attention a stop deserves and what the maintainer
 should do next.
 
 It does not become flow-runner truth.
+
+When `resume` cannot resolve one live candidate by itself, `run` payloads may
+also carry `resume_candidates` so the host can inspect the ambiguity without
+scraping flow-runner output.
 
 ## Run Record Contract
 
@@ -198,6 +203,8 @@ read-path state before any optimistic launch banner.
 - run lock acquisition must be atomic
 - stale lock recovery is allowed only when the recorded pid is dead
 - session budget exhaustion must return a typed stop
+- auto-resolved resume must fail closed when there are zero or multiple live
+  candidates
 - runner output without a valid `runner-result.json` must not be treated as
   success
 - runner failure must not cause `agent_loop` to invent flow-runner checkpoints
