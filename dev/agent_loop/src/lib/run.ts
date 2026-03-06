@@ -374,23 +374,8 @@ export function runAgentLoop(
   ensureDir(paths.sessionsDir);
   ensureDir(paths.runsDir);
 
-  const configStatus = runnerConfigStatus(paths);
-  const runnerName = configStatus.config?.runner_name ?? "unset";
-  const lockAttempt = (() => {
-    try {
-      return {
-        lockPath: acquireRunLock(root, runnerName),
-        error: "",
-      };
-    } catch (error) {
-      return {
-        lockPath: "",
-        error: error instanceof Error ? error.message : String(error),
-      };
-    }
-  })();
-  let sessionsLaunched = 0;
   let currentItem = itemId;
+  let sessionsLaunched = 0;
   if (options.resume_mode) {
     const resolvedTarget = resolveResumeTarget(root, itemId);
     currentItem = resolvedTarget.itemId;
@@ -409,6 +394,22 @@ export function runAgentLoop(
       });
     }
   }
+
+  const configStatus = runnerConfigStatus(paths);
+  const runnerName = configStatus.config?.runner_name ?? "unset";
+  const lockAttempt = (() => {
+    try {
+      return {
+        lockPath: acquireRunLock(root, runnerName),
+        error: "",
+      };
+    } catch (error) {
+      return {
+        lockPath: "",
+        error: error instanceof Error ? error.message : String(error),
+      };
+    }
+  })();
   if (lockAttempt.error) {
     const attempt = safeLoadNextAction(root, currentItem);
     return recordRun(root, attempt.payload.item_id || currentItem || "none", sessionsLaunched, maxSessions, {

@@ -168,6 +168,7 @@ Stable fields include:
 - `sessions_launched`
 - `session_budget`
 - optional `host_notification_request`
+- optional `resume_candidates`
 
 ## Watch Contract
 
