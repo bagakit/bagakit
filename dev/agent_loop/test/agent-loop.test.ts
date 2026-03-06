@@ -155,3 +155,117 @@ test("watch presenter keeps action-first sections visible", () => {
   assert.ok(screen.includes("Focus Item"));
   assert.ok(screen.includes("Loop Status"));
 });
+
+test("watch presenter prefers current decision over historical attention residue", () => {
+  const screen = renderWatchScreen(
+    {
+      schema: "bagakit/agent-loop/watch/v2",
+      command: "watch",
+      refreshed_at: "2026-04-20T00:00:00Z",
+      runner_config_status: "ready",
+      runner_name: "codex",
+      run_lock: { status: "idle" },
+      decision: {
+        recommended_action: "run_session",
+        action_reason: "active_work",
+        next_safe_action: "run",
+      },
+      focus_item: {
+        item_id: "manual-two",
+        title: "Manual two",
+        source_kind: "manual",
+        source_ref: "manual:two",
+        status: "todo",
+        resolution: "live",
+        current_stage: "implement",
+        current_step_status: "active",
+        session_number: 1,
+        handoff_path: ".bagakit/flow-runner/items/manual-two/handoff.md",
+        progress_log_path: ".bagakit/flow-runner/items/manual-two/progress.ndjson",
+      },
+      latest_run: {
+        schema: "bagakit/agent-loop/run-record/v2",
+        run_id: "run-2",
+        recorded_at: "2026-04-20T00:00:00Z",
+        run_status: "terminal",
+        stop_reason: "item_archived",
+        operator_message: "old stop",
+        next_safe_action: "idle",
+        next_command_example: "",
+        can_resume: false,
+        item_id: "manual-old",
+        sessions_launched: 1,
+        session_budget: 1,
+        checkpoint_observed: true,
+        runner_session_id: "sess-2",
+      },
+      recent_runs: [],
+      recent_sessions: [],
+      detail: {
+        handoff_excerpt: "",
+        progress_excerpt: "",
+        stdout_excerpt: "",
+        stderr_excerpt: "",
+      },
+    },
+    { ansi: false, width: 120 },
+  );
+  assert.ok(screen.includes("READY"));
+});
+
+test("watch presenter surfaces degraded refresh errors before ready state", () => {
+  const screen = renderWatchScreen(
+    {
+      schema: "bagakit/agent-loop/watch/v2",
+      command: "watch",
+      refreshed_at: "2026-04-20T00:00:00Z",
+      watch_issue: "flow-runner script is missing",
+      runner_config_status: "ready",
+      runner_name: "codex",
+      run_lock: { status: "idle" },
+      decision: {
+        recommended_action: "run_session",
+        action_reason: "active_work",
+        next_safe_action: "run",
+      },
+      recent_runs: [],
+      recent_sessions: [],
+      detail: {
+        handoff_excerpt: "",
+        progress_excerpt: "",
+        stdout_excerpt: "",
+        stderr_excerpt: "",
+      },
+    },
+    { ansi: false, width: 120 },
+  );
+  assert.ok(screen.includes("WATCH DEGRADED"));
+});
+
+test("watch presenter does not show ready when launch is blocked by config", () => {
+  const screen = renderWatchScreen(
+    {
+      schema: "bagakit/agent-loop/watch/v2",
+      command: "watch",
+      refreshed_at: "2026-04-20T00:00:00Z",
+      runner_config_status: "invalid",
+      runner_name: "codex",
+      run_lock: { status: "idle" },
+      decision: {
+        recommended_action: "run_session",
+        action_reason: "active_work",
+        next_safe_action: "repair_runner_config",
+      },
+      recent_runs: [],
+      recent_sessions: [],
+      detail: {
+        handoff_excerpt: "",
+        progress_excerpt: "",
+        stdout_excerpt: "",
+        stderr_excerpt: "",
+      },
+    },
+    { ansi: false, width: 120 },
+  );
+  assert.ok(screen.includes("LAUNCH BLOCKED"));
+});

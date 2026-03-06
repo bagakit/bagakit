@@ -43,22 +43,40 @@ function mergeColumns(left: string[], right: string[], leftWidth: number, rightW
 }
 
 function statusHeadline(payload: AgentLoopWatchPayload): { label: string; reason: string; next: string; message: string; color: keyof typeof COLORS } {
-  if (payload.latest_run && payload.latest_run.run_status === "operator_action_required") {
+  if (payload.watch_issue) {
+    return {
+      label: "WATCH DEGRADED",
+      reason: "flow_runner_refresh_failed",
+      next: "inspect_flow_runner_state",
+      message: payload.watch_issue,
+      color: "critical",
+    };
+  }
+  if (payload.current_notification && payload.latest_run && payload.latest_run.run_status === "operator_action_required") {
     return {
       label: "ACTION REQUIRED",
       reason: payload.latest_run.stop_reason,
       next: payload.latest_run.next_safe_action,
-      message: payload.latest_run.operator_message,
-      color: payload.current_notification?.severity === "critical" ? "critical" : "warn",
+      message: payload.current_notification.summary || payload.latest_run.operator_message,
+      color: payload.current_notification.severity === "critical" ? "critical" : "warn",
     };
   }
-  if (payload.decision.recommended_action === "run_session") {
+  if (payload.decision.recommended_action === "run_session" && payload.decision.next_safe_action === "run") {
     return {
       label: "READY",
       reason: payload.decision.action_reason,
       next: payload.decision.next_safe_action,
       message: "One bounded session can run now.",
       color: "ok",
+    };
+  }
+  if (payload.decision.recommended_action === "run_session") {
+    return {
+      label: "LAUNCH BLOCKED",
+      reason: payload.decision.action_reason,
+      next: payload.decision.next_safe_action,
+      message: "The loop has work, but host-side launch conditions are not ready.",
+      color: "warn",
     };
   }
   if (payload.decision.recommended_action === "archive_closeout") {

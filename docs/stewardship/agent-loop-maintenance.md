@@ -71,6 +71,13 @@ Its information order should stay:
 If a watch change gives logs more visual weight than next action or current
 focus, reject it.
 
+Historical notification residue must not outrank the current flow-runner
+decision. Only the latest watched operator-required run may become
+`current_notification`.
+
+Likewise, a degraded watch read path must not render as `READY` or `IDLE`.
+Show the host read-path issue first.
+
 ## Boundary Reminder
 
 If a proposed `agent_loop` change starts needing:

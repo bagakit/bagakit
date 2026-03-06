@@ -297,9 +297,15 @@ function sortedSessionSummaries(paths: AgentLoopPaths): WatchSessionSummary[] {
           runner_name: string;
           item: { item_id: string };
         }>(briefPath);
-        const metadata = loadJsonIfExists<{ exit_code: number | null }>(metadataPath);
-        const result = loadJsonIfExists<RunnerResult>(resultPath);
-        const issue = runnerResultIssue(result, brief.session_id);
+        const metadata = loadJsonIfExists<{ exit_code: number | null; item_id?: string; runner_name?: string; started_at?: string }>(metadataPath);
+        let result: RunnerResult | null = null;
+        let issue = "";
+        try {
+          result = loadJsonIfExists<RunnerResult>(resultPath);
+          issue = runnerResultIssue(result, brief.session_id);
+        } catch (error) {
+          issue = error instanceof Error ? error.message : String(error);
+        }
         const resultStatus: RunnerResult["status"] | "" =
           result?.status === "completed" || result?.status === "operator_cancelled" ? result.status : "";
         return {
@@ -313,12 +319,13 @@ function sortedSessionSummaries(paths: AgentLoopPaths): WatchSessionSummary[] {
           issue: issue || undefined,
         };
       } catch (error) {
+        const metadata = loadJsonIfExists<{ exit_code: number | null; item_id?: string; runner_name?: string; started_at?: string }>(metadataPath);
         return {
           session_id: entry.name,
-          item_id: "",
-          runner_name: "",
-          started_at: "",
-          exit_code: null,
+          item_id: metadata?.item_id || "",
+          runner_name: metadata?.runner_name || "",
+          started_at: metadata?.started_at || "",
+          exit_code: metadata?.exit_code ?? null,
           result_status: "" as const,
           checkpoint_written: null,
           issue: error instanceof Error ? error.message : String(error),
@@ -402,7 +409,15 @@ function focusItemFromNext(root: string, flowNext: FlowNextPayload): WatchFocusI
 }
 
 function latestNotification(recentRuns: RunRecord[]): HostNotificationRequest | undefined {
-  return recentRuns.find((run) => run.host_notification_request)?.host_notification_request;
+  const latestRun = recentRuns[0];
+  if (!latestRun || latestRun.run_status !== "operator_action_required") {
+    return undefined;
+  }
+  return latestRun.host_notification_request;
+}
+
+function sessionMatchesItem(session: WatchSessionSummary, itemId: string): boolean {
+  return session.item_id === itemId;
 }
 
 function runRecordIssues(paths: AgentLoopPaths): string[] {
@@ -425,16 +440,24 @@ function runRecordIssues(paths: AgentLoopPaths): string[] {
 export function watchAgentLoop(root: string, itemId?: string): AgentLoopWatchPayload {
   const paths = new AgentLoopPaths(root);
   const configStatus = runnerConfigStatus(paths);
-  const recentRuns = sortedRunRecords(paths).slice(0, 5);
-  const recentSessions = sortedSessionSummaries(paths).slice(0, 5);
+  const allRuns = sortedRunRecords(paths);
+  const allSessions = sortedSessionSummaries(paths);
   const nextAttempt = safeNextPayload(root, itemId);
   const flowNext = nextAttempt.payload;
   const focusItem = focusItemFromNext(root, flowNext);
+  const watchItemId = focusItem?.item_id || itemId || "";
+  const recentRuns = (watchItemId ? allRuns.filter((run) => run.item_id === watchItemId) : allRuns).slice(0, 5);
+  const recentSessions = (
+    watchItemId
+      ? allSessions.filter((session) => sessionMatchesItem(session, watchItemId))
+      : allSessions
+  ).slice(0, 5);
   const latestSession = recentSessions[0];
   return {
     schema: WATCH_SCHEMA,
     command: "watch",
     refreshed_at: utcNow(),
+    watch_issue: nextAttempt.error || undefined,
     runner_config_status: configStatus.status,
     runner_name: configStatus.config?.runner_name || "unset",
     run_lock: runLockState(paths),
@@ -582,11 +605,17 @@ export function sessionPrompt(root: string, sessionId: string): string {
 export function writeSessionMeta(
   root: string,
   sessionId: string,
+  itemId: string,
+  runnerName: string,
+  startedAt: string,
   exitCode: number | null,
   signal: string | null,
 ): void {
   const paths = new AgentLoopPaths(root);
   writeJsonFile(path.join(paths.sessionDir(sessionId), "session-meta.json"), {
+    item_id: itemId,
+    runner_name: runnerName,
+    started_at: startedAt,
     exit_code: exitCode,
     signal,
   });

@@ -171,6 +171,7 @@ Stable fields include:
 Stable fields include:
 
 - `refreshed_at`
+- optional `watch_issue`
 - `runner_config_status`
 - `runner_name`
 - `run_lock`
@@ -185,6 +186,12 @@ Stable fields include:
 
 The non-JSON `watch` surface is a read-only host renderer over that same watch
 payload.
+
+`current_notification` is only populated when the latest run for the watched
+scope is still `operator_action_required`.
+
+If `watch_issue` is present, the watch surface must show that degraded host
+read-path state before any optimistic launch banner.
 
 ## Fail-Closed Rules
 

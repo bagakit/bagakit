@@ -169,8 +169,9 @@ payload = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
 assert payload["runner_config_status"] == "ready"
 assert payload["run_lock"]["status"] == "idle"
 assert payload["decision"]["next_safe_action"] in {"run", "resume_run", "close_item_upstream", "idle", "resolve_blocker", "archive_owned_item"}
-assert len(payload["recent_runs"]) >= 4
-assert len(payload["recent_sessions"]) >= 4
+assert payload["focus_item"]["item_id"]
+assert len(payload["recent_runs"]) >= 1
+assert len(payload["recent_sessions"]) >= 1
 PY
 
 WATCH_ONCE="$TMP_DIR/watch-once.txt"
@@ -304,7 +305,7 @@ assert payload["sessions_launched"] == 1
 PY
 
 POST_INVALID_WATCH="$TMP_DIR/post-invalid-watch.json"
-bash "$AGENT_LOOP_DIR/agent-loop.sh" watch --root "$TMP_DIR" --json > "$POST_INVALID_WATCH"
+bash "$AGENT_LOOP_DIR/agent-loop.sh" watch --root "$TMP_DIR" --item manual-invalid --json > "$POST_INVALID_WATCH"
 python3 - "$POST_INVALID_WATCH" <<'PY'
 import json
 import sys
@@ -362,12 +363,23 @@ import sys
 from pathlib import Path
 
 root = Path(sys.argv[1])
-session_dirs = sorted((root / ".bagakit" / "agent-loop" / "runner-sessions").iterdir())
-(session_dirs[0] / "session-brief.json").write_text("oops\n", encoding="utf-8")
+sessions_root = root / ".bagakit" / "agent-loop" / "runner-sessions"
+target = None
+for session_dir in sorted(sessions_root.iterdir()):
+    brief_path = session_dir / "session-brief.json"
+    if not brief_path.is_file():
+        continue
+    payload = json.loads(brief_path.read_text(encoding="utf-8"))
+    if payload.get("item", {}).get("item_id") == "manual-invalid":
+        target = brief_path
+        break
+if target is None:
+    raise SystemExit("could not find manual-invalid session brief")
+target.write_text("oops\n", encoding="utf-8")
 PY
 
 CORRUPT_WATCH="$TMP_DIR/corrupt-watch.json"
-bash "$AGENT_LOOP_DIR/agent-loop.sh" watch --root "$TMP_DIR" --json > "$CORRUPT_WATCH"
+bash "$AGENT_LOOP_DIR/agent-loop.sh" watch --root "$TMP_DIR" --item manual-invalid --json > "$CORRUPT_WATCH"
 python3 - "$CORRUPT_WATCH" <<'PY'
 import json
 import sys

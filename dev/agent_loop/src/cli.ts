@@ -22,6 +22,14 @@ function parsePositiveInteger(value: string, flag: string): number {
   return parsed;
 }
 
+function parsePositiveFloat(value: string, flag: string): number {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    throw new Error(`${flag} must be a positive number`);
+  }
+  return parsed;
+}
+
 function printHelp(): void {
   console.log(`bagakit agent loop
 
@@ -191,7 +199,7 @@ async function cmdWatch(argv: string[]): Promise<number> {
   }
   return runWatchLoop(buildPayload, {
     once: values.once,
-    refreshSeconds: Number(values["refresh-seconds"]) || 1,
+    refreshSeconds: parsePositiveFloat(values["refresh-seconds"], "--refresh-seconds"),
   });
 }
 

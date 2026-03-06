@@ -203,7 +203,7 @@ function launchRunnerSession(root: string, config: RunnerConfig, flowNext: FlowN
     },
   });
   writeSessionOutput(root, sessionId, result.stdout ?? "", result.stderr ?? "");
-  writeSessionMeta(root, sessionId, result.status ?? null, result.signal ?? null);
+  writeSessionMeta(root, sessionId, flowNext.item_id, config.runner_name, new Date().toISOString(), result.status ?? null, result.signal ?? null);
 
   let stopReason: RunStopReason | "" = "";
   if (result.error) {

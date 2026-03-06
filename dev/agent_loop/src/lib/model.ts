@@ -298,6 +298,7 @@ export type AgentLoopWatchPayload = Readonly<{
   schema: typeof WATCH_SCHEMA;
   command: "watch";
   refreshed_at: string;
+  watch_issue?: string;
   runner_config_status: RunnerConfigStatusKind;
   runner_name: string;
   run_lock: RunLockState;
