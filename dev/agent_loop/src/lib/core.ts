@@ -279,6 +279,26 @@ export function runnerResultIssue(result: RunnerResult | null, sessionId: string
   return "";
 }
 
+function loadSessionMeta(filePath: string): { exit_code: number | null; item_id?: string; runner_name?: string; started_at?: string } | null {
+  try {
+    return loadJsonIfExists<{ exit_code: number | null; item_id?: string; runner_name?: string; started_at?: string }>(filePath);
+  } catch {
+    return null;
+  }
+}
+
+function sessionMetaIssue(filePath: string): string {
+  if (!fs.existsSync(filePath)) {
+    return "";
+  }
+  try {
+    readJsonFile<unknown>(filePath);
+    return "";
+  } catch (error) {
+    return error instanceof Error ? error.message : String(error);
+  }
+}
+
 function sortedSessionSummaries(paths: AgentLoopPaths): WatchSessionSummary[] {
   if (!fs.existsSync(paths.sessionsDir)) {
     return [];
@@ -297,7 +317,7 @@ function sortedSessionSummaries(paths: AgentLoopPaths): WatchSessionSummary[] {
           runner_name: string;
           item: { item_id: string };
         }>(briefPath);
-        const metadata = loadJsonIfExists<{ exit_code: number | null; item_id?: string; runner_name?: string; started_at?: string }>(metadataPath);
+        const metadata = loadSessionMeta(metadataPath);
         let result: RunnerResult | null = null;
         let issue = "";
         try {
@@ -319,7 +339,7 @@ function sortedSessionSummaries(paths: AgentLoopPaths): WatchSessionSummary[] {
           issue: issue || undefined,
         };
       } catch (error) {
-        const metadata = loadJsonIfExists<{ exit_code: number | null; item_id?: string; runner_name?: string; started_at?: string }>(metadataPath);
+        const metadata = loadSessionMeta(metadataPath);
         return {
           session_id: entry.name,
           item_id: metadata?.item_id || "",
@@ -508,6 +528,10 @@ export function validateAgentLoop(root: string): string[] {
       if (!fs.existsSync(path.join(sessionDir, required))) {
         issues.push(`session ${session.session_id} is missing ${required}`);
       }
+    }
+    const metaIssue = sessionMetaIssue(path.join(sessionDir, "session-meta.json"));
+    if (metaIssue) {
+      issues.push(`session ${session.session_id} has unreadable session-meta.json: ${metaIssue}`);
     }
     if (hasSummaryIssue) {
       continue;
