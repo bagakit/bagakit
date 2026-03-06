@@ -13,10 +13,5 @@ kind = "executable"
 command = "{node}"
 args = [
   "--experimental-strip-types",
-  "dev/eval/src/cli.ts",
-  "run",
-  "--root",
-  "{repo_root}",
-  "--suite",
-  "gate_eval/dev/eval/fixture_suite.ts",
+  "gate_eval/dev/eval/run_eval.ts",
 ]

@@ -8,8 +8,13 @@ fixture suite.
 
 Scope:
 
-- suite loading
+- pass-path packet validation
+- fail-path packet validation
 - temp-path sanitization
 - normalized packet writing
+
+Default result root:
+
+- `gate_eval/dev/eval/results/runs/`
 
 It does not own skill behavior truth.

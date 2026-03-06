@@ -50,9 +50,15 @@ async function runCase(
   caseDef: EvalCaseDefinition,
 ): Promise<EvalCaseReport> {
   const startedAt = Date.now();
+  const contextReplacements: Replacement[] = [];
   try {
-    const result = await caseDef.run(context);
-    const replacements = result.replacements ?? [];
+    const result = await caseDef.run({
+      ...context,
+      addReplacement: (from: string, to: string) => {
+        contextReplacements.push({ from, to });
+      },
+    });
+    const replacements = [...contextReplacements, ...(result.replacements ?? [])];
     const artifacts = (result.artifacts ?? []).map((entry) => ({
       ...entry,
       path: String(sanitizeUnknown(entry.path, replacements)),
@@ -75,6 +81,7 @@ async function runCase(
       outputs: sanitizeUnknown(result.outputs, replacements) as Record<string, unknown> | undefined,
     };
   } catch (error) {
+    const replacements = [...contextReplacements];
     return {
       schema: "bagakit.eval-case/v1",
       suiteId: suite.id,
@@ -89,7 +96,7 @@ async function runCase(
       warnings: [],
       commands: [],
       artifacts: [],
-      error: sanitizeError(error, [] as Replacement[]),
+      error: sanitizeError(error, replacements),
     };
   }
 }
@@ -121,6 +128,7 @@ export async function runSuite(suite: EvalSuiteDefinition, options: RunOptions):
       runId,
       suiteId: suite.id,
       keepTemp: options.keepTemp,
+      addReplacement: () => {},
     }, caseDef);
     caseReports.push(report);
     writeJson(path.join(caseOutputDir, `${caseDef.id}.json`), report);

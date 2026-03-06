@@ -18,13 +18,16 @@ export const SUITE: EvalSuiteDefinition = {
       title: "Sanitized Command Output",
       summary: "Command results should replace temp-workspace paths before they land in case output.",
       focus: ["sanitization", "packet-output"],
-      run: () => {
+      run: (context) => {
         const tempRepo = createTempDir("bagakit-dev-eval-");
         const canonicalTempRepo = fs.realpathSync(tempRepo);
         const replacements = [
           { from: canonicalTempRepo, to: "<temp-repo>" },
           { from: tempRepo, to: "<temp-repo>" },
         ];
+        for (const replacement of replacements) {
+          context.addReplacement(replacement.from, replacement.to);
+        }
         writeTextFile(path.join(tempRepo, "README.md"), "# fixture\n");
         const result = runCommand(
           "node",
@@ -67,9 +70,12 @@ export const SUITE: EvalSuiteDefinition = {
       title: "Structured Output Shape",
       summary: "Case outputs should support structured data without losing packet compatibility.",
       focus: ["packet-output"],
-      run: () => {
+      run: (context) => {
         const tempRepo = createTempDir("bagakit-dev-eval-");
         const replacements = [{ from: tempRepo, to: "<temp-repo>" }];
+        for (const replacement of replacements) {
+          context.addReplacement(replacement.from, replacement.to);
+        }
         writeTextFile(path.join(tempRepo, "evidence", "note.txt"), "ok\n");
         return {
           assertions: [

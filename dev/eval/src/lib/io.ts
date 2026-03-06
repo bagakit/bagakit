@@ -1,5 +1,4 @@
 import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
 
 export interface Replacement {
@@ -79,6 +78,5 @@ export function environmentSnapshot(): Record<string, unknown> {
     node: process.version,
     platform: process.platform,
     arch: process.arch,
-    tempDir: os.tmpdir(),
   };
 }

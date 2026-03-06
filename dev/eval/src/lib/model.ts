@@ -22,6 +22,7 @@ export interface EvalCaseContext {
   runId: string;
   suiteId: string;
   keepTemp: boolean;
+  addReplacement: (from: string, to: string) => void;
 }
 
 export interface EvalCaseDefinition {
