@@ -3,13 +3,14 @@ import path from "node:path";
 
 import type {
   EvolverIndex,
+  IntakeSignalRecord,
   PromotionRecord,
   RoutingRecord,
   TopicRecord,
   TopicIndexEntry,
 } from "./model.ts";
 import type { EvolverPaths } from "./paths.ts";
-import { buildTopicArchive, buildTopicHandoff, buildTopicReadme, buildTopicReport } from "./render.ts";
+import { buildMemInboxReadme, buildTopicArchive, buildTopicHandoff, buildTopicReadme, buildTopicReport } from "./render.ts";
 import { evaluatePromotionReadiness } from "./readiness.ts";
 
 function ensureDir(dir: string): void {
@@ -98,9 +99,72 @@ function normalizeTopicRecord(raw: Partial<TopicRecord>, fallbackSlug: string): 
   };
 }
 
+function normalizeIntakeSignalRecord(raw: Partial<IntakeSignalRecord>, fallbackId: string): IntakeSignalRecord {
+  const localRefs = Array.isArray(raw.local_refs) ? raw.local_refs.map((value) => String(value)) : [];
+  const evidence = Array.isArray(raw.evidence) ? raw.evidence.map((value) => String(value)) : [];
+  return {
+    version: 1,
+    id: String(raw.id ?? fallbackId),
+    kind: String(raw.kind ?? "decision") as IntakeSignalRecord["kind"],
+    title: String(raw.title ?? fallbackId),
+    summary: String(raw.summary ?? ""),
+    producer: String(raw.producer ?? "unknown"),
+    source_channel: String(raw.source_channel ?? "unknown"),
+    topic_hint: raw.topic_hint === undefined ? undefined : String(raw.topic_hint),
+    confidence: Number(raw.confidence ?? 0),
+    evidence,
+    local_refs: localRefs,
+    status: String(raw.status ?? "pending") as IntakeSignalRecord["status"],
+    adopted_topic: raw.adopted_topic === undefined ? undefined : String(raw.adopted_topic),
+    resolution_note: raw.resolution_note === undefined ? undefined : String(raw.resolution_note),
+    created_at: String(raw.created_at ?? ""),
+    updated_at: String(raw.updated_at ?? ""),
+  };
+}
+
 export function ensureBaseLayout(paths: EvolverPaths): void {
+  ensureDir(paths.memInboxRoot);
+  ensureDir(paths.memInboxSignalsRoot);
   ensureDir(paths.stateRoot);
   ensureDir(paths.topicsRoot);
+}
+
+export function signalExists(paths: EvolverPaths, signalId: string): boolean {
+  return fs.existsSync(paths.memInboxSignalFile(signalId));
+}
+
+export function listSignalIds(paths: EvolverPaths): string[] {
+  ensureBaseLayout(paths);
+  return fs
+    .readdirSync(paths.memInboxSignalsRoot, { withFileTypes: true })
+    .filter((entry) => entry.isFile() && entry.name.endsWith(".json"))
+    .map((entry) => entry.name.slice(0, -5))
+    .sort((a, b) => a.localeCompare(b));
+}
+
+export function readSignal(paths: EvolverPaths, signalId: string): IntakeSignalRecord {
+  if (!signalExists(paths, signalId)) {
+    throw new Error(`unknown signal: ${signalId}`);
+  }
+  const raw = readJson(paths.memInboxSignalFile(signalId)) as Partial<IntakeSignalRecord>;
+  return normalizeIntakeSignalRecord(raw, signalId);
+}
+
+export function readRawSignal(paths: EvolverPaths, signalId: string): unknown {
+  if (!signalExists(paths, signalId)) {
+    throw new Error(`unknown signal: ${signalId}`);
+  }
+  return readJson(paths.memInboxSignalFile(signalId));
+}
+
+export function writeSignal(paths: EvolverPaths, signal: IntakeSignalRecord): void {
+  writeJson(paths.memInboxSignalFile(signal.id), signal);
+}
+
+export function writeMemInboxReadme(paths: EvolverPaths): void {
+  const signals = listSignalIds(paths).map((signalId) => readSignal(paths, signalId));
+  ensureDir(paths.memInboxRoot);
+  fs.writeFileSync(paths.memInboxReadme, buildMemInboxReadme(paths, signals), "utf8");
 }
 
 export function readIndex(

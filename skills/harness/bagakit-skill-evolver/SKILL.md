@@ -153,6 +153,17 @@ Low-level operator:
 
 Use `node --experimental-strip-types scripts/evolver.ts ...` for state changes.
 
+Common intake sequence:
+
+- `capture-signal`
+  - record one provisional repository-learning signal into `.mem_inbox/`
+- `import-signals`
+  - import one validated `bagakit.evolver.signal.v1` batch into `.mem_inbox/`
+- `adopt-signal`
+  - move one pending signal into structured topic evidence
+- `dismiss-signal`
+  - explicitly close one pending signal without topic adoption
+
 If the operator cannot be used:
 
 - edit `.bagakit/evolver/` minimally and carefully

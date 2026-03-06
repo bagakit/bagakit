@@ -5,14 +5,20 @@ import { fileURLToPath } from "node:url";
 import {
   ensureBaseLayout,
   listTopicSlugs,
+  listSignalIds,
   readIndex,
   readRawIndex,
+  readRawSignal,
+  readSignal,
   readRawTopic,
   readTopic,
+  signalExists,
   syncIndexEntry,
   syncIndexFromTopics,
   topicExists,
   writeIndex,
+  writeMemInboxReadme,
+  writeSignal,
   writeTopicArchive,
   writeTopicHandoff,
   writeTopic,
@@ -29,6 +35,8 @@ import {
   PROMOTION_STATUSES,
   PROMOTION_SURFACES,
   ROUTE_DECISIONS as _ROUTE_DECISIONS,
+  SIGNAL_KINDS,
+  SIGNAL_STATUSES,
   SOURCE_KINDS,
   TOPIC_STATUSES,
 } from "./lib/model.ts";
@@ -36,9 +44,13 @@ import type {
   BenchmarkRecord,
   CandidateRecord,
   FeedbackRecord,
+  IntakeSignalContract,
+  IntakeSignalRecord,
   NoteRecord,
   PromotionRecord,
   PromotionStatus,
+  SignalKind,
+  SignalStatus,
   SourceRecord,
   TopicRecord,
   TopicStatus,
@@ -52,7 +64,7 @@ import type {
   SourceKind,
 } from "./lib/model.ts";
 import { resolvePaths } from "./lib/paths.ts";
-import { buildTopicArchive, buildTopicHandoff, buildTopicReadme, buildTopicReport } from "./lib/render.ts";
+import { buildMemInboxReadme, buildTopicArchive, buildTopicHandoff, buildTopicReadme, buildTopicReport } from "./lib/render.ts";
 import { evaluatePromotionReadiness } from "./lib/readiness.ts";
 import { nowIso, toSlug } from "./lib/text.ts";
 import {
@@ -61,6 +73,8 @@ import {
   validateIndexEntry,
   validateIndexShape,
   validatePromotionRefSurface,
+  validateSignalContract,
+  validateSignalShape,
   validateRoutingShape,
   validateTopicShape,
 } from "./lib/validate.ts";
@@ -72,6 +86,13 @@ function printHelp(): void {
 
 Commands:
   init-topic --slug <slug> [--title <title>] [--root <repo-root>]
+  capture-signal --signal <id> --kind <kind> --title <title> --summary <text> --producer <name> --channel <name> [--topic-hint <slug>] [--confidence <0..1>] [--evidence <text>] [--local-refs <repo-relative[,repo-relative...]>] [--root <repo-root>]
+  validate-signals --contract <json> [--root <repo-root>]
+  import-signals --contract <json> [--root <repo-root>]
+  export-signals [--status <pending|adopted|dismissed|all>] [--output <json>] [--root <repo-root>]
+  list-signals [--status <pending|adopted|dismissed|all>] [--json] [--root <repo-root>]
+  adopt-signal --signal <id> --topic <slug> [--source-id <id>] [--source-kind <doc|note>] [--origin <text>] [--note <text>] [--note-kind <observation|decision>] [--candidate-ids <id[,id...]>] [--root <repo-root>]
+  dismiss-signal --signal <id> --note <text> [--root <repo-root>]
   preflight --topic <slug> --decision <skip|note-only|track> --rationale <text> [--root <repo-root>]
   add-candidate --topic <slug> --candidate <id> --kind <kind> --source <source> --summary <text> [--status <status>] [--root <repo-root>]
   add-source --topic <slug> --source-id <id> --kind <kind> --title <title> --origin <value> [--local-ref <repo-relative>] [--summary-ref <repo-relative>] [--root <repo-root>]
@@ -119,6 +140,14 @@ function assertCandidateStatus(value: string): CandidateStatus {
 
 function assertNoteKind(value: string): NoteKind {
   return assertEnumValue(NOTE_KINDS, value, "note kind");
+}
+
+function assertSignalKind(value: string): SignalKind {
+  return assertEnumValue(SIGNAL_KINDS, value, "signal kind");
+}
+
+function assertSignalStatus(value: string): SignalStatus {
+  return assertEnumValue(SIGNAL_STATUSES, value, "signal status");
 }
 
 function assertPreflightDecision(value: string): PreflightDecision {
@@ -169,6 +198,50 @@ function readCsvRepoRefs(root: string, raw?: string): string[] {
     .map((item) => item.trim())
     .filter((item) => item !== "")
     .map((item) => normalizeLocalContextRef(root, item));
+}
+
+function readCsvValues(raw?: string): string[] {
+  if (!raw) {
+    return [];
+  }
+  return raw
+    .split(",")
+    .map((item) => item.trim())
+    .filter((item) => item !== "");
+}
+
+function readConfidence(raw?: string): number {
+  if (!raw) {
+    return 0.5;
+  }
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed) || parsed < 0 || parsed > 1) {
+    throw new Error(`confidence must be between 0 and 1: ${raw}`);
+  }
+  return parsed;
+}
+
+function readSignalContract(file: string, root: string): IntakeSignalContract {
+  const contractPath = path.resolve(root, file);
+  const raw = JSON.parse(fs.readFileSync(contractPath, "utf8")) as unknown;
+  validateSignalContract(raw, root);
+  return raw as IntakeSignalContract;
+}
+
+function buildSignalFileRecord(
+  signal: IntakeSignalRecord,
+  override: Partial<IntakeSignalRecord> = {},
+): IntakeSignalRecord {
+  return {
+    ...signal,
+    ...override,
+    version: 1,
+  };
+}
+
+function persistSignal(paths: ReturnType<typeof resolvePaths>, signal: IntakeSignalRecord): void {
+  writeSignal(paths, signal);
+  writeMemInboxReadme(paths);
 }
 
 function persistTopic(paths: ReturnType<typeof resolvePaths>, topic: TopicRecord): void {
@@ -228,6 +301,247 @@ function cmdInitTopic(flags: Map<string, string | boolean>): void {
   persistTopic(paths, topic);
 
   console.log(`initialized topic ${slug}`);
+}
+
+function cmdCaptureSignal(flags: Map<string, string | boolean>): void {
+  const root = readStringFlag(flags, "root") ?? defaultRoot;
+  const signalId = toSlug(readStringFlag(flags, "signal", true)!);
+  const kind = assertSignalKind(readStringFlag(flags, "kind", true)!);
+  const title = readStringFlag(flags, "title", true)!;
+  const summary = readStringFlag(flags, "summary", true)!;
+  const producer = readStringFlag(flags, "producer", true)!;
+  const sourceChannel = readStringFlag(flags, "channel", true)!;
+  const topicHint = readStringFlag(flags, "topic-hint");
+  const confidence = readConfidence(readStringFlag(flags, "confidence"));
+  const evidenceValue = readStringFlag(flags, "evidence");
+  const localRefs = readCsvRepoRefs(root, readStringFlag(flags, "local-refs"));
+
+  if (!signalId) {
+    throw new Error("signal id normalizes to empty value");
+  }
+
+  const paths = resolvePaths(root);
+  ensureBaseLayout(paths);
+  if (signalExists(paths, signalId)) {
+    const existing = readSignal(paths, signalId);
+    if (existing.status !== "pending") {
+      throw new Error(`signal already resolved: ${signalId}`);
+    }
+  }
+
+  const now = nowIso();
+  const signal: IntakeSignalRecord = {
+    version: 1,
+    id: signalId,
+    kind,
+    title,
+    summary,
+    producer,
+    source_channel: sourceChannel,
+    topic_hint: topicHint ? toSlug(topicHint) : undefined,
+    confidence,
+    evidence: evidenceValue ? [evidenceValue] : [],
+    local_refs: localRefs,
+    status: "pending",
+    created_at: signalExists(paths, signalId) ? readSignal(paths, signalId).created_at : now,
+    updated_at: now,
+  };
+
+  persistSignal(paths, signal);
+  console.log(`captured signal ${signalId}`);
+}
+
+function cmdValidateSignals(flags: Map<string, string | boolean>): void {
+  const root = readStringFlag(flags, "root") ?? defaultRoot;
+  const contractFile = readStringFlag(flags, "contract", true)!;
+  readSignalContract(contractFile, root);
+  console.log("signal contract is valid");
+}
+
+function cmdImportSignals(flags: Map<string, string | boolean>): void {
+  const root = readStringFlag(flags, "root") ?? defaultRoot;
+  const contractFile = readStringFlag(flags, "contract", true)!;
+  const contract = readSignalContract(contractFile, root);
+  const paths = resolvePaths(root);
+  ensureBaseLayout(paths);
+
+  let imported = 0;
+  for (const input of contract.signals) {
+    if (input.status !== "pending") {
+      throw new Error(`import-signals only accepts pending signals: ${input.id}`);
+    }
+    const signalId = toSlug(input.id);
+    if (!signalId) {
+      throw new Error("signal id normalizes to empty value");
+    }
+    if (signalExists(paths, signalId)) {
+      const existing = readSignal(paths, signalId);
+      if (existing.status !== "pending") {
+        throw new Error(`signal already resolved: ${signalId}`);
+      }
+    }
+    const now = nowIso();
+    const signal: IntakeSignalRecord = buildSignalFileRecord(input, {
+      id: signalId,
+      topic_hint: input.topic_hint ? toSlug(input.topic_hint) : undefined,
+      local_refs: input.local_refs.map((ref) => normalizeLocalContextRef(root, ref)),
+      created_at: signalExists(paths, signalId) ? readSignal(paths, signalId).created_at : now,
+      updated_at: now,
+      status: "pending",
+      adopted_topic: undefined,
+      resolution_note: undefined,
+      producer: input.producer || contract.producer,
+    });
+    persistSignal(paths, signal);
+    imported += 1;
+  }
+  console.log(`imported ${imported} signal(s)`);
+}
+
+function cmdExportSignals(flags: Map<string, string | boolean>): void {
+  const root = readStringFlag(flags, "root") ?? defaultRoot;
+  const statusFilter = readStringFlag(flags, "status") ?? "pending";
+  const normalizedStatus = statusFilter === "all" ? "all" : assertSignalStatus(statusFilter);
+  const paths = resolvePaths(root);
+  ensureBaseLayout(paths);
+  const signals = listSignalIds(paths)
+    .map((signalId) => readSignal(paths, signalId))
+    .filter((signal) => normalizedStatus === "all" || signal.status === normalizedStatus);
+  const payload: IntakeSignalContract = {
+    schema: "bagakit.evolver.signal.v1",
+    producer: "bagakit-skill-evolver",
+    generated_at: nowIso(),
+    signals,
+  };
+  const output = readStringFlag(flags, "output");
+  if (output) {
+    const outPath = path.resolve(root, output);
+    fs.mkdirSync(path.dirname(outPath), { recursive: true });
+    fs.writeFileSync(outPath, JSON.stringify(payload, null, 2) + "\n", "utf8");
+    console.log(`exported signals to ${path.relative(root, outPath).split(path.sep).join("/")}`);
+    return;
+  }
+  console.log(JSON.stringify(payload, null, 2));
+}
+
+function cmdListSignals(flags: Map<string, string | boolean>): void {
+  const root = readStringFlag(flags, "root") ?? defaultRoot;
+  const statusFilter = readStringFlag(flags, "status") ?? "all";
+  const normalizedStatus = statusFilter === "all" ? "all" : assertSignalStatus(statusFilter);
+  const jsonMode = flags.has("json");
+  const paths = resolvePaths(root);
+  ensureBaseLayout(paths);
+  const signals = listSignalIds(paths)
+    .map((signalId) => readSignal(paths, signalId))
+    .filter((signal) => normalizedStatus === "all" || signal.status === normalizedStatus);
+  if (jsonMode) {
+    console.log(JSON.stringify(signals, null, 2));
+    return;
+  }
+  if (signals.length === 0) {
+    console.log("no signals");
+    return;
+  }
+  for (const signal of signals) {
+    const topicHint = signal.topic_hint ? ` | topic_hint=${signal.topic_hint}` : "";
+    const adoptedTopic = signal.adopted_topic ? ` | adopted_topic=${signal.adopted_topic}` : "";
+    console.log(`${signal.id} | status=${signal.status} | kind=${signal.kind}${topicHint}${adoptedTopic}`);
+    console.log(`  ${signal.summary}`);
+  }
+}
+
+function cmdAdoptSignal(flags: Map<string, string | boolean>): void {
+  const root = readStringFlag(flags, "root") ?? defaultRoot;
+  const signalId = toSlug(readStringFlag(flags, "signal", true)!);
+  const topicSlug = toSlug(readStringFlag(flags, "topic", true)!);
+  const sourceId = readStringFlag(flags, "source-id") ?? `signal-${signalId}`;
+  const sourceKind = assertSourceKind(readStringFlag(flags, "source-kind") ?? "note");
+  const origin = readStringFlag(flags, "origin");
+  const noteKind = assertNoteKind(readStringFlag(flags, "note-kind") ?? "observation");
+  const extraNote = readStringFlag(flags, "note");
+  const relatedCandidates = readCsvValues(readStringFlag(flags, "candidate-ids"));
+
+  const paths = resolvePaths(root);
+  const signal = readSignal(paths, signalId);
+  if (signal.status !== "pending") {
+    throw new Error(`signal is already resolved: ${signalId}`);
+  }
+
+  const topic = readTopic(paths, topicSlug);
+  for (const candidateId of relatedCandidates) {
+    requireCandidate(topic, candidateId);
+  }
+  if (topic.sources.some((source) => source.id === sourceId)) {
+    throw new Error(`source already exists in topic ${topicSlug}: ${sourceId}`);
+  }
+
+  const primaryRef = signal.local_refs[0];
+  const source: SourceRecord = {
+    id: sourceId,
+    kind: sourceKind,
+    title: signal.title,
+    origin: origin ?? `${signal.producer}:${signal.source_channel}`,
+    local_ref: primaryRef,
+    summary_ref: primaryRef,
+    added_at: nowIso(),
+  };
+  topic.sources.push(source);
+
+  for (const ref of signal.local_refs) {
+    if (!topic.local_context_refs.includes(ref)) {
+      topic.local_context_refs.push(ref);
+    }
+  }
+  topic.local_context_refs.sort((left, right) => left.localeCompare(right));
+
+  const noteLines = [
+    `adopted intake signal ${signal.id} from ${signal.producer}/${signal.source_channel}`,
+    `summary: ${signal.summary}`,
+  ];
+  for (const evidence of signal.evidence) {
+    noteLines.push(`evidence: ${evidence}`);
+  }
+  if (extraNote) {
+    noteLines.push(extraNote);
+  }
+  const note: NoteRecord = {
+    kind: noteKind,
+    title: `signal:${signal.id}`,
+    text: noteLines.join("\n"),
+    created_at: nowIso(),
+    related_candidates: relatedCandidates.length > 0 ? relatedCandidates : undefined,
+    related_source_ids: [sourceId],
+  };
+  topic.notes.push(note);
+  topic.updated_at = nowIso();
+  persistTopic(paths, topic);
+
+  const adopted = buildSignalFileRecord(signal, {
+    status: "adopted",
+    adopted_topic: topicSlug,
+    resolution_note: extraNote ?? `adopted into ${topicSlug}`,
+    updated_at: nowIso(),
+  });
+  persistSignal(paths, adopted);
+  console.log(`adopted signal ${signalId} into ${topicSlug}`);
+}
+
+function cmdDismissSignal(flags: Map<string, string | boolean>): void {
+  const root = readStringFlag(flags, "root") ?? defaultRoot;
+  const signalId = toSlug(readStringFlag(flags, "signal", true)!);
+  const note = readStringFlag(flags, "note", true)!;
+  const paths = resolvePaths(root);
+  const signal = readSignal(paths, signalId);
+  if (signal.status !== "pending") {
+    throw new Error(`signal is already resolved: ${signalId}`);
+  }
+  const dismissed = buildSignalFileRecord(signal, {
+    status: "dismissed",
+    resolution_note: note,
+    updated_at: nowIso(),
+  });
+  persistSignal(paths, dismissed);
+  console.log(`dismissed signal ${signalId}`);
 }
 
 function cmdPreflight(flags: Map<string, string | boolean>): void {
@@ -636,6 +950,7 @@ function cmdRefreshIndex(flags: Map<string, string | boolean>): void {
 
   const index = syncIndexFromTopics(paths);
   writeIndex(paths, index);
+  writeMemInboxReadme(paths);
   console.log(`refreshed evolver index and topic artifacts for ${listTopicSlugs(paths).length} topic(s)`);
 }
 
@@ -724,6 +1039,26 @@ function cmdCheck(flags: Map<string, string | boolean>): void {
   }
   const index = readIndex(paths, { createIfMissing: false });
   const warnings: string[] = [];
+  const signals = listSignalIds(paths).map((signalId) => {
+    const rawSignal = readRawSignal(paths, signalId);
+    validateSignalShape(rawSignal, paths.root);
+    return readSignal(paths, signalId);
+  });
+
+  for (const signal of signals) {
+    if (signal.status === "adopted" && !signal.adopted_topic) {
+      throw new Error(`adopted signal must include adopted_topic: ${signal.id}`);
+    }
+    if (signal.adopted_topic && !topicExists(paths, signal.adopted_topic)) {
+      warnings.push(`signal ${signal.id}: adopted topic does not currently exist: ${signal.adopted_topic}`);
+    }
+    for (const ref of signal.local_refs) {
+      const absoluteRef = path.join(paths.root, ref);
+      if (!fs.existsSync(absoluteRef)) {
+        warnings.push(`signal ${signal.id}: missing local_ref target ${ref}`);
+      }
+    }
+  }
 
   for (const entry of index.topics) {
     const rawTopic = readRawTopic(paths, entry.slug);
@@ -865,6 +1200,19 @@ function cmdCheck(flags: Map<string, string | boolean>): void {
   if (JSON.stringify(reconstructed) !== JSON.stringify(index)) {
     throw new Error("index.json is stale; run refresh-index");
   }
+  const expectedMemInboxReadme = buildMemInboxReadme(paths, signals);
+  if (!fs.existsSync(paths.memInboxReadme)) {
+    if (signals.length === 0) {
+      console.warn("warn: missing .mem_inbox/README.md for empty intake buffer");
+    } else {
+      throw new Error("missing .mem_inbox/README.md; run refresh-index");
+    }
+  } else {
+    const actualMemInboxReadme = fs.readFileSync(paths.memInboxReadme, "utf8");
+    if (actualMemInboxReadme !== expectedMemInboxReadme) {
+      throw new Error(".mem_inbox/README.md is stale; run refresh-index");
+    }
+  }
 
   for (const warning of warnings) {
     console.warn(`warn: ${warning}`);
@@ -883,6 +1231,27 @@ function main(): void {
       return;
     case "init-topic":
       cmdInitTopic(flags);
+      return;
+    case "capture-signal":
+      cmdCaptureSignal(flags);
+      return;
+    case "validate-signals":
+      cmdValidateSignals(flags);
+      return;
+    case "import-signals":
+      cmdImportSignals(flags);
+      return;
+    case "export-signals":
+      cmdExportSignals(flags);
+      return;
+    case "list-signals":
+      cmdListSignals(flags);
+      return;
+    case "adopt-signal":
+      cmdAdoptSignal(flags);
+      return;
+    case "dismiss-signal":
+      cmdDismissSignal(flags);
       return;
     case "preflight":
       cmdPreflight(flags);

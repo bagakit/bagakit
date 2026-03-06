@@ -6,6 +6,8 @@ import {
   FEEDBACK_SIGNALS,
   NOTE_KINDS,
   PREFLIGHT_DECISIONS,
+  SIGNAL_KINDS,
+  SIGNAL_STATUSES,
   ROUTE_DECISIONS,
   PROMOTION_SURFACES,
   PROMOTION_STATUSES,
@@ -223,15 +225,79 @@ export function validateTopicShape(topic: unknown): void {
     assertNonEmptyString(note.text, "note text");
     assertNonEmptyString(note.created_at, "note created_at");
     if (!note.related_candidates) {
-      continue;
-    }
-    assertArray(note.related_candidates, "related_candidates");
-    for (const candidateId of note.related_candidates) {
-      assertNonEmptyString(candidateId, "related candidate id");
-      if (!candidateIds.has(candidateId)) {
-        throw new Error(`note references unknown candidate in ${topic.slug}: ${candidateId}`);
+      if (!note.related_source_ids) {
+        continue;
       }
     }
+    if (note.related_candidates) {
+      assertArray(note.related_candidates, "related_candidates");
+      for (const candidateId of note.related_candidates) {
+        assertNonEmptyString(candidateId, "related candidate id");
+        if (!candidateIds.has(candidateId)) {
+          throw new Error(`note references unknown candidate in ${topic.slug}: ${candidateId}`);
+        }
+      }
+    }
+    if (note.related_source_ids) {
+      assertArray(note.related_source_ids, "related_source_ids");
+      for (const sourceId of note.related_source_ids) {
+        assertNonEmptyString(sourceId, "related source id");
+        if (!sourceIds.has(sourceId)) {
+          throw new Error(`note references unknown source in ${topic.slug}: ${sourceId}`);
+        }
+      }
+    }
+  }
+}
+
+export function validateSignalShape(signal: unknown, root: string): void {
+  assertRecord(signal, "signal");
+  if (signal.version !== 1) {
+    throw new Error(`unsupported signal version: ${String(signal.version)}`);
+  }
+  assertNonEmptyString(signal.id, "signal id");
+  assertEnumValue(SIGNAL_KINDS, signal.kind, "signal kind");
+  assertNonEmptyString(signal.title, "signal title");
+  assertNonEmptyString(signal.summary, "signal summary");
+  assertNonEmptyString(signal.producer, "signal producer");
+  assertNonEmptyString(signal.source_channel, "signal source_channel");
+  assertNumber(signal.confidence, "signal confidence");
+  if (signal.confidence < 0 || signal.confidence > 1) {
+    throw new Error(`signal confidence must be between 0 and 1: ${String(signal.id)}`);
+  }
+  assertArray(signal.evidence, "signal evidence");
+  for (const evidence of signal.evidence) {
+    assertNonEmptyString(evidence, "signal evidence item");
+  }
+  assertArray(signal.local_refs, "signal local_refs");
+  for (const ref of signal.local_refs) {
+    assertNonEmptyString(ref, "signal local_ref");
+    normalizeRepoRelativeRef(root, ref);
+  }
+  assertEnumValue(SIGNAL_STATUSES, signal.status, "signal status");
+  assertNonEmptyString(signal.created_at, "signal created_at");
+  assertNonEmptyString(signal.updated_at, "signal updated_at");
+  if (signal.topic_hint !== undefined) {
+    assertNonEmptyString(signal.topic_hint, "signal topic_hint");
+  }
+  if (signal.adopted_topic !== undefined) {
+    assertNonEmptyString(signal.adopted_topic, "signal adopted_topic");
+  }
+  if (signal.resolution_note !== undefined) {
+    assertNonEmptyString(signal.resolution_note, "signal resolution_note");
+  }
+}
+
+export function validateSignalContract(contract: unknown, root: string): void {
+  assertRecord(contract, "signal contract");
+  if (contract.schema !== "bagakit.evolver.signal.v1") {
+    throw new Error(`invalid signal contract schema: ${String(contract.schema)}`);
+  }
+  assertNonEmptyString(contract.producer, "signal contract producer");
+  assertNonEmptyString(contract.generated_at, "signal contract generated_at");
+  assertArray(contract.signals, "signal contract signals");
+  for (const signal of contract.signals) {
+    validateSignalShape(signal, root);
   }
 }
 

@@ -168,6 +168,7 @@ Rules:
 - `signals[]` carries signal records in the same semantic shape as the
   on-disk files
 - import must normalize repo-relative refs and signal ids
+- `import-signals` only accepts `pending` signals
 - export must not invent route or promotion state that is not present
 
 ## Intake Rule

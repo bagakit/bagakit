@@ -2,6 +2,7 @@ import path from "node:path";
 
 import type {
   CandidateRecord,
+  IntakeSignalRecord,
   PromotionRecord,
   TopicRecord,
 } from "./model.ts";
@@ -76,7 +77,10 @@ function buildDecisionLines(topic: TopicRecord, limit: number | null = 5): strin
     const candidates = note.related_candidates?.length
       ? ` | candidates: ${note.related_candidates.map((candidate) => quote(candidate)).join(", ")}`
       : "";
-    return `- ${title}${quote(note.created_at)}${candidates}\n  - ${note.text}`;
+    const sources = note.related_source_ids?.length
+      ? ` | sources: ${note.related_source_ids.map((sourceId) => quote(sourceId)).join(", ")}`
+      : "";
+    return `- ${title}${quote(note.created_at)}${candidates}${sources}\n  - ${note.text}`;
   });
 }
 
@@ -168,6 +172,64 @@ function buildStrongestEvidenceLines(readiness: PromotionReadinessSummary): stri
     return ["- none"];
   }
   return readiness.strongest_evidence.map((line) => `- ${line}`);
+}
+
+export function buildMemInboxReadme(
+  paths: EvolverPaths,
+  signals: IntakeSignalRecord[],
+): string {
+  const signalRoot = path.relative(paths.root, paths.memInboxSignalsRoot).split(path.sep).join("/");
+  const counts = {
+    pending: signals.filter((signal) => signal.status === "pending").length,
+    adopted: signals.filter((signal) => signal.status === "adopted").length,
+    dismissed: signals.filter((signal) => signal.status === "dismissed").length,
+  };
+  const lines = [
+    "# Evolver Intake Buffer",
+    "",
+    "This README is derived from the `.mem_inbox/` signal files.",
+    "",
+    `- signals root: ${quote(signalRoot)}`,
+    `- pending: ${counts.pending}`,
+    `- adopted: ${counts.adopted}`,
+    `- dismissed: ${counts.dismissed}`,
+    "",
+    "## Pending Signals",
+    "",
+  ];
+  const pending = signals
+    .filter((signal) => signal.status === "pending")
+    .sort((left, right) => left.id.localeCompare(right.id));
+  if (pending.length === 0) {
+    lines.push("- none");
+  } else {
+    for (const signal of pending) {
+      const hint = signal.topic_hint ? ` | topic_hint: ${quote(signal.topic_hint)}` : "";
+      const refs = signal.local_refs.length > 0
+        ? ` | refs: ${signal.local_refs.map((ref) => quote(ref)).join(", ")}`
+        : "";
+      lines.push(`- ${quote(signal.id)} | kind: ${quote(signal.kind)}${hint}${refs}`);
+      lines.push(`  - ${signal.summary}`);
+    }
+  }
+  lines.push("");
+  lines.push("## Resolved Signals");
+  lines.push("");
+  const resolved = signals
+    .filter((signal) => signal.status !== "pending")
+    .sort((left, right) => left.id.localeCompare(right.id));
+  if (resolved.length === 0) {
+    lines.push("- none");
+  } else {
+    for (const signal of resolved) {
+      const adopted = signal.adopted_topic ? ` | adopted_topic: ${quote(signal.adopted_topic)}` : "";
+      const resolution = signal.resolution_note ? `\n  - ${signal.resolution_note}` : "";
+      lines.push(`- ${quote(signal.id)} | status: ${quote(signal.status)}${adopted}`);
+      lines.push(`  - ${signal.summary}${resolution}`);
+    }
+  }
+  lines.push("");
+  return lines.join("\n");
 }
 
 export function buildTopicReadme(paths: EvolverPaths, topic: TopicRecord): string {

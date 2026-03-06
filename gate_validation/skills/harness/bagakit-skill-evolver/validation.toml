@@ -16,6 +16,7 @@ required_dirs = [
   "gate_validation/skills/harness/bagakit-skill-evolver",
 ]
 required_files = [
+  "docs/specs/evolver-evidence-intake.md",
   "docs/specs/evolver-memory.md",
   "docs/specs/selector-evolver-boundary.md",
   "docs/stewardship/evolver-done-criteria.md",

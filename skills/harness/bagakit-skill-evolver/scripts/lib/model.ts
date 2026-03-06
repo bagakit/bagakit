@@ -20,6 +20,12 @@ export type CandidateStatus = (typeof CANDIDATE_STATUSES)[number];
 export const NOTE_KINDS = ["observation", "decision"] as const;
 export type NoteKind = (typeof NOTE_KINDS)[number];
 
+export const SIGNAL_KINDS = ["decision", "preference", "gotcha", "howto", "glossary"] as const;
+export type SignalKind = (typeof SIGNAL_KINDS)[number];
+
+export const SIGNAL_STATUSES = ["pending", "adopted", "dismissed"] as const;
+export type SignalStatus = (typeof SIGNAL_STATUSES)[number];
+
 export const SOURCE_KINDS = ["article", "paper", "repo", "doc", "note"] as const;
 export type SourceKind = (typeof SOURCE_KINDS)[number];
 
@@ -50,6 +56,7 @@ export interface NoteRecord {
   created_at: string;
   title?: string;
   related_candidates?: string[];
+  related_source_ids?: string[];
 }
 
 export interface PreflightRecord {
@@ -103,6 +110,32 @@ export interface PromotionRecord {
   proof_refs: string[];
   created_at: string;
   updated_at: string;
+}
+
+export interface IntakeSignalRecord {
+  version: 1;
+  id: string;
+  kind: SignalKind;
+  title: string;
+  summary: string;
+  producer: string;
+  source_channel: string;
+  topic_hint?: string;
+  confidence: number;
+  evidence: string[];
+  local_refs: string[];
+  status: SignalStatus;
+  adopted_topic?: string;
+  resolution_note?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface IntakeSignalContract {
+  schema: "bagakit.evolver.signal.v1";
+  producer: string;
+  generated_at: string;
+  signals: IntakeSignalRecord[];
 }
 
 export interface TopicRecord {
