@@ -79,6 +79,7 @@ skills/
 ├── .bagakit/
 │   └── evolver/
 ├── dev/
+│   ├── eval/
 │   ├── validator/
 │   ├── skill_quality/
 │   ├── release_projection/
@@ -106,6 +107,8 @@ skills/
   - maintainer-facing repository stewardship guidance
 - `dev/skill_quality/`
   - maintainer-only validation and eval assets
+- `dev/eval/`
+  - shared maintainer-only eval runner mechanics and research references
 - `dev/release_projection/`
   - tooling and notes for projecting canonical monorepo content into legacy
     distribution targets

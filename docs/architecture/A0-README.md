@@ -35,6 +35,8 @@ low-level stable contracts and not for maintainer procedures.
   - supports the architecture document without replacing it
 - `docs/specs/evolver-memory.md`
   - stable memory contract for the evolver system
+- `docs/specs/evolver-evidence-intake.md`
+  - optional `.mem_inbox/` intake buffer and signal contract for evolver
 - `docs/stewardship/README.md`
   - maintainer governance and operating stance
 
@@ -51,7 +53,8 @@ low-level stable contracts and not for maintainer procedures.
 9. `docs/architecture/C2-routing-model.md`
 10. `docs/specs/harness-concepts.md`
 11. `docs/specs/evolver-memory.md`
-12. `docs/stewardship/README.md`
+12. `docs/specs/evolver-evidence-intake.md`
+13. `docs/stewardship/README.md`
 
 ## Boundary
 

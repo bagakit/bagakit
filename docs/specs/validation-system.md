@@ -162,6 +162,8 @@ at the same time.
 
 Boundary note:
 
+- `dev/eval/`
+  - shared maintainer-only eval runner mechanics and result-packet helpers
 - `dev/skill_quality/`
   - reusable maintainer tooling, helpers, or harness pieces
 - `gate_eval/`

@@ -6,6 +6,7 @@ Nothing under `dev/` should be treated as runtime skill payload.
 
 Current split:
 
+- `eval/`
 - `agent_loop/`
 - `validator/`
 - `skill_quality/`

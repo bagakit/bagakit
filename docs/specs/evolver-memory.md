@@ -8,6 +8,10 @@ It does not define the full research workflow.
 Research may be produced by separate systems and then linked or summarized into
 evolver state.
 
+The optional pre-topic intake buffer is defined separately in:
+
+- `docs/specs/evolver-evidence-intake.md`
+
 ## Scope
 
 The evolver operator reads and writes project-local state under
@@ -16,6 +20,12 @@ The evolver operator reads and writes project-local state under
 This surface is downstream of task-local evidence, not the raw home of it.
 Selector-owned task logs stay under `.bagakit/skill-selector/tasks/` until
 their contents are routed or summarized into repository-level learning.
+
+Optional intake may additionally pass through:
+
+- `.mem_inbox/`
+
+before it is adopted into structured topic state.
 
 Current structure:
 

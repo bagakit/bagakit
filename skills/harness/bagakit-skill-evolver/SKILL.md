@@ -31,6 +31,8 @@ This skill is the agent-facing behavioral layer.
 It does:
 
 - decide when evolver tracking is worth using
+- manage the optional `.mem_inbox/` intake buffer for provisional learning
+  signals
 - record `preflight` decisions before a topic grows
 - record repository-level route decisions:
   - `host`
@@ -53,6 +55,7 @@ It does not:
 - own raw per-task selector logs
 - own task-local evaluation
 - replace ordinary docs or straightforward execution
+- auto-promote repository learning by confidence alone
 
 Conceptually, `evolver` contains two planes:
 
@@ -72,6 +75,10 @@ not be folded into the evolver skill itself.
 Primary state lives under:
 
 - `.bagakit/evolver/`
+
+Optional pre-topic intake may live under:
+
+- `.mem_inbox/`
 
 Optional local context may live under:
 
@@ -102,6 +109,9 @@ Do not collapse these into one giant memory bucket.
 
 2. If yes, open or update one topic in `.bagakit/evolver/`.
 
+   If the material is not ready for structured topic state yet, stage it first
+   in `.mem_inbox/` and adopt it explicitly later.
+
 3. Add candidates only when comparison is real.
 
 4. Record source, summary, feedback, and benchmark evidence when they are
@@ -112,6 +122,9 @@ Do not collapse these into one giant memory bucket.
    `evolver` does not need to own that workflow.
 
 5. Record decisions only when the rationale is worth preserving.
+
+   Intake confidence may help prioritize review.
+   It must not auto-promote the lesson.
 
 6. Record one repository-level route decision when the topic is mature enough to
    decide:

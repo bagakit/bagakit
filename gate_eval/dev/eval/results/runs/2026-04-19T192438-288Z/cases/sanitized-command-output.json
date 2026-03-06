@@ -1,0 +1,19 @@
+{
+  "schema": "bagakit.eval-case/v1",
+  "suiteId": "dev-eval-fixture-suite",
+  "runId": "2026-04-19T192438-288Z",
+  "id": "sanitized-command-output",
+  "title": "Sanitized Command Output",
+  "summary": "Command results should replace temp-workspace paths before they land in case output.",
+  "status": "fail",
+  "focus": [
+    "sanitization",
+    "packet-output"
+  ],
+  "durationMs": 63,
+  "assertions": [],
+  "warnings": [],
+  "commands": [],
+  "artifacts": [],
+  "error": "Expected values to be strictly equal:\n+ actual - expected\n\n+ '/private<temp-repo>'\n- '<temp-repo>'\n"
+}

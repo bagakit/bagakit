@@ -41,6 +41,13 @@ Typical intake surfaces are:
 - `.mem_inbox` when host work discovers upstream-worthy memory that is not yet
   ready for structured topic state
 
+For evolver-owned `.mem_inbox/`, the intake rule is:
+
+- it may hold provisional signals
+- it may import or export contract-validated signal batches
+- it must not auto-promote by confidence alone
+- it must still pass through explicit topic adoption, routing, and promotion
+
 ## Decision Memory
 
 Decision memory begins when Bagakit stops merely collecting material and starts

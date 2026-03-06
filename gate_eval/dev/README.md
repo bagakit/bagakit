@@ -5,7 +5,8 @@ release-blocking validation.
 
 Current maintained surfaces:
 
-- none currently
+- `eval/`
+  - self-eval for the shared maintainer eval toolkit
 
 Each maintained eval surface should normally provide:
 
