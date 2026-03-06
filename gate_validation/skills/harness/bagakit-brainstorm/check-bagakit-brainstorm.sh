@@ -859,4 +859,67 @@ fi
 assert_output_line "$FORGED_OUTPUT" "TASK NOT COMPLETE"
 assert_output_line "$FORGED_OUTPUT" "archive_check_action_destination_resolved=False"
 
+STALE_ROOT="$TMP_DIR/stale-archive"
+STALE_ARTIFACT="$(init_artifact "$STALE_ROOT" "Stale archive demo" "stale-route")"
+write_complete_artifact "$STALE_ARTIFACT" "Stale archive demo"
+STALE_ARCHIVE_OUTPUT="$(
+  python3 "$SKILL_DIR/scripts/bagakit-brainstorm.py" archive \
+    --root "$STALE_ROOT" \
+    --dir "$STALE_ARTIFACT" \
+    --driver local
+)"
+assert_output_line "$STALE_ARCHIVE_OUTPUT" "status=complete"
+STALE_HANDOFF="$STALE_ROOT/.bagakit/brainstorm/outcome/brainstorm-handoff-stale-route.md"
+rm -f "$STALE_HANDOFF"
+if STALE_CHECK_OUTPUT="$(
+  python3 "$SKILL_DIR/scripts/bagakit-brainstorm.py" check-complete \
+    --root "$STALE_ROOT" \
+    --dir "$STALE_ARTIFACT"
+)"; then
+  echo "error: stale archive unexpectedly passed check-complete" >&2
+  exit 1
+fi
+assert_output_line "$STALE_CHECK_OUTPUT" "TASK NOT COMPLETE"
+assert_contains_line "$STALE_CHECK_OUTPUT" "archive_handoff_action_missing="
+
+DUPLICATE_ROOT="$TMP_DIR/duplicate-adapter"
+DUPLICATE_ARTIFACT="$(init_artifact "$DUPLICATE_ROOT" "Duplicate adapter demo" "duplicate-route")"
+write_complete_artifact "$DUPLICATE_ARTIFACT" "Duplicate adapter demo"
+mkdir -p "$DUPLICATE_ROOT/.bagakit/dup/items"
+write_adapter_manifest \
+  "$DUPLICATE_ROOT" \
+  "duplicate-a.json" \
+  "dup-route" \
+  "200" \
+  ".bagakit/dup/items/a-{item_id}-{slug}.md" \
+  "dup:{item_id}" \
+  "item_id" \
+  ".bagakit/dup/items"
+write_adapter_manifest \
+  "$DUPLICATE_ROOT" \
+  "duplicate-b.json" \
+  "dup-route" \
+  "100" \
+  ".bagakit/dup/items/b-{item_id}-{slug}.md" \
+  "dup:{item_id}" \
+  "item_id" \
+  ".bagakit/dup/items"
+DUPLICATE_OUTPUT_FILE="$TMP_DIR/duplicate-adapter.out"
+if python3 "$SKILL_DIR/scripts/bagakit-brainstorm.py" archive \
+  --root "$DUPLICATE_ROOT" \
+  --dir "$DUPLICATE_ARTIFACT" \
+  --driver adapter \
+  --adapter-id dup-route \
+  --meta item_id=ITEM-2 >"$DUPLICATE_OUTPUT_FILE" 2>&1; then
+  DUPLICATE_STATUS=0
+else
+  DUPLICATE_STATUS=$?
+fi
+DUPLICATE_OUTPUT="$(cat "$DUPLICATE_OUTPUT_FILE")"
+if [[ "$DUPLICATE_STATUS" -eq 0 ]]; then
+  echo "error: duplicate adapter ids unexpectedly passed" >&2
+  exit 1
+fi
+assert_contains_line "$DUPLICATE_OUTPUT" "error: duplicate adapter id dup-route declared in"
+
 echo "ok: bagakit-brainstorm lifecycle smoke passed"

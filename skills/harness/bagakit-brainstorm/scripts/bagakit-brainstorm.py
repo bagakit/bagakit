@@ -871,6 +871,7 @@ def load_action_adapters(root: Path) -> list[ActionAdapter]:
         return []
 
     adapters: list[ActionAdapter] = []
+    seen_ids: dict[str, Path] = {}
     for manifest in sorted(registry.glob("*.json")):
         try:
             data = json.loads(read_text(manifest))
@@ -883,6 +884,13 @@ def load_action_adapters(root: Path) -> list[ActionAdapter]:
         path_template = data.get("path_template")
         if not isinstance(adapter_id, str) or not adapter_id.strip():
             continue
+        normalized_adapter_id = adapter_id.strip()
+        if normalized_adapter_id in seen_ids:
+            raise SystemExit(
+                f"error: duplicate adapter id {normalized_adapter_id} declared in "
+                f"{seen_ids[normalized_adapter_id]} and {manifest}"
+            )
+        seen_ids[normalized_adapter_id] = manifest
         if not isinstance(path_template, str) or not path_template.strip():
             continue
 
@@ -912,7 +920,7 @@ def load_action_adapters(root: Path) -> list[ActionAdapter]:
 
         adapters.append(
             ActionAdapter(
-                adapter_id=adapter_id.strip(),
+                adapter_id=normalized_adapter_id,
                 source_file=manifest,
                 priority=priority,
                 path_template=path_template.strip(),
@@ -1554,6 +1562,37 @@ def cmd_check_complete(args: argparse.Namespace) -> int:
         if checks.get(key) is not True:
             print("TASK NOT COMPLETE")
             print(f"archive_check_{key}={checks.get(key)}")
+            return 1
+    archived_artifact = archive.get("archived_artifact")
+    if not isinstance(archived_artifact, str) or not archived_artifact.strip():
+        print("TASK NOT COMPLETE")
+        print("archive_check_archived_artifact=missing")
+        return 1
+    archived_artifact_path = (root / archived_artifact).resolve()
+    if not archived_artifact_path.is_dir():
+        print("TASK NOT COMPLETE")
+        print(f"archive_check_archived_artifact_missing={archived_artifact_path}")
+        return 1
+    handoff = archive.get("handoff")
+    if not isinstance(handoff, dict):
+        print("TASK NOT COMPLETE")
+        print("archive_handoff=missing_or_invalid")
+        return 1
+    for handoff_key in ("action", "memory"):
+        handoff_entry = handoff.get(handoff_key)
+        if not isinstance(handoff_entry, dict):
+            print("TASK NOT COMPLETE")
+            print(f"archive_handoff_{handoff_key}=missing_or_invalid")
+            return 1
+        handoff_path = handoff_entry.get("path")
+        if not isinstance(handoff_path, str) or not handoff_path.strip() or handoff_path == "<unresolved>":
+            print("TASK NOT COMPLETE")
+            print(f"archive_handoff_{handoff_key}_path={handoff_path}")
+            return 1
+        resolved_handoff_path = (root / handoff_path).resolve()
+        if not resolved_handoff_path.is_file():
+            print("TASK NOT COMPLETE")
+            print(f"archive_handoff_{handoff_key}_missing={resolved_handoff_path}")
             return 1
 
     print("ALL REQUIRED STAGES COMPLETE")
