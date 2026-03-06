@@ -4,14 +4,14 @@ import path from "node:path";
 
 import { runCommand, type CommandResult } from "../../../../dev/eval/src/lib/command.ts";
 import type { EvalSuiteDefinition } from "../../../../dev/eval/src/lib/model.ts";
-import { createTempDir, writeTextFile } from "../../../../dev/eval/src/lib/temp.ts";
+import { cleanupTempDir, createTempDir, registerTempRepo, writeTextFile } from "../../../../dev/eval/src/lib/temp.ts";
 
 function expectOk(result: CommandResult, label: string): void {
   assert.equal(result.status, 0, `${label} failed\nstdout:\n${result.stdout}\nstderr:\n${result.stderr}`);
 }
 
 function initGitRepo(cwd: string, replacements: { from: string; to: string }[]): void {
-  expectOk(runCommand("git", ["init", "-q", "-b", "main"], { cwd, replacements }), "git init");
+  expectOk(runCommand("git", ["init", "-q"], { cwd, replacements }), "git init");
   expectOk(runCommand("git", ["config", "user.name", "Bagakit"], { cwd, replacements }), "git config user.name");
   expectOk(runCommand("git", ["config", "user.email", "bagakit@example.com"], { cwd, replacements }), "git config user.email");
   writeTextFile(path.join(cwd, "README.md"), "# demo\n");
@@ -37,17 +37,12 @@ export const SUITE: EvalSuiteDefinition = {
       title: "Round Trip Preserves Export And Import Shape",
       summary: "Export should produce OpenSpec files and import should materialize a ready tracker feature with translated task states.",
       focus: ["bridge-fidelity", "state-translation", "spec-delta-projection"],
-      run: ({ repoRoot, addReplacement }) => {
+      run: (context) => {
+        const { repoRoot } = context;
         const tempRepo = createTempDir("bagakit-openspec-adapter-eval-");
-        const canonicalTempRepo = fs.realpathSync(tempRepo);
-        const replacements = [
-          { from: canonicalTempRepo, to: "<temp-repo>" },
-          { from: tempRepo, to: "<temp-repo>" },
-        ];
-        for (const replacement of replacements) {
-          addReplacement(replacement.from, replacement.to);
-        }
-        initGitRepo(tempRepo, replacements);
+        const replacements = registerTempRepo(context, tempRepo);
+        try {
+          initGitRepo(tempRepo, replacements);
 
         const trackerScript = path.join(repoRoot, "skills", "harness", "bagakit-feature-tracker", "scripts", "feature-tracker.sh");
         const adapterScript = path.join(repoRoot, "skills", "harness", "bagakit-feature-tracker-openspec-adapter", "scripts", "openspec-feature-adapter.sh");
@@ -84,7 +79,7 @@ export const SUITE: EvalSuiteDefinition = {
         assert.equal(importedTasks.tasks.length, 2);
         assert.equal(importedTasks.tasks[1].status, "done");
 
-        return {
+          return {
           assertions: [
             "export writes proposal, task list, and spec files into OpenSpec layout",
             "import materializes a ready tracker feature with worktree workspace mode",
@@ -104,8 +99,11 @@ export const SUITE: EvalSuiteDefinition = {
           outputs: {
             imported_feature_id: imported!.feat_id,
           },
-          replacements,
-        };
+            replacements,
+          };
+        } finally {
+          cleanupTempDir(tempRepo, context.keepTemp);
+        }
       },
     },
   ],

@@ -23,6 +23,14 @@ function tempReplacements(tempRepo: string): { from: string; to: string }[] {
   ];
 }
 
+function registerTempReplacements(context: EvalCaseContext, tempRepo: string): { from: string; to: string }[] {
+  const replacements = tempReplacements(tempRepo);
+  for (const replacement of replacements) {
+    context.addReplacement(replacement.from, replacement.to);
+  }
+  return replacements;
+}
+
 function runEvolver(
   context: EvalCaseContext,
   tempRepo: string,
@@ -64,6 +72,7 @@ export const SUITE: EvalSuiteDefinition = {
       focus: ["evidence-ingest", "promotion-readiness"],
       run: (context) => {
         const tempRepo = createFixtureRepo();
+        const replacements = registerTempReplacements(context, tempRepo);
         const commands: string[] = [];
         try {
           const run = (argv: string[]): CommandResult => {
@@ -160,7 +169,7 @@ export const SUITE: EvalSuiteDefinition = {
             outputs: {
               readiness: payload,
             },
-            replacements: tempReplacements(tempRepo),
+            replacements,
           };
         } finally {
           cleanupTempDir(tempRepo, context.keepTemp);
@@ -176,6 +185,7 @@ export const SUITE: EvalSuiteDefinition = {
         const assertions: string[] = [];
         const commands: string[] = [];
         const tempRepo = createFixtureRepo();
+        const replacements = registerTempReplacements(context, tempRepo);
         try {
           const run = (argv: string[]): CommandResult => {
             commands.push(
@@ -299,7 +309,7 @@ export const SUITE: EvalSuiteDefinition = {
                 path: topicDir,
               },
             ],
-            replacements: tempReplacements(tempRepo),
+            replacements,
           };
         } finally {
           cleanupTempDir(tempRepo, context.keepTemp);
@@ -313,6 +323,7 @@ export const SUITE: EvalSuiteDefinition = {
       focus: ["promotion-readiness", "proof-refs"],
       run: (context) => {
         const tempRepo = createFixtureRepo();
+        const replacements = registerTempReplacements(context, tempRepo);
         const commands: string[] = [];
         try {
           const run = (argv: string[]): CommandResult => {
@@ -432,7 +443,7 @@ export const SUITE: EvalSuiteDefinition = {
               readiness,
               rejectedPromotionStderr: badPromotion.stderr.trim(),
             },
-            replacements: tempReplacements(tempRepo),
+            replacements,
           };
         } finally {
           cleanupTempDir(tempRepo, context.keepTemp);
@@ -446,6 +457,7 @@ export const SUITE: EvalSuiteDefinition = {
       focus: ["routing", "repo-boundary"],
       run: (context) => {
         const tempRepo = createFixtureRepo();
+        const replacements = registerTempReplacements(context, tempRepo);
         const commands: string[] = [];
         try {
           const run = (argv: string[]): CommandResult => {
@@ -597,7 +609,7 @@ export const SUITE: EvalSuiteDefinition = {
               host: hostReadiness,
               split: splitReadiness,
             },
-            replacements: tempReplacements(tempRepo),
+            replacements,
           };
         } finally {
           cleanupTempDir(tempRepo, context.keepTemp);
@@ -611,6 +623,7 @@ export const SUITE: EvalSuiteDefinition = {
       focus: ["weak-link-warnings", "warning-surface"],
       run: (context) => {
         const tempRepo = createFixtureRepo();
+        const replacements = registerTempReplacements(context, tempRepo);
         const commands: string[] = [];
         try {
           const run = (argv: string[]): CommandResult => {
@@ -678,7 +691,7 @@ export const SUITE: EvalSuiteDefinition = {
             outputs: {
               stderr: checkResult.stderr.trim(),
             },
-            replacements: tempReplacements(tempRepo),
+            replacements,
           };
         } finally {
           cleanupTempDir(tempRepo, context.keepTemp);

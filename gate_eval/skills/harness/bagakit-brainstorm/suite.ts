@@ -4,7 +4,7 @@ import path from "node:path";
 
 import { runCommand, type CommandResult } from "../../../../dev/eval/src/lib/command.ts";
 import type { EvalSuiteDefinition } from "../../../../dev/eval/src/lib/model.ts";
-import { createTempDir } from "../../../../dev/eval/src/lib/temp.ts";
+import { cleanupTempDir, createTempDir, registerTempRepo } from "../../../../dev/eval/src/lib/temp.ts";
 
 function expectOk(result: CommandResult, label: string): void {
   assert.equal(result.status, 0, `${label} failed\nstdout:\n${result.stdout}\nstderr:\n${result.stderr}`);
@@ -28,57 +28,55 @@ export const SUITE: EvalSuiteDefinition = {
       title: "Init Status Surfaces Review Artifacts",
       summary: "Init with review-quality and eval-effect review should create those files and expose them in status output.",
       focus: ["artifact-readiness", "status-reporting"],
-      run: ({ repoRoot, addReplacement }) => {
+      run: (context) => {
+        const { repoRoot } = context;
         const tempRepo = createTempDir("bagakit-brainstorm-eval-");
-        const canonicalTempRepo = fs.realpathSync(tempRepo);
-        const replacements = [
-          { from: canonicalTempRepo, to: "<temp-repo>" },
-          { from: tempRepo, to: "<temp-repo>" },
-        ];
+        const replacements = registerTempRepo(context, tempRepo);
         const script = path.join(repoRoot, "skills", "harness", "bagakit-brainstorm", "scripts", "bagakit-brainstorm.py");
-        const initResult = runCommand("python3", [script, "init", "--topic", "Eval topic", "--slug", "eval-topic", "--root", tempRepo, "--with-review-quality", "--with-eval-effect-review"], { cwd: repoRoot });
-        expectOk(initResult, "init");
-        const artifactDir = extractCreatedDir(initResult.stdout);
-        for (const replacement of replacements) {
-          addReplacement(replacement.from, replacement.to);
-        }
-        const statusResult = runCommand("python3", [script, "status", "--root", tempRepo, "--dir", artifactDir], { cwd: repoRoot, replacements });
-        expectOk(statusResult, "status");
+        try {
+          const initResult = runCommand("python3", [script, "init", "--topic", "Eval topic", "--slug", "eval-topic", "--root", tempRepo, "--with-review-quality", "--with-eval-effect-review"], { cwd: repoRoot });
+          expectOk(initResult, "init");
+          const artifactDir = extractCreatedDir(initResult.stdout);
+          const statusResult = runCommand("python3", [script, "status", "--root", tempRepo, "--dir", artifactDir], { cwd: repoRoot, replacements });
+          expectOk(statusResult, "status");
 
-        const expectedFiles = [
-          "input_and_qa.md",
-          "finding_and_analyze.md",
-          "expert_forum.md",
-          "outcome_and_handoff.md",
-          "review_quality.md",
-          "eval_effect_review.md",
-        ];
-        for (const fileName of expectedFiles) {
-          assert.ok(fs.existsSync(path.join(artifactDir, fileName)), `missing ${fileName}`);
-        }
-        assert.ok(statusResult.stdout.split("\n").includes("stage_review_quality=pending"));
-        assert.ok(statusResult.stdout.split("\n").includes("stage_eval_effect_review=pending"));
-        assert.ok(statusResult.stdout.split("\n").includes("archive_status=missing"));
+          const expectedFiles = [
+            "input_and_qa.md",
+            "finding_and_analyze.md",
+            "expert_forum.md",
+            "outcome_and_handoff.md",
+            "review_quality.md",
+            "eval_effect_review.md",
+          ];
+          for (const fileName of expectedFiles) {
+            assert.ok(fs.existsSync(path.join(artifactDir, fileName)), `missing ${fileName}`);
+          }
+          assert.ok(statusResult.stdout.split("\n").includes("stage_review_quality=pending"));
+          assert.ok(statusResult.stdout.split("\n").includes("stage_eval_effect_review=pending"));
+          assert.ok(statusResult.stdout.split("\n").includes("archive_status=missing"));
 
-        return {
-          assertions: [
-            "init creates the optional review_quality and eval_effect_review artifacts when explicitly requested",
-            "status output surfaces those optional stages separately from the required analysis stages",
-            "archive status stays missing until the run is explicitly archived",
-          ],
-          commands: [
-            `python3 ${script} init --topic "Eval topic" --slug "eval-topic" --root <temp-repo> --with-review-quality --with-eval-effect-review`,
-            `python3 ${script} status --root <temp-repo> --dir <temp-repo>/.bagakit/brainstorm/runs/<artifact>`,
-          ],
-          artifacts: expectedFiles.map((fileName) => ({
-            label: fileName.replace(".md", ""),
-            path: path.join(artifactDir, fileName),
-          })),
-          outputs: {
-            artifact_dir: artifactDir,
-          },
-          replacements,
-        };
+          return {
+            assertions: [
+              "init creates the optional review_quality and eval_effect_review artifacts when explicitly requested",
+              "status output surfaces those optional stages separately from the required analysis stages",
+              "archive status stays missing until the run is explicitly archived",
+            ],
+            commands: [
+              `python3 ${script} init --topic "Eval topic" --slug "eval-topic" --root <temp-repo> --with-review-quality --with-eval-effect-review`,
+              `python3 ${script} status --root <temp-repo> --dir <temp-repo>/.bagakit/brainstorm/runs/<artifact>`,
+            ],
+            artifacts: expectedFiles.map((fileName) => ({
+              label: fileName.replace(".md", ""),
+              path: path.join(artifactDir, fileName),
+            })),
+            outputs: {
+              artifact_dir: artifactDir,
+            },
+            replacements,
+          };
+        } finally {
+          cleanupTempDir(tempRepo, context.keepTemp);
+        }
       },
     },
   ],

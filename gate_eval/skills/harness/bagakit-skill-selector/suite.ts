@@ -4,7 +4,7 @@ import path from "node:path";
 
 import { runCommand, type CommandResult } from "../../../../dev/eval/src/lib/command.ts";
 import type { EvalSuiteDefinition } from "../../../../dev/eval/src/lib/model.ts";
-import { createTempDir } from "../../../../dev/eval/src/lib/temp.ts";
+import { cleanupTempDir, createTempDir, registerTempRepo } from "../../../../dev/eval/src/lib/temp.ts";
 
 function expectOk(result: CommandResult, label: string): void {
   assert.equal(result.status, 0, `${label} failed\nstdout:\n${result.stdout}\nstderr:\n${result.stderr}`);
@@ -22,21 +22,16 @@ export const SUITE: EvalSuiteDefinition = {
       title: "Composition Log Drives Driver Pack And Ranking",
       summary: "Selector usage logs should drive retry backoff, driver-pack rendering, and ranking output coherently.",
       focus: ["composition-log", "retry-backoff", "derived-reports"],
-      run: ({ repoRoot, addReplacement }) => {
+      run: (context) => {
+        const { repoRoot } = context;
         const tempRepo = createTempDir("bagakit-skill-selector-eval-");
-        const canonicalTempRepo = fs.realpathSync(tempRepo);
-        const replacements = [
-          { from: canonicalTempRepo, to: "<temp-repo>" },
-          { from: tempRepo, to: "<temp-repo>" },
-        ];
-        for (const replacement of replacements) {
-          addReplacement(replacement.from, replacement.to);
-        }
-        const target = path.join(tempRepo, ".bagakit", "skill-selector", "tasks", "demo", "skill-usage.toml");
-        const driverPack = path.join(tempRepo, ".bagakit", "skill-selector", "tasks", "demo", "bagakit-drivers.md");
-        const ranking = path.join(tempRepo, ".bagakit", "skill-selector", "tasks", "demo", "skill-ranking.md");
-        const script = path.join(repoRoot, "skills", "harness", "bagakit-skill-selector", "scripts", "skill_selector.ts");
-        const run = (argv: string[], label: string) => expectOk(runCommand("node", ["--experimental-strip-types", script, ...argv], { cwd: repoRoot, replacements }), label);
+        const replacements = registerTempRepo(context, tempRepo);
+        try {
+          const target = path.join(tempRepo, ".bagakit", "skill-selector", "tasks", "demo", "skill-usage.toml");
+          const driverPack = path.join(tempRepo, ".bagakit", "skill-selector", "tasks", "demo", "bagakit-drivers.md");
+          const ranking = path.join(tempRepo, ".bagakit", "skill-selector", "tasks", "demo", "skill-ranking.md");
+          const script = path.join(repoRoot, "skills", "harness", "bagakit-skill-selector", "scripts", "skill_selector.ts");
+          const run = (argv: string[], label: string) => expectOk(runCommand("node", ["--experimental-strip-types", script, ...argv], { cwd: repoRoot, replacements }), label);
 
         run(["init", "--file", target, "--task-id", "demo-task", "--objective", "eval selector loop", "--owner", "validator"], "init");
         run(["preflight", "--file", target, "--answer", "partial", "--gap-summary", "need driver loading coverage", "--decision", "search_then_execute", "--status", "in_progress"], "preflight");
@@ -65,7 +60,7 @@ export const SUITE: EvalSuiteDefinition = {
         assert.ok(driverText.includes("RetryBackoffThreshold: `3`"));
         assert.ok(rankingText.includes("Skill Ranking Report"));
 
-        return {
+          return {
           assertions: [
             "selector log records retry backoff and new-search requirement after repeated failures",
             "driver pack includes composed peers declared by the chosen plans",
@@ -84,8 +79,11 @@ export const SUITE: EvalSuiteDefinition = {
           outputs: {
             ranking_top_line: rankingText.split("\n").find((line) => line.includes("| 1 |")) ?? "",
           },
-          replacements,
-        };
+            replacements,
+          };
+        } finally {
+          cleanupTempDir(tempRepo, context.keepTemp);
+        }
       },
     },
   ],

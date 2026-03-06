@@ -4,7 +4,7 @@ import path from "node:path";
 
 import { runCommand, type CommandResult } from "../../../../dev/eval/src/lib/command.ts";
 import type { EvalSuiteDefinition } from "../../../../dev/eval/src/lib/model.ts";
-import { createTempDir, writeTextFile } from "../../../../dev/eval/src/lib/temp.ts";
+import { cleanupTempDir, createTempDir, registerTempRepo, writeTextFile } from "../../../../dev/eval/src/lib/temp.ts";
 
 function expectOk(result: CommandResult, label: string): void {
   assert.equal(result.status, 0, `${label} failed\nstdout:\n${result.stdout}\nstderr:\n${result.stderr}`);
@@ -31,17 +31,12 @@ export const SUITE: EvalSuiteDefinition = {
       title: "Shared Root Recall And Ingest",
       summary: "Applying the substrate should enable indexed recall over shared docs and safe reviewed-note ingestion.",
       focus: ["shared-root-recall", "ingest-quality"],
-      run: ({ repoRoot, addReplacement }) => {
+      run: (context) => {
+        const { repoRoot } = context;
         const tempRepo = createTempDir("bagakit-living-knowledge-eval-");
-        const canonicalTempRepo = fs.realpathSync(tempRepo);
-        const replacements = [
-          { from: canonicalTempRepo, to: "<temp-repo>" },
-          { from: tempRepo, to: "<temp-repo>" },
-        ];
-        for (const replacement of replacements) {
-          addReplacement(replacement.from, replacement.to);
-        }
-        initGitRepo(tempRepo, replacements);
+        const replacements = registerTempRepo(context, tempRepo);
+        try {
+          initGitRepo(tempRepo, replacements);
 
         const script = path.join(repoRoot, "skills", "harness", "bagakit-living-knowledge", "scripts", "bagakit-living-knowledge.sh");
         expectOk(runCommand("sh", [script, "apply", "--root", tempRepo], { cwd: repoRoot, replacements }), "apply");
@@ -59,7 +54,7 @@ export const SUITE: EvalSuiteDefinition = {
         assert.ok(searchResult.stdout.includes("docs/notes/decision-shared-root.md"));
         assert.ok(getResult.stdout.split("\n").includes("# Shared Root Decision"));
 
-        return {
+          return {
           assertions: [
             "indexed recall surfaces the shared-root note from docs",
             "recall get returns the expected note heading",
@@ -79,8 +74,11 @@ export const SUITE: EvalSuiteDefinition = {
           outputs: {
             search_hits: searchResult.stdout.trim().split("\n"),
           },
-          replacements,
-        };
+            replacements,
+          };
+        } finally {
+          cleanupTempDir(tempRepo, context.keepTemp);
+        }
       },
     },
   ],

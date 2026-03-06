@@ -1,9 +1,8 @@
 import assert from "node:assert/strict";
-import fs from "node:fs";
 import path from "node:path";
 
 import { runCommand } from "../../../dev/eval/src/lib/command.ts";
-import { createTempDir, writeTextFile } from "../../../dev/eval/src/lib/temp.ts";
+import { cleanupTempDir, createTempDir, registerTempRepo, writeTextFile } from "../../../dev/eval/src/lib/temp.ts";
 import type { EvalSuiteDefinition } from "../../../dev/eval/src/lib/model.ts";
 
 export const SUITE: EvalSuiteDefinition = {
@@ -20,49 +19,46 @@ export const SUITE: EvalSuiteDefinition = {
       focus: ["sanitization", "packet-output"],
       run: (context) => {
         const tempRepo = createTempDir("bagakit-dev-eval-");
-        const canonicalTempRepo = fs.realpathSync(tempRepo);
-        const replacements = [
-          { from: canonicalTempRepo, to: "<temp-repo>" },
-          { from: tempRepo, to: "<temp-repo>" },
-        ];
-        for (const replacement of replacements) {
-          context.addReplacement(replacement.from, replacement.to);
-        }
-        writeTextFile(path.join(tempRepo, "README.md"), "# fixture\n");
-        const result = runCommand(
-          "node",
-          [
-            "-e",
-            "console.log(process.cwd()); console.error(process.cwd());",
-          ],
-          {
-            cwd: tempRepo,
-            replacements,
-          },
-        );
-        assert.equal(result.status, 0);
-        assert.equal(result.stdout.trim(), "<temp-repo>");
-        assert.equal(result.stderr.trim(), "<temp-repo>");
-        return {
-          assertions: [
-            "stdout temp path is sanitized",
-            "stderr temp path is sanitized",
-          ],
-          commands: [
-            "node -e \"console.log(process.cwd()); console.error(process.cwd());\"",
-          ],
-          artifacts: [
+        const replacements = registerTempRepo(context, tempRepo);
+        try {
+          writeTextFile(path.join(tempRepo, "README.md"), "# fixture\n");
+          const result = runCommand(
+            "node",
+            [
+              "-e",
+              "console.log(process.cwd()); console.error(process.cwd());",
+            ],
             {
-              label: "fixture-root",
-              path: tempRepo,
+              cwd: tempRepo,
+              replacements,
             },
-          ],
-          outputs: {
-            stdout: result.stdout.trim(),
-            stderr: result.stderr.trim(),
-          },
-          replacements,
-        };
+          );
+          assert.equal(result.status, 0);
+          assert.equal(result.stdout.trim(), "<temp-repo>");
+          assert.equal(result.stderr.trim(), "<temp-repo>");
+          return {
+            assertions: [
+              "stdout temp path is sanitized",
+              "stderr temp path is sanitized",
+            ],
+            commands: [
+              "node -e \"console.log(process.cwd()); console.error(process.cwd());\"",
+            ],
+            artifacts: [
+              {
+                label: "fixture-root",
+                path: tempRepo,
+              },
+            ],
+            outputs: {
+              stdout: result.stdout.trim(),
+              stderr: result.stderr.trim(),
+            },
+            replacements,
+          };
+        } finally {
+          cleanupTempDir(tempRepo, context.keepTemp);
+        }
       },
     },
     {
@@ -72,30 +68,31 @@ export const SUITE: EvalSuiteDefinition = {
       focus: ["packet-output"],
       run: (context) => {
         const tempRepo = createTempDir("bagakit-dev-eval-");
-        const replacements = [{ from: tempRepo, to: "<temp-repo>" }];
-        for (const replacement of replacements) {
-          context.addReplacement(replacement.from, replacement.to);
-        }
-        writeTextFile(path.join(tempRepo, "evidence", "note.txt"), "ok\n");
-        return {
-          assertions: [
-            "structured outputs are preserved in case packet",
-          ],
-          commands: [
-            "write evidence/note.txt",
-          ],
-          artifacts: [
-            {
-              label: "evidence-note",
-              path: path.join(tempRepo, "evidence", "note.txt"),
+        const replacements = registerTempRepo(context, tempRepo);
+        try {
+          writeTextFile(path.join(tempRepo, "evidence", "note.txt"), "ok\n");
+          return {
+            assertions: [
+              "structured outputs are preserved in case packet",
+            ],
+            commands: [
+              "write evidence/note.txt",
+            ],
+            artifacts: [
+              {
+                label: "evidence-note",
+                path: path.join(tempRepo, "evidence", "note.txt"),
+              },
+            ],
+            outputs: {
+              evidence_count: 1,
+              note_path: path.join(tempRepo, "evidence", "note.txt"),
             },
-          ],
-          outputs: {
-            evidence_count: 1,
-            note_path: path.join(tempRepo, "evidence", "note.txt"),
-          },
-          replacements,
-        };
+            replacements,
+          };
+        } finally {
+          cleanupTempDir(tempRepo, context.keepTemp);
+        }
       },
     },
   ],

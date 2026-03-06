@@ -4,7 +4,7 @@ import path from "node:path";
 
 import { runCommand, type CommandResult } from "../../../../dev/eval/src/lib/command.ts";
 import type { EvalSuiteDefinition } from "../../../../dev/eval/src/lib/model.ts";
-import { createTempDir, writeTextFile } from "../../../../dev/eval/src/lib/temp.ts";
+import { cleanupTempDir, createTempDir, registerTempRepo, writeTextFile } from "../../../../dev/eval/src/lib/temp.ts";
 
 function expectOk(result: CommandResult, label: string): void {
   assert.equal(result.status, 0, `${label} failed\nstdout:\n${result.stdout}\nstderr:\n${result.stderr}`);
@@ -28,14 +28,12 @@ export const SUITE: EvalSuiteDefinition = {
       title: "Draft And Archive Keep Git Facing Evidence Clean",
       summary: "Drafted messages should lint cleanly and archive should capture commit evidence without leaking machine-local paths.",
       focus: ["message-quality", "archive-quality"],
-      run: ({ repoRoot, addReplacement }) => {
+      run: (context) => {
+        const { repoRoot } = context;
         const tempRepo = createTempDir("bagakit-git-message-craft-eval-");
-        const canonicalTempRepo = fs.realpathSync(tempRepo);
-        const replacements = [
-          { from: canonicalTempRepo, to: "<temp-repo>" },
-          { from: tempRepo, to: "<temp-repo>" },
-        ];
-        expectOk(runCommand("git", ["init", "-q"], { cwd: tempRepo, replacements }), "git init");
+        const replacements = registerTempRepo(context, tempRepo);
+        try {
+          expectOk(runCommand("git", ["init", "-q"], { cwd: tempRepo, replacements }), "git init");
         expectOk(runCommand("git", ["config", "user.name", "Bagakit"], { cwd: tempRepo, replacements }), "git config user.name");
         expectOk(runCommand("git", ["config", "user.email", "bagakit@example.com"], { cwd: tempRepo, replacements }), "git config user.email");
         writeTextFile(path.join(tempRepo, "app.py"), "print('hello')\n");
@@ -44,12 +42,9 @@ export const SUITE: EvalSuiteDefinition = {
         writeTextFile(path.join(tempRepo, "app.py"), "print('hello')\nprint('world')\n");
 
         const script = path.join(repoRoot, "skills", "swe", "bagakit-git-message-craft", "scripts", "bagakit-git-message-craft.sh");
-        const initResult = runCommand("sh", [script, "init", "--root", tempRepo, "--topic", "commit clarity", "--install-hooks", "no"], { cwd: repoRoot });
-        expectOk(initResult, "init");
-        const sessionDir = extractInitializedDir(initResult.stdout);
-        for (const replacement of replacements) {
-          addReplacement(replacement.from, replacement.to);
-        }
+          const initResult = runCommand("sh", [script, "init", "--root", tempRepo, "--topic", "commit clarity", "--install-hooks", "no"], { cwd: repoRoot });
+          expectOk(initResult, "init");
+          const sessionDir = extractInitializedDir(initResult.stdout);
         const messageFile = path.join(sessionDir, "commit-refactor-preserve-git-facing-evidence.txt");
         expectOk(
           runCommand(
@@ -98,7 +93,7 @@ export const SUITE: EvalSuiteDefinition = {
         assert.ok(archiveText.includes("## Commit Evidence"));
         assert.ok(!archiveText.includes(tempRepo));
 
-        return {
+          return {
           assertions: [
             "drafted message keeps the footer protocol marker expected by lint-message",
             "archive records commit evidence after the drafted message is committed",
@@ -117,8 +112,11 @@ export const SUITE: EvalSuiteDefinition = {
           outputs: {
             commit_sha: commitSha.stdout.trim(),
           },
-          replacements,
-        };
+            replacements,
+          };
+        } finally {
+          cleanupTempDir(tempRepo, context.keepTemp);
+        }
       },
     },
   ],

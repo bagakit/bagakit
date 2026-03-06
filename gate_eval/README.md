@@ -27,9 +27,18 @@ Current implemented slices:
 - `backbone/skill/`
   - deterministic eval for the repo skill surface: listing, linking, layout,
     and distribution packaging
-- `skills/harness/bagakit-skill-evolver/`
-  - deterministic eval for evolver evidence ingest, report quality, promotion
-    readiness, routing, and weak-link warning behavior
+- `skills/`
+  - skill-owned non-gating eval slices now exist for every installable skill
+  - current families under eval ownership:
+    - `skills/harness/bagakit-brainstorm/`
+    - `skills/harness/bagakit-feature-tracker/`
+    - `skills/harness/bagakit-feature-tracker-openspec-adapter/`
+    - `skills/harness/bagakit-flow-runner/`
+    - `skills/harness/bagakit-living-knowledge/`
+    - `skills/harness/bagakit-researcher/`
+    - `skills/harness/bagakit-skill-evolver/`
+    - `skills/harness/bagakit-skill-selector/`
+    - `skills/swe/bagakit-git-message-craft/`
 
 Registration:
 
@@ -37,6 +46,8 @@ Registration:
   - root discovery config for non-gating eval suites
 - `gate_eval/dev/<tool>/validation.toml`
   - owner-local eval suite registration
+- `gate_eval/skills/<family>/<skill-id>/validation.toml`
+  - skill-owned non-gating eval registration
 
 Execution note:
 

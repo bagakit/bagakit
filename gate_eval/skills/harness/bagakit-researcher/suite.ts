@@ -4,7 +4,7 @@ import path from "node:path";
 
 import { runCommand, type CommandResult } from "../../../../dev/eval/src/lib/command.ts";
 import type { EvalSuiteDefinition } from "../../../../dev/eval/src/lib/model.ts";
-import { createTempDir } from "../../../../dev/eval/src/lib/temp.ts";
+import { cleanupTempDir, createTempDir, registerTempRepo } from "../../../../dev/eval/src/lib/temp.ts";
 
 const PYTHON = process.env.PYTHON3 ?? "python3";
 
@@ -28,14 +28,12 @@ export const SUITE: EvalSuiteDefinition = {
       title: "Topic Index Links Source And Summary",
       summary: "A refreshed topic index should surface the source card and reusable summary produced for the same source id.",
       focus: ["evidence-linkage", "topic-index-coherence", "workspace-reporting"],
-      run: ({ repoRoot }) => {
+      run: (context) => {
+        const { repoRoot } = context;
         const tempRepo = createTempDir("bagakit-researcher-eval-");
-        const canonicalTempRepo = fs.realpathSync(tempRepo);
-        const replacements = [
-          { from: canonicalTempRepo, to: "<temp-repo>" },
-          { from: tempRepo, to: "<temp-repo>" },
-        ];
-        const script = path.join(
+        const replacements = registerTempRepo(context, tempRepo);
+        try {
+          const script = path.join(
           repoRoot,
           "skills",
           "harness",
@@ -43,9 +41,9 @@ export const SUITE: EvalSuiteDefinition = {
           "scripts",
           "bagakit-researcher.py",
         );
-        const topicClass = "frontier";
-        const topic = "evidence-loop";
-        const workspaceRoot = path.join(
+          const topicClass = "frontier";
+          const topic = "evidence-loop";
+          const workspaceRoot = path.join(
           tempRepo,
           ".bagakit",
           "researcher",
@@ -53,9 +51,9 @@ export const SUITE: EvalSuiteDefinition = {
           topicClass,
           topic,
         );
-        const sourcePath = path.join(workspaceRoot, "originals", "a01.md");
-        const summaryPath = path.join(workspaceRoot, "summaries", "a01.md");
-        const indexPath = path.join(workspaceRoot, "index.md");
+          const sourcePath = path.join(workspaceRoot, "originals", "a01.md");
+          const summaryPath = path.join(workspaceRoot, "summaries", "a01.md");
+          const indexPath = path.join(workspaceRoot, "index.md");
 
         const initTopic = runCommand(
           PYTHON,
@@ -197,7 +195,7 @@ export const SUITE: EvalSuiteDefinition = {
         assert.ok(summaryText.includes("## Bagakit Implication"));
         assert.ok(summaryText.includes("- one Bagakit implication"));
 
-        return {
+          return {
           assertions: [
             "topic listing surfaces the initialized workspace",
             "refreshed index links both the source card and its reusable summary",
@@ -227,8 +225,11 @@ export const SUITE: EvalSuiteDefinition = {
               "one Bagakit implication",
             ],
           },
-          replacements,
-        };
+            replacements,
+          };
+        } finally {
+          cleanupTempDir(tempRepo, context.keepTemp);
+        }
       },
     },
   ],

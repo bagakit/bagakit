@@ -1,6 +1,4 @@
-import fs from "node:fs";
-
-import { createTempDir } from "../../../dev/eval/src/lib/temp.ts";
+import { cleanupTempDir, createTempDir, registerTempRepo } from "../../../dev/eval/src/lib/temp.ts";
 import type { EvalSuiteDefinition } from "../../../dev/eval/src/lib/model.ts";
 
 export const SUITE: EvalSuiteDefinition = {
@@ -17,10 +15,12 @@ export const SUITE: EvalSuiteDefinition = {
       focus: ["sanitization", "failure-path"],
       run: (context) => {
         const tempRepo = createTempDir("bagakit-dev-eval-fail-");
-        const canonicalTempRepo = fs.realpathSync(tempRepo);
-        context.addReplacement(canonicalTempRepo, "<temp-repo>");
-        context.addReplacement(tempRepo, "<temp-repo>");
-        throw new Error(`intentional failure inside ${tempRepo}`);
+        registerTempRepo(context, tempRepo);
+        try {
+          throw new Error(`intentional failure inside ${tempRepo}`);
+        } finally {
+          cleanupTempDir(tempRepo, context.keepTemp);
+        }
       },
     },
   ],

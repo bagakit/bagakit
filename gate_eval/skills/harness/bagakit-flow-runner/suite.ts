@@ -4,14 +4,14 @@ import path from "node:path";
 
 import { runCommand, type CommandResult } from "../../../../dev/eval/src/lib/command.ts";
 import type { EvalSuiteDefinition } from "../../../../dev/eval/src/lib/model.ts";
-import { createTempDir, writeTextFile } from "../../../../dev/eval/src/lib/temp.ts";
+import { cleanupTempDir, createTempDir, registerTempRepo, writeTextFile } from "../../../../dev/eval/src/lib/temp.ts";
 
 function expectOk(result: CommandResult, label: string): void {
   assert.equal(result.status, 0, `${label} failed\nstdout:\n${result.stdout}\nstderr:\n${result.stderr}`);
 }
 
 function initGitRepo(cwd: string, replacements: { from: string; to: string }[]): void {
-  expectOk(runCommand("git", ["init", "-q", "-b", "main"], { cwd, replacements }), "git init");
+  expectOk(runCommand("git", ["init", "-q"], { cwd, replacements }), "git init");
   expectOk(runCommand("git", ["config", "user.name", "Bagakit"], { cwd, replacements }), "git config user.name");
   expectOk(runCommand("git", ["config", "user.email", "bagakit@example.com"], { cwd, replacements }), "git config user.email");
   writeTextFile(path.join(cwd, "README.md"), "# demo\n");
@@ -37,17 +37,12 @@ export const SUITE: EvalSuiteDefinition = {
       title: "Next And Closeout Packets Stay Coherent",
       summary: "Tracker ingestion, next-action, resume candidates, and closeout state should stay coherent across one bounded execution loop.",
       focus: ["next-action", "resume-candidates", "closeout-signaling"],
-      run: ({ repoRoot, addReplacement }) => {
+      run: (context) => {
+        const { repoRoot } = context;
         const tempRepo = createTempDir("bagakit-flow-runner-eval-");
-        const canonicalTempRepo = fs.realpathSync(tempRepo);
-        const replacements = [
-          { from: canonicalTempRepo, to: "<temp-repo>" },
-          { from: tempRepo, to: "<temp-repo>" },
-        ];
-        for (const replacement of replacements) {
-          addReplacement(replacement.from, replacement.to);
-        }
-        initGitRepo(tempRepo, replacements);
+        const replacements = registerTempRepo(context, tempRepo);
+        try {
+          initGitRepo(tempRepo, replacements);
 
         const trackerScript = path.join(repoRoot, "skills", "harness", "bagakit-feature-tracker", "scripts", "feature-tracker.sh");
         const flowScript = path.join(repoRoot, "skills", "harness", "bagakit-flow-runner", "scripts", "flow-runner.sh");
@@ -84,7 +79,7 @@ export const SUITE: EvalSuiteDefinition = {
         assert.ok(fs.existsSync(statePath));
         assert.ok(fs.existsSync(checkpointsPath));
 
-        return {
+          return {
           assertions: [
             "initial next packet recommends a bounded session",
             "resume candidates surface the live tracker-backed item",
@@ -106,8 +101,11 @@ export const SUITE: EvalSuiteDefinition = {
             live_candidates: resumePayload.live.length,
             item_id: itemId,
           },
-          replacements,
-        };
+            replacements,
+          };
+        } finally {
+          cleanupTempDir(tempRepo, context.keepTemp);
+        }
       },
     },
   ],
