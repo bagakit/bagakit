@@ -81,6 +81,14 @@ export function runnerConfigStatus(paths: AgentLoopPaths): RunnerConfigStatus {
         config,
       };
     }
+    const knownCliIssue = knownCliValidationIssue(config.argv);
+    if (knownCliIssue) {
+      return {
+        status: "invalid",
+        message: knownCliIssue,
+        config,
+      };
+    }
     if (config.timeout_seconds <= 0) {
       return {
         status: "invalid",
@@ -100,6 +108,17 @@ export function runnerConfigStatus(paths: AgentLoopPaths): RunnerConfigStatus {
       config: null,
     };
   }
+}
+
+function knownCliValidationIssue(argv: string[]): string {
+  const head = argv[0] || "";
+  if (head === "codex" && argv[1] !== "exec") {
+    return "stdin_prompt transport requires non-interactive Codex; use `codex exec ...` instead of bare `codex`";
+  }
+  if (head === "claude" && !argv.includes("-p")) {
+    return "stdin_prompt transport requires non-interactive Claude; include `-p` in the runner argv";
+  }
+  return "";
 }
 
 export function presetArgv(preset: string): { runner_name: string; argv: string[] } {

@@ -11,6 +11,7 @@ This contract covers:
 - per-session host exhaust
 - per-run host summaries
 - typed host stop payloads
+- host-owned stop-attention intent for operator-required stops
 
 This contract does not define:
 
@@ -77,6 +78,8 @@ Current supported transport:
 
 - `stdin_prompt`
 
+For `stdin_prompt`, known CLIs must be configured in non-interactive forms.
+
 `refresh_commands` are host-side refresh hooks.
 
 They may refresh normalized item mirrors before or after a session, but they
@@ -119,7 +122,7 @@ It does not synthesize flow-runner checkpoints on the runner's behalf.
 
 ## Run Payload Contract
 
-`run` currently emits schema `bagakit/agent-loop/run/v1`.
+`run` currently emits schema `bagakit/agent-loop/run/v2`.
 
 Stable fields:
 
@@ -127,6 +130,7 @@ Stable fields:
 - `stop_reason`
 - `operator_message`
 - `next_safe_action`
+- `next_command_example`
 - `can_resume`
 - `item_id`
 - `sessions_launched`
@@ -135,6 +139,52 @@ Stable fields:
 - `runner_session_id`
 - `run_record_path`
 - `flow_next`
+- optional `host_notification_request`
+
+`host_notification_request` is host-plane intent.
+
+It may tell the host how much attention a stop deserves and what the maintainer
+should do next.
+
+It does not become flow-runner truth.
+
+## Run Record Contract
+
+`runs/<run-id>.json` currently uses schema `bagakit/agent-loop/run-record/v2`.
+
+Stable fields include:
+
+- `run_status`
+- `stop_reason`
+- `operator_message`
+- `next_safe_action`
+- `next_command_example`
+- `can_resume`
+- `sessions_launched`
+- `session_budget`
+- optional `host_notification_request`
+
+## Watch Contract
+
+`watch --json` currently emits schema `bagakit/agent-loop/watch/v2`.
+
+Stable fields include:
+
+- `refreshed_at`
+- `runner_config_status`
+- `runner_name`
+- `run_lock`
+- `decision`
+- optional `focus_item`
+- optional `latest_run`
+- optional `latest_session`
+- optional `current_notification`
+- `recent_runs[]`
+- `recent_sessions[]`
+- `detail`
+
+The non-JSON `watch` surface is a read-only host renderer over that same watch
+payload.
 
 ## Fail-Closed Rules
 
@@ -144,5 +194,6 @@ Stable fields:
 - runner output without a valid `runner-result.json` must not be treated as
   success
 - runner failure must not cause `agent_loop` to invent flow-runner checkpoints
+- operator-required stops must carry host-owned stop-attention intent
 - tracker-sourced items must not be archived by `agent_loop`
 - host exhaust must not become selection or lifecycle truth

@@ -2,10 +2,11 @@ export const RUNNER_CONFIG_SCHEMA = "bagakit/agent-loop/runner-config/v1";
 export const SESSION_BRIEF_SCHEMA = "bagakit/agent-loop/session-brief/v1";
 export const RUNNER_RESULT_SCHEMA = "bagakit/agent-loop/runner-result/v1";
 export const NEXT_SCHEMA = "bagakit/agent-loop/next/v1";
-export const RUN_SCHEMA = "bagakit/agent-loop/run/v1";
-export const WATCH_SCHEMA = "bagakit/agent-loop/watch/v1";
-export const RUN_RECORD_SCHEMA = "bagakit/agent-loop/run-record/v1";
+export const RUN_SCHEMA = "bagakit/agent-loop/run/v2";
+export const WATCH_SCHEMA = "bagakit/agent-loop/watch/v2";
+export const RUN_RECORD_SCHEMA = "bagakit/agent-loop/run-record/v2";
 export const RUN_LOCK_SCHEMA = "bagakit/agent-loop/run-lock/v1";
+export const HOST_NOTIFICATION_SCHEMA = "bagakit/agent-loop/host-notification/v1";
 
 export const RUNNER_TRANSPORTS = ["stdin_prompt"] as const;
 export type RunnerTransport = (typeof RUNNER_TRANSPORTS)[number];
@@ -38,6 +39,9 @@ export type RunStopReason = (typeof RUN_STOP_REASONS)[number];
 
 export const RUNNER_RESULT_STATUSES = ["completed", "operator_cancelled"] as const;
 export type RunnerResultStatus = (typeof RUNNER_RESULT_STATUSES)[number];
+
+export const NOTIFICATION_SEVERITIES = ["info", "warn", "critical"] as const;
+export type NotificationSeverity = (typeof NOTIFICATION_SEVERITIES)[number];
 
 export const FLOW_RECOMMENDED_ACTIONS = ["run_session", "clear_blocker", "archive_closeout", "stop"] as const;
 export type FlowRecommendedAction = (typeof FLOW_RECOMMENDED_ACTIONS)[number];
@@ -191,6 +195,21 @@ export type RunnerResult = Readonly<{
   note: string;
 }>;
 
+export type HostNotificationRequest = Readonly<{
+  schema: typeof HOST_NOTIFICATION_SCHEMA;
+  source: "agent_loop_host";
+  audience: "maintainer";
+  run_id: string;
+  item_id: string;
+  recorded_at: string;
+  reason: RunStopReason;
+  severity: NotificationSeverity;
+  summary: string;
+  next_user_action: string;
+  details: string;
+  dedupe_key: string;
+}>;
+
 export type AgentLoopNextPayload = Readonly<{
   schema: typeof NEXT_SCHEMA;
   command: "next";
@@ -206,11 +225,16 @@ export type RunRecord = Readonly<{
   recorded_at: string;
   run_status: RunStatus;
   stop_reason: RunStopReason;
+  operator_message: string;
+  next_safe_action: string;
+  next_command_example: string;
+  can_resume: boolean;
   item_id: string;
   sessions_launched: number;
   session_budget: number;
   checkpoint_observed: boolean;
   runner_session_id: string;
+  host_notification_request?: HostNotificationRequest;
 }>;
 
 export type AgentLoopRunPayload = Readonly<{
@@ -220,6 +244,7 @@ export type AgentLoopRunPayload = Readonly<{
   stop_reason: RunStopReason;
   operator_message: string;
   next_safe_action: string;
+  next_command_example: string;
   can_resume: boolean;
   item_id: string;
   sessions_launched: number;
@@ -228,24 +253,71 @@ export type AgentLoopRunPayload = Readonly<{
   runner_session_id: string;
   run_record_path: string;
   flow_next: FlowNextPayload;
+  host_notification_request?: HostNotificationRequest;
+}>;
+
+export type RunLockState = Readonly<{
+  status: "idle" | "held" | "stale";
+  pid?: number;
+  runner_name?: string;
+  created_at?: string;
+}>;
+
+export type WatchFocusItem = Readonly<{
+  item_id: string;
+  title: string;
+  source_kind: string;
+  source_ref: string;
+  status: FlowItemStatus;
+  resolution: string;
+  current_stage: string;
+  current_step_status: string;
+  session_number: number;
+  handoff_path: string;
+  progress_log_path: string;
+  current_safe_anchor?: {
+    kind: string;
+    ref: string;
+    summary: string;
+  } | null;
+  checkpoint_request?: FlowCheckpointRequest;
+}>;
+
+export type WatchSessionSummary = Readonly<{
+  session_id: string;
+  item_id: string;
+  runner_name: string;
+  started_at: string;
+  exit_code: number | null;
+  result_status: RunnerResultStatus | "";
+  checkpoint_written: boolean | null;
+  issue?: string;
 }>;
 
 export type AgentLoopWatchPayload = Readonly<{
   schema: typeof WATCH_SCHEMA;
   command: "watch";
+  refreshed_at: string;
   runner_config_status: RunnerConfigStatusKind;
-  flow_next: FlowNextPayload;
+  runner_name: string;
+  run_lock: RunLockState;
+  decision: {
+    recommended_action: FlowRecommendedAction;
+    action_reason: FlowActionReason;
+    next_safe_action: string;
+  };
+  focus_item?: WatchFocusItem;
+  latest_run?: RunRecord;
+  latest_session?: WatchSessionSummary;
+  current_notification?: HostNotificationRequest;
   recent_runs: RunRecord[];
-  recent_sessions: Array<{
-    session_id: string;
-    item_id: string;
-    runner_name: string;
-    started_at: string;
-    exit_code: number | null;
-    result_status: RunnerResultStatus | "";
-    checkpoint_written: boolean | null;
-    issue?: string;
-  }>;
+  recent_sessions: WatchSessionSummary[];
+  detail: {
+    handoff_excerpt: string;
+    progress_excerpt: string;
+    stdout_excerpt: string;
+    stderr_excerpt: string;
+  };
 }>;
 
 export type RunLockPayload = Readonly<{

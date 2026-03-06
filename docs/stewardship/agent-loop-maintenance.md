@@ -13,6 +13,7 @@ Maintainers should treat `agent_loop` as host-side orchestration around
 - persist host exhaust for later inspection
 - auto-archive runner-owned items only by calling the canonical flow-runner
   archive command
+- emit host-owned stop-attention intent for operator-required stops
 
 `agent_loop` must not:
 
@@ -22,6 +23,7 @@ Maintainers should treat `agent_loop` as host-side orchestration around
 - archive tracker-sourced items
 - decide feature closeout
 - introduce a second hidden progress ledger
+- couple notification delivery transport into runner launch config
 
 ## Config Rule
 
@@ -48,10 +50,26 @@ Bad uses:
 - session directories contain brief, prompt, meta, stdout, stderr, and
   runner-result artifacts together
 - run records point back to typed stop reasons instead of raw runner output
+- operator-required runs carry next-action intent and continuation handles
 - refresh commands update normalized item state without creating hidden truth
 - runner failure paths stop cleanly without mutating flow-runner truth on their
   own
 - `agent_loop` still consumes flow-runner contract surfaces, not ad hoc text
+
+## Watch Rule
+
+`watch` is read-only.
+
+Its information order should stay:
+
+1. action banner
+2. focus item
+3. loop status
+4. recent host history
+5. detail tails
+
+If a watch change gives logs more visual weight than next action or current
+focus, reject it.
 
 ## Boundary Reminder
 

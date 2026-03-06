@@ -13,6 +13,7 @@ item state without creating a second execution truth surface.
 - per-session host exhaust under `.bagakit/agent-loop/runner-sessions/`
 - per-run host summaries under `.bagakit/agent-loop/runs/`
 - typed host stop payloads for `run`, `next`, and `watch`
+- host-owned stop-attention objects on operator-required stops
 
 It does not own:
 
@@ -20,6 +21,7 @@ It does not own:
 - flow-runner item state
 - checkpoint semantics
 - archive authority for tracker-sourced items
+- notification delivery transport
 
 ## Public Commands
 
@@ -30,6 +32,9 @@ It does not own:
 - `agent-loop.sh resume`
 - `agent-loop.sh watch`
 - `agent-loop.sh validate`
+
+`watch` supports one-shot snapshot rendering and live terminal refresh when
+stdout is a TTY.
 
 ## Core Rule
 
@@ -42,12 +47,16 @@ That means:
 - refresh from canonical flow-runner state after each launch
 - persist host exhaust for inspection only
 - return typed stop reasons instead of hiding control flow in local caches
+- emit host-owned stop-attention intent without redefining runtime truth
 
 ## Runner Contract
 
 `agent_loop` currently supports one launch transport:
 
 - `stdin_prompt`
+
+For `stdin_prompt`, known CLIs must still be configured in non-interactive
+forms such as `codex exec` or `claude -p`.
 
 Configured runner argv is stored in:
 

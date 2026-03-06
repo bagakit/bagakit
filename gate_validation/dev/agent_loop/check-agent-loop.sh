@@ -113,6 +113,7 @@ assert payload["run_status"] == "operator_action_required"
 assert payload["stop_reason"] == "closeout_pending"
 assert payload["sessions_launched"] == 1
 assert payload["checkpoint_observed"] is True
+assert payload["host_notification_request"]["reason"] == "closeout_pending"
 PY
 
 CANCEL_JSON="$TMP_DIR/cancel-run.json"
@@ -133,6 +134,7 @@ from pathlib import Path
 payload = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
 assert payload["stop_reason"] == "operator_cancelled"
 assert payload["sessions_launched"] == 1
+assert payload["host_notification_request"]["severity"] == "warn"
 PY
 
 BUDGET_JSON="$TMP_DIR/budget-run.json"
@@ -164,8 +166,23 @@ import sys
 from pathlib import Path
 
 payload = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+assert payload["runner_config_status"] == "ready"
+assert payload["run_lock"]["status"] == "idle"
+assert payload["decision"]["next_safe_action"] in {"run", "resume_run", "close_item_upstream", "idle", "resolve_blocker", "archive_owned_item"}
 assert len(payload["recent_runs"]) >= 4
 assert len(payload["recent_sessions"]) >= 4
+PY
+
+WATCH_ONCE="$TMP_DIR/watch-once.txt"
+bash "$AGENT_LOOP_DIR/agent-loop.sh" watch --root "$TMP_DIR" --once > "$WATCH_ONCE"
+python3 - "$WATCH_ONCE" <<'PY'
+import sys
+from pathlib import Path
+
+text = Path(sys.argv[1]).read_text(encoding="utf-8")
+assert "Action" in text
+assert "Focus Item" in text
+assert "Loop Status" in text
 PY
 
 bash "$AGENT_LOOP_DIR/agent-loop.sh" validate --root "$TMP_DIR" >/dev/null

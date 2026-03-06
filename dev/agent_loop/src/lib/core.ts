@@ -30,13 +30,18 @@ import type {
   AgentLoopRunPayload,
   AgentLoopWatchPayload,
   FlowNextPayload,
+  HostNotificationRequest,
+  NotificationSeverity,
   RunLockPayload,
+  RunLockState,
   RunRecord,
   RunnerConfig,
   RunnerConfigStatus,
   RunnerResult,
+  WatchFocusItem,
+  WatchSessionSummary,
 } from "./model.ts";
-import { RUN_LOCK_SCHEMA, RUN_RECORD_SCHEMA, RUNNER_RESULT_SCHEMA, WATCH_SCHEMA } from "./model.ts";
+import { HOST_NOTIFICATION_SCHEMA, RUN_LOCK_SCHEMA, RUN_RECORD_SCHEMA, RUNNER_RESULT_SCHEMA, RUN_SCHEMA, WATCH_SCHEMA } from "./model.ts";
 import { AgentLoopPaths } from "./paths.ts";
 import { buildSessionBrief, renderPrompt } from "./prompt.ts";
 
@@ -50,6 +55,101 @@ type StopEnvelope = Readonly<{
   runner_session_id: string;
   flow_next: FlowNextPayload;
 }>;
+
+function notificationSeverity(stopReason: AgentLoopRunPayload["stop_reason"]): NotificationSeverity {
+  switch (stopReason) {
+    case "runner_launch_failed":
+    case "runner_timeout":
+    case "runner_exited_nonzero":
+    case "runner_output_missing":
+    case "runner_output_invalid":
+    case "flow_runner_refresh_failed":
+      return "critical";
+    case "run_lock_conflict":
+    case "runner_config_required":
+    case "runner_config_invalid":
+    case "session_budget_exhausted":
+    case "checkpoint_missing":
+    case "blocked_item":
+    case "closeout_pending":
+    case "operator_cancelled":
+      return "warn";
+    default:
+      return "info";
+  }
+}
+
+function nextUserAction(nextSafeAction: string): string {
+  switch (nextSafeAction) {
+    case "configure_runner":
+      return "Configure the runner before retrying the loop.";
+    case "repair_runner_config":
+      return "Repair the runner configuration before the next bounded session.";
+    case "resolve_blocker":
+      return "Resolve the blocker and rerun the pinned item.";
+    case "close_item_upstream":
+      return "Complete closeout in the upstream owner before rerunning.";
+    case "inspect_run_lock":
+      return "Wait for the active run or clear the stale lock if it is no longer live.";
+    case "inspect_runner_session":
+      return "Inspect the latest runner session exhaust and decide whether to rerun.";
+    case "inspect_flow_runner_state":
+      return "Inspect flow-runner state and restore canonical runtime surfaces before continuing.";
+    case "repair_runner_result":
+      return "Repair the runner result exhaust and rerun the item once the session outcome is understood.";
+    case "resume_run":
+      return "Resume the same item with a fresh bounded session.";
+    case "archive_owned_item":
+      return "Archive the runner-owned item through the canonical closeout path.";
+    case "run":
+      return "Launch the next bounded session.";
+    default:
+      return "Review the stop details and choose the next maintainer action.";
+  }
+}
+
+function nextCommandExample(itemId: string, stop: StopEnvelope, sessionBudget: number): string {
+  switch (stop.next_safe_action) {
+    case "run":
+    case "resume_run":
+    case "inspect_runner_session":
+    case "repair_runner_result":
+    case "resolve_blocker":
+    case "close_item_upstream":
+      return `bash "dev/agent_loop/agent-loop.sh" run --root . --item ${itemId} --max-sessions ${sessionBudget}`;
+    case "configure_runner":
+    case "repair_runner_config":
+      return `bash "dev/agent_loop/agent-loop.sh" configure-runner --root . --preset codex`;
+    case "inspect_run_lock":
+      return `cat .bagakit/agent-loop/run.lock`;
+    case "inspect_flow_runner_state":
+      return `bash "skills/harness/bagakit-flow-runner/scripts/flow-runner.sh" next --root . --item ${itemId} --json`;
+    case "archive_owned_item":
+      return `bash "skills/harness/bagakit-flow-runner/scripts/flow-runner.sh" archive-item --root . --item ${itemId}`;
+    default:
+      return "";
+  }
+}
+
+function buildHostNotificationRequest(runId: string, itemId: string, stop: StopEnvelope): HostNotificationRequest | undefined {
+  if (stop.run_status !== "operator_action_required") {
+    return undefined;
+  }
+  return {
+    schema: HOST_NOTIFICATION_SCHEMA,
+    source: "agent_loop_host",
+    audience: "maintainer",
+    run_id: runId,
+    item_id: itemId,
+    recorded_at: utcNow(),
+    reason: stop.stop_reason,
+    severity: notificationSeverity(stop.stop_reason),
+    summary: stop.operator_message,
+    next_user_action: nextUserAction(stop.next_safe_action),
+    details: stop.operator_message,
+    dedupe_key: `agent-loop:${stop.stop_reason}:${itemId}`,
+  };
+}
 
 export function applyAgentLoop(root: string, toolDir: string): string {
   const paths = new AgentLoopPaths(root);
@@ -122,17 +222,24 @@ function buildRunRecord(
   sessionsLaunched: number,
   sessionBudget: number,
 ): RunRecord {
+  const hostNotificationRequest = buildHostNotificationRequest(runId, itemId, stop);
+  const commandExample = nextCommandExample(itemId, stop, sessionBudget);
   return {
     schema: RUN_RECORD_SCHEMA,
     run_id: runId,
     recorded_at: utcNow(),
     run_status: stop.run_status,
     stop_reason: stop.stop_reason,
+    operator_message: stop.operator_message,
+    next_safe_action: stop.next_safe_action,
+    next_command_example: commandExample,
+    can_resume: stop.can_resume,
     item_id: itemId,
     sessions_launched: sessionsLaunched,
     session_budget: sessionBudget,
     checkpoint_observed: stop.checkpoint_observed,
     runner_session_id: stop.runner_session_id,
+    host_notification_request: hostNotificationRequest,
   };
 }
 
@@ -153,17 +260,6 @@ function sortedRunRecords(paths: AgentLoopPaths): RunRecord[] {
     .sort((left: RunRecord, right: RunRecord) => right.recorded_at.localeCompare(left.recorded_at));
 }
 
-type SessionSummary = Readonly<{
-  session_id: string;
-  item_id: string;
-  runner_name: string;
-  started_at: string;
-  exit_code: number | null;
-  result_status: RunnerResult["status"] | "";
-  checkpoint_written: boolean | null;
-  issue?: string;
-}>;
-
 export function runnerResultIssue(result: RunnerResult | null, sessionId: string): string {
   if (!result) {
     return `session ${sessionId} is missing runner-result.json`;
@@ -183,12 +279,12 @@ export function runnerResultIssue(result: RunnerResult | null, sessionId: string
   return "";
 }
 
-function sortedSessionSummaries(paths: AgentLoopPaths): SessionSummary[] {
+function sortedSessionSummaries(paths: AgentLoopPaths): WatchSessionSummary[] {
   if (!fs.existsSync(paths.sessionsDir)) {
     return [];
   }
   const entries = fs.readdirSync(paths.sessionsDir, { withFileTypes: true }) as Array<{ name: string; isDirectory(): boolean }>;
-  const summaries: SessionSummary[] = entries
+  const summaries: WatchSessionSummary[] = entries
     .filter((entry: any) => entry.isDirectory())
     .map((entry: any) => {
       const briefPath = path.join(paths.sessionDir(entry.name), "session-brief.json");
@@ -229,7 +325,84 @@ function sortedSessionSummaries(paths: AgentLoopPaths): SessionSummary[] {
         };
       }
     });
-  return summaries.sort((left: SessionSummary, right: SessionSummary) => right.started_at.localeCompare(left.started_at));
+  return summaries.sort((left: WatchSessionSummary, right: WatchSessionSummary) => right.started_at.localeCompare(left.started_at));
+}
+
+function safeNextPayload(root: string, itemId?: string): { payload: FlowNextPayload; error: string } {
+  try {
+    return {
+      payload: loadNextAction(root, itemId),
+      error: "",
+    };
+  } catch (error) {
+    return {
+      payload: {
+        schema: "bagakit/flow-runner/next-action/v2",
+        command: "next",
+        recommended_action: "stop",
+        action_reason: "no_actionable_item",
+        session_contract: {
+          launch_bounded_session: false,
+          persist_state_before_stop: false,
+          checkpoint_before_stop: false,
+          snapshot_before_session: false,
+          archive_only_closeout: false,
+        },
+      },
+      error: error instanceof Error ? error.message : String(error),
+    };
+  }
+}
+
+function runLockState(paths: AgentLoopPaths): RunLockState {
+  const lock = loadJsonIfExists<RunLockPayload>(paths.runLockFile);
+  if (!lock) {
+    return { status: "idle" };
+  }
+  return {
+    status: isPidLive(lock.pid) ? "held" : "stale",
+    pid: lock.pid,
+    runner_name: lock.runner_name,
+    created_at: lock.created_at,
+  };
+}
+
+function readTail(filePath: string, lines: number): string {
+  if (!fs.existsSync(filePath)) {
+    return "";
+  }
+  const kept = fs.readFileSync(filePath, "utf8").split(/\r?\n/).filter((line) => line.length > 0).slice(-lines);
+  return kept.join("\n");
+}
+
+function focusItemFromNext(root: string, flowNext: FlowNextPayload): WatchFocusItem | undefined {
+  if (!flowNext.item_id) {
+    return undefined;
+  }
+  try {
+    const state = readItemState(root, flowNext.item_id);
+    return {
+      item_id: state.item_id,
+      title: state.title,
+      source_kind: state.source_kind,
+      source_ref: state.source_ref,
+      status: state.status,
+      resolution: state.resolution,
+      current_stage: state.current_stage,
+      current_step_status: state.current_step_status,
+      session_number: state.runtime.session_count,
+      handoff_path: state.paths.handoff,
+      progress_log_path: state.paths.progress_log,
+      current_safe_anchor: state.runtime.current_safe_anchor,
+      checkpoint_request: flowNext.checkpoint_request,
+    };
+  } catch {
+    return undefined;
+  }
+}
+
+function latestNotification(recentRuns: RunRecord[]): HostNotificationRequest | undefined {
+  return recentRuns.find((run) => run.host_notification_request)?.host_notification_request;
 }
 
 function runRecordIssues(paths: AgentLoopPaths): string[] {
@@ -251,13 +424,37 @@ function runRecordIssues(paths: AgentLoopPaths): string[] {
 
 export function watchAgentLoop(root: string, itemId?: string): AgentLoopWatchPayload {
   const paths = new AgentLoopPaths(root);
+  const configStatus = runnerConfigStatus(paths);
+  const recentRuns = sortedRunRecords(paths).slice(0, 5);
+  const recentSessions = sortedSessionSummaries(paths).slice(0, 5);
+  const nextAttempt = safeNextPayload(root, itemId);
+  const flowNext = nextAttempt.payload;
+  const focusItem = focusItemFromNext(root, flowNext);
+  const latestSession = recentSessions[0];
   return {
     schema: WATCH_SCHEMA,
     command: "watch",
-    runner_config_status: runnerConfigStatus(paths).status,
-    flow_next: loadNextAction(root, itemId),
-    recent_runs: sortedRunRecords(paths).slice(0, 5),
-    recent_sessions: sortedSessionSummaries(paths).slice(0, 5),
+    refreshed_at: utcNow(),
+    runner_config_status: configStatus.status,
+    runner_name: configStatus.config?.runner_name || "unset",
+    run_lock: runLockState(paths),
+    decision: {
+      recommended_action: flowNext.recommended_action,
+      action_reason: flowNext.action_reason,
+      next_safe_action: nextSafeActionForState(flowNext, configStatus),
+    },
+    focus_item: focusItem,
+    latest_run: recentRuns[0],
+    latest_session: latestSession,
+    current_notification: latestNotification(recentRuns),
+    recent_runs: recentRuns,
+    recent_sessions: recentSessions,
+    detail: {
+      handoff_excerpt: focusItem ? readTail(path.join(root, focusItem.handoff_path), 10) : "",
+      progress_excerpt: focusItem ? readTail(path.join(root, focusItem.progress_log_path), 10) : "",
+      stdout_excerpt: latestSession ? readTail(paths.stdoutFile(latestSession.session_id), 10) : "",
+      stderr_excerpt: latestSession ? readTail(paths.stderrFile(latestSession.session_id), 10) : "",
+    },
   };
 }
 
@@ -423,12 +620,13 @@ export function recordRun(
   const record = buildRunRecord(runId, stop, itemId, sessionsLaunched, sessionBudget);
   writeJsonFile(paths.runRecordFile(runId), record);
   return {
-    schema: "bagakit/agent-loop/run/v1",
+    schema: RUN_SCHEMA,
     command: "run",
     run_status: stop.run_status,
     stop_reason: stop.stop_reason,
     operator_message: stop.operator_message,
     next_safe_action: stop.next_safe_action,
+    next_command_example: record.next_command_example,
     can_resume: stop.can_resume,
     item_id: itemId,
     sessions_launched: sessionsLaunched,
@@ -437,6 +635,7 @@ export function recordRun(
     runner_session_id: stop.runner_session_id,
     run_record_path: repoRelative(root, paths.runRecordFile(runId)),
     flow_next: stop.flow_next,
+    host_notification_request: record.host_notification_request,
   };
 }
 

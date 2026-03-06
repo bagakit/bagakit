@@ -36,6 +36,8 @@ required_files = [
   "dev/agent_loop/src/lib/core.ts",
   "dev/agent_loop/src/lib/run.ts",
   "dev/agent_loop/src/lib/prompt.ts",
+  "dev/agent_loop/src/lib/watch_presenter.ts",
+  "dev/agent_loop/src/lib/watch_ui.ts",
   "dev/agent_loop/src/adapters/flow_runner.ts",
   "dev/agent_loop/test/agent-loop.test.ts",
   "dev/agent_loop/types/node-shim.d.ts",
@@ -49,7 +51,7 @@ required_files = [
 [[suite]]
 id = "agent-loop-smoke"
 owner = "dev/agent_loop"
-description = "Run one tracker-backed closeout stop and one runner-owned archive path through agent_loop."
+description = "Run tracker-backed and runner-owned agent_loop flows, stop-attention outputs, and watch rendering."
 default = true
 validation_class = "smoke"
 groups = ["dev", "agent-loop", "smoke"]
