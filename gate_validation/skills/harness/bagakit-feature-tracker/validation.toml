@@ -62,7 +62,7 @@ args = [
 [[suite]]
 id = "bagakit-feature-tracker-legacy-regression"
 owner = "skills/harness/bagakit-feature-tracker"
-description = "Keep legacy docs-side inbox writes absent on archive paths and keep pre-v2 tracker runtime layouts rejected while the canonical lifecycle stays isolated in smoke."
+description = "Keep legacy docs-side inbox paths untouched on archive flows and keep pre-v2 tracker runtime layouts rejected while the canonical lifecycle stays isolated in smoke."
 default = true
 validation_class = "quality"
 groups = ["skills", "harness", "feature-tracker", "quality", "legacy"]
