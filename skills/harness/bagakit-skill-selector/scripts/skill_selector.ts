@@ -32,6 +32,7 @@ import {
   PLAN_KINDS,
   PLAN_STATUSES,
   PREFLIGHT_ANSWERS,
+  PREFLIGHT_DECISIONS,
   RECIPE_STATUSES,
   SEARCH_SOURCE_SCOPES,
   SEARCH_STATUSES,
@@ -45,7 +46,7 @@ function printHelp(): void {
 
 Commands:
   init --file <path> --task-id <id> --objective <text> [--owner <name>] [--force]
-  preflight --file <path> --answer <yes|no|partial|pending> --decision <text> [--gap-summary <text>] [--status <task-status>]
+  preflight --file <path> --answer <yes|no|partial|pending> --decision <direct_execute|compare_then_execute|compose_then_execute|review_loop|pending> [--gap-summary <text>] [--status <task-status>]
   plan --file <path> --skill-id <id> --kind <local|external|research|custom> --source <path-or-url> --why <text> --expected-impact <text> [--confidence <low|medium|high>] [--selected <true|false>] [--status <plan-status>] [--composition-role <role>] [--composition-id <id>] [--activation-mode <mode>] [--fallback-strategy <strategy>] [--notes <text>]
   recipe --file <path> --recipe-id <id> --source <selector-recipe-path> --why <text> [--status <considered|selected|used|skipped|rejected>] [--notes <text>]
   usage --file <path> --skill-id <id> --phase <phase> --action <text> --result <success|partial|failed|not_used> [--evidence <text>] [--metric-hint <text>] [--attempt-key <text>] [--notes <text>]
@@ -97,7 +98,7 @@ function cmdPreflight(flags: Map<string, string | boolean>): number {
   updatePreflight(doc, {
     answer: assertEnum(PREFLIGHT_ANSWERS, requiredString(flags, "answer"), "preflight.answer"),
     gap_summary: readStringFlag(flags, "gap-summary") ?? "",
-    decision: requiredString(flags, "decision"),
+    decision: assertEnum(PREFLIGHT_DECISIONS, requiredString(flags, "decision"), "preflight.decision"),
     status: assertEnum(TASK_STATUSES, readStringFlag(flags, "status") ?? "in_progress", "status"),
   });
   writeSkillUsageDoc(filePath, doc);

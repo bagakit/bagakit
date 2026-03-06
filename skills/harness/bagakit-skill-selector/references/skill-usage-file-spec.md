@@ -48,12 +48,13 @@ status = "planning"
 question = "Do we have enough skill coverage for this task?"
 answer = "yes"
 gap_summary = "Need stronger test-automation skill"
-decision = "search_then_execute"
+decision = "compare_then_execute"
 ```
 
 - `answer`: `yes | no | partial | pending`
 - `decision`
-  - selector-preflight decision for this task
+  - typed selector-preflight route token for this task
+  - `direct_execute | compare_then_execute | compose_then_execute | review_loop | pending`
   - must not remain `pending` once execution has started
 
 ## Evaluation section

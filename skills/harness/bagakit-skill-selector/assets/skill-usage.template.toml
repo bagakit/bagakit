@@ -51,3 +51,6 @@ retry_backoff_threshold = 3
 # - error_type = "<stable error cluster token>"
 # - message_pattern = "<repeat failure text pattern>"
 # - occurrence_index = <selector-counted repeat number for the same cluster>
+#
+# Typed preflight decisions:
+# - "direct_execute" | "compare_then_execute" | "compose_then_execute" | "review_loop" | "pending"

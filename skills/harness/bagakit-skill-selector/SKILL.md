@@ -144,7 +144,7 @@ node --experimental-strip-types scripts/skill_selector.ts preflight \
   --file .bagakit/skill-selector/tasks/<task-slug>/skill-usage.toml \
   --answer partial \
   --gap-summary "Need stronger memory benchmark coverage" \
-  --decision "search_then_execute" \
+  --decision "compare_then_execute" \
   --status in_progress
 
 node --experimental-strip-types scripts/skill_selector.ts plan \
@@ -247,6 +247,13 @@ Once a task chooses selector, set a concrete answer for coverage:
 - if not, what is missing
 - which missing area needs local search vs external search
 - whether a known selector recipe already fits the task shape
+
+Then choose one typed selector-preflight route:
+
+- `direct_execute`
+- `compare_then_execute`
+- `compose_then_execute`
+- `review_loop`
 
 Do not leave preflight decision in `pending` once execution starts.
 

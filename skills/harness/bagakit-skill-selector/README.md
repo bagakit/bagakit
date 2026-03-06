@@ -28,6 +28,13 @@ Use selector when:
 Skip selector when the work is trivial, obvious, and unlikely to benefit from
 comparative skill evidence.
 
+When selector is used, preflight should settle one typed route decision:
+
+- `direct_execute`
+- `compare_then_execute`
+- `compose_then_execute`
+- `review_loop`
+
 ## Why This Exists
 
 This skill exists so that task-level practice evidence does not have to be

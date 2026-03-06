@@ -1,5 +1,12 @@
 export const TASK_STATUSES = ["planning", "in_progress", "review", "completed", "blocked"] as const;
 export const PREFLIGHT_ANSWERS = ["yes", "no", "partial", "pending"] as const;
+export const PREFLIGHT_DECISIONS = [
+  "direct_execute",
+  "compare_then_execute",
+  "compose_then_execute",
+  "review_loop",
+  "pending",
+] as const;
 export const PLAN_KINDS = ["local", "external", "research", "custom"] as const;
 export const PLAN_CONFIDENCE = ["low", "medium", "high"] as const;
 export const PLAN_STATUSES = ["planned", "used", "not_used", "replaced", "deprecated"] as const;
@@ -17,6 +24,7 @@ export const RECIPE_STATUSES = ["considered", "selected", "used", "skipped", "re
 
 export type TaskStatus = (typeof TASK_STATUSES)[number];
 export type PreflightAnswer = (typeof PREFLIGHT_ANSWERS)[number];
+export type PreflightDecision = (typeof PREFLIGHT_DECISIONS)[number];
 export type PlanKind = (typeof PLAN_KINDS)[number];
 export type PlanConfidence = (typeof PLAN_CONFIDENCE)[number];
 export type PlanStatus = (typeof PLAN_STATUSES)[number];
@@ -36,7 +44,7 @@ export interface PreflightSection {
   question: string;
   answer: PreflightAnswer;
   gap_summary: string;
-  decision: string;
+  decision: PreflightDecision;
 }
 
 export interface EvaluationSection {

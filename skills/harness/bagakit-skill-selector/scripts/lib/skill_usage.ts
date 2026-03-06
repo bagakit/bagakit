@@ -13,6 +13,7 @@ import {
   PLAN_KINDS,
   PLAN_STATUSES,
   PREFLIGHT_ANSWERS,
+  PREFLIGHT_DECISIONS,
   RECIPE_STATUSES,
   SEARCH_SOURCE_SCOPES,
   SEARCH_STATUSES,
@@ -31,6 +32,7 @@ import {
   type PlanKind,
   type PlanStatus,
   type PreflightAnswer,
+  type PreflightDecision,
   type RecipeLogEntry,
   type RecipeStatus,
   type SearchLogEntry,
@@ -92,6 +94,14 @@ function readNumber(record: Record<string, unknown>, key: string, fallback = 0):
     return value;
   }
   throw new Error(`expected numeric value for ${key}`);
+}
+
+function normalizePreflightDecision(raw: string): PreflightDecision {
+  const value = raw.trim();
+  if (value === "search_then_execute") {
+    return "compare_then_execute";
+  }
+  return assertEnumValue(PREFLIGHT_DECISIONS, value || "pending", "preflight.decision");
 }
 
 function readRecord(record: Record<string, unknown>, key: string): Record<string, unknown> {
@@ -363,7 +373,7 @@ export function readSkillUsageDoc(filePath: string): SkillUsageDoc {
         "preflight.answer",
       ),
       gap_summary: readString(readRecord(raw, "preflight"), "gap_summary"),
-      decision: readString(readRecord(raw, "preflight"), "decision", "pending"),
+      decision: normalizePreflightDecision(readString(readRecord(raw, "preflight"), "decision", "pending")),
     },
     evaluation: {
       quality_score: readNumber(readRecord(raw, "evaluation"), "quality_score", 0),
@@ -519,7 +529,7 @@ export function updatePreflight(
   input: {
     answer: PreflightAnswer;
     gap_summary: string;
-    decision: string;
+    decision: PreflightDecision;
     status: TaskStatus;
   },
 ): void {

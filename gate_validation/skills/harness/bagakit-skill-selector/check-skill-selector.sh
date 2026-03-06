@@ -48,7 +48,7 @@ SELECTOR_BIN=(node --experimental-strip-types "$ROOT/skills/harness/bagakit-skil
   --file "$TARGET" \
   --answer partial \
   --gap-summary "need explicit driver loading and retry backoff coverage" \
-  --decision "search_then_execute" \
+  --decision "compose_then_execute" \
   --status in_progress
 
 "${SELECTOR_BIN[@]}" recipe \
