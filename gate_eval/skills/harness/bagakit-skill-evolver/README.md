@@ -20,7 +20,7 @@ gate.
 Primary entrypoint:
 
 ```bash
-node --experimental-strip-types gate_eval/skills/harness/bagakit-skill-evolver/run_eval.ts
+node --experimental-strip-types dev/eval/src/cli.ts run --root . --suite gate_eval/skills/harness/bagakit-skill-evolver/suite.ts
 ```
 
 Results are written under:

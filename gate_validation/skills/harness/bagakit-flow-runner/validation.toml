@@ -15,6 +15,9 @@ required_dirs = [
   "skills/harness/bagakit-flow-runner/references",
   "skills/harness/bagakit-flow-runner/references/tpl",
   "skills/harness/bagakit-flow-runner/scripts",
+  "gate_eval/skills/harness/bagakit-flow-runner",
+  "gate_eval/skills/harness/bagakit-flow-runner/results",
+  "gate_eval/skills/harness/bagakit-flow-runner/results/runs",
   "gate_validation/skills/harness/bagakit-flow-runner",
 ]
 required_files = [
@@ -31,6 +34,12 @@ required_files = [
   "skills/harness/bagakit-flow-runner/references/tpl/runner-policy-template.json",
   "skills/harness/bagakit-flow-runner/references/tpl/loop-recipe-template.json",
   "skills/harness/bagakit-flow-runner/references/tpl/item-handoff-template.md",
+  "gate_eval/skills/harness/bagakit-flow-runner/README.md",
+  "gate_eval/skills/harness/bagakit-flow-runner/suite.ts",
+  "gate_eval/skills/harness/bagakit-flow-runner/validation.toml",
+  "gate_eval/skills/harness/bagakit-flow-runner/results/.gitignore",
+  "gate_eval/skills/harness/bagakit-flow-runner/results/README.md",
+  "gate_eval/skills/harness/bagakit-flow-runner/results/runs/.gitkeep",
   "gate_validation/skills/harness/bagakit-flow-runner/validation.toml",
   "gate_validation/skills/harness/bagakit-flow-runner/check-flow-runner-contract.sh",
   "gate_validation/skills/harness/bagakit-flow-runner/check-flow-runner.sh",

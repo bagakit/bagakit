@@ -16,6 +16,9 @@ required_dirs = [
   "skills/harness/bagakit-skill-selector/references",
   "skills/harness/bagakit-skill-selector/scripts",
   "skills/harness/bagakit-skill-selector/scripts/lib",
+  "gate_eval/skills/harness/bagakit-skill-selector",
+  "gate_eval/skills/harness/bagakit-skill-selector/results",
+  "gate_eval/skills/harness/bagakit-skill-selector/results/runs",
   "gate_validation/skills/harness/bagakit-skill-selector",
 ]
 required_files = [
@@ -30,6 +33,12 @@ required_files = [
   "skills/harness/bagakit-skill-selector/references/skill-usage-file-spec.md",
   "skills/harness/bagakit-skill-selector/scripts/skill_selector.ts",
   "skills/harness/bagakit-skill-selector/scripts/lib/reports.ts",
+  "gate_eval/skills/harness/bagakit-skill-selector/README.md",
+  "gate_eval/skills/harness/bagakit-skill-selector/suite.ts",
+  "gate_eval/skills/harness/bagakit-skill-selector/validation.toml",
+  "gate_eval/skills/harness/bagakit-skill-selector/results/.gitignore",
+  "gate_eval/skills/harness/bagakit-skill-selector/results/README.md",
+  "gate_eval/skills/harness/bagakit-skill-selector/results/runs/.gitkeep",
   "gate_validation/skills/harness/bagakit-skill-selector/check-skill-selector.sh",
   "gate_validation/skills/harness/bagakit-skill-selector/validation.toml",
 ]

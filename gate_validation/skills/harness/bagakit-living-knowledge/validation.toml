@@ -14,6 +14,9 @@ required_dirs = [
   "skills/harness/bagakit-living-knowledge",
   "skills/harness/bagakit-living-knowledge/playbook/tpl",
   "skills/harness/bagakit-living-knowledge/scripts",
+  "gate_eval/skills/harness/bagakit-living-knowledge",
+  "gate_eval/skills/harness/bagakit-living-knowledge/results",
+  "gate_eval/skills/harness/bagakit-living-knowledge/results/runs",
   "gate_validation/skills/harness/bagakit-living-knowledge",
 ]
 required_files = [
@@ -29,6 +32,12 @@ required_files = [
   "skills/harness/bagakit-living-knowledge/playbook/tpl/must-authority-template.md",
   "skills/harness/bagakit-living-knowledge/playbook/tpl/must-recall-template.md",
   "skills/harness/bagakit-living-knowledge/playbook/tpl/shared-page-template.md",
+  "gate_eval/skills/harness/bagakit-living-knowledge/README.md",
+  "gate_eval/skills/harness/bagakit-living-knowledge/suite.ts",
+  "gate_eval/skills/harness/bagakit-living-knowledge/validation.toml",
+  "gate_eval/skills/harness/bagakit-living-knowledge/results/.gitignore",
+  "gate_eval/skills/harness/bagakit-living-knowledge/results/README.md",
+  "gate_eval/skills/harness/bagakit-living-knowledge/results/runs/.gitkeep",
   "gate_validation/skills/harness/bagakit-living-knowledge/validation.toml",
   "gate_validation/skills/harness/bagakit-living-knowledge/check-bagakit-living-knowledge.sh",
   "gate_validation/skills/harness/bagakit-living-knowledge/check-spec-alignment.py",
@@ -50,6 +59,7 @@ forbidden_paths = [
   "skills/harness/bagakit-living-knowledge/playbook/tpl/topic-inbox-readme-template.md",
   "skills/harness/bagakit-living-knowledge/playbook/tpl/topic-memory-readme-template.md",
   "skills/harness/bagakit-living-knowledge/playbook/tpl/topic-project-readme-template.md",
+  "skills/harness/bagakit-living-knowledge/playbook/tpl/reusable-items",
   "skills/harness/bagakit-living-knowledge/scripts/__pycache__",
   "skills/harness/bagakit-living-knowledge/scripts_dev",
 ]

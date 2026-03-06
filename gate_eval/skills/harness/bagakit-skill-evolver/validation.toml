@@ -13,5 +13,10 @@ kind = "executable"
 command = "{node}"
 args = [
   "--experimental-strip-types",
-  "gate_eval/skills/harness/bagakit-skill-evolver/run_eval.ts",
+  "dev/eval/src/cli.ts",
+  "run",
+  "--root",
+  "{repo_root}",
+  "--suite",
+  "gate_eval/skills/harness/bagakit-skill-evolver/suite.ts",
 ]

@@ -15,6 +15,9 @@ required_dirs = [
   "skills/harness/bagakit-feature-tracker/references",
   "skills/harness/bagakit-feature-tracker/references/tpl",
   "skills/harness/bagakit-feature-tracker/scripts",
+  "gate_eval/skills/harness/bagakit-feature-tracker",
+  "gate_eval/skills/harness/bagakit-feature-tracker/results",
+  "gate_eval/skills/harness/bagakit-feature-tracker/results/runs",
   "gate_validation/skills/harness/bagakit-feature-tracker",
 ]
 required_files = [
@@ -23,6 +26,12 @@ required_files = [
   "skills/harness/bagakit-feature-tracker/references/required-reading-manifest.json",
   "skills/harness/bagakit-feature-tracker/scripts/feature-tracker.sh",
   "skills/harness/bagakit-feature-tracker/scripts/feature-tracker.py",
+  "gate_eval/skills/harness/bagakit-feature-tracker/README.md",
+  "gate_eval/skills/harness/bagakit-feature-tracker/suite.ts",
+  "gate_eval/skills/harness/bagakit-feature-tracker/validation.toml",
+  "gate_eval/skills/harness/bagakit-feature-tracker/results/.gitignore",
+  "gate_eval/skills/harness/bagakit-feature-tracker/results/README.md",
+  "gate_eval/skills/harness/bagakit-feature-tracker/results/runs/.gitkeep",
   "gate_validation/skills/harness/bagakit-feature-tracker/validation.toml",
   "gate_validation/skills/harness/bagakit-feature-tracker/check-feature-tracker.sh",
   "gate_validation/skills/harness/bagakit-feature-tracker/check-feature-tracker-regression.sh",

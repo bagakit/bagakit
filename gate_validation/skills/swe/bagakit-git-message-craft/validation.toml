@@ -12,6 +12,9 @@ groups = ["skills", "swe", "git-message-craft", "structure"]
 kind = "fs"
 required_dirs = [
   "skills/swe/bagakit-git-message-craft",
+  "gate_eval/skills/swe/bagakit-git-message-craft",
+  "gate_eval/skills/swe/bagakit-git-message-craft/results",
+  "gate_eval/skills/swe/bagakit-git-message-craft/results/runs",
   "gate_validation/skills/swe/bagakit-git-message-craft",
 ]
 required_files = [
@@ -29,6 +32,12 @@ required_files = [
   "skills/swe/bagakit-git-message-craft/templates/mr/title.scope-first.md",
   "skills/swe/bagakit-git-message-craft/templates/mr/body.green-refresh.md",
   "skills/swe/bagakit-git-message-craft/templates/mr/body.status-refresh.md",
+  "gate_eval/skills/swe/bagakit-git-message-craft/README.md",
+  "gate_eval/skills/swe/bagakit-git-message-craft/suite.ts",
+  "gate_eval/skills/swe/bagakit-git-message-craft/validation.toml",
+  "gate_eval/skills/swe/bagakit-git-message-craft/results/.gitignore",
+  "gate_eval/skills/swe/bagakit-git-message-craft/results/README.md",
+  "gate_eval/skills/swe/bagakit-git-message-craft/results/runs/.gitkeep",
   "gate_validation/skills/swe/bagakit-git-message-craft/validation.toml",
   "gate_validation/skills/swe/bagakit-git-message-craft/check-bagakit-git-message-craft.sh",
   "gate_validation/skills/swe/bagakit-git-message-craft/check-anti-patterns.py",

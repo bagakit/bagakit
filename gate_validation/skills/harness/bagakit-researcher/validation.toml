@@ -14,6 +14,9 @@ required_dirs = [
   "skills/harness/bagakit-researcher",
   "skills/harness/bagakit-researcher/references",
   "skills/harness/bagakit-researcher/scripts",
+  "gate_eval/skills/harness/bagakit-researcher",
+  "gate_eval/skills/harness/bagakit-researcher/results",
+  "gate_eval/skills/harness/bagakit-researcher/results/runs",
   "gate_validation/skills/harness/bagakit-researcher",
 ]
 required_files = [
@@ -23,6 +26,12 @@ required_files = [
   "skills/harness/bagakit-researcher/references/research-workspace-spec.md",
   "skills/harness/bagakit-researcher/scripts/bagakit-researcher.sh",
   "skills/harness/bagakit-researcher/scripts/bagakit-researcher.py",
+  "gate_eval/skills/harness/bagakit-researcher/README.md",
+  "gate_eval/skills/harness/bagakit-researcher/suite.ts",
+  "gate_eval/skills/harness/bagakit-researcher/validation.toml",
+  "gate_eval/skills/harness/bagakit-researcher/results/.gitignore",
+  "gate_eval/skills/harness/bagakit-researcher/results/README.md",
+  "gate_eval/skills/harness/bagakit-researcher/results/runs/.gitkeep",
   "gate_validation/skills/harness/bagakit-researcher/validation.toml",
   "gate_validation/skills/harness/bagakit-researcher/check-bagakit-researcher.sh",
 ]

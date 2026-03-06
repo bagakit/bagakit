@@ -1,0 +1,22 @@
+version = 2
+
+[[suite]]
+id = "bagakit-flow-runner-shared-runner-eval"
+owner = "gate_eval/skills/harness/bagakit-flow-runner"
+description = "Run deterministic non-gating eval for flow-runner next-action and closeout signaling quality."
+default = true
+validation_class = "quality"
+groups = ["skills", "harness", "flow-runner", "eval", "quality"]
+
+[suite.runner]
+kind = "executable"
+command = "{node}"
+args = [
+  "--experimental-strip-types",
+  "dev/eval/src/cli.ts",
+  "run",
+  "--root",
+  "{repo_root}",
+  "--suite",
+  "gate_eval/skills/harness/bagakit-flow-runner/suite.ts",
+]

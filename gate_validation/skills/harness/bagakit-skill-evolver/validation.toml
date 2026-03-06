@@ -13,6 +13,9 @@ kind = "fs"
 required_dirs = [
   "skills/harness/bagakit-skill-evolver",
   "skills/harness/bagakit-skill-evolver/scripts",
+  "gate_eval/skills/harness/bagakit-skill-evolver",
+  "gate_eval/skills/harness/bagakit-skill-evolver/results",
+  "gate_eval/skills/harness/bagakit-skill-evolver/results/runs",
   "gate_validation/skills/harness/bagakit-skill-evolver",
 ]
 required_files = [
@@ -31,6 +34,12 @@ required_files = [
   "skills/harness/bagakit-skill-evolver/scripts/lib/render.ts",
   "skills/harness/bagakit-skill-evolver/scripts/lib/text.ts",
   "skills/harness/bagakit-skill-evolver/scripts/lib/validate.ts",
+  "gate_eval/skills/harness/bagakit-skill-evolver/README.md",
+  "gate_eval/skills/harness/bagakit-skill-evolver/suite.ts",
+  "gate_eval/skills/harness/bagakit-skill-evolver/validation.toml",
+  "gate_eval/skills/harness/bagakit-skill-evolver/results/.gitignore",
+  "gate_eval/skills/harness/bagakit-skill-evolver/results/README.md",
+  "gate_eval/skills/harness/bagakit-skill-evolver/results/runs/.gitkeep",
   "gate_validation/skills/harness/bagakit-skill-evolver/validation.toml",
   "gate_validation/skills/harness/bagakit-skill-evolver/check-evolver-state.sh",
   "gate_validation/skills/harness/bagakit-skill-evolver/check-evolver-smoke.sh",

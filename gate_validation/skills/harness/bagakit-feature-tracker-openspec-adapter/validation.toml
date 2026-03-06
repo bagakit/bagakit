@@ -13,6 +13,9 @@ kind = "fs"
 required_dirs = [
   "skills/harness/bagakit-feature-tracker-openspec-adapter",
   "skills/harness/bagakit-feature-tracker-openspec-adapter/scripts",
+  "gate_eval/skills/harness/bagakit-feature-tracker-openspec-adapter",
+  "gate_eval/skills/harness/bagakit-feature-tracker-openspec-adapter/results",
+  "gate_eval/skills/harness/bagakit-feature-tracker-openspec-adapter/results/runs",
   "gate_validation/skills/harness/bagakit-feature-tracker-openspec-adapter",
 ]
 required_files = [
@@ -20,6 +23,12 @@ required_files = [
   "skills/harness/bagakit-feature-tracker-openspec-adapter/SKILL.md",
   "skills/harness/bagakit-feature-tracker-openspec-adapter/scripts/openspec-feature-adapter.sh",
   "skills/harness/bagakit-feature-tracker-openspec-adapter/scripts/openspec-feature-adapter.py",
+  "gate_eval/skills/harness/bagakit-feature-tracker-openspec-adapter/README.md",
+  "gate_eval/skills/harness/bagakit-feature-tracker-openspec-adapter/suite.ts",
+  "gate_eval/skills/harness/bagakit-feature-tracker-openspec-adapter/validation.toml",
+  "gate_eval/skills/harness/bagakit-feature-tracker-openspec-adapter/results/.gitignore",
+  "gate_eval/skills/harness/bagakit-feature-tracker-openspec-adapter/results/README.md",
+  "gate_eval/skills/harness/bagakit-feature-tracker-openspec-adapter/results/runs/.gitkeep",
   "gate_validation/skills/harness/bagakit-feature-tracker-openspec-adapter/validation.toml",
   "gate_validation/skills/harness/bagakit-feature-tracker-openspec-adapter/check-openspec-adapter.sh",
 ]

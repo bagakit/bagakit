@@ -15,6 +15,9 @@ required_dirs = [
   "skills/harness/bagakit-brainstorm/references",
   "skills/harness/bagakit-brainstorm/references/tpl",
   "skills/harness/bagakit-brainstorm/scripts",
+  "gate_eval/skills/harness/bagakit-brainstorm",
+  "gate_eval/skills/harness/bagakit-brainstorm/results",
+  "gate_eval/skills/harness/bagakit-brainstorm/results/runs",
   "gate_validation/skills/harness/bagakit-brainstorm",
 ]
 required_files = [
@@ -34,6 +37,12 @@ required_files = [
   "skills/harness/bagakit-brainstorm/references/tpl/related_insights.md",
   "skills/harness/bagakit-brainstorm/references/tpl/review_quality.md",
   "skills/harness/bagakit-brainstorm/references/tpl/eval_effect_review.md",
+  "gate_eval/skills/harness/bagakit-brainstorm/README.md",
+  "gate_eval/skills/harness/bagakit-brainstorm/suite.ts",
+  "gate_eval/skills/harness/bagakit-brainstorm/validation.toml",
+  "gate_eval/skills/harness/bagakit-brainstorm/results/.gitignore",
+  "gate_eval/skills/harness/bagakit-brainstorm/results/README.md",
+  "gate_eval/skills/harness/bagakit-brainstorm/results/runs/.gitkeep",
   "gate_validation/skills/harness/bagakit-brainstorm/validation.toml",
   "gate_validation/skills/harness/bagakit-brainstorm/check-bagakit-brainstorm.sh",
 ]

@@ -1,0 +1,22 @@
+version = 2
+
+[[suite]]
+id = "bagakit-brainstorm-shared-runner-eval"
+owner = "gate_eval/skills/harness/bagakit-brainstorm"
+description = "Run deterministic non-gating eval for brainstorm init-time review surfaces and status reporting."
+default = true
+validation_class = "quality"
+groups = ["skills", "harness", "brainstorm", "eval", "quality"]
+
+[suite.runner]
+kind = "executable"
+command = "{node}"
+args = [
+  "--experimental-strip-types",
+  "dev/eval/src/cli.ts",
+  "run",
+  "--root",
+  "{repo_root}",
+  "--suite",
+  "gate_eval/skills/harness/bagakit-brainstorm/suite.ts",
+]
