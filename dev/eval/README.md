@@ -10,6 +10,7 @@ It exists to keep `gate_eval/` slices thin and consistent without turning
 `dev/eval/` owns shared mechanics only:
 
 - temp workspace lifecycle
+- optional shared agent-session launches through `dev/agent_runner/`
 - output sanitization
 - run-id and output-dir handling
 - normalized `summary.json` and `cases/*.json` packets
@@ -38,7 +39,7 @@ Those remain in:
   - shared eval runner entrypoint
 - `src/lib/`
   - reusable mechanics for suite loading, temp workspaces, command execution,
-    output sanitization, and packet writing
+    agent-session launches, output sanitization, and packet writing
 
 ## Runner Contract
 

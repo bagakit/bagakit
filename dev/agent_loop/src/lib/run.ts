@@ -1,29 +1,26 @@
 import { spawnSync } from "node:child_process";
 import path from "node:path";
 
-import { captureSnapshot, itemExists, loadNextAction } from "../adapters/flow_runner.ts";
+import { captureSnapshot, itemExists } from "../adapters/flow_runner.ts";
+import { launchStdinRunnerSession } from "../../../agent_runner/src/lib/session.ts";
 import { runnerConfigStatus } from "./config.ts";
 import {
   acquireRunLock,
   autoArchiveOwnedItem,
-  computeResumeCandidates,
   runnerResultIssue,
   recordRun,
   releaseRunLock,
   resultPathForSession,
-  sessionPrompt,
   snapshotLabel,
   writeSessionArtifacts,
-  writeSessionMeta,
-  writeSessionOutput,
   loadRunnerResult,
   allocateSession,
 } from "./core.ts";
+import { resolveResumeTarget, safeLoadNextAction } from "./front_door.ts";
 import { ensureDir, repoRelative } from "./io.ts";
 import type {
   AgentLoopRunPayload,
   FlowNextPayload,
-  FlowResumeCandidatesPayload,
   RunStopReason,
   RunnerConfig,
   RunnerResult,
@@ -50,17 +47,9 @@ type LaunchOutcome = Readonly<{
   run_status: AgentLoopRunPayload["run_status"];
 }>;
 
-function expandTemplate(value: string, replacements: Record<string, string>): string {
-  let rendered = value;
-  for (const [key, replacement] of Object.entries(replacements)) {
-    rendered = rendered.split(`{${key}}`).join(replacement);
-  }
-  return rendered;
-}
-
 function runRefreshCommands(root: string, config: RunnerConfig): void {
   for (const argv of config.refresh_commands) {
-    const command = argv.map((part) => expandTemplate(part, { repo_root: root }));
+    const command = argv.map((part) => part.split("{repo_root}").join(root));
     const result = spawnSync(command[0]!, command.slice(1), {
       cwd: root,
       encoding: "utf8",
@@ -69,111 +58,6 @@ function runRefreshCommands(root: string, config: RunnerConfig): void {
       throw new Error((result.stderr || result.stdout || "refresh command failed").trim());
     }
   }
-}
-
-function fallbackNextPayload(): FlowNextPayload {
-  return {
-    schema: "bagakit/flow-runner/next-action/v2",
-    command: "next",
-    recommended_action: "stop",
-    action_reason: "no_actionable_item",
-    session_contract: {
-      launch_bounded_session: false,
-      persist_state_before_stop: false,
-      checkpoint_before_stop: false,
-      snapshot_before_session: false,
-      archive_only_closeout: false,
-    },
-  };
-}
-
-function safeLoadNextAction(root: string, itemId?: string, fallback?: FlowNextPayload): {
-  payload: FlowNextPayload;
-  error: string;
-} {
-  try {
-    return {
-      payload: loadNextAction(root, itemId),
-      error: "",
-    };
-  } catch (error) {
-    return {
-      payload: fallback ?? fallbackNextPayload(),
-      error: error instanceof Error ? error.message : String(error),
-    };
-  }
-}
-
-function safeLoadResumeCandidates(root: string): { payload: FlowResumeCandidatesPayload; error: string } {
-  try {
-    return {
-      payload: computeResumeCandidates(root),
-      error: "",
-    };
-  } catch (error) {
-    return {
-      payload: {
-        schema: "bagakit/flow-runner/resume-candidates/v1",
-        command: "resume-candidates",
-        live: [],
-        closeout: [],
-      },
-      error: error instanceof Error ? error.message : String(error),
-    };
-  }
-}
-
-function resolveResumeTarget(root: string, requestedItem: string | undefined): {
-  itemId: string | undefined;
-  stop?: {
-    stop_reason: RunStopReason;
-    operator_message: string;
-    next_safe_action: string;
-    can_resume: boolean;
-    resume_candidates?: FlowResumeCandidatesPayload;
-  };
-} {
-  if (requestedItem) {
-    return { itemId: requestedItem };
-  }
-  const candidatesAttempt = safeLoadResumeCandidates(root);
-  if (candidatesAttempt.error) {
-    return {
-      itemId: undefined,
-      stop: {
-        stop_reason: "flow_runner_refresh_failed",
-        operator_message: candidatesAttempt.error,
-        next_safe_action: "inspect_flow_runner_state",
-        can_resume: false,
-      },
-    };
-  }
-  const live = candidatesAttempt.payload.live;
-  if (live.length === 1) {
-    return { itemId: live[0]?.item_id };
-  }
-  if (live.length === 0) {
-    return {
-      itemId: undefined,
-      stop: {
-        stop_reason: "resume_target_required",
-        operator_message: "no live resume candidate is available; choose an item explicitly or use run",
-        next_safe_action: "inspect_resume_candidates",
-        can_resume: false,
-        resume_candidates: candidatesAttempt.payload,
-      },
-    };
-  }
-  return {
-    itemId: undefined,
-    stop: {
-      stop_reason: "resume_target_ambiguous",
-      operator_message: "multiple live resume candidates are available; choose one item explicitly before resuming",
-      next_safe_action: "inspect_resume_candidates",
-      can_resume: false,
-      resume_candidates: candidatesAttempt.payload,
-    },
-  };
 }
 
 function validateRunnerResult(result: RunnerResult | null, sessionId: string): {
@@ -247,44 +131,44 @@ function launchRunnerSession(root: string, config: RunnerConfig, flowNext: FlowN
     throw new Error("flow-runner next payload did not include item_id");
   }
   const { sessionId } = allocateSession(root, config.runner_name, flowNext.item_id);
-  writeSessionArtifacts(root, sessionId, config.runner_name, flowNext);
+  const prompt = writeSessionArtifacts(root, sessionId, config.runner_name, flowNext);
   const paths = new AgentLoopPaths(root);
-  const replacements = {
+  const templateContext = {
     repo_root: root,
     session_dir: paths.sessionDir(sessionId),
     session_brief: paths.sessionBrief(sessionId),
     prompt_file: paths.promptFile(sessionId),
     runner_result: paths.runnerResultFile(sessionId),
   };
-  const argv = config.argv.map((part) => expandTemplate(part, replacements));
-  const env = Object.fromEntries(
-    Object.entries(config.env).map(([key, value]) => [key, expandTemplate(value, replacements)]),
-  );
+  const startedAt = new Date().toISOString();
 
   if (flowNext.session_contract.snapshot_before_session && flowNext.item_id && flowNext.session_number) {
     captureSnapshot(root, flowNext.item_id, snapshotLabel(flowNext.item_id, flowNext.session_number));
   }
 
-  const prompt = sessionPrompt(root, sessionId);
-  const result = spawnSync(argv[0]!, argv.slice(1), {
+  const result = launchStdinRunnerSession({
     cwd: root,
-    encoding: "utf8",
-    input: prompt,
-    timeout: config.timeout_seconds * 1000,
-    env: {
-      ...process.env,
-      ...env,
+    session_id: sessionId,
+    workload_id: flowNext.item_id,
+    started_at: startedAt,
+    prompt_text: prompt,
+    template_context: templateContext,
+    config,
+    paths: {
+      session_dir: paths.sessionDir(sessionId),
+      prompt_file: paths.promptFile(sessionId),
+      stdout_file: paths.stdoutFile(sessionId),
+      stderr_file: paths.stderrFile(sessionId),
+      session_meta_file: path.join(paths.sessionDir(sessionId), "session-meta.json"),
     },
   });
-  writeSessionOutput(root, sessionId, result.stdout ?? "", result.stderr ?? "");
-  writeSessionMeta(root, sessionId, flowNext.item_id, config.runner_name, new Date().toISOString(), result.status ?? null, result.signal ?? null);
 
   let stopReason: RunStopReason | "" = "";
-  if (result.error) {
-    stopReason = (result.error as { code?: string }).code === "ETIMEDOUT" ? "runner_timeout" : "runner_launch_failed";
+  if (result.launch_error) {
+    stopReason = result.launch_error === "ETIMEDOUT" ? "runner_timeout" : "runner_launch_failed";
   } else if (result.signal === "SIGINT" || result.signal === "SIGTERM") {
     stopReason = "operator_cancelled";
-  } else if ((result.status ?? 0) !== 0) {
+  } else if ((result.exit_code ?? 0) !== 0) {
     stopReason = "runner_exited_nonzero";
   }
 

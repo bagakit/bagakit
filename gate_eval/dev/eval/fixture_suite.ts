@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import path from "node:path";
 
 import { runCommand } from "../../../dev/eval/src/lib/command.ts";
+import { runAgentEvalSession } from "../../../dev/eval/src/lib/agent_session.ts";
 import { cleanupTempDir, createTempDir, registerTempRepo, writeTextFile } from "../../../dev/eval/src/lib/temp.ts";
 import type { EvalSuiteDefinition } from "../../../dev/eval/src/lib/model.ts";
 
@@ -89,6 +90,58 @@ export const SUITE: EvalSuiteDefinition = {
               note_path: path.join(tempRepo, "evidence", "note.txt"),
             },
             replacements,
+          };
+        } finally {
+          cleanupTempDir(tempRepo, context.keepTemp);
+        }
+      },
+    },
+    {
+      id: "agent-session-substrate",
+      title: "Agent Session Substrate",
+      summary: "Eval should be able to drive one bounded agent session through the shared agent-runner substrate.",
+      focus: ["agent-substrate", "shared-runner"],
+      run: (context) => {
+        const tempRepo = createTempDir("bagakit-dev-eval-agent-");
+        registerTempRepo(context, tempRepo);
+        try {
+          const session = runAgentEvalSession(context, {
+            workspaceRoot: tempRepo,
+            sessionId: "sess-eval-agent",
+            workloadId: "case-agent-substrate",
+            promptText: "bounded eval prompt\n",
+            config: {
+              runner_name: "fake-agent",
+              transport: "stdin_prompt",
+              argv: [
+                "python3",
+                "-c",
+                "import sys; print('agent-session-ok'); print(sys.stdin.read().strip())",
+              ],
+              env: {},
+              timeout_seconds: 2,
+            },
+          });
+          assert.equal(session.launch.exit_code, 0);
+          assert.ok(session.launch.stdout.includes("agent-session-ok"));
+          assert.ok(session.launch.stdout.includes("bounded eval prompt"));
+          return {
+            assertions: [
+              "eval launches one bounded runner session through dev/agent_runner",
+              "shared substrate writes prompt and transcript artifacts for the eval workspace",
+            ],
+            commands: [
+              "python3 -c \"import sys; print('agent-session-ok'); print(sys.stdin.read().strip())\"",
+            ],
+            artifacts: [
+              { label: "eval-session-dir", path: session.artifacts.sessionDir },
+              { label: "eval-prompt", path: session.artifacts.promptFile },
+              { label: "eval-stdout", path: session.artifacts.stdoutFile },
+              { label: "eval-session-meta", path: session.artifacts.sessionMetaFile },
+            ],
+            outputs: {
+              stdout: session.launch.stdout.trim().split("\n"),
+            },
           };
         } finally {
           cleanupTempDir(tempRepo, context.keepTemp);

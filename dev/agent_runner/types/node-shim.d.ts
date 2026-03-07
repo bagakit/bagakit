@@ -1,36 +1,19 @@
 declare module "node:fs" {
-  export type Dirent = {
-    name: string;
-    isDirectory(): boolean;
-  };
-
   const value: {
     mkdirSync(path: string, options?: { recursive?: boolean }): void;
     mkdtempSync(prefix: string): string;
     readFileSync(path: string, encoding: string): string;
     writeFileSync(path: string, data: string, encodingOrOptions?: string | { flag?: string }): void;
-    existsSync(path: string): boolean;
-    copyFileSync(source: string, destination: string): void;
-    readdirSync(path: string, options?: { withFileTypes?: boolean }): string[] | Dirent[];
-    unlinkSync(path: string): void;
-    renameSync(source: string, destination: string): void;
   };
   export default value;
 }
 
 declare module "node:path" {
   const value: {
-    sep: string;
     join(...parts: string[]): string;
-    resolve(...parts: string[]): string;
     dirname(path: string): string;
-    relative(from: string, to: string): string;
   };
   export default value;
-}
-
-declare module "node:util" {
-  export function parseArgs(...args: any[]): any;
 }
 
 declare module "node:child_process" {
@@ -61,8 +44,3 @@ declare module "node:test" {
 }
 
 declare const process: any;
-declare namespace NodeJS {
-  interface ErrnoException extends Error {
-    code?: string;
-  }
-}

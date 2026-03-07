@@ -6,6 +6,10 @@
 It exists to orchestrate bounded runner launches around canonical flow-runner
 item state without creating a second execution truth surface.
 
+Shared launch substrate:
+
+- `dev/agent_runner/`
+
 ## What It Owns
 
 - repo-local run locking under `.bagakit/agent-loop/run.lock`
@@ -72,6 +76,7 @@ They do not redefine the stable host contract.
 
 When maintaining this tool, read in this order:
 
-1. `docs/specs/agent-loop-contract.md`
-2. `docs/stewardship/agent-loop-maintenance.md`
-3. `docs/stewardship/flow-runner-maintenance.md`
+1. `docs/specs/agent-runner-contract.md`
+2. `docs/specs/agent-loop-contract.md`
+3. `docs/stewardship/agent-loop-maintenance.md`
+4. `docs/stewardship/flow-runner-maintenance.md`

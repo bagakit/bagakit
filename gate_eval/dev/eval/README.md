@@ -10,6 +10,7 @@ Scope:
 
 - pass-path packet validation
 - fail-path packet validation
+- shared agent-session substrate validation
 - temp-path sanitization
 - normalized packet writing
 

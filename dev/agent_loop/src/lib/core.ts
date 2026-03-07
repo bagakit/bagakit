@@ -622,43 +622,12 @@ export function writeSessionArtifacts(
   sessionId: string,
   runnerName: string,
   flowNext: FlowNextPayload,
-): void {
+): string {
   const paths = new AgentLoopPaths(root);
   const state = readItemState(root, flowNext.item_id || "");
   const brief = buildSessionBrief(root, sessionId, runnerName, paths, state, flowNext, flowRunnerCommand(root));
   writeJsonFile(paths.sessionBrief(sessionId), brief);
-  const prompt = renderPrompt(brief);
-  writeText(paths.promptFile(sessionId), prompt);
-}
-
-export function sessionPrompt(root: string, sessionId: string): string {
-  const paths = new AgentLoopPaths(root);
-  return fs.readFileSync(paths.promptFile(sessionId), "utf8");
-}
-
-export function writeSessionMeta(
-  root: string,
-  sessionId: string,
-  itemId: string,
-  runnerName: string,
-  startedAt: string,
-  exitCode: number | null,
-  signal: string | null,
-): void {
-  const paths = new AgentLoopPaths(root);
-  writeJsonFile(path.join(paths.sessionDir(sessionId), "session-meta.json"), {
-    item_id: itemId,
-    runner_name: runnerName,
-    started_at: startedAt,
-    exit_code: exitCode,
-    signal,
-  });
-}
-
-export function writeSessionOutput(root: string, sessionId: string, stdout: string, stderr: string): void {
-  const paths = new AgentLoopPaths(root);
-  fs.writeFileSync(paths.stdoutFile(sessionId), stdout, "utf8");
-  fs.writeFileSync(paths.stderrFile(sessionId), stderr, "utf8");
+  return renderPrompt(brief);
 }
 
 export function loadRunnerResult(root: string, sessionId: string): RunnerResult | null {

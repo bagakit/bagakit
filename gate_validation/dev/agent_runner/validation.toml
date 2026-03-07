@@ -1,0 +1,70 @@
+version = 2
+
+[[suite]]
+id = "agent-runner-layout"
+owner = "dev/agent_runner"
+description = "Require the canonical shared agent-runner substrate layout and contract docs."
+default = true
+validation_class = "structure"
+groups = ["dev", "agent-runner", "structure"]
+
+[suite.runner]
+kind = "fs"
+required_dirs = [
+  "dev/agent_runner",
+  "dev/agent_runner/src",
+  "dev/agent_runner/src/lib",
+  "dev/agent_runner/test",
+  "dev/agent_runner/types",
+  "gate_validation/dev/agent_runner",
+]
+required_files = [
+  "dev/agent_runner/README.md",
+  "dev/agent_runner/package.json",
+  "dev/agent_runner/tsconfig.json",
+  "dev/agent_runner/src/lib/io.ts",
+  "dev/agent_runner/src/lib/model.ts",
+  "dev/agent_runner/src/lib/session.ts",
+  "dev/agent_runner/test/agent-runner.test.ts",
+  "dev/agent_runner/types/node-shim.d.ts",
+  "docs/specs/agent-runner-contract.md",
+  "gate_validation/dev/agent_runner/validation.toml",
+]
+
+[[suite]]
+id = "agent-runner-tests"
+owner = "dev/agent_runner"
+description = "Run bounded-session substrate regression tests."
+default = true
+validation_class = "quality"
+groups = ["dev", "agent-runner", "quality"]
+
+[suite.runner]
+kind = "executable"
+command = "{node}"
+args = [
+  "--test",
+  "--experimental-strip-types",
+  "dev/agent_runner/test/agent-runner.test.ts",
+]
+
+[[suite]]
+id = "agent-runner-typecheck"
+owner = "dev/agent_runner"
+description = "Run a strict TypeScript typecheck for the agent-runner substrate."
+default = true
+validation_class = "quality"
+groups = ["dev", "agent-runner", "quality", "typecheck"]
+
+[suite.runner]
+kind = "executable"
+command = "npx"
+args = [
+  "--yes",
+  "-p",
+  "typescript",
+  "tsc",
+  "-p",
+  "dev/agent_runner/tsconfig.json",
+  "--noEmit",
+]
