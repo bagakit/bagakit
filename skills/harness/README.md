@@ -10,6 +10,7 @@ Current harness skill sources:
 
 - `bagakit-brainstorm`
 - `bagakit-feature-tracker`
+- `bagakit-feature-tracker-openspec-adapter`
 - `bagakit-flow-runner`
 - `bagakit-living-knowledge`
 - `bagakit-researcher`
