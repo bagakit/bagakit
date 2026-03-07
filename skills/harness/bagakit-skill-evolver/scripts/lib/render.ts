@@ -38,8 +38,8 @@ function joinRepoRefs(topic: TopicRecord): string[] {
   return [...refs].sort((left, right) => left.localeCompare(right));
 }
 
-function isHiddenDocsRef(ref: string): boolean {
-  return ref.startsWith("docs/.");
+function isResearchWorkspaceRef(ref: string): boolean {
+  return ref.startsWith(".bagakit/researcher/");
 }
 
 function formatCandidateLine(candidate: CandidateRecord): string {
@@ -265,7 +265,7 @@ export function buildTopicReadme(paths: EvolverPaths, topic: TopicRecord): strin
 export function buildTopicReport(paths: EvolverPaths, topic: TopicRecord): string {
   const readiness = evaluatePromotionReadiness(topic);
   const runtimeRoot = path.relative(paths.root, paths.topicDir(topic.slug)).split(path.sep).join("/");
-  const researchRefs = joinRepoRefs(topic).filter((ref) => isHiddenDocsRef(ref));
+  const researchRefs = joinRepoRefs(topic).filter((ref) => isResearchWorkspaceRef(ref));
   const durableSurfaceLines = buildDurableSurfaceLines(topic);
   const readinessLines = buildReadinessLines(topic);
   const lines = [
@@ -280,7 +280,7 @@ export function buildTopicReport(paths: EvolverPaths, topic: TopicRecord): strin
     "",
     "## Layer Map",
     "",
-    "### Hidden Research",
+    "### Research Workspace",
     "",
     ...(researchRefs.length > 0 ? researchRefs.map((ref) => `- ${quote(ref)}`) : ["- none"]),
     "",

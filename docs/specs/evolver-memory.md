@@ -335,7 +335,7 @@ purpose.
 
 The intended layers are:
 
-1. hidden research
+1. researcher workspace evidence
    - local evidence and exploratory material under
      `.bagakit/researcher/topics/<topic-class>/<topic>/`
 2. structured decision memory
@@ -349,7 +349,7 @@ The evolver operator should not collapse these layers into one storage surface.
 
 Current implication:
 
-- local researcher workspaces remain weak-link only
+- researcher workspaces remain weak-link only
 - topic-local JSON and derived reports remain the evolver memory and
   decision-memory surface
 - durable promotions are explicitly typed by `surface`

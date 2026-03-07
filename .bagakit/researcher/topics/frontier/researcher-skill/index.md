@@ -14,7 +14,7 @@ The focus here is not generic web search. The focus is:
 ## Local Topic Layout
 
 ```text
-docs/.frontier/researcher-skill/
+.bagakit/researcher/topics/frontier/researcher-skill/
 ├── originals/
 │   └── source-map.md
 └── summaries/
@@ -27,19 +27,15 @@ docs/.frontier/researcher-skill/
 - A01
   - title: Building effective agents
   - source: `https://www.anthropic.com/research/building-effective-agents`
-  - local summary: [../agentic-repo-workflow/summaries/A01-building-effective-agents.md](../agentic-repo-workflow/summaries/A01-building-effective-agents.md)
 - A02
   - title: How we built our multi-agent research system
   - source: `https://www.anthropic.com/engineering/multi-agent-research-system`
-  - local summary: [../evolver-enhancement-map/summaries/F03-multi-agent-research-system.md](../evolver-enhancement-map/summaries/F03-multi-agent-research-system.md)
 - A03
   - title: Effective context engineering for AI agents
   - source: `https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents`
-  - local summary: [../evolver-enhancement-map/summaries/F04-effective-context-engineering.md](../evolver-enhancement-map/summaries/F04-effective-context-engineering.md)
 - O01
   - title: New tools for building agents
   - source: `https://openai.com/index/new-tools-for-building-agents/`
-  - local summary: [../agentic-repo-workflow/summaries/O03-new-tools-for-building-agents.md](../agentic-repo-workflow/summaries/O03-new-tools-for-building-agents.md)
 
 ## Recommended Reading Order
 

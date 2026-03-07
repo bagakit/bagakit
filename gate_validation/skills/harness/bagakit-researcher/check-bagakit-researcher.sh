@@ -78,4 +78,18 @@ python3 "$SKILL_DIR/scripts/bagakit-researcher.py" list-topics --root "$TMP_DIR"
 python3 "$SKILL_DIR/scripts/bagakit-researcher.py" doctor --root "$TMP_DIR" --topic-class configured --topic topic-root >/dev/null
 test -f "$TMP_DIR/.bagakit/researcher/topics/configured/topic-root/index.md"
 
+cat > "$TMP_DIR/.bagakit/knowledge_conf.toml" <<'EOF'
+[paths]
+researcher_root = "docs/.research"
+EOF
+
+if python3 "$SKILL_DIR/scripts/bagakit-researcher.py" init-topic \
+  --root "$TMP_DIR" \
+  --topic-class invalid \
+  --topic old-root \
+  --title "Invalid Root" >/dev/null 2>&1; then
+  echo "error: hidden docs researcher_root unexpectedly accepted" >&2
+  exit 1
+fi
+
 echo "ok: bagakit-researcher canonical smoke passed"

@@ -16,7 +16,7 @@ Default runtime root:
 ```
 
 Configured runtime when `.bagakit/knowledge_conf.toml` declares
-`researcher_root`:
+`researcher_root` under `.bagakit/`:
 
 ```text
 <researcher_root>/topics/<topic-class>/<topic>/
@@ -24,6 +24,13 @@ Configured runtime when `.bagakit/knowledge_conf.toml` declares
 ├── summaries/
 └── index.md
 ```
+
+## Root Rule
+
+`researcher_root` may override the default root only when it stays under
+`.bagakit/`.
+
+Hidden `docs/.<topic-class>/...` paths are not valid Bagakit researcher roots.
 
 ## Source Preservation Rule
 

@@ -30,6 +30,23 @@ def resolve_root(raw: str) -> Path:
     return (Path.cwd() / raw).resolve()
 
 
+def validate_researcher_root(raw: str) -> str:
+    value = raw.strip()
+    if not value:
+        raise SystemExit("error: researcher_root must not be empty")
+    candidate = Path(value)
+    if candidate.is_absolute():
+        raise SystemExit("error: researcher_root must stay repo-relative under .bagakit/")
+    normalized = candidate.as_posix()
+    if normalized == ".bagakit":
+        raise SystemExit("error: researcher_root must point to a child path under .bagakit/")
+    if not normalized.startswith(".bagakit/"):
+        raise SystemExit("error: researcher_root must stay under .bagakit/")
+    if ".." in candidate.parts:
+        raise SystemExit("error: researcher_root must not escape .bagakit/")
+    return normalized
+
+
 def load_researcher_root(root: Path) -> str:
     conf = root / ".bagakit" / "knowledge_conf.toml"
     if not conf.is_file():
@@ -48,7 +65,7 @@ def load_researcher_root(root: Path) -> str:
         key, raw_value = line.split("=", 1)
         if key.strip() != "researcher_root":
             continue
-        value = raw_value.strip().strip('"').strip("'")
+        value = validate_researcher_root(raw_value.strip().strip('"').strip("'"))
         if current == "paths":
             return value
         if current == "":

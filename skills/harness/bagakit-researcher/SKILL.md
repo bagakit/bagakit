@@ -63,6 +63,13 @@ Each topic lives under:
 
 - `<researcher_root>/topics/<topic-class>/<topic>/`
 
+Rule:
+
+- `researcher_root` may override the default path only when it stays under
+  `.bagakit/`
+- hidden `docs/.<topic-class>/...` roots are not valid Bagakit researcher
+  runtime paths
+
 Required topic members:
 
 - `originals/`

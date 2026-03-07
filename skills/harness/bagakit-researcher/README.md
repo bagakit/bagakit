@@ -12,7 +12,7 @@ Standalone local-first research workflow for repositories that need:
 - default runtime root:
   - `.bagakit/researcher/topics/<topic-class>/<topic>/`
 - configured runtime root, when `.bagakit/knowledge_conf.toml` declares
-  `researcher_root`:
+  `researcher_root` under `.bagakit/`:
   - `<researcher_root>/topics/<topic-class>/<topic>/`
 - required topic files:
   - `originals/`

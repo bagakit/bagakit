@@ -164,6 +164,8 @@ Rule:
 - if a peer system ignores this config, it must still stay standalone-first
 - if a peer system chooses to follow it, the config is the shared path contract
 - `living-knowledge` must not require the peer to exist
+- `researcher_root`, `selector_root`, and `evolver_root` must stay under
+  `.bagakit/`
 
 ## Shared Checked-In Knowledge
 

@@ -33,11 +33,14 @@ Each research topic should have a topic workspace.
 Recommended shape:
 
 ```text
-.bagakit/researcher/topics/<topic-class>/<topic>/
+<researcher_root>/topics/<topic-class>/<topic>/
 ├── originals/
 ├── summaries/
 └── index.md
 ```
+
+`researcher_root` may override the default root only when it stays under
+`.bagakit/`.
 
 Recommended meaning:
 

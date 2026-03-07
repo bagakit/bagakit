@@ -89,7 +89,7 @@ Those researcher paths are weak references only.
 
 Think in these layers:
 
-1. hidden research
+1. researcher workspace evidence
    - local evidence under researcher-owned workspaces
 2. structured decision memory
    - topic-local state under `.bagakit/evolver/topics/<slug>/`
