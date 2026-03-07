@@ -173,6 +173,7 @@ export interface RecipeLogEntry {
   source: string;
   why: string;
   status: RecipeStatus;
+  synthesis_artifact?: string;
   notes: string;
 }
 

@@ -14,14 +14,14 @@ export const SUITE: EvalSuiteDefinition = {
   id: "bagakit-skill-selector-shared-runner-eval",
   owner: "gate_eval/skills/harness/bagakit-skill-selector",
   title: "Skill Selector Shared Runner Eval",
-  summary: "Measure deterministic composition logging and retry-backoff evidence for bagakit-skill-selector.",
+  summary: "Measure deterministic composition logging, retry-backoff evidence, and explicit selector->evolver bridge behavior for bagakit-skill-selector.",
   defaultOutputDir: "gate_eval/skills/harness/bagakit-skill-selector/results/runs",
   cases: [
     {
       id: "composition-log-drives-driver-pack-and-ranking",
-      title: "Composition Log Drives Driver Pack And Ranking",
-      summary: "Selector usage logs should drive retry backoff, driver-pack rendering, and ranking output coherently.",
-      focus: ["composition-log", "retry-backoff", "derived-reports"],
+      title: "Composition Log Drives Driver Pack, Ranking, And Evolver Bridge",
+      summary: "Selector task logs should drive retry backoff, review-signal bridge, driver-pack rendering, and ranking output coherently.",
+      focus: ["composition-log", "retry-backoff", "evolver-bridge", "derived-reports"],
       run: (context) => {
         const { repoRoot } = context;
         const tempRepo = createTempDir("bagakit-skill-selector-eval-");
@@ -30,8 +30,11 @@ export const SUITE: EvalSuiteDefinition = {
           const target = path.join(tempRepo, ".bagakit", "skill-selector", "tasks", "demo", "skill-usage.toml");
           const driverPack = path.join(tempRepo, ".bagakit", "skill-selector", "tasks", "demo", "bagakit-drivers.md");
           const ranking = path.join(tempRepo, ".bagakit", "skill-selector", "tasks", "demo", "skill-ranking.md");
+          const evolverExport = path.join(tempRepo, ".bagakit", "skill-selector", "tasks", "demo", "evolver-signals.json");
           const script = path.join(repoRoot, "skills", "harness", "bagakit-skill-selector", "scripts", "skill_selector.ts");
+          const evolverScript = path.join(repoRoot, "skills", "harness", "bagakit-skill-evolver", "scripts", "evolver.ts");
           const run = (argv: string[], label: string) => expectOk(runCommand("node", ["--experimental-strip-types", script, ...argv], { cwd: repoRoot, replacements }), label);
+          const runEvolver = (argv: string[], label: string) => expectOk(runCommand("node", ["--experimental-strip-types", evolverScript, ...argv], { cwd: repoRoot, replacements }), label);
 
         run(["init", "--file", target, "--task-id", "demo-task", "--objective", "eval selector loop", "--owner", "validator"], "init");
         run(["preflight", "--file", target, "--answer", "partial", "--gap-summary", "need driver loading coverage", "--decision", "compose_then_execute", "--status", "in_progress"], "preflight");
@@ -43,41 +46,85 @@ export const SUITE: EvalSuiteDefinition = {
         run(["usage", "--file", target, "--skill-id", "bagakit-skill-selector", "--phase", "execution", "--attempt-key", "driver-pack-load", "--action", "loaded selector drivers", "--result", "failed", "--evidence", "suite.ts"], "usage failed 1");
         run(["usage", "--file", target, "--skill-id", "bagakit-skill-selector", "--phase", "execution", "--attempt-key", "driver-pack-load", "--action", "loaded selector drivers", "--result", "failed", "--evidence", "suite.ts"], "usage failed 2");
         run(["error-pattern", "--file", target, "--error-type", "driver_load_failure", "--message-pattern", "loaded selector drivers", "--skill-id", "bagakit-skill-selector", "--resolution", "switch method"], "error-pattern");
+        run([
+          "evolver-signal",
+          "--file",
+          target,
+          "--signal-id",
+          "driver-load-review",
+          "--kind",
+          "gotcha",
+          "--trigger",
+          "manual_review",
+          "--skill-id",
+          "bagakit-skill-selector",
+          "--title",
+          "Driver load loop deserves repo review",
+          "--summary",
+          "selector-visible repeated driver load failures may reflect a reusable repository-level reporting gap",
+          "--scope-hint",
+          "upstream",
+          "--attempt-key",
+          "driver-pack-load",
+          "--error-type",
+          "driver_load_failure",
+          "--occurrence-index",
+          "3",
+          "--evidence-ref",
+          target,
+        ], "evolver-signal");
         run(["feedback", "--file", target, "--skill-id", "bagakit-skill-selector", "--channel", "self_review", "--signal", "positive", "--detail", "ranking stays readable", "--impact-scope", "driver-loop", "--confidence", "high"], "feedback");
         run(["search", "--file", target, "--reason", "retry backoff threshold hit", "--query", "driver-pack-load alternative strategy", "--source-scope", "local"], "search");
         run(["benchmark", "--file", target, "--benchmark-id", "selector-smoke", "--metric", "evidence_quality", "--baseline", "0.6", "--candidate", "0.8", "--higher-is-better", "--notes", "exercise benchmark logging"], "benchmark");
         run(["drivers", "--file", target, "--root", repoRoot, "--output", driverPack], "drivers");
         run(["skill-ranking", "--file", target, "--output", ranking], "skill-ranking");
+        run(["evolver-export", "--file", target, "--output", evolverExport, "--mark-exported"], "evolver-export");
+        run(["evolver-bridge", "--file", target, "--root", tempRepo, "--output", evolverExport, "--status", "exported"], "evolver-bridge");
         run(["evaluate", "--file", target, "--quality-score", "0.78", "--evidence-score", "0.86", "--feedback-score", "0.72", "--overall", "conditional_pass", "--summary", "selector loop stays coherent", "--status", "completed"], "evaluate");
         run(["validate", "--file", target, "--strict"], "validate");
+        runEvolver(["list-signals", "--root", tempRepo, "--json"], "evolver list-signals");
 
         const targetText = fs.readFileSync(target, "utf8");
         const driverText = fs.readFileSync(driverPack, "utf8");
         const rankingText = fs.readFileSync(ranking, "utf8");
+        const evolverExportText = fs.readFileSync(evolverExport, "utf8");
+        const signalDir = path.join(tempRepo, ".mem_inbox", "signals");
+        const signalFiles = fs.readdirSync(signalDir).sort();
         assert.ok(targetText.includes("backoff_required = true"));
         assert.ok(targetText.includes("needs_new_search = true"));
+        assert.ok(targetText.includes("[[evolver_signal_log]]"));
+        assert.ok(targetText.includes('signal_id = "driver-load-review"'));
+        assert.ok(targetText.includes('status = "imported"'));
         assert.ok(driverText.includes("bagakit-researcher"));
         assert.ok(driverText.includes("RetryBackoffThreshold: `3`"));
+        assert.ok(driverText.includes("EvolverReview=<pending review signals or none>"));
         assert.ok(rankingText.includes("Skill Ranking Report"));
+        assert.ok(rankingText.includes("## Evolver Review Signals"));
+        assert.ok(evolverExportText.includes("\"schema\": \"bagakit.evolver.signal.v1\""));
+        assert.ok(signalFiles.includes("demo-task-driver-load-review.json"));
 
           return {
           assertions: [
             "selector log records retry backoff and new-search requirement after repeated failures",
             "driver pack includes composed peers declared by the chosen plans",
             "skill ranking report is produced from the same task log without a second control plane",
+            "selector review signals export and bridge explicitly into evolver intake without auto-opening a topic",
           ],
           commands: [
             `node --experimental-strip-types ${script} init --file <temp-repo>/.bagakit/skill-selector/tasks/demo/skill-usage.toml --task-id demo-task --objective "eval selector loop" --owner validator`,
             `node --experimental-strip-types ${script} drivers --file <temp-repo>/.bagakit/skill-selector/tasks/demo/skill-usage.toml --root . --output <temp-repo>/.bagakit/skill-selector/tasks/demo/bagakit-drivers.md`,
             `node --experimental-strip-types ${script} skill-ranking --file <temp-repo>/.bagakit/skill-selector/tasks/demo/skill-usage.toml --output <temp-repo>/.bagakit/skill-selector/tasks/demo/skill-ranking.md`,
+            `node --experimental-strip-types ${script} evolver-bridge --file <temp-repo>/.bagakit/skill-selector/tasks/demo/skill-usage.toml --root <temp-repo> --output <temp-repo>/.bagakit/skill-selector/tasks/demo/evolver-signals.json --status exported`,
           ],
           artifacts: [
             { label: "usage-log", path: target },
             { label: "driver-pack", path: driverPack },
             { label: "ranking-report", path: ranking },
+            { label: "evolver-export", path: evolverExport },
           ],
           outputs: {
             ranking_top_line: rankingText.split("\n").find((line) => line.includes("| 1 |")) ?? "",
+            evolver_signal_count: signalFiles.length,
           },
             replacements,
           };

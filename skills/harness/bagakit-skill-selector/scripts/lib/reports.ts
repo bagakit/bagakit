@@ -172,5 +172,18 @@ export function buildSkillRankingReport(doc: SkillUsageDoc): string {
   lines.push("- `Error Patterns` sums the selector-counted repeat depth for each clustered failure signature.");
   lines.push("- `Composite` is a task-local comparison aid, not a repository-level promotion decision.");
   lines.push("");
+  lines.push("## Evolver Review Signals");
+  lines.push("");
+  if (doc.evolver_signal_log.length === 0) {
+    lines.push("- none");
+  } else {
+    for (const signal of doc.evolver_signal_log) {
+      lines.push(
+        `- ${signal.signal_id} | status=${signal.status} | trigger=${signal.trigger} | scope_hint=${signal.scope_hint} | confidence=${signal.confidence.toFixed(2)}`,
+      );
+      lines.push(`  - ${signal.summary}`);
+    }
+  }
+  lines.push("");
   return `${lines.join("\n")}\n`;
 }

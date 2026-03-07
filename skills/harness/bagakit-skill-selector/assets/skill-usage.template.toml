@@ -28,8 +28,12 @@ notes = ""
 [attempt_policy]
 retry_backoff_threshold = 3
 
+[evolver_handoff_policy]
+enabled = true
+
 # Append records below with [[recipe_log]], [[skill_plan]], [[usage_log]],
-# [[feedback_log]], [[search_log]], [[benchmark_log]], and [[error_pattern_log]].
+# [[feedback_log]], [[search_log]], [[benchmark_log]], [[error_pattern_log]],
+# and [[evolver_signal_log]].
 #
 # Historical note:
 # - [[skill_plan]] and skill_id remain the field names
@@ -51,6 +55,13 @@ retry_backoff_threshold = 3
 # - error_type = "<stable error cluster token>"
 # - message_pattern = "<repeat failure text pattern>"
 # - occurrence_index = <selector-counted repeat number for the same cluster>
+#
+# Optional evolver review signal fields:
+# - signal_id = "<task-local stable signal id>"
+# - trigger = "retry_backoff" | "error_pattern" | "failed_benchmark" | "negative_feedback" | "manual_review"
+# - scope_hint = "unset" | "host" | "upstream" | "split"
+# - status = "suggested" | "exported" | "imported" | "dismissed"
+# - evidence_ref = "<task-local evidence artifact>"
 #
 # Typed preflight decisions:
 # - "direct_execute" | "compare_then_execute" | "compose_then_execute" | "review_loop" | "pending"

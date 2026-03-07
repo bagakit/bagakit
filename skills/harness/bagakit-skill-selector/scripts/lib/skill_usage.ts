@@ -6,6 +6,10 @@ import {
   ACTIVATION_MODES,
   COMPOSITION_ROLES,
   EVALUATION_OVERALL,
+  EVOLVER_SCOPE_HINTS,
+  EVOLVER_SIGNAL_KINDS,
+  EVOLVER_SIGNAL_STATUSES,
+  EVOLVER_SIGNAL_TRIGGERS,
   FALLBACK_STRATEGIES,
   FEEDBACK_CHANNELS,
   FEEDBACK_SIGNALS,
@@ -23,6 +27,13 @@ import {
   type ActivationMode,
   type BenchmarkLogEntry,
   type CompositionRole,
+  type EvolverSignalContract,
+  type EvolverSignalContractRecord,
+  type EvolverSignalLogEntry,
+  type EvolverSignalKind,
+  type EvolverSignalStatus,
+  type EvolverSignalTrigger,
+  type EvolverScopeHint,
   type ErrorPatternLogEntry,
   type EvaluationOverall,
   type FeedbackChannel,
@@ -53,6 +64,20 @@ function nowIso(): string {
   return new Date().toISOString();
 }
 
+function toStableToken(raw: string): string {
+  let collapsed = raw
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-");
+  while (collapsed.startsWith("-")) {
+    collapsed = collapsed.slice(1);
+  }
+  while (collapsed.endsWith("-")) {
+    collapsed = collapsed.slice(0, -1);
+  }
+  return collapsed;
+}
+
 function assertEnumValue<const T extends readonly string[]>(values: T, raw: string, label: string): T[number] {
   if (values.includes(raw)) {
     return raw as T[number];
@@ -72,6 +97,11 @@ function readString(record: Record<string, unknown>, key: string, fallback = "")
     return String(value);
   }
   throw new Error(`expected string-compatible value for ${key}`);
+}
+
+function readOptionalString(record: Record<string, unknown>, key: string): string | undefined {
+  const value = readString(record, key, "");
+  return value.trim() === "" ? undefined : value;
 }
 
 function readBoolean(record: Record<string, unknown>, key: string, fallback = false): boolean {
@@ -301,6 +331,35 @@ function parseRecipeLogEntry(record: Record<string, unknown>): RecipeLogEntry {
   };
 }
 
+function parseEvolverSignalLogEntry(record: Record<string, unknown>): EvolverSignalLogEntry {
+  return {
+    timestamp: readString(record, "timestamp"),
+    signal_id: readString(record, "signal_id"),
+    kind: assertEnumValue(EVOLVER_SIGNAL_KINDS, readString(record, "kind"), "evolver_signal_log.kind"),
+    trigger: assertEnumValue(EVOLVER_SIGNAL_TRIGGERS, readString(record, "trigger"), "evolver_signal_log.trigger"),
+    skill_id: readString(record, "skill_id"),
+    scope_hint: assertEnumValue(
+      EVOLVER_SCOPE_HINTS,
+      readString(record, "scope_hint", "unset"),
+      "evolver_signal_log.scope_hint",
+    ),
+    title: readString(record, "title"),
+    summary: readString(record, "summary"),
+    confidence: readNumber(record, "confidence", 0.5),
+    status: assertEnumValue(
+      EVOLVER_SIGNAL_STATUSES,
+      readString(record, "status", "suggested"),
+      "evolver_signal_log.status",
+    ),
+    topic_hint: readOptionalString(record, "topic_hint"),
+    attempt_key: readOptionalString(record, "attempt_key"),
+    error_type: readOptionalString(record, "error_type"),
+    occurrence_index: readNumber(record, "occurrence_index", 1),
+    evidence_ref: readOptionalString(record, "evidence_ref"),
+    notes: readString(record, "notes"),
+  };
+}
+
 export function createSkillUsageDoc(taskId: string, objective: string, owner: string): SkillUsageDoc {
   const timestamp = nowIso();
   return {
@@ -333,6 +392,9 @@ export function createSkillUsageDoc(taskId: string, objective: string, owner: st
     attempt_policy: {
       retry_backoff_threshold: 3,
     },
+    evolver_handoff_policy: {
+      enabled: true,
+    },
     skill_plan: [],
     usage_log: [],
     feedback_log: [],
@@ -340,6 +402,7 @@ export function createSkillUsageDoc(taskId: string, objective: string, owner: st
     benchmark_log: [],
     error_pattern_log: [],
     recipe_log: [],
+    evolver_signal_log: [],
   };
 }
 
@@ -387,6 +450,9 @@ export function readSkillUsageDoc(filePath: string): SkillUsageDoc {
     attempt_policy: {
       retry_backoff_threshold: readNumber(readRecord(raw, "attempt_policy"), "retry_backoff_threshold", 3),
     },
+    evolver_handoff_policy: {
+      enabled: readBoolean(readRecord(raw, "evolver_handoff_policy"), "enabled", true),
+    },
     skill_plan: readRecordArray(raw, "skill_plan").map(parseSkillPlanEntry),
     usage_log: readRecordArray(raw, "usage_log").map(parseUsageLogEntry),
     feedback_log: readRecordArray(raw, "feedback_log").map(parseFeedbackLogEntry),
@@ -394,6 +460,7 @@ export function readSkillUsageDoc(filePath: string): SkillUsageDoc {
     benchmark_log: readRecordArray(raw, "benchmark_log").map(parseBenchmarkLogEntry),
     error_pattern_log: readRecordArray(raw, "error_pattern_log").map(parseErrorPatternLogEntry),
     recipe_log: readRecordArray(raw, "recipe_log").map(parseRecipeLogEntry),
+    evolver_signal_log: readRecordArray(raw, "evolver_signal_log").map(parseEvolverSignalLogEntry),
   };
 }
 
@@ -434,8 +501,11 @@ export function renderSkillUsageDoc(doc: SkillUsageDoc): string {
   lines.push("[attempt_policy]");
   pushKeyValue(lines, "retry_backoff_threshold", doc.attempt_policy.retry_backoff_threshold);
   lines.push("");
+  lines.push("[evolver_handoff_policy]");
+  pushKeyValue(lines, "enabled", doc.evolver_handoff_policy.enabled);
+  lines.push("");
   lines.push(
-    "# Append records below with [[recipe_log]], [[skill_plan]], [[usage_log]], [[feedback_log]], [[search_log]], [[benchmark_log]], and [[error_pattern_log]].",
+    "# Append records below with [[recipe_log]], [[skill_plan]], [[usage_log]], [[feedback_log]], [[search_log]], [[benchmark_log]], [[error_pattern_log]], and [[evolver_signal_log]].",
   );
 
   renderArrayTable(lines, "recipe_log", doc.recipe_log, [
@@ -444,6 +514,24 @@ export function renderSkillUsageDoc(doc: SkillUsageDoc): string {
     "source",
     "why",
     "status",
+    "notes",
+  ]);
+  renderArrayTable(lines, "evolver_signal_log", doc.evolver_signal_log, [
+    "timestamp",
+    "signal_id",
+    "kind",
+    "trigger",
+    "skill_id",
+    "scope_hint",
+    "title",
+    "summary",
+    "confidence",
+    "status",
+    "topic_hint",
+    "attempt_key",
+    "error_type",
+    "occurrence_index",
+    "evidence_ref",
     "notes",
   ]);
   renderArrayTable(lines, "skill_plan", doc.skill_plan, [
@@ -516,6 +604,183 @@ export function renderSkillUsageDoc(doc: SkillUsageDoc): string {
   return `${lines.join("\n")}\n`;
 }
 
+function findEvolverSignal(doc: SkillUsageDoc, signalId: string): EvolverSignalLogEntry | undefined {
+  return doc.evolver_signal_log.find((entry) => entry.signal_id === signalId);
+}
+
+function upsertEvolverSignal(
+  doc: SkillUsageDoc,
+  entry: EvolverSignalLogEntry,
+  options?: { preserveDismissed?: boolean },
+): void {
+  const existing = findEvolverSignal(doc, entry.signal_id);
+  if (!existing) {
+    doc.evolver_signal_log.push(entry);
+    doc.updated_at = nowIso();
+    return;
+  }
+  if (options?.preserveDismissed && existing.status === "dismissed") {
+    return;
+  }
+  Object.assign(existing, entry);
+  doc.updated_at = nowIso();
+}
+
+function autoBackoffSignalId(skillId: string, attemptKey: string): string {
+  return `retry-${toStableToken(skillId)}-${toStableToken(attemptKey)}`;
+}
+
+function autoErrorPatternSignalId(skillId: string, errorType: string, messagePattern: string): string {
+  return `pattern-${toStableToken(skillId)}-${toStableToken(errorType)}-${toStableToken(messagePattern)}`;
+}
+
+function suggestEvolverSignalFromBackoff(
+  doc: SkillUsageDoc,
+  input: { skill_id: string; attempt_key: string; occurrence_index: number },
+): void {
+  if (!doc.evolver_handoff_policy.enabled) {
+    return;
+  }
+  upsertEvolverSignal(
+    doc,
+    {
+      timestamp: nowIso(),
+      signal_id: autoBackoffSignalId(input.skill_id, input.attempt_key),
+      kind: "gotcha",
+      trigger: "retry_backoff",
+      skill_id: input.skill_id,
+      scope_hint: "unset",
+      title: `Repeated task-local issue: ${input.attempt_key}`,
+      summary: `${input.skill_id} reached selector retry backoff on ${input.attempt_key} and now deserves repository-level review`,
+      confidence: 0.6,
+      status: "suggested",
+      topic_hint: toStableToken(input.attempt_key) || undefined,
+      attempt_key: input.attempt_key,
+      error_type: undefined,
+      occurrence_index: input.occurrence_index,
+      evidence_ref: undefined,
+      notes: "auto-suggested from selector retry backoff",
+    },
+    { preserveDismissed: true },
+  );
+}
+
+function suggestEvolverSignalFromErrorPattern(
+  doc: SkillUsageDoc,
+  input: { skill_id: string; error_type: string; message_pattern: string; occurrence_index: number },
+): void {
+  if (!doc.evolver_handoff_policy.enabled || input.occurrence_index < 2) {
+    return;
+  }
+  upsertEvolverSignal(
+    doc,
+    {
+      timestamp: nowIso(),
+      signal_id: autoErrorPatternSignalId(input.skill_id, input.error_type, input.message_pattern),
+      kind: "gotcha",
+      trigger: "error_pattern",
+      skill_id: input.skill_id,
+      scope_hint: "unset",
+      title: `Repeated pattern review: ${input.error_type}`,
+      summary: `${input.skill_id} repeated the same ${input.error_type} pattern often enough to deserve repository-level review`,
+      confidence: 0.58,
+      status: "suggested",
+      topic_hint: toStableToken(input.error_type) || undefined,
+      attempt_key: undefined,
+      error_type: input.error_type,
+      occurrence_index: input.occurrence_index,
+      evidence_ref: undefined,
+      notes: "auto-suggested from selector error-pattern clustering",
+    },
+    { preserveDismissed: true },
+  );
+}
+
+function resolveSelectorRepoRoot(filePath: string): string {
+  return path.resolve(path.dirname(filePath), "../../../../");
+}
+
+function normalizeRepoRelativeRef(rawPath: string, root: string): string {
+  const absolute = path.resolve(root, rawPath);
+  return path.relative(root, absolute).split(path.sep).join("/");
+}
+
+function findDerivedRankingRef(filePath: string): string | undefined {
+  const repoRoot = resolveSelectorRepoRoot(filePath);
+  const absolute = path.join(path.dirname(filePath), "skill-ranking.md");
+  if (!fs.existsSync(absolute)) {
+    return undefined;
+  }
+  return normalizeRepoRelativeRef(absolute, repoRoot);
+}
+
+export function buildEvolverSignalContract(
+  doc: SkillUsageDoc,
+  filePath: string,
+  options?: { statuses?: EvolverSignalStatus[] | "all" },
+): EvolverSignalContract {
+  const statuses = options?.statuses ?? ["suggested"];
+  const repoRoot = resolveSelectorRepoRoot(filePath);
+  const taskFileRef = normalizeRepoRelativeRef(filePath, repoRoot);
+  const rankingRef = findDerivedRankingRef(filePath);
+  const signals = doc.evolver_signal_log.filter((entry) => {
+    return statuses === "all" || statuses.includes(entry.status);
+  });
+  return {
+    schema: "bagakit.evolver.signal.v1",
+    producer: "bagakit-skill-selector",
+    generated_at: nowIso(),
+    signals: signals.map<EvolverSignalContractRecord>((entry) => {
+      const localRefs = [taskFileRef];
+      if (entry.evidence_ref) {
+        localRefs.push(normalizeRepoRelativeRef(entry.evidence_ref, repoRoot));
+      }
+      if (rankingRef) {
+        localRefs.push(rankingRef);
+      }
+      return {
+        version: 1,
+        id: `${doc.task_id}--${entry.signal_id}`,
+        kind: entry.kind,
+        title: entry.title,
+        summary: entry.summary,
+        producer: "bagakit-skill-selector",
+        source_channel: "selector",
+        topic_hint: entry.topic_hint,
+        confidence: entry.confidence,
+        evidence: [
+          `trigger=${entry.trigger}`,
+          `skill_id=${entry.skill_id}`,
+          `scope_hint=${entry.scope_hint}`,
+          `occurrence_index=${entry.occurrence_index}`,
+          ...(entry.attempt_key ? [`attempt_key=${entry.attempt_key}`] : []),
+          ...(entry.error_type ? [`error_type=${entry.error_type}`] : []),
+          ...(entry.notes.trim() ? [entry.notes] : []),
+        ],
+        local_refs: [...new Set(localRefs)],
+        status: "pending",
+        created_at: entry.timestamp,
+        updated_at: nowIso(),
+      };
+    }),
+  };
+}
+
+export function updateEvolverSignalStatuses(
+  doc: SkillUsageDoc,
+  signalIds: string[],
+  status: EvolverSignalStatus,
+): void {
+  const wanted = new Set(signalIds);
+  for (const signal of doc.evolver_signal_log) {
+    if (wanted.has(signal.signal_id)) {
+      signal.status = status;
+      signal.timestamp = nowIso();
+    }
+  }
+  doc.updated_at = nowIso();
+}
+
 export function updatePreflight(
   doc: SkillUsageDoc,
   input: {
@@ -551,6 +816,46 @@ export function appendRecipeLog(
     notes: input.notes,
   });
   doc.updated_at = nowIso();
+}
+
+export function appendEvolverSignal(
+  doc: SkillUsageDoc,
+  input: {
+    signal_id: string;
+    kind: EvolverSignalKind;
+    trigger: EvolverSignalTrigger;
+    skill_id: string;
+    scope_hint: EvolverScopeHint;
+    title: string;
+    summary: string;
+    confidence: number;
+    status: EvolverSignalStatus;
+    topic_hint?: string;
+    attempt_key?: string;
+    error_type?: string;
+    occurrence_index: number;
+    evidence_ref?: string;
+    notes: string;
+  },
+): void {
+  upsertEvolverSignal(doc, {
+    timestamp: nowIso(),
+    signal_id: input.signal_id,
+    kind: input.kind,
+    trigger: input.trigger,
+    skill_id: input.skill_id,
+    scope_hint: input.scope_hint,
+    title: input.title,
+    summary: input.summary,
+    confidence: input.confidence,
+    status: input.status,
+    topic_hint: input.topic_hint,
+    attempt_key: input.attempt_key,
+    error_type: input.error_type,
+    occurrence_index: input.occurrence_index,
+    evidence_ref: input.evidence_ref,
+    notes: input.notes,
+  });
 }
 
 export function appendSkillPlan(
@@ -678,6 +983,12 @@ export function appendUsageLog(
     messages.push(
       `note: backoff required for ${input.skill_id}:${attemptKey} after try-${attemptIndex}; switch method before retrying`,
     );
+    suggestEvolverSignalFromBackoff(doc, {
+      skill_id: input.skill_id,
+      attempt_key: attemptKey,
+      occurrence_index: attemptIndex,
+    });
+    messages.push(`note: evolver review signal suggested for ${input.skill_id}:${attemptKey}`);
   }
 
   doc.updated_at = nowIso();
@@ -800,6 +1111,12 @@ export function appendErrorPatternLog(
     resolution: input.resolution,
     notes: input.notes,
   });
+  suggestEvolverSignalFromErrorPattern(doc, {
+    skill_id: input.skill_id,
+    error_type: input.error_type,
+    message_pattern: input.message_pattern,
+    occurrence_index: occurrenceIndex,
+  });
   doc.updated_at = nowIso();
   return { occurrenceIndex };
 }
@@ -903,6 +1220,27 @@ export function validateSkillUsage(doc: SkillUsageDoc, strict: boolean): string[
       );
     }
   }
+  const evolverSignalIds = new Set<string>();
+  for (const signal of doc.evolver_signal_log) {
+    if (signal.signal_id.trim() === "") {
+      issues.push("evolver_signal_log.signal_id must not be empty");
+    } else if (evolverSignalIds.has(signal.signal_id)) {
+      issues.push(`duplicate evolver_signal_log.signal_id (${signal.signal_id})`);
+    } else {
+      evolverSignalIds.add(signal.signal_id);
+    }
+    if (signal.skill_id.trim() === "") {
+      issues.push("evolver_signal_log.skill_id must not be empty");
+    } else if (plannedSkillIds.size > 0 && !plannedSkillIds.has(signal.skill_id)) {
+      issues.push(`evolver_signal_log.skill_id must refer to a planned skill (${signal.skill_id})`);
+    }
+    if (signal.confidence < 0 || signal.confidence > 1) {
+      issues.push(`evolver_signal_log.confidence must be within [0,1] (${signal.signal_id})`);
+    }
+    if (!Number.isInteger(signal.occurrence_index) || signal.occurrence_index < 1) {
+      issues.push(`evolver_signal_log.occurrence_index must be an integer >= 1 (${signal.signal_id})`);
+    }
+  }
 
   if (!strict) {
     return issues;
@@ -966,6 +1304,22 @@ export function validateSkillUsage(doc: SkillUsageDoc, strict: boolean): string[
   if (hasRetryBackoff && doc.search_log.length < 1) {
     issues.push("strict mode: retry backoff requires [[search_log]] follow-up");
   }
+  for (const usage of doc.usage_log) {
+    if (!usage.backoff_required) {
+      continue;
+    }
+    const matchingSignal = doc.evolver_signal_log.some(
+      (signal) =>
+        signal.trigger === "retry_backoff" &&
+        signal.skill_id === usage.skill_id &&
+        signal.attempt_key === usage.attempt_key,
+    );
+    if (!matchingSignal) {
+      issues.push(
+        `strict mode: retry backoff requires matching [[evolver_signal_log]] review suggestion (${usage.skill_id}:${usage.attempt_key})`,
+      );
+    }
+  }
 
   for (const [compositionId, counts] of composedCounts.entries()) {
     if (counts.entrypoint !== 1) {
@@ -989,6 +1343,7 @@ export function buildValidationSummary(doc: SkillUsageDoc): string {
     `search=${doc.search_log.length}`,
     `benchmark=${doc.benchmark_log.length}`,
     `error_pattern=${doc.error_pattern_log.length}`,
+    `evolver_signal=${doc.evolver_signal_log.length}`,
   ].join(" ");
 }
 

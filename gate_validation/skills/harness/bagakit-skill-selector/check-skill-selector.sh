@@ -36,7 +36,9 @@ TMP_DIR="$(mktemp -d)"
 TARGET="$TMP_DIR/.bagakit/skill-selector/tasks/demo/skill-usage.toml"
 DRIVER_PACK="$TMP_DIR/.bagakit/skill-selector/tasks/demo/bagakit-drivers.md"
 RANKING_REPORT="$TMP_DIR/.bagakit/skill-selector/tasks/demo/skill-ranking.md"
+EVOLVER_EXPORT="$TMP_DIR/.bagakit/skill-selector/tasks/demo/evolver-signals.json"
 SELECTOR_BIN=(node --experimental-strip-types "$ROOT/skills/harness/bagakit-skill-selector/scripts/skill_selector.ts")
+EVOLVER_BIN=(node --experimental-strip-types "$ROOT/skills/harness/bagakit-skill-evolver/scripts/evolver.ts")
 
 "${SELECTOR_BIN[@]}" init \
   --file "$TARGET" \
@@ -137,6 +139,21 @@ SELECTOR_BIN=(node --experimental-strip-types "$ROOT/skills/harness/bagakit-skil
   --resolution "switch method after repeated failed driver-pack load" \
   --notes "clustered failure depth should match the two failed attempts"
 
+"${SELECTOR_BIN[@]}" evolver-signal \
+  --file "$TARGET" \
+  --signal-id "driver-load-review" \
+  --kind gotcha \
+  --trigger manual_review \
+  --skill-id "bagakit-skill-selector" \
+  --title "Driver load loop deserves repo review" \
+  --summary "selector-visible repeated driver load failures may reflect a reusable repository-level reporting gap" \
+  --scope-hint upstream \
+  --attempt-key "driver-pack-load" \
+  --error-type "driver_load_failure" \
+  --occurrence-index 3 \
+  --evidence-ref "$TARGET" \
+  --notes "manual bridge example for explicit evolver review"
+
 "${SELECTOR_BIN[@]}" feedback \
   --file "$TARGET" \
   --skill-id "bagakit-skill-selector" \
@@ -171,6 +188,55 @@ SELECTOR_BIN=(node --experimental-strip-types "$ROOT/skills/harness/bagakit-skil
   --file "$TARGET" \
   --output "$RANKING_REPORT"
 
+"${SELECTOR_BIN[@]}" evolver-export \
+  --file "$TARGET" \
+  --output "$EVOLVER_EXPORT" \
+  --mark-exported
+
+python3 - "$EVOLVER_EXPORT" "$TMP_DIR" "$TARGET" "$RANKING_REPORT" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+export_path = Path(sys.argv[1])
+root_path = Path(sys.argv[2])
+task_path = Path(sys.argv[3])
+ranking_path = Path(sys.argv[4])
+payload = json.loads(export_path.read_text(encoding="utf-8"))
+assert payload["schema"] == "bagakit.evolver.signal.v1"
+assert payload["producer"] == "bagakit-skill-selector"
+assert len(payload["signals"]) >= 1
+signal_ids = {item["id"] for item in payload["signals"]}
+assert "demo-task--driver-load-review" in signal_ids
+manual = next(item for item in payload["signals"] if item["id"] == "demo-task--driver-load-review")
+assert manual["source_channel"] == "selector"
+assert "trigger=manual_review" in manual["evidence"]
+assert "scope_hint=upstream" in manual["evidence"]
+assert str(task_path.relative_to(root_path)) in manual["local_refs"]
+assert str(ranking_path.relative_to(root_path)) in manual["local_refs"]
+PY
+
+"${SELECTOR_BIN[@]}" evolver-bridge \
+  --file "$TARGET" \
+  --root "$TMP_DIR" \
+  --output "$EVOLVER_EXPORT" \
+  --status exported
+
+"${EVOLVER_BIN[@]}" list-signals --root "$TMP_DIR" --json > "$TMP_DIR/evolver-signals.json"
+
+python3 - "$TMP_DIR/evolver-signals.json" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+signals = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+ids = {item["id"] for item in signals}
+assert "demo-task-driver-load-review" in ids
+manual = next(item for item in signals if item["id"] == "demo-task-driver-load-review")
+assert manual["status"] == "pending"
+assert manual["producer"] == "bagakit-skill-selector"
+PY
+
 "${SELECTOR_BIN[@]}" evaluate \
   --file "$TARGET" \
   --quality-score 0.78 \
@@ -191,10 +257,15 @@ grep -q 'backoff_required = true' "$TARGET"
 grep -q 'error_type = "driver_load_failure"' "$TARGET"
 grep -q 'occurrence_index = 2' "$TARGET"
 grep -q 'needs_new_search = true' "$TARGET"
+grep -q '\[\[evolver_signal_log\]\]' "$TARGET"
+grep -q 'signal_id = "driver-load-review"' "$TARGET"
+grep -q 'status = "imported"' "$TARGET"
 grep -q 'bagakit-skill-selector' "$DRIVER_PACK"
 grep -q 'bagakit-living-knowledge' "$DRIVER_PACK"
 grep -q 'bagakit-researcher' "$DRIVER_PACK"
 grep -q 'RetryBackoffThreshold: `3`' "$DRIVER_PACK"
+grep -q 'EvolverReview=<pending review signals or none>' "$DRIVER_PACK"
 grep -q 'Skill Ranking Report' "$RANKING_REPORT"
 grep -q 'bagakit-skill-selector' "$RANKING_REPORT"
 grep -q '| 1 | bagakit-skill-selector | 3 | 0.17 | 1.00 | 2 | 0.43 | at_risk |' "$RANKING_REPORT"
+grep -q '## Evolver Review Signals' "$RANKING_REPORT"

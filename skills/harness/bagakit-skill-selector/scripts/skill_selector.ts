@@ -1,20 +1,25 @@
 import fs from "node:fs";
 import path from "node:path";
+import { spawnSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
 
 import { parseCliArgs, readBooleanFlag, readNumberFlag, readStringFlag } from "./lib/args.ts";
 import {
   appendBenchmarkLog,
+  appendEvolverSignal,
   appendErrorPatternLog,
   appendFeedbackLog,
   appendRecipeLog,
   appendSearchLog,
   appendSkillPlan,
   appendUsageLog,
+  buildEvolverSignalContract,
   buildValidationSummary,
   createSkillUsageDoc,
   loadSelectorDrivers,
   readSkillUsageDoc,
   renderDriverPack,
+  updateEvolverSignalStatuses,
   updateEvaluation,
   updatePreflight,
   validateSkillUsage,
@@ -25,6 +30,10 @@ import {
   ACTIVATION_MODES,
   COMPOSITION_ROLES,
   EVALUATION_OVERALL,
+  EVOLVER_SCOPE_HINTS,
+  EVOLVER_SIGNAL_KINDS,
+  EVOLVER_SIGNAL_STATUSES,
+  EVOLVER_SIGNAL_TRIGGERS,
   FALLBACK_STRATEGIES,
   FEEDBACK_CHANNELS,
   FEEDBACK_SIGNALS,
@@ -41,6 +50,9 @@ import {
   normalizePreflightDecisionToken,
 } from "./lib/model.ts";
 
+const scriptRoot = path.dirname(fileURLToPath(import.meta.url));
+const defaultEvolverCli = path.resolve(scriptRoot, "../../bagakit-skill-evolver/scripts/evolver.ts");
+
 function printHelp(): void {
   console.log(`bagakit skill selector
 
@@ -54,6 +66,9 @@ Commands:
   search --file <path> --reason <text> --query <text> [--source-scope <local|external|hybrid>] [--status <open|done|discarded>] [--notes <text>]
   benchmark --file <path> --benchmark-id <id> --metric <name> --baseline <n> --candidate <n> [--higher-is-better | --no-higher-is-better] [--notes <text>]
   error-pattern --file <path> --error-type <id> --message-pattern <text> --skill-id <id> [--resolution <text>] [--notes <text>]
+  evolver-signal --file <path> --signal-id <id> --kind <decision|preference|gotcha|howto|glossary> --trigger <retry_backoff|error_pattern|failed_benchmark|negative_feedback|manual_review> --skill-id <id> --title <text> --summary <text> [--scope-hint <unset|host|upstream|split>] [--confidence <0..1>] [--status <suggested|exported|imported|dismissed>] [--topic-hint <slug>] [--attempt-key <text>] [--error-type <text>] [--occurrence-index <n>] [--evidence-ref <path>] [--notes <text>]
+  evolver-export --file <path> [--output <path>] [--status <suggested|exported|imported|dismissed|all>] [--mark-exported]
+  evolver-bridge --file <path> --root <repo-root> [--output <path>] [--status <suggested|exported|imported|dismissed|all>] [--evolver-cli <path>]
   skill-ranking --file <path> [--output <path>]
   evaluate --file <path> --quality-score <n> --evidence-score <n> --feedback-score <n> --overall <pass|conditional_pass|fail|pending> --summary <text> [--status <task-status>] [--needs-feedback-confirmation <true|false>] [--needs-new-search <true|false>] [--next-search-query <text>] [--notes <text>]
   validate --file <path> [--strict]
@@ -70,6 +85,20 @@ function assertEnum<const T extends readonly string[]>(values: T, raw: string, l
 
 function resolvePathFromCwd(rawPath: string): string {
   return path.resolve(process.cwd(), rawPath);
+}
+
+function selectorRepoRootFromTaskFile(filePath: string): string {
+  return path.resolve(path.dirname(filePath), "../../../../");
+}
+
+function normalizeTaskArtifactRef(filePath: string, rawPath: string): string {
+  const repoRoot = selectorRepoRootFromTaskFile(filePath);
+  const absolute = path.resolve(repoRoot, rawPath);
+  const relative = path.relative(repoRoot, absolute);
+  if (relative === "" || (!relative.startsWith("..") && !path.isAbsolute(relative))) {
+    return relative.split(path.sep).join("/");
+  }
+  throw new Error(`evidence ref escapes selector repo root: ${rawPath}`);
 }
 
 function requiredString(flags: Map<string, string | boolean>, key: string): string {
@@ -145,6 +174,7 @@ function cmdRecipe(flags: Map<string, string | boolean>): number {
     source: requiredString(flags, "source"),
     why: requiredString(flags, "why"),
     status: assertEnum(RECIPE_STATUSES, readStringFlag(flags, "status") ?? "selected", "recipe_log.status"),
+    synthesis_artifact: readStringFlag(flags, "synthesis-artifact"),
     notes: readStringFlag(flags, "notes") ?? "",
   });
   writeSkillUsageDoc(filePath, doc);
@@ -240,6 +270,128 @@ function cmdErrorPattern(flags: Map<string, string | boolean>): number {
   });
   writeSkillUsageDoc(filePath, doc);
   console.log(`ok: appended error_pattern_log to ${filePath} (occurrence=${occurrenceIndex})`);
+  return 0;
+}
+
+function resolveEvolverOutputPath(filePath: string, rawOutput?: string): string {
+  return resolvePathFromCwd(rawOutput ?? path.join(path.dirname(filePath), "evolver-signals.json"));
+}
+
+function readEvolverStatusFilter(
+  flags: Map<string, string | boolean>,
+): (typeof EVOLVER_SIGNAL_STATUSES)[number][] | "all" {
+  const raw = readStringFlag(flags, "status") ?? "suggested";
+  if (raw === "all") {
+    return "all";
+  }
+  return [assertEnum(EVOLVER_SIGNAL_STATUSES, raw, "evolver_signal_log.status")];
+}
+
+function ensureSignalsPresent(
+  contract: ReturnType<typeof buildEvolverSignalContract>,
+  sourceLabel: string,
+): void {
+  if (contract.signals.length === 0) {
+    throw new Error(`no evolver review signals matched ${sourceLabel}`);
+  }
+}
+
+function selectedEvolverSignalIds(
+  doc: ReturnType<typeof readSkillUsageDoc>,
+  statuses: (typeof EVOLVER_SIGNAL_STATUSES)[number][] | "all",
+): string[] {
+  return doc.evolver_signal_log
+    .filter((entry) => statuses === "all" || statuses.includes(entry.status))
+    .map((entry) => entry.signal_id);
+}
+
+function cmdEvolverSignal(flags: Map<string, string | boolean>): number {
+  const filePath = resolvePathFromCwd(requiredString(flags, "file"));
+  const doc = readSkillUsageDoc(filePath);
+  appendEvolverSignal(doc, {
+    signal_id: requiredString(flags, "signal-id"),
+    kind: assertEnum(EVOLVER_SIGNAL_KINDS, requiredString(flags, "kind"), "evolver_signal_log.kind"),
+    trigger: assertEnum(EVOLVER_SIGNAL_TRIGGERS, requiredString(flags, "trigger"), "evolver_signal_log.trigger"),
+    skill_id: requiredString(flags, "skill-id"),
+    scope_hint: assertEnum(
+      EVOLVER_SCOPE_HINTS,
+      readStringFlag(flags, "scope-hint") ?? "unset",
+      "evolver_signal_log.scope_hint",
+    ),
+    title: requiredString(flags, "title"),
+    summary: requiredString(flags, "summary"),
+    confidence: readNumberFlag(flags, "confidence") ?? 0.5,
+    status: assertEnum(
+      EVOLVER_SIGNAL_STATUSES,
+      readStringFlag(flags, "status") ?? "suggested",
+      "evolver_signal_log.status",
+    ),
+    topic_hint: readStringFlag(flags, "topic-hint") ?? undefined,
+    attempt_key: readStringFlag(flags, "attempt-key") ?? undefined,
+    error_type: readStringFlag(flags, "error-type") ?? undefined,
+    occurrence_index: readNumberFlag(flags, "occurrence-index") ?? 1,
+    evidence_ref: readStringFlag(flags, "evidence-ref")
+      ? normalizeTaskArtifactRef(filePath, readStringFlag(flags, "evidence-ref")!)
+      : undefined,
+    notes: readStringFlag(flags, "notes") ?? "",
+  });
+  writeSkillUsageDoc(filePath, doc);
+  console.log(`ok: upserted evolver_signal_log in ${filePath}`);
+  return 0;
+}
+
+function cmdEvolverExport(flags: Map<string, string | boolean>): number {
+  const filePath = resolvePathFromCwd(requiredString(flags, "file"));
+  const doc = readSkillUsageDoc(filePath);
+  const outputPath = resolveEvolverOutputPath(filePath, readStringFlag(flags, "output") ?? undefined);
+  const statuses = readEvolverStatusFilter(flags);
+  const signalIds = selectedEvolverSignalIds(doc, statuses);
+  const contract = buildEvolverSignalContract(doc, filePath, { statuses });
+  ensureSignalsPresent(contract, `status=${statuses === "all" ? "all" : statuses.join(",")}`);
+  fs.mkdirSync(path.dirname(outputPath), { recursive: true });
+  fs.writeFileSync(outputPath, JSON.stringify(contract, null, 2) + "\n", "utf-8");
+  if (readBooleanFlag(flags, "mark-exported", false)) {
+    updateEvolverSignalStatuses(doc, signalIds, "exported");
+    writeSkillUsageDoc(filePath, doc);
+  }
+  console.log(`ok: exported evolver signals to ${outputPath}`);
+  return 0;
+}
+
+function cmdEvolverBridge(flags: Map<string, string | boolean>): number {
+  const repoRoot = resolvePathFromCwd(requiredString(flags, "root"));
+  const filePath = resolvePathFromCwd(requiredString(flags, "file"));
+  const outputPath = resolveEvolverOutputPath(filePath, readStringFlag(flags, "output") ?? undefined);
+  const evolverCli = resolvePathFromCwd(readStringFlag(flags, "evolver-cli") ?? defaultEvolverCli);
+  const doc = readSkillUsageDoc(filePath);
+  const statuses = readEvolverStatusFilter(flags);
+  const signalIds = selectedEvolverSignalIds(doc, statuses);
+  const contract = buildEvolverSignalContract(doc, filePath, { statuses });
+  ensureSignalsPresent(contract, `status=${statuses === "all" ? "all" : statuses.join(",")}`);
+  fs.mkdirSync(path.dirname(outputPath), { recursive: true });
+  fs.writeFileSync(outputPath, JSON.stringify(contract, null, 2) + "\n", "utf-8");
+
+  const validateResult = spawnSync(
+    "node",
+    ["--experimental-strip-types", evolverCli, "validate-signals", "--contract", outputPath, "--root", repoRoot],
+    { encoding: "utf8" },
+  );
+  if ((validateResult.status ?? 1) !== 0) {
+    throw new Error(validateResult.stderr.trim() || validateResult.stdout.trim() || "evolver validate-signals failed");
+  }
+
+  const importResult = spawnSync(
+    "node",
+    ["--experimental-strip-types", evolverCli, "import-signals", "--contract", outputPath, "--root", repoRoot],
+    { encoding: "utf8" },
+  );
+  if ((importResult.status ?? 1) !== 0) {
+    throw new Error(importResult.stderr.trim() || importResult.stdout.trim() || "evolver import-signals failed");
+  }
+
+  updateEvolverSignalStatuses(doc, signalIds, "imported");
+  writeSkillUsageDoc(filePath, doc);
+  console.log("ok: bridged evolver signals into evolver intake (.mem_inbox)");
   return 0;
 }
 
@@ -339,6 +491,12 @@ function main(argv: string[]): number {
       return cmdBenchmark(flags);
     case "error-pattern":
       return cmdErrorPattern(flags);
+    case "evolver-signal":
+      return cmdEvolverSignal(flags);
+    case "evolver-export":
+      return cmdEvolverExport(flags);
+    case "evolver-bridge":
+      return cmdEvolverBridge(flags);
     case "skill-ranking":
       return cmdSkillRanking(flags);
     case "evaluate":
