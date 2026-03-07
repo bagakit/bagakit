@@ -61,6 +61,8 @@ It is useful when you need to know:
   without turning them into hidden hard dependencies
 - whether task-local evaluation should happen before any repository-level
   evolver topic is considered
+- whether repeated task-local failures should be surfaced for repository-level
+  review without auto-opening an evolver topic
 
 This is not the same thing as repository-level `evolver`.
 
@@ -124,6 +126,9 @@ Required behavior:
   logged through `[[skill_plan]]` composition fields rather than hidden in prose
 - if the task intentionally follows one standard selector recipe, that choice
   should also be logged through `[[recipe_log]]`
+- if repeated failure or backoff suggests repository-level review, that
+  suggestion should be visible through `[[evolver_signal_log]]` instead of
+  being hidden inside notes
 
 ## Operator
 
@@ -199,6 +204,29 @@ node --experimental-strip-types scripts/skill_selector.ts error-pattern \
   --message-pattern "web search returned empty results" \
   --skill-id bagakit-researcher \
   --resolution "fallback to local topic summaries"
+
+node --experimental-strip-types scripts/skill_selector.ts evolver-signal \
+  --file .bagakit/skill-selector/tasks/<task-slug>/skill-usage.toml \
+  --signal-id repeated-search-failure \
+  --kind gotcha \
+  --trigger retry_backoff \
+  --skill-id bagakit-researcher \
+  --title "Repeated search failure deserves repo review" \
+  --summary "the same search failure hit selector backoff and may reflect a reusable repository-level gap" \
+  --scope-hint upstream \
+  --attempt-key search-failure \
+  --occurrence-index 3 \
+  --evidence-ref .bagakit/skill-selector/tasks/<task-slug>/skill-usage.toml
+
+node --experimental-strip-types scripts/skill_selector.ts evolver-export \
+  --file .bagakit/skill-selector/tasks/<task-slug>/skill-usage.toml \
+  --output .bagakit/skill-selector/tasks/<task-slug>/evolver-signals.json \
+  --mark-exported
+
+node --experimental-strip-types scripts/skill_selector.ts evolver-bridge \
+  --file .bagakit/skill-selector/tasks/<task-slug>/skill-usage.toml \
+  --root . \
+  --output .bagakit/skill-selector/tasks/<task-slug>/evolver-signals.json
 
 node --experimental-strip-types scripts/skill_selector.ts skill-ranking \
   --file .bagakit/skill-selector/tasks/<task-slug>/skill-usage.toml \
@@ -308,6 +336,9 @@ When one concrete sub-problem is retried:
 - selector will count retries and surface `try-<n>` through `attempt_index`
 - if the same `attempt_key` reaches the configured threshold without success,
   selector should force a step-back and method change instead of silent retry
+- when the same `attempt_key` reaches the configured threshold without success,
+  selector should also create or refresh a visible `[[evolver_signal_log]]`
+  suggestion unless that signal was already explicitly dismissed
 
 ### 5) Evaluation loop
 
@@ -325,6 +356,14 @@ If benchmark or feedback fails, append search follow-up in the same file.
 
 Repeated clustered failures may also be logged through `[[error_pattern_log]]`
 when that helps the next task-local selector decision.
+
+If the repeated pattern now looks large enough to deserve repository-level
+review:
+
+- record or refresh `[[evolver_signal_log]]`
+- keep that suggestion task-local until it is explicitly exported or bridged
+  into evolver intake
+- do not silently open an evolver topic from selector
 
 ### 6) Close gate
 
@@ -393,6 +432,29 @@ route decision.
 Repository-level route state belongs to `bagakit-skill-evolver`.
 
 Do not automatically turn task evidence into an upstream evolver topic.
+
+### 11) Evolver review signal rule
+
+Selector may emit one task-local `[[evolver_signal_log]]` when repeated task
+evidence deserves repository-level review.
+
+Good fit:
+
+- retry backoff threshold reached for one `attempt_key`
+- one error pattern keeps recurring
+- repeated failed benchmark or negative feedback loops now look reusable
+
+That signal is:
+
+- visible in the task log
+- exportable into one evolver signal contract
+- bridgeable into `.mem_inbox/` through an explicit command
+
+That signal is not:
+
+- an evolver topic
+- a repository-level route decision
+- durable promotion state
 
 ## Resources
 

@@ -49,6 +49,7 @@ It helps answer:
 - which ones were actually used
 - what helped
 - what failed
+- what repeated failure now deserves repository-level review
 - what should remain host-local adoption knowledge
 - what may later be useful upstream
 
@@ -105,7 +106,11 @@ Current operator status:
 - it can append `[[recipe_log]]` entries for standard selector recipes
 - it can append `[[error_pattern_log]]` entries for repeated task-local failure
   clustering
+- it can append `[[evolver_signal_log]]` entries for explicit repository-review
+  suggestions
 - it can derive a task-local `skill-ranking.md` report
+- it can export or bridge those review suggestions into evolver intake without
+  turning selector into a repository-level control plane
 - it renders task-local driver packs for Bagakit skills that declare
   `metadata.bagakit.selector_driver_file`
 - it counts repeated concrete attempts and forces selector-visible backoff once

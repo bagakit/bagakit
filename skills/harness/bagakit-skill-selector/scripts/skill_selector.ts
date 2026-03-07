@@ -32,13 +32,13 @@ import {
   PLAN_KINDS,
   PLAN_STATUSES,
   PREFLIGHT_ANSWERS,
-  PREFLIGHT_DECISIONS,
   RECIPE_STATUSES,
   SEARCH_SOURCE_SCOPES,
   SEARCH_STATUSES,
   TASK_STATUSES,
   USAGE_PHASES,
   USAGE_RESULTS,
+  normalizePreflightDecisionToken,
 } from "./lib/model.ts";
 
 function printHelp(): void {
@@ -98,7 +98,7 @@ function cmdPreflight(flags: Map<string, string | boolean>): number {
   updatePreflight(doc, {
     answer: assertEnum(PREFLIGHT_ANSWERS, requiredString(flags, "answer"), "preflight.answer"),
     gap_summary: readStringFlag(flags, "gap-summary") ?? "",
-    decision: assertEnum(PREFLIGHT_DECISIONS, requiredString(flags, "decision"), "preflight.decision"),
+    decision: normalizePreflightDecisionToken(requiredString(flags, "decision")),
     status: assertEnum(TASK_STATUSES, readStringFlag(flags, "status") ?? "in_progress", "status"),
   });
   writeSkillUsageDoc(filePath, doc);

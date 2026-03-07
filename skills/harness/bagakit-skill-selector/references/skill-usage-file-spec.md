@@ -56,6 +56,8 @@ decision = "compare_then_execute"
   - typed selector-preflight route token for this task
   - `direct_execute | compare_then_execute | compose_then_execute | review_loop | pending`
   - must not remain `pending` once execution has started
+  - compatibility note: legacy `search_then_execute` should be normalized to
+    `compare_then_execute`
 
 ## Evaluation section
 
@@ -159,6 +161,73 @@ Recording rule:
 - when the clustered failure maps to repeated `usage_log` failures for the same
   skill and action text, `occurrence_index` should match that failed-usage
   depth
+
+## Evolver review signal log
+
+Use `[[evolver_signal_log]]` when a task-local repeated failure, benchmark, or
+feedback loop now deserves explicit repository-level review.
+
+```toml
+[[evolver_signal_log]]
+timestamp = "2026-03-01T00:00:00Z"
+signal_id = "repeated-search-failure"
+kind = "gotcha"
+trigger = "retry_backoff"
+skill_id = "bagakit-researcher"
+scope_hint = "upstream"
+title = "Repeated search failure deserves repo review"
+summary = "the same search failure hit selector backoff and may reflect a reusable repository-level gap"
+confidence = 0.72
+status = "suggested"
+topic_hint = "search-failure-review"
+attempt_key = "search-failure"
+error_type = "search_failure"
+occurrence_index = 3
+evidence_ref = ".bagakit/skill-selector/tasks/demo/skill-usage.toml"
+notes = "task-local suggestion only; route remains repository-owned"
+```
+
+- `kind`
+  - evolver signal kind token:
+    - `decision`
+    - `preference`
+    - `gotcha`
+    - `howto`
+    - `glossary`
+- `trigger`
+  - one of:
+    - `retry_backoff`
+    - `error_pattern`
+    - `failed_benchmark`
+    - `negative_feedback`
+    - `manual_review`
+- `scope_hint`
+  - one of:
+    - `unset`
+    - `host`
+    - `upstream`
+    - `split`
+- `status`
+  - one of:
+    - `suggested`
+    - `exported`
+    - `imported`
+    - `dismissed`
+
+Recording rule:
+
+- `[[evolver_signal_log]]` is still task-local selector state
+- it exists to make repository-review candidates visible
+- it must not be mistaken for evolver topic state
+- exporting or bridging the signal is explicit; opening an evolver topic is a
+  later evolver-owned step
+
+Automatic-suggestion rule:
+
+- if `backoff_required = true` for one `attempt_key`, selector should create or
+  refresh a matching review signal unless it was already explicitly dismissed
+- repeated `error_pattern_log` entries may do the same when the pattern keeps
+  recurring
 
 ## Planned skill candidates
 
@@ -317,6 +386,7 @@ Purpose:
 
 - compare task-local skill effectiveness inside one concrete task loop
 - summarize execution, feedback, and repeated failure telemetry
+- surface task-local repository-review suggestions from `[[evolver_signal_log]]`
 - help the next selector iteration without turning task telemetry into
   repository-level evolver state
 - treat `result = "not_used"` as preserved task telemetry, not as a failed

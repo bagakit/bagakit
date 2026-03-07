@@ -29,6 +29,16 @@ Those belong respectively to:
 - `docs/specs/selector-evolver-boundary.md`
 - `docs/specs/evolver-memory.md`
 
+Selector may still feed this intake seam explicitly.
+
+The rule is:
+
+- selector owns task-local `[[evolver_signal_log]]`
+- evolver owns `.mem_inbox/`
+- bridge commands may translate selector-side review suggestions into evolver
+  intake signals
+- selector does not get route or promotion authority from that bridge
+
 ## First Principle
 
 `learning-contract` used to mix three different concerns:
@@ -48,6 +58,11 @@ Reason:
 - reviewed routing must happen before durable promotion
 
 So `.mem_inbox/` is a buffer, not a shadow promotion engine.
+
+It is also not the raw home of selector task logs.
+
+Selector logs stay in `.bagakit/skill-selector/tasks/...`.
+Only explicit exported or bridged review suggestions may enter `.mem_inbox/`.
 
 ## Runtime Surface
 
@@ -176,6 +191,9 @@ Rules:
 Signals in `.mem_inbox/` are not structured topic state yet.
 
 They become topic-state evidence only through an explicit adoption step.
+
+Selector-originated signals follow the same rule.
+They do not skip directly from task-local retry telemetry into topic state.
 
 That adoption must:
 

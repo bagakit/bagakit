@@ -34,7 +34,7 @@ export const SUITE: EvalSuiteDefinition = {
           const run = (argv: string[], label: string) => expectOk(runCommand("node", ["--experimental-strip-types", script, ...argv], { cwd: repoRoot, replacements }), label);
 
         run(["init", "--file", target, "--task-id", "demo-task", "--objective", "eval selector loop", "--owner", "validator"], "init");
-        run(["preflight", "--file", target, "--answer", "partial", "--gap-summary", "need driver loading coverage", "--decision", "search_then_execute", "--status", "in_progress"], "preflight");
+        run(["preflight", "--file", target, "--answer", "partial", "--gap-summary", "need driver loading coverage", "--decision", "compose_then_execute", "--status", "in_progress"], "preflight");
         run(["recipe", "--file", target, "--recipe-id", "research-to-knowledge", "--source", "skills/harness/bagakit-skill-selector/recipes/research-to-knowledge.md", "--why", "evaluate composition logging", "--status", "selected"], "recipe");
         run(["plan", "--file", target, "--skill-id", "bagakit-skill-selector", "--kind", "local", "--source", "skills/harness/bagakit-skill-selector", "--why", "orchestrate composition", "--expected-impact", "keep composition visible", "--composition-role", "composition_entrypoint", "--composition-id", "loop", "--activation-mode", "composed"], "plan selector");
         run(["plan", "--file", target, "--skill-id", "bagakit-living-knowledge", "--kind", "local", "--source", "skills/harness/bagakit-living-knowledge", "--why", "provide shared knowledge", "--expected-impact", "keep recall explicit", "--composition-role", "composition_peer", "--composition-id", "loop", "--activation-mode", "composed", "--fallback-strategy", "standalone_first"], "plan living-knowledge");

@@ -40,6 +40,17 @@ export type SearchStatus = (typeof SEARCH_STATUSES)[number];
 export type EvaluationOverall = (typeof EVALUATION_OVERALL)[number];
 export type RecipeStatus = (typeof RECIPE_STATUSES)[number];
 
+export function normalizePreflightDecisionToken(raw: string): PreflightDecision {
+  const value = raw.trim();
+  if (value === "search_then_execute") {
+    return "compare_then_execute";
+  }
+  if (PREFLIGHT_DECISIONS.includes(value as PreflightDecision)) {
+    return value as PreflightDecision;
+  }
+  throw new Error(`invalid preflight.decision: ${raw}`);
+}
+
 export interface PreflightSection {
   question: string;
   answer: PreflightAnswer;

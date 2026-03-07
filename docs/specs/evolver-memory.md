@@ -310,6 +310,8 @@ Research evidence is only one input to evolver.
 Repository-level practice evidence may also enter through:
 
 - summarized selector findings
+- selector-originated `evolver_signal_log` records once they are explicitly
+  exported or bridged into evolver intake
 - host-side feedback digests
 - benchmark summaries
 - incident or review notes that survive beyond one task

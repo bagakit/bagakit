@@ -13,6 +13,7 @@ Use this spec when deciding:
 - whether a finding is still task-local evidence or already repository-level
   learning
 - whether recipes or selector drivers are staying inside task-local scope
+- how task-local repeated failures may be surfaced for repository-level review
 - where task-level selection and evaluation belong
 
 This file is the SSOT for stable meaning of that split.
@@ -98,6 +99,65 @@ Selector must not become the owner of:
 - repository-level route decisions
 - evolver promotion readiness
 - repository-level handoff or archive receipts
+
+## Selector-To-Evolver Bridge
+
+Selector may emit task-local repository-review suggestions when repeated
+task-local evidence now looks large enough to deserve repository-level review.
+
+That bridge exists so one task can clearly say:
+
+- this is no longer just one local retry
+- the repeated pattern may deserve repository-level attention
+
+The bridge must keep authority split intact.
+
+So the allowed bridge shape is:
+
+1. selector records one task-local `[[evolver_signal_log]]`
+2. selector may export or bridge those signals into evolver intake
+3. evolver still decides:
+   - whether a topic should exist
+   - what route the topic takes
+   - whether any durable promotion is ready
+
+Selector-side `[[evolver_signal_log]]` entries are:
+
+- task-local review suggestions
+- visible and auditable in the task file
+- allowed to be auto-suggested by task-local retry or error-pattern logic
+
+They are not:
+
+- repository-level route decisions
+- evolver topic state
+- durable promotion state
+
+## Repeated-Failure Rule
+
+Repeated task-local failures may be strong enough to justify one explicit
+repository-level review suggestion.
+
+Typical trigger shapes include:
+
+- retry backoff threshold reached for one `attempt_key`
+- one repeated `error_pattern_log` cluster
+- repeated failed benchmark or negative feedback loops
+
+Selector owns:
+
+- detecting those task-local triggers
+- making the review suggestion visible
+- preserving the task-local evidence trail
+
+Evolver owns:
+
+- deciding whether the signal deserves topic adoption
+- deciding whether the result stays `host`, goes `upstream`, or becomes
+  `split`
+
+This keeps “same problem repeated several times” visible without turning
+selector into a hidden repository-level control plane.
 
 ## Recipe And Driver Rule
 
