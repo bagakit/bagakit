@@ -1,6 +1,6 @@
 # Brainstorm Review Loop
 
-## Fit
+## Fit Signals
 
 Use this recipe when a brainstorm run exists and the next question is whether
 its own quality or eval stack should be reviewed explicitly.
@@ -11,7 +11,7 @@ Good fit:
 - the team wants to inspect whether the current evaluation method helped
 - the task needs a review artifact before accepting the brainstorm handoff
 
-## Non-Fit
+## Non-Fit Signals
 
 Do not use this recipe when:
 
@@ -27,7 +27,7 @@ Do not use this recipe when:
   - `eval_effect_review.md`
 - optional: `bagakit-skill-selector`
 
-## Recommended Order
+## Execution Order
 
 1. `bagakit-brainstorm`
    Finish the core brainstorm flow first.
@@ -38,13 +38,11 @@ Do not use this recipe when:
    Record whether the extra review pass improved confidence or only added
    weight.
 
-## Required Versus Optional
-
-Required:
+## Required Steps
 
 - one completed or near-complete brainstorm run
 
-Optional:
+## Optional Steps
 
 - `review_quality.md`
 - `eval_effect_review.md`
@@ -59,17 +57,22 @@ Optional:
 - `bagakit-skill-selector`
   - owns the explicit decision to use the review loop and the task-level record
 
-## Inputs And Outputs
-
-Inputs:
+## Inputs
 
 - one brainstorm artifact directory
 - one review goal, such as output quality or eval usefulness
 
-Outputs:
+## Outputs
 
 - updated brainstorm artifact set
 - selector task record showing whether the review loop paid off
+
+## Synthesis Artifact
+
+Recommended synthesis artifact:
+
+- one finalized brainstorm handoff artifact plus any explicit review packet that
+  changed the decision
 
 ## Evidence To Record In `skill-usage.toml`
 

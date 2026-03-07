@@ -21,6 +21,27 @@ A recipe is not:
 - permission for one skill to silently call another
 - repository-level evolver policy
 
+## Stable Recipe Shape
+
+Each standard recipe should include these sections:
+
+- `## Fit Signals`
+- `## Non-Fit Signals`
+- `## Participants`
+- `## Execution Order`
+- `## Required Steps`
+- `## Optional Steps`
+- `## Skill Responsibilities`
+- `## Inputs`
+- `## Outputs`
+- `## Synthesis Artifact`
+- `## Evidence To Record In skill-usage.toml`
+- `## Fallback And Degrade`
+- `## When It Is Not Worth It`
+
+The goal is not bureaucracy.
+The goal is to make recipes easier to compare, skip, and review.
+
 ## When To Use A Recipe
 
 Use a recipe when:

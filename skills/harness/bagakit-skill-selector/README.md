@@ -125,6 +125,10 @@ Authority references:
 
 - `docs/specs/selector-evolver-boundary.md`
 
+Recipes should stay structured enough to compare. In practice that means fit
+signals, non-fit signals, execution order, required/optional steps, synthesis
+artifact, evidence hooks, and fallback guidance should all be explicit.
+
 ## Naming Status
 
 This skill now uses a clearer task-layer name:

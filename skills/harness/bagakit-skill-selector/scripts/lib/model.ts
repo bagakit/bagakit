@@ -21,6 +21,16 @@ export const SEARCH_SOURCE_SCOPES = ["local", "external", "hybrid"] as const;
 export const SEARCH_STATUSES = ["open", "done", "discarded"] as const;
 export const EVALUATION_OVERALL = ["pass", "conditional_pass", "fail", "pending"] as const;
 export const RECIPE_STATUSES = ["considered", "selected", "used", "skipped", "rejected"] as const;
+export const EVOLVER_SIGNAL_KINDS = ["decision", "preference", "gotcha", "howto", "glossary"] as const;
+export const EVOLVER_SIGNAL_TRIGGERS = [
+  "retry_backoff",
+  "error_pattern",
+  "failed_benchmark",
+  "negative_feedback",
+  "manual_review",
+] as const;
+export const EVOLVER_SCOPE_HINTS = ["unset", "host", "upstream", "split"] as const;
+export const EVOLVER_SIGNAL_STATUSES = ["suggested", "exported", "imported", "dismissed"] as const;
 
 export type TaskStatus = (typeof TASK_STATUSES)[number];
 export type PreflightAnswer = (typeof PREFLIGHT_ANSWERS)[number];
@@ -39,6 +49,10 @@ export type SearchSourceScope = (typeof SEARCH_SOURCE_SCOPES)[number];
 export type SearchStatus = (typeof SEARCH_STATUSES)[number];
 export type EvaluationOverall = (typeof EVALUATION_OVERALL)[number];
 export type RecipeStatus = (typeof RECIPE_STATUSES)[number];
+export type EvolverSignalKind = (typeof EVOLVER_SIGNAL_KINDS)[number];
+export type EvolverSignalTrigger = (typeof EVOLVER_SIGNAL_TRIGGERS)[number];
+export type EvolverScopeHint = (typeof EVOLVER_SCOPE_HINTS)[number];
+export type EvolverSignalStatus = (typeof EVOLVER_SIGNAL_STATUSES)[number];
 
 export function normalizePreflightDecisionToken(raw: string): PreflightDecision {
   const value = raw.trim();
@@ -75,6 +89,10 @@ export interface NextActionsSection {
 
 export interface AttemptPolicySection {
   retry_backoff_threshold: number;
+}
+
+export interface EvolverHandoffPolicySection {
+  enabled: boolean;
 }
 
 export interface SkillPlanEntry {
@@ -158,6 +176,25 @@ export interface RecipeLogEntry {
   notes: string;
 }
 
+export interface EvolverSignalLogEntry {
+  timestamp: string;
+  signal_id: string;
+  kind: EvolverSignalKind;
+  trigger: EvolverSignalTrigger;
+  skill_id: string;
+  scope_hint: EvolverScopeHint;
+  title: string;
+  summary: string;
+  confidence: number;
+  status: EvolverSignalStatus;
+  topic_hint?: string;
+  attempt_key?: string;
+  error_type?: string;
+  occurrence_index: number;
+  evidence_ref?: string;
+  notes: string;
+}
+
 export interface SkillUsageDoc {
   schema_version: string;
   task_id: string;
@@ -170,6 +207,7 @@ export interface SkillUsageDoc {
   evaluation: EvaluationSection;
   next_actions: NextActionsSection;
   attempt_policy: AttemptPolicySection;
+  evolver_handoff_policy: EvolverHandoffPolicySection;
   skill_plan: SkillPlanEntry[];
   usage_log: UsageLogEntry[];
   feedback_log: FeedbackLogEntry[];
@@ -177,6 +215,7 @@ export interface SkillUsageDoc {
   benchmark_log: BenchmarkLogEntry[];
   error_pattern_log: ErrorPatternLogEntry[];
   recipe_log: RecipeLogEntry[];
+  evolver_signal_log: EvolverSignalLogEntry[];
 }
 
 export interface SelectorDriverDirective {
@@ -193,4 +232,28 @@ export interface SelectorDriverPayload {
   summary_line: string;
   directives: SelectorDriverDirective[];
   retry_backoff_threshold?: number;
+}
+
+export interface EvolverSignalContractRecord {
+  version: 1;
+  id: string;
+  kind: EvolverSignalKind;
+  title: string;
+  summary: string;
+  producer: string;
+  source_channel: string;
+  topic_hint?: string;
+  confidence: number;
+  evidence: string[];
+  local_refs: string[];
+  status: "pending";
+  created_at: string;
+  updated_at: string;
+}
+
+export interface EvolverSignalContract {
+  schema: "bagakit.evolver.signal.v1";
+  producer: "bagakit-skill-selector";
+  generated_at: string;
+  signals: EvolverSignalContractRecord[];
 }

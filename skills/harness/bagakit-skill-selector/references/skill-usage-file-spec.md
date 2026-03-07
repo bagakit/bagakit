@@ -107,7 +107,6 @@ recipe_id = "brainstorm-with-research"
 source = "skills/harness/bagakit-skill-selector/recipes/brainstorm-with-research.md"
 why = "Need evidence-grounded option generation before decision handoff"
 status = "selected"
-synthesis_artifact = ".bagakit/brainstorm/outcome/brainstorm-handoff-new-feature.md"
 notes = "start with the required path only"
 ```
 
@@ -117,8 +116,6 @@ notes = "start with the required path only"
   - recipe document path
 - `status`
   - `considered | selected | used | skipped | rejected`
-- `synthesis_artifact`
-  - optional task-local artifact that captures the recipe's synthesized output
 - `why`
   - task-local reason for using or rejecting the recipe
 

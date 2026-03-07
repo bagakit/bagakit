@@ -1,6 +1,6 @@
 # Brainstorm With Research
 
-## Fit
+## Fit Signals
 
 Use this recipe when the task needs stronger external or frontier grounding
 before option generation and handoff.
@@ -11,7 +11,7 @@ Good fit:
 - problem framing that depends on recent patterns, examples, or failure cases
 - option work that benefits from evidence before debate
 
-## Non-Fit
+## Non-Fit Signals
 
 Do not use this recipe when:
 
@@ -26,7 +26,7 @@ Do not use this recipe when:
 - optional: `bagakit-skill-selector` as the explicit task-level composition
   entrypoint and evidence log owner
 
-## Recommended Order
+## Execution Order
 
 1. `bagakit-researcher`
    Capture source cards, reusable summaries, and a refreshed topic index.
@@ -37,14 +37,12 @@ Do not use this recipe when:
    Record the recipe choice, participating skills, concrete usage evidence, and
    whether the combination actually helped.
 
-## Required Versus Optional
-
-Required:
+## Required Steps
 
 - one explicit research topic with reusable evidence
 - one brainstorm run that cites or incorporates the research outputs
 
-Optional:
+## Optional Steps
 
 - additional benchmark or feedback capture in selector
 - downstream promotion into knowledge or evolver, decided outside this recipe
@@ -60,19 +58,24 @@ Optional:
 - `bagakit-skill-selector`
   - owns explicit composition visibility and task-level comparison evidence
 
-## Inputs And Outputs
-
-Inputs:
+## Inputs
 
 - task objective
 - topic scope
 - available Markdown context
 
-Outputs:
+## Outputs
 
 - researcher topic artifacts under the configured researcher root
 - brainstorm handoff artifacts under `.bagakit/brainstorm/`
 - selector task record under `.bagakit/skill-selector/tasks/<task-slug>/`
+
+## Synthesis Artifact
+
+Recommended synthesis artifact:
+
+- one brainstorm handoff package that explicitly cites the research evidence it
+  used
 
 ## Evidence To Record In `skill-usage.toml`
 

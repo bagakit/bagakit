@@ -1,6 +1,6 @@
 # Research To Knowledge
 
-## Fit
+## Fit Signals
 
 Use this recipe when research outputs may deserve promotion into shared
 knowledge, but that promotion should remain an explicit outer decision.
@@ -11,7 +11,7 @@ Good fit:
 - the research output is stable enough to become shared project knowledge
 - the task needs a clean handoff from evidence production into knowledge
 
-## Non-Fit
+## Non-Fit Signals
 
 Do not use this recipe when:
 
@@ -25,7 +25,7 @@ Do not use this recipe when:
 - `bagakit-living-knowledge`
 - optional: `bagakit-skill-selector`
 
-## Recommended Order
+## Execution Order
 
 1. `bagakit-researcher`
    Produce the topic evidence first.
@@ -36,14 +36,12 @@ Do not use this recipe when:
 4. `bagakit-skill-selector`
    Record that the recipe was used and whether the promotion step was worth it.
 
-## Required Versus Optional
-
-Required:
+## Required Steps
 
 - research evidence exists first
 - the promotion decision is explicit, not hidden inside researcher
 
-Optional:
+## Optional Steps
 
 - selector benchmarking or feedback capture
 - leaving the result as research-only and skipping the knowledge step
@@ -59,18 +57,23 @@ Optional:
 - `bagakit-skill-selector`
   - owns task-level composition visibility and evidence logging
 
-## Inputs And Outputs
-
-Inputs:
+## Inputs
 
 - one researcher topic with source cards and summaries
 - one explicit promotion decision
 
-Outputs:
+## Outputs
 
 - researcher topic artifacts
 - shared knowledge updates when promotion is chosen
 - selector task record that shows whether the combination was useful
+
+## Synthesis Artifact
+
+Recommended synthesis artifact:
+
+- one shared knowledge page or ingest target that captures the promoted result,
+  or one explicit “promotion skipped” note
 
 ## Evidence To Record In `skill-usage.toml`
 
