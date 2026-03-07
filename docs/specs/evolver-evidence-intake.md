@@ -39,6 +39,14 @@ The rule is:
   intake signals
 - selector does not get route or promotion authority from that bridge
 
+Current bridge target:
+
+- selector-side export or bridge targets evolver's current intake runtime under
+  top-level `.mem_inbox/`
+- selector must not invent a second durable repository-owned handoff surface
+- if evolver intake evolves later, selector should still call the evolver-owned
+  bridge command rather than inventing an alternative durable path
+
 ## First Principle
 
 `learning-contract` used to mix three different concerns:
@@ -186,6 +194,26 @@ Rules:
 - `import-signals` only accepts `pending` signals
 - export must not invent route or promotion state that is not present
 
+Selector bridge normalization rule:
+
+- selector task-local `signal_id` is only unique inside one task file
+- bridge export must derive the evolver intake `id` as:
+  - `<task-id>--<signal_id>`
+- this keeps selector logs task-scoped while keeping evolver intake ids
+  repository-stable enough to avoid accidental collisions across tasks
+
+Selector bridge lifecycle rule:
+
+- selector may mark its local entry:
+  - `suggested -> exported`
+  - `suggested -> imported`
+  - `suggested -> dismissed`
+- exported or bridged selector entries still become evolver intake records with
+  `status = "pending"`
+- only evolver may later move intake records to:
+  - `adopted`
+  - `dismissed`
+
 ## Intake Rule
 
 Signals in `.mem_inbox/` are not structured topic state yet.
@@ -194,6 +222,13 @@ They become topic-state evidence only through an explicit adoption step.
 
 Selector-originated signals follow the same rule.
 They do not skip directly from task-local retry telemetry into topic state.
+
+Selector-originated signals therefore have two distinct layers:
+
+- task-local review suggestion in selector
+- repository-level pending intake signal in evolver
+
+These layers must not be collapsed into one fake shared status field.
 
 That adoption must:
 

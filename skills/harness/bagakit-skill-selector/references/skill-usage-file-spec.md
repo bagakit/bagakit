@@ -107,6 +107,7 @@ recipe_id = "brainstorm-with-research"
 source = "skills/harness/bagakit-skill-selector/recipes/brainstorm-with-research.md"
 why = "Need evidence-grounded option generation before decision handoff"
 status = "selected"
+synthesis_artifact = ".bagakit/brainstorm/outcome/brainstorm-handoff-new-feature.md"
 notes = "start with the required path only"
 ```
 
@@ -116,6 +117,8 @@ notes = "start with the required path only"
   - recipe document path
 - `status`
   - `considered | selected | used | skipped | rejected`
+- `synthesis_artifact`
+  - optional task-local artifact that captures the recipe's synthesized output
 - `why`
   - task-local reason for using or rejecting the recipe
 
@@ -221,6 +224,37 @@ Recording rule:
 - it must not be mistaken for evolver topic state
 - exporting or bridging the signal is explicit; opening an evolver topic is a
   later evolver-owned step
+
+Identity rule:
+
+- `signal_id` only needs to be unique inside one task file
+- `evolver-export` and `evolver-bridge` derive the exported evolver intake id
+  as:
+  - `<task_id>--<signal_id>`
+
+Lifecycle rule:
+
+- selector-side signal status is task-local:
+  - `suggested`
+  - `exported`
+  - `imported`
+  - `dismissed`
+- evolver-side intake signal status is repository-level:
+  - `pending`
+  - `adopted`
+  - `dismissed`
+
+Bridge rule:
+
+- export or bridge must preserve selector-only provenance such as:
+  - `trigger`
+  - `skill_id`
+  - `scope_hint`
+  - `attempt_key`
+  - `error_type`
+  - `occurrence_index`
+  by normalizing it into the evolver signal contract
+- bridge must not invent route or promotion state
 
 Automatic-suggestion rule:
 

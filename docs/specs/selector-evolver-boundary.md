@@ -127,6 +127,38 @@ Preferred bridge rule:
 - do not hide repository-level review creation inside ordinary selector logging
   side effects
 
+Mapping rule:
+
+- selector-side `[[evolver_signal_log]]` is the task-local source shape
+- evolver intake uses `bagakit.evolver.signal.v1`
+- the bridge must normalize selector-only fields into the evolver signal
+  contract explicitly instead of silently dropping them
+
+Current normalization direction:
+
+- `signal_id`
+  - task-local stable id inside one selector task file
+- exported evolver signal `id`
+  - `<task-id>--<signal_id>`
+- `kind`, `title`, `summary`, `topic_hint`, `confidence`
+  - copied through
+- `producer`
+  - fixed to `bagakit-skill-selector`
+- `source_channel`
+  - fixed to `selector`
+- selector-only provenance such as:
+  - `trigger`
+  - `skill_id`
+  - `scope_hint`
+  - `attempt_key`
+  - `error_type`
+  - `occurrence_index`
+  should be preserved in the exported signal `evidence[]`
+- task-local artifact refs should be normalized into exported `local_refs[]`
+
+This bridge is one-way normalization.
+It is not selector taking ownership of evolver intake semantics.
+
 Selector-side `[[evolver_signal_log]]` entries are:
 
 - task-local review suggestions
@@ -138,6 +170,26 @@ They are not:
 - repository-level route decisions
 - evolver topic state
 - durable promotion state
+
+Lifecycle rule:
+
+- selector signal status is task-local:
+  - `suggested`
+  - `exported`
+  - `imported`
+  - `dismissed`
+- evolver intake signal status is repository-level intake state:
+  - `pending`
+  - `adopted`
+  - `dismissed`
+
+Selector may mark that one signal was exported or bridged.
+
+Evolver still owns whether the intake item is later adopted or dismissed.
+
+No automatic back-sync is required from evolver intake status into the original
+selector task log.
+The selector log remains historical task-local evidence.
 
 ## Repeated-Failure Rule
 

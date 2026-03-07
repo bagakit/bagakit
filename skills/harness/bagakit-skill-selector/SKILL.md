@@ -165,6 +165,7 @@ node --experimental-strip-types scripts/skill_selector.ts recipe \
   --recipe-id brainstorm-with-research \
   --source skills/harness/bagakit-skill-selector/recipes/brainstorm-with-research.md \
   --why "Need evidence-grounded option generation before decision handoff" \
+  --synthesis-artifact .bagakit/brainstorm/outcome/brainstorm-handoff-new-feature.md \
   --status selected
 
 node --experimental-strip-types scripts/skill_selector.ts usage \
@@ -299,6 +300,13 @@ Before inventing a fresh multi-skill bundle:
   skill's prose
 - do not treat recipe use as permission to create hard dependencies between
   skills
+- keep recipe shape explicit enough to compare:
+  - fit signals
+  - non-fit signals
+  - execution order
+  - required/optional steps
+  - synthesis artifact
+  - fallback guidance
 
 ### 3) Candidate planning
 
@@ -448,13 +456,25 @@ That signal is:
 
 - visible in the task log
 - exportable into one evolver signal contract
-- bridgeable into `.mem_inbox/` through an explicit command
+- bridgeable into evolver's current intake runtime under top-level `.mem_inbox/`
+  through an explicit command
 
 That signal is not:
 
 - an evolver topic
 - a repository-level route decision
 - durable promotion state
+
+The bridge uses explicit contract normalization.
+
+Selector-side `signal_id` stays task-local.
+
+The exported evolver intake `id` is derived as:
+
+- `<task-id>--<signal_id>`
+
+That keeps the task log readable without forcing selector to own repository
+identity rules.
 
 ## Resources
 
