@@ -1,0 +1,8 @@
+version = 1
+insert_target = "bagakit_footer"
+summary_line = "- LivingKnowledge: Surface=<updated shared surfaces or none>; Evidence=<commands/checks>; Next=<one deterministic next action>"
+
+[[directive]]
+id = "RECALL"
+when = "living-knowledge materially shaped the task result"
+instruction = "cite the shared surface or recall path that grounded the answer when that reference is available"

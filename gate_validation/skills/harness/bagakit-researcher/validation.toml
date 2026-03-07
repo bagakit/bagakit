@@ -1,0 +1,60 @@
+version = 2
+
+[[suite]]
+id = "bagakit-researcher-layout"
+owner = "skills/harness/bagakit-researcher"
+description = "Require the canonical runtime layout and keep non-runtime repo artifacts out of bagakit-researcher."
+default = true
+validation_class = "structure"
+groups = ["skills", "harness", "researcher", "structure"]
+
+[suite.runner]
+kind = "fs"
+required_dirs = [
+  "skills/harness/bagakit-researcher",
+  "skills/harness/bagakit-researcher/references",
+  "skills/harness/bagakit-researcher/scripts",
+  "gate_eval/skills/harness/bagakit-researcher",
+  "gate_eval/skills/harness/bagakit-researcher/results",
+  "gate_eval/skills/harness/bagakit-researcher/results/runs",
+  "gate_validation/skills/harness/bagakit-researcher",
+]
+required_files = [
+  "skills/harness/bagakit-researcher/README.md",
+  "skills/harness/bagakit-researcher/SKILL.md",
+  "skills/harness/bagakit-researcher/references/bagakit-driver.toml",
+  "skills/harness/bagakit-researcher/references/research-workspace-spec.md",
+  "skills/harness/bagakit-researcher/scripts/bagakit-researcher.sh",
+  "skills/harness/bagakit-researcher/scripts/bagakit-researcher.py",
+  "gate_eval/skills/harness/bagakit-researcher/README.md",
+  "gate_eval/skills/harness/bagakit-researcher/suite.ts",
+  "gate_eval/skills/harness/bagakit-researcher/validation.toml",
+  "gate_eval/skills/harness/bagakit-researcher/results/.gitignore",
+  "gate_eval/skills/harness/bagakit-researcher/results/README.md",
+  "gate_eval/skills/harness/bagakit-researcher/results/runs/.gitkeep",
+  "gate_validation/skills/harness/bagakit-researcher/validation.toml",
+  "gate_validation/skills/harness/bagakit-researcher/check-bagakit-researcher.sh",
+]
+forbidden_paths = [
+  "skills/harness/bagakit-researcher/SKILL_PAYLOAD.json",
+  "skills/harness/bagakit-researcher/agents",
+  "skills/harness/bagakit-researcher/docs",
+  "skills/harness/bagakit-researcher/gate",
+  "skills/harness/bagakit-researcher/scripts_dev",
+]
+
+[[suite]]
+id = "bagakit-researcher-smoke"
+owner = "skills/harness/bagakit-researcher"
+description = "Run a minimal researcher lifecycle: initialize a topic, list it, and validate workspace shape."
+default = true
+validation_class = "smoke"
+groups = ["skills", "harness", "researcher", "smoke"]
+
+[suite.runner]
+kind = "bash_script"
+script = "gate_validation/skills/harness/bagakit-researcher/check-bagakit-researcher.sh"
+args = [
+  "--root",
+  "{repo_root}",
+]
