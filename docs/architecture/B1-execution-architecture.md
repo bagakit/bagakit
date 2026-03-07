@@ -129,7 +129,7 @@ L1 may consume:
 L1 should not require:
 
 - repository-level promotion state
-- hidden research workspaces as hard dependencies
+- researcher-owned workspaces as hard dependencies
 - framework-level contract definitions as mutable inputs
 
 ## Outputs

@@ -33,7 +33,7 @@ The rule is:
 
 Typical intake surfaces are:
 
-- hidden research workspaces
+- `bagakit-researcher` topic workspaces
 - task-level selector outputs
 - selector-mediated composed outputs from coupled harness skills
 - benchmark and validation artifacts

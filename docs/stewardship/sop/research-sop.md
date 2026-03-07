@@ -16,13 +16,15 @@ The goal is:
 
 ## Storage Rule
 
-Research results should be stored under a suitable first-level hidden directory
-inside `docs/`.
+Research results should be stored in the canonical `bagakit-researcher`
+runtime root.
 
-These hidden directories are intentionally ignored from git tracking.
+For this repository, the default root is:
 
-Choose the hidden directory based on the topic class or working context. Do not
-hard-code one repository-wide default hidden directory for every research task.
+- `.bagakit/researcher/`
+
+If `.bagakit/knowledge_conf.toml` declares `researcher_root`, use that
+configured root instead.
 
 ## Topic Workspace Rule
 
@@ -31,7 +33,7 @@ Each research topic should have a topic workspace.
 Recommended shape:
 
 ```text
-docs/.<topic-class>/<topic>/
+.bagakit/researcher/topics/<topic-class>/<topic>/
 ├── originals/
 ├── summaries/
 └── index.md
@@ -114,8 +116,7 @@ This is optional.
 
 Rules:
 
-- the hidden docs research workspace is not a hard dependency of the evolver
-  tool
-- missing or moved hidden docs paths should not block evolver operation
+- the researcher workspace is not a hard dependency of the evolver tool
+- missing or moved researcher paths should not block evolver operation
 - if a maintainer chooses to add a local context ref, it should stay
   repo-relative

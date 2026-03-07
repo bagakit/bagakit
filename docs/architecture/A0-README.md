@@ -73,7 +73,8 @@ This directory should not contain:
 - maintainer procedures
   - those belong in `docs/stewardship/`
 - local research capture
-  - that belongs in hidden `docs/.<topic-class>/...` workspaces
+  - that belongs in `bagakit-researcher` workspaces under
+    `.bagakit/researcher/topics/<topic-class>/<topic>/`
 - runtime skill instructions
   - those belong in skill payloads
 

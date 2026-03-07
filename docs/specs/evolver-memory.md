@@ -179,8 +179,8 @@ Note record fields:
 Local context ref values:
 
 - repo-relative paths only
-- intended for weak references to local context such as hidden docs research
-  workspaces
+- intended for weak references to local context such as
+  `.bagakit/researcher/topics/<topic-class>/<topic>/`
 - not required to exist for the evolver topic to remain valid
 
 ## Current Enumerations
@@ -338,7 +338,6 @@ The intended layers are:
 1. hidden research
    - local evidence and exploratory material under
      `.bagakit/researcher/topics/<topic-class>/<topic>/`
-   - or the standalone hidden-docs fallback `docs/.<topic-class>/...`
 2. structured decision memory
    - topic-local evidence and decisions under `.bagakit/evolver/topics/<slug>/`
 3. project runtime state
@@ -350,7 +349,7 @@ The evolver operator should not collapse these layers into one storage surface.
 
 Current implication:
 
-- local hidden docs remain weak-link only
+- local researcher workspaces remain weak-link only
 - topic-local JSON and derived reports remain the evolver memory and
   decision-memory surface
 - durable promotions are explicitly typed by `surface`
@@ -361,7 +360,7 @@ Current implication:
 
 That means:
 
-- evolver memory may point to local hidden docs workspaces
+- evolver memory may point to local researcher workspaces
 - evolver validation checks reference format
 - missing targets may be reported as warnings
 - missing targets must not make the topic invalid or block the evolver tool

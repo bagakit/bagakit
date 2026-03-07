@@ -662,7 +662,7 @@ export const SUITE: EvalSuiteDefinition = {
               "--topic",
               "weak-links",
               "--ref",
-              "docs/.research/missing-topic/index.md",
+              ".bagakit/researcher/topics/research/missing-topic/index.md",
             ]).status,
             0,
           );
@@ -681,7 +681,11 @@ export const SUITE: EvalSuiteDefinition = {
           const checkResult = run(["check"]);
           assert.equal(checkResult.status, 0);
           assert.ok(checkResult.stderr.includes("warn: weak-links: missing source ref target docs/specs/missing-summary.md"));
-          assert.ok(checkResult.stderr.includes("warn: weak-links: missing weak ref target docs/.research/missing-topic/index.md"));
+          assert.ok(
+            checkResult.stderr.includes(
+              "warn: weak-links: missing weak ref target .bagakit/researcher/topics/research/missing-topic/index.md",
+            ),
+          );
 
           return {
             assertions: [

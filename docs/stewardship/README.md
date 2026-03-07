@@ -131,8 +131,8 @@ Use these surfaces deliberately:
 - `.bagakit/skill-selector/`
   - task-local or host-local skill coverage preflight, composition, usage
     evidence, and task-local evaluation
-- `docs/.<topic-class>/...`
-  - local evidence workspace
+- `.bagakit/researcher/topics/<topic-class>/<topic>/`
+  - local evidence workspace owned by `bagakit-researcher`
 - `.bagakit/evolver/`
   - repository-system decision memory and evolution state
 - `docs/specs/`

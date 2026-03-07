@@ -1,8 +1,8 @@
 # bagakit-skill-evolver
 
 Agent-facing skill for deciding when repository evolution topics need
-structured tracking and how to use `.bagakit/evolver/` without turning hidden local
-research workspaces into a hard dependency.
+structured tracking and how to use `.bagakit/evolver/` without turning
+`bagakit-researcher` workspaces into a hard dependency.
 
 This skill is the behavioral layer.
 

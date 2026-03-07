@@ -2,11 +2,21 @@
 *.swp
 *.tmp
 .DS_Store
-# Ignore first-level hidden working directories under docs.
+# Ignore first-level docs-local scratch directories.
 docs/.*/
 site/
 dist/
 dist_*/
 .dist-*
-.bagakit
+.bagakit/*
+!.bagakit/README.md
+!.bagakit/knowledge_conf.toml
+!.bagakit/evolver/
+!.bagakit/evolver/**
+!.bagakit/researcher/
+!.bagakit/researcher/**
+!.bagakit/living-knowledge/
+!.bagakit/living-knowledge/.generated/
+!.bagakit/living-knowledge/.generated/.gitignore
+!.bagakit/living-knowledge/.generated/guidebook-map.md
 mem/

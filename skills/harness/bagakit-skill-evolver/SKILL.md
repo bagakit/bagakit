@@ -1,6 +1,6 @@
 ---
 name: bagakit-skill-evolver
-description: Use when a repository evolution topic is long-lived, spans multiple candidates or decisions, and needs structured memory beyond a one-off note. Use to decide whether to open an evolver topic, record candidates or decisions, and attach optional local context refs without making hidden docs workspaces a hard dependency.
+description: Use when a repository evolution topic is long-lived, spans multiple candidates or decisions, and needs structured memory beyond a one-off note. Use to decide whether to open an evolver topic, record candidates or decisions, and attach optional local context refs without making `bagakit-researcher` workspaces a hard dependency.
 metadata:
   bagakit:
     harness_layer: l2-behavior
@@ -15,8 +15,7 @@ Good fit:
 - the topic will span multiple sessions
 - there are multiple candidates to compare
 - the decision rationale needs to survive beyond the current chat
-- the topic may point to local hidden docs research workspaces as optional
-  context
+- the topic may point to `bagakit-researcher` workspaces as optional context
 
 Do not use this skill for:
 
@@ -51,7 +50,7 @@ It does:
 It does not:
 
 - run the repository's research workflow itself
-- treat hidden docs workspaces as required inputs
+- treat `bagakit-researcher` workspaces as required inputs
 - own raw per-task selector logs
 - own task-local evaluation
 - replace ordinary docs or straightforward execution
@@ -83,16 +82,15 @@ Optional pre-topic intake may live under:
 Optional local context may live under:
 
 - `.bagakit/researcher/topics/<topic-class>/<topic>/`
-- or the standalone fallback `docs/.<topic-class>/<topic>/`
 
-Those local docs paths are weak references only.
+Those researcher paths are weak references only.
 
 ## Four-Layer Rule
 
 Think in these layers:
 
 1. hidden research
-   - local evidence under researcher-owned workspaces or the standalone hidden-docs fallback
+   - local evidence under researcher-owned workspaces
 2. structured decision memory
    - topic-local state under `.bagakit/evolver/topics/<slug>/`
 3. project runtime state
@@ -168,7 +166,7 @@ If the operator cannot be used:
 
 - edit `.bagakit/evolver/` minimally and carefully
 - keep the same weak-link boundary
-- do not make hidden docs paths mandatory
+- do not make researcher paths mandatory
 
 ## Quality Rule
 
