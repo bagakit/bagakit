@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import fs from "node:fs";
 import path from "node:path";
 
 import { runCommand } from "../../../dev/eval/src/lib/command.ts";
@@ -105,29 +106,41 @@ export const SUITE: EvalSuiteDefinition = {
         const tempRepo = createTempDir("bagakit-dev-eval-agent-");
         registerTempRepo(context, tempRepo);
         try {
+          const runnerConfigFile = path.join(tempRepo, "runner.json");
+          writeTextFile(
+            runnerConfigFile,
+            `${JSON.stringify(
+              {
+                schema: "bagakit/agent-runner/config/v1",
+                runner_name: "fake-agent",
+                transport: "stdin_prompt",
+                argv: [
+                  "python3",
+                  "-c",
+                  "import sys; print('agent-session-ok'); print(sys.stdin.read().strip())",
+                ],
+                env: {},
+                timeout_seconds: 2,
+              },
+              null,
+              2,
+            )}\n`,
+          );
           const session = runAgentEvalSession(context, {
             workspaceRoot: tempRepo,
             sessionId: "sess-eval-agent",
             workloadId: "case-agent-substrate",
             promptText: "bounded eval prompt\n",
-            config: {
-              runner_name: "fake-agent",
-              transport: "stdin_prompt",
-              argv: [
-                "python3",
-                "-c",
-                "import sys; print('agent-session-ok'); print(sys.stdin.read().strip())",
-              ],
-              env: {},
-              timeout_seconds: 2,
-            },
+            configFile: runnerConfigFile,
           });
           assert.equal(session.launch.exit_code, 0);
           assert.ok(session.launch.stdout.includes("agent-session-ok"));
           assert.ok(session.launch.stdout.includes("bounded eval prompt"));
+          const meta = JSON.parse(fs.readFileSync(session.artifacts.sessionMetaFile, "utf8")) as Record<string, unknown>;
+          assert.equal(meta.schema, "bagakit/agent-runner/session-meta/v1");
           return {
             assertions: [
-              "eval launches one bounded runner session through dev/agent_runner",
+              "eval launches one bounded runner session through dev/agent_runner using a config file",
               "shared substrate writes prompt and transcript artifacts for the eval workspace",
             ],
             commands: [
@@ -135,6 +148,7 @@ export const SUITE: EvalSuiteDefinition = {
             ],
             artifacts: [
               { label: "eval-session-dir", path: session.artifacts.sessionDir },
+              { label: "runner-config", path: runnerConfigFile },
               { label: "eval-prompt", path: session.artifacts.promptFile },
               { label: "eval-stdout", path: session.artifacts.stdoutFile },
               { label: "eval-session-meta", path: session.artifacts.sessionMetaFile },

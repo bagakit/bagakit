@@ -1,9 +1,23 @@
 export const AGENT_RUNNER_TRANSPORTS = ["stdin_prompt"] as const;
 export type AgentRunnerTransport = (typeof AGENT_RUNNER_TRANSPORTS)[number];
 
+export const AGENT_RUNNER_CONFIG_SCHEMA = "bagakit/agent-runner/config/v1";
+export const LEGACY_AGENT_LOOP_RUNNER_CONFIG_SCHEMA = "bagakit/agent-loop/runner-config/v1";
 export const AGENT_RUNNER_SESSION_META_SCHEMA = "bagakit/agent-runner/session-meta/v1";
+export const AGENT_RUNNER_TEMPLATE_KEYS = [
+  "repo_root",
+  "session_dir",
+  "session_id",
+  "workload_id",
+  "prompt_file",
+  "stdout_file",
+  "stderr_file",
+  "session_meta_file",
+] as const;
+export type AgentRunnerTemplateKey = (typeof AGENT_RUNNER_TEMPLATE_KEYS)[number];
 
 export interface AgentRunnerConfig {
+  schema?: typeof AGENT_RUNNER_CONFIG_SCHEMA | typeof LEGACY_AGENT_LOOP_RUNNER_CONFIG_SCHEMA;
   runner_name: string;
   transport: AgentRunnerTransport;
   argv: string[];

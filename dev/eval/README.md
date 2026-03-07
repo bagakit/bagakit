@@ -65,5 +65,12 @@ The stable packet shape is documented in:
 
 Use `dev/eval/` when multiple eval slices need the same mechanics.
 
+Mode split:
+
+- deterministic runtime suites may call tools or CLIs directly when the goal is
+  stable structure or state measurement
+- agent-driven suites should launch one bounded session through
+  `dev/agent_runner/`
+
 Do not move case truth, fixture truth, or skill-owned protocol meaning into
 this tool just to reduce file count.

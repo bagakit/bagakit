@@ -52,6 +52,26 @@ It records:
 - expanded argv
 - expanded env key list
 
+## Shared Template ABI
+
+All tools using `dev/agent_runner/` must provide these stable template keys:
+
+- `repo_root`
+- `session_dir`
+- `session_id`
+- `workload_id`
+- `prompt_file`
+- `stdout_file`
+- `stderr_file`
+- `session_meta_file`
+
+Tools may add higher-level keys above this layer.
+
+Examples:
+
+- `dev/agent_loop/` may add `session_brief` and `runner_result`
+- `dev/eval/` may stay on the shared key set only
+
 ## Boundary Rule
 
 If a tool needs exactly one bounded runner launch, it should use
@@ -59,3 +79,14 @@ If a tool needs exactly one bounded runner launch, it should use
 
 If a tool needs orchestration, stop policy, or grading, it should build that
 above this layer instead of pushing more policy into the substrate.
+
+## Eval Boundary
+
+Not every eval suite needs a real agent session.
+
+Rules:
+
+- deterministic runtime suites may continue to call the subject CLI directly
+- agent-driven suites should use `dev/agent_runner/`
+- both modes still report through the same eval packet contract in
+  `docs/specs/eval-run-packet.md`

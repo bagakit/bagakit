@@ -2,6 +2,7 @@ import { spawnSync } from "node:child_process";
 
 import { writeJson, writeText } from "./io.ts";
 import {
+  AGENT_RUNNER_TEMPLATE_KEYS,
   AGENT_RUNNER_SESSION_META_SCHEMA,
   type AgentRunnerLaunchRequest,
   type AgentRunnerLaunchResult,
@@ -16,14 +17,38 @@ function expandTemplate(value: string, replacements: Record<string, string>): st
   return rendered;
 }
 
+export function buildAgentRunnerTemplateContext(request: AgentRunnerLaunchRequest): Record<string, string> {
+  const defaults: Record<string, string> = {
+    repo_root: request.cwd,
+    session_dir: request.paths.session_dir,
+    session_id: request.session_id,
+    workload_id: request.workload_id,
+    prompt_file: request.paths.prompt_file,
+    stdout_file: request.paths.stdout_file,
+    stderr_file: request.paths.stderr_file,
+    session_meta_file: request.paths.session_meta_file,
+  };
+  const merged = {
+    ...defaults,
+    ...request.template_context,
+  };
+  for (const key of AGENT_RUNNER_TEMPLATE_KEYS) {
+    if (!merged[key]) {
+      throw new Error(`missing shared agent-runner template key: ${key}`);
+    }
+  }
+  return merged;
+}
+
 export function launchStdinRunnerSession(request: AgentRunnerLaunchRequest): AgentRunnerLaunchResult {
   if (request.config.transport !== "stdin_prompt") {
     throw new Error(`unsupported transport: ${request.config.transport}`);
   }
 
-  const argv = request.config.argv.map((part) => expandTemplate(part, request.template_context));
+  const templateContext = buildAgentRunnerTemplateContext(request);
+  const argv = request.config.argv.map((part) => expandTemplate(part, templateContext));
   const env = Object.fromEntries(
-    Object.entries(request.config.env).map(([key, value]) => [key, expandTemplate(value, request.template_context)]),
+    Object.entries(request.config.env).map(([key, value]) => [key, expandTemplate(value, templateContext)]),
   );
 
   writeText(request.paths.prompt_file, request.prompt_text);

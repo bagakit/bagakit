@@ -1,5 +1,6 @@
 import path from "node:path";
 
+import { loadAgentRunnerConfig } from "../../../agent_runner/src/lib/config.ts";
 import { launchStdinRunnerSession } from "../../../agent_runner/src/lib/session.ts";
 import type { AgentRunnerConfig, AgentRunnerLaunchResult } from "../../../agent_runner/src/lib/model.ts";
 import type { EvalCaseContext } from "./model.ts";
@@ -10,7 +11,8 @@ export interface EvalAgentSessionSpec {
   sessionId: string;
   workloadId: string;
   promptText: string;
-  config: AgentRunnerConfig;
+  config?: AgentRunnerConfig;
+  configFile?: string;
 }
 
 export interface EvalAgentSessionArtifacts {
@@ -30,6 +32,12 @@ export function runAgentEvalSession(
   context: EvalCaseContext,
   spec: EvalAgentSessionSpec,
 ): EvalAgentSessionResult {
+  const config =
+    spec.config ??
+    (spec.configFile ? loadAgentRunnerConfig(spec.configFile) : null);
+  if (!config) {
+    throw new Error("runAgentEvalSession requires config or configFile");
+  }
   const sessionDir = path.join(spec.workspaceRoot, ".bagakit", "eval-runner", "sessions", spec.sessionId);
   ensureDir(sessionDir);
   const artifacts: EvalAgentSessionArtifacts = {
@@ -49,7 +57,7 @@ export function runAgentEvalSession(
       repo_root: spec.workspaceRoot,
       session_dir: artifacts.sessionDir,
     },
-    config: spec.config,
+    config,
     paths: {
       session_dir: artifacts.sessionDir,
       prompt_file: artifacts.promptFile,
