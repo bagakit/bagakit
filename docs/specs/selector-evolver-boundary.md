@@ -121,6 +121,12 @@ So the allowed bridge shape is:
    - what route the topic takes
    - whether any durable promotion is ready
 
+Preferred bridge rule:
+
+- default to explicit contract export or explicit bridge commands
+- do not hide repository-level review creation inside ordinary selector logging
+  side effects
+
 Selector-side `[[evolver_signal_log]]` entries are:
 
 - task-local review suggestions
