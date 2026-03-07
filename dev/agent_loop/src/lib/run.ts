@@ -20,6 +20,7 @@ import { resolveResumeTarget, safeLoadNextAction } from "./front_door.ts";
 import { ensureDir, repoRelative } from "./io.ts";
 import type {
   AgentLoopRunPayload,
+  AgentLoopSessionRunPayload,
   FlowNextPayload,
   RunStopReason,
   RunnerConfig,
@@ -46,6 +47,40 @@ type LaunchOutcome = Readonly<{
   can_resume: boolean;
   run_status: AgentLoopRunPayload["run_status"];
 }>;
+
+function recordSessionRun(
+  root: string,
+  itemId: string,
+  sessionsLaunched: number,
+  stop: {
+    run_status: AgentLoopRunPayload["run_status"];
+    stop_reason: RunStopReason;
+    operator_message: string;
+    next_safe_action: string;
+    checkpoint_observed: boolean;
+    runner_session_id: string;
+    flow_next: FlowNextPayload;
+  },
+): AgentLoopSessionRunPayload {
+  const record = recordRun(root, itemId, sessionsLaunched, 1, {
+    ...stop,
+    can_resume: stop.run_status !== "terminal" || stop.stop_reason === "session_completed",
+  });
+  return {
+    schema: "bagakit/agent-loop/session-run/v1",
+    command: "session-run",
+    session_status: stop.run_status === "terminal" ? "completed" : "operator_action_required",
+    stop_reason: stop.stop_reason,
+    operator_message: stop.operator_message,
+    next_safe_action: stop.next_safe_action,
+    item_id: itemId,
+    runner_session_id: stop.runner_session_id,
+    checkpoint_observed: stop.checkpoint_observed,
+    flow_next: stop.flow_next,
+    run_record_path: record.run_record_path,
+    host_notification_request: record.host_notification_request,
+  };
+}
 
 function runRefreshCommands(root: string, config: RunnerConfig): void {
   for (const argv of config.refresh_commands) {
@@ -484,6 +519,107 @@ export function runAgentLoop(
         });
       }
     }
+  } finally {
+    releaseRunLock(lockPath);
+  }
+}
+
+export function runSingleSession(root: string, itemId: string): AgentLoopSessionRunPayload {
+  const paths = new AgentLoopPaths(root);
+  ensureDir(paths.loopDir);
+  ensureDir(paths.sessionsDir);
+  ensureDir(paths.runsDir);
+
+  const configStatus = runnerConfigStatus(paths);
+  if (configStatus.status === "missing" || configStatus.status === "invalid" || !configStatus.config) {
+    const nextAttempt = safeLoadNextAction(root, itemId);
+    return recordSessionRun(root, itemId, 0, {
+      run_status: "operator_action_required",
+      stop_reason: configStatus.status === "missing" ? "runner_config_required" : "runner_config_invalid",
+      operator_message: configStatus.message,
+      next_safe_action: configStatus.status === "missing" ? "configure_runner" : "repair_runner_config",
+      runner_session_id: "",
+      checkpoint_observed: false,
+      flow_next: nextAttempt.payload,
+    });
+  }
+
+  const lockAttempt = (() => {
+    try {
+      return {
+        lockPath: acquireRunLock(root, configStatus.config.runner_name),
+        error: "",
+      };
+    } catch (error) {
+      return {
+        lockPath: "",
+        error: error instanceof Error ? error.message : String(error),
+      };
+    }
+  })();
+  if (lockAttempt.error) {
+    const nextAttempt = safeLoadNextAction(root, itemId);
+    return recordSessionRun(root, itemId, 0, {
+      run_status: "operator_action_required",
+      stop_reason: "run_lock_conflict",
+      operator_message: lockAttempt.error,
+      next_safe_action: "inspect_run_lock",
+      runner_session_id: "",
+      checkpoint_observed: false,
+      flow_next: nextAttempt.payload,
+    });
+  }
+  const lockPath = lockAttempt.lockPath;
+  try {
+    try {
+      runRefreshCommands(root, configStatus.config);
+    } catch (error) {
+      const nextAttempt = safeLoadNextAction(root, itemId);
+      return recordSessionRun(root, itemId, 0, {
+        run_status: "operator_action_required",
+        stop_reason: "runner_config_invalid",
+        operator_message: error instanceof Error ? error.message : String(error),
+        next_safe_action: "repair_runner_config",
+        runner_session_id: "",
+        checkpoint_observed: false,
+        flow_next: nextAttempt.payload,
+      });
+    }
+    const nextAttempt = safeLoadNextAction(root, itemId);
+    if (nextAttempt.error) {
+      return recordSessionRun(root, itemId, 0, {
+        run_status: "operator_action_required",
+        stop_reason: "flow_runner_refresh_failed",
+        operator_message: nextAttempt.error,
+        next_safe_action: "inspect_flow_runner_state",
+        runner_session_id: "",
+        checkpoint_observed: false,
+        flow_next: nextAttempt.payload,
+      });
+    }
+    const flowNext = nextAttempt.payload;
+    if (flowNext.recommended_action !== "run_session") {
+      const stop = stopForFlowState(flowNext);
+      return recordSessionRun(root, flowNext.item_id || itemId, 0, {
+        run_status: stop.run_status,
+        stop_reason: stop.stop_reason,
+        operator_message: stop.operator_message,
+        next_safe_action: stop.next_safe_action,
+        runner_session_id: "",
+        checkpoint_observed: false,
+        flow_next: flowNext,
+      });
+    }
+    const launched = launchRunnerSession(root, configStatus.config, flowNext);
+    return recordSessionRun(root, flowNext.item_id || itemId, 1, {
+      run_status: launched.stop_reason ? launched.run_status : "terminal",
+      stop_reason: launched.stop_reason || "session_completed",
+      operator_message: launched.operator_message,
+      next_safe_action: launched.next_safe_action,
+      runner_session_id: launched.runner_session_id,
+      checkpoint_observed: launched.checkpoint_observed,
+      flow_next: launched.flow_next,
+    });
   } finally {
     releaseRunLock(lockPath);
   }

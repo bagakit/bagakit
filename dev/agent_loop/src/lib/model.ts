@@ -7,6 +7,11 @@ export const WATCH_SCHEMA = "bagakit/agent-loop/watch/v2";
 export const RUN_RECORD_SCHEMA = "bagakit/agent-loop/run-record/v2";
 export const RUN_LOCK_SCHEMA = "bagakit/agent-loop/run-lock/v1";
 export const HOST_NOTIFICATION_SCHEMA = "bagakit/agent-loop/host-notification/v1";
+export const CURRENT_SCHEMA = "bagakit/agent-loop/current/v1";
+export const STATUS_SCHEMA = "bagakit/agent-loop/status/v1";
+export const SESSION_RUN_SCHEMA = "bagakit/agent-loop/session-run/v1";
+export const NOTIFICATION_CONFIG_SCHEMA = "bagakit/agent-loop/notification-config/v1";
+export const NOTIFICATION_RECEIPT_SCHEMA = "bagakit/agent-loop/notification-receipt/v1";
 
 export const RUNNER_TRANSPORTS = ["stdin_prompt"] as const;
 export type RunnerTransport = (typeof RUNNER_TRANSPORTS)[number];
@@ -17,7 +22,14 @@ export type RunnerConfigStatusKind = (typeof RUNNER_CONFIG_STATUSES)[number];
 export const RUN_STATUSES = ["terminal", "operator_action_required"] as const;
 export type RunStatus = (typeof RUN_STATUSES)[number];
 
+export const CURRENT_SELECTION_STATUSES = ["selected", "none", "ambiguous", "degraded"] as const;
+export type CurrentSelectionStatus = (typeof CURRENT_SELECTION_STATUSES)[number];
+
+export const SESSION_RUN_STATUSES = ["completed", "operator_action_required"] as const;
+export type SessionRunStatus = (typeof SESSION_RUN_STATUSES)[number];
+
 export const RUN_STOP_REASONS = [
+  "session_completed",
   "no_actionable_item",
   "item_archived",
   "blocked_item",
@@ -44,6 +56,12 @@ export type RunnerResultStatus = (typeof RUNNER_RESULT_STATUSES)[number];
 
 export const NOTIFICATION_SEVERITIES = ["info", "warn", "critical"] as const;
 export type NotificationSeverity = (typeof NOTIFICATION_SEVERITIES)[number];
+
+export const NOTIFICATION_TRANSPORTS = ["disabled", "command"] as const;
+export type NotificationTransport = (typeof NOTIFICATION_TRANSPORTS)[number];
+
+export const NOTIFICATION_DELIVERY_STATUSES = ["disabled", "delivered", "failed", "skipped"] as const;
+export type NotificationDeliveryStatus = (typeof NOTIFICATION_DELIVERY_STATUSES)[number];
 
 export const FLOW_RECOMMENDED_ACTIONS = ["run_session", "clear_blocker", "archive_closeout", "stop"] as const;
 export type FlowRecommendedAction = (typeof FLOW_RECOMMENDED_ACTIONS)[number];
@@ -241,6 +259,34 @@ export type HostNotificationRequest = Readonly<{
   dedupe_key: string;
 }>;
 
+export type NotificationConfig = Readonly<{
+  schema: typeof NOTIFICATION_CONFIG_SCHEMA;
+  transport: NotificationTransport;
+  command: {
+    argv: string[];
+    env: Record<string, string>;
+    timeout_seconds: number;
+    payload_mode: "stdin_json" | "file_json";
+  };
+}>;
+
+export type NotificationDeliveryReceipt = Readonly<{
+  schema: typeof NOTIFICATION_RECEIPT_SCHEMA;
+  run_id: string;
+  item_id: string;
+  recorded_at: string;
+  transport: NotificationTransport;
+  status: NotificationDeliveryStatus;
+  command_summary: string;
+  request_path: string;
+  receipt_path: string;
+  exit_code: number | null;
+  signal: string | null;
+  stdout_excerpt: string;
+  stderr_excerpt: string;
+  error_message: string;
+}>;
+
 export type AgentLoopNextPayload = Readonly<{
   schema: typeof NEXT_SCHEMA;
   command: "next";
@@ -287,6 +333,40 @@ export type AgentLoopRunPayload = Readonly<{
   flow_next: FlowNextPayload;
   host_notification_request?: HostNotificationRequest;
   resume_candidates?: FlowResumeCandidatesPayload;
+}>;
+
+export type AgentLoopCurrentPayload = Readonly<{
+  schema: typeof CURRENT_SCHEMA;
+  command: "current";
+  selection_status: CurrentSelectionStatus;
+  selection_reason: string;
+  next_safe_action: string;
+  flow_next: FlowNextPayload;
+  item_id?: string;
+  resume_candidates?: FlowResumeCandidatesPayload;
+}>;
+
+export type AgentLoopStatusPayload = Readonly<{
+  schema: typeof STATUS_SCHEMA;
+  command: "status";
+  current: AgentLoopCurrentPayload;
+  watch: AgentLoopWatchPayload;
+  latest_notification_delivery?: NotificationDeliveryReceipt;
+}>;
+
+export type AgentLoopSessionRunPayload = Readonly<{
+  schema: typeof SESSION_RUN_SCHEMA;
+  command: "session-run";
+  session_status: SessionRunStatus;
+  stop_reason: RunStopReason | "";
+  operator_message: string;
+  next_safe_action: string;
+  item_id: string;
+  runner_session_id: string;
+  checkpoint_observed: boolean;
+  flow_next: FlowNextPayload;
+  run_record_path?: string;
+  host_notification_request?: HostNotificationRequest;
 }>;
 
 export type RunLockState = Readonly<{
@@ -344,6 +424,7 @@ export type AgentLoopWatchPayload = Readonly<{
   latest_run?: RunRecord;
   latest_session?: WatchSessionSummary;
   current_notification?: HostNotificationRequest;
+  latest_notification_delivery?: NotificationDeliveryReceipt;
   recent_runs: RunRecord[];
   recent_sessions: WatchSessionSummary[];
   detail: {

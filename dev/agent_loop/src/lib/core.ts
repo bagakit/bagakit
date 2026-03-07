@@ -14,6 +14,7 @@ import {
   runnerConfigStatus,
   writeRunnerConfig,
 } from "./config.ts";
+import { initializeNotificationConfig, latestNotificationReceipt } from "./notification_delivery.ts";
 import {
   ensureDir,
   isPidLive,
@@ -161,7 +162,9 @@ export function applyAgentLoop(root: string, toolDir: string): string {
   ensureDir(paths.loopDir);
   ensureDir(paths.sessionsDir);
   ensureDir(paths.runsDir);
+  ensureDir(paths.notificationDir);
   initializeRunnerConfig(paths, toolDir);
+  initializeNotificationConfig(root, toolDir);
   return repoRelative(root, paths.loopDir);
 }
 
@@ -289,9 +292,21 @@ export function runnerResultIssue(result: RunnerResult | null, sessionId: string
   return "";
 }
 
-function loadSessionMeta(filePath: string): { exit_code: number | null; item_id?: string; runner_name?: string; started_at?: string } | null {
+function loadSessionMeta(filePath: string): {
+  exit_code: number | null;
+  item_id?: string;
+  workload_id?: string;
+  runner_name?: string;
+  started_at?: string;
+} | null {
   try {
-    return loadJsonIfExists<{ exit_code: number | null; item_id?: string; runner_name?: string; started_at?: string }>(filePath);
+    return loadJsonIfExists<{
+      exit_code: number | null;
+      item_id?: string;
+      workload_id?: string;
+      runner_name?: string;
+      started_at?: string;
+    }>(filePath);
   } catch {
     return null;
   }
@@ -352,7 +367,7 @@ function sortedSessionSummaries(paths: AgentLoopPaths): WatchSessionSummary[] {
         const metadata = loadSessionMeta(metadataPath);
         return {
           session_id: entry.name,
-          item_id: metadata?.item_id || "",
+          item_id: metadata?.workload_id || metadata?.item_id || "",
           runner_name: metadata?.runner_name || "",
           started_at: metadata?.started_at || "",
           exit_code: metadata?.exit_code ?? null,
@@ -483,6 +498,7 @@ export function watchAgentLoop(root: string, itemId?: string): AgentLoopWatchPay
       : allSessions
   ).slice(0, 5);
   const latestSession = recentSessions[0];
+  const latestRun = recentRuns[0];
   return {
     schema: WATCH_SCHEMA,
     command: "watch",
@@ -497,9 +513,10 @@ export function watchAgentLoop(root: string, itemId?: string): AgentLoopWatchPay
       next_safe_action: nextSafeActionForState(flowNext, configStatus),
     },
     focus_item: focusItem,
-    latest_run: recentRuns[0],
+    latest_run: latestRun,
     latest_session: latestSession,
     current_notification: latestNotification(recentRuns),
+    latest_notification_delivery: latestRun ? latestNotificationReceipt(root, latestRun.run_id) || undefined : undefined,
     recent_runs: recentRuns,
     recent_sessions: recentSessions,
     detail: {
