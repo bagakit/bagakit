@@ -20,6 +20,7 @@ FEATURE_TRACKER_DIR="$ROOT/skills/harness/bagakit-feature-tracker"
 FLOW_RUNNER_DIR="$ROOT/skills/harness/bagakit-flow-runner"
 AGENT_LOOP_DIR="$ROOT/dev/agent_loop"
 FAKE_RUNNER="$ROOT/gate_validation/dev/agent_loop/testdata/fake_runner.py"
+FAKE_NOTIFY="$ROOT/gate_validation/dev/agent_loop/testdata/fake_notification_delivery.py"
 TMP_DIR="$(mktemp -d)"
 trap 'rm -rf "$TMP_DIR"' EXIT
 
@@ -53,6 +54,7 @@ bash "$FEATURE_TRACKER_DIR/scripts/feature-tracker.sh" assign-feature-workspace 
 bash "$FLOW_RUNNER_DIR/scripts/flow-runner.sh" apply --root "$TMP_DIR" >/dev/null
 bash "$FLOW_RUNNER_DIR/scripts/flow-runner.sh" ingest-feature-tracker --root "$TMP_DIR" >/dev/null
 bash "$FLOW_RUNNER_DIR/scripts/flow-runner.sh" add-item --root "$TMP_DIR" --item-id manual-one --title "Manual item" --source-kind manual --source-ref manual:one >/dev/null
+bash "$FLOW_RUNNER_DIR/scripts/flow-runner.sh" add-item --root "$TMP_DIR" --item-id manual-session --title "Manual session" --source-kind manual --source-ref manual:session >/dev/null
 bash "$FLOW_RUNNER_DIR/scripts/flow-runner.sh" add-item --root "$TMP_DIR" --item-id manual-budget --title "Manual budget" --source-kind manual --source-ref manual:budget >/dev/null
 bash "$FLOW_RUNNER_DIR/scripts/flow-runner.sh" add-item --root "$TMP_DIR" --item-id manual-cancel --title "Manual cancel" --source-kind manual --source-ref manual:cancel >/dev/null
 bash "$FLOW_RUNNER_DIR/scripts/flow-runner.sh" add-item --root "$TMP_DIR" --item-id manual-exit --title "Manual exit" --source-kind manual --source-ref manual:exit >/dev/null
@@ -66,23 +68,28 @@ bash "$FLOW_RUNNER_DIR/scripts/flow-runner.sh" add-item --root "$TMP_DIR" --item
 bash "$AGENT_LOOP_DIR/agent-loop.sh" apply --root "$TMP_DIR" >/dev/null
 bash "$AGENT_LOOP_DIR/agent-loop.sh" configure-runner --root "$TMP_DIR" --runner-name fake --argv-json "[\"python3\",\"$FAKE_RUNNER\",\"{repo_root}\",\"{session_brief}\",\"{runner_result}\"]" >/dev/null
 
-AMBIGUOUS_RESUME="$TMP_DIR/ambiguous-resume.json"
-set +e
-bash "$AGENT_LOOP_DIR/agent-loop.sh" resume --root "$TMP_DIR" --max-sessions 1 --json > "$AMBIGUOUS_RESUME"
-status=$?
-set -e
-if [[ "$status" -ne 1 ]]; then
-  echo "error: ambiguous resume should stop with operator action required" >&2
-  exit 1
-fi
-python3 - "$AMBIGUOUS_RESUME" <<'PY'
+CURRENT_JSON="$TMP_DIR/current.json"
+bash "$AGENT_LOOP_DIR/agent-loop.sh" current --root "$TMP_DIR" --json > "$CURRENT_JSON"
+python3 - "$CURRENT_JSON" <<'PY'
 import json
 import sys
 from pathlib import Path
 
 payload = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
-assert payload["stop_reason"] == "resume_target_ambiguous"
-assert payload["resume_candidates"]["live"]
+assert payload["selection_status"] == "selected"
+assert payload["item_id"]
+PY
+
+STATUS_JSON="$TMP_DIR/status.json"
+bash "$AGENT_LOOP_DIR/agent-loop.sh" status --root "$TMP_DIR" --json > "$STATUS_JSON"
+python3 - "$STATUS_JSON" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+payload = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+assert payload["current"]["selection_status"] == "selected"
+assert payload["watch"]["run_lock"]["status"] == "idle"
 PY
 
 NEXT_JSON="$TMP_DIR/agent-next.json"
@@ -113,6 +120,20 @@ assert payload["sessions_launched"] == 1
 assert (root / ".bagakit" / "flow-runner" / "archive" / "manual-one").is_dir()
 PY
 
+SESSION_JSON="$TMP_DIR/session-run.json"
+bash "$AGENT_LOOP_DIR/agent-loop.sh" configure-runner --root "$TMP_DIR" --runner-name fake --argv-json "[\"python3\",\"$FAKE_RUNNER\",\"{repo_root}\",\"{session_brief}\",\"{runner_result}\"]" >/dev/null
+bash "$AGENT_LOOP_DIR/agent-loop.sh" session-run --root "$TMP_DIR" --item manual-session --json > "$SESSION_JSON"
+python3 - "$SESSION_JSON" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+payload = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+assert payload["command"] == "session-run"
+assert payload["item_id"] == "manual-session"
+assert payload["runner_session_id"]
+PY
+
 TRACKER_JSON="$TMP_DIR/tracker-run.json"
 set +e
 bash "$AGENT_LOOP_DIR/agent-loop.sh" run --root "$TMP_DIR" --item "feature-$FEATURE_ID" --max-sessions 1 --json > "$TRACKER_JSON"
@@ -133,6 +154,40 @@ assert payload["stop_reason"] == "closeout_pending"
 assert payload["sessions_launched"] == 1
 assert payload["checkpoint_observed"] is True
 assert payload["host_notification_request"]["reason"] == "closeout_pending"
+PY
+
+TRACKER_RUN_ID="$(python3 - "$TRACKER_JSON" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+payload = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+print(Path(payload["run_record_path"]).stem)
+PY
+)"
+
+bash "$AGENT_LOOP_DIR/agent-loop.sh" configure-notification --root "$TMP_DIR" --transport command --argv-json "[\"python3\",\"$FAKE_NOTIFY\",\"{request_file}\",\"{receipt_file}\"]" --payload-mode file_json >/dev/null
+NOTIFY_JSON="$TMP_DIR/notify.json"
+bash "$AGENT_LOOP_DIR/agent-loop.sh" deliver-notification --root "$TMP_DIR" --run "$TRACKER_RUN_ID" --json > "$NOTIFY_JSON"
+python3 - "$NOTIFY_JSON" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+payload = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+assert payload["status"] == "delivered"
+assert payload["transport"] == "command"
+PY
+
+STATUS_AFTER_NOTIFY="$TMP_DIR/status-after-notify.json"
+bash "$AGENT_LOOP_DIR/agent-loop.sh" status --root "$TMP_DIR" --item "feature-$FEATURE_ID" --json > "$STATUS_AFTER_NOTIFY"
+python3 - "$STATUS_AFTER_NOTIFY" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+payload = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+assert payload["watch"]["latest_notification_delivery"]["status"] == "delivered"
 PY
 
 CANCEL_JSON="$TMP_DIR/cancel-run.json"

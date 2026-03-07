@@ -1,0 +1,10 @@
+{
+  "schema": "bagakit/agent-loop/notification-config/v1",
+  "transport": "disabled",
+  "command": {
+    "argv": [],
+    "env": {},
+    "timeout_seconds": 30,
+    "payload_mode": "stdin_json"
+  }
+}

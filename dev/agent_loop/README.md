@@ -31,17 +31,31 @@ It does not own:
 
 - `agent-loop.sh apply`
 - `agent-loop.sh configure-runner`
+- `agent-loop.sh configure-notification`
+- `agent-loop.sh current`
+- `agent-loop.sh deliver-notification`
 - `agent-loop.sh next`
+- `agent-loop.sh status`
 - `agent-loop.sh run`
 - `agent-loop.sh resume`
+- `agent-loop.sh session-run`
 - `agent-loop.sh watch`
 - `agent-loop.sh validate`
 
 `watch` supports one-shot snapshot rendering and live terminal refresh when
 stdout is a TTY.
 
-`resume` may pin one explicit item with `--item`, or auto-resolve one live
-candidate from flow-runner when exactly one exists.
+`current` resolves the current item without launching anything.
+
+`status` renders one read-only host snapshot without entering the live watch
+loop.
+
+`resume` may pin one explicit item with `--item`, or trust the same current
+selection flow that powers `current`, then fall back to resume candidates only
+when needed.
+
+`session-run` executes exactly one bounded session for one explicit item and
+stops.
 
 ## Core Rule
 
@@ -71,6 +85,11 @@ Configured runner argv is stored in:
 
 Built-in `configure-runner --preset` values are convenience shims only.
 They do not redefine the stable host contract.
+
+Notification delivery uses a separate host config under
+`.bagakit/agent-loop/notification.json`.
+
+It is not part of runner launch mechanics.
 
 ## Read Path
 

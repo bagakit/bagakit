@@ -28,12 +28,18 @@ required_files = [
   "dev/agent_loop/tsconfig.json",
   "dev/agent_loop/agent-loop.sh",
   "dev/agent_loop/references/tpl/runner-config-template.json",
+  "dev/agent_loop/references/tpl/notification-config-template.json",
   "dev/agent_loop/src/cli.ts",
   "dev/agent_loop/src/lib/model.ts",
   "dev/agent_loop/src/lib/io.ts",
   "dev/agent_loop/src/lib/paths.ts",
   "dev/agent_loop/src/lib/config.ts",
   "dev/agent_loop/src/lib/core.ts",
+  "dev/agent_loop/src/lib/front_door.ts",
+  "dev/agent_loop/src/lib/status.ts",
+  "dev/agent_loop/src/lib/session_host_snapshot.ts",
+  "dev/agent_loop/src/lib/session_host_status.ts",
+  "dev/agent_loop/src/lib/notification_delivery.ts",
   "dev/agent_loop/src/lib/run.ts",
   "dev/agent_loop/src/lib/prompt.ts",
   "dev/agent_loop/src/lib/watch_presenter.ts",
@@ -46,6 +52,7 @@ required_files = [
   "gate_validation/dev/agent_loop/validation.toml",
   "gate_validation/dev/agent_loop/check-agent-loop.sh",
   "gate_validation/dev/agent_loop/testdata/fake_runner.py",
+  "gate_validation/dev/agent_loop/testdata/fake_notification_delivery.py",
 ]
 
 [[suite]]

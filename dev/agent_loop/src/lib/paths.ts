@@ -4,17 +4,21 @@ export class AgentLoopPaths {
   readonly root: string;
   readonly loopDir: string;
   readonly runnerConfigFile: string;
+  readonly notificationConfigFile: string;
   readonly runLockFile: string;
   readonly sessionsDir: string;
   readonly runsDir: string;
+  readonly notificationDir: string;
 
   constructor(root: string) {
     this.root = root;
     this.loopDir = path.join(root, ".bagakit", "agent-loop");
     this.runnerConfigFile = path.join(this.loopDir, "runner.json");
+    this.notificationConfigFile = path.join(this.loopDir, "notification.json");
     this.runLockFile = path.join(this.loopDir, "run.lock");
     this.sessionsDir = path.join(this.loopDir, "runner-sessions");
     this.runsDir = path.join(this.loopDir, "runs");
+    this.notificationDir = path.join(this.loopDir, "notification-delivery");
   }
 
   sessionDir(sessionId: string): string {
@@ -43,5 +47,13 @@ export class AgentLoopPaths {
 
   runRecordFile(runId: string): string {
     return path.join(this.runsDir, `${runId}.json`);
+  }
+
+  notificationRequestFile(runId: string): string {
+    return path.join(this.notificationDir, "requests", `${runId}.json`);
+  }
+
+  notificationReceiptFile(runId: string): string {
+    return path.join(this.notificationDir, "receipts", `${runId}.json`);
   }
 }

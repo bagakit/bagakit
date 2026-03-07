@@ -14,6 +14,7 @@ Maintainers should treat `agent_loop` as host-side orchestration around
 - auto-archive runner-owned items only by calling the canonical flow-runner
   archive command
 - emit host-owned stop-attention intent for operator-required stops
+- delegate notification delivery through a separate host-only adapter config
 
 `agent_loop` must not:
 
@@ -62,9 +63,27 @@ Bad uses:
 
 That means:
 
+- if `flow-runner next` already selects one current item, trust that first
 - if exactly one live candidate exists, auto-resolve it
 - if zero or multiple live candidates exist, fail closed with a typed host stop
 - do not invent a second host-local current-item resolver
+
+## Session Host Rule
+
+The lower session host substrate should stay separately usable through
+`session-run`.
+
+It may:
+
+- launch one bounded session
+- write full session exhaust
+- reduce session exhaust into read-only session status
+
+It must not:
+
+- repeat outer-loop orchestration
+- own current or resume resolution
+- own notification policy
 
 ## Watch Rule
 

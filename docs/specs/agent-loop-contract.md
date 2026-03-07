@@ -28,6 +28,8 @@ Those remain owned by `bagakit-flow-runner` and, when applicable,
 Stable host surfaces live under:
 
 - `.bagakit/agent-loop/runner.json`
+- `.bagakit/agent-loop/notification.json`
+- `.bagakit/agent-loop/notification-delivery/`
 - `.bagakit/agent-loop/run.lock`
 - `.bagakit/agent-loop/runner-sessions/<session-id>/session-brief.json`
 - `.bagakit/agent-loop/runner-sessions/<session-id>/prompt.txt`
@@ -153,6 +155,44 @@ When `resume` cannot resolve one live candidate by itself, `run` payloads may
 also carry `resume_candidates` so the host can inspect the ambiguity without
 scraping flow-runner output.
 
+## Current Contract
+
+`current` currently emits schema `bagakit/agent-loop/current/v1`.
+
+Stable fields:
+
+- `selection_status`
+- `selection_reason`
+- `next_safe_action`
+- `flow_next`
+- optional `item_id`
+- optional `resume_candidates`
+
+## Status Contract
+
+`status` currently emits schema `bagakit/agent-loop/status/v1`.
+
+It is the one-shot read-only host snapshot surface built above `current` and
+`watch`.
+
+## Session-Run Contract
+
+`session-run` currently emits schema `bagakit/agent-loop/session-run/v1`.
+
+Stable fields:
+
+- `session_status`
+- `stop_reason`
+- `operator_message`
+- `next_safe_action`
+- `item_id`
+- `runner_session_id`
+- `checkpoint_observed`
+- `flow_next`
+
+`session-run` uses the lower agent-runner substrate and does not own repeated
+orchestration.
+
 ## Run Record Contract
 
 `runs/<run-id>.json` currently uses schema `bagakit/agent-loop/run-record/v2`.
@@ -199,6 +239,21 @@ scope is still `operator_action_required`.
 If `watch_issue` is present, the watch surface must show that degraded host
 read-path state before any optimistic launch banner.
 
+## Notification Delivery Contract
+
+Notification delivery config currently uses schema
+`bagakit/agent-loop/notification-config/v1`.
+
+Current transport modes:
+
+- `disabled`
+- `command`
+
+Delivery receipts currently use schema
+`bagakit/agent-loop/notification-receipt/v1`.
+
+They belong to host exhaust only.
+
 ## Fail-Closed Rules
 
 - run lock acquisition must be atomic
@@ -210,5 +265,6 @@ read-path state before any optimistic launch banner.
   success
 - runner failure must not cause `agent_loop` to invent flow-runner checkpoints
 - operator-required stops must carry host-owned stop-attention intent
+- notification delivery config must remain separate from runner launch config
 - tracker-sourced items must not be archived by `agent_loop`
 - host exhaust must not become selection or lifecycle truth
