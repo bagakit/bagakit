@@ -190,8 +190,7 @@ EVOLVER_BIN=(node --experimental-strip-types "$ROOT/skills/harness/bagakit-skill
 
 "${SELECTOR_BIN[@]}" evolver-export \
   --file "$TARGET" \
-  --output "$EVOLVER_EXPORT" \
-  --mark-exported
+  --output "$EVOLVER_EXPORT"
 
 python3 - "$EVOLVER_EXPORT" "$TMP_DIR" "$TARGET" "$RANKING_REPORT" <<'PY'
 import json
@@ -205,36 +204,93 @@ ranking_path = Path(sys.argv[4])
 payload = json.loads(export_path.read_text(encoding="utf-8"))
 assert payload["schema"] == "bagakit.evolver.signal.v1"
 assert payload["producer"] == "bagakit-skill-selector"
-assert len(payload["signals"]) >= 1
-signal_ids = {item["id"] for item in payload["signals"]}
-assert "demo-task--driver-load-review" in signal_ids
-manual = next(item for item in payload["signals"] if item["id"] == "demo-task--driver-load-review")
+signals = {item["id"]: item for item in payload["signals"]}
+expected_ids = {
+    "demo-task-driver-load-review",
+    "demo-task-retry-bagakit-skill-selector-driver-pack-load",
+    "demo-task-pattern-bagakit-skill-selector-driver-load-failure-loaded-selector-drivers-for-the-composed-task-loop",
+}
+assert set(signals) == expected_ids
+manual = signals["demo-task-driver-load-review"]
 assert manual["source_channel"] == "selector"
 assert "trigger=manual_review" in manual["evidence"]
 assert "scope_hint=upstream" in manual["evidence"]
 assert str(task_path.relative_to(root_path)) in manual["local_refs"]
 assert str(ranking_path.relative_to(root_path)) in manual["local_refs"]
+assert manual["created_at"] == manual["updated_at"]
+retry_signal = signals["demo-task-retry-bagakit-skill-selector-driver-pack-load"]
+assert retry_signal["topic_hint"] == "driver-pack-load"
+assert "trigger=retry_backoff" in retry_signal["evidence"]
+assert "attempt_key=driver-pack-load" in retry_signal["evidence"]
+assert str(task_path.relative_to(root_path)) in retry_signal["local_refs"]
+assert str(ranking_path.relative_to(root_path)) in retry_signal["local_refs"]
+pattern_signal = signals["demo-task-pattern-bagakit-skill-selector-driver-load-failure-loaded-selector-drivers-for-the-composed-task-loop"]
+assert pattern_signal["topic_hint"] == "driver-load-failure"
+assert "trigger=error_pattern" in pattern_signal["evidence"]
+assert "error_type=driver_load_failure" in pattern_signal["evidence"]
+assert "occurrence_index=2" in pattern_signal["evidence"]
+assert str(task_path.relative_to(root_path)) in pattern_signal["local_refs"]
+assert str(ranking_path.relative_to(root_path)) in pattern_signal["local_refs"]
 PY
 
 "${SELECTOR_BIN[@]}" evolver-bridge \
   --file "$TARGET" \
   --root "$TMP_DIR" \
-  --output "$EVOLVER_EXPORT" \
-  --status exported
+  --output "$EVOLVER_EXPORT"
 
 "${EVOLVER_BIN[@]}" list-signals --root "$TMP_DIR" --json > "$TMP_DIR/evolver-signals.json"
 
-python3 - "$TMP_DIR/evolver-signals.json" <<'PY'
+python3 - "$EVOLVER_EXPORT" "$TMP_DIR/evolver-signals.json" "$TARGET" "$TMP_DIR/.mem_inbox/signals" <<'PY'
 import json
 import sys
+import ast
 from pathlib import Path
 
-signals = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
-ids = {item["id"] for item in signals}
-assert "demo-task-driver-load-review" in ids
-manual = next(item for item in signals if item["id"] == "demo-task-driver-load-review")
-assert manual["status"] == "pending"
-assert manual["producer"] == "bagakit-skill-selector"
+export_payload = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+signal_payload = json.loads(Path(sys.argv[2]).read_text(encoding="utf-8"))
+task_text = Path(sys.argv[3]).read_text(encoding="utf-8")
+signal_dir = Path(sys.argv[4])
+
+export_by_id = {item["id"]: item for item in export_payload["signals"]}
+imported_by_id = {item["id"]: item for item in signal_payload}
+assert set(imported_by_id) == set(export_by_id)
+for signal_id, exported in export_by_id.items():
+    imported = imported_by_id[signal_id]
+    assert imported["status"] == "pending"
+    assert imported["producer"] == "bagakit-skill-selector"
+    assert imported["created_at"] == exported["created_at"]
+    assert imported["updated_at"] == exported["updated_at"]
+    assert (signal_dir / f"{signal_id}.json").exists()
+
+task_signals = []
+current = None
+for raw_line in task_text.splitlines():
+    line = raw_line.strip()
+    if line == "[[evolver_signal_log]]":
+        if current is not None:
+            task_signals.append(current)
+        current = {}
+        continue
+    if line.startswith("[") and current is not None:
+        task_signals.append(current)
+        current = None
+    if current is None or "=" not in line or line.startswith("["):
+        continue
+    key, value = [part.strip() for part in line.split("=", 1)]
+    if value.startswith('"'):
+        current[key] = ast.literal_eval(value)
+if current is not None:
+    task_signals.append(current)
+
+signals_by_task_id = {item["signal_id"]: item for item in task_signals}
+for task_signal_id in [
+    "driver-load-review",
+    "retry-bagakit-skill-selector-driver-pack-load",
+    "pattern-bagakit-skill-selector-driver-load-failure-loaded-selector-drivers-for-the-composed-task-loop",
+]:
+    entry = signals_by_task_id[task_signal_id]
+    assert entry["status"] == "imported"
+    assert entry["updated_at"] >= entry["timestamp"]
 PY
 
 "${SELECTOR_BIN[@]}" evaluate \
@@ -259,7 +315,6 @@ grep -q 'occurrence_index = 2' "$TARGET"
 grep -q 'needs_new_search = true' "$TARGET"
 grep -q '\[\[evolver_signal_log\]\]' "$TARGET"
 grep -q 'signal_id = "driver-load-review"' "$TARGET"
-grep -q 'status = "imported"' "$TARGET"
 grep -q 'bagakit-skill-selector' "$DRIVER_PACK"
 grep -q 'bagakit-living-knowledge' "$DRIVER_PACK"
 grep -q 'bagakit-researcher' "$DRIVER_PACK"
