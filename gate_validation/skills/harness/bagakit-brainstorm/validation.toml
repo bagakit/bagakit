@@ -1,0 +1,72 @@
+version = 2
+
+[[suite]]
+id = "bagakit-brainstorm-layout"
+owner = "skills/harness/bagakit-brainstorm"
+description = "Require the canonical runtime layout and keep legacy standalone repo control files out of bagakit-brainstorm."
+default = true
+validation_class = "structure"
+groups = ["skills", "harness", "brainstorm", "structure"]
+
+[suite.runner]
+kind = "fs"
+required_dirs = [
+  "skills/harness/bagakit-brainstorm",
+  "skills/harness/bagakit-brainstorm/references",
+  "skills/harness/bagakit-brainstorm/references/tpl",
+  "skills/harness/bagakit-brainstorm/scripts",
+  "gate_eval/skills/harness/bagakit-brainstorm",
+  "gate_eval/skills/harness/bagakit-brainstorm/results",
+  "gate_eval/skills/harness/bagakit-brainstorm/results/runs",
+  "gate_validation/skills/harness/bagakit-brainstorm",
+]
+required_files = [
+  "skills/harness/bagakit-brainstorm/README.md",
+  "skills/harness/bagakit-brainstorm/SKILL.md",
+  "skills/harness/bagakit-brainstorm/scripts/bagakit-brainstorm.sh",
+  "skills/harness/bagakit-brainstorm/scripts/bagakit-brainstorm.py",
+  "skills/harness/bagakit-brainstorm/references/design-notes.md",
+  "skills/harness/bagakit-brainstorm/references/adapter-contract.md",
+  "skills/harness/bagakit-brainstorm/references/method-playbook.md",
+  "skills/harness/bagakit-brainstorm/references/bagakit-driver.toml",
+  "skills/harness/bagakit-brainstorm/references/tpl/archive.md",
+  "skills/harness/bagakit-brainstorm/references/tpl/expert_forum.md",
+  "skills/harness/bagakit-brainstorm/references/tpl/finding_and_analyze.md",
+  "skills/harness/bagakit-brainstorm/references/tpl/input_and_qa.md",
+  "skills/harness/bagakit-brainstorm/references/tpl/outcome_and_handoff.md",
+  "skills/harness/bagakit-brainstorm/references/tpl/related_insights.md",
+  "skills/harness/bagakit-brainstorm/references/tpl/review_quality.md",
+  "skills/harness/bagakit-brainstorm/references/tpl/eval_effect_review.md",
+  "gate_eval/skills/harness/bagakit-brainstorm/README.md",
+  "gate_eval/skills/harness/bagakit-brainstorm/suite.ts",
+  "gate_eval/skills/harness/bagakit-brainstorm/validation.toml",
+  "gate_eval/skills/harness/bagakit-brainstorm/results/.gitignore",
+  "gate_eval/skills/harness/bagakit-brainstorm/results/README.md",
+  "gate_eval/skills/harness/bagakit-brainstorm/results/runs/.gitkeep",
+  "gate_validation/skills/harness/bagakit-brainstorm/validation.toml",
+  "gate_validation/skills/harness/bagakit-brainstorm/check-bagakit-brainstorm.sh",
+]
+forbidden_paths = [
+  "skills/harness/bagakit-brainstorm/SKILL_PAYLOAD.json",
+  "skills/harness/bagakit-brainstorm/AGENTS.md",
+  "skills/harness/bagakit-brainstorm/Makefile",
+  "skills/harness/bagakit-brainstorm/agents",
+  "skills/harness/bagakit-brainstorm/dist",
+  "skills/harness/bagakit-brainstorm/scripts_dev",
+]
+
+[[suite]]
+id = "bagakit-brainstorm-smoke"
+owner = "skills/harness/bagakit-brainstorm"
+description = "Run the brainstorm lifecycle across blocked explicit-adapter plus complete local, auto-with-fallback, and explicit-adapter archive routes."
+default = true
+validation_class = "smoke"
+groups = ["skills", "harness", "brainstorm", "smoke"]
+
+[suite.runner]
+kind = "bash_script"
+script = "gate_validation/skills/harness/bagakit-brainstorm/check-bagakit-brainstorm.sh"
+args = [
+  "--root",
+  "{repo_root}",
+]
