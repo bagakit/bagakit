@@ -1,0 +1,19 @@
+version = 1
+insert_target = "bagakit_footer"
+summary_line = "- Selector: Coverage=<preflight.answer>; Composition=<composition summary or none>; EvolverReview=<pending review signals or none>; Evidence=<skill-usage.toml + key checks>; Next=<one deterministic next action>"
+retry_backoff_threshold = 3
+
+[[directive]]
+id = "ATTEMPT"
+when = "the same concrete action is retried"
+instruction = "append `<attempt_key> (try-<attempt_index>): <one-line approach>` inside the same `[[BAGAKIT]]` block"
+
+[[directive]]
+id = "BACKOFF"
+when = "the same attempt key reaches the retry backoff threshold without success"
+instruction = "step back, summarize why the current method stalled, and switch method before retrying again"
+
+[[directive]]
+id = "EVOLVER_REVIEW"
+when = "retry backoff or repeated task-local failure now deserves repository-level review"
+instruction = "surface one explicit `EvolverReview` line, keep `[evolver_handoff_policy].enabled = true`, and record or update one `[[evolver_signal_log]]` entry before closing the task"

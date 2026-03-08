@@ -1,0 +1,85 @@
+version = 2
+
+[[suite]]
+id = "bagakit-skill-evolver-layout"
+owner = "skills/harness/bagakit-skill-evolver"
+description = "Require the canonical evolver runtime layout and keep legacy standalone repo control files out of the canonical skill."
+default = true
+validation_class = "structure"
+groups = ["skills", "harness", "evolver", "structure"]
+
+[suite.runner]
+kind = "fs"
+required_dirs = [
+  "skills/harness/bagakit-skill-evolver",
+  "skills/harness/bagakit-skill-evolver/scripts",
+  "gate_eval/skills/harness/bagakit-skill-evolver",
+  "gate_eval/skills/harness/bagakit-skill-evolver/results",
+  "gate_eval/skills/harness/bagakit-skill-evolver/results/runs",
+  "gate_validation/skills/harness/bagakit-skill-evolver",
+]
+required_files = [
+  "docs/specs/evolver-evidence-intake.md",
+  "docs/specs/evolver-memory.md",
+  "docs/specs/selector-evolver-boundary.md",
+  "docs/stewardship/evolver-done-criteria.md",
+  "skills/harness/bagakit-skill-evolver/README.md",
+  "skills/harness/bagakit-skill-evolver/SKILL.md",
+  "skills/harness/bagakit-skill-evolver/scripts/evolver.ts",
+  "skills/harness/bagakit-skill-evolver/scripts/lib/args.ts",
+  "skills/harness/bagakit-skill-evolver/scripts/lib/fs.ts",
+  "skills/harness/bagakit-skill-evolver/scripts/lib/model.ts",
+  "skills/harness/bagakit-skill-evolver/scripts/lib/paths.ts",
+  "skills/harness/bagakit-skill-evolver/scripts/lib/readiness.ts",
+  "skills/harness/bagakit-skill-evolver/scripts/lib/render.ts",
+  "skills/harness/bagakit-skill-evolver/scripts/lib/text.ts",
+  "skills/harness/bagakit-skill-evolver/scripts/lib/validate.ts",
+  "gate_eval/skills/harness/bagakit-skill-evolver/README.md",
+  "gate_eval/skills/harness/bagakit-skill-evolver/suite.ts",
+  "gate_eval/skills/harness/bagakit-skill-evolver/validation.toml",
+  "gate_eval/skills/harness/bagakit-skill-evolver/results/.gitignore",
+  "gate_eval/skills/harness/bagakit-skill-evolver/results/README.md",
+  "gate_eval/skills/harness/bagakit-skill-evolver/results/runs/.gitkeep",
+  "gate_validation/skills/harness/bagakit-skill-evolver/validation.toml",
+  "gate_validation/skills/harness/bagakit-skill-evolver/check-evolver-state.sh",
+  "gate_validation/skills/harness/bagakit-skill-evolver/check-evolver-smoke.sh",
+]
+forbidden_paths = [
+  "skills/harness/bagakit-skill-evolver/SKILL_PAYLOAD.json",
+  "skills/harness/bagakit-skill-evolver/AGENTS.md",
+  "skills/harness/bagakit-skill-evolver/Makefile",
+  "skills/harness/bagakit-skill-evolver/docs",
+  "skills/harness/bagakit-skill-evolver/scripts_dev",
+]
+
+[[suite]]
+id = "bagakit-skill-evolver-state"
+owner = "skills/harness/bagakit-skill-evolver"
+description = "Validate repository evolver state when present, or else validate the operator contract against an isolated bootstrap layout."
+default = true
+validation_class = "tooling"
+groups = ["skills", "harness", "evolver", "smoke"]
+
+[suite.runner]
+kind = "bash_script"
+script = "gate_validation/skills/harness/bagakit-skill-evolver/check-evolver-state.sh"
+args = [
+  "--root",
+  "{repo_root}",
+]
+
+[[suite]]
+id = "bagakit-skill-evolver-smoke"
+owner = "skills/harness/bagakit-skill-evolver"
+description = "Run a minimal evolver lifecycle covering routing, promotion readiness, handoff, and archive artifacts."
+default = true
+validation_class = "smoke"
+groups = ["skills", "harness", "evolver", "smoke"]
+
+[suite.runner]
+kind = "bash_script"
+script = "gate_validation/skills/harness/bagakit-skill-evolver/check-evolver-smoke.sh"
+args = [
+  "--root",
+  "{repo_root}",
+]

@@ -1,0 +1,120 @@
+version = 2
+
+[[suite]]
+id = "bagakit-skill-selector-structure"
+owner = "skills/harness/bagakit-skill-selector"
+description = "Require selector runtime files, recipes, and references that define explicit task-level composition behavior."
+default = true
+validation_class = "structure"
+groups = ["skills", "harness", "usage-loop", "structure"]
+
+[suite.runner]
+kind = "fs"
+required_dirs = [
+  "skills/harness/bagakit-skill-selector",
+  "skills/harness/bagakit-skill-selector/recipes",
+  "skills/harness/bagakit-skill-selector/references",
+  "skills/harness/bagakit-skill-selector/scripts",
+  "skills/harness/bagakit-skill-selector/scripts/lib",
+  "gate_eval/skills/harness/bagakit-skill-selector",
+  "gate_eval/skills/harness/bagakit-skill-selector/results",
+  "gate_eval/skills/harness/bagakit-skill-selector/results/runs",
+  "gate_validation/skills/harness/bagakit-skill-selector",
+]
+required_files = [
+  "skills/harness/bagakit-skill-selector/README.md",
+  "skills/harness/bagakit-skill-selector/SKILL.md",
+  "skills/harness/bagakit-skill-selector/assets/project-preferences.template.toml",
+  "skills/harness/bagakit-skill-selector/assets/skill-usage.template.toml",
+  "skills/harness/bagakit-skill-selector/recipes/README.md",
+  "skills/harness/bagakit-skill-selector/recipes/brainstorm-with-research.md",
+  "skills/harness/bagakit-skill-selector/recipes/research-to-knowledge.md",
+  "skills/harness/bagakit-skill-selector/recipes/brainstorm-review-loop.md",
+  "skills/harness/bagakit-skill-selector/recipes/planning-entry-brainstorm-only.md",
+  "skills/harness/bagakit-skill-selector/recipes/planning-entry-brainstorm-to-feature.md",
+  "skills/harness/bagakit-skill-selector/recipes/planning-entry-feature-to-flow.md",
+  "skills/harness/bagakit-skill-selector/recipes/planning-entry-brainstorm-feature-flow.md",
+  "skills/harness/bagakit-skill-selector/references/project-preferences-file-spec.md",
+  "skills/harness/bagakit-skill-selector/references/bagakit-driver.toml",
+  "skills/harness/bagakit-skill-selector/references/skill-usage-file-spec.md",
+  "skills/harness/bagakit-skill-selector/scripts/skill_selector.ts",
+  "skills/harness/bagakit-skill-selector/scripts/lib/candidate_survey.ts",
+  "skills/harness/bagakit-skill-selector/scripts/lib/project_preferences.ts",
+  "skills/harness/bagakit-skill-selector/scripts/lib/skill_catalog.ts",
+  "skills/harness/bagakit-skill-selector/scripts/lib/reports.ts",
+  "gate_eval/skills/harness/bagakit-skill-selector/README.md",
+  "gate_eval/skills/harness/bagakit-skill-selector/suite.ts",
+  "gate_eval/skills/harness/bagakit-skill-selector/validation.toml",
+  "gate_eval/skills/harness/bagakit-skill-selector/results/.gitignore",
+  "gate_eval/skills/harness/bagakit-skill-selector/results/README.md",
+  "gate_eval/skills/harness/bagakit-skill-selector/results/runs/.gitkeep",
+  "gate_validation/skills/harness/bagakit-skill-selector/check-selector-policy-alignment.py",
+  "gate_validation/skills/harness/bagakit-skill-selector/check-selector-planning-entry.sh",
+  "gate_validation/skills/harness/bagakit-skill-selector/check-selector-recipes.sh",
+  "gate_validation/skills/harness/bagakit-skill-selector/check-skill-selector.sh",
+  "gate_validation/skills/harness/bagakit-skill-selector/validation.toml",
+]
+
+[[suite]]
+id = "bagakit-skill-selector-policy-alignment"
+owner = "skills/harness/bagakit-skill-selector"
+description = "Keep mandatory selector-preflight policy aligned across specs, runtime docs, and bootstrap."
+default = true
+validation_class = "quality"
+groups = ["skills", "harness", "usage-loop", "policy", "quality"]
+
+[suite.runner]
+kind = "python_script"
+script = "gate_validation/skills/harness/bagakit-skill-selector/check-selector-policy-alignment.py"
+args = [
+  "--root",
+  "{repo_root}",
+]
+
+[[suite]]
+id = "bagakit-skill-selector-planning-entry"
+owner = "skills/harness/bagakit-skill-selector"
+description = "Validate canonical planning-entry route semantics, including participant sets and rejection of generic root planning artifacts."
+default = true
+validation_class = "quality"
+groups = ["skills", "harness", "usage-loop", "planning-entry", "quality"]
+
+[suite.runner]
+kind = "bash_script"
+script = "gate_validation/skills/harness/bagakit-skill-selector/check-selector-planning-entry.sh"
+args = [
+  "--root",
+  "{repo_root}",
+]
+
+[[suite]]
+id = "bagakit-skill-selector-smoke"
+owner = "skills/harness/bagakit-skill-selector"
+description = "Run a minimal task-level skill-selector lifecycle with explicit composition and strict validation."
+default = true
+validation_class = "smoke"
+groups = ["skills", "harness", "usage-loop", "smoke"]
+
+[suite.runner]
+kind = "bash_script"
+script = "gate_validation/skills/harness/bagakit-skill-selector/check-skill-selector.sh"
+args = [
+  "--root",
+  "{repo_root}",
+]
+
+[[suite]]
+id = "bagakit-skill-selector-recipe-contract"
+owner = "skills/harness/bagakit-skill-selector"
+description = "Require selector recipes to carry the stable contract sections for fit, order, synthesis, and fallback."
+default = true
+validation_class = "contract"
+groups = ["skills", "harness", "usage-loop", "contract"]
+
+[suite.runner]
+kind = "bash_script"
+script = "gate_validation/skills/harness/bagakit-skill-selector/check-selector-recipes.sh"
+args = [
+  "--root",
+  "{repo_root}",
+]
