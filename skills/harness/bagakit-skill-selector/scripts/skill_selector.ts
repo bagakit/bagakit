@@ -31,6 +31,7 @@ import {
   COMPOSITION_ROLES,
   EVALUATION_OVERALL,
   EVOLVER_SCOPE_HINTS,
+  EVOLVER_BRIDGEABLE_SIGNAL_STATUSES,
   EVOLVER_SIGNAL_KINDS,
   EVOLVER_SIGNAL_STATUSES,
   EVOLVER_SIGNAL_TRIGGERS,
@@ -67,8 +68,8 @@ Commands:
   benchmark --file <path> --benchmark-id <id> --metric <name> --baseline <n> --candidate <n> [--higher-is-better | --no-higher-is-better] [--notes <text>]
   error-pattern --file <path> --error-type <id> --message-pattern <text> --skill-id <id> [--resolution <text>] [--notes <text>]
   evolver-signal --file <path> --signal-id <id> --kind <decision|preference|gotcha|howto|glossary> --trigger <retry_backoff|error_pattern|failed_benchmark|negative_feedback|manual_review> --skill-id <id> --title <text> --summary <text> [--scope-hint <unset|host|upstream|split>] [--confidence <0..1>] [--status <suggested|exported|imported|dismissed>] [--topic-hint <slug>] [--attempt-key <text>] [--error-type <text>] [--occurrence-index <n>] [--evidence-ref <path>] [--notes <text>]
-  evolver-export --file <path> [--output <path>] [--status <suggested|exported|imported|dismissed|all>] [--mark-exported]
-  evolver-bridge --file <path> --root <repo-root> [--output <path>] [--status <suggested|exported|imported|dismissed|all>] [--evolver-cli <path>]
+  evolver-export --file <path> [--output <path>] [--status <suggested|exported>] [--mark-exported]
+  evolver-bridge --file <path> --root <repo-root> [--output <path>] [--status <suggested|exported>] [--evolver-cli <path>]
   skill-ranking --file <path> [--output <path>]
   evaluate --file <path> --quality-score <n> --evidence-score <n> --feedback-score <n> --overall <pass|conditional_pass|fail|pending> --summary <text> [--status <task-status>] [--needs-feedback-confirmation <true|false>] [--needs-new-search <true|false>] [--next-search-query <text>] [--notes <text>]
   validate --file <path> [--strict]
@@ -277,14 +278,16 @@ function resolveEvolverOutputPath(filePath: string, rawOutput?: string): string 
   return resolvePathFromCwd(rawOutput ?? path.join(path.dirname(filePath), "evolver-signals.json"));
 }
 
-function readEvolverStatusFilter(
+function readEvolverBridgeableStatuses(
   flags: Map<string, string | boolean>,
-): (typeof EVOLVER_SIGNAL_STATUSES)[number][] | "all" {
-  const raw = readStringFlag(flags, "status") ?? "suggested";
-  if (raw === "all") {
-    return "all";
-  }
-  return [assertEnum(EVOLVER_SIGNAL_STATUSES, raw, "evolver_signal_log.status")];
+): (typeof EVOLVER_BRIDGEABLE_SIGNAL_STATUSES)[number][] {
+  return [
+    assertEnum(
+      EVOLVER_BRIDGEABLE_SIGNAL_STATUSES,
+      readStringFlag(flags, "status") ?? "suggested",
+      "evolver bridgeable signal status",
+    ),
+  ];
 }
 
 function ensureSignalsPresent(
@@ -298,10 +301,10 @@ function ensureSignalsPresent(
 
 function selectedEvolverSignalIds(
   doc: ReturnType<typeof readSkillUsageDoc>,
-  statuses: (typeof EVOLVER_SIGNAL_STATUSES)[number][] | "all",
+  statuses: readonly (typeof EVOLVER_SIGNAL_STATUSES)[number][],
 ): string[] {
   return doc.evolver_signal_log
-    .filter((entry) => statuses === "all" || statuses.includes(entry.status))
+    .filter((entry) => statuses.includes(entry.status))
     .map((entry) => entry.signal_id);
 }
 
@@ -344,10 +347,10 @@ function cmdEvolverExport(flags: Map<string, string | boolean>): number {
   const filePath = resolvePathFromCwd(requiredString(flags, "file"));
   const doc = readSkillUsageDoc(filePath);
   const outputPath = resolveEvolverOutputPath(filePath, readStringFlag(flags, "output") ?? undefined);
-  const statuses = readEvolverStatusFilter(flags);
+  const statuses = readEvolverBridgeableStatuses(flags);
   const signalIds = selectedEvolverSignalIds(doc, statuses);
   const contract = buildEvolverSignalContract(doc, filePath, { statuses });
-  ensureSignalsPresent(contract, `status=${statuses === "all" ? "all" : statuses.join(",")}`);
+  ensureSignalsPresent(contract, `status=${statuses.join(",")}`);
   fs.mkdirSync(path.dirname(outputPath), { recursive: true });
   fs.writeFileSync(outputPath, JSON.stringify(contract, null, 2) + "\n", "utf-8");
   if (readBooleanFlag(flags, "mark-exported", false)) {
@@ -364,29 +367,20 @@ function cmdEvolverBridge(flags: Map<string, string | boolean>): number {
   const outputPath = resolveEvolverOutputPath(filePath, readStringFlag(flags, "output") ?? undefined);
   const evolverCli = resolvePathFromCwd(readStringFlag(flags, "evolver-cli") ?? defaultEvolverCli);
   const doc = readSkillUsageDoc(filePath);
-  const statuses = readEvolverStatusFilter(flags);
+  const statuses = readEvolverBridgeableStatuses(flags);
   const signalIds = selectedEvolverSignalIds(doc, statuses);
   const contract = buildEvolverSignalContract(doc, filePath, { statuses });
-  ensureSignalsPresent(contract, `status=${statuses === "all" ? "all" : statuses.join(",")}`);
+  ensureSignalsPresent(contract, `status=${statuses.join(",")}`);
   fs.mkdirSync(path.dirname(outputPath), { recursive: true });
   fs.writeFileSync(outputPath, JSON.stringify(contract, null, 2) + "\n", "utf-8");
 
-  const validateResult = spawnSync(
+  const bridgeResult = spawnSync(
     "node",
-    ["--experimental-strip-types", evolverCli, "validate-signals", "--contract", outputPath, "--root", repoRoot],
+    ["--experimental-strip-types", evolverCli, "bridge-signals", "--contract", outputPath, "--root", repoRoot],
     { encoding: "utf8" },
   );
-  if ((validateResult.status ?? 1) !== 0) {
-    throw new Error(validateResult.stderr.trim() || validateResult.stdout.trim() || "evolver validate-signals failed");
-  }
-
-  const importResult = spawnSync(
-    "node",
-    ["--experimental-strip-types", evolverCli, "import-signals", "--contract", outputPath, "--root", repoRoot],
-    { encoding: "utf8" },
-  );
-  if ((importResult.status ?? 1) !== 0) {
-    throw new Error(importResult.stderr.trim() || importResult.stdout.trim() || "evolver import-signals failed");
+  if ((bridgeResult.status ?? 1) !== 0) {
+    throw new Error(bridgeResult.stderr.trim() || bridgeResult.stdout.trim() || "evolver bridge-signals failed");
   }
 
   updateEvolverSignalStatuses(doc, signalIds, "imported");

@@ -31,6 +31,7 @@ export const EVOLVER_SIGNAL_TRIGGERS = [
 ] as const;
 export const EVOLVER_SCOPE_HINTS = ["unset", "host", "upstream", "split"] as const;
 export const EVOLVER_SIGNAL_STATUSES = ["suggested", "exported", "imported", "dismissed"] as const;
+export const EVOLVER_BRIDGEABLE_SIGNAL_STATUSES = ["suggested", "exported"] as const;
 
 export type TaskStatus = (typeof TASK_STATUSES)[number];
 export type PreflightAnswer = (typeof PREFLIGHT_ANSWERS)[number];
@@ -53,6 +54,7 @@ export type EvolverSignalKind = (typeof EVOLVER_SIGNAL_KINDS)[number];
 export type EvolverSignalTrigger = (typeof EVOLVER_SIGNAL_TRIGGERS)[number];
 export type EvolverScopeHint = (typeof EVOLVER_SCOPE_HINTS)[number];
 export type EvolverSignalStatus = (typeof EVOLVER_SIGNAL_STATUSES)[number];
+export type EvolverBridgeableSignalStatus = (typeof EVOLVER_BRIDGEABLE_SIGNAL_STATUSES)[number];
 
 export function normalizePreflightDecisionToken(raw: string): PreflightDecision {
   const value = raw.trim();
@@ -179,6 +181,7 @@ export interface RecipeLogEntry {
 
 export interface EvolverSignalLogEntry {
   timestamp: string;
+  updated_at: string;
   signal_id: string;
   kind: EvolverSignalKind;
   trigger: EvolverSignalTrigger;

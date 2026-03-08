@@ -64,6 +64,10 @@ function nowIso(): string {
   return new Date().toISOString();
 }
 
+function laterIso(left: string, right: string): string {
+  return left >= right ? left : right;
+}
+
 function toStableToken(raw: string): string {
   let collapsed = raw
     .trim()
@@ -332,8 +336,10 @@ function parseRecipeLogEntry(record: Record<string, unknown>): RecipeLogEntry {
 }
 
 function parseEvolverSignalLogEntry(record: Record<string, unknown>): EvolverSignalLogEntry {
+  const timestamp = readString(record, "timestamp");
   return {
-    timestamp: readString(record, "timestamp"),
+    timestamp,
+    updated_at: readOptionalString(record, "updated_at") ?? timestamp,
     signal_id: readString(record, "signal_id"),
     kind: assertEnumValue(EVOLVER_SIGNAL_KINDS, readString(record, "kind"), "evolver_signal_log.kind"),
     trigger: assertEnumValue(EVOLVER_SIGNAL_TRIGGERS, readString(record, "trigger"), "evolver_signal_log.trigger"),
@@ -518,6 +524,7 @@ export function renderSkillUsageDoc(doc: SkillUsageDoc): string {
   ]);
   renderArrayTable(lines, "evolver_signal_log", doc.evolver_signal_log, [
     "timestamp",
+    "updated_at",
     "signal_id",
     "kind",
     "trigger",
@@ -608,11 +615,24 @@ function findEvolverSignal(doc: SkillUsageDoc, signalId: string): EvolverSignalL
   return doc.evolver_signal_log.find((entry) => entry.signal_id === signalId);
 }
 
+function ensureNoBridgeSignalCollision(doc: SkillUsageDoc, signalId: string): void {
+  const normalized = bridgeSignalId(doc.task_id, signalId);
+  const collided = doc.evolver_signal_log.find(
+    (entry) => entry.signal_id !== signalId && bridgeSignalId(doc.task_id, entry.signal_id) === normalized,
+  );
+  if (collided) {
+    throw new Error(
+      `evolver_signal_log.signal_id collides after bridge normalization (${signalId} -> ${normalized}; existing=${collided.signal_id})`,
+    );
+  }
+}
+
 function upsertEvolverSignal(
   doc: SkillUsageDoc,
   entry: EvolverSignalLogEntry,
   options?: { preserveDismissed?: boolean },
 ): void {
+  ensureNoBridgeSignalCollision(doc, entry.signal_id);
   const existing = findEvolverSignal(doc, entry.signal_id);
   if (!existing) {
     doc.evolver_signal_log.push(entry);
@@ -622,7 +642,21 @@ function upsertEvolverSignal(
   if (options?.preserveDismissed && existing.status === "dismissed") {
     return;
   }
-  Object.assign(existing, entry);
+  existing.updated_at = laterIso(existing.updated_at, entry.updated_at);
+  existing.kind = entry.kind;
+  existing.trigger = entry.trigger;
+  existing.skill_id = entry.skill_id;
+  existing.scope_hint = entry.scope_hint;
+  existing.title = entry.title;
+  existing.summary = entry.summary;
+  existing.confidence = entry.confidence;
+  existing.status = entry.status;
+  existing.topic_hint = entry.topic_hint;
+  existing.attempt_key = entry.attempt_key;
+  existing.error_type = entry.error_type;
+  existing.occurrence_index = entry.occurrence_index;
+  existing.evidence_ref = entry.evidence_ref;
+  existing.notes = entry.notes;
   doc.updated_at = nowIso();
 }
 
@@ -634,6 +668,10 @@ function autoErrorPatternSignalId(skillId: string, errorType: string, messagePat
   return `pattern-${toStableToken(skillId)}-${toStableToken(errorType)}-${toStableToken(messagePattern)}`;
 }
 
+function bridgeSignalId(taskId: string, signalId: string): string {
+  return toStableToken(`${taskId}--${signalId}`);
+}
+
 function suggestEvolverSignalFromBackoff(
   doc: SkillUsageDoc,
   input: { skill_id: string; attempt_key: string; occurrence_index: number },
@@ -641,11 +679,13 @@ function suggestEvolverSignalFromBackoff(
   if (!doc.evolver_handoff_policy.enabled) {
     return;
   }
+  const observedAt = nowIso();
   upsertEvolverSignal(
     doc,
     {
-      timestamp: nowIso(),
+      timestamp: observedAt,
       signal_id: autoBackoffSignalId(input.skill_id, input.attempt_key),
+      updated_at: observedAt,
       kind: "gotcha",
       trigger: "retry_backoff",
       skill_id: input.skill_id,
@@ -672,11 +712,13 @@ function suggestEvolverSignalFromErrorPattern(
   if (!doc.evolver_handoff_policy.enabled || input.occurrence_index < 2) {
     return;
   }
+  const observedAt = nowIso();
   upsertEvolverSignal(
     doc,
     {
-      timestamp: nowIso(),
+      timestamp: observedAt,
       signal_id: autoErrorPatternSignalId(input.skill_id, input.error_type, input.message_pattern),
+      updated_at: observedAt,
       kind: "gotcha",
       trigger: "error_pattern",
       skill_id: input.skill_id,
@@ -740,7 +782,7 @@ export function buildEvolverSignalContract(
       }
       return {
         version: 1,
-        id: `${doc.task_id}--${entry.signal_id}`,
+        id: bridgeSignalId(doc.task_id, entry.signal_id),
         kind: entry.kind,
         title: entry.title,
         summary: entry.summary,
@@ -760,7 +802,7 @@ export function buildEvolverSignalContract(
         local_refs: [...new Set(localRefs)],
         status: "pending",
         created_at: entry.timestamp,
-        updated_at: nowIso(),
+        updated_at: entry.updated_at,
       };
     }),
   };
@@ -775,7 +817,7 @@ export function updateEvolverSignalStatuses(
   for (const signal of doc.evolver_signal_log) {
     if (wanted.has(signal.signal_id)) {
       signal.status = status;
-      signal.timestamp = nowIso();
+      signal.updated_at = nowIso();
     }
   }
   doc.updated_at = nowIso();
@@ -838,8 +880,10 @@ export function appendEvolverSignal(
     notes: string;
   },
 ): void {
+  const observedAt = nowIso();
   upsertEvolverSignal(doc, {
-    timestamp: nowIso(),
+    timestamp: observedAt,
+    updated_at: observedAt,
     signal_id: input.signal_id,
     kind: input.kind,
     trigger: input.trigger,
@@ -1221,6 +1265,7 @@ export function validateSkillUsage(doc: SkillUsageDoc, strict: boolean): string[
     }
   }
   const evolverSignalIds = new Set<string>();
+  const evolverBridgeIds = new Set<string>();
   for (const signal of doc.evolver_signal_log) {
     if (signal.signal_id.trim() === "") {
       issues.push("evolver_signal_log.signal_id must not be empty");
@@ -1228,6 +1273,12 @@ export function validateSkillUsage(doc: SkillUsageDoc, strict: boolean): string[
       issues.push(`duplicate evolver_signal_log.signal_id (${signal.signal_id})`);
     } else {
       evolverSignalIds.add(signal.signal_id);
+    }
+    const normalizedBridgeId = bridgeSignalId(doc.task_id, signal.signal_id);
+    if (evolverBridgeIds.has(normalizedBridgeId)) {
+      issues.push(`duplicate evolver bridge id after normalization (${normalizedBridgeId})`);
+    } else {
+      evolverBridgeIds.add(normalizedBridgeId);
     }
     if (signal.skill_id.trim() === "") {
       issues.push("evolver_signal_log.skill_id must not be empty");
@@ -1304,20 +1355,22 @@ export function validateSkillUsage(doc: SkillUsageDoc, strict: boolean): string[
   if (hasRetryBackoff && doc.search_log.length < 1) {
     issues.push("strict mode: retry backoff requires [[search_log]] follow-up");
   }
-  for (const usage of doc.usage_log) {
-    if (!usage.backoff_required) {
-      continue;
-    }
-    const matchingSignal = doc.evolver_signal_log.some(
-      (signal) =>
-        signal.trigger === "retry_backoff" &&
-        signal.skill_id === usage.skill_id &&
-        signal.attempt_key === usage.attempt_key,
-    );
-    if (!matchingSignal) {
-      issues.push(
-        `strict mode: retry backoff requires matching [[evolver_signal_log]] review suggestion (${usage.skill_id}:${usage.attempt_key})`,
+  if (doc.evolver_handoff_policy.enabled) {
+    for (const usage of doc.usage_log) {
+      if (!usage.backoff_required) {
+        continue;
+      }
+      const matchingSignal = doc.evolver_signal_log.some(
+        (signal) =>
+          signal.trigger === "retry_backoff" &&
+          signal.skill_id === usage.skill_id &&
+          signal.attempt_key === usage.attempt_key,
       );
+      if (!matchingSignal) {
+        issues.push(
+          `strict mode: retry backoff requires matching [[evolver_signal_log]] review suggestion (${usage.skill_id}:${usage.attempt_key})`,
+        );
+      }
     }
   }
 

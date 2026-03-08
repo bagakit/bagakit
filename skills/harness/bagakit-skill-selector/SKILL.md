@@ -229,6 +229,9 @@ node --experimental-strip-types scripts/skill_selector.ts evolver-bridge \
   --root . \
   --output .bagakit/skill-selector/tasks/<task-slug>/evolver-signals.json
 
+`evolver-bridge` is only the selector-side convenience wrapper.
+The canonical evolver intake surface remains evolver-owned `bridge-signals`.
+
 node --experimental-strip-types scripts/skill_selector.ts skill-ranking \
   --file .bagakit/skill-selector/tasks/<task-slug>/skill-usage.toml \
   --output .bagakit/skill-selector/tasks/<task-slug>/skill-ranking.md
@@ -346,7 +349,8 @@ When one concrete sub-problem is retried:
   selector should force a step-back and method change instead of silent retry
 - when the same `attempt_key` reaches the configured threshold without success,
   selector should also create or refresh a visible `[[evolver_signal_log]]`
-  suggestion unless that signal was already explicitly dismissed
+  suggestion when `[evolver_handoff_policy].enabled = true`, unless that signal
+  was already explicitly dismissed
 
 ### 5) Evaluation loop
 
@@ -368,7 +372,8 @@ when that helps the next task-local selector decision.
 If the repeated pattern now looks large enough to deserve repository-level
 review:
 
-- record or refresh `[[evolver_signal_log]]`
+- record or refresh `[[evolver_signal_log]]` when
+  `[evolver_handoff_policy].enabled = true`
 - keep that suggestion task-local until it is explicitly exported or bridged
   into evolver intake
 - do not silently open an evolver topic from selector
@@ -413,6 +418,8 @@ Recommended output path:
 
 This driver pack is only for task-local reporting guidance.
 It must not become a hidden repository-level evolver surface.
+It must not define evolver topic creation policy, repository-level route
+decisions, or promotion-readiness rules.
 
 ### 9) Self-evolution rule
 
@@ -434,8 +441,9 @@ record the likely routing direction for the later repository-level handoff:
 - `split`
   - one host-specific part plus one reusable upstream part
 
-This is a selector-side handoff hint, not the authoritative repository-level
-route decision.
+This selector-side handoff hint should be recorded through
+`[[evolver_signal_log]].scope_hint` when one repository-review suggestion is
+being surfaced. It is not a standalone repository-level route field.
 
 Repository-level route state belongs to `bagakit-skill-evolver`.
 
@@ -469,12 +477,17 @@ The bridge uses explicit contract normalization.
 
 Selector-side `signal_id` stays task-local.
 
+Only selector-local `suggested` or `exported` review signals are bridgeable.
+
 The exported evolver intake `id` is derived as:
 
-- `<task-id>--<signal_id>`
+- normalized from `<task-id>--<signal_id>`
 
 That keeps the task log readable without forcing selector to own repository
 identity rules.
+
+Selector may prepare the exported contract, but evolver-owned `bridge-signals`
+is the canonical intake command for accepting that contract into `.mem_inbox/`.
 
 ## Resources
 

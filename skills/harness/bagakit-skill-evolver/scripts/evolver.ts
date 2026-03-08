@@ -81,6 +81,14 @@ import {
 
 const defaultRoot = path.resolve(fileURLToPath(new URL("../../../..", import.meta.url)));
 
+function earlierIso(left: string, right: string): string {
+  return left <= right ? left : right;
+}
+
+function laterIso(left: string, right: string): string {
+  return left >= right ? left : right;
+}
+
 function printHelp(): void {
   console.log(`bagakit evolver
 
@@ -88,6 +96,7 @@ Commands:
   init-topic --slug <slug> [--title <title>] [--root <repo-root>]
   capture-signal --signal <id> --kind <kind> --title <title> --summary <text> --producer <name> --channel <name> [--topic-hint <slug>] [--confidence <0..1>] [--evidence <text>] [--local-refs <repo-relative[,repo-relative...]>] [--root <repo-root>]
   validate-signals --contract <json> [--root <repo-root>]
+  bridge-signals --contract <json> [--root <repo-root>]
   import-signals --contract <json> [--root <repo-root>]
   export-signals [--status <pending|adopted|dismissed|all>] [--output <json>] [--root <repo-root>]
   list-signals [--status <pending|adopted|dismissed|all>] [--json] [--root <repo-root>]
@@ -358,14 +367,13 @@ function cmdValidateSignals(flags: Map<string, string | boolean>): void {
   console.log("signal contract is valid");
 }
 
-function cmdImportSignals(flags: Map<string, string | boolean>): void {
-  const root = readStringFlag(flags, "root") ?? defaultRoot;
-  const contractFile = readStringFlag(flags, "contract", true)!;
-  const contract = readSignalContract(contractFile, root);
-  const paths = resolvePaths(root);
-  ensureBaseLayout(paths);
-
-  let imported = 0;
+function applySignalContract(
+  paths: ReturnType<typeof resolvePaths>,
+  contract: IntakeSignalContract,
+  root: string,
+): number {
+  const pendingSignals: IntakeSignalRecord[] = [];
+  const normalizedIds = new Set<string>();
   for (const input of contract.signals) {
     if (input.status !== "pending") {
       throw new Error(`import-signals only accepts pending signals: ${input.id}`);
@@ -374,27 +382,51 @@ function cmdImportSignals(flags: Map<string, string | boolean>): void {
     if (!signalId) {
       throw new Error("signal id normalizes to empty value");
     }
-    if (signalExists(paths, signalId)) {
-      const existing = readSignal(paths, signalId);
+    if (normalizedIds.has(signalId)) {
+      throw new Error(`duplicate signal id after normalization: ${signalId}`);
+    }
+    normalizedIds.add(signalId);
+    const existing = signalExists(paths, signalId) ? readSignal(paths, signalId) : undefined;
+    if (existing) {
       if (existing.status !== "pending") {
         throw new Error(`signal already resolved: ${signalId}`);
       }
     }
-    const now = nowIso();
-    const signal: IntakeSignalRecord = buildSignalFileRecord(input, {
+    pendingSignals.push(buildSignalFileRecord(input, {
       id: signalId,
       topic_hint: input.topic_hint ? toSlug(input.topic_hint) : undefined,
       local_refs: input.local_refs.map((ref) => normalizeLocalContextRef(root, ref)),
-      created_at: signalExists(paths, signalId) ? readSignal(paths, signalId).created_at : now,
-      updated_at: now,
+      created_at: existing ? earlierIso(existing.created_at, input.created_at) : input.created_at,
+      updated_at: existing ? laterIso(existing.updated_at, input.updated_at) : input.updated_at,
       status: "pending",
       adopted_topic: undefined,
       resolution_note: undefined,
       producer: input.producer || contract.producer,
-    });
-    persistSignal(paths, signal);
-    imported += 1;
+    }));
   }
+  for (const signal of pendingSignals) {
+    persistSignal(paths, signal);
+  }
+  return pendingSignals.length;
+}
+
+function cmdBridgeSignals(flags: Map<string, string | boolean>): void {
+  const root = readStringFlag(flags, "root") ?? defaultRoot;
+  const contractFile = readStringFlag(flags, "contract", true)!;
+  const contract = readSignalContract(contractFile, root);
+  const paths = resolvePaths(root);
+  ensureBaseLayout(paths);
+  const imported = applySignalContract(paths, contract, root);
+  console.log(`bridged ${imported} signal(s) into .mem_inbox`);
+}
+
+function cmdImportSignals(flags: Map<string, string | boolean>): void {
+  const root = readStringFlag(flags, "root") ?? defaultRoot;
+  const contractFile = readStringFlag(flags, "contract", true)!;
+  const contract = readSignalContract(contractFile, root);
+  const paths = resolvePaths(root);
+  ensureBaseLayout(paths);
+  const imported = applySignalContract(paths, contract, root);
   console.log(`imported ${imported} signal(s)`);
 }
 
@@ -1237,6 +1269,9 @@ function main(): void {
       return;
     case "validate-signals":
       cmdValidateSignals(flags);
+      return;
+    case "bridge-signals":
+      cmdBridgeSignals(flags);
       return;
     case "import-signals":
       cmdImportSignals(flags);

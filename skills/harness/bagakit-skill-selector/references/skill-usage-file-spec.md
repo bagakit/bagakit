@@ -95,6 +95,20 @@ retry_backoff_threshold = 3
     concrete attempt still does not succeed
   - must be an integer `>= 2`
 
+## Evolver handoff policy section
+
+```toml
+[evolver_handoff_policy]
+enabled = true
+```
+
+- `enabled`
+  - whether selector should auto-suggest repository-review signals from
+    repeated task-local failure patterns
+  - manual `evolver-signal`, `evolver-export`, and `evolver-bridge` remain
+    available even when auto-suggestion is disabled
+  - this is selector-owned task policy, not an evolver-owned repository driver
+
 ## Recipe log
 
 Use `[[recipe_log]]` when one task intentionally follows a standard selector
@@ -170,6 +184,7 @@ feedback loop now deserves explicit repository-level review.
 ```toml
 [[evolver_signal_log]]
 timestamp = "2026-03-01T00:00:00Z"
+updated_at = "2026-03-01T00:00:00Z"
 signal_id = "repeated-search-failure"
 kind = "gotcha"
 trigger = "retry_backoff"
@@ -214,10 +229,20 @@ notes = "task-local suggestion only; route remains repository-owned"
     - `imported`
     - `dismissed`
 
+Time rule:
+
+- `timestamp`
+  - first observation time for the selector-side review signal
+- `updated_at`
+  - last local lifecycle update inside selector
+- bridge export must preserve `timestamp` as evolver-intake `created_at`
+
 Recording rule:
 
 - `[[evolver_signal_log]]` is still task-local selector state
 - it exists to make repository-review candidates visible
+- selector route hints live here through `scope_hint`; there is no separate
+  selector route field outside this review signal
 - it must not be mistaken for evolver topic state
 - exporting or bridging the signal is explicit; opening an evolver topic is a
   later evolver-owned step
@@ -227,7 +252,7 @@ Identity rule:
 - `signal_id` only needs to be unique inside one task file
 - `evolver-export` and `evolver-bridge` derive the exported evolver intake id
   as:
-  - `<task_id>--<signal_id>`
+  - normalized from `<task_id>--<signal_id>`
 
 Lifecycle rule:
 
@@ -251,14 +276,28 @@ Bridge rule:
   - `error_type`
   - `occurrence_index`
   by normalizing it into the evolver signal contract
+- export or bridge should normalize task-local refs into evolver `local_refs[]`
+  from:
+  - the selector task file
+  - the derived `skill-ranking.md` report when present
+  - one optional explicit `evidence_ref`
+- only selector-local `suggested` or `exported` entries are bridgeable into
+  evolver intake
 - bridge must not invent route or promotion state
+- bridge should prefer the default `suggested` path for ordinary use
+- evolver-owned `bridge-signals` is the canonical intake choreography command
+- selector may prepare the contract file, but it should not own evolver intake
+  sequencing semantics
+- intake should preserve exported `created_at` and should not move exported
+  `updated_at` backward when the same pending signal is bridged again
 
 Automatic-suggestion rule:
 
 - if `backoff_required = true` for one `attempt_key`, selector should create or
-  refresh a matching review signal unless it was already explicitly dismissed
+  refresh a matching review signal when `[evolver_handoff_policy].enabled =
+  true`, unless it was already explicitly dismissed
 - repeated `error_pattern_log` entries may do the same when the pattern keeps
-  recurring
+  recurring and `[evolver_handoff_policy].enabled = true`
 
 ## Planned skill candidates
 

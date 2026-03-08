@@ -16,4 +16,4 @@ instruction = "step back, summarize why the current method stalled, and switch m
 [[directive]]
 id = "EVOLVER_REVIEW"
 when = "retry backoff or repeated task-local failure now deserves repository-level review"
-instruction = "surface one explicit `EvolverReview` line and record or update one `[[evolver_signal_log]]` entry before closing the task"
+instruction = "surface one explicit `EvolverReview` line, keep `[evolver_handoff_policy].enabled = true`, and record or update one `[[evolver_signal_log]]` entry before closing the task"

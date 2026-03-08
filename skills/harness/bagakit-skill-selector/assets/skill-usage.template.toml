@@ -57,6 +57,7 @@ enabled = true
 # - occurrence_index = <selector-counted repeat number for the same cluster>
 #
 # Optional evolver review signal fields:
+# - updated_at = "<last local lifecycle update>"
 # - signal_id = "<task-local stable signal id>"
 # - trigger = "retry_backoff" | "error_pattern" | "failed_benchmark" | "negative_feedback" | "manual_review"
 # - scope_hint = "unset" | "host" | "upstream" | "split"

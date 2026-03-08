@@ -173,8 +173,8 @@ Optional fields:
 
 ## Exchange Contract
 
-The exchange JSON used by `validate-signals`, `import-signals`, and
-`export-signals` has this root shape:
+The exchange JSON used by `validate-signals`, `bridge-signals`,
+`import-signals`, and `export-signals` has this root shape:
 
 ```json
 {
@@ -191,6 +191,8 @@ Rules:
 - `signals[]` carries signal records in the same semantic shape as the
   on-disk files
 - import must normalize repo-relative refs and signal ids
+- bridge or import must preserve contract `created_at` on first intake and must
+  not move `updated_at` backward on repeated pending re-bridge
 - `import-signals` only accepts `pending` signals
 - export must not invent route or promotion state that is not present
 
@@ -198,7 +200,10 @@ Selector bridge normalization rule:
 
 - selector task-local `signal_id` is only unique inside one task file
 - bridge export must derive the evolver intake `id` as:
-  - `<task-id>--<signal_id>`
+  - normalized from `<task-id>--<signal_id>`
+- selector-originated bridge records must also fix:
+  - `producer = "bagakit-skill-selector"`
+  - `source_channel = "selector"`
 - this keeps selector logs task-scoped while keeping evolver intake ids
   repository-stable enough to avoid accidental collisions across tasks
 
@@ -213,6 +218,20 @@ Selector bridge lifecycle rule:
 - only evolver may later move intake records to:
   - `adopted`
   - `dismissed`
+
+Time rule:
+
+- selector-side first observation time becomes evolver signal `created_at`
+- later selector status transitions must not rewrite that bridge `created_at`
+
+Bridge choreography rule:
+
+- selector may prepare one contract file
+- only selector-local `suggested` or `exported` entries are bridgeable
+- evolver-owned `bridge-signals` is the canonical command for accepting that
+  contract into `.mem_inbox/`
+- selector should not own evolver intake sequencing beyond calling that
+  evolver surface
 
 ## Intake Rule
 

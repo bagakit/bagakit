@@ -89,7 +89,9 @@ things go wrong:
 So the correct flow is:
 
 1. keep raw task-level selection and evaluation in selector
-2. hand off the likely routing outcome as `host`, `upstream`, or `split`
+2. when selector escalates one repository-review suggestion, record the likely
+   routing outcome as `host`, `upstream`, or `split` through that signal's
+   `scope_hint`
 3. only then open or update evolver when repository-level learning is real
 
 Selector may record that later routing is likely needed.
@@ -139,7 +141,7 @@ Current normalization direction:
 - `signal_id`
   - task-local stable id inside one selector task file
 - exported evolver signal `id`
-  - `<task-id>--<signal_id>`
+  - normalized from `<task-id>--<signal_id>`
 - `kind`, `title`, `summary`, `topic_hint`, `confidence`
   - copied through
 - `producer`
@@ -155,6 +157,10 @@ Current normalization direction:
   - `occurrence_index`
   should be preserved in the exported signal `evidence[]`
 - task-local artifact refs should be normalized into exported `local_refs[]`
+  from:
+  - the selector task file
+  - the derived selector ranking report when present
+  - one optional explicit `evidence_ref`
 
 This bridge is one-way normalization.
 It is not selector taking ownership of evolver intake semantics.
@@ -163,7 +169,8 @@ Selector-side `[[evolver_signal_log]]` entries are:
 
 - task-local review suggestions
 - visible and auditable in the task file
-- allowed to be auto-suggested by task-local retry or error-pattern logic
+- allowed to be auto-suggested by task-local retry or error-pattern logic when
+  `[evolver_handoff_policy].enabled = true`
 
 They are not:
 

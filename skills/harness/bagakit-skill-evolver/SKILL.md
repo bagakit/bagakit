@@ -155,8 +155,11 @@ Common intake sequence:
 
 - `capture-signal`
   - record one provisional repository-learning signal into `.mem_inbox/`
+- `bridge-signals`
+  - canonical intake command for validated external bridge contracts such as
+    selector-exported `bagakit.evolver.signal.v1`
 - `import-signals`
-  - import one validated `bagakit.evolver.signal.v1` batch into `.mem_inbox/`
+  - low-level raw batch import when no external bridge choreography is needed
 - `adopt-signal`
   - move one pending signal into structured topic evidence
 - `dismiss-signal`
