@@ -11,6 +11,7 @@ It exists to keep `gate_eval/` slices thin and consistent without turning
 
 - temp workspace lifecycle
 - optional shared agent-session launches through `dev/agent_runner/`
+- dataset validation, build, split export, and run comparison helpers
 - output sanitization
 - run-id and output-dir handling
 - normalized `summary.json` and `cases/*.json` packets
@@ -39,7 +40,8 @@ Those remain in:
   - shared eval runner entrypoint
 - `src/lib/`
   - reusable mechanics for suite loading, temp workspaces, command execution,
-    agent-session launches, output sanitization, and packet writing
+    dataset build/export, run comparison, agent-session launches, output
+    sanitization, and packet writing
 
 ## Runner Contract
 
@@ -61,6 +63,10 @@ The stable packet shape is documented in:
 
 - `docs/specs/eval-run-packet.md`
 
+The stable dataset shape is documented in:
+
+- `docs/specs/eval-dataset-contract.md`
+
 ## Design Rule
 
 Use `dev/eval/` when multiple eval slices need the same mechanics.
@@ -71,6 +77,8 @@ Mode split:
   stable structure or state measurement
 - agent-driven suites should launch one bounded session through
   `dev/agent_runner/`
+- dataset-centric workflows may build and export baseline or holdout splits
+  before handing them to a runner or optimizer layer
 
 Do not move case truth, fixture truth, or skill-owned protocol meaning into
 this tool just to reduce file count.

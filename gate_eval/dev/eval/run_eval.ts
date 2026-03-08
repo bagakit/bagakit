@@ -53,6 +53,22 @@ function runSuite(moduleRef: string, outDir: string): { status: number; stdout: 
   };
 }
 
+function runEvalCli(args: string[]): { status: number; stdout: string; stderr: string } {
+  const result = spawnSync(
+    "node",
+    ["--experimental-strip-types", "dev/eval/src/cli.ts", ...args],
+    {
+      cwd: repoRoot,
+      encoding: "utf8",
+    },
+  );
+  return {
+    status: result.status ?? 1,
+    stdout: result.stdout ?? "",
+    stderr: result.stderr ?? "",
+  };
+}
+
 function main(): void {
   const passOut = "gate_eval/dev/eval/results/runs/self-eval-pass";
   const failOut = "gate_eval/dev/eval/results/runs/self-eval-fail";
@@ -78,6 +94,151 @@ function main(): void {
   assert.equal(failCase.error, "intentional failure inside <temp-repo>");
   assertNoTempLeak(failSummary, "fail summary");
   assertNoTempLeak(failCase, "fail case");
+
+  const datasetTemp = fs.mkdtempSync(path.join(os.tmpdir(), "bagakit-eval-dataset-"));
+  try {
+    const sourceDataset = path.join(datasetTemp, "source.json");
+    const builtDataset = path.join(datasetTemp, "built.json");
+    const holdoutDataset = path.join(datasetTemp, "holdout.json");
+    const comparisonFile = path.join(datasetTemp, "comparison.json");
+    fs.writeFileSync(
+      sourceDataset,
+      `${JSON.stringify(
+        {
+          schema: "bagakit.eval-dataset/v1",
+          dataset_id: "demo-dataset",
+          title: "Demo Dataset",
+          description: "self-eval dataset fixture",
+          item_schema: "bagakit.eval-row/v1",
+          items: [
+            {
+              id: "row-1",
+              skill_id: "bagakit-feature-tracker",
+              prompt: "do one thing",
+              expected_outcome: "done",
+              reference_output: "done",
+              allowed_tools: ["git"],
+              expected_tools: ["git"],
+              tags: ["core"],
+              risk_tags: [],
+              notes_for_human_review: "-",
+            },
+            {
+              id: "row-2",
+              skill_id: "bagakit-feature-tracker",
+              prompt: "do risky thing",
+              expected_outcome: "done",
+              reference_output: "done",
+              allowed_tools: ["git"],
+              expected_tools: ["git"],
+              tags: ["core"],
+              risk_tags: ["high-risk"],
+              notes_for_human_review: "-",
+            },
+          ],
+        },
+        null,
+        2,
+      )}\n`,
+      "utf8",
+    );
+    const buildRun = runEvalCli([
+      "dataset-build",
+      "--in",
+      sourceDataset,
+      "--out",
+      builtDataset,
+      "--holdout-tag",
+      "high-risk",
+      "--holdout-ratio",
+      "0.0",
+      "--seed",
+      "stable",
+    ]);
+    assert.equal(buildRun.status, 0);
+    const built = readJson(builtDataset) as Record<string, unknown>;
+    assert.equal((built.build as Record<string, unknown>).holdout_ratio, 0);
+    const items = built.items as Array<Record<string, unknown>>;
+    assert.equal(items[0]?.split, "baseline");
+    assert.equal(items[1]?.split, "holdout");
+
+    const exportRun = runEvalCli([
+      "dataset-export",
+      "--file",
+      builtDataset,
+      "--split",
+      "holdout",
+      "--out",
+      holdoutDataset,
+    ]);
+    assert.equal(exportRun.status, 0);
+    const holdout = readJson(holdoutDataset) as Record<string, unknown>;
+    assert.equal((holdout.items as Array<unknown>).length, 1);
+
+    const reportRun = runEvalCli([
+      "dataset-report",
+      "--file",
+      builtDataset,
+    ]);
+    assert.equal(reportRun.status, 0);
+    const report = JSON.parse(reportRun.stdout) as Record<string, unknown>;
+    assert.equal((report.totals as Record<string, unknown>).items, 2);
+
+    const baselineSummaryFile = path.join(datasetTemp, "baseline-summary.json");
+    const candidateSummaryFile = path.join(datasetTemp, "candidate-summary.json");
+    fs.writeFileSync(
+      baselineSummaryFile,
+      `${JSON.stringify(
+        {
+          schema: "bagakit.eval-run/v1",
+          suiteId: "demo-suite",
+          owner: "gate_eval/dev/eval",
+          title: "demo",
+          runId: "baseline-1",
+          totals: { cases: 2, passedCases: 1, failedCases: 1, durationMs: 10 },
+          focusIndex: {
+            quality: { passed: 1, failed: 1, cases: ["a", "b"] },
+          },
+        },
+        null,
+        2,
+      )}\n`,
+      "utf8",
+    );
+    fs.writeFileSync(
+      candidateSummaryFile,
+      `${JSON.stringify(
+        {
+          schema: "bagakit.eval-run/v1",
+          suiteId: "demo-suite",
+          owner: "gate_eval/dev/eval",
+          title: "demo",
+          runId: "candidate-1",
+          totals: { cases: 2, passedCases: 2, failedCases: 0, durationMs: 8 },
+          focusIndex: {
+            quality: { passed: 2, failed: 0, cases: ["a", "b"] },
+          },
+        },
+        null,
+        2,
+      )}\n`,
+      "utf8",
+    );
+    const compareRun = runEvalCli([
+      "compare-runs",
+      "--baseline",
+      baselineSummaryFile,
+      "--candidate",
+      candidateSummaryFile,
+      "--out",
+      comparisonFile,
+    ]);
+    assert.equal(compareRun.status, 0);
+    const comparison = readJson(comparisonFile) as Record<string, unknown>;
+    assert.equal((comparison.delta as Record<string, unknown>).passedCases, 1);
+  } finally {
+    fs.rmSync(datasetTemp, { recursive: true, force: true });
+  }
 
   console.log(
     JSON.stringify(
