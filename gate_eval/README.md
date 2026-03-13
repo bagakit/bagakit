@@ -24,7 +24,7 @@ Serious eval slices in this tree should usually provide:
 
 Current implemented slices:
 
-- `dev/eval/`
+- `gate_eval/dev/eval/`
   - self-eval for the shared maintainer eval toolkit and packet contract
 - `backbone/skill/`
   - deterministic eval for the repo skill surface: listing, linking, layout,

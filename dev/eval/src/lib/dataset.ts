@@ -15,12 +15,14 @@ export interface EvalDatasetItem {
   skill_id: string;
   prompt: string;
   expected_outcome: string;
-  reference_output: string;
-  allowed_tools: string[];
-  expected_tools: string[];
-  tags: string[];
-  risk_tags: string[];
   notes_for_human_review: string;
+  reference_output?: string;
+  reference_state?: Record<string, unknown>;
+  allowed_tools?: string[];
+  expected_tools?: string[];
+  tags?: string[];
+  risk_tags?: string[];
+  dimensions?: string[];
   split?: string;
   metadata?: Record<string, unknown>;
 }
@@ -48,6 +50,7 @@ export interface EvalDatasetReport {
   skills: Array<{ skill_id: string; count: number }>;
   tags: Array<{ tag: string; count: number }>;
   risk_tags: Array<{ tag: string; count: number }>;
+  dimensions: Array<{ dimension: string; count: number }>;
 }
 
 function assertRecord(value: unknown, label: string): Record<string, unknown> {
@@ -123,12 +126,14 @@ export function loadEvalDataset(filePath: string): EvalDatasetFile {
       skill_id: assertString(item.skill_id, `${filePath}.items[${index}].skill_id`),
       prompt: assertString(item.prompt, `${filePath}.items[${index}].prompt`),
       expected_outcome: assertString(item.expected_outcome, `${filePath}.items[${index}].expected_outcome`),
-      reference_output: assertString(item.reference_output, `${filePath}.items[${index}].reference_output`),
+      notes_for_human_review: assertString(item.notes_for_human_review ?? "-", `${filePath}.items[${index}].notes_for_human_review`),
+      reference_output: item.reference_output ? assertString(item.reference_output, `${filePath}.items[${index}].reference_output`) : undefined,
+      reference_state: item.reference_state ? assertRecord(item.reference_state, `${filePath}.items[${index}].reference_state`) : undefined,
       allowed_tools: normalizeStringArray(assertStringArray(item.allowed_tools ?? [], `${filePath}.items[${index}].allowed_tools`)),
       expected_tools: normalizeStringArray(assertStringArray(item.expected_tools ?? [], `${filePath}.items[${index}].expected_tools`)),
       tags: normalizeStringArray(assertStringArray(item.tags ?? [], `${filePath}.items[${index}].tags`)),
       risk_tags: normalizeStringArray(assertStringArray(item.risk_tags ?? [], `${filePath}.items[${index}].risk_tags`)),
-      notes_for_human_review: assertString(item.notes_for_human_review ?? "-", `${filePath}.items[${index}].notes_for_human_review`),
+      dimensions: normalizeStringArray(assertStringArray(item.dimensions ?? [], `${filePath}.items[${index}].dimensions`)),
       split: assertOptionalString(item.split, `${filePath}.items[${index}].split`),
       metadata: item.metadata ? assertRecord(item.metadata, `${filePath}.items[${index}].metadata`) : undefined,
     } satisfies EvalDatasetItem;
@@ -168,7 +173,7 @@ export function buildEvalDataset(
     if (item.split) {
       return item;
     }
-    const taggedHoldout = [...item.tags, ...item.risk_tags].some((tag) => holdoutTagSet.has(tag));
+    const taggedHoldout = [...(item.tags ?? []), ...(item.risk_tags ?? [])].some((tag) => holdoutTagSet.has(tag));
     if (taggedHoldout) {
       return { ...item, split: options.holdoutSplit };
     }
@@ -207,12 +212,16 @@ export function reportEvalDataset(input: EvalDatasetFile): EvalDatasetReport {
     skill_id: label,
     count,
   }));
-  const tagCounts = countMap(input.items.flatMap((item) => item.tags)).map(({ label, count }) => ({
+  const tagCounts = countMap(input.items.flatMap((item) => item.tags ?? [])).map(({ label, count }) => ({
     tag: label,
     count,
   }));
-  const riskTagCounts = countMap(input.items.flatMap((item) => item.risk_tags)).map(({ label, count }) => ({
+  const riskTagCounts = countMap(input.items.flatMap((item) => item.risk_tags ?? [])).map(({ label, count }) => ({
     tag: label,
+    count,
+  }));
+  const dimensionCounts = countMap(input.items.flatMap((item) => item.dimensions ?? [])).map(({ label, count }) => ({
+    dimension: label,
     count,
   }));
   return {
@@ -228,6 +237,7 @@ export function reportEvalDataset(input: EvalDatasetFile): EvalDatasetReport {
     skills: skillCounts,
     tags: tagCounts,
     risk_tags: riskTagCounts,
+    dimensions: dimensionCounts,
   };
 }
 

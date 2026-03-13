@@ -175,8 +175,7 @@ Boundary note:
 `gate_eval/` should own:
 
 - fixture and case registration
-- run packet shape
-- result artifact layout
+- registered result artifact layout
 - non-gating quality or benchmark execution
 
 `mem/benchmarks/` should own:

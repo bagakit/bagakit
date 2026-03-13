@@ -18,8 +18,8 @@ Use this spec when deciding:
 | Surface | Owns | Does not own |
 | --- | --- | --- |
 | `dev/agent_runner/` | one bounded runner launch, prompt/stdout/stderr/session-meta capture, shared launch ABI | orchestration, grading, dataset flow, promotion routing |
-| `dev/eval/` | dataset validation/build/export, run comparison, shared run packets, optional agent-driven session helpers | skill-owned case truth, release gating, repository learning memory |
-| `gate_eval/` | non-gating eval registration, skill-owned suites, result roots | release-blocking proof |
+| `dev/eval/` | dataset validation/build/export, run comparison, shared packet-writing mechanics, optional agent-driven session helpers | skill-owned case truth, release gating, repository learning memory |
+| `gate_eval/` | non-gating eval registration, skill-owned suites, result roots and registered run artifacts | release-blocking proof |
 | `gate_validation/` | structural presence checks, must-pass smoke and contract gates | executing non-gating eval as release gates |
 | `bagakit-skill-evolver` | repository-level learning from evidence, benchmark memory, route and promotion decisions | dataset build, eval execution engine, optimizer loop |
 

@@ -19,6 +19,18 @@ Deliverables:
 
 Goal:
 
+- classify real failures before comparing capability and deployability
+
+Deliverables:
+
+- infra versus harness versus subject failure taxonomy
+- stable failure fields in run packets
+- environment-sensitive failure reporting
+
+## Phase 3: Reliability
+
+Goal:
+
 - compare capability and deployability separately
 
 Deliverables:
@@ -27,7 +39,7 @@ Deliverables:
 - `pass@k` and `pass^k` summaries
 - reliability fields in comparison packets
 
-## Phase 3: Better Grading
+## Phase 4: Better Grading
 
 Goal:
 
@@ -39,7 +51,7 @@ Deliverables:
 - more state-based grading
 - explicit tool-choice and tool-argument grading guidance
 
-## Phase 4: Evolver Handoff
+## Phase 5: Evolver Handoff
 
 Goal:
 

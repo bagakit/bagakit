@@ -37,15 +37,17 @@ Required:
 - `skill_id`
 - `prompt`
 - `expected_outcome`
-- `reference_output`
-- `allowed_tools[]`
-- `expected_tools[]`
-- `tags[]`
-- `risk_tags[]`
 - `notes_for_human_review`
 
 Optional:
 
+- `reference_output`
+- `reference_state`
+- `allowed_tools[]`
+- `expected_tools[]`
+- `tags[]`
+- `risk_tags[]`
+- `dimensions[]`
 - `split`
 - `metadata`
 
@@ -71,6 +73,18 @@ Dataset build should:
 - allow deterministic ratio-based assignment for the remaining items
 - record build metadata so later reports can explain how the split was made
 
+## Dimension Rule
+
+If a dataset-backed workflow needs explicit measurement dimensions, use
+`dimensions[]` on the row.
+
+Examples:
+
+- `task_fidelity`
+- `tool_correctness`
+- `handoff_quality`
+- `trace_safety`
+
 ## Boundary Rule
 
 This contract defines dataset shape only.
@@ -81,3 +95,9 @@ It does not define:
 - grading
 - optimization loops
 - promotion routing into evolver
+
+That means:
+
+- `expected_outcome` is row-level intent
+- `reference_output` and `reference_state` are optional row-level references
+- graders decide how to use those fields
