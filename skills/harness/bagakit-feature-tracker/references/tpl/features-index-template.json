@@ -1,0 +1,9 @@
+{
+  "version": 1,
+  "generated_by": "bagakit-feature-tracker",
+  "feature_id_issuance": {
+    "scheme": "feature-tracker-id-v1-c3n2g4",
+    "next_cursor": 0
+  },
+  "features": []
+}
