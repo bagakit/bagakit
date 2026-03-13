@@ -9,6 +9,8 @@ Use this tree for:
 - benchmark inputs and expected outputs
 - exploratory regression probes
 - judge-calibration or scoring assets that should not become gate validators
+- dataset-backed baseline and holdout task sets
+- run-comparison artifacts that stay non-gating
 
 Do not put release-blocking gate logic here. That belongs under
 `gate_validation/`.
@@ -55,3 +57,7 @@ Execution note:
   planning, and execution
 - that does not change the semantics of the suite: anything under `gate_eval/`
   remains non-gating unless it is explicitly promoted into `gate_validation/`
+
+Stable system boundary:
+
+- `docs/specs/eval-system-boundary.md`

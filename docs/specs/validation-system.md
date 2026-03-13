@@ -184,6 +184,10 @@ Boundary note:
 - durable conclusions promoted out of repeated eval observations
 - review-ready benchmark summaries and comparison packets
 
+Related boundary source:
+
+- `docs/specs/eval-system-boundary.md`
+
 ## Protected Boundaries
 
 Validation should enforce the stable boundaries that matter for repository

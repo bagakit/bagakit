@@ -11,8 +11,14 @@ Current packets:
   - official OpenAI eval guidance plus Bagakit takeaways
 - `anthropic-map.md`
   - official Anthropic eval guidance plus Bagakit takeaways
+- `benchmark-map.md`
+  - benchmark and framework references that sharpen Bagakit's eval design
 - `design-implications.md`
   - Bagakit-specific distillation after comparing the source set
+- `optimization-space.md`
+  - current gap map between Bagakit's eval system and frontier practice
+- `next-optimization-plan.md`
+  - ordered next-step plan for the eval system
 
 Selection rule:
 
