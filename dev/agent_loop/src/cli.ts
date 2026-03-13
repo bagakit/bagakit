@@ -109,6 +109,9 @@ function cmdConfigureNotification(argv: string[]): number {
   const root = path.resolve(values.root);
   initializeNotificationConfig(root, defaultToolDir);
   const configPath = path.join(root, ".bagakit", "agent-loop", "notification.json");
+  if (values.transport !== "disabled" && values.transport !== "command") {
+    throw new Error("--transport must be disabled or command");
+  }
   if (values.transport === "command" && !values["argv-json"]) {
     throw new Error("configure-notification with --transport command requires --argv-json");
   }

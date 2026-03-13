@@ -19,26 +19,50 @@ export function initializeNotificationConfig(root: string, toolDir: string): str
 
 export function loadNotificationConfig(root: string): NotificationConfig | null {
   const paths = new AgentLoopPaths(root);
+  const relConfigPath = repoRelative(root, paths.notificationConfigFile);
   const payload = loadJsonIfExists<unknown>(paths.notificationConfigFile);
   if (payload === null) {
     return null;
   }
   const record = payload as Record<string, unknown>;
   if (record.schema !== NOTIFICATION_CONFIG_SCHEMA) {
-    throw new Error(`invalid notification config schema: ${paths.notificationConfigFile}`);
+    throw new Error(`invalid notification config schema: ${relConfigPath}`);
   }
   const transport = String(record.transport || "").trim();
+  if (transport !== "disabled" && transport !== "command") {
+    throw new Error(`notification transport must be disabled or command: ${relConfigPath}`);
+  }
   const command = (record.command || {}) as Record<string, unknown>;
+  const payloadMode = String(command.payload_mode || "stdin_json").trim();
+  if (payloadMode !== "stdin_json" && payloadMode !== "file_json") {
+    throw new Error(`notification payload_mode must be stdin_json or file_json: ${relConfigPath}`);
+  }
+  const timeoutSeconds = Number(command.timeout_seconds || 30);
+  if (!Number.isFinite(timeoutSeconds) || timeoutSeconds <= 0) {
+    throw new Error(`notification timeout_seconds must be a positive finite number: ${relConfigPath}`);
+  }
   return {
     schema: NOTIFICATION_CONFIG_SCHEMA,
-    transport: transport === "command" ? "command" : "disabled",
+    transport,
     command: {
       argv: Array.isArray(command.argv) ? command.argv.map((value) => String(value)) : [],
       env: typeof command.env === "object" && command.env ? Object.fromEntries(Object.entries(command.env as Record<string, unknown>).map(([key, value]) => [key, String(value)])) : {},
-      timeout_seconds: Number(command.timeout_seconds || 30),
-      payload_mode: command.payload_mode === "file_json" ? "file_json" : "stdin_json",
+      timeout_seconds: timeoutSeconds,
+      payload_mode: payloadMode,
     },
   };
+}
+
+export function notificationConfigIssue(root: string): string {
+  try {
+    const config = loadNotificationConfig(root);
+    if (config && config.transport === "command" && config.command.argv.length === 0) {
+      return "notification command argv must not be empty";
+    }
+    return "";
+  } catch (error) {
+    return error instanceof Error ? error.message : String(error);
+  }
 }
 
 function interpolate(value: string, replacements: Record<string, string>): string {
@@ -103,7 +127,24 @@ export function deliverNotification(root: string, runId?: string): NotificationD
   const receiptPath = paths.notificationReceiptFile(record.run_id);
   writeJsonFile(requestPath, request);
 
-  const config = loadNotificationConfig(root);
+  let config: NotificationConfig | null = null;
+  let configError = "";
+  try {
+    config = loadNotificationConfig(root);
+  } catch (error) {
+    configError = error instanceof Error ? error.message : String(error);
+  }
+  if (configError) {
+    const receipt: NotificationDeliveryReceipt = {
+      ...receiptBase(record.run_id, record.item_id, "command"),
+      status: "failed",
+      request_path: repoRelative(root, requestPath),
+      receipt_path: repoRelative(root, receiptPath),
+      error_message: configError,
+    };
+    writeJsonFile(receiptPath, receipt);
+    return receipt;
+  }
   if (!config || config.transport === "disabled") {
     const receipt: NotificationDeliveryReceipt = {
       ...receiptBase(record.run_id, record.item_id, "disabled"),
@@ -125,7 +166,15 @@ export function deliverNotification(root: string, runId?: string): NotificationD
   };
   const argv = config.command.argv.map((part) => interpolate(part, replacements));
   if (argv.length === 0) {
-    throw new Error("notification command argv must not be empty");
+    const receipt: NotificationDeliveryReceipt = {
+      ...receiptBase(record.run_id, record.item_id, "command"),
+      status: "failed",
+      request_path: repoRelative(root, requestPath),
+      receipt_path: repoRelative(root, receiptPath),
+      error_message: "notification command argv must not be empty",
+    };
+    writeJsonFile(receiptPath, receipt);
+    return receipt;
   }
   const env = Object.fromEntries(Object.entries(config.command.env).map(([key, value]) => [key, interpolate(value, replacements)]));
   const input = config.command.payload_mode === "stdin_json" ? `${JSON.stringify(request, null, 2)}\n` : undefined;
@@ -158,7 +207,11 @@ export function deliverNotification(root: string, runId?: string): NotificationD
 export function latestNotificationReceipt(root: string, runId?: string): NotificationDeliveryReceipt | null {
   const paths = new AgentLoopPaths(root);
   if (runId) {
-    return loadJsonIfExists<NotificationDeliveryReceipt>(paths.notificationReceiptFile(runId));
+    try {
+      return loadJsonIfExists<NotificationDeliveryReceipt>(paths.notificationReceiptFile(runId));
+    } catch {
+      return null;
+    }
   }
   const receiptsDir = path.join(paths.notificationDir, "receipts");
   if (!fs.existsSync(receiptsDir)) {
@@ -166,10 +219,31 @@ export function latestNotificationReceipt(root: string, runId?: string): Notific
   }
   const entries = (fs.readdirSync(receiptsDir) as string[]).filter((entry) => entry.endsWith(".json")).sort().reverse();
   for (const entry of entries) {
-    const receipt = loadJsonIfExists<NotificationDeliveryReceipt>(path.join(receiptsDir, entry));
-    if (receipt) {
-      return receipt;
+    try {
+      const receipt = loadJsonIfExists<NotificationDeliveryReceipt>(path.join(receiptsDir, entry));
+      if (receipt) {
+        return receipt;
+      }
+    } catch {
+      continue;
     }
   }
   return null;
+}
+
+export function notificationReceiptIssue(root: string): string {
+  const paths = new AgentLoopPaths(root);
+  const receiptsDir = path.join(paths.notificationDir, "receipts");
+  if (!fs.existsSync(receiptsDir)) {
+    return "";
+  }
+  const entries = (fs.readdirSync(receiptsDir) as string[]).filter((entry) => entry.endsWith(".json")).sort().reverse();
+  for (const entry of entries) {
+    try {
+      readJsonFile<NotificationDeliveryReceipt>(path.join(receiptsDir, entry));
+    } catch (error) {
+      return `notification receipt ${entry} is unreadable: ${error instanceof Error ? error.message : String(error)}`;
+    }
+  }
+  return "";
 }

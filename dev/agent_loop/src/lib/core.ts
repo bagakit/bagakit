@@ -14,7 +14,7 @@ import {
   runnerConfigStatus,
   writeRunnerConfig,
 } from "./config.ts";
-import { initializeNotificationConfig, latestNotificationReceipt } from "./notification_delivery.ts";
+import { initializeNotificationConfig, latestNotificationReceipt, notificationConfigIssue, notificationReceiptIssue } from "./notification_delivery.ts";
 import {
   ensureDir,
   isPidLive,
@@ -535,6 +535,10 @@ export function validateAgentLoop(root: string): string[] {
   if (configStatus.status === "invalid") {
     issues.push(configStatus.message);
   }
+  const notifyIssue = notificationConfigIssue(root);
+  if (notifyIssue) {
+    issues.push(notifyIssue);
+  }
   if (fs.existsSync(paths.runLockFile)) {
     const lock = loadJsonIfExists<RunLockPayload>(paths.runLockFile);
     if (!lock) {
@@ -570,6 +574,14 @@ export function validateAgentLoop(root: string): string[] {
     }
   }
   issues.push(...runRecordIssues(paths));
+  const receiptIssue = notificationReceiptIssue(root);
+  if (receiptIssue) {
+    issues.push(receiptIssue);
+  }
+  const latestDelivery = latestNotificationReceipt(root);
+  if (latestDelivery && latestDelivery.schema !== "bagakit/agent-loop/notification-receipt/v1") {
+    issues.push("invalid notification receipt schema");
+  }
   try {
     validateFlowRunner(root);
   } catch (error) {

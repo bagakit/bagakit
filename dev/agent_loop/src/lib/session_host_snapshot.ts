@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 
 import type { RunnerResult } from "./model.ts";
-import { loadJsonIfExists, readJsonFile } from "./io.ts";
+import { loadJsonIfExists, readJsonFile, repoRelative } from "./io.ts";
 import { AgentLoopPaths } from "./paths.ts";
 
 export type SessionHostIssue = Readonly<{
@@ -75,6 +75,9 @@ export function readSessionHostSnapshot(root: string, sessionId: string): Sessio
   if (!meta && fs.existsSync(metaPath)) {
     issues.push(issue("meta_unreadable", "session-meta.json is unreadable"));
   }
+  if (!fs.existsSync(metaPath)) {
+    issues.push(issue("meta_missing", "session-meta.json is missing"));
+  }
 
   let runnerResult: RunnerResult | null = null;
   try {
@@ -82,8 +85,11 @@ export function readSessionHostSnapshot(root: string, sessionId: string): Sessio
   } catch (error) {
     issues.push(issue("result_unreadable", error instanceof Error ? error.message : String(error)));
   }
+  if (!fs.existsSync(resultPath) && meta?.exit_code !== null) {
+    issues.push(issue("result_missing", "runner-result.json is missing"));
+  }
 
-  for (const required of ["prompt.txt", "stdout.txt", "stderr.txt"]) {
+  for (const required of ["session-brief.json", "prompt.txt", "stdout.txt", "stderr.txt"]) {
     if (!fs.existsSync(path.join(sessionDir, required))) {
       issues.push(issue("artifact_missing", `${required} is missing`));
     }
@@ -98,13 +104,13 @@ export function readSessionHostSnapshot(root: string, sessionId: string): Sessio
     signal: meta?.signal ?? null,
     runner_result: runnerResult,
     paths: {
-      session_dir: sessionDir,
-      session_brief: briefPath,
-      session_meta: metaPath,
-      runner_result: resultPath,
-      prompt: path.join(sessionDir, "prompt.txt"),
-      stdout: path.join(sessionDir, "stdout.txt"),
-      stderr: path.join(sessionDir, "stderr.txt"),
+      session_dir: repoRelative(root, sessionDir),
+      session_brief: repoRelative(root, briefPath),
+      session_meta: repoRelative(root, metaPath),
+      runner_result: repoRelative(root, resultPath),
+      prompt: repoRelative(root, path.join(sessionDir, "prompt.txt")),
+      stdout: repoRelative(root, path.join(sessionDir, "stdout.txt")),
+      stderr: repoRelative(root, path.join(sessionDir, "stderr.txt")),
     },
     issues,
   };

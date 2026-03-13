@@ -40,6 +40,9 @@ export function renderStatusText(payload: AgentLoopStatusPayload, root: string):
   if (payload.watch.current_notification) {
     lines.push(`attention: ${payload.watch.current_notification.severity} / ${payload.watch.current_notification.summary}`);
   }
+  if (payload.watch.latest_notification_delivery) {
+    lines.push(`notification-delivery: ${payload.watch.latest_notification_delivery.status} / ${payload.watch.latest_notification_delivery.transport}`);
+  }
   if (payload.watch.watch_issue) {
     lines.push(`watch-issue: ${payload.watch.watch_issue}`);
   }

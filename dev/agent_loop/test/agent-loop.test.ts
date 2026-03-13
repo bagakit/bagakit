@@ -5,8 +5,12 @@ import path from "node:path";
 import test from "node:test";
 
 import { parseArgvJson, normalizeRefreshCommands, presetArgv, runnerConfigStatus, writeRunnerConfig } from "../src/lib/config.ts";
+import { notificationConfigIssue } from "../src/lib/notification_delivery.ts";
 import { applyAgentLoop } from "../src/lib/core.ts";
+import { writeJsonFile } from "../src/lib/io.ts";
 import { AgentLoopPaths } from "../src/lib/paths.ts";
+import { readSessionHostSnapshot } from "../src/lib/session_host_snapshot.ts";
+import { deriveSessionHostStatus } from "../src/lib/session_host_status.ts";
 import { renderWatchScreen } from "../src/lib/watch_presenter.ts";
 
 test("codex preset stays repo-root placeholder based", () => {
@@ -268,4 +272,84 @@ test("watch presenter does not show ready when launch is blocked by config", () 
     { ansi: false, width: 120 },
   );
   assert.ok(screen.includes("LAUNCH BLOCKED"));
+});
+
+test("notification config validation rejects unknown transport", () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "agent-loop-"));
+  const paths = new AgentLoopPaths(root);
+  fs.mkdirSync(paths.loopDir, { recursive: true });
+  writeJsonFile(paths.notificationConfigFile, {
+    schema: "bagakit/agent-loop/notification-config/v1",
+    transport: "commnad",
+    command: {
+      argv: [],
+      env: {},
+      timeout_seconds: 30,
+      payload_mode: "stdin_json",
+    },
+  });
+  assert.ok(notificationConfigIssue(root).includes("disabled or command"));
+});
+
+test("notification config validation rejects empty command argv", () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "agent-loop-"));
+  const paths = new AgentLoopPaths(root);
+  fs.mkdirSync(paths.loopDir, { recursive: true });
+  writeJsonFile(paths.notificationConfigFile, {
+    schema: "bagakit/agent-loop/notification-config/v1",
+    transport: "command",
+    command: {
+      argv: [],
+      env: {},
+      timeout_seconds: 30,
+      payload_mode: "stdin_json",
+    },
+  });
+  assert.ok(notificationConfigIssue(root).includes("must not be empty"));
+});
+
+test("notification config validation rejects invalid timeout", () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "agent-loop-"));
+  const paths = new AgentLoopPaths(root);
+  fs.mkdirSync(paths.loopDir, { recursive: true });
+  writeJsonFile(paths.notificationConfigFile, {
+    schema: "bagakit/agent-loop/notification-config/v1",
+    transport: "command",
+    command: {
+      argv: ["python3", "notify.py"],
+      env: {},
+      timeout_seconds: "nan",
+      payload_mode: "stdin_json",
+    },
+  });
+  assert.ok(notificationConfigIssue(root).includes("positive finite number"));
+});
+
+test("session host status keeps active sessions running when result is not written yet", () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "agent-loop-"));
+  const paths = new AgentLoopPaths(root);
+  const sessionId = "sess-live";
+  fs.mkdirSync(paths.sessionDir(sessionId), { recursive: true });
+  writeJsonFile(paths.sessionBrief(sessionId), {
+    session_id: sessionId,
+    started_at: "2026-04-20T00:00:00Z",
+    runner_name: "codex",
+    item: {
+      item_id: "manual-one",
+    },
+  });
+  writeJsonFile(path.join(paths.sessionDir(sessionId), "session-meta.json"), {
+    item_id: "manual-one",
+    runner_name: "codex",
+    started_at: "2026-04-20T00:00:00Z",
+    exit_code: null,
+    signal: null,
+  });
+  fs.writeFileSync(path.join(paths.sessionDir(sessionId), "prompt.txt"), "", "utf8");
+  fs.writeFileSync(path.join(paths.sessionDir(sessionId), "stdout.txt"), "", "utf8");
+  fs.writeFileSync(path.join(paths.sessionDir(sessionId), "stderr.txt"), "", "utf8");
+
+  const snapshot = readSessionHostSnapshot(root, sessionId);
+  const status = deriveSessionHostStatus(snapshot);
+  assert.equal(status.execution_state, "running");
 });

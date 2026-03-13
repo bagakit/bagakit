@@ -66,12 +66,22 @@ export function resolveCurrentSelection(root: string, explicitItem?: string): Ag
     };
   }
   if (nextAttempt.payload.item_id && nextAttempt.payload.action_reason !== "no_actionable_item") {
+    const nextSafeAction =
+      nextAttempt.payload.recommended_action === "run_session"
+        ? "run"
+        : nextAttempt.payload.recommended_action === "clear_blocker"
+          ? "resolve_blocker"
+          : nextAttempt.payload.recommended_action === "archive_closeout"
+            ? "archive_owned_item"
+            : nextAttempt.payload.action_reason === "closeout_pending"
+              ? "close_item_upstream"
+              : "idle";
     return {
       schema: "bagakit/agent-loop/current/v1",
       command: "current",
       selection_status: "selected",
       selection_reason: explicitItem ? "explicit_item" : "flow_runner_next",
-      next_safe_action: nextAttempt.payload.recommended_action === "run_session" ? "run" : nextAttempt.payload.action_reason === "closeout_pending" ? "close_item_upstream" : "idle",
+      next_safe_action: nextSafeAction,
       flow_next: nextAttempt.payload,
       item_id: nextAttempt.payload.item_id,
     };
