@@ -31,7 +31,7 @@ Recommended runtime location:
 
 ```toml
 schema_version = "1.0"
-task_id = "T-001"
+task_id = "task-001"
 objective = "Deliver a stable implementation"
 owner = "agent-name"
 created_at = "2026-03-01T00:00:00Z"
@@ -39,6 +39,9 @@ updated_at = "2026-03-01T00:00:00Z"
 status = "planning"
 ```
 
+- `task_id`
+  - must already be a stable lowercase token so bridge ids stay collision-safe
+  - use lowercase letters, digits, and hyphens only
 - `status`: `planning | in_progress | review | completed | blocked`
 
 ## Preflight section

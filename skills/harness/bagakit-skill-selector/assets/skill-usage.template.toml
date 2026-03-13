@@ -1,4 +1,5 @@
 schema_version = "1.0"
+# task_id must already be a stable lowercase token: letters, digits, hyphens
 task_id = ""
 objective = ""
 owner = ""

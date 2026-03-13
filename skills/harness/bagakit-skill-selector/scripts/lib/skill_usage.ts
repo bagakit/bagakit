@@ -82,6 +82,17 @@ function toStableToken(raw: string): string {
   return collapsed;
 }
 
+function requireStableToken(raw: string, label: string): string {
+  const value = raw.trim();
+  if (value === "") {
+    throw new Error(`${label} must not be empty`);
+  }
+  if (toStableToken(value) !== value) {
+    throw new Error(`${label} must already be a stable token (lowercase letters, digits, hyphens): ${raw}`);
+  }
+  return value;
+}
+
 function assertEnumValue<const T extends readonly string[]>(values: T, raw: string, label: string): T[number] {
   if (values.includes(raw)) {
     return raw as T[number];
@@ -370,7 +381,7 @@ export function createSkillUsageDoc(taskId: string, objective: string, owner: st
   const timestamp = nowIso();
   return {
     schema_version: "1.0",
-    task_id: taskId,
+    task_id: requireStableToken(taskId, "task_id"),
     objective,
     owner,
     created_at: timestamp,
@@ -420,7 +431,7 @@ export function readSkillUsageDoc(filePath: string): SkillUsageDoc {
 
   return {
     schema_version: readString(raw, "schema_version", "1.0"),
-    task_id: readString(raw, "task_id"),
+    task_id: requireStableToken(readString(raw, "task_id"), "task_id"),
     objective: readString(raw, "objective"),
     owner: readString(raw, "owner"),
     created_at: readString(raw, "created_at"),
@@ -631,16 +642,16 @@ function upsertEvolverSignal(
   doc: SkillUsageDoc,
   entry: EvolverSignalLogEntry,
   options?: { preserveDismissed?: boolean },
-): void {
+): boolean {
   ensureNoBridgeSignalCollision(doc, entry.signal_id);
   const existing = findEvolverSignal(doc, entry.signal_id);
   if (!existing) {
     doc.evolver_signal_log.push(entry);
     doc.updated_at = nowIso();
-    return;
+    return true;
   }
   if (options?.preserveDismissed && existing.status === "dismissed") {
-    return;
+    return false;
   }
   existing.updated_at = laterIso(existing.updated_at, entry.updated_at);
   existing.kind = entry.kind;
@@ -658,6 +669,7 @@ function upsertEvolverSignal(
   existing.evidence_ref = entry.evidence_ref;
   existing.notes = entry.notes;
   doc.updated_at = nowIso();
+  return true;
 }
 
 function autoBackoffSignalId(skillId: string, attemptKey: string): string {
@@ -675,12 +687,12 @@ function bridgeSignalId(taskId: string, signalId: string): string {
 function suggestEvolverSignalFromBackoff(
   doc: SkillUsageDoc,
   input: { skill_id: string; attempt_key: string; occurrence_index: number },
-): void {
+): boolean {
   if (!doc.evolver_handoff_policy.enabled) {
-    return;
+    return false;
   }
   const observedAt = nowIso();
-  upsertEvolverSignal(
+  return upsertEvolverSignal(
     doc,
     {
       timestamp: observedAt,
@@ -708,12 +720,12 @@ function suggestEvolverSignalFromBackoff(
 function suggestEvolverSignalFromErrorPattern(
   doc: SkillUsageDoc,
   input: { skill_id: string; error_type: string; message_pattern: string; occurrence_index: number },
-): void {
+): boolean {
   if (!doc.evolver_handoff_policy.enabled || input.occurrence_index < 2) {
-    return;
+    return false;
   }
   const observedAt = nowIso();
-  upsertEvolverSignal(
+  return upsertEvolverSignal(
     doc,
     {
       timestamp: observedAt,
@@ -1027,12 +1039,14 @@ export function appendUsageLog(
     messages.push(
       `note: backoff required for ${input.skill_id}:${attemptKey} after try-${attemptIndex}; switch method before retrying`,
     );
-    suggestEvolverSignalFromBackoff(doc, {
+    const suggested = suggestEvolverSignalFromBackoff(doc, {
       skill_id: input.skill_id,
       attempt_key: attemptKey,
       occurrence_index: attemptIndex,
     });
-    messages.push(`note: evolver review signal suggested for ${input.skill_id}:${attemptKey}`);
+    if (suggested) {
+      messages.push(`note: evolver review signal suggested for ${input.skill_id}:${attemptKey}`);
+    }
   }
 
   doc.updated_at = nowIso();

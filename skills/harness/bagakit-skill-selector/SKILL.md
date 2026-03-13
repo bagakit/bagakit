@@ -141,7 +141,7 @@ Examples:
 ```bash
 node --experimental-strip-types scripts/skill_selector.ts init \
   --file .bagakit/skill-selector/tasks/<task-slug>/skill-usage.toml \
-  --task-id <task-id> \
+  --task-id <stable-task-id> \
   --objective "<task objective>" \
   --owner "<operator>"
 
@@ -229,9 +229,6 @@ node --experimental-strip-types scripts/skill_selector.ts evolver-bridge \
   --root . \
   --output .bagakit/skill-selector/tasks/<task-slug>/evolver-signals.json
 
-`evolver-bridge` is only the selector-side convenience wrapper.
-The canonical evolver intake surface remains evolver-owned `bridge-signals`.
-
 node --experimental-strip-types scripts/skill_selector.ts skill-ranking \
   --file .bagakit/skill-selector/tasks/<task-slug>/skill-usage.toml \
   --output .bagakit/skill-selector/tasks/<task-slug>/skill-ranking.md
@@ -254,6 +251,9 @@ node --experimental-strip-types scripts/skill_selector.ts drivers \
   --root . \
   --output .bagakit/skill-selector/tasks/<task-slug>/bagakit-drivers.md
 ```
+
+`evolver-bridge` is only the selector-side convenience wrapper.
+The canonical evolver intake surface remains evolver-owned `bridge-signals`.
 
 Isolation rule for fair multi-skill comparison:
 

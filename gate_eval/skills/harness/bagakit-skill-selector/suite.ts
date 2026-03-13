@@ -141,6 +141,10 @@ export const SUITE: EvalSuiteDefinition = {
           assert.ok(imported, `missing imported signal ${signalId}`);
           assert.equal(imported?.status, "pending");
           assert.equal(imported?.producer, "bagakit-skill-selector");
+          assert.equal(imported?.source_channel, exported?.source_channel);
+          assert.equal(imported?.topic_hint, exported?.topic_hint);
+          assert.deepEqual(imported?.evidence, exported?.evidence);
+          assert.deepEqual(imported?.local_refs, exported?.local_refs);
           assert.equal(imported?.created_at, exported?.created_at);
           assert.equal(imported?.updated_at, exported?.updated_at);
           assert.ok(signalFiles.includes(`${signalId}.json`));
@@ -186,6 +190,61 @@ export const SUITE: EvalSuiteDefinition = {
             ranking_top_line: rankingText.split("\n").find((line) => line.includes("| 1 |")) ?? "",
             evolver_signal_count: signalFiles.length,
           },
+            replacements,
+          };
+        } finally {
+          cleanupTempDir(tempRepo, context.keepTemp);
+        }
+      },
+    },
+    {
+      id: "disabled-handoff-policy-suppresses-auto-signal",
+      title: "Disabled Handoff Policy Suppresses Auto-Suggested Evolver Signal",
+      summary: "Retry backoff should still trigger task-local search, but selector should not claim or emit an evolver review signal when auto-suggestion is disabled.",
+      focus: ["retry-backoff", "evolver-handoff-policy", "negative-path"],
+      run: (context) => {
+        const { repoRoot } = context;
+        const tempRepo = createTempDir("bagakit-skill-selector-disabled-");
+        const replacements = registerTempRepo(context, tempRepo);
+        try {
+          const target = path.join(tempRepo, ".bagakit", "skill-selector", "tasks", "disabled", "skill-usage.toml");
+          const script = path.join(repoRoot, "skills", "harness", "bagakit-skill-selector", "scripts", "skill_selector.ts");
+          const run = (argv: string[], label: string) => {
+            const result = runCommand("node", ["--experimental-strip-types", script, ...argv], { cwd: repoRoot, replacements });
+            expectOk(result, label);
+            return result;
+          };
+
+          run(["init", "--file", target, "--task-id", "disabled-task", "--objective", "disable auto evolver signal", "--owner", "validator"], "init disabled");
+
+          const initialText = fs.readFileSync(target, "utf8").replace("enabled = true", "enabled = false");
+          fs.writeFileSync(target, initialText, "utf8");
+
+          run(["usage", "--file", target, "--skill-id", "bagakit-skill-selector", "--phase", "execution", "--attempt-key", "disabled-backoff", "--action", "run selector with disabled evolver handoff", "--result", "failed", "--evidence", "suite.ts"], "usage disabled 1");
+          run(["usage", "--file", target, "--skill-id", "bagakit-skill-selector", "--phase", "execution", "--attempt-key", "disabled-backoff", "--action", "run selector with disabled evolver handoff", "--result", "failed", "--evidence", "suite.ts"], "usage disabled 2");
+          const usage3 = run(["usage", "--file", target, "--skill-id", "bagakit-skill-selector", "--phase", "execution", "--attempt-key", "disabled-backoff", "--action", "run selector with disabled evolver handoff", "--result", "failed", "--evidence", "suite.ts"], "usage disabled 3");
+
+          const finalText = fs.readFileSync(target, "utf8");
+          const disabledDoc = readSkillUsageDoc(target);
+          assert.ok(finalText.includes("enabled = false"));
+          assert.ok(finalText.includes("needs_new_search = true"));
+          assert.equal(disabledDoc.evolver_signal_log.length, 0);
+          assert.ok(!usage3.stdout.includes("evolver review signal suggested"));
+          assert.ok(usage3.stdout.includes("backoff required for bagakit-skill-selector:disabled-backoff after try-3"));
+
+          return {
+            assertions: [
+              "retry backoff still marks task-local search follow-up when handoff auto-suggestion is disabled",
+              "selector does not claim or write an evolver review signal when the policy is disabled",
+            ],
+            commands: [
+              `node --experimental-strip-types ${script} init --file <temp-repo>/.bagakit/skill-selector/tasks/disabled/skill-usage.toml --task-id disabled-task --objective "disable auto evolver signal" --owner validator`,
+              `node --experimental-strip-types ${script} usage --file <temp-repo>/.bagakit/skill-selector/tasks/disabled/skill-usage.toml --skill-id bagakit-skill-selector --phase execution --attempt-key disabled-backoff --action "run selector with disabled evolver handoff" --result failed --evidence suite.ts`,
+            ],
+            artifacts: [{ label: "usage-log", path: target }],
+            outputs: {
+              usage_stdout: usage3.stdout.trim(),
+            },
             replacements,
           };
         } finally {

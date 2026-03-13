@@ -258,6 +258,10 @@ for signal_id, exported in export_by_id.items():
     imported = imported_by_id[signal_id]
     assert imported["status"] == "pending"
     assert imported["producer"] == "bagakit-skill-selector"
+    assert imported["source_channel"] == exported["source_channel"]
+    assert imported.get("topic_hint") == exported.get("topic_hint")
+    assert imported["evidence"] == exported["evidence"]
+    assert imported["local_refs"] == exported["local_refs"]
     assert imported["created_at"] == exported["created_at"]
     assert imported["updated_at"] == exported["updated_at"]
     assert (signal_dir / f"{signal_id}.json").exists()
@@ -324,3 +328,64 @@ grep -q 'Skill Ranking Report' "$RANKING_REPORT"
 grep -q 'bagakit-skill-selector' "$RANKING_REPORT"
 grep -q '| 1 | bagakit-skill-selector | 3 | 0.17 | 1.00 | 2 | 0.43 | at_risk |' "$RANKING_REPORT"
 grep -q '## Evolver Review Signals' "$RANKING_REPORT"
+
+TARGET_DISABLED="$TMP_DIR/.bagakit/skill-selector/tasks/disabled/skill-usage.toml"
+DISABLED_LOG="$TMP_DIR/disabled-usage.log"
+
+"${SELECTOR_BIN[@]}" init \
+  --file "$TARGET_DISABLED" \
+  --task-id "disabled-task" \
+  --objective "verify disabled evolver auto-suggest path" \
+  --owner "validator"
+
+python3 - "$TARGET_DISABLED" <<'PY'
+import sys
+from pathlib import Path
+
+path = Path(sys.argv[1])
+text = path.read_text(encoding="utf-8")
+text = text.replace("enabled = true", "enabled = false", 1)
+path.write_text(text, encoding="utf-8")
+PY
+
+"${SELECTOR_BIN[@]}" usage \
+  --file "$TARGET_DISABLED" \
+  --skill-id "bagakit-skill-selector" \
+  --phase execution \
+  --attempt-key "disabled-backoff" \
+  --action "run selector with disabled evolver handoff" \
+  --result failed \
+  --evidence "gate_validation/skills/harness/bagakit-skill-selector/check-skill-selector.sh" \
+  > "$DISABLED_LOG"
+
+"${SELECTOR_BIN[@]}" usage \
+  --file "$TARGET_DISABLED" \
+  --skill-id "bagakit-skill-selector" \
+  --phase execution \
+  --attempt-key "disabled-backoff" \
+  --action "run selector with disabled evolver handoff" \
+  --result failed \
+  --evidence "gate_validation/skills/harness/bagakit-skill-selector/check-skill-selector.sh" \
+  >> "$DISABLED_LOG"
+
+"${SELECTOR_BIN[@]}" usage \
+  --file "$TARGET_DISABLED" \
+  --skill-id "bagakit-skill-selector" \
+  --phase execution \
+  --attempt-key "disabled-backoff" \
+  --action "run selector with disabled evolver handoff" \
+  --result failed \
+  --evidence "gate_validation/skills/harness/bagakit-skill-selector/check-skill-selector.sh" \
+  >> "$DISABLED_LOG"
+
+grep -q 'backoff required for bagakit-skill-selector:disabled-backoff after try-3' "$DISABLED_LOG"
+if grep -q 'evolver review signal suggested' "$DISABLED_LOG"; then
+  echo "error: disabled evolver handoff unexpectedly reported a suggested signal" >&2
+  exit 1
+fi
+if grep -q '^\[\[evolver_signal_log\]\]$' "$TARGET_DISABLED"; then
+  echo "error: disabled evolver handoff unexpectedly wrote evolver_signal_log entries" >&2
+  exit 1
+fi
+
+echo "ok: bagakit-skill-selector canonical smoke passed"
