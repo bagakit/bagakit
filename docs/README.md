@@ -142,7 +142,8 @@ Start here when orienting to the repository docs system:
 
 1. `docs/must-guidebook.md`
 2. `docs/must-authority.md`
-3. `docs/must-recall.md`
-4. `docs/architecture/A0-README.md`
-5. `docs/specs/README.md`
-6. `docs/stewardship/README.md`
+3. `docs/must-sop.md`
+4. `docs/must-recall.md`
+5. `docs/architecture/A0-README.md`
+6. `docs/specs/README.md`
+7. `docs/stewardship/README.md`

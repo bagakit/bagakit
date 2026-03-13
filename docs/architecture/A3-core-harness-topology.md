@@ -84,7 +84,10 @@ The pairs mean:
     `.bagakit/evolver/`
 - `bagakit-living-knowledge / repo-mem`
   - the runtime unit plus its host or project knowledge surfaces such as
-    `AGENTS.md`, `knowledge/`, and `.bagakit/living-knowledge/`
+    `AGENTS.md`, the configured shared knowledge root, system pages such as
+    `must-guidebook.md`, `must-authority.md`, `must-sop.md`, and
+    `must-recall.md`, and local helper outputs under
+    `.bagakit/living-knowledge/`
 - `researcher / brainstorm`
   - the stable evidence-production role plus its most recognizable current
     evidence-production capability family

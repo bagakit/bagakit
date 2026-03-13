@@ -1,42 +1,90 @@
 # Specs
 
-This directory is reserved for Bagakit-authored specifications that need stable
-meaning across skills, packaging, validation, or release flows.
+This directory holds Bagakit-authored specifications that need stable meaning
+across multiple runtime, validation, tooling, or stewardship surfaces.
 
-Typical content that belongs here:
+## Purpose
+
+Use `docs/specs/` when the repository needs one durable answer to:
+
+- what a shared concept means
+- what a shared contract requires
+- what a stable repository rule allows or forbids
+
+`docs/specs/` is the stable semantic layer of the repository docs system.
+
+## First Principle
+
+Specs own stable semantics, not complete system design and not maintainer
+procedure.
+
+That means:
+
+- architecture explains structure and flow
+- specs define stable contracts and stable vocabulary
+- stewardship explains how maintainers operate those contracts in practice
+
+If a document is still mostly comparing Bagakit with an external or source
+system, it is not ready for `docs/specs/` yet.
+
+## What Belongs Here
 
 - shared metadata formats
-- packaging semantics
-- validation system semantics
-- projection semantics
-- repository-level vocabulary that must stay consistent
-- repository-level capability-claim semantics
-- concept registries and stable layer vocabulary that support architecture docs
+- shared runtime contracts
+- stable repository vocabulary
+- stable placement and authority rules
+- stable validation and tooling semantics
+- concept registries that support architecture without replacing it
 
-Typical content that does not belong here:
+## What Does Not Belong Here
 
 - one-off migration notes
-- runtime help that belongs inside a specific skill
-- maintainer process notes that belong under `docs/stewardship/`
-- complete system architecture design
+- source-import comparisons
+- maintainer operating procedure
+- runtime help that must ship inside one skill
+- full system architecture design
 
-Primary architecture design now lives under:
+Those belong respectively in:
 
+- `mem/`
+- `docs/stewardship/`
+- `skills/`
 - `docs/architecture/`
 
-When architecture and specs touch the same topic:
+## Authority Relationship
 
-- architecture is the SSOT for system design, structure, and flow
-- specs are the SSOT for stable contracts, stable vocabulary, and stable
-  concept meanings
+When specs and architecture touch the same topic:
 
-Current examples:
+- `docs/architecture/` is the SSOT for system structure, ownership, and flow
+- `docs/specs/` is the SSOT for stable contracts, stable vocabulary, and
+  durable semantics
+
+When specs and stewardship touch the same topic:
+
+- `docs/specs/` keeps the stable rule
+- `docs/stewardship/` keeps the maintainer procedure for using or reviewing it
+
+## Examples
+
+Current examples include:
 
 - `canonical-capability-ladder.md`
 - `document-surface-rules.md`
 - `evolver-memory.md`
+- `flow-runner-contract.md`
 - `harness-concepts.md`
-- `selector-evolver-boundary.md`
+- `living-knowledge-system.md`
 - `selector-driver-contract.md`
+- `selector-evolver-boundary.md`
 - `tooling-rules.md`
 - `validation-system.md`
+
+## Writing Rule
+
+Specs should be boundary-first and stable-first:
+
+- say what the surface owns
+- say what it does not own
+- say how it relates to neighboring surfaces
+- avoid migration-history narration unless that history is required to define
+  the stable contract

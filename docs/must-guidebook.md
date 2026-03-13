@@ -6,6 +6,7 @@ This guidebook is the reading map for the shared knowledge root.
 
 - `must-guidebook.md`
 - `must-authority.md`
+- `must-sop.md`
 - `must-recall.md`
 
 ## Shared Root
@@ -17,6 +18,7 @@ This guidebook is the reading map for the shared knowledge root.
 - shared checked-in knowledge for this repository
 - topic pages and topic directories
 - system pages for progressive loading
+- reusable-items governance and active catalogs when the repository uses them
 
 ## Reading Order
 

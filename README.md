@@ -46,9 +46,8 @@ The intended rule is:
 - reusable Bagakit learning should move upstream
 - mixed cases should be split instead of forced into one side
 
-A future `.bagakit/evolver/.mem_inbox/` intake surface may be used when host
-work discovers upstream-worthy memory that is not yet ready to become
-structured evolver state.
+The current intake seam for upstream-worthy memory that is not yet ready to
+become structured evolver state is top-level `.mem_inbox/`.
 
 Important split:
 
@@ -124,8 +123,9 @@ skills/
   - project-local evolver state
   - the repository learning surface, including the evolver memory plane and
     decision plane
-  - future home of a lightweight `.mem_inbox/` intake surface for
-    upstream-worthy memory
+- `.mem_inbox/`
+  - optional evolver-owned intake buffer for upstream-worthy memory that is
+    not yet structured topic state
 - `mem/`
   - durable but still-evolving repository memory
   - evidence, experiments, and decisions that should not yet be promoted into
