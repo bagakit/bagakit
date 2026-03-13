@@ -240,7 +240,10 @@ export function notificationReceiptIssue(root: string): string {
   const entries = (fs.readdirSync(receiptsDir) as string[]).filter((entry) => entry.endsWith(".json")).sort().reverse();
   for (const entry of entries) {
     try {
-      readJsonFile<NotificationDeliveryReceipt>(path.join(receiptsDir, entry));
+      const receipt = readJsonFile<NotificationDeliveryReceipt>(path.join(receiptsDir, entry));
+      if (receipt.schema !== NOTIFICATION_RECEIPT_SCHEMA) {
+        return `notification receipt ${entry} has invalid schema`;
+      }
     } catch (error) {
       return `notification receipt ${entry} is unreadable: ${error instanceof Error ? error.message : String(error)}`;
     }
