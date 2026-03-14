@@ -56,6 +56,31 @@ Do not use a recipe when:
 - the combination is still one-off and unstable
 - the extra process is heavier than the task needs
 
+## Planning Entry Rule
+
+For substantial Bagakit-shaped work, selector should prefer one explicit
+planning-entry recipe over generic root note-taking patterns when fit is
+comparable.
+
+Current standard planning-entry recipes:
+
+- `planning-entry-brainstorm-only.md`
+- `planning-entry-brainstorm-to-feature.md`
+- `planning-entry-feature-to-flow.md`
+- `planning-entry-brainstorm-feature-flow.md`
+
+These recipes keep one clean split:
+
+- `bagakit-brainstorm`
+  - ambiguity reduction and handoff
+- `bagakit-feature-tracker`
+  - canonical planning truth
+- `bagakit-flow-runner`
+  - bounded execution flow
+
+Generic note-taking may still remain visible to selector as a host pattern, but
+it should not outrank canonical Bagakit planning routes for substantial work.
+
 ## Logging Rule
 
 If one task intentionally uses a standard recipe:
@@ -108,3 +133,7 @@ Keep it out of `recipes/` when it is still only:
 - `brainstorm-with-research.md`
 - `research-to-knowledge.md`
 - `brainstorm-review-loop.md`
+- `planning-entry-brainstorm-only.md`
+- `planning-entry-brainstorm-to-feature.md`
+- `planning-entry-feature-to-flow.md`
+- `planning-entry-brainstorm-feature-flow.md`

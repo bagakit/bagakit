@@ -26,6 +26,7 @@ Stable selector-versus-evolver meaning lives in:
 
 - `docs/specs/selector-evolver-boundary.md`
 - `docs/specs/selector-selection-model.md`
+- `docs/specs/selector-planning-entry-routes.md`
 
 Default stance:
 
@@ -64,6 +65,8 @@ It is useful when you need to know:
   evolver topic is considered
 - whether repeated task-local failures should be surfaced for repository-level
   review without auto-opening an evolver topic
+- whether substantial planning work should enter through brainstorm,
+  feature-tracker, flow-runner, or one explicit combination of them
 
 This is not the same thing as repository-level `evolver`.
 
@@ -77,6 +80,22 @@ Think of the split as:
 The current monorepo name is already the clearer task-layer name.
 The older standalone repo name `bagakit-skill-evolve` should be treated as
 legacy naming.
+
+## Planning Entry Route Rule
+
+For substantial Bagakit-shaped work, selector should prefer one explicit
+planning-entry recipe over generic root note-taking patterns when fit is
+comparable.
+
+Current standard planning-entry recipes:
+
+- `planning-entry-brainstorm-only`
+- `planning-entry-brainstorm-to-feature`
+- `planning-entry-feature-to-flow`
+- `planning-entry-brainstorm-feature-flow`
+
+These routes remain explicit task-level choices.
+They do not authorize selector to silently invoke downstream skills.
 
 ## Selection Scope Rule
 

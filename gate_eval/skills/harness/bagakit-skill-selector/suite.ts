@@ -19,6 +19,278 @@ export const SUITE: EvalSuiteDefinition = {
   defaultOutputDir: "gate_eval/skills/harness/bagakit-skill-selector/results/runs",
   cases: [
     {
+      id: "planning-entry-route-keeps-brainstorm-feature-flow-explicit",
+      title: "Planning Entry Route Keeps Brainstorm, Feature, And Flow Explicit",
+      summary: "Selector should be able to log one planning-entry route that explicitly binds brainstorm, feature-tracker, and flow-runner without falling back to generic root planning files.",
+      focus: ["planning-entry", "recipe-route", "task-ssot"],
+      run: (context) => {
+        const { repoRoot } = context;
+        const tempRepo = createTempDir("bagakit-skill-selector-planning-entry-");
+        const replacements = registerTempRepo(context, tempRepo);
+        try {
+          const target = path.join(tempRepo, ".bagakit", "skill-selector", "tasks", "planning-entry", "skill-usage.toml");
+          const survey = path.join(tempRepo, ".bagakit", "skill-selector", "tasks", "planning-entry", "candidate-survey.md");
+          const ranking = path.join(tempRepo, ".bagakit", "skill-selector", "tasks", "planning-entry", "skill-ranking.md");
+          const script = path.join(repoRoot, "skills", "harness", "bagakit-skill-selector", "scripts", "skill_selector.ts");
+          const run = (argv: string[], label: string) => {
+            const result = runCommand("node", ["--experimental-strip-types", script, ...argv], { cwd: repoRoot, replacements });
+            expectOk(result, label);
+            return result;
+          };
+
+          run(["init", "--file", target, "--task-id", "planning-entry-task", "--objective", "route substantial planning work", "--owner", "validator"], "init planning-entry");
+          run(["preflight", "--file", target, "--answer", "partial", "--gap-summary", "need explicit planning route", "--decision", "compose_then_execute", "--status", "in_progress"], "preflight planning-entry");
+          run([
+            "recipe",
+            "--file",
+            target,
+            "--recipe-id",
+            "planning-entry-brainstorm-feature-flow",
+            "--source",
+            "skills/harness/bagakit-skill-selector/recipes/planning-entry-brainstorm-feature-flow.md",
+            "--why",
+            "substantial delivery needs ambiguity reduction, canonical planning truth, and bounded execution flow",
+            "--synthesis-artifact",
+            ".bagakit/flow-runner/next-action.json",
+            "--status",
+            "selected",
+          ], "recipe planning-entry");
+          run([
+            "plan",
+            "--file",
+            target,
+            "--skill-id",
+            "bagakit-skill-selector",
+            "--kind",
+            "local",
+            "--source",
+            "skills/harness/bagakit-skill-selector",
+            "--why",
+            "own the explicit planning-entry route record",
+            "--expected-impact",
+            "keep the route auditable as one task-local composition",
+            "--availability",
+            "available",
+            "--availability-detail",
+            "available as a canonical local skill in the current catalog root",
+            "--selected",
+            "true",
+            "--composition-role",
+            "composition_entrypoint",
+            "--composition-id",
+            "planning-entry",
+            "--activation-mode",
+            "composed",
+          ], "plan selector");
+          run([
+            "plan",
+            "--file",
+            target,
+            "--skill-id",
+            "bagakit-brainstorm",
+            "--kind",
+            "local",
+            "--source",
+            "skills/harness/bagakit-brainstorm",
+            "--why",
+            "reduce ambiguity and produce a handoff",
+            "--expected-impact",
+            "turn unclear demand into a routeable planning package",
+            "--availability",
+            "available",
+            "--availability-detail",
+            "available as a canonical local skill in the current catalog root",
+            "--selected",
+            "true",
+            "--composition-role",
+            "composition_peer",
+            "--composition-id",
+            "planning-entry",
+            "--activation-mode",
+            "composed",
+            "--fallback-strategy",
+            "standalone_first",
+          ], "plan brainstorm");
+          run([
+            "plan",
+            "--file",
+            target,
+            "--skill-id",
+            "bagakit-feature-tracker",
+            "--kind",
+            "local",
+            "--source",
+            "skills/harness/bagakit-feature-tracker",
+            "--why",
+            "materialize canonical planning truth",
+            "--expected-impact",
+            "bind the task into feature and task state",
+            "--availability",
+            "available",
+            "--availability-detail",
+            "available as a canonical local skill in the current catalog root",
+            "--selected",
+            "true",
+            "--composition-role",
+            "composition_peer",
+            "--composition-id",
+            "planning-entry",
+            "--activation-mode",
+            "composed",
+            "--fallback-strategy",
+            "standalone_first",
+          ], "plan feature-tracker");
+          run([
+            "plan",
+            "--file",
+            target,
+            "--skill-id",
+            "bagakit-flow-runner",
+            "--kind",
+            "local",
+            "--source",
+            "skills/harness/bagakit-flow-runner",
+            "--why",
+            "carry bounded execution after planning truth exists",
+            "--expected-impact",
+            "expose next-action and resume flow over the planned work item",
+            "--availability",
+            "available",
+            "--availability-detail",
+            "available as a canonical local skill in the current catalog root",
+            "--selected",
+            "true",
+            "--composition-role",
+            "composition_peer",
+            "--composition-id",
+            "planning-entry",
+            "--activation-mode",
+            "composed",
+            "--fallback-strategy",
+            "standalone_first",
+          ], "plan flow-runner");
+          run([
+            "usage",
+            "--file",
+            target,
+            "--skill-id",
+            "bagakit-brainstorm",
+            "--phase",
+            "planning",
+            "--attempt-key",
+            "planning-entry-brainstorm",
+            "--action",
+            "prepared ambiguity-reduction handoff route",
+            "--result",
+            "success",
+            "--evidence",
+            ".bagakit/brainstorm/outcome/brainstorm-handoff-planning-entry.md",
+          ], "usage brainstorm");
+          run([
+            "usage",
+            "--file",
+            target,
+            "--skill-id",
+            "bagakit-feature-tracker",
+            "--phase",
+            "planning",
+            "--attempt-key",
+            "planning-entry-feature",
+            "--action",
+            "prepared canonical planning-truth route",
+            "--result",
+            "success",
+            "--evidence",
+            ".bagakit/feature-tracker/index/features.json",
+          ], "usage feature-tracker");
+          run([
+            "usage",
+            "--file",
+            target,
+            "--skill-id",
+            "bagakit-flow-runner",
+            "--phase",
+            "execution",
+            "--attempt-key",
+            "planning-entry-flow",
+            "--action",
+            "prepared bounded execution route",
+            "--result",
+            "success",
+            "--evidence",
+            ".bagakit/flow-runner/next-action.json",
+          ], "usage flow-runner");
+          run(["candidate-survey", "--file", target, "--root", repoRoot, "--output", survey], "candidate-survey planning-entry");
+          run(["skill-ranking", "--file", target, "--output", ranking], "skill-ranking planning-entry");
+          run([
+            "evaluate",
+            "--file",
+            target,
+            "--quality-score",
+            "0.84",
+            "--evidence-score",
+            "0.88",
+            "--feedback-score",
+            "0.75",
+            "--overall",
+            "pass",
+            "--summary",
+            "planning-entry route stays explicit and complete",
+            "--status",
+            "completed",
+          ], "evaluate planning-entry");
+          run(["validate", "--file", target, "--strict"], "validate planning-entry");
+
+          const usageDoc = readSkillUsageDoc(target);
+          const surveyText = fs.readFileSync(survey, "utf8");
+          const rankingText = fs.readFileSync(ranking, "utf8");
+
+          assert.equal(usageDoc.preflight.decision, "compose_then_execute");
+          assert.ok(usageDoc.recipe_log.some((entry) => entry.recipe_id === "planning-entry-brainstorm-feature-flow"));
+          assert.ok(usageDoc.recipe_log.some((entry) => entry.synthesis_artifact === ".bagakit/flow-runner/next-action.json"));
+          assert.deepEqual(
+            usageDoc.skill_plan
+              .filter((entry) => entry.selected)
+              .map((entry) => entry.skill_id)
+              .sort(),
+            ["bagakit-brainstorm", "bagakit-feature-tracker", "bagakit-flow-runner", "bagakit-skill-selector"].sort(),
+          );
+          assert.ok(usageDoc.skill_plan.every((entry) => entry.composition_id === "planning-entry"));
+          assert.ok(surveyText.includes("| bagakit-brainstorm |"));
+          assert.ok(surveyText.includes("| bagakit-feature-tracker |"));
+          assert.ok(surveyText.includes("| bagakit-flow-runner |"));
+          assert.ok(rankingText.includes("bagakit-brainstorm"));
+          assert.ok(rankingText.includes("bagakit-feature-tracker"));
+          assert.ok(rankingText.includes("bagakit-flow-runner"));
+
+          return {
+            assertions: [
+              "selector can log one explicit planning-entry route that binds brainstorm, feature-tracker, and flow-runner together",
+              "the route stays in task-local SSOT through recipe_log plus selected skill_plan entries",
+              "derived selector reports preserve the same route participants instead of dropping back to generic planning notes",
+            ],
+            commands: [
+              `node --experimental-strip-types ${script} recipe --file <temp-repo>/.bagakit/skill-selector/tasks/planning-entry/skill-usage.toml --recipe-id planning-entry-brainstorm-feature-flow --source skills/harness/bagakit-skill-selector/recipes/planning-entry-brainstorm-feature-flow.md --status selected`,
+              `node --experimental-strip-types ${script} candidate-survey --file <temp-repo>/.bagakit/skill-selector/tasks/planning-entry/skill-usage.toml --root . --output <temp-repo>/.bagakit/skill-selector/tasks/planning-entry/candidate-survey.md`,
+              `node --experimental-strip-types ${script} skill-ranking --file <temp-repo>/.bagakit/skill-selector/tasks/planning-entry/skill-usage.toml --output <temp-repo>/.bagakit/skill-selector/tasks/planning-entry/skill-ranking.md`,
+            ],
+            artifacts: [
+              { label: "usage-log", path: target },
+              { label: "candidate-survey", path: survey },
+              { label: "ranking-report", path: ranking },
+            ],
+            outputs: {
+              selected_route: "planning-entry-brainstorm-feature-flow",
+              selected_skills: usageDoc.skill_plan.filter((entry) => entry.selected).map((entry) => entry.skill_id),
+            },
+            replacements,
+          };
+        } finally {
+          cleanupTempDir(tempRepo, context.keepTemp);
+        }
+      },
+    },
+    {
       id: "composition-log-drives-driver-pack-and-ranking",
       title: "Composition Log Drives Driver Pack, Ranking, And Evolver Bridge",
       summary: "Selector task logs should drive retry backoff, review-signal bridge, driver-pack rendering, and ranking output coherently.",

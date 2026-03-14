@@ -1,0 +1,46 @@
+version = 2
+
+[[suite]]
+id = "planning-surface-eval-structure"
+owner = "gate_eval/backbone/planning_surface"
+description = "Require the comparative planning-surface eval slice files."
+default = true
+validation_class = "structure"
+groups = ["planning", "eval", "backbone", "structure"]
+
+[suite.runner]
+kind = "fs"
+required_dirs = [
+  "gate_eval/backbone/planning_surface",
+  "gate_eval/backbone/planning_surface/results",
+  "gate_eval/backbone/planning_surface/results/runs",
+]
+required_files = [
+  "gate_eval/backbone/planning_surface/README.md",
+  "gate_eval/backbone/planning_surface/suite.ts",
+  "gate_eval/backbone/planning_surface/validation.toml",
+  "gate_eval/backbone/planning_surface/results/.gitignore",
+  "gate_eval/backbone/planning_surface/results/README.md",
+  "gate_eval/backbone/planning_surface/results/runs/.gitkeep",
+]
+
+[[suite]]
+id = "planning-surface-eval-run"
+owner = "gate_eval/backbone/planning_surface"
+description = "Run the comparative planning-surface eval against the current repo and installed planning-with-files skill."
+default = false
+validation_class = "quality"
+groups = ["planning", "eval", "backbone", "comparison"]
+
+[suite.runner]
+kind = "executable"
+command = "{node}"
+args = [
+  "--experimental-strip-types",
+  "dev/eval/src/cli.ts",
+  "run",
+  "--root",
+  "{repo_root}",
+  "--suite",
+  "gate_eval/backbone/planning_surface/suite.ts",
+]

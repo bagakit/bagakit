@@ -76,6 +76,7 @@ Current examples include:
 - `harness-concepts.md`
 - `living-knowledge-system.md`
 - `selector-evolver-boundary.md`
+- `selector-planning-entry-routes.md`
 - `tooling-rules.md`
 - `validation-system.md`
 

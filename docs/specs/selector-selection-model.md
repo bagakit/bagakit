@@ -35,6 +35,7 @@ It is not the SSOT for:
 Those belong respectively in:
 
 - `docs/specs/selector-evolver-boundary.md`
+- `docs/specs/selector-planning-entry-routes.md`
 - `docs/specs/selector-preference-surface.md`
 - `skills/harness/bagakit-skill-selector/`
 - `skills/harness/bagakit-skill-selector/references/skill-usage-file-spec.md`
@@ -163,6 +164,8 @@ Good uses include:
 - identifying Bagakit-namespaced skills
 - reading `metadata.bagakit.harness_layer`
 - discovering conventional Bagakit driver files when they exist
+- choosing one standard planning-entry recipe when substantial work should move
+  into canonical Bagakit planning surfaces
 
 Frontmatter is not the place to impose a repository-wide mandatory rule such
 as:
@@ -193,6 +196,16 @@ Bagakit composition rules remain:
 - composition should stay explicit
 - participating skills should remain standalone-first
 - recipes describe recommended compositions, not hard dependencies
+
+## Planning Entry Rule
+
+For substantial Bagakit-shaped planning work, selector should prefer the
+standard planning-entry recipes defined in:
+
+- `docs/specs/selector-planning-entry-routes.md`
+
+That means generic host note-taking patterns may remain visible, but they
+should not outrank canonical Bagakit planning routes when fit is comparable.
 
 ## Boundary Reminder
 

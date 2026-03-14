@@ -151,6 +151,16 @@ Recording rule:
 - actual execution evidence must still go into `[[usage_log]]`,
   `[[benchmark_log]]`, `[[feedback_log]]`, and `[[search_log]]` as needed
 
+Planning-entry reminder:
+
+- when selector routes substantial planning work, prefer one standard
+  planning-entry recipe id from
+  `docs/specs/selector-planning-entry-routes.md`
+- use `[[recipe_log]]` for the route label and `[[skill_plan]]` for the
+  participating skills
+- do not treat generic root note-taking files as canonical planning truth for
+  Bagakit-shaped delivery work
+
 ## Error pattern log
 
 Use `[[error_pattern_log]]` when a repeated failure pattern deserves explicit

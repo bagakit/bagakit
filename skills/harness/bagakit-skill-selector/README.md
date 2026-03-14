@@ -7,6 +7,8 @@ This skill is not the same as `bagakit-skill-evolver`.
 Stable boundary meaning lives in `docs/specs/selector-evolver-boundary.md`.
 Selector candidate-scope semantics live in
 `docs/specs/selector-selection-model.md`.
+Planning-entry route semantics live in
+`docs/specs/selector-planning-entry-routes.md`.
 Project-local preference-hint semantics live in
 `docs/specs/selector-preference-surface.md`.
 
@@ -87,6 +89,16 @@ The output of this skill is often an input to later routing:
 But it should not assume that every task insight deserves an upstream evolver
 topic.
 
+It should also be the explicit task-local place where substantial planning work
+is routed into:
+
+- `bagakit-brainstorm`
+- `bagakit-feature-tracker`
+- `bagakit-flow-runner`
+
+through standard planning-entry recipes when that route is worth making
+explicit.
+
 ## Composition And Task-Local Surfaces
 
 `bagakit-skill-selector` is also the explicit composition entrypoint for
@@ -159,6 +171,13 @@ Authority references:
 Recipes should stay structured enough to compare. In practice that means fit
 signals, non-fit signals, execution order, required/optional steps, synthesis
 artifact, evidence hooks, and fallback guidance should all be explicit.
+
+Current planning-entry recipes:
+
+- `planning-entry-brainstorm-only`
+- `planning-entry-brainstorm-to-feature`
+- `planning-entry-feature-to-flow`
+- `planning-entry-brainstorm-feature-flow`
 
 ## Naming Status
 
