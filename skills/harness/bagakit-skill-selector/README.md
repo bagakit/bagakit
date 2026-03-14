@@ -21,10 +21,14 @@ Split:
 
 ## When To Use
 
-For substantial work, the default is to consider selector preflight first.
+For non-trivial work, selector preflight is mandatory before major
+implementation.
 For trivial one-step work, selector should not become mandatory ceremony.
 
-Use selector when:
+Mandatory preflight may legitimately end in `direct_execute` when current
+coverage is already sufficient or no better candidate exists.
+
+The fuller selector loop matters most when:
 
 - skill coverage is uncertain
 - multiple local, external, or research candidates may be tried
@@ -119,7 +123,8 @@ Rule:
 - if a standard selector recipe was used, record it in `[[recipe_log]]`
 - selector-loaded Bagakit drivers are task-local reporting guidance, not repository
   policy
-- frontmatter declarations are metadata, not a hidden mandatory "always use
+- frontmatter declarations are metadata; mandatory non-trivial preflight
+  belongs in bootstrap and shared spec surfaces, not in a hidden "always use
   selector first" rule
 - neither side should become a hidden hard dependency of the other
 - each side must remain standalone-first with simplified behavior when the peer

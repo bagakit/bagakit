@@ -15,6 +15,8 @@ Use this spec when deciding:
 - whether one planning request should start in `bagakit-brainstorm`
 - whether one request is already ready for `bagakit-feature-tracker`
 - whether repeated bounded execution should move into `bagakit-flow-runner`
+- how mandatory selector preflight for non-trivial work still allows a clean
+  `direct_execute` exit
 - how selector should prefer canonical Bagakit planning routes over generic
   host note-taking patterns when fit is comparable
 
@@ -55,6 +57,23 @@ It must not:
 - silently create generic planning files as canonical truth
 - silently call downstream skills without explicit task-local evidence
 - turn route choice into repository-level policy
+
+## Entry Gate Rule
+
+For non-trivial Bagakit-shaped work, selector preflight is the required entry
+gate before:
+
+- choosing one canonical planning route
+- inventing one new planning surface
+- starting major implementation without route evidence
+
+That gate may still conclude:
+
+- `direct_execute`
+
+Mandatory preflight does not mean every non-trivial task must use one
+planning-entry recipe. It means route choice or direct execution must be made
+explicitly first.
 
 ## Planning Entry Scenes
 
@@ -124,7 +143,8 @@ It must not:
 
 ## Logging Rule
 
-When selector chooses one planning-entry route:
+When selector preflight concludes that one planning-entry route is the right
+next step:
 
 1. record the route through `[[recipe_log]]`
 2. record every participating skill through `[[skill_plan]]`
@@ -151,6 +171,7 @@ This spec does not define:
 - host auto-routing
 - outer-driver scheduling
 - heartbeat or inbox behavior
-- one universal rule that every task must invoke selector first
+- one universal all-tasks rule that even trivial one-step work must invoke
+  selector first
 
 Those belong above selector, not inside it.

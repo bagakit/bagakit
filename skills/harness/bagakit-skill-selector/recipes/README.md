@@ -56,6 +56,9 @@ Do not use a recipe when:
 - the combination is still one-off and unstable
 - the extra process is heavier than the task needs
 
+Mandatory selector preflight does not mean mandatory recipe usage.
+Choose a recipe only when preflight says explicit composition adds value.
+
 ## Planning Entry Rule
 
 For substantial Bagakit-shaped work, selector should prefer one explicit

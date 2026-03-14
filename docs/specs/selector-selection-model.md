@@ -15,7 +15,8 @@ Use this spec when deciding:
 - what candidate set selector should consider
 - how repo-visible skills differ from host-available skills
 - why Bagakit skills may be preferred without becoming exclusive
-- whether frontmatter is only declaration or a mandatory invocation policy
+- where mandatory selector preflight policy lives and why frontmatter stays
+  declaration-only
 - how project-local selector preferences may bias comparison without becoming
   policy
 
@@ -24,6 +25,7 @@ This file is the SSOT for:
 - selector candidate-scope semantics
 - the terms `visible`, `available`, and `selected`
 - Bagakit-aware preference rules inside selector
+- mandatory selector preflight for non-trivial Bagakit-shaped work
 
 It is not the SSOT for:
 
@@ -59,6 +61,25 @@ Repo awareness does not mean selector assumes those skills are executable in
 the current host.
 
 Repo awareness is a task aid, not a repository-level control plane.
+
+## Mandatory Preflight Rule
+
+For non-trivial Bagakit-shaped work, selector preflight is mandatory before
+major implementation starts.
+
+This rule means:
+
+- mandatory preflight is the required entry gate for non-trivial work
+- preflight may still conclude `direct_execute`
+- preflight may still conclude that current coverage is already sufficient or
+  that no better candidate exists
+- trivial one-step work may execute directly without selector ceremony
+
+Mandatory preflight therefore does not mean:
+
+- every task must compare multiple candidates
+- every task must compose multiple skills
+- every task must enter one planning-entry recipe
 
 ## Candidate States
 
@@ -171,13 +192,16 @@ Frontmatter is not the place to impose a repository-wide mandatory rule such
 as:
 
 - every task must invoke selector first
+- this one skill silently forces selector entry policy
 
-Invocation remains an operator or task-level preflight decision.
+Mandatory selector preflight policy belongs in shared specs and workspace
+bootstrap guidance, not in per-skill frontmatter.
 
 So the correct rule is:
 
-- selector should be considered first for substantial work
-- selector should not become a universal mandatory wrapper
+- selector preflight is mandatory for non-trivial Bagakit-shaped work
+- trivial one-step work may bypass selector
+- mandatory preflight may legitimately end in `direct_execute`
 - frontmatter may declare capabilities, but it must not silently force
   selector invocation policy
 
@@ -199,8 +223,8 @@ Bagakit composition rules remain:
 
 ## Planning Entry Rule
 
-For substantial Bagakit-shaped planning work, selector should prefer the
-standard planning-entry recipes defined in:
+For non-trivial Bagakit-shaped planning work that reaches route selection,
+selector should prefer the standard planning-entry recipes defined in:
 
 - `docs/specs/selector-planning-entry-routes.md`
 

@@ -33,6 +33,13 @@ Selection-state reminder:
 - `visible` does not mean `available`
 - `[[skill_plan]]` records the candidates that became explicit task options
 
+Entry rule:
+
+- for non-trivial Bagakit-shaped work, initialize this file before major
+  implementation starts
+- `direct_execute` is still a valid preflight result when current coverage is
+  already sufficient or no better candidate exists
+
 ## Top-level fields
 
 ```toml
@@ -64,6 +71,8 @@ decision = "compare_then_execute"
 - `decision`
   - typed selector-preflight route token for this task
   - `direct_execute | compare_then_execute | compose_then_execute | review_loop | pending`
+  - for non-trivial work, this decision must be recorded before major
+    implementation starts
   - must not remain `pending` once execution has started
   - compatibility note: legacy `search_then_execute` should be normalized to
     `compare_then_execute`

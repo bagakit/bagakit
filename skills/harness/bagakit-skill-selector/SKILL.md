@@ -1,6 +1,6 @@
 ---
 name: bagakit-skill-selector
-description: Meta-skill for task-level or host-level skill coverage preflight, explicit composition, usage tracking, and task-local evaluation. Substantial tasks should consider selector preflight before major implementation, but trivial or obvious work does not need a selector wrapper.
+description: Meta-skill for task-level or host-level skill coverage preflight, explicit composition, usage tracking, and task-local evaluation. Non-trivial Bagakit-shaped work must enter through selector preflight before major implementation, while trivial or obvious one-step work may execute directly.
 metadata:
   bagakit:
     harness_layer: l1-execution
@@ -30,7 +30,7 @@ Stable selector-versus-evolver meaning lives in:
 
 Default stance:
 
-- for substantial tasks, consider selector preflight first
+- for non-trivial tasks, require selector preflight before major implementation
 - for trivial one-step work, do not add selector ceremony without a real reason
 
 ## Positioning
@@ -42,15 +42,17 @@ Authority references:
 - `docs/specs/selector-evolver-boundary.md`
 - `docs/specs/selector-selection-model.md`
 
-Use selector when one or more of these are true:
+Non-trivial Bagakit-shaped work should start with selector preflight.
+The fuller selector loop is especially useful when one or more of these are
+true:
 
 - skill coverage is uncertain
 - multiple local, external, or research candidates may be tried
 - one task needs explicit multi-skill composition
 - retries, evaluation, or evidence-preserving handoff matter
 
-You may skip selector when the task is trivial, obvious, and unlikely to
-benefit from comparative skill evidence.
+Trivial one-step work may still skip selector when the task is obvious and
+unlikely to benefit from comparative skill evidence.
 
 It is useful when you need to know:
 
@@ -155,8 +157,8 @@ still be:
 
 ## Output Contract
 
-For each task that intentionally uses selector, maintain one structured TOML
-file.
+For each non-trivial task that enters through selector, maintain one structured
+TOML file.
 
 Recommended path:
 
@@ -335,8 +337,8 @@ Isolation rule for fair multi-skill comparison:
 
 ### 1) Preflight
 
-Before major implementation, substantial tasks should consider whether selector
-is warranted at all:
+Before major implementation, non-trivial tasks must enter through selector
+preflight:
 
 - do we have enough good skills now
 - do we need explicit composition or comparative evidence
@@ -344,7 +346,7 @@ is warranted at all:
 If the task is trivial or obviously covered, you may skip selector and execute
 directly.
 
-Once a task chooses selector, set a concrete answer for coverage:
+Once preflight starts, set a concrete answer for coverage:
 
 - do we have enough good skills now
 - if not, what is missing
@@ -360,7 +362,10 @@ Then choose one typed selector-preflight route:
 
 Do not leave preflight decision in `pending` once execution starts.
 
-For substantial work, selector preflight is the default consideration path.
+For non-trivial work, selector preflight is the required entry gate.
+Mandatory preflight does not require multi-skill composition or comparison on
+every task; `direct_execute` remains valid when current coverage is already
+sufficient or no better fit exists.
 For trivial one-step work, direct execution is still acceptable when the extra
 selector loop would add no real value.
 
