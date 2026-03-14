@@ -22,6 +22,12 @@ export const SEARCH_SOURCE_SCOPES = ["local", "external", "hybrid"] as const;
 export const SEARCH_STATUSES = ["open", "done", "discarded"] as const;
 export const EVALUATION_OVERALL = ["pass", "conditional_pass", "fail", "pending"] as const;
 export const RECIPE_STATUSES = ["considered", "selected", "used", "skipped", "rejected"] as const;
+export const PLANNING_ENTRY_RECIPE_IDS = [
+  "planning-entry-brainstorm-only",
+  "planning-entry-brainstorm-to-feature",
+  "planning-entry-feature-to-flow",
+  "planning-entry-brainstorm-feature-flow",
+] as const;
 export const PROJECT_PREFERENCE_VALUES = ["prefer", "avoid"] as const;
 export const EVOLVER_SIGNAL_KINDS = ["decision", "preference", "gotcha", "howto", "glossary"] as const;
 export const EVOLVER_SIGNAL_TRIGGERS = [
@@ -53,6 +59,7 @@ export type SearchSourceScope = (typeof SEARCH_SOURCE_SCOPES)[number];
 export type SearchStatus = (typeof SEARCH_STATUSES)[number];
 export type EvaluationOverall = (typeof EVALUATION_OVERALL)[number];
 export type RecipeStatus = (typeof RECIPE_STATUSES)[number];
+export type PlanningEntryRecipeId = (typeof PLANNING_ENTRY_RECIPE_IDS)[number];
 export type ProjectPreferenceValue = (typeof PROJECT_PREFERENCE_VALUES)[number];
 export type EvolverSignalKind = (typeof EVOLVER_SIGNAL_KINDS)[number];
 export type EvolverSignalTrigger = (typeof EVOLVER_SIGNAL_TRIGGERS)[number];
@@ -184,6 +191,13 @@ export interface RecipeLogEntry {
   synthesis_artifact?: string;
   notes: string;
 }
+
+export const PLANNING_ENTRY_ROUTE_PARTICIPANTS: Record<PlanningEntryRecipeId, readonly string[]> = {
+  "planning-entry-brainstorm-only": ["bagakit-brainstorm"],
+  "planning-entry-brainstorm-to-feature": ["bagakit-brainstorm", "bagakit-feature-tracker"],
+  "planning-entry-feature-to-flow": ["bagakit-feature-tracker", "bagakit-flow-runner"],
+  "planning-entry-brainstorm-feature-flow": ["bagakit-brainstorm", "bagakit-feature-tracker", "bagakit-flow-runner"],
+};
 
 export interface ProjectPreferenceEntry {
   timestamp: string;

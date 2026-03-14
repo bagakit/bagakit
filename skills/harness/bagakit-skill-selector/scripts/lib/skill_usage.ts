@@ -16,6 +16,8 @@ import {
   PLAN_CONFIDENCE,
   PLAN_KINDS,
   PLAN_AVAILABILITY,
+  PLANNING_ENTRY_RECIPE_IDS,
+  PLANNING_ENTRY_ROUTE_PARTICIPANTS,
   PLAN_STATUSES,
   PREFLIGHT_ANSWERS,
   RECIPE_STATUSES,
@@ -43,6 +45,7 @@ import {
   type PlanConfidence,
   type PlanKind,
   type PlanAvailability,
+  type PlanningEntryRecipeId,
   type PlanStatus,
   type PreflightAnswer,
   type PreflightDecision,
@@ -208,6 +211,37 @@ function joinNotes(...parts: string[]): string {
     .map((part) => part.trim())
     .filter((part) => part.length > 0)
     .join("; ");
+}
+
+const PLANNING_ENTRY_ARTIFACT_PREFIXES = [
+  ".bagakit/brainstorm/",
+  ".bagakit/feature-tracker/",
+  ".bagakit/flow-runner/",
+] as const;
+const GENERIC_PLANNING_FILES = new Set(["task_plan.md", "findings.md", "progress.md"]);
+const PLANNING_ENTRY_USAGE_EVIDENCE_PREFIX: Record<string, readonly string[]> = {
+  "bagakit-brainstorm": [".bagakit/brainstorm/"],
+  "bagakit-feature-tracker": [".bagakit/feature-tracker/"],
+  "bagakit-flow-runner": [".bagakit/flow-runner/"],
+  "bagakit-skill-selector": [".bagakit/skill-selector/"],
+};
+
+function canonicalPlanningEntryRecipeSource(recipeId: PlanningEntryRecipeId): string {
+  return `skills/harness/bagakit-skill-selector/recipes/${recipeId}.md`;
+}
+
+function isPlanningEntryRecipeId(recipeId: string): recipeId is PlanningEntryRecipeId {
+  return (PLANNING_ENTRY_RECIPE_IDS as readonly string[]).includes(recipeId);
+}
+
+function requireSelectedPlanForUsage(doc: SkillUsageDoc, skillId: string): void {
+  const matching = doc.skill_plan.filter((entry) => entry.skill_id === skillId);
+  if (matching.length === 0) {
+    throw new Error(`usage_log.skill_id must refer to a planned skill: ${skillId}`);
+  }
+  if (!matching.some((entry) => entry.selected)) {
+    throw new Error(`usage_log.skill_id must refer to a selected skill: ${skillId}`);
+  }
 }
 
 function normalizeClusterText(value: string): string {
@@ -1014,6 +1048,7 @@ export function appendUsageLog(
     notes: string;
   },
 ): string[] {
+  requireSelectedPlanForUsage(doc, input.skill_id);
   const attemptKey = input.attempt_key.trim() || input.action.trim();
   const priorAttempts = doc.usage_log.filter(
     (entry) => entry.skill_id === input.skill_id && (entry.attempt_key || entry.action) === attemptKey,
@@ -1292,6 +1327,7 @@ export function validateSkillUsage(doc: SkillUsageDoc, strict: boolean): string[
     issues.push("attempt_policy.retry_backoff_threshold must be an integer >= 2");
   }
   const plannedSkillIds = new Set(doc.skill_plan.map((plan) => plan.skill_id));
+  const selectedSkillIds = new Set(doc.skill_plan.filter((plan) => plan.selected).map((plan) => plan.skill_id));
   if (plannedSkillIds.size !== doc.skill_plan.length) {
     issues.push("skill_plan.skill_id must be unique within one task file");
   }
@@ -1304,6 +1340,64 @@ export function validateSkillUsage(doc: SkillUsageDoc, strict: boolean): string[
     }
     if (plan.status === "used" && plan.availability === "unavailable") {
       issues.push(`skill_plan.used candidate must not remain unavailable (${plan.skill_id})`);
+    }
+  }
+  for (const usage of doc.usage_log) {
+    if (usage.skill_id.trim() === "") {
+      issues.push("usage_log.skill_id must not be empty");
+      continue;
+    }
+    if (!plannedSkillIds.has(usage.skill_id)) {
+      issues.push(`usage_log.skill_id must refer to a planned skill (${usage.skill_id})`);
+      continue;
+    }
+    if (!selectedSkillIds.has(usage.skill_id)) {
+      issues.push(`usage_log.skill_id must refer to a selected skill (${usage.skill_id})`);
+    }
+  }
+  for (const recipe of doc.recipe_log) {
+    if (!isPlanningEntryRecipeId(recipe.recipe_id)) {
+      continue;
+    }
+    if (recipe.source !== canonicalPlanningEntryRecipeSource(recipe.recipe_id)) {
+      issues.push(`planning-entry recipe source must match the canonical selector path (${recipe.recipe_id})`);
+    }
+    if (recipe.status === "selected" || recipe.status === "used") {
+      const requiredParticipants = PLANNING_ENTRY_ROUTE_PARTICIPANTS[recipe.recipe_id];
+      const allowedSelectedParticipants = new Set([...requiredParticipants, "bagakit-skill-selector"]);
+      for (const skillId of requiredParticipants) {
+        if (!selectedSkillIds.has(skillId)) {
+          issues.push(`planning-entry recipe requires selected skill_plan participant (${recipe.recipe_id}:${skillId})`);
+        }
+      }
+      for (const selectedSkillId of selectedSkillIds) {
+        if (!allowedSelectedParticipants.has(selectedSkillId)) {
+          issues.push(`planning-entry recipe must not select off-route participant (${recipe.recipe_id}:${selectedSkillId})`);
+        }
+      }
+      if (recipe.synthesis_artifact) {
+        const artifact = recipe.synthesis_artifact.trim();
+        if (GENERIC_PLANNING_FILES.has(artifact)) {
+          issues.push(`planning-entry recipe must not use generic root planning file as synthesis artifact (${recipe.recipe_id}:${artifact})`);
+        }
+        if (!PLANNING_ENTRY_ARTIFACT_PREFIXES.some((prefix) => artifact.startsWith(prefix))) {
+          issues.push(`planning-entry recipe synthesis_artifact must stay inside canonical Bagakit planning surfaces (${recipe.recipe_id}:${artifact})`);
+        }
+      }
+      for (const usage of doc.usage_log) {
+        if (!allowedSelectedParticipants.has(usage.skill_id)) {
+          continue;
+        }
+        const evidence = usage.evidence.trim();
+        if (GENERIC_PLANNING_FILES.has(evidence)) {
+          issues.push(`planning-entry usage evidence must not use generic root planning file (${recipe.recipe_id}:${usage.skill_id}:${evidence})`);
+          continue;
+        }
+        const allowedPrefixes = PLANNING_ENTRY_USAGE_EVIDENCE_PREFIX[usage.skill_id] ?? [];
+        if (allowedPrefixes.length > 0 && !allowedPrefixes.some((prefix) => evidence.startsWith(prefix))) {
+          issues.push(`planning-entry usage evidence must stay inside canonical route surfaces (${recipe.recipe_id}:${usage.skill_id}:${evidence})`);
+        }
+      }
     }
   }
   for (const errorPattern of doc.error_pattern_log) {

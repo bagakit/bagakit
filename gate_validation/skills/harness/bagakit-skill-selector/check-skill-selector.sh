@@ -387,6 +387,17 @@ text = text.replace("enabled = true", "enabled = false", 1)
 path.write_text(text, encoding="utf-8")
 PY
 
+"${SELECTOR_BIN[@]}" plan \
+  --file "$TARGET_DISABLED" \
+  --skill-id "bagakit-skill-selector" \
+  --kind local \
+  --source "skills/harness/bagakit-skill-selector" \
+  --why "own the disabled-handoff retry loop" \
+  --expected-impact "keep retry and handoff policy checks explicit" \
+  --availability available \
+  --availability-detail "available as a canonical local skill in the current catalog root" \
+  --selected true
+
 "${SELECTOR_BIN[@]}" usage \
   --file "$TARGET_DISABLED" \
   --skill-id "bagakit-skill-selector" \

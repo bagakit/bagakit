@@ -11,18 +11,19 @@ It compares three currently relevant planning modes:
 
 The goal is not to force one global winner.
 
-The goal is to make one question measurable:
+The goal is to make one narrower question observable:
 
-- which surface is strongest for which planning job
+- which planning-surface properties are actually present in each system
 
 ## What It Measures
 
-- host-entry leverage
-- canonical planning truth
-- execution binding
-- analysis depth
-- validation depth
-- collision safety
+- declared host-entry behavior
+- runtime shape
+- execution-binding evidence
+- staged-analysis evidence
+- validation and eval presence
+
+This slice is a property comparison, not a weighted scorecard.
 
 ## Run
 

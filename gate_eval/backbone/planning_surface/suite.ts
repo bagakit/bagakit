@@ -9,12 +9,14 @@ import { cleanupTempDir, createTempDir, registerTempRepo, writeTextFile } from "
 
 type PlanningProfile = {
   system: string;
-  host_entry_leverage: number;
-  canonical_planning_truth: number;
-  execution_binding: number;
-  analysis_depth: number;
-  validation_depth: number;
-  collision_safety: number;
+  declared_host_auto_entry: boolean;
+  generic_root_files: boolean;
+  namespaced_runtime_observed: boolean;
+  typed_planning_truth: boolean;
+  execution_binding_observed: boolean;
+  staged_analysis_surface: boolean;
+  gate_validation_present: boolean;
+  gate_eval_present: boolean;
   evidence: string[];
 };
 
@@ -72,17 +74,20 @@ function profilePlanningWithFiles(repoRoot: string, tempRepo: string, replacemen
   assert.ok(fs.existsSync(path.join(tempRepo, "task_plan.md")));
   assert.ok(fs.existsSync(path.join(tempRepo, "findings.md")));
   assert.ok(fs.existsSync(path.join(tempRepo, "progress.md")));
+  assert.ok(!fs.existsSync(path.join(tempRepo, ".bagakit", "task_plan.md")));
   const completionCheck = runCommand("bash", [checkScript, path.join(tempRepo, "task_plan.md")], { cwd: tempRepo, replacements });
   assert.equal(completionCheck.status, 1, "planning-with-files check-complete should report the fresh plan as incomplete");
 
   return {
     system: "planning-with-files",
-    host_entry_leverage: skillText.includes("Auto-activates for complex tasks") ? 5 : 1,
-    canonical_planning_truth: 1,
-    execution_binding: 1,
-    analysis_depth: skillText.includes("2-Action Rule") ? 2 : 1,
-    validation_depth: 1,
-    collision_safety: 1,
+    declared_host_auto_entry: skillText.includes("Auto-activates for complex tasks"),
+    generic_root_files: true,
+    namespaced_runtime_observed: false,
+    typed_planning_truth: false,
+    execution_binding_observed: false,
+    staged_analysis_surface: false,
+    gate_validation_present: false,
+    gate_eval_present: false,
     evidence: [
       "host hooks auto-activate the pattern for complex tasks",
       "runtime writes three generic markdown files directly into project root",
@@ -116,24 +121,33 @@ function profileFeatureTracker(repoRoot: string, tempRepo: string, replacements:
 
   const statePath = path.join(tempRepo, ".bagakit", "feature-tracker", "features", featId, "state.json");
   const tasksPath = path.join(tempRepo, ".bagakit", "feature-tracker", "features", featId, "tasks.json");
+  expectOk(runCommand("bash", [script, "assign-feature-workspace", "--root", tempRepo, "--feature", featId, "--workspace-mode", "current_tree"], { cwd: repoRoot, replacements }), "feature-tracker assign-feature-workspace");
+  expectOk(runCommand("bash", [script, "start-task", "--root", tempRepo, "--feature", featId, "--task", "T-001"], { cwd: repoRoot, replacements }), "feature-tracker start-task");
   const state = JSON.parse(fs.readFileSync(statePath, "utf8")) as Record<string, unknown>;
   const tasks = JSON.parse(fs.readFileSync(tasksPath, "utf8")) as Record<string, unknown>;
-  assert.equal(state.workspace_mode, "proposal_only");
-  assert.ok(Array.isArray(tasks.tasks));
+  const taskRows = tasks.tasks as Array<Record<string, unknown>>;
+  assert.equal(state.workspace_mode, "current_tree");
+  assert.equal(state.current_task_id, "T-001");
+  assert.ok(Array.isArray(taskRows));
+  assert.equal(taskRows[0]?.status, "in_progress");
+  assert.ok(statePath.includes(path.join(".bagakit", "feature-tracker")));
   assert.ok(fs.existsSync(gateValidation));
   assert.ok(fs.existsSync(gateEval));
+  assert.ok(skillText.includes("feature and task planning truth"));
 
   return {
     system: "bagakit-feature-tracker",
-    host_entry_leverage: 1,
-    canonical_planning_truth: 5,
-    execution_binding: 5,
-    analysis_depth: 2,
-    validation_depth: 5,
-    collision_safety: 5,
+    declared_host_auto_entry: false,
+    generic_root_files: false,
+    namespaced_runtime_observed: true,
+    typed_planning_truth: true,
+    execution_binding_observed: true,
+    staged_analysis_surface: false,
+    gate_validation_present: true,
+    gate_eval_present: true,
     evidence: [
       "feature and task truth lives under namespaced JSON SSOT in .bagakit/feature-tracker/",
-      "workspace mode, current task, and commit contract bind planning directly to execution",
+      "workspace mode assignment plus start-task make execution binding directly observable",
       "the skill has both gate_validation and gate_eval coverage in-repo",
     ],
   };
@@ -153,82 +167,61 @@ function profileBrainstorm(repoRoot: string, tempRepo: string, replacements: { f
   assert.ok(fs.existsSync(path.join(artifactDir, "finding_and_analyze.md")));
   assert.ok(fs.existsSync(path.join(artifactDir, "expert_forum.md")));
   assert.ok(fs.existsSync(path.join(artifactDir, "outcome_and_handoff.md")));
+  assert.ok(artifactDir.includes(path.join(".bagakit", "brainstorm")));
   assert.ok(skillText.includes("expert_forum_review"));
   assert.ok(fs.existsSync(gateValidation));
   assert.ok(fs.existsSync(gateEval));
 
   return {
     system: "bagakit-brainstorm",
-    host_entry_leverage: 1,
-    canonical_planning_truth: 3,
-    execution_binding: 2,
-    analysis_depth: 5,
-    validation_depth: 4,
-    collision_safety: 5,
+    declared_host_auto_entry: false,
+    generic_root_files: false,
+    namespaced_runtime_observed: true,
+    typed_planning_truth: false,
+    execution_binding_observed: false,
+    staged_analysis_surface: true,
+    gate_validation_present: true,
+    gate_eval_present: true,
     evidence: [
       "artifact flow is namespaced under .bagakit/brainstorm/ instead of generic root files",
       "the workflow has explicit clarification, analysis, expert forum, and handoff stages",
-      "it has both gate_validation and gate_eval slices, but core truth remains markdown-stage artifacts rather than JSON SSOT",
+      "it has both gate_validation and gate_eval slices, but core truth remains markdown-stage artifacts rather than typed planning state",
     ],
-  };
-}
-
-function total(profile: PlanningProfile): number {
-  return (
-    profile.host_entry_leverage +
-    profile.canonical_planning_truth +
-    profile.execution_binding +
-    profile.analysis_depth +
-    profile.validation_depth +
-    profile.collision_safety
-  );
-}
-
-function rankProfiles(profiles: PlanningProfile[]): Record<string, string> {
-  const bestBy = (key: keyof Omit<PlanningProfile, "system" | "evidence">): string =>
-    profiles.slice().sort((left, right) => Number(right[key]) - Number(left[key]))[0]!.system;
-  return {
-    best_host_entry: bestBy("host_entry_leverage"),
-    best_canonical_truth: bestBy("canonical_planning_truth"),
-    best_execution_binding: bestBy("execution_binding"),
-    best_analysis_depth: bestBy("analysis_depth"),
-    best_validation_depth: bestBy("validation_depth"),
-    best_collision_safety: bestBy("collision_safety"),
   };
 }
 
 function comparisonResult(profiles: PlanningProfile[]): EvalCaseResult {
-  const ranking = rankProfiles(profiles);
+  const bySystem = new Map(profiles.map((profile) => [profile.system, profile]));
   return {
     assertions: [
-      "planning-with-files leads only on host-entry leverage, not on canonical planning truth",
-      "bagakit-feature-tracker is the strongest canonical planning surface because it combines JSON SSOT, execution binding, and validation depth",
-      "bagakit-brainstorm is the strongest analysis surface because it provides a staged option-review-handoff workflow rather than a generic notes log",
-      "generic root planning files are materially weaker than namespaced Bagakit runtimes on collision safety and integration fitness",
+      "planning-with-files declares host-entry behavior and still uses generic root files instead of a namespaced runtime surface",
+      "bagakit-feature-tracker exposes namespaced typed planning truth and direct execution-binding evidence",
+      "bagakit-brainstorm exposes namespaced staged-analysis workflow evidence rather than generic notes logging",
+      "the three systems are observably different surfaces, not interchangeable planning tools",
     ],
     warnings: [
-      "planning-with-files is still useful as a host-entry pattern, but not as the canonical planning state model for Bagakit-style repos",
-      "feature-tracker currently lacks host auto-entry and therefore still needs a higher-level router if it should displace generic planning hooks",
+      "this eval is a property comparison, not a weighted scorecard or one-global-winner benchmark",
+      "planning-with-files is still useful as a host-entry pattern source, but a higher-level router is still needed if Bagakit wants selector to displace generic planning hooks by default",
     ],
     commands: [
       "bash <planning-with-files>/scripts/init-session.sh demo",
+      "bash skills/harness/bagakit-feature-tracker/scripts/feature-tracker.sh check-reference-readiness --root <temp-repo>",
       "bash skills/harness/bagakit-feature-tracker/scripts/feature-tracker.sh initialize-tracker --root <temp-repo>",
+      "bash skills/harness/bagakit-feature-tracker/scripts/feature-tracker.sh create-feature --root <temp-repo> --title \"Eval feature\" --slug \"eval-feature\" --goal \"Ship eval\" --workspace-mode proposal_only",
+      "bash skills/harness/bagakit-feature-tracker/scripts/feature-tracker.sh assign-feature-workspace --root <temp-repo> --feature <id> --workspace-mode current_tree",
+      "bash skills/harness/bagakit-feature-tracker/scripts/feature-tracker.sh start-task --root <temp-repo> --feature <id> --task T-001",
       "python3 skills/harness/bagakit-brainstorm/scripts/bagakit-brainstorm.py init --topic \"Eval topic\" --slug eval-topic --root <temp-repo>",
     ],
     outputs: {
-      profiles: profiles.map((profile) => ({
-        ...profile,
-        total: total(profile),
-      })),
-      ranking,
+      profiles,
       borrow: [
         "Borrow host-entry leverage and capture-discipline ideas from planning-with-files.",
         "Do not borrow generic root files or markdown-only planning truth as the canonical Bagakit planning surface.",
       ],
-      verdict: {
-        planning_with_files: "Worth borrowing as a host interaction pattern, not as the canonical planning runtime.",
-        feature_tracker: "Best fit for canonical planning truth and execution-bound delivery.",
-        brainstorm: "Best fit for ambiguity reduction, option generation, and decision handoff from markdown context.",
+      observed_property_summary: {
+        host_entry_pattern: bySystem.get("planning-with-files")?.declared_host_auto_entry ? "planning-with-files declares a host-entry pattern" : "no host-entry pattern declared",
+        canonical_planning_truth: bySystem.get("bagakit-feature-tracker")?.typed_planning_truth ? "feature-tracker exposes a typed planning-truth surface" : "no typed planning-truth surface observed",
+        ambiguity_reduction: bySystem.get("bagakit-brainstorm")?.staged_analysis_surface ? "brainstorm exposes a staged ambiguity-reduction surface" : "no staged analysis surface observed",
       },
     },
   };
@@ -238,13 +231,13 @@ export const SUITE: EvalSuiteDefinition = {
   id: "planning-surface-comparison-eval",
   owner: "gate_eval/backbone/planning_surface",
   title: "Planning Surface Comparison Eval",
-  summary: "Compare planning-with-files, bagakit-feature-tracker, and bagakit-brainstorm on planning-surface fit rather than treating them as one interchangeable category.",
+  summary: "Compare observable planning-surface properties across planning-with-files, bagakit-feature-tracker, and bagakit-brainstorm instead of treating them as one interchangeable category.",
   defaultOutputDir: "gate_eval/backbone/planning_surface/results/runs",
   cases: [
     {
       id: "compare-planning-surface-fit",
       title: "Compare Planning Surface Fit",
-      summary: "Measure which current planning surface is strongest for host entry, canonical planning truth, execution binding, and analysis depth.",
+      summary: "Compare which observable planning-surface properties are present for host entry, canonical planning truth, execution binding, and staged analysis.",
       focus: ["planning-entry", "canonical-truth", "analysis-depth", "validation-depth"],
       run: (context) => {
         const tempPlanningRepo = createTempDir("planning-with-files-eval-");
@@ -258,14 +251,15 @@ export const SUITE: EvalSuiteDefinition = {
           const featureTracker = profileFeatureTracker(context.repoRoot, tempFeatureRepo, featureReplacements);
           const brainstorm = profileBrainstorm(context.repoRoot, tempBrainstormRepo, brainstormReplacements);
 
-          assert.ok(planning.host_entry_leverage > featureTracker.host_entry_leverage);
-          assert.ok(planning.host_entry_leverage > brainstorm.host_entry_leverage);
-          assert.ok(featureTracker.canonical_planning_truth > planning.canonical_planning_truth);
-          assert.ok(featureTracker.execution_binding > planning.execution_binding);
-          assert.ok(brainstorm.analysis_depth > planning.analysis_depth);
-          assert.ok(brainstorm.analysis_depth > featureTracker.analysis_depth);
-          assert.ok(featureTracker.collision_safety > planning.collision_safety);
-          assert.ok(brainstorm.collision_safety > planning.collision_safety);
+          assert.equal(planning.declared_host_auto_entry, true);
+          assert.equal(planning.generic_root_files, true);
+          assert.equal(featureTracker.namespaced_runtime_observed, true);
+          assert.equal(featureTracker.typed_planning_truth, true);
+          assert.equal(featureTracker.execution_binding_observed, true);
+          assert.equal(brainstorm.namespaced_runtime_observed, true);
+          assert.equal(brainstorm.staged_analysis_surface, true);
+          assert.equal(featureTracker.gate_validation_present, true);
+          assert.equal(brainstorm.gate_validation_present, true);
 
           return comparisonResult([planning, featureTracker, brainstorm]);
         } finally {

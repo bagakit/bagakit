@@ -518,6 +518,27 @@ export const SUITE: EvalSuiteDefinition = {
 
           const initialText = fs.readFileSync(target, "utf8").replace("enabled = true", "enabled = false");
           fs.writeFileSync(target, initialText, "utf8");
+          run([
+            "plan",
+            "--file",
+            target,
+            "--skill-id",
+            "bagakit-skill-selector",
+            "--kind",
+            "local",
+            "--source",
+            "skills/harness/bagakit-skill-selector",
+            "--why",
+            "own the disabled-handoff retry loop",
+            "--expected-impact",
+            "keep retry and handoff policy checks explicit",
+            "--availability",
+            "available",
+            "--availability-detail",
+            "available as a canonical local skill in the current catalog root",
+            "--selected",
+            "true",
+          ], "plan disabled selector");
 
           run(["usage", "--file", target, "--skill-id", "bagakit-skill-selector", "--phase", "execution", "--attempt-key", "disabled-backoff", "--action", "run selector with disabled evolver handoff", "--result", "failed", "--evidence", "suite.ts"], "usage disabled 1");
           run(["usage", "--file", target, "--skill-id", "bagakit-skill-selector", "--phase", "execution", "--attempt-key", "disabled-backoff", "--action", "run selector with disabled evolver handoff", "--result", "failed", "--evidence", "suite.ts"], "usage disabled 2");

@@ -35,7 +35,7 @@ Each standard recipe should include these sections:
 - `## Inputs`
 - `## Outputs`
 - `## Synthesis Artifact`
-- `## Evidence To Record In skill-usage.toml`
+- `## Evidence To Record In \`skill-usage.toml\``
 - `## Fallback And Degrade`
 - `## When It Is Not Worth It`
 
