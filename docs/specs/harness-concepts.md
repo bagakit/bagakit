@@ -104,6 +104,8 @@ registry below.
 | `handoff_note` | a compact close or resume handoff for the next session or operator |
 | `skill_selector` | the task-level or host-level skill coverage preflight, repo-aware candidate discovery, explicit skill composition, usage-evidence, and task-local evaluation loop |
 | `feature_tracker` | the execution-system surface that owns feature or ticket planning truth and lifecycle state |
+| `feature_id_cursor` | the tracked ordered issuance counter that gives feature ids stable lexical order inside one tracker repository |
+| `local_feature_issuer` | the local-only issuer surface that marks one working copy without becoming canonical planning truth |
 
 ### L2 Behavior Concepts
 

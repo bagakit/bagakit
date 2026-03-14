@@ -64,6 +64,10 @@ Runtime state lives under:
 - `.bagakit/feature-tracker/features-archived/<feature-id>/`
 - `.bagakit/feature-tracker/features-discarded/<feature-id>/`
 
+Stable spec:
+
+- `docs/specs/feature-tracker-id-issuance.md`
+
 ## Public Commands
 
 - `check-reference-readiness`
@@ -86,16 +90,15 @@ Runtime state lives under:
 - `get-feature`
 - `filter-features`
 
-External bridges live outside this skill.
-
-Example:
-
-- `bagakit-feature-tracker-openspec-adapter`
+External bridges are intentionally out of scope for this skill.
+OpenSpec compatibility is not shipped in the canonical tracker surface.
 
 ## Design Notes
 
 - Runtime truth stays in JSON SSOT under `.bagakit/feature-tracker/`.
 - Markdown files are projections of that runtime truth.
+- Feature ids are short opaque tokens whose lexical order follows creation order.
+- Runtime JSON is intentionally low-churn and avoids per-mutation timestamps.
 - The tracker does not assume `bagakit-living-docs` or `bagakit-living-knowledge`
   repository seams.
 - The tracker does not ship external-system bridge logic in its canonical

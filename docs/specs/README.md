@@ -70,6 +70,7 @@ Current examples include:
 
 - `canonical-capability-ladder.md`
 - `document-surface-rules.md`
+- `feature-tracker-id-issuance.md`
 - `bagakit-driver-contract.md`
 - `evolver-memory.md`
 - `flow-runner-contract.md`

@@ -78,11 +78,8 @@ bash "$BAGAKIT_FEATURE_TRACKER_SKILL_DIR/scripts/feature-tracker.sh" create-feat
 - `feature-tracker.sh get-feature`
 - `feature-tracker.sh filter-features`
 
-External bridges live outside this skill.
-
-Example:
-
-- `bagakit-feature-tracker-openspec-adapter`
+External bridges are intentionally out of scope for this skill.
+OpenSpec compatibility is not shipped in the canonical tracker surface.
 
 ## Runtime Contract
 
@@ -96,6 +93,12 @@ Stable runtime surfaces:
 
 The canonical runtime contract does not include hidden docs-side inbox outputs.
 It also does not include external-system bridge scripts.
+Feature ids are short opaque tokens whose lexical order follows creation order.
+Runtime JSON intentionally avoids per-mutation timestamp churn.
+
+Stable spec:
+
+- `docs/specs/feature-tracker-id-issuance.md`
 
 ## Commit Contract
 
