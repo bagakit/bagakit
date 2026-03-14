@@ -338,6 +338,7 @@ notes = ""
   - the stable task-local participant token
   - often one runtime skill id
   - may also be one external or reference id when no runtime skill id exists
+  - must be unique within one task file
 - `source`
   - for `kind = "local"`, this may point to a canonical repo skill directory
   - that path alone does not prove the candidate is host-available
@@ -357,6 +358,8 @@ Availability rule:
   candidate
 - `availability = "unavailable"` must not remain on a selected or used
   candidate
+- keep one `[[skill_plan]]` row per `skill_id`; update that row instead of
+  appending duplicate candidate rows for the same id
 - for selected local candidates, strict validation expects availability to be
   explicit instead of staying implicit in prose
 

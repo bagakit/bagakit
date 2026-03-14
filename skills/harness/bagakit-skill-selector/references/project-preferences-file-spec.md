@@ -40,6 +40,8 @@ Rules:
 
 - one entry per `skill_id`
 - missing file is a no-op
+- even when one explicit preference path is provided to selector, a missing file
+  should still be treated as neutral rather than a hard failure
 - absence of one entry means neutral
 - this file should stay manually curated and coarse
 - selector may read it when producing a candidate survey

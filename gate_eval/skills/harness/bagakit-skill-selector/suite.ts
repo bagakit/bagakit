@@ -291,6 +291,7 @@ export const SUITE: EvalSuiteDefinition = {
         try {
           const target = path.join(tempRepo, ".bagakit", "skill-selector", "tasks", "survey", "skill-usage.toml");
           const survey = path.join(tempRepo, ".bagakit", "skill-selector", "tasks", "survey", "candidate-survey.md");
+          const missingPreferences = path.join(tempRepo, ".bagakit", "skill-selector", "missing-preferences.toml");
           const script = path.join(repoRoot, "skills", "harness", "bagakit-skill-selector", "scripts", "skill_selector.ts");
           const run = (argv: string[], label: string) => {
             const result = runCommand("node", ["--experimental-strip-types", script, ...argv], { cwd: repoRoot, replacements });
@@ -319,20 +320,49 @@ export const SUITE: EvalSuiteDefinition = {
             "--availability-detail",
             "available as a canonical local skill in the current catalog root",
           ], "plan survey");
-          run(["candidate-survey", "--file", target, "--root", repoRoot, "--output", survey], "candidate-survey no prefs");
+          run([
+            "plan",
+            "--file",
+            target,
+            "--skill-id",
+            "external-tool",
+            "--kind",
+            "external",
+            "--source",
+            "/tmp/external-tool",
+            "--why",
+            "compare one non-local option",
+            "--expected-impact",
+            "keep external comparison explicit",
+            "--availability",
+            "unknown",
+          ], "plan external survey");
+          run([
+            "candidate-survey",
+            "--file",
+            target,
+            "--root",
+            repoRoot,
+            "--preferences-file",
+            missingPreferences,
+            "--output",
+            survey,
+          ], "candidate-survey no prefs");
 
           const surveyText = fs.readFileSync(survey, "utf8");
           assert.ok(surveyText.includes("Candidate Survey"));
           assert.ok(surveyText.includes("Preferences: none"));
           assert.ok(surveyText.includes("| bagakit-skill-selector | local | repo_visible | available | yes | neutral |"));
+          assert.ok(surveyText.includes("| external-tool | external | task_declared | unknown | yes | neutral | - |"));
 
           return {
             assertions: [
               "candidate survey remains usable when no project-preferences file exists",
               "missing project-preferences file stays a no-op instead of a validation or runtime failure",
+              "candidate survey tolerates explicit external candidates with absolute source paths",
             ],
             commands: [
-              `node --experimental-strip-types ${script} candidate-survey --file <temp-repo>/.bagakit/skill-selector/tasks/survey/skill-usage.toml --root . --output <temp-repo>/.bagakit/skill-selector/tasks/survey/candidate-survey.md`,
+              `node --experimental-strip-types ${script} candidate-survey --file <temp-repo>/.bagakit/skill-selector/tasks/survey/skill-usage.toml --root . --preferences-file <temp-repo>/.bagakit/skill-selector/missing-preferences.toml --output <temp-repo>/.bagakit/skill-selector/tasks/survey/candidate-survey.md`,
             ],
             artifacts: [{ label: "candidate-survey", path: survey }],
             outputs: {

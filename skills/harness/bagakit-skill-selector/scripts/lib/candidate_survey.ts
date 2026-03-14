@@ -1,3 +1,5 @@
+import path from "node:path";
+
 import type { ProjectPreferenceValue, ProjectPreferencesDoc, SkillPlanEntry, SkillUsageDoc } from "./model.ts";
 import { listVisibleSkillCatalog, readSkillDescriptorAtRelativeDir, type SkillDescriptor } from "./skill_catalog.ts";
 
@@ -66,6 +68,17 @@ function buildPlanVisibility(plan: SkillPlanEntry, descriptor: SkillDescriptor |
   return "task_declared";
 }
 
+function readPlannedLocalDescriptor(catalogRoot: string, plan: SkillPlanEntry): SkillDescriptor | null {
+  if (plan.kind !== "local" || plan.source.trim() === "" || path.isAbsolute(plan.source)) {
+    return null;
+  }
+  try {
+    return readSkillDescriptorAtRelativeDir(catalogRoot, plan.source);
+  } catch {
+    return null;
+  }
+}
+
 function formatSignals(signals: string[]): string {
   return signals.length > 0 ? signals.join(", ") : "-";
 }
@@ -116,7 +129,7 @@ export function buildCandidateSurveyReport(doc: SkillUsageDoc, options: Candidat
   const queryTokens = tokenize(queryText);
   const plannedSkillIds = new Set(doc.skill_plan.map((plan) => plan.skill_id));
   const plannedRows = doc.skill_plan.map((plan) =>
-    buildPlannedCandidateRow(plan, readSkillDescriptorAtRelativeDir(options.catalogRoot, plan.source), prefMap.get(plan.skill_id), queryTokens)
+    buildPlannedCandidateRow(plan, readPlannedLocalDescriptor(options.catalogRoot, plan), prefMap.get(plan.skill_id), queryTokens)
   );
 
   const visibleCandidates = catalog

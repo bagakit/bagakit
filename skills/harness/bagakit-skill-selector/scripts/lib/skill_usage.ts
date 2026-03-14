@@ -972,6 +972,9 @@ export function appendSkillPlan(
   if (input.composition_role === "composition_peer" && input.fallback_strategy !== "standalone_first") {
     throw new Error("composition peers must declare --fallback-strategy standalone_first");
   }
+  if (doc.skill_plan.some((entry) => entry.skill_id === input.skill_id)) {
+    throw new Error(`skill_plan.skill_id already exists: ${input.skill_id}. keep one row per candidate id and update that row explicitly`);
+  }
 
   doc.skill_plan.push({
     timestamp: nowIso(),
@@ -1289,6 +1292,9 @@ export function validateSkillUsage(doc: SkillUsageDoc, strict: boolean): string[
     issues.push("attempt_policy.retry_backoff_threshold must be an integer >= 2");
   }
   const plannedSkillIds = new Set(doc.skill_plan.map((plan) => plan.skill_id));
+  if (plannedSkillIds.size !== doc.skill_plan.length) {
+    issues.push("skill_plan.skill_id must be unique within one task file");
+  }
   for (const plan of doc.skill_plan) {
     if (plan.skill_id.trim() === "") {
       issues.push("skill_plan.skill_id must not be empty");

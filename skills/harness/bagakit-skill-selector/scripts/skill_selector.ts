@@ -99,8 +99,19 @@ function resolvePathFromCwd(rawPath: string): string {
   return path.resolve(process.cwd(), rawPath);
 }
 
-function taskRepoRootFromFile(filePath: string): string {
-  return path.resolve(path.dirname(filePath), "../../../../");
+function findNearestPreferenceFile(startDir: string): string | undefined {
+  let currentDir = path.resolve(startDir);
+  while (true) {
+    const candidate = path.join(currentDir, ".bagakit", "skill-selector", "project-preferences.toml");
+    if (fs.existsSync(candidate)) {
+      return candidate;
+    }
+    const parent = path.dirname(currentDir);
+    if (parent === currentDir) {
+      return undefined;
+    }
+    currentDir = parent;
+  }
 }
 
 function selectorRepoRootFromTaskFile(filePath: string): string {
@@ -441,13 +452,10 @@ function cmdSkillRanking(flags: Map<string, string | boolean>): number {
 
 function resolvePreferenceFilePath(taskFilePath: string, rawPreferenceFile?: string): string | undefined {
   if (rawPreferenceFile) {
-    return resolvePathFromCwd(rawPreferenceFile);
+    const explicitPath = resolvePathFromCwd(rawPreferenceFile);
+    return fs.existsSync(explicitPath) ? explicitPath : undefined;
   }
-  const defaultPath = path.join(taskRepoRootFromFile(taskFilePath), ".bagakit", "skill-selector", "project-preferences.toml");
-  if (fs.existsSync(defaultPath)) {
-    return defaultPath;
-  }
-  return undefined;
+  return findNearestPreferenceFile(path.dirname(taskFilePath));
 }
 
 function cmdCandidateSurvey(flags: Map<string, string | boolean>): number {
