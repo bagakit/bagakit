@@ -178,8 +178,8 @@ Sub-layout:
   - role and ownership definitions
 - `selector-recipe-maintenance.md`
   - maintainer guidance for standard multi-skill recipes under selector
-- `selector-driver-maintenance.md`
-  - maintainer guidance for selector-loadable driver files
+- `bagakit-driver-maintenance.md`
+  - maintainer guidance for Bagakit footer-driving files
 - `selector-project-preference-maintenance.md`
   - maintainer guidance for optional host-local selector preference hints
 - `selector-usage-guidance.md`

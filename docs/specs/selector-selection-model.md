@@ -51,7 +51,7 @@ To answer that question well, selector may be repo-aware.
 That means selector may know:
 
 - which canonical Bagakit skills exist in this repository
-- which skills expose Bagakit metadata such as selector drivers
+- which skills expose conventional Bagakit driver files
 - which standard selector recipes already describe common combinations
 
 Repo awareness does not mean selector assumes those skills are executable in
@@ -162,7 +162,7 @@ Good uses include:
 
 - identifying Bagakit-namespaced skills
 - reading `metadata.bagakit.harness_layer`
-- loading `metadata.bagakit.selector_driver_file`
+- loading conventional Bagakit driver files when they exist
 
 Frontmatter is not the place to impose a repository-wide mandatory rule such
 as:

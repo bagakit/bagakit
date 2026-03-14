@@ -262,8 +262,8 @@ Use these surfaces in this order:
   - runtime-facing selector instructions and operator usage
 - `docs/stewardship/selector-recipe-maintenance.md`
   - maintainer guidance for selector recipes
-- `docs/stewardship/selector-driver-maintenance.md`
-  - maintainer guidance for selector drivers
+- `docs/stewardship/bagakit-driver-maintenance.md`
+  - maintainer guidance for Bagakit driver files
 
 If a change proposes a new selector or evolver rule, decide first whether it
 is:

@@ -70,11 +70,11 @@ Current examples include:
 
 - `canonical-capability-ladder.md`
 - `document-surface-rules.md`
+- `bagakit-driver-contract.md`
 - `evolver-memory.md`
 - `flow-runner-contract.md`
 - `harness-concepts.md`
 - `living-knowledge-system.md`
-- `selector-driver-contract.md`
 - `selector-evolver-boundary.md`
 - `tooling-rules.md`
 - `validation-system.md`
