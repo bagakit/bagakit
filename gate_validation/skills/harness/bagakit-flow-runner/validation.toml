@@ -1,0 +1,111 @@
+version = 2
+
+[[suite]]
+id = "bagakit-flow-runner-layout"
+owner = "skills/harness/bagakit-flow-runner"
+description = "Require the canonical runtime layout and keep legacy long-run repo artifacts out of bagakit-flow-runner."
+default = true
+validation_class = "structure"
+groups = ["skills", "harness", "flow-runner", "structure"]
+
+[suite.runner]
+kind = "fs"
+required_dirs = [
+  "skills/harness/bagakit-flow-runner",
+  "skills/harness/bagakit-flow-runner/references",
+  "skills/harness/bagakit-flow-runner/references/tpl",
+  "skills/harness/bagakit-flow-runner/scripts",
+  "gate_eval/skills/harness/bagakit-flow-runner",
+  "gate_eval/skills/harness/bagakit-flow-runner/results",
+  "gate_eval/skills/harness/bagakit-flow-runner/results/runs",
+  "gate_validation/skills/harness/bagakit-flow-runner",
+]
+required_files = [
+  "docs/specs/flow-runner-contract.md",
+  "docs/stewardship/flow-runner-maintenance.md",
+  "skills/harness/bagakit-flow-runner/README.md",
+  "skills/harness/bagakit-flow-runner/SKILL.md",
+  "skills/harness/bagakit-flow-runner/scripts/flow-runner.sh",
+  "skills/harness/bagakit-flow-runner/scripts/flow-runner.ts",
+  "skills/harness/bagakit-flow-runner/scripts/lib/model.ts",
+  "skills/harness/bagakit-flow-runner/scripts/lib/io.ts",
+  "skills/harness/bagakit-flow-runner/scripts/lib/paths.ts",
+  "skills/harness/bagakit-flow-runner/scripts/lib/core.ts",
+  "skills/harness/bagakit-flow-runner/references/tpl/runner-policy-template.json",
+  "skills/harness/bagakit-flow-runner/references/tpl/loop-recipe-template.json",
+  "skills/harness/bagakit-flow-runner/references/tpl/item-handoff-template.md",
+  "gate_eval/skills/harness/bagakit-flow-runner/README.md",
+  "gate_eval/skills/harness/bagakit-flow-runner/suite.ts",
+  "gate_eval/skills/harness/bagakit-flow-runner/validation.toml",
+  "gate_eval/skills/harness/bagakit-flow-runner/results/.gitignore",
+  "gate_eval/skills/harness/bagakit-flow-runner/results/README.md",
+  "gate_eval/skills/harness/bagakit-flow-runner/results/runs/.gitkeep",
+  "gate_validation/skills/harness/bagakit-flow-runner/validation.toml",
+  "gate_validation/skills/harness/bagakit-flow-runner/check-flow-runner-contract.sh",
+  "gate_validation/skills/harness/bagakit-flow-runner/check-flow-runner.sh",
+  "gate_validation/skills/harness/bagakit-flow-runner/test-flow-runner.ts",
+]
+forbidden_paths = [
+  "skills/harness/bagakit-flow-runner/SKILL_PAYLOAD.json",
+  "skills/harness/bagakit-flow-runner/AGENTS.md",
+  "skills/harness/bagakit-flow-runner/Makefile",
+  "skills/harness/bagakit-flow-runner/docs",
+  "skills/harness/bagakit-flow-runner/scripts_dev",
+  "skills/harness/bagakit-flow-runner/scripts/flow-runner.py",
+  "skills/harness/bagakit-flow-runner/scripts/apply-long-run.sh",
+  "skills/harness/bagakit-flow-runner/scripts/long-run-doctor.sh",
+  "skills/harness/bagakit-flow-runner/scripts/long-run-execution.py",
+  "skills/harness/bagakit-flow-runner/scripts/long-run-features.py",
+  "skills/harness/bagakit-flow-runner/scripts/long-run-heartbeat.py",
+  "skills/harness/bagakit-flow-runner/scripts/long-run-loop.py",
+  "skills/harness/bagakit-flow-runner/scripts/validate-long-run.sh",
+]
+
+[[suite]]
+id = "bagakit-flow-runner-contract"
+owner = "skills/harness/bagakit-flow-runner"
+description = "Check that documented policy and recipe contracts stay aligned with shipped templates and applied runtime files."
+default = true
+validation_class = "quality"
+groups = ["skills", "harness", "flow-runner", "contract"]
+
+[suite.runner]
+kind = "bash_script"
+script = "gate_validation/skills/harness/bagakit-flow-runner/check-flow-runner-contract.sh"
+args = [
+  "--root",
+  "{repo_root}",
+]
+
+[[suite]]
+id = "bagakit-flow-runner-smoke"
+owner = "skills/harness/bagakit-flow-runner"
+description = "Run a minimal flow-runner lifecycle including feature-tracker ingest, next-item selection, snapshot, checkpoint, and archive."
+default = true
+validation_class = "smoke"
+groups = ["skills", "harness", "flow-runner", "smoke"]
+
+[suite.runner]
+kind = "bash_script"
+script = "gate_validation/skills/harness/bagakit-flow-runner/check-flow-runner.sh"
+args = [
+  "--root",
+  "{repo_root}",
+]
+
+[[suite]]
+id = "bagakit-flow-runner-tests"
+owner = "skills/harness/bagakit-flow-runner"
+description = "Run the TypeScript flow-runner regression tests."
+default = true
+validation_class = "quality"
+groups = ["skills", "harness", "flow-runner", "quality"]
+
+[suite.runner]
+kind = "executable"
+command = "{node}"
+args = [
+  "--test",
+  "--experimental-strip-types",
+  "gate_validation/skills/harness/bagakit-flow-runner/test-flow-runner.ts",
+]
