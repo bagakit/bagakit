@@ -1359,6 +1359,10 @@ export function validateSkillUsage(doc: SkillUsageDoc, strict: boolean): string[
 
   const composedCounts = new Map<string, { entrypoint: number; peer: number }>();
   for (const plan of doc.skill_plan) {
+    if (plan.kind === "local" && plan.selected && plan.availability === "unknown") {
+      issues.push(`strict mode: selected local skill_plan must record availability (${plan.skill_id})`);
+    }
+
     if (plan.composition_role === "standalone") {
       if (plan.composition_id !== "") {
         issues.push(`strict mode: standalone skill_plan must not set composition_id (${plan.skill_id})`);
@@ -1379,11 +1383,6 @@ export function validateSkillUsage(doc: SkillUsageDoc, strict: boolean): string[
     if (plan.activation_mode !== "composed") {
       issues.push(`strict mode: composed skill_plan must use activation_mode=composed (${plan.skill_id})`);
     }
-
-    if (plan.kind === "local" && plan.selected && plan.availability === "unknown") {
-      issues.push(`strict mode: selected local skill_plan must record availability (${plan.skill_id})`);
-    }
-
     const bucket = composedCounts.get(plan.composition_id) ?? { entrypoint: 0, peer: 0 };
     composedCounts.set(plan.composition_id, bucket);
     if (plan.composition_role === "composition_entrypoint") {
