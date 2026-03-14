@@ -180,6 +180,7 @@ export const SUITE: EvalSuiteDefinition = {
         assert.ok(surveyText.includes("Candidate Survey"));
         assert.ok(surveyText.includes("Project Preference Hints"));
         assert.ok(surveyText.includes("bagakit-brainstorm"));
+        assert.ok(surveyText.includes("| bagakit-brainstorm | harness | unknown | prefer |"));
         assert.ok(surveyText.includes("repo_visible"));
         assert.ok(surveyText.includes("| bagakit-researcher | local | repo_visible | available | yes | neutral |"));
         assert.ok(driverText.includes("bagakit-researcher"));
