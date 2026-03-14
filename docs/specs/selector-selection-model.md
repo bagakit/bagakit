@@ -154,7 +154,7 @@ This separation is what lets selector both:
 - understand the Bagakit repository as a skill catalog
 - remain honest about what the current host can actually do
 
-## Frontmatter Rule
+## Metadata Rule
 
 Selector may use skill frontmatter as declaration metadata.
 
@@ -162,7 +162,7 @@ Good uses include:
 
 - identifying Bagakit-namespaced skills
 - reading `metadata.bagakit.harness_layer`
-- loading conventional Bagakit driver files when they exist
+- discovering conventional Bagakit driver files when they exist
 
 Frontmatter is not the place to impose a repository-wide mandatory rule such
 as:

@@ -135,7 +135,7 @@ EOF
   --skill-id "bagakit-skill-selector" \
   --phase execution \
   --attempt-key "driver-pack-load" \
-  --action "loaded selector drivers for the composed task loop" \
+  --action "loaded Bagakit drivers for the composed task loop" \
   --result partial \
   --evidence "gate_validation/skills/harness/bagakit-skill-selector/check-skill-selector.sh"
 
@@ -144,7 +144,7 @@ EOF
   --skill-id "bagakit-skill-selector" \
   --phase execution \
   --attempt-key "driver-pack-load" \
-  --action "loaded selector drivers for the composed task loop" \
+  --action "loaded Bagakit drivers for the composed task loop" \
   --result failed \
   --evidence "gate_validation/skills/harness/bagakit-skill-selector/check-skill-selector.sh"
 
@@ -153,14 +153,14 @@ EOF
   --skill-id "bagakit-skill-selector" \
   --phase execution \
   --attempt-key "driver-pack-load" \
-  --action "loaded selector drivers for the composed task loop" \
+  --action "loaded Bagakit drivers for the composed task loop" \
   --result failed \
   --evidence "gate_validation/skills/harness/bagakit-skill-selector/check-skill-selector.sh"
 
 "${SELECTOR_BIN[@]}" error-pattern \
   --file "$TARGET" \
   --error-type "driver_load_failure" \
-  --message-pattern "loaded selector drivers for the composed task loop" \
+  --message-pattern "loaded Bagakit drivers for the composed task loop" \
   --skill-id "bagakit-skill-selector" \
   --resolution "switch method after repeated failed driver-pack load" \
   --notes "clustered failure depth should match the two failed attempts"
@@ -239,7 +239,7 @@ signals = {item["id"]: item for item in payload["signals"]}
 expected_ids = {
     "demo-task-driver-load-review",
     "demo-task-retry-bagakit-skill-selector-driver-pack-load",
-    "demo-task-pattern-bagakit-skill-selector-driver-load-failure-loaded-selector-drivers-for-the-composed-task-loop",
+    "demo-task-pattern-bagakit-skill-selector-driver-load-failure-loaded-bagakit-drivers-for-the-composed-task-loop",
 }
 assert set(signals) == expected_ids
 manual = signals["demo-task-driver-load-review"]
@@ -255,7 +255,7 @@ assert "trigger=retry_backoff" in retry_signal["evidence"]
 assert "attempt_key=driver-pack-load" in retry_signal["evidence"]
 assert str(task_path.relative_to(root_path)) in retry_signal["local_refs"]
 assert str(ranking_path.relative_to(root_path)) in retry_signal["local_refs"]
-pattern_signal = signals["demo-task-pattern-bagakit-skill-selector-driver-load-failure-loaded-selector-drivers-for-the-composed-task-loop"]
+pattern_signal = signals["demo-task-pattern-bagakit-skill-selector-driver-load-failure-loaded-bagakit-drivers-for-the-composed-task-loop"]
 assert pattern_signal["topic_hint"] == "driver-load-failure"
 assert "trigger=error_pattern" in pattern_signal["evidence"]
 assert "error_type=driver_load_failure" in pattern_signal["evidence"]
@@ -321,7 +321,7 @@ signals_by_task_id = {item["signal_id"]: item for item in task_signals}
 for task_signal_id in [
     "driver-load-review",
     "retry-bagakit-skill-selector-driver-pack-load",
-    "pattern-bagakit-skill-selector-driver-load-failure-loaded-selector-drivers-for-the-composed-task-loop",
+    "pattern-bagakit-skill-selector-driver-load-failure-loaded-bagakit-drivers-for-the-composed-task-loop",
 ]:
     entry = signals_by_task_id[task_signal_id]
     assert entry["status"] == "imported"

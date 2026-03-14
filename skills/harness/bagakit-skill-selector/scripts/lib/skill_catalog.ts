@@ -4,6 +4,7 @@ import path from "node:path";
 import { getNestedString, parseMarkdownFrontmatter } from "./frontmatter.ts";
 
 const POSIX_SEPARATOR = String.fromCharCode(47);
+const CONVENTIONAL_BAGAKIT_DRIVER_FILE = `references${POSIX_SEPARATOR}bagakit-driver.toml`;
 
 export interface SkillDescriptor {
   family?: string;
@@ -15,7 +16,7 @@ export interface SkillDescriptor {
   description: string;
   bagakit: boolean;
   harness_layer?: string;
-  selector_driver_file?: string;
+  bagakit_driver_file?: string;
 }
 
 function resolvePathInside(root: string, relativePath: string, label: string): string {
@@ -42,6 +43,7 @@ function buildDescriptor(
   const frontmatter = parseMarkdownFrontmatter(fs.readFileSync(skillMdPath, "utf-8"));
   const name = getNestedString(frontmatter, ["name"]) ?? skillId;
   const description = getNestedString(frontmatter, ["description"]) ?? "";
+  const bagakitDriverPath = path.join(absoluteDir, "references", "bagakit-driver.toml");
 
   return {
     family,
@@ -53,7 +55,7 @@ function buildDescriptor(
     description,
     bagakit: name.startsWith("bagakit-") || skillId.startsWith("bagakit-"),
     harness_layer: getNestedString(frontmatter, ["metadata", "bagakit", "harness_layer"]),
-    selector_driver_file: getNestedString(frontmatter, ["metadata", "bagakit", "selector_driver_file"]),
+    bagakit_driver_file: fs.existsSync(bagakitDriverPath) ? CONVENTIONAL_BAGAKIT_DRIVER_FILE : undefined,
   };
 }
 

@@ -242,19 +242,19 @@ export interface SkillUsageDoc {
   evolver_signal_log: EvolverSignalLogEntry[];
 }
 
-export interface SelectorDriverDirective {
+export interface BagakitDriverDirective {
   id: string;
   when: string;
   instruction: string;
 }
 
-export interface SelectorDriverPayload {
+export interface BagakitDriverPayload {
   skill_name: string;
   skill_source: string;
   driver_ref: string;
   driver_path: string;
   summary_line: string;
-  directives: SelectorDriverDirective[];
+  directives: BagakitDriverDirective[];
   retry_backoff_threshold?: number;
 }
 

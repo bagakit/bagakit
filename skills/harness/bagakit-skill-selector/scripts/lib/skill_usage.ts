@@ -51,8 +51,8 @@ import {
   type SearchLogEntry,
   type SearchSourceScope,
   type SearchStatus,
-  type SelectorDriverDirective,
-  type SelectorDriverPayload,
+  type BagakitDriverDirective,
+  type BagakitDriverPayload,
   type SkillPlanEntry,
   type SkillUsageDoc,
   type TaskStatus,
@@ -1469,12 +1469,12 @@ export function buildValidationSummary(doc: SkillUsageDoc): string {
   ].join(" ");
 }
 
-export function loadSelectorDrivers(
+export function loadBagakitDrivers(
   repoRoot: string,
   doc: SkillUsageDoc,
   includeUnselected: boolean,
-): SelectorDriverPayload[] {
-  const drivers: SelectorDriverPayload[] = [];
+): BagakitDriverPayload[] {
+  const drivers: BagakitDriverPayload[] = [];
   const seenPaths = new Set<string>();
 
   for (const plan of doc.skill_plan) {
@@ -1490,12 +1490,12 @@ export function loadSelectorDrivers(
       continue;
     }
     const skillName = descriptor.name;
-    const driverRef = descriptor.selector_driver_file;
+    const driverRef = descriptor.bagakit_driver_file;
     if (!driverRef) {
       continue;
     }
 
-    const driverPath = resolvePathInside(descriptor.absolute_dir, driverRef, "selector driver file");
+    const driverPath = resolvePathInside(descriptor.absolute_dir, driverRef, "Bagakit driver file");
     if (seenPaths.has(driverPath)) {
       continue;
     }
@@ -1503,11 +1503,11 @@ export function loadSelectorDrivers(
 
     const rawDriver = parseTomlFile(driverPath);
     if (!isRecord(rawDriver)) {
-      throw new Error(`invalid selector driver file: ${driverPath}`);
+      throw new Error(`invalid Bagakit driver file: ${driverPath}`);
     }
     const version = readNumber(rawDriver, "version");
     if (version !== 1) {
-      throw new Error(`unsupported selector driver version for ${skillName}: ${String(version)}`);
+      throw new Error(`unsupported Bagakit driver version for ${skillName}: ${String(version)}`);
     }
     const insertTarget = readString(rawDriver, "insert_target");
     if (insertTarget !== "bagakit_footer") {
@@ -1518,7 +1518,7 @@ export function loadSelectorDrivers(
       throw new Error(`missing summary_line for ${skillName}`);
     }
 
-    const directives = readRecordArray(rawDriver, "directive").map<SelectorDriverDirective>((entry) => ({
+    const directives = readRecordArray(rawDriver, "directive").map<BagakitDriverDirective>((entry) => ({
       id: readString(entry, "id"),
       when: readString(entry, "when"),
       instruction: readString(entry, "instruction"),
@@ -1547,7 +1547,7 @@ export function loadSelectorDrivers(
   return drivers;
 }
 
-export function renderDriverPack(taskFile: string, drivers: SelectorDriverPayload[]): string {
+export function renderDriverPack(taskFile: string, drivers: BagakitDriverPayload[]): string {
   const lines = [
     "# Bagakit Driver Pack",
     "",
@@ -1555,7 +1555,7 @@ export function renderDriverPack(taskFile: string, drivers: SelectorDriverPayloa
     "",
   ];
   if (drivers.length === 0) {
-    lines.push("No selector drivers were declared by the selected local Bagakit skills.");
+    lines.push("No Bagakit driver files were found for the selected local Bagakit skills.");
     lines.push("");
     return lines.join("\n");
   }

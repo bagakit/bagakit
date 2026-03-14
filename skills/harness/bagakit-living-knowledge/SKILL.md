@@ -4,7 +4,6 @@ description: Use when a repository needs a standalone filesystem-first shared kn
 metadata:
   bagakit:
     harness_layer: l2-behavior
-    selector_driver_file: references/selector-driver.toml
 ---
 
 # Bagakit Living Knowledge

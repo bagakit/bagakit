@@ -100,7 +100,7 @@ function buildPlannedCandidateRow(
   );
   const signals = [
     ...(descriptor?.bagakit ? ["bagakit"] : []),
-    ...(descriptor?.selector_driver_file ? ["driver"] : []),
+    ...(descriptor?.bagakit_driver_file ? ["driver"] : []),
     ...(matchedTokens.length > 0 ? [`objective-match:${matchedTokens.join("+")}`] : []),
   ];
 
@@ -117,7 +117,7 @@ function buildVisibleCandidateSignals(
     ...(preference ? [preference] : []),
     ...(matchedTokens.length > 0 ? [`objective-match:${matchedTokens.join("+")}`] : []),
     ...(descriptor.bagakit ? ["bagakit"] : []),
-    ...(descriptor.selector_driver_file ? ["driver"] : []),
+    ...(descriptor.bagakit_driver_file ? ["driver"] : []),
   ];
 }
 
@@ -142,7 +142,7 @@ export function buildCandidateSurveyReport(doc: SkillUsageDoc, options: Candidat
         preferenceWeight(preference) +
         matchedTokens.length * 10 +
         (entry.bagakit ? 3 : 0) +
-        (entry.selector_driver_file ? 1 : 0);
+        (entry.bagakit_driver_file ? 1 : 0);
       return {
         entry,
         preference,

@@ -12,7 +12,7 @@ Use this spec when deciding:
 
 - whether a finding is still task-local evidence or already repository-level
   learning
-- whether recipes or selector drivers are staying inside task-local scope
+- whether recipes or Bagakit drivers are staying inside task-local scope
 - whether repo-visible skill knowledge still belongs to selector rather than
   evolver
 - how task-local repeated failures may be surfaced for repository-level review
@@ -38,7 +38,7 @@ Those belong respectively in:
 
 | Surface | Primary question | Owns | Does not own |
 | --- | --- | --- | --- |
-| `bagakit-skill-selector` | "Do we have enough skill coverage for this task, and what actually happened when we tried it?" | task-local or host-local coverage preflight, repo-aware candidate discovery, candidate planning, explicit composition, usage evidence, task-local evaluation, task-local recipes, selector-loaded drivers | repository-level decision memory, durable promotion routing, repository-level handoff/archive artifacts, evolver topic state |
+| `bagakit-skill-selector` | "Do we have enough skill coverage for this task, and what actually happened when we tried it?" | task-local or host-local coverage preflight, repo-aware candidate discovery, candidate planning, explicit composition, usage evidence, task-local evaluation, task-local recipes, selector-loaded Bagakit drivers | repository-level decision memory, durable promotion routing, repository-level handoff/archive artifacts, evolver topic state |
 | `bagakit-skill-evolver` | "Which lessons are reusable at repository scope, and what route and durable surface should they take?" | repository-level topic memory, candidate comparison, routing decisions, decision memory, promotion routing, promotion state, durable promotion preparation, repository-level handoff/archive artifacts | raw per-task selector logs, task-local composition control, mandatory wrappers around ordinary work |
 
 The split is about authority, not importance.
@@ -233,7 +233,7 @@ selector into a hidden repository-level control plane.
 
 ## Recipe And Driver Rule
 
-Selector-owned recipes and selector-loaded drivers are task-local aids.
+Selector-owned recipes and selector-loaded Bagakit drivers are task-local aids.
 
 They may define:
 

@@ -4,7 +4,6 @@ description: Brainstorm from Markdown context and convert ideas into actionable 
 metadata:
   bagakit:
     harness_layer: l1-execution
-    selector_driver_file: references/selector-driver.toml
 ---
 
 # Bagakit Brainstorm

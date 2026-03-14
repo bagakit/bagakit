@@ -4,7 +4,6 @@ description: Meta-skill for task-level or host-level skill coverage preflight, e
 metadata:
   bagakit:
     harness_layer: l1-execution
-    selector_driver_file: references/selector-driver.toml
 ---
 
 # bagakit-skill-selector
@@ -165,7 +164,7 @@ Recommended derived outputs:
   - compare visible candidates, recorded availability, and project-local
     preference hints
 - `.bagakit/skill-selector/tasks/<task-slug>/bagakit-drivers.md`
-  - render selector-loaded Bagakit driver guidance
+  - render Bagakit driver guidance from selected local Bagakit skills
 
 ## Operator
 
@@ -470,9 +469,9 @@ repository learning.
 
 ### 8) Driver loading rule
 
-If one planned local skill is Bagakit-namespaced and its `SKILL.md`
-frontmatter declares `metadata.bagakit.selector_driver_file`, selector may load
-that file and render a task-local driver pack.
+If one planned local skill is Bagakit-namespaced and exposes the conventional
+driver payload at `references/bagakit-driver.toml`, selector may load that file
+and render a task-local driver pack.
 
 Recommended output path:
 
@@ -557,7 +556,7 @@ is the canonical intake command for accepting that contract into `.mem_inbox/`.
 - project-local preference hints: `docs/specs/selector-preference-surface.md`
 - schema and field semantics: `references/skill-usage-file-spec.md`
 - project preference file contract: `references/project-preferences-file-spec.md`
-- selector-loaded driver payload: `references/selector-driver.toml`
+- Bagakit driver payload: `references/bagakit-driver.toml`
 - standard composition recipes: `recipes/`
 - starter template: `assets/skill-usage.template.toml`
 - project preference template: `assets/project-preferences.template.toml`

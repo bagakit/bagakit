@@ -20,7 +20,7 @@ required_files = [
   "docs/specs/living-knowledge-system.md",
   "skills/harness/bagakit-living-knowledge/README.md",
   "skills/harness/bagakit-living-knowledge/SKILL.md",
-  "skills/harness/bagakit-living-knowledge/references/selector-driver.toml",
+  "skills/harness/bagakit-living-knowledge/references/bagakit-driver.toml",
   "skills/harness/bagakit-living-knowledge/scripts/bagakit-living-knowledge.sh",
   "skills/harness/bagakit-living-knowledge/scripts/bagakit-living-knowledge.py",
   "skills/harness/bagakit-living-knowledge/playbook/tpl/agents-block-template.md",

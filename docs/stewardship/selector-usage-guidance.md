@@ -59,7 +59,7 @@ skill is actually available, because Bagakit can offer:
 
 - richer metadata
 - selector recipes
-- selector-loaded drivers
+- selector-loaded Bagakit drivers
 - stronger task-local evidence surfaces
 
 This is a preference rule, not an exclusion rule.
@@ -111,7 +111,7 @@ Skill frontmatter may declare selector-relevant metadata such as:
 
 - Bagakit namespace identity
 - harness layer
-- selector driver file path
+- Bagakit driver file path
 
 It must not be treated as a hidden mandatory rule that every task must invoke
 selector first.

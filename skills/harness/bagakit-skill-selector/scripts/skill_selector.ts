@@ -22,7 +22,7 @@ import {
   buildEvolverSignalContract,
   buildValidationSummary,
   createSkillUsageDoc,
-  loadSelectorDrivers,
+  loadBagakitDrivers,
   readSkillUsageDoc,
   renderDriverPack,
   updateEvolverSignalStatuses,
@@ -536,13 +536,13 @@ function cmdDrivers(flags: Map<string, string | boolean>): number {
   const repoRoot = resolvePathFromCwd(readStringFlag(flags, "root") ?? ".");
   const output = readStringFlag(flags, "output");
   const doc = readSkillUsageDoc(filePath);
-  const drivers = loadSelectorDrivers(repoRoot, doc, readBooleanFlag(flags, "include-unselected", false));
+  const drivers = loadBagakitDrivers(repoRoot, doc, readBooleanFlag(flags, "include-unselected", false));
   const rendered = renderDriverPack(requiredString(flags, "file"), drivers);
   if (output) {
     const outputPath = resolvePathFromCwd(output);
     fs.mkdirSync(path.dirname(outputPath), { recursive: true });
     fs.writeFileSync(outputPath, `${rendered}\n`, "utf-8");
-    console.log(`ok: wrote selector driver pack to ${outputPath}`);
+    console.log(`ok: wrote Bagakit driver pack to ${outputPath}`);
     return 0;
   }
   console.log(rendered);

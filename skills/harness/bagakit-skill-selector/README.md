@@ -105,7 +105,7 @@ Rule:
 - explicit composition should be orchestrated through `bagakit-skill-selector`
 - the pairing should normally be logged in `.bagakit/skill-selector/tasks/<task-slug>/skill-usage.toml`
 - if a standard selector recipe was used, record it in `[[recipe_log]]`
-- selector-loaded drivers are task-local reporting guidance, not repository
+- selector-loaded Bagakit drivers are task-local reporting guidance, not repository
   policy
 - frontmatter declarations are metadata, not a hidden mandatory "always use
   selector first" rule
@@ -140,15 +140,15 @@ Current operator status:
 - it can derive a task-local `skill-ranking.md` report
 - it can export or bridge those review suggestions into evolver intake without
   turning selector into a repository-level control plane
-- it renders task-local driver packs for Bagakit skills that declare
-  `metadata.bagakit.selector_driver_file`
+- it renders task-local driver packs for Bagakit skills that expose the
+  conventional driver payload at `references/bagakit-driver.toml`
 - it counts repeated concrete attempts and forces selector-visible backoff once
   one method is stalling
 
 `recipes/` is selector's composition knowledge surface, not a runtime hard
 dependency control plane.
 `evolver` remains the repository-level learning and promotion surface, and
-selector drivers do not change that boundary.
+Bagakit drivers do not change that boundary.
 `project-preferences.toml` remains an optional host-local hint surface, not a
 repository policy surface.
 

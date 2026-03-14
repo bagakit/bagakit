@@ -28,7 +28,7 @@ required_files = [
   "skills/harness/bagakit-brainstorm/references/design-notes.md",
   "skills/harness/bagakit-brainstorm/references/adapter-contract.md",
   "skills/harness/bagakit-brainstorm/references/method-playbook.md",
-  "skills/harness/bagakit-brainstorm/references/selector-driver.toml",
+  "skills/harness/bagakit-brainstorm/references/bagakit-driver.toml",
   "skills/harness/bagakit-brainstorm/references/tpl/archive.md",
   "skills/harness/bagakit-brainstorm/references/tpl/expert_forum.md",
   "skills/harness/bagakit-brainstorm/references/tpl/finding_and_analyze.md",

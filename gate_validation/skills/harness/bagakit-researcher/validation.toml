@@ -22,7 +22,7 @@ required_dirs = [
 required_files = [
   "skills/harness/bagakit-researcher/README.md",
   "skills/harness/bagakit-researcher/SKILL.md",
-  "skills/harness/bagakit-researcher/references/selector-driver.toml",
+  "skills/harness/bagakit-researcher/references/bagakit-driver.toml",
   "skills/harness/bagakit-researcher/references/research-workspace-spec.md",
   "skills/harness/bagakit-researcher/scripts/bagakit-researcher.sh",
   "skills/harness/bagakit-researcher/scripts/bagakit-researcher.py",
