@@ -51,10 +51,10 @@ function preferenceLabel(value: ProjectPreferenceValue | undefined): string {
 
 function preferenceWeight(value: ProjectPreferenceValue | undefined): number {
   if (value === "prefer") {
-    return 100;
+    return 2;
   }
   if (value === "avoid") {
-    return -100;
+    return -2;
   }
   return 0;
 }
@@ -100,6 +100,7 @@ function buildVisibleCandidateSignals(
   matchedTokens: string[],
 ): string[] {
   return [
+    "catalog-visible",
     ...(preference ? [preference] : []),
     ...(matchedTokens.length > 0 ? [`objective-match:${matchedTokens.join("+")}`] : []),
     ...(descriptor.bagakit ? ["bagakit"] : []),
@@ -155,8 +156,8 @@ export function buildCandidateSurveyReport(doc: SkillUsageDoc, options: Candidat
     `Task: ${doc.task_id || "<unset>"}`,
     `Objective: ${doc.objective || "<unset>"}`,
     `Query: ${queryText || "<unset>"}`,
-    `Catalog Root: ${options.catalogRoot}`,
-    `Preferences: ${options.preferenceFilePath ?? "none"}`,
+    `Catalog Source: explicit selector catalog root`,
+    `Preferences: ${options.preferenceFilePath ? "present" : "none"}`,
     "",
     "Summary:",
     `- planned_candidates = ${doc.skill_plan.length}`,
@@ -201,7 +202,7 @@ export function buildCandidateSurveyReport(doc: SkillUsageDoc, options: Candidat
   } else {
     for (const item of shortlist) {
       lines.push(
-        `| ${item.entry.skill_id} | ${item.entry.family ?? "-"} | available | ${preferenceLabel(item.preference)} | ${formatSignals(item.signals)} | ${item.entry.description || "-"} |`,
+        `| ${item.entry.skill_id} | ${item.entry.family ?? "-"} | unknown | ${preferenceLabel(item.preference)} | ${formatSignals(item.signals)} | ${item.entry.description || "-"} |`,
       );
     }
   }
@@ -216,7 +217,8 @@ export function buildCandidateSurveyReport(doc: SkillUsageDoc, options: Candidat
   lines.push("- `Visibility` distinguishes repo-visible canonical local skills from task-declared-only candidates.");
   lines.push("- `Availability` for planned candidates is the recorded task-local judgment in `[[skill_plan]]`, not an automatic repository policy.");
   lines.push("- `Project Preference Hints` are optional host-local hints; they do not change selector/evolver authority.");
-  lines.push("- `Visible Candidate Shortlist` is a deterministic comparison aid that prefers explicit project hints, objective token overlap, Bagakit namespace, and driver declaration.");
+  lines.push("- `Visible Candidate Shortlist` keeps catalog-only candidates at `Availability = unknown` until one task-local host check records availability explicitly.");
+  lines.push("- `Visible Candidate Shortlist` is a deterministic comparison aid that lightly biases project hints, but still lets objective token overlap lead the shortlist.");
   lines.push("");
 
   return `${lines.join("\n")}\n`;

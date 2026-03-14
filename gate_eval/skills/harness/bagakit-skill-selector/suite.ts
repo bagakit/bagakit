@@ -278,5 +278,71 @@ export const SUITE: EvalSuiteDefinition = {
         }
       },
     },
+    {
+      id: "candidate-survey-without-preferences-is-noop",
+      title: "Candidate Survey Without Preferences Is A No-Op",
+      summary: "Selector should still produce a readable candidate survey when no project-preferences file exists.",
+      focus: ["candidate-survey", "project-preferences", "negative-path"],
+      run: (context) => {
+        const { repoRoot } = context;
+        const tempRepo = createTempDir("bagakit-skill-selector-survey-");
+        const replacements = registerTempRepo(context, tempRepo);
+        try {
+          const target = path.join(tempRepo, ".bagakit", "skill-selector", "tasks", "survey", "skill-usage.toml");
+          const survey = path.join(tempRepo, ".bagakit", "skill-selector", "tasks", "survey", "candidate-survey.md");
+          const script = path.join(repoRoot, "skills", "harness", "bagakit-skill-selector", "scripts", "skill_selector.ts");
+          const run = (argv: string[], label: string) => {
+            const result = runCommand("node", ["--experimental-strip-types", script, ...argv], { cwd: repoRoot, replacements });
+            expectOk(result, label);
+            return result;
+          };
+
+          run(["init", "--file", target, "--task-id", "survey-task", "--objective", "find the right selector-adjacent skill", "--owner", "validator"], "init survey");
+          run(["preflight", "--file", target, "--answer", "partial", "--gap-summary", "need explicit comparison", "--decision", "compare_then_execute", "--status", "in_progress"], "preflight survey");
+          run([
+            "plan",
+            "--file",
+            target,
+            "--skill-id",
+            "bagakit-skill-selector",
+            "--kind",
+            "local",
+            "--source",
+            "skills/harness/bagakit-skill-selector",
+            "--why",
+            "compare selector-adjacent options",
+            "--expected-impact",
+            "keep candidate coverage explicit",
+            "--availability",
+            "available",
+            "--availability-detail",
+            "available as a canonical local skill in the current catalog root",
+          ], "plan survey");
+          run(["candidate-survey", "--file", target, "--root", repoRoot, "--output", survey], "candidate-survey no prefs");
+
+          const surveyText = fs.readFileSync(survey, "utf8");
+          assert.ok(surveyText.includes("Candidate Survey"));
+          assert.ok(surveyText.includes("Preferences: none"));
+          assert.ok(surveyText.includes("| bagakit-skill-selector | local | repo_visible | available | yes | neutral |"));
+
+          return {
+            assertions: [
+              "candidate survey remains usable when no project-preferences file exists",
+              "missing project-preferences file stays a no-op instead of a validation or runtime failure",
+            ],
+            commands: [
+              `node --experimental-strip-types ${script} candidate-survey --file <temp-repo>/.bagakit/skill-selector/tasks/survey/skill-usage.toml --root . --output <temp-repo>/.bagakit/skill-selector/tasks/survey/candidate-survey.md`,
+            ],
+            artifacts: [{ label: "candidate-survey", path: survey }],
+            outputs: {
+              survey_header: surveyText.split("\n").slice(0, 6).join(" | "),
+            },
+            replacements,
+          };
+        } finally {
+          cleanupTempDir(tempRepo, context.keepTemp);
+        }
+      },
+    },
   ],
 };
