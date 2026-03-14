@@ -3,6 +3,11 @@
 `gate_eval/` is the maintainer-only home for evaluation and benchmark assets
 that are not release-blocking validation.
 
+`non-gating` here describes execution semantics, not required repository
+presence.
+One skill's structure validation may still require that a non-gating eval slice
+exists as part of the canonical repository layout.
+
 Use this tree for:
 
 - comparative eval cases

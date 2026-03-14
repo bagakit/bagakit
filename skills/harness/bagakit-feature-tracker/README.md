@@ -54,6 +54,9 @@ bash "$BAGAKIT_FEATURE_TRACKER_SKILL_DIR/scripts/feature-tracker.sh" start-task 
   --task T-001
 ```
 
+`--slug` is planning metadata only.
+It does not affect the public feature id.
+
 ## Runtime State
 
 Runtime state lives under:

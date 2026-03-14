@@ -30,12 +30,17 @@ Stable tracker-owned runtime files live under:
 - `.bagakit/feature-tracker/features/<feature-id>/tasks.json`
 - `.bagakit/feature-tracker/features-archived/<feature-id>/`
 - `.bagakit/feature-tracker/features-discarded/<feature-id>/`
+- `.bagakit/feature-tracker/local/issuer.json`
 
-Active planning truth lives under:
+Tracked planning truth lives under:
 
 - `features/`
-- `index/`
+- `index/features.json`
 - `runtime-policy.json`
+
+Tracked projections live under:
+
+- `index/FEATURES_DAG.json`
 
 Closed planning truth lives under:
 
@@ -55,7 +60,7 @@ Required boundary:
 - active and closed feature records must stay valid when local issuer state is
   absent on another machine
 
-Current canonical implementation surfaces are:
+Stable local issuer surfaces are:
 
 - `.bagakit/feature-tracker/local/issuer.json`
 - one git-local config key owned by the tracker implementation
@@ -65,6 +70,8 @@ Current canonical implementation surfaces are:
 - `features.json` owns the ordered feature index and tracked issuance cursor.
 - `state.json` owns one feature's lifecycle and workspace truth.
 - `tasks.json` owns one feature's task truth.
+- `runtime-policy.json` owns tracker policy defaults, gate policy, and doctor
+  thresholds.
 - `FEATURES_DAG.json` owns the latest dependency projection, not the feature
   records themselves.
 - archive and discard directories own closed feature records after closeout.
@@ -75,6 +82,22 @@ Implications:
 - local issuer state may help create new ids but may not redefine tracked
   feature truth
 - external bridges may read tracker truth but do not become tracker truth
+
+## Workspace Mode Contract
+
+Stable workspace modes are:
+
+- `proposal_only`
+- `current_tree`
+- `worktree`
+
+Required invariants:
+
+- `proposal_only` carries no dedicated branch or worktree assignment
+- `current_tree` carries no dedicated branch or worktree assignment
+- `worktree` carries branch, worktree name, and worktree path together
+
+The mode set is part of tracker contract, not a transient implementation detail.
 
 ## Closeout Rule
 

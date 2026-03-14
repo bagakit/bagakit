@@ -58,6 +58,9 @@ bash "$BAGAKIT_FEATURE_TRACKER_SKILL_DIR/scripts/feature-tracker.sh" create-feat
   --workspace-mode proposal_only
 ```
 
+`--slug` is planning metadata only.
+It does not affect the public feature id.
+
 ## Public Commands
 
 - `feature-tracker.sh check-reference-readiness`

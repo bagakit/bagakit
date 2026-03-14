@@ -115,7 +115,7 @@ Boundary rules:
 - local issuer state must not be committed
 - git-local guard material must not be copied into tracker runtime json
 
-Current canonical implementation surfaces:
+Stable local issuer surfaces are:
 
 - `.bagakit/feature-tracker/local/issuer.json`
 - one git-local config key owned by the tracker implementation
