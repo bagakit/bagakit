@@ -94,3 +94,8 @@ External bridges are intentionally out of scope for this skill.
 The runtime payload is intentionally smaller than the canonical repo-spec layer.
 Use the specs above when you need the durable contract rather than the local
 operator entrypoint.
+
+Task SSOT lives only in `tasks.json`.
+Feature helper markdown files such as `proposal.md`, `spec-delta.md`, and
+`ui-verification.md` live at the feature root instead of nested helper
+directories.

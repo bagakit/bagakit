@@ -78,7 +78,9 @@ Stable local issuer surfaces are:
 
 Implications:
 
-- markdown task lists are projections of `tasks.json`
+- `tasks.json` is the only task source of truth
+- root-level helper markdown files such as `proposal.md`, `spec-delta.md`, and
+  `ui-verification.md` are operator aids, not authoritative task state
 - local issuer state may help create new ids but may not redefine tracked
   feature truth
 - external bridges may read tracker truth but do not become tracker truth

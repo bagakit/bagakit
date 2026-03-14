@@ -67,6 +67,7 @@ export const SUITE: EvalSuiteDefinition = {
           const tasksPath = path.join(tempRepo, ".bagakit", "feature-tracker", "features", featId, "tasks.json");
           const dagPath = path.join(tempRepo, ".bagakit", "feature-tracker", "index", "FEATURES_DAG.json");
           const issuerPath = path.join(tempRepo, ".bagakit", "feature-tracker", "local", "issuer.json");
+          const featureDir = path.join(tempRepo, ".bagakit", "feature-tracker", "features", featId);
           const statePayload = JSON.parse(fs.readFileSync(statePath, "utf8")) as Record<string, unknown>;
           const tasksPayload = JSON.parse(fs.readFileSync(tasksPath, "utf8")) as { tasks: Array<Record<string, unknown>> };
           const dagPayload = JSON.parse(fs.readFileSync(dagPath, "utf8")) as Record<string, unknown>;
@@ -79,6 +80,12 @@ export const SUITE: EvalSuiteDefinition = {
           assert.ok(JSON.stringify(statusPayload).includes("T-001"));
           assert.match(JSON.stringify(dagPayload), new RegExp(featId));
           assert.equal(issuerPayload.namespace, featId.slice(5, 7));
+          assert.equal(fs.existsSync(path.join(featureDir, "tasks.md")), false);
+          assert.equal(fs.existsSync(path.join(featureDir, "spec-deltas")), false);
+          assert.equal(fs.existsSync(path.join(featureDir, "gate")), false);
+          assert.equal(fs.existsSync(path.join(featureDir, "artifacts")), false);
+          assert.equal(fs.existsSync(path.join(featureDir, "spec-delta.md")), true);
+          assert.equal(fs.existsSync(path.join(featureDir, "ui-verification.md")), true);
           assert.equal("created_at" in statePayload, false);
           assert.equal("updated_at" in statePayload, false);
           assert.equal("generated_at" in dagPayload, false);

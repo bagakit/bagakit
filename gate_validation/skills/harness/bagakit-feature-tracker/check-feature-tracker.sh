@@ -92,6 +92,7 @@ state_path = root / ".bagakit" / "feature-tracker" / "features" / feature_id / "
 tasks_path = root / ".bagakit" / "feature-tracker" / "features" / feature_id / "tasks.json"
 dag_path = root / ".bagakit" / "feature-tracker" / "index" / "FEATURES_DAG.json"
 issuer_path = root / ".bagakit" / "feature-tracker" / "local" / "issuer.json"
+feature_dir = root / ".bagakit" / "feature-tracker" / "features" / feature_id
 
 index_payload = json.loads(index_path.read_text(encoding="utf-8"))
 state_payload = json.loads(state_path.read_text(encoding="utf-8"))
@@ -109,6 +110,12 @@ assert "archived_at" not in state_payload
 assert "discarded_at" not in state_payload
 assert "last_checked_at" not in state_payload["gate"]
 assert all("at" not in item for item in state_payload.get("history", []))
+assert not (feature_dir / "tasks.md").exists()
+assert not (feature_dir / "spec-deltas").exists()
+assert not (feature_dir / "gate").exists()
+assert not (feature_dir / "artifacts").exists()
+assert (feature_dir / "spec-delta.md").exists()
+assert (feature_dir / "ui-verification.md").exists()
 task = tasks_payload["tasks"][0]
 for key in ("last_gate_at", "started_at", "finished_at", "updated_at"):
     assert key not in task

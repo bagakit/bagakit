@@ -44,6 +44,8 @@ REFERENCE_SKILLS_ENV = "BAGAKIT_REFERENCE_SKILLS_HOME"
 RUNTIME_POLICY_FILENAME = "runtime-policy.json"
 LEGACY_CONFIG_FILENAME = "config.json"
 FEATURES_DAG_FILENAME = "FEATURES_DAG.json"
+FEATURE_SPEC_DELTA_FILENAME = "spec-delta.md"
+FEATURE_UI_VERIFICATION_FILENAME = "ui-verification.md"
 
 
 def sha256_bytes(data: bytes) -> str:
@@ -363,6 +365,15 @@ class HarnessPaths:
 
     def feat_summary(self, feat_id: str, *, status: str | None = None) -> Path:
         return self.feat_dir(feat_id, status=status) / "summary.md"
+
+    def feat_spec_delta(self, feat_id: str, *, status: str | None = None) -> Path:
+        return self.feat_dir(feat_id, status=status) / FEATURE_SPEC_DELTA_FILENAME
+
+    def feat_ui_verification(self, feat_id: str, *, status: str | None = None) -> Path:
+        return self.feat_dir(feat_id, status=status) / FEATURE_UI_VERIFICATION_FILENAME
+
+    def feat_artifacts_dir(self, feat_id: str, *, status: str | None = None) -> Path:
+        return self.feat_dir(feat_id, status=status) / "artifacts"
 
 
 def infer_next_feat_sequence(index_data: dict[str, Any]) -> int:
@@ -721,20 +732,7 @@ def save_feat(paths: HarnessPaths, feat_id: str, state: dict[str, Any], tasks: d
     status = str(state.get("status") or "")
     save_json(paths.feat_state(feat_id, status=status), state)
     save_json(paths.feat_tasks(feat_id, status=status), tasks)
-    sync_tasks_markdown(paths, feat_id, tasks, status=status)
     upsert_feat_index(paths, state)
-
-
-def sync_tasks_markdown(
-    paths: HarnessPaths, feat_id: str, tasks: dict[str, Any], *, status: str | None = None
-) -> None:
-    target = paths.feat_dir(feat_id, status=status) / "tasks.md"
-    rows: list[str] = [f"# Feature Tasks: {feat_id}", "", "JSON SSOT: `tasks.json`", "", "## Task Checklist"]
-    for item in tasks.get("tasks", []):
-        checked = "x" if item.get("status") == "done" else " "
-        rows.append(f"- [{checked}] {item.get('id', '<id>')} {item.get('title', '')}")
-    rows += ["", "## Status Legend", "- todo", "- in_progress", "- done", "- blocked", ""]
-    write_text(target, "\n".join(rows))
 
 
 def find_task(tasks: dict[str, Any], task_id: str) -> dict[str, Any]:
@@ -1246,9 +1244,6 @@ def cmd_feat_new(args: argparse.Namespace) -> int:
 
     feat_dir = paths.feat_dir(feat_id)
     feat_dir.mkdir(parents=True, exist_ok=False)
-    (feat_dir / "spec-deltas").mkdir(parents=True, exist_ok=True)
-    (feat_dir / "artifacts").mkdir(parents=True, exist_ok=True)
-    (feat_dir / "gate").mkdir(parents=True, exist_ok=True)
 
     proposal = load_template(skill_dir, "tpl/feature-proposal-template.md")
     proposal = (
@@ -1258,15 +1253,8 @@ def cmd_feat_new(args: argparse.Namespace) -> int:
     )
     write_text(feat_dir / "proposal.md", proposal)
 
-    tasks_md = (
-        load_template(skill_dir, "tpl/feature-tasks-template.md")
-        .replace("<feat-id>", feat_id)
-        .replace("<feature-id>", feat_id)
-    )
-    write_text(feat_dir / "tasks.md", tasks_md)
-
     spec_delta = load_template(skill_dir, "tpl/feature-spec-delta-template.md").replace("<capability>", "core")
-    write_text(feat_dir / "spec-deltas" / "core.md", spec_delta)
+    write_text(paths.feat_spec_delta(feat_id), spec_delta)
 
     state: dict[str, Any] = {
         "version": 1,
@@ -1322,7 +1310,7 @@ def cmd_feat_new(args: argparse.Namespace) -> int:
 
     save_feat(paths, feat_id, state, tasks)
     write_text(
-        feat_dir / "gate" / "ui-verification.md",
+        paths.feat_ui_verification(feat_id),
         load_template(skill_dir, "tpl/ui-gate-template.md"),
     )
 
@@ -1589,7 +1577,6 @@ def cmd_task_gate(args: argparse.Namespace) -> int:
     ensure_harness_exists(paths)
 
     state, tasks = load_feat(paths, args.feat)
-    feat_dir = paths.feat_dir(args.feat, status=str(state.get("status") or ""))
     task = find_task(tasks, args.task)
     if task.get("status") != "in_progress":
         eprint(f"error: task {args.task} must be in_progress before gate")
@@ -1606,7 +1593,7 @@ def cmd_task_gate(args: argparse.Namespace) -> int:
     fail_reasons: list[str] = []
 
     if project_type == "ui":
-        evidence = feat_dir / "gate" / "ui-verification.md"
+        evidence = paths.feat_ui_verification(args.feat, status=str(state.get("status") or ""))
         ui_errors = validate_ui_evidence(evidence)
         if ui_errors:
             failed = True
@@ -1647,7 +1634,7 @@ def cmd_task_gate(args: argparse.Namespace) -> int:
 
     gate_result = "fail" if failed else "pass"
 
-    logs_dir = feat_dir / "artifacts"
+    logs_dir = paths.feat_artifacts_dir(args.feat, status=str(state.get("status") or ""))
     logs_dir.mkdir(parents=True, exist_ok=True)
     next_round = int(state.setdefault("counters", {}).get("round_count", 0)) + 1
     log_file = next_numbered_path(logs_dir, prefix=f"gate-{args.task}-r{next_round}-", suffix=".log")
@@ -1816,12 +1803,11 @@ def cmd_task_commit(args: argparse.Namespace) -> int:
         return 1
 
     msg = build_commit_message(state, task, args.summary.strip(), task_status, gate_result)
+    artifacts_dir = paths.feat_artifacts_dir(args.feat, status=str(state.get("status") or ""))
     msg_file = (
         Path(args.message_out).resolve()
         if args.message_out
-        else feat_dir
-        / "artifacts"
-        / next_numbered_path(feat_dir / "artifacts", prefix=f"commit-{args.task}-", suffix=".msg").name
+        else artifacts_dir / next_numbered_path(artifacts_dir, prefix=f"commit-{args.task}-", suffix=".msg").name
     )
     write_text(msg_file, msg)
 

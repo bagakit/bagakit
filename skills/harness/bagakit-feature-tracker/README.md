@@ -81,6 +81,11 @@ Stable specs:
 The skill directory is the operator entry surface.
 The two specs above are the durable repository contract.
 
+Task SSOT lives only in `tasks.json`.
+Feature helper markdown files such as `proposal.md`, `spec-delta.md`, and
+`ui-verification.md` live at the feature root instead of nested helper
+directories.
+
 ## Public Commands
 
 - `check-reference-readiness`

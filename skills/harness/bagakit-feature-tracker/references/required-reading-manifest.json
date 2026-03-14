@@ -15,9 +15,9 @@
       "required": true
     },
     {
-      "id": "feature-tracker-task-template",
+      "id": "feature-tracker-contract",
       "type": "file",
-      "location": "tpl/feature-tasks-template.md",
+      "location": "../../../../docs/specs/feature-tracker-contract.md",
       "required": true
     }
   ]
