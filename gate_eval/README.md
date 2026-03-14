@@ -34,7 +34,6 @@ Current implemented slices:
   - current families under eval ownership:
     - `skills/harness/bagakit-brainstorm/`
     - `skills/harness/bagakit-feature-tracker/`
-    - `skills/harness/bagakit-feature-tracker-openspec-adapter/`
     - `skills/harness/bagakit-flow-runner/`
     - `skills/harness/bagakit-living-knowledge/`
     - `skills/harness/bagakit-researcher/`

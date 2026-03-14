@@ -25,6 +25,8 @@ It does not own:
 - external system bridges
 
 Use `bagakit-flow-runner` for repeated execution flow.
+For tiny single-shot changes, work directly in the repository tree and keep the
+task local instead of creating tracker lifecycle state.
 
 ## Quick Start
 
@@ -64,15 +66,24 @@ Runtime state lives under:
 - `.bagakit/feature-tracker/features-archived/<feature-id>/`
 - `.bagakit/feature-tracker/features-discarded/<feature-id>/`
 
-Stable spec:
+Local-only issuer state lives under:
 
+- `.bagakit/feature-tracker/local/issuer.json`
+
+Stable specs:
+
+- `docs/specs/feature-tracker-contract.md`
 - `docs/specs/feature-tracker-id-issuance.md`
+
+The skill directory is the operator entry surface.
+The two specs above are the durable repository contract.
 
 ## Public Commands
 
 - `check-reference-readiness`
 - `validate-reference-report`
 - `initialize-tracker`
+- `rekey-local-issuer`
 - `create-feature`
 - `assign-feature-workspace`
 - `show-feature-status`

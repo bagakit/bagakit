@@ -1,7 +1,6 @@
 {
   "version": 1,
   "generated_by": "bagakit-feature-tracker",
-  "generated_at": "1970-01-01T00:00:00Z",
   "execution_mode": "serial",
   "max_parallel": 1,
   "parallel_recommendation": {

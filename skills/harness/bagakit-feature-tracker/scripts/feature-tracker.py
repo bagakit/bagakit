@@ -15,13 +15,24 @@ import tarfile
 import urllib.error
 import urllib.request
 from dataclasses import dataclass
-from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterable
 
 sys.dont_write_bytecode = True
 
-FEAT_ID_RE = re.compile(r"^f-\d{8}-[a-z0-9][a-z0-9-]*$")
+FEATURE_ID_ALPHABET = "23456789abcdefghjkmnpqrstuvwxyz"
+FEATURE_ID_BASE = len(FEATURE_ID_ALPHABET)
+FEATURE_ID_SCHEME = "feature-tracker-id-v1-c3n2g4"
+FEAT_CURSOR_WIDTH = 3
+FEAT_NAMESPACE_WIDTH = 2
+FEAT_GUARD_WIDTH = 4
+LOCAL_GUARD_KEY_WIDTH = 12
+LOCAL_ISSUER_VERSION = 1
+LOCAL_ISSUER_FILENAME = "issuer.json"
+LOCAL_GUARD_KEY_CONFIG = "bagakit.feature-tracker.guard-key"
+CURRENT_FEAT_ID_RE = re.compile(r"^f-[23456789abcdefghjkmnpqrstuvwxyz]{9}$")
+TRANSITIONAL_FEAT_ID_RE = re.compile(r"^f-[0-9a-z]{7}$")
+LEGACY_FEAT_ID_RE = re.compile(r"^f-\d{8}-[a-z0-9][a-z0-9-]*$")
 TASK_ID_RE = re.compile(r"^T-\d{3}$")
 FEAT_STATUS = {"proposal", "ready", "in_progress", "blocked", "done", "archived", "discarded"}
 TASK_STATUS = {"todo", "in_progress", "done", "blocked"}
@@ -33,19 +44,6 @@ REFERENCE_SKILLS_ENV = "BAGAKIT_REFERENCE_SKILLS_HOME"
 RUNTIME_POLICY_FILENAME = "runtime-policy.json"
 LEGACY_CONFIG_FILENAME = "config.json"
 FEATURES_DAG_FILENAME = "FEATURES_DAG.json"
-
-
-def utc_now() -> str:
-    return (
-        datetime.now(timezone.utc)
-        .replace(microsecond=0)
-        .isoformat()
-        .replace("+00:00", "Z")
-    )
-
-
-def utc_day() -> str:
-    return datetime.now(timezone.utc).strftime("%Y%m%d")
 
 
 def sha256_bytes(data: bytes) -> str:
@@ -88,6 +86,101 @@ def write_text(path: Path, text: str) -> None:
 
 def eprint(msg: str) -> None:
     print(msg, file=sys.stderr)
+
+
+def is_public_token(raw: str, *, width: int) -> bool:
+    return len(raw) == width and all(ch in FEATURE_ID_ALPHABET for ch in raw)
+
+
+def encode_public_token(value: int, *, width: int) -> str:
+    if value < 0:
+        raise SystemExit("error: public token encoding requires non-negative integers")
+    if value == 0:
+        encoded = FEATURE_ID_ALPHABET[0]
+    else:
+        chars: list[str] = []
+        current = value
+        while current:
+            current, remainder = divmod(current, FEATURE_ID_BASE)
+            chars.append(FEATURE_ID_ALPHABET[remainder])
+        encoded = "".join(reversed(chars))
+    if len(encoded) > width:
+        raise SystemExit(f"error: {FEATURE_ID_SCHEME} exhausted for width {width}")
+    return encoded.rjust(width, FEATURE_ID_ALPHABET[0])
+
+
+def public_token_int(raw: str) -> int:
+    value = 0
+    for ch in raw:
+        value = value * FEATURE_ID_BASE + FEATURE_ID_ALPHABET.index(ch)
+    return value
+
+
+def short_hash_token(text: str, *, width: int) -> str:
+    digest = hashlib.blake2s(text.encode("utf-8"), digest_size=8).digest()
+    return encode_public_token(int.from_bytes(digest, "big") % (FEATURE_ID_BASE ** width), width=width)
+
+
+def random_token(*, width: int = 8) -> str:
+    return short_hash_token(os.urandom(16).hex(), width=width)
+
+
+def is_valid_feat_id(feat_id: str) -> bool:
+    return bool(CURRENT_FEAT_ID_RE.match(feat_id) or TRANSITIONAL_FEAT_ID_RE.match(feat_id) or LEGACY_FEAT_ID_RE.match(feat_id))
+
+
+def parse_current_feat_cursor(feat_id: str) -> int | None:
+    if not CURRENT_FEAT_ID_RE.match(feat_id):
+        return None
+    payload = feat_id.removeprefix("f-")
+    return public_token_int(payload[:FEAT_CURSOR_WIDTH])
+
+
+def parse_current_feat_namespace(feat_id: str) -> str | None:
+    if not CURRENT_FEAT_ID_RE.match(feat_id):
+        return None
+    payload = feat_id.removeprefix("f-")
+    start = FEAT_CURSOR_WIDTH
+    end = start + FEAT_NAMESPACE_WIDTH
+    return payload[start:end]
+
+
+def parse_transitional_feat_sequence(feat_id: str) -> int | None:
+    if not TRANSITIONAL_FEAT_ID_RE.match(feat_id):
+        return None
+    payload = feat_id.removeprefix("f-")
+    try:
+        return int(payload[:4], 36)
+    except ValueError:
+        return None
+
+
+def feat_sort_key(feat_id: str) -> tuple[int, int | str]:
+    if LEGACY_FEAT_ID_RE.match(feat_id):
+        return (0, feat_id)
+    seq = parse_transitional_feat_sequence(feat_id)
+    if seq is not None:
+        return (1, seq)
+    seq = parse_current_feat_cursor(feat_id)
+    if seq is not None:
+        return (2, seq)
+    return (3, feat_id)
+
+
+def history_event(action: str, detail: str) -> dict[str, str]:
+    return {"action": action, "detail": detail}
+
+
+def next_numbered_path(directory: Path, *, prefix: str, suffix: str) -> Path:
+    pattern = re.compile(rf"^{re.escape(prefix)}(\d+){re.escape(suffix)}$")
+    next_number = 1
+    if directory.exists():
+        for entry in directory.iterdir():
+            match = pattern.match(entry.name)
+            if not match:
+                continue
+            next_number = max(next_number, int(match.group(1)) + 1)
+    return directory / f"{prefix}{next_number:04d}{suffix}"
 
 
 def run_cmd(cmd: list[str], *, cwd: Path | None = None) -> subprocess.CompletedProcess[str]:
@@ -218,6 +311,10 @@ class HarnessPaths:
         return self.harness_dir / "artifacts"
 
     @property
+    def local_dir(self) -> Path:
+        return self.harness_dir / "local"
+
+    @property
     def index_file(self) -> Path:
         return self.index_dir / "features.json"
 
@@ -245,6 +342,10 @@ class HarnessPaths:
     def ref_report_md(self) -> Path:
         return self.artifacts_dir / "ref-read-report.md"
 
+    @property
+    def issuer_file(self) -> Path:
+        return self.local_dir / LOCAL_ISSUER_FILENAME
+
     def feat_dir(self, feat_id: str, *, status: str | None = None) -> Path:
         if status == "archived":
             base = self.feats_archived_dir
@@ -264,17 +365,205 @@ class HarnessPaths:
         return self.feat_dir(feat_id, status=status) / "summary.md"
 
 
+def infer_next_feat_sequence(index_data: dict[str, Any]) -> int:
+    max_seen = -1
+    for item in index_data.get("features", []):
+        feat_id = str(item.get("feat_id") or "")
+        seq = parse_current_feat_cursor(feat_id)
+        if seq is None:
+            seq = parse_transitional_feat_sequence(feat_id)
+        if seq is not None:
+            max_seen = max(max_seen, seq)
+    return max_seen + 1
+
+
+def ensure_feature_id_issuance(index_data: dict[str, Any]) -> tuple[dict[str, Any], bool]:
+    changed = False
+    legacy_allocator = index_data.pop("id_allocator", None)
+    issuance = index_data.get("feature_id_issuance")
+    if not isinstance(issuance, dict):
+        issuance = {}
+        index_data["feature_id_issuance"] = issuance
+        changed = True
+
+    scheme = str(issuance.get("scheme") or "")
+    if scheme != FEATURE_ID_SCHEME:
+        issuance["scheme"] = FEATURE_ID_SCHEME
+        changed = True
+
+    inferred_next = infer_next_feat_sequence(index_data)
+    raw_next = issuance.get("next_cursor")
+    legacy_next = legacy_allocator.get("next") if isinstance(legacy_allocator, dict) else None
+    baseline_next = max(
+        inferred_next,
+        int(legacy_next) if isinstance(legacy_next, int) else 0,
+        int(raw_next) if isinstance(raw_next, int) else 0,
+    )
+    if issuance.get("next_cursor") != baseline_next:
+        issuance["next_cursor"] = baseline_next
+        changed = True
+
+    return issuance, changed
+
+
+def normalize_index_data(index_data: dict[str, Any]) -> None:
+    if not isinstance(index_data.get("features"), list):
+        index_data["features"] = []
+    index_data.pop("updated_at", None)
+    ensure_feature_id_issuance(index_data)
+
+
+def normalize_history(items: Any) -> list[dict[str, str]]:
+    if not isinstance(items, list):
+        return []
+    out: list[dict[str, str]] = []
+    for raw in items:
+        if isinstance(raw, dict):
+            action = str(raw.get("action") or "").strip()
+            detail = str(raw.get("detail") or "").strip()
+            if action:
+                out.append(history_event(action, detail))
+        elif raw is not None:
+            text = str(raw).strip()
+            if text:
+                out.append(history_event("note", text))
+    return out
+
+
+def normalize_state_payload(state: dict[str, Any]) -> None:
+    for key in ("created_at", "updated_at", "archived_at", "discarded_at"):
+        state.pop(key, None)
+    gate = state.get("gate")
+    if isinstance(gate, dict):
+        gate.pop("last_checked_at", None)
+    history = normalize_history(state.get("history"))
+    if history:
+        state["history"] = history
+    else:
+        state.pop("history", None)
+
+
+def normalize_tasks_payload(tasks: dict[str, Any]) -> None:
+    tasks.pop("updated_at", None)
+    if not isinstance(tasks.get("tasks"), list):
+        return
+    for item in tasks["tasks"]:
+        if not isinstance(item, dict):
+            continue
+        for key in ("last_gate_at", "started_at", "finished_at", "updated_at"):
+            item.pop(key, None)
+
+
+def load_local_issuer(paths: HarnessPaths) -> dict[str, Any] | None:
+    if not paths.issuer_file.exists():
+        return None
+    payload = load_json(paths.issuer_file)
+    if not isinstance(payload, dict):
+        raise SystemExit(f"error: invalid local issuer schema: {paths.issuer_file}")
+    return payload
+
+
+def tracked_paths_under(root: Path, rel_path: Path) -> list[str]:
+    cp = run_cmd(["git", "-C", str(root), "ls-files", "--", rel_path.as_posix()])
+    if cp.returncode != 0:
+        return []
+    return [line.strip() for line in cp.stdout.splitlines() if line.strip()]
+
+
+def git_local_config_get(root: Path, key: str) -> str:
+    cp = run_cmd(["git", "-C", str(root), "config", "--local", "--get", key])
+    if cp.returncode != 0:
+        return ""
+    return cp.stdout.strip()
+
+
+def git_local_config_set(root: Path, key: str, value: str) -> None:
+    cp = run_cmd(["git", "-C", str(root), "config", "--local", key, value])
+    if cp.returncode != 0:
+        raise SystemExit(cp.stderr.strip() or cp.stdout.strip() or f"error: failed to set git config {key}")
+
+
+def used_current_namespaces(paths: HarnessPaths) -> set[str]:
+    namespaces: set[str] = set()
+    if not paths.index_file.exists():
+        return namespaces
+    for item in load_index(paths).get("features", []):
+        namespace = parse_current_feat_namespace(str(item.get("feat_id") or ""))
+        if namespace:
+            namespaces.add(namespace)
+    return namespaces
+
+
+def choose_local_namespace(paths: HarnessPaths, *, exclude: set[str] | None = None) -> str:
+    blocked = used_current_namespaces(paths) | (exclude or set())
+    for _ in range(FEATURE_ID_BASE ** FEAT_NAMESPACE_WIDTH):
+        namespace = random_token(width=FEAT_NAMESPACE_WIDTH)
+        if namespace not in blocked:
+            return namespace
+    raise SystemExit("error: no free local issuer namespace available for the current tracker scheme")
+
+
+def ensure_local_issuer_state(root: Path, paths: HarnessPaths, *, force_rotate: bool = False) -> dict[str, Any]:
+    existing = load_local_issuer(paths)
+    current_namespace = str(existing.get("namespace") or "").strip() if isinstance(existing, dict) else ""
+
+    namespace = current_namespace
+    if force_rotate or not is_public_token(namespace, width=FEAT_NAMESPACE_WIDTH):
+        namespace = choose_local_namespace(
+            paths,
+            exclude={current_namespace} if current_namespace else set(),
+        )
+        payload = {
+            "version": LOCAL_ISSUER_VERSION,
+            "scheme": FEATURE_ID_SCHEME,
+            "namespace": namespace,
+            "guard_key_source": f"git-config:{LOCAL_GUARD_KEY_CONFIG}",
+        }
+        save_json(paths.issuer_file, payload)
+        print(f"write: {paths.issuer_file}")
+    elif existing is not None and existing.get("guard_key_source") != f"git-config:{LOCAL_GUARD_KEY_CONFIG}":
+        payload = dict(existing)
+        payload["guard_key_source"] = f"git-config:{LOCAL_GUARD_KEY_CONFIG}"
+        save_json(paths.issuer_file, payload)
+        print(f"write: {paths.issuer_file}")
+
+    guard_key = git_local_config_get(root, LOCAL_GUARD_KEY_CONFIG)
+    if force_rotate or not is_public_token(guard_key, width=LOCAL_GUARD_KEY_WIDTH):
+        guard_key = random_token(width=LOCAL_GUARD_KEY_WIDTH)
+        git_local_config_set(root, LOCAL_GUARD_KEY_CONFIG, guard_key)
+        print(f"write: git-config {LOCAL_GUARD_KEY_CONFIG}")
+
+    payload = load_local_issuer(paths)
+    if payload is None:
+        raise SystemExit(f"error: missing local issuer after initialization: {paths.issuer_file}")
+    return payload
+
+
+def build_guard_token(root: Path, namespace: str, cursor_token: str) -> str:
+    guard_key = git_local_config_get(root, LOCAL_GUARD_KEY_CONFIG)
+    if not is_public_token(guard_key, width=LOCAL_GUARD_KEY_WIDTH):
+        raise SystemExit(
+            "error: missing git-local guard key; run feature-tracker.sh initialize-tracker "
+            "or feature-tracker.sh rekey-local-issuer"
+        )
+    return short_hash_token(
+        f"{FEATURE_ID_SCHEME}:{guard_key}:{cursor_token}:{namespace}",
+        width=FEAT_GUARD_WIDTH,
+    )
+
+
 def load_index(paths: HarnessPaths) -> dict[str, Any]:
     if not paths.index_file.exists():
         raise SystemExit(f"error: missing harness index: {paths.index_file}")
     data = load_json(paths.index_file)
     if not isinstance(data, dict) or "features" not in data:
         raise SystemExit(f"error: invalid index schema: {paths.index_file}")
+    normalize_index_data(data)
     return data
 
 
 def save_index(paths: HarnessPaths, index_data: dict[str, Any]) -> None:
-    index_data["updated_at"] = utc_now()
+    normalize_index_data(index_data)
     save_json(paths.index_file, index_data)
 
 
@@ -393,7 +682,6 @@ def upsert_feat_index(paths: HarnessPaths, state: dict[str, Any]) -> None:
         "workspace_mode": state.get("workspace_mode", ""),
         "branch": state.get("branch", ""),
         "worktree_name": state.get("worktree_name", ""),
-        "updated_at": state.get("updated_at", utc_now()),
     }
     for i, item in enumerate(entries):
         if item.get("feat_id") == payload["feat_id"]:
@@ -401,7 +689,7 @@ def upsert_feat_index(paths: HarnessPaths, state: dict[str, Any]) -> None:
             save_index(paths, index_data)
             return
     entries.append(payload)
-    entries.sort(key=lambda x: str(x.get("feat_id", "")))
+    entries.sort(key=lambda x: feat_sort_key(str(x.get("feat_id", ""))))
     save_index(paths, index_data)
 
 
@@ -427,8 +715,8 @@ def load_feat(paths: HarnessPaths, feat_id: str) -> tuple[dict[str, Any], dict[s
 
 
 def save_feat(paths: HarnessPaths, feat_id: str, state: dict[str, Any], tasks: dict[str, Any]) -> None:
-    state["updated_at"] = utc_now()
-    tasks["updated_at"] = utc_now()
+    normalize_state_payload(state)
+    normalize_tasks_payload(tasks)
     status = str(state.get("status") or "")
     save_json(paths.feat_state(feat_id, status=status), state)
     save_json(paths.feat_tasks(feat_id, status=status), tasks)
@@ -464,6 +752,21 @@ def ensure_harness_exists(paths: HarnessPaths) -> None:
         raise SystemExit(
             "error: tracker not initialized. run feature-tracker.sh initialize-tracker first"
         )
+
+
+def ensure_harness_gitignore(paths: HarnessPaths) -> None:
+    target = paths.harness_dir / ".gitignore"
+    content = target.read_text(encoding="utf-8") if target.exists() else ""
+    lines = [line.strip() for line in content.splitlines() if line.strip()]
+    changed = False
+    for rule in ("artifacts/*.log", "local/"):
+        if rule not in lines:
+            lines.append(rule)
+            changed = True
+    if not changed:
+        return
+    write_text(target, "\n".join(lines) + "\n")
+    print(f"write: {target}")
 
 
 def ensure_worktrees_ignored(root: Path) -> None:
@@ -673,12 +976,10 @@ def cmd_ref_read_gate(args: argparse.Namespace) -> int:
         )
 
     status = "VALID" if ok else "INVALID"
-    generated_at = utc_now()
     mhash = compute_manifest_hash(mpath)
 
     payload = {
         "status": status,
-        "generated_at": generated_at,
         "project_root": "<project-root>",
         "manifest_path": manifest_path_label,
         "manifest_sha256": mhash,
@@ -692,7 +993,6 @@ def cmd_ref_read_gate(args: argparse.Namespace) -> int:
         "# Reference Read Report",
         "",
         f"Status: {status}",
-        f"Generated At (UTC): {generated_at}",
         "Project Root: <project-root>",
         f"Manifest Path: {manifest_path_label}",
         f"Manifest SHA256: {mhash}",
@@ -823,6 +1123,7 @@ def cmd_apply(args: argparse.Namespace) -> int:
     root = Path(args.root).resolve()
     skill_dir = Path(args.skill_dir).resolve()
     paths = HarnessPaths(root)
+    ensure_git_repo(root)
 
     if args.strict:
         issues = check_ref_report(paths, skill_dir, args.manifest)
@@ -840,12 +1141,11 @@ def cmd_apply(args: argparse.Namespace) -> int:
     paths.artifacts_dir.mkdir(parents=True, exist_ok=True)
 
     copy_template_if_missing(skill_dir, "tpl/features-index-template.json", paths.index_file)
+    save_index(paths, load_index(paths))
     ensure_runtime_policy(paths, skill_dir)
     copy_template_if_missing(skill_dir, "tpl/features-dag-template.json", paths.dag_file)
-
-    if not (paths.harness_dir / ".gitignore").exists():
-        write_text(paths.harness_dir / ".gitignore", "artifacts/*.log\n")
-        print(f"write: {paths.harness_dir / '.gitignore'}")
+    ensure_harness_gitignore(paths)
+    ensure_local_issuer_state(root, paths)
 
     ensure_worktrees_ignored(root)
     print(f"ok: harness initialized at {paths.harness_dir}")
@@ -862,8 +1162,22 @@ def pick_base_branch(root: Path) -> str:
     return branch or "HEAD"
 
 
-def unique_feat_id(paths: HarnessPaths, slug: str) -> str:
-    existing_ids = {str(item.get("feat_id", "")) for item in load_index(paths).get("features", [])}
+def cmd_rekey_local_issuer(args: argparse.Namespace) -> int:
+    root = Path(args.root).resolve()
+    paths = HarnessPaths(root)
+    ensure_harness_exists(paths)
+    ensure_git_repo(root)
+    payload = ensure_local_issuer_state(root, paths, force_rotate=True)
+    print(f"namespace: {payload.get('namespace', '')}")
+    return 0
+
+
+def allocate_feat_id(root: Path, paths: HarnessPaths) -> str:
+    index_data = load_index(paths)
+    issuance, _ = ensure_feature_id_issuance(index_data)
+    existing_ids = {str(item.get("feat_id", "")) for item in index_data.get("features", [])}
+    issuer = ensure_local_issuer_state(root, paths)
+    namespace = str(issuer.get("namespace") or "")
 
     def exists(feat_id: str) -> bool:
         return (
@@ -873,15 +1187,17 @@ def unique_feat_id(paths: HarnessPaths, slug: str) -> str:
             or paths.feat_dir(feat_id, status="discarded").exists()
         )
 
-    base = f"f-{utc_day()}-{slug}"
-    if not exists(base):
-        return base
-    i = 2
+    next_sequence = int(issuance.get("next_cursor", 0))
     while True:
-        candidate = f"{base}-{i}"
-        if not exists(candidate):
-            return candidate
-        i += 1
+        cursor_token = encode_public_token(next_sequence, width=FEAT_CURSOR_WIDTH)
+        guard_token = build_guard_token(root, namespace, cursor_token)
+        candidate = f"f-{cursor_token}{namespace}{guard_token}"
+        next_sequence += 1
+        if exists(candidate):
+            continue
+        issuance["next_cursor"] = next_sequence
+        save_index(paths, index_data)
+        return candidate
 
 
 def cmd_feat_new(args: argparse.Namespace) -> int:
@@ -901,8 +1217,8 @@ def cmd_feat_new(args: argparse.Namespace) -> int:
     title = args.title.strip()
     goal = args.goal.strip()
     slug = slugify(args.slug if args.slug else title)
-    feat_id = unique_feat_id(paths, slug)
-    if not FEAT_ID_RE.match(feat_id):
+    feat_id = allocate_feat_id(root, paths)
+    if not is_valid_feat_id(feat_id):
         eprint(f"error: generated invalid feat id: {feat_id}")
         return 1
 
@@ -963,8 +1279,6 @@ def cmd_feat_new(args: argparse.Namespace) -> int:
         "branch": branch,
         "worktree_name": wt_name,
         "worktree_path": wt_rel,
-        "created_at": utc_now(),
-        "updated_at": utc_now(),
         "current_task_id": None,
         "counters": {
             "gate_fail_streak": 0,
@@ -974,26 +1288,23 @@ def cmd_feat_new(args: argparse.Namespace) -> int:
         "gate": {
             "last_result": None,
             "last_task_id": None,
-            "last_checked_at": None,
             "last_check_commands": [],
             "last_log_path": None,
         },
         "history": [
-            {
-                "at": utc_now(),
-                "action": "feat_created",
-                "detail": (
+            history_event(
+                "feat_created",
+                (
                     f"workspace_mode={workspace_mode}; base_ref={base_ref}; "
                     f"root_branch={root_branch or 'detached'}"
                 ),
-            }
+            )
         ],
     }
 
     tasks: dict[str, Any] = {
         "version": 1,
         "feat_id": feat_id,
-        "updated_at": utc_now(),
         "tasks": [
             {
                 "id": "T-001",
@@ -1001,12 +1312,8 @@ def cmd_feat_new(args: argparse.Namespace) -> int:
                 "status": "todo",
                 "summary": "Replace this placeholder with actual task detail.",
                 "gate_result": None,
-                "last_gate_at": None,
                 "last_gate_commands": [],
                 "last_commit_hash": None,
-                "started_at": None,
-                "finished_at": None,
-                "updated_at": utc_now(),
                 "notes": [],
             }
         ],
@@ -1079,15 +1386,14 @@ def cmd_assign_feat_workspace(args: argparse.Namespace) -> int:
     state["worktree_name"] = wt_name
     state["worktree_path"] = wt_rel
     state.setdefault("history", []).append(
-        {
-            "at": utc_now(),
-            "action": "workspace_assigned",
-            "detail": (
+        history_event(
+            "workspace_assigned",
+            (
                 f"{current_mode} -> {target_mode}; root_branch={current_branch(root) or 'detached'}"
                 if current_mode != target_mode
                 else f"{target_mode}; root_branch={current_branch(root) or 'detached'}"
             ),
-        }
+        )
     )
     save_feat(paths, args.feat, state, tasks)
 
@@ -1137,11 +1443,11 @@ def cmd_feat_status(args: argparse.Namespace) -> int:
         print("no features")
         return 0
 
-    print("feature_id	status	workspace	title	branch	updated_at")
+    print("feature_id	status	workspace	title	branch")
     for item in feats:
         print(
             f"{item.get('feat_id','')}\t{item.get('status','')}\t{item.get('workspace_mode','')}\t"
-            f"{item.get('title','')}\t{item.get('branch','')}\t{item.get('updated_at','')}"
+            f"{item.get('title','')}\t{item.get('branch','')}"
         )
     return 0
 
@@ -1189,12 +1495,10 @@ def cmd_task_start(args: argparse.Namespace) -> int:
         return 1
 
     target["status"] = "in_progress"
-    target["started_at"] = target.get("started_at") or utc_now()
-    target["updated_at"] = utc_now()
     state["status"] = "in_progress"
     state["current_task_id"] = task_id
     state.setdefault("history", []).append(
-        {"at": utc_now(), "action": "task_started", "detail": task_id}
+        history_event("task_started", task_id)
     )
     save_feat(paths, args.feat, state, tasks)
     print(f"ok: task started {args.feat}/{task_id}")
@@ -1341,12 +1645,12 @@ def cmd_task_gate(args: argparse.Namespace) -> int:
                     fail_reasons.append(f"command failed: {cmd}")
 
     gate_result = "fail" if failed else "pass"
-    ts = utc_now()
 
     logs_dir = feat_dir / "artifacts"
     logs_dir.mkdir(parents=True, exist_ok=True)
-    log_file = logs_dir / f"gate-{ts.replace(':', '').replace('-', '')}.log"
-    lines = [f"gate_time={ts}", f"project_type={project_type}", f"result={gate_result}"]
+    next_round = int(state.setdefault("counters", {}).get("round_count", 0)) + 1
+    log_file = next_numbered_path(logs_dir, prefix=f"gate-{args.task}-r{next_round}-", suffix=".log")
+    lines = [f"project_type={project_type}", f"result={gate_result}"]
     if fail_reasons:
         lines.append("reasons:")
         for r in fail_reasons:
@@ -1367,22 +1671,15 @@ def cmd_task_gate(args: argparse.Namespace) -> int:
     state["gate"] = {
         "last_result": gate_result,
         "last_task_id": args.task,
-        "last_checked_at": ts,
         "last_check_commands": records,
         "last_log_path": str(log_file.relative_to(root)),
     }
     state.setdefault("history", []).append(
-        {
-            "at": ts,
-            "action": "task_gate",
-            "detail": f"{args.task} => {gate_result}",
-        }
+        history_event("task_gate", f"{args.task} => {gate_result}")
     )
 
     task["gate_result"] = gate_result
-    task["last_gate_at"] = ts
     task["last_gate_commands"] = records
-    task["updated_at"] = ts
 
     save_feat(paths, args.feat, state, tasks)
 
@@ -1461,11 +1758,13 @@ def validate_commit_message(
         return ["empty commit message"]
 
     subj = lines[0].strip()
-    m = re.match(r"^feature\((f-\d{8}-[a-z0-9][a-z0-9-]*)\): task\((T-\d{3})\) .+$", subj)
+    m = re.match(r"^feature\(([^)]+)\): task\((T-\d{3})\) .+$", subj)
     if not m:
         errors.append("invalid subject format")
     else:
-        if m.group(1) != expected_feat:
+        if not is_valid_feat_id(m.group(1)):
+            errors.append("invalid subject feature-id")
+        elif m.group(1) != expected_feat:
             errors.append("subject feature-id mismatch")
         if m.group(2) != expected_task:
             errors.append("subject task-id mismatch")
@@ -1521,7 +1820,7 @@ def cmd_task_commit(args: argparse.Namespace) -> int:
         if args.message_out
         else feat_dir
         / "artifacts"
-        / f"commit-{args.task}-{utc_now().replace(':', '').replace('-', '')}.msg"
+        / next_numbered_path(feat_dir / "artifacts", prefix=f"commit-{args.task}-", suffix=".msg").name
     )
     write_text(msg_file, msg)
 
@@ -1551,7 +1850,6 @@ def cmd_task_commit(args: argparse.Namespace) -> int:
         head = run_cmd(["git", "-C", str(root), "rev-parse", "HEAD"])
         if head.returncode == 0:
             task["last_commit_hash"] = head.stdout.strip()
-            task["updated_at"] = utc_now()
             save_feat(paths, args.feat, state, tasks)
             print(f"commit_hash: {task['last_commit_hash']}")
 
@@ -1578,15 +1876,12 @@ def cmd_task_finish(args: argparse.Namespace) -> int:
         eprint("error: cannot finish task as done without gate pass")
         return 1
 
-    ts = utc_now()
     task["status"] = result
-    task["finished_at"] = ts
-    task["updated_at"] = ts
 
     state["current_task_id"] = None
     state.setdefault("counters", {})["no_progress_rounds"] = 0
     state.setdefault("history", []).append(
-        {"at": ts, "action": "task_finished", "detail": f"{args.task} => {result}"}
+        history_event("task_finished", f"{args.task} => {result}")
     )
 
     if result == "blocked":
@@ -1640,7 +1935,6 @@ def render_summary(state: dict[str, Any], tasks: dict[str, Any]) -> str:
         if isinstance(val, dict):
             cleanup = val
             break
-    closed_at = state.get("archived_at") or state.get("discarded_at") or utc_now()
 
     return "\n".join(
         [
@@ -1654,7 +1948,6 @@ def render_summary(state: dict[str, Any], tasks: dict[str, Any]) -> str:
             f"- Base Ref: {state.get('base_ref', '')}",
             f"- Branch: {state.get('branch', '')}",
             f"- Worktree: {state.get('worktree_path', '')}",
-            f"- Closed At (UTC): {closed_at}",
             f"- Discard Reason: {state.get('discard_reason') or ''}",
             f"- Replacement Feat: {state.get('replacement_feat_id') or ''}",
             "",
@@ -1863,7 +2156,6 @@ def cmd_feat_archive(args: argparse.Namespace) -> int:
     if current_status != "archived":
         state["closed_from_status"] = current_status
     state["status"] = "archived"
-    state["archived_at"] = state.get("archived_at") or utc_now()
     state["archived_cleanup"] = {
         "workspace_mode": workspace_mode,
         "base_ref": base_ref,
@@ -1877,7 +2169,7 @@ def cmd_feat_archive(args: argparse.Namespace) -> int:
         ),
     }
     state.setdefault("history", []).append(
-        {"at": utc_now(), "action": "feat_archived", "detail": "moved + cleaned"}
+        history_event("feat_archived", "moved + cleaned")
     )
 
     # Physical archive: move feat dir into features-archived/.
@@ -1938,13 +2230,10 @@ def cmd_feat_discard(args: argparse.Namespace) -> int:
             eprint(f"error: replacement feat not indexed: {replacement}")
             return 1
 
-    ts = utc_now()
     if current_status == "in_progress":
         for task in tasks.get("tasks", []):
             if task.get("status") == "in_progress":
                 task["status"] = "blocked"
-                task["finished_at"] = task.get("finished_at") or ts
-                task["updated_at"] = ts
                 task.setdefault("notes", []).append("force-discarded before task completion")
         state["current_task_id"] = None
 
@@ -1997,13 +2286,8 @@ def cmd_feat_discard(args: argparse.Namespace) -> int:
     state["status"] = "discarded"
     state["discard_reason"] = args.reason
     state["replacement_feat_id"] = replacement or None
-    state["discarded_at"] = state.get("discarded_at") or ts
     state.setdefault("history", []).append(
-        {
-            "at": ts,
-            "action": "feat_discarded",
-            "detail": f"reason={args.reason}; replacement={replacement or 'none'}",
-        }
+        history_event("feat_discarded", f"reason={args.reason}; replacement={replacement or 'none'}")
     )
 
     src_dir = paths.feat_dir(args.feat, status=current_status)
@@ -2069,7 +2353,7 @@ def validate_feat(paths: HarnessPaths, root: Path, feat_id: str) -> list[str]:
     errors: list[str] = []
     state, tasks = load_feat(paths, feat_id)
 
-    if not FEAT_ID_RE.match(feat_id):
+    if not is_valid_feat_id(feat_id):
         errors.append(f"invalid feat id format: {feat_id}")
 
     status = state.get("status")
@@ -2197,6 +2481,22 @@ def cmd_validate(args: argparse.Namespace) -> int:
         else:
             errors.append(f"missing runtime policy file: {paths.runtime_policy_file}")
 
+    if paths.index_file.exists():
+        try:
+            index_data = load_index(paths)
+        except SystemExit as exc:
+            errors.append(str(exc))
+        else:
+            issuance = index_data.get("feature_id_issuance", {})
+            if not isinstance(issuance, dict):
+                errors.append("feature_id_issuance missing or invalid in features.json")
+            else:
+                if str(issuance.get("scheme") or "") != FEATURE_ID_SCHEME:
+                    errors.append("feature_id_issuance.scheme drift from runtime")
+                next_cursor = issuance.get("next_cursor")
+                if not isinstance(next_cursor, int) or next_cursor < 0:
+                    errors.append("feature_id_issuance.next_cursor must be a non-negative integer")
+
     legacy_dirs = [
         paths.harness_dir / "feats",
         paths.harness_dir / "feats-archived",
@@ -2219,6 +2519,40 @@ def cmd_validate(args: argparse.Namespace) -> int:
                 feat_status_by_id[feat_id] = str(item.get("status") or "")
         except SystemExit as exc:
             errors.append(str(exc))
+
+    harness_gitignore = paths.harness_dir / ".gitignore"
+    if harness_gitignore.exists():
+        ignored_lines = {line.strip() for line in harness_gitignore.read_text(encoding="utf-8").splitlines() if line.strip()}
+        for rule in ("artifacts/*.log", "local/"):
+            if rule not in ignored_lines:
+                errors.append(f"tracker .gitignore missing rule: {rule}")
+    else:
+        errors.append(f"missing tracker .gitignore: {harness_gitignore}")
+
+    tracked_local = tracked_paths_under(root, Path(".bagakit/feature-tracker/local"))
+    if tracked_local:
+        errors.append(
+            "local issuer state must not be tracked: " + ", ".join(sorted(tracked_local))
+        )
+
+    if paths.issuer_file.exists():
+        try:
+            issuer_payload = load_local_issuer(paths)
+        except SystemExit as exc:
+            errors.append(str(exc))
+        else:
+            if not isinstance(issuer_payload, dict):
+                errors.append(f"invalid local issuer payload: {paths.issuer_file}")
+            else:
+                if int(issuer_payload.get("version", 0)) != LOCAL_ISSUER_VERSION:
+                    errors.append(f"local issuer version drift: {paths.issuer_file}")
+                if str(issuer_payload.get("scheme") or "") != FEATURE_ID_SCHEME:
+                    errors.append(f"local issuer scheme drift: {paths.issuer_file}")
+                namespace = str(issuer_payload.get("namespace") or "")
+                if not is_public_token(namespace, width=FEAT_NAMESPACE_WIDTH):
+                    errors.append(f"local issuer namespace invalid: {paths.issuer_file}")
+                if str(issuer_payload.get("guard_key_source") or "") != f"git-config:{LOCAL_GUARD_KEY_CONFIG}":
+                    errors.append(f"local issuer guard source drift: {paths.issuer_file}")
 
     for feat_id in feats:
         errors.extend(validate_feat(paths, root, feat_id))
@@ -2328,12 +2662,6 @@ def cmd_doctor(args: argparse.Namespace) -> int:
     gate_fail_limit = int(thresholds.get("gate_fail_streak", 3))
     no_progress_limit = int(thresholds.get("no_progress_rounds", 2))
     max_round = int(thresholds.get("max_round_count", 8))
-    lifecycle_cfg = config.get("lifecycle", {}) if isinstance(config, dict) else {}
-    done_close_due_days = int(lifecycle_cfg.get("done_close_due_days", 3))
-    proposal_stale_days = int(lifecycle_cfg.get("proposal_stale_days", 7))
-    ready_stale_days = int(lifecycle_cfg.get("ready_stale_days", 5))
-    in_progress_stale_days = int(lifecycle_cfg.get("in_progress_stale_days", 3))
-    blocked_stale_days = int(lifecycle_cfg.get("blocked_stale_days", 10))
 
     index_data = load_index(paths)
     warnings: list[str] = []
@@ -2345,8 +2673,6 @@ def cmd_doctor(args: argparse.Namespace) -> int:
         fail_streak = int(counters.get("gate_fail_streak", 0))
         no_progress = int(counters.get("no_progress_rounds", 0))
         rounds = int(counters.get("round_count", 0))
-        created_at = str(state.get("created_at") or "")
-        updated_at = str(state.get("updated_at") or created_at)
         status = str(state.get("status") or "")
 
         if fail_streak >= gate_fail_limit:
@@ -2371,30 +2697,6 @@ def cmd_doctor(args: argparse.Namespace) -> int:
                 warnings.append(f"{feat_id}: {status} feat missing summary.md")
             continue
 
-        age_basis = updated_at or created_at
-        try:
-            age_days = int((datetime.now(timezone.utc) - datetime.fromisoformat(age_basis.replace("Z", "+00:00"))).total_seconds() // 86400)
-        except Exception:  # noqa: BLE001
-            age_days = -1
-
-        if status == "done" and age_days >= done_close_due_days >= 0:
-            warnings.append(
-                f"{feat_id}: status done for {age_days} day(s); close with archive-feature or discard-feature"
-            )
-        if status == "proposal" and age_days >= proposal_stale_days >= 0:
-            warnings.append(f"{feat_id}: proposal stale for {age_days} day(s); consider discard or activation")
-        if status == "ready" and age_days >= ready_stale_days >= 0:
-            warnings.append(f"{feat_id}: ready stale for {age_days} day(s); consider start-task or discard")
-        if status == "in_progress" and age_days >= in_progress_stale_days >= 0:
-            warnings.append(
-                f"{feat_id}: in_progress for {age_days} day(s); investigate current task or discard/supersede the feat"
-            )
-        if status == "blocked" and age_days >= blocked_stale_days >= 0:
-            warnings.append(f"{feat_id}: blocked for {age_days} day(s); consider discard or superseding plan")
-        if str(state.get("workspace_mode") or "") == "worktree" and int(counters.get("round_count", 0)) == 0:
-            if age_days >= ready_stale_days >= 0:
-                warnings.append(f"{feat_id}: worktree assigned but no task rounds recorded for {age_days} day(s)")
-
     print("== doctor report ==")
     if warnings:
         for w in warnings:
@@ -2405,7 +2707,7 @@ def cmd_doctor(args: argparse.Namespace) -> int:
     print("\nrecommended next steps:")
     print("1) Address threshold warnings before starting next task.")
     print("2) Run feature-tracker.sh run-task-gate before every task commit.")
-    print("3) Close stale feats explicitly with archive-feature or discard-feature.")
+    print("3) Close completed or superseded feats explicitly with archive-feature or discard-feature.")
     return 0
 
 
@@ -2416,7 +2718,7 @@ def parse_dependency_spec(raw: str) -> tuple[str, list[str]]:
         )
     feat_id, dep_blob = raw.split(":", 1)
     feat_id = feat_id.strip()
-    if not FEAT_ID_RE.match(feat_id):
+    if not is_valid_feat_id(feat_id):
         raise SystemExit(f"error: invalid feat id in dependency spec: {feat_id}")
 
     deps: list[str] = []
@@ -2427,7 +2729,7 @@ def parse_dependency_spec(raw: str) -> tuple[str, list[str]]:
             dep = raw_dep.strip()
             if not dep:
                 continue
-            if not FEAT_ID_RE.match(dep):
+            if not is_valid_feat_id(dep):
                 raise SystemExit(f"error: invalid dependency feat id: {dep}")
             if dep == feat_id:
                 raise SystemExit(f"error: feat cannot depend on itself: {feat_id}")
@@ -2462,9 +2764,12 @@ def build_layered_dag(
 
     layers: list[list[str]] = []
     while remaining:
-        ready = sorted(feat_id for feat_id in remaining if not unresolved.get(feat_id, set()))
+        ready = sorted(
+            (feat_id for feat_id in remaining if not unresolved.get(feat_id, set())),
+            key=feat_sort_key,
+        )
         if not ready:
-            cycle_nodes = sorted(remaining)
+            cycle_nodes = sorted(remaining, key=feat_sort_key)
             raise SystemExit(
                 "error: dependency cycle detected among feats: " + ", ".join(cycle_nodes)
             )
@@ -2481,16 +2786,6 @@ def build_layered_dag(
     return layers
 
 
-def unique_dag_archive_path(paths: HarnessPaths, ts: str) -> Path:
-    stem = ts.replace("-", "").replace(":", "")
-    candidate = paths.dag_archive_dir / f"{stem}.json"
-    n = 2
-    while candidate.exists():
-        candidate = paths.dag_archive_dir / f"{stem}-{n}.json"
-        n += 1
-    return candidate
-
-
 def dag_is_complete(payload: dict[str, Any]) -> bool:
     layers = payload.get("layers", [])
     if not isinstance(layers, list) or not layers:
@@ -2504,11 +2799,10 @@ def dag_is_complete(payload: dict[str, Any]) -> bool:
 
 
 def archive_existing_dag(paths: HarnessPaths, payload: dict[str, Any]) -> Path:
-    now = utc_now()
     archived = json.loads(json.dumps(payload, ensure_ascii=False))
-    archived["archived_at"] = now
-    archived["completed_at"] = now if dag_is_complete(payload) else None
-    target = unique_dag_archive_path(paths, now)
+    archived.pop("generated_at", None)
+    archived["is_completed_archive"] = dag_is_complete(payload)
+    target = next_numbered_path(paths.dag_archive_dir, prefix="dag-", suffix=".json")
     save_json(target, archived)
     return target
 
@@ -2549,12 +2843,11 @@ def cmd_replan_feats(args: argparse.Namespace) -> int:
         return 1
 
     states, tasks_by_feat = load_non_archived_feats(paths)
-    feat_ids = sorted(states.keys())
+    feat_ids = sorted(states.keys(), key=feat_sort_key)
     if not feat_ids:
         payload = {
             "version": 1,
             "generated_by": "bagakit-feature-tracker",
-            "generated_at": utc_now(),
             "execution_mode": "serial",
             "max_parallel": max_parallel,
             "parallel_recommendation": {
@@ -2579,7 +2872,7 @@ def cmd_replan_feats(args: argparse.Namespace) -> int:
 
     clear_ids = {str(item).strip() for item in (args.clear_dependencies or []) if str(item).strip()}
     for feat_id in clear_ids:
-        if not FEAT_ID_RE.match(feat_id):
+        if not is_valid_feat_id(feat_id):
             eprint(f"error: invalid feat id in --clear-dependencies: {feat_id}")
             return 1
         if feat_id not in states:
@@ -2600,11 +2893,7 @@ def cmd_replan_feats(args: argparse.Namespace) -> int:
         if state.get("depends_on") != []:
             state["depends_on"] = []
             state.setdefault("history", []).append(
-                {
-                    "at": utc_now(),
-                    "action": "dag_dependencies_updated",
-                    "detail": "depends_on=none",
-                }
+                history_event("dag_dependencies_updated", "depends_on=none")
             )
             changed_feats.add(feat_id)
 
@@ -2613,15 +2902,14 @@ def cmd_replan_feats(args: argparse.Namespace) -> int:
         if state.get("depends_on") != deps:
             state["depends_on"] = deps
             state.setdefault("history", []).append(
-                {
-                    "at": utc_now(),
-                    "action": "dag_dependencies_updated",
-                    "detail": "depends_on=" + (",".join(deps) if deps else "none"),
-                }
+                history_event(
+                    "dag_dependencies_updated",
+                    "depends_on=" + (",".join(deps) if deps else "none"),
+                )
             )
             changed_feats.add(feat_id)
 
-    for feat_id in sorted(changed_feats):
+    for feat_id in sorted(changed_feats, key=feat_sort_key):
         save_feat(paths, feat_id, states[feat_id], tasks_by_feat[feat_id])
 
     archived_status: dict[str, str] = {}
@@ -2678,7 +2966,7 @@ def cmd_replan_feats(args: argparse.Namespace) -> int:
 
     dependents_by_feat: dict[str, list[str]] = {feat_id: [] for feat_id in feat_ids}
     for feat_id, deps in deps_by_feat.items():
-        for dep in sorted(deps):
+        for dep in sorted(deps, key=feat_sort_key):
             dependents_by_feat.setdefault(dep, []).append(feat_id)
 
     layer_payload: list[dict[str, Any]] = []
@@ -2704,8 +2992,8 @@ def cmd_replan_feats(args: argparse.Namespace) -> int:
                 "title": str(states[feat_id].get("title") or ""),
                 "status": status,
                 "workspace_mode": str(states[feat_id].get("workspace_mode") or ""),
-                "depends_on": sorted(deps_by_feat.get(feat_id, set())),
-                "dependents": sorted(dependents_by_feat.get(feat_id, [])),
+                "depends_on": sorted(deps_by_feat.get(feat_id, set()), key=feat_sort_key),
+                "dependents": sorted(dependents_by_feat.get(feat_id, []), key=feat_sort_key),
                 "layer": layer_by_feat.get(feat_id),
                 "is_completed": feat_is_completed(status),
             }
@@ -2721,7 +3009,6 @@ def cmd_replan_feats(args: argparse.Namespace) -> int:
     payload = {
         "version": 1,
         "generated_by": "bagakit-feature-tracker",
-        "generated_at": utc_now(),
         "execution_mode": resolved_mode,
         "max_parallel": max_parallel,
         "parallel_recommendation": {
@@ -2776,7 +3063,6 @@ def cmd_show_feat_dag(args: argparse.Namespace) -> int:
         return 0
 
     print(f"dag_file: {paths.dag_file}")
-    print(f"generated_at: {payload.get('generated_at', '')}")
     print(f"execution_mode: {payload.get('execution_mode', '')}")
     print(f"max_parallel: {payload.get('max_parallel', '')}")
     rec = payload.get("parallel_recommendation", {})
@@ -2824,7 +3110,6 @@ def query_list(paths: HarnessPaths) -> list[dict[str, Any]]:
                 "workspace_mode": state.get("workspace_mode", ""),
                 "branch": state.get("branch", ""),
                 "worktree": state.get("worktree_path", ""),
-                "updated_at": state.get("updated_at", ""),
                 "task_stats": {
                     "todo": count_tasks(tasks, "todo"),
                     "in_progress": count_tasks(tasks, "in_progress"),
@@ -2928,6 +3213,10 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--strict", dest="strict", action="store_true")
     sp.add_argument("--no-strict", dest="strict", action="store_false")
     sp.set_defaults(strict=True, func=cmd_apply)
+
+    sp = sub.add_parser("rekey-local-issuer", help="rotate the local issuer namespace and git-local guard key")
+    add_common(sp)
+    sp.set_defaults(func=cmd_rekey_local_issuer)
 
     sp = sub.add_parser("create-feature", help="create feature with explicit workspace mode")
     add_common(sp)

@@ -23,6 +23,8 @@ metadata:
 - You need repeated execution orchestration across rounds.
 
 Use `bagakit-flow-runner` for repeated execution flow.
+For tiny single-shot changes, work directly in the repository tree and keep the
+task local instead of creating tracker lifecycle state.
 
 ## What It Owns
 
@@ -61,6 +63,7 @@ bash "$BAGAKIT_FEATURE_TRACKER_SKILL_DIR/scripts/feature-tracker.sh" create-feat
 - `feature-tracker.sh check-reference-readiness`
 - `feature-tracker.sh validate-reference-report`
 - `feature-tracker.sh initialize-tracker`
+- `feature-tracker.sh rekey-local-issuer`
 - `feature-tracker.sh create-feature`
 - `feature-tracker.sh assign-feature-workspace`
 - `feature-tracker.sh show-feature-status`
@@ -80,43 +83,11 @@ bash "$BAGAKIT_FEATURE_TRACKER_SKILL_DIR/scripts/feature-tracker.sh" create-feat
 
 External bridges are intentionally out of scope for this skill.
 
-## Runtime Contract
+## Stable Specs
 
-Stable runtime surfaces:
-
-- `.bagakit/feature-tracker/index/features.json`
-- `.bagakit/feature-tracker/index/FEATURES_DAG.json`
-- `.bagakit/feature-tracker/runtime-policy.json`
-- `.bagakit/feature-tracker/features/<feature-id>/state.json`
-- `.bagakit/feature-tracker/features/<feature-id>/tasks.json`
-
-The canonical runtime contract does not include hidden docs-side inbox outputs.
-It also does not include external-system bridge scripts.
-Feature ids are short opaque tokens whose lexical order follows tracker
-issuance cursor order.
-Runtime JSON intentionally avoids per-mutation timestamp churn.
-
-Stable spec:
-
+- `docs/specs/feature-tracker-contract.md`
 - `docs/specs/feature-tracker-id-issuance.md`
 
-## Commit Contract
-
-Required subject format:
-
-`feature(<feature-id>): task(<task-id>) <summary>`
-
-Required body sections:
-
-- `Plan:`
-- `Check:`
-- `Learn:`
-
-Required trailers:
-
-- `Feature-ID: <feature-id>`
-- `Task-ID: <task-id>`
-- `Gate-Result: pass|fail`
-- `Task-Status: done|blocked`
-
-`Task-Status: done` requires `Gate-Result: pass`.
+The runtime payload is intentionally smaller than the canonical repo-spec layer.
+Use the specs above when you need the durable contract rather than the local
+operator entrypoint.

@@ -22,6 +22,10 @@ This spec does not define:
 
 Those remain owned by the tracker runtime contract and adjacent harness specs.
 
+Primary adjacent tracker contract:
+
+- `docs/specs/feature-tracker-contract.md`
+
 ## First Principle
 
 Bagakit feature ids must optimize for three things at once:

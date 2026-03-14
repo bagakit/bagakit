@@ -66,39 +66,48 @@ export const SUITE: EvalSuiteDefinition = {
           const statePath = path.join(tempRepo, ".bagakit", "feature-tracker", "features", featId, "state.json");
           const tasksPath = path.join(tempRepo, ".bagakit", "feature-tracker", "features", featId, "tasks.json");
           const dagPath = path.join(tempRepo, ".bagakit", "feature-tracker", "index", "FEATURES_DAG.json");
+          const issuerPath = path.join(tempRepo, ".bagakit", "feature-tracker", "local", "issuer.json");
           const statePayload = JSON.parse(fs.readFileSync(statePath, "utf8")) as Record<string, unknown>;
           const tasksPayload = JSON.parse(fs.readFileSync(tasksPath, "utf8")) as { tasks: Array<Record<string, unknown>> };
           const dagPayload = JSON.parse(fs.readFileSync(dagPath, "utf8")) as Record<string, unknown>;
+          const issuerPayload = JSON.parse(fs.readFileSync(issuerPath, "utf8")) as Record<string, unknown>;
 
-        assert.equal(statePayload.workspace_mode, "current_tree");
-        assert.equal(statePayload.current_task_id, "T-001");
-        assert.equal(tasksPayload.tasks[0].status, "in_progress");
-        assert.ok(JSON.stringify(statusPayload).includes("T-001"));
-        assert.match(JSON.stringify(dagPayload), new RegExp(featId));
+          assert.match(featId, new RegExp("^f-[23456789abcdefghjkmnpqrstuvwxyz]{9}$"));
+          assert.equal(statePayload.workspace_mode, "current_tree");
+          assert.equal(statePayload.current_task_id, "T-001");
+          assert.equal(tasksPayload.tasks[0].status, "in_progress");
+          assert.ok(JSON.stringify(statusPayload).includes("T-001"));
+          assert.match(JSON.stringify(dagPayload), new RegExp(featId));
+          assert.equal(issuerPayload.namespace, featId.slice(5, 7));
+          assert.equal("created_at" in statePayload, false);
+          assert.equal("updated_at" in statePayload, false);
+          assert.equal("generated_at" in dagPayload, false);
+          assert.equal("started_at" in tasksPayload.tasks[0], false);
+          assert.equal("updated_at" in tasksPayload.tasks[0], false);
 
           return {
-          assertions: [
-            "feature state records the assigned workspace mode and active task",
-            "tasks.json marks the started task as in progress",
-            "status and DAG projections stay aligned with the live feature id",
-          ],
-          commands: [
-            `bash ${script} initialize-tracker --root <temp-repo>`,
-            `bash ${script} create-feature --root <temp-repo> --title "Eval feature" --slug "eval-feature" --goal "Ship eval" --workspace-mode proposal_only`,
-            `bash ${script} assign-feature-workspace --root <temp-repo> --feature ${featId} --workspace-mode current_tree`,
-            `bash ${script} start-task --root <temp-repo> --feature ${featId} --task T-001`,
-            `bash ${script} replan-features --root <temp-repo> --json`,
-            `bash ${script} show-feature-status --root <temp-repo> --feature ${featId} --json`,
-          ],
-          artifacts: [
-            { label: "feature-state", path: statePath },
-            { label: "feature-tasks", path: tasksPath },
-            { label: "features-dag", path: dagPath },
-          ],
-          outputs: {
-            feat_id: featId,
-            status_keys: Object.keys(statusPayload),
-          },
+            assertions: [
+              "feature state records the assigned workspace mode and active task",
+              "tasks.json marks the started task as in progress without per-task timestamps",
+              "feature ids use the c3/n2/g4 opaque shape and stay aligned with local issuer state",
+            ],
+            commands: [
+              `bash ${script} initialize-tracker --root <temp-repo>`,
+              `bash ${script} create-feature --root <temp-repo> --title "Eval feature" --slug "eval-feature" --goal "Ship eval" --workspace-mode proposal_only`,
+              `bash ${script} assign-feature-workspace --root <temp-repo> --feature ${featId} --workspace-mode current_tree`,
+              `bash ${script} start-task --root <temp-repo> --feature ${featId} --task T-001`,
+              `bash ${script} replan-features --root <temp-repo> --json`,
+              `bash ${script} show-feature-status --root <temp-repo> --feature ${featId} --json`,
+            ],
+            artifacts: [
+              { label: "feature-state", path: statePath },
+              { label: "feature-tasks", path: tasksPath },
+              { label: "features-dag", path: dagPath },
+            ],
+            outputs: {
+              feat_id: featId,
+              status_keys: Object.keys(statusPayload),
+            },
             replacements,
           };
         } finally {
