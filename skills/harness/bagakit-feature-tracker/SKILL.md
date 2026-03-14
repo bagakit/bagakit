@@ -109,3 +109,8 @@ Task SSOT lives only in `tasks.json`.
 The default feature directory keeps only `state.json` and `tasks.json`.
 Optional helper markdown files such as `proposal.md`, `spec-delta.md`, and
 `verification.md` can be materialized later at the feature root.
+
+Use `verification.md` only when a task needs manual or mixed evidence beyond
+automated command output.
+The older `ui-verification.md` name is retired; rename old files to
+`verification.md` before rerunning gate.

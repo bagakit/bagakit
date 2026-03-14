@@ -117,6 +117,28 @@ Rules:
 - none of these files are required in the default feature layout
 - their presence must not redefine `state.json` or `tasks.json`
 - `verification.md` is generic evidence, not a UI-only special case
+- the default gate policy is `verification_policy = on_demand`, which means
+  `verification.md` is only checked when the file exists unless a stricter
+  policy is configured
+
+Materialize `verification.md` when:
+
+- a task needs manual checks that are not already captured by automated
+  commands
+- screenshots, interactive review notes, rollout observations, or residual risk
+  notes matter to acceptance
+- tracker policy is configured to require explicit verification evidence
+
+Keep evidence only in `tasks.json` and gate logs when:
+
+- all acceptance checks are already covered by automated commands
+- no additional human evidence is needed beyond pass/fail command output
+
+Migration note:
+
+- `ui-verification.md` is superseded by `verification.md`
+- current tracker contract expects `verification.md`
+- repositories carrying the old filename should rename it before rerunning gate
 
 ## Closeout Rule
 

@@ -1737,6 +1737,11 @@ def cmd_task_gate(args: argparse.Namespace) -> int:
         eprint(f"error: gate failed for {args.feat}/{args.task}")
         for reason in fail_reasons:
             eprint(f"error: {reason}")
+        if any(reason.startswith("missing verification file:") for reason in fail_reasons):
+            print(
+                "next: feature-tracker.sh materialize-feature-artifact "
+                f"--root {shlex.quote(str(root))} --feature {args.feat} --kind verification"
+            )
         print(f"gate_log: {log_file}")
         return 1
 
