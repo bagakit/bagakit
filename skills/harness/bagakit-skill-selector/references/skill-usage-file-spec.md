@@ -27,6 +27,12 @@ Recommended runtime location:
 
 - `.bagakit/skill-selector/tasks/<task-slug>/skill-usage.toml`
 
+Selection-state reminder:
+
+- selector reasons over `visible` candidates first
+- `visible` does not mean `available`
+- `[[skill_plan]]` records the candidates that became explicit task options
+
 ## Top-level fields
 
 ```toml
@@ -139,6 +145,8 @@ notes = "start with the required path only"
 Recording rule:
 
 - `[[recipe_log]]` is only the composition label
+- `synthesis_artifact`, when present, points to the concrete downstream
+  artifact produced by that recipe
 - participating skills must still be logged explicitly in `[[skill_plan]]`
 - actual execution evidence must still go into `[[usage_log]]`,
   `[[benchmark_log]]`, `[[feedback_log]]`, and `[[search_log]]` as needed
@@ -313,6 +321,8 @@ source = "skills/go-testing"
 why = "Need deterministic regression coverage"
 expected_impact = "Reduce flaky failures"
 confidence = "high"
+availability = "available"
+availability_detail = "confirmed in the current host"
 selected = true
 status = "planned"
 composition_role = "standalone"
@@ -328,9 +338,27 @@ notes = ""
   - the stable task-local participant token
   - often one runtime skill id
   - may also be one external or reference id when no runtime skill id exists
+- `source`
+  - for `kind = "local"`, this may point to a canonical repo skill directory
+  - that path alone does not prove the candidate is host-available
+- `availability`
+  - `available | unknown | unavailable`
+- `availability_detail`
+  - short task-local note about how availability was checked or why it is still
+    blocked
 - `composition_role`: `standalone | composition_entrypoint | composition_peer`
 - `activation_mode`: `standalone | composed`
 - `fallback_strategy`: `none | standalone_first`
+
+Availability rule:
+
+- `selected = true` means the candidate is task-selected
+- `availability` is the typed task-local availability judgment for that same
+  candidate
+- `availability = "unavailable"` must not remain on a selected or used
+  candidate
+- for selected local candidates, strict validation expects availability to be
+  explicit instead of staying implicit in prose
 
 Composition semantics for `[[skill_plan]]`:
 
@@ -359,6 +387,8 @@ source = "skills/harness/bagakit-skill-selector"
 why = "act as the explicit composition entrypoint"
 expected_impact = "keep composition visible and auditable"
 confidence = "high"
+availability = "available"
+availability_detail = "confirmed in the current host"
 selected = true
 status = "used"
 composition_role = "composition_entrypoint"
@@ -375,6 +405,8 @@ source = "skills/harness/bagakit-living-knowledge"
 why = "provide host-side knowledge substrate"
 expected_impact = "keep project knowledge available during research"
 confidence = "high"
+availability = "available"
+availability_detail = "confirmed in the current host"
 selected = true
 status = "used"
 composition_role = "composition_peer"
@@ -391,6 +423,8 @@ source = "docs/architecture/B2-behavior-architecture.md"
 why = "produce evidence for the same task loop"
 expected_impact = "higher-quality source finding and summaries"
 confidence = "medium"
+availability = "available"
+availability_detail = "confirmed in the current host"
 selected = true
 status = "used"
 composition_role = "composition_peer"
@@ -399,6 +433,19 @@ activation_mode = "composed"
 fallback_strategy = "standalone_first"
 notes = "canonical runtime researcher peer for the same task loop"
 ```
+
+## Derived candidate survey report
+
+Recommended derived output:
+
+- `.bagakit/skill-selector/tasks/<task-slug>/candidate-survey.md`
+
+Meaning:
+
+- derived comparison view only
+- may combine `[[skill_plan]]`, project-local preference hints, and repo-visible
+  canonical skills
+- must not become a second writable task SSOT
 
 ## Usage events
 

@@ -41,10 +41,15 @@ enabled = true
 # - in composed mode, one skill_id may point to a runtime skill id, an external
 #   tool id, or another stable reference id when no runtime skill id exists
 #
+# Optional availability fields on [[skill_plan]]:
+# - availability = "available" | "unknown" | "unavailable"
+# - availability_detail = "<how availability was checked or why it is blocked>"
+#
 # Optional recipe fields:
 # - recipe_id = "<selector recipe id>"
 # - source = "skills/harness/bagakit-skill-selector/recipes/<recipe>.md"
 # - status = "considered" | "selected" | "used" | "skipped" | "rejected"
+# - synthesis_artifact = "<downstream artifact produced by the recipe>"
 #
 # Optional composition fields on [[skill_plan]]:
 # - composition_role = "standalone" | "composition_entrypoint" | "composition_peer"

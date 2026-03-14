@@ -102,7 +102,7 @@ registry below.
 | `work_item` | the live execution record for one concrete demand |
 | `checkpoint` | a durable stop or resume marker inside execution |
 | `handoff_note` | a compact close or resume handoff for the next session or operator |
-| `skill_selector` | the task-level or host-level skill coverage preflight, explicit skill composition, usage-evidence, and task-local evaluation loop |
+| `skill_selector` | the task-level or host-level skill coverage preflight, repo-aware candidate discovery, explicit skill composition, usage-evidence, and task-local evaluation loop |
 | `feature_tracker` | the execution-system surface that owns feature or ticket planning truth and lifecycle state |
 
 ### L2 Behavior Concepts

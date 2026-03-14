@@ -13,6 +13,8 @@ Use this spec when deciding:
 - whether a finding is still task-local evidence or already repository-level
   learning
 - whether recipes or selector drivers are staying inside task-local scope
+- whether repo-visible skill knowledge still belongs to selector rather than
+  evolver
 - how task-local repeated failures may be surfaced for repository-level review
 - where task-level selection and evaluation belong
 
@@ -20,12 +22,14 @@ This file is the SSOT for stable meaning of that split.
 
 It is not the SSOT for:
 
+- selector candidate visibility or availability semantics
 - full cross-layer flow design
 - maintainer operating procedure
 - runtime command examples
 
 Those belong respectively in:
 
+- `docs/specs/selector-selection-model.md`
 - `docs/architecture/`
 - `docs/stewardship/`
 - `skills/harness/bagakit-skill-selector/`
@@ -34,7 +38,7 @@ Those belong respectively in:
 
 | Surface | Primary question | Owns | Does not own |
 | --- | --- | --- | --- |
-| `bagakit-skill-selector` | "Do we have enough skill coverage for this task, and what actually happened when we tried it?" | task-local or host-local coverage preflight, candidate planning, explicit composition, usage evidence, task-local evaluation, task-local recipes, selector-loaded drivers | repository-level decision memory, durable promotion routing, repository-level handoff/archive artifacts, evolver topic state |
+| `bagakit-skill-selector` | "Do we have enough skill coverage for this task, and what actually happened when we tried it?" | task-local or host-local coverage preflight, repo-aware candidate discovery, candidate planning, explicit composition, usage evidence, task-local evaluation, task-local recipes, selector-loaded drivers | repository-level decision memory, durable promotion routing, repository-level handoff/archive artifacts, evolver topic state |
 | `bagakit-skill-evolver` | "Which lessons are reusable at repository scope, and what route and durable surface should they take?" | repository-level topic memory, candidate comparison, routing decisions, decision memory, promotion routing, promotion state, durable promotion preparation, repository-level handoff/archive artifacts | raw per-task selector logs, task-local composition control, mandatory wrappers around ordinary work |
 
 The split is about authority, not importance.
@@ -49,12 +53,15 @@ execution when a task chooses selector.
 
 It answers questions such as:
 
+- which candidates are visible for this task
+- which visible candidates are actually available in this host
 - is current skill coverage sufficient
 - do we need explicit comparison or composition
 - do we expect retries, evaluation, or evidence worth preserving
 
 The detailed heuristic for when operators should invoke selector belongs in:
 
+- `docs/specs/selector-selection-model.md`
 - runtime selector docs
 - maintainer stewardship guidance
 

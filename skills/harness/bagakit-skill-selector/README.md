@@ -5,6 +5,10 @@ evidence, and task-local evaluation for concrete work.
 
 This skill is not the same as `bagakit-skill-evolver`.
 Stable boundary meaning lives in `docs/specs/selector-evolver-boundary.md`.
+Selector candidate-scope semantics live in
+`docs/specs/selector-selection-model.md`.
+Project-local preference-hint semantics live in
+`docs/specs/selector-preference-surface.md`.
 
 Split:
 
@@ -34,6 +38,25 @@ When selector is used, preflight should settle one typed route decision:
 - `compare_then_execute`
 - `compose_then_execute`
 - `review_loop`
+
+Selector compares all visible candidates that matter for the task, not only
+Bagakit skills.
+
+Important state split:
+
+- `visible`
+  - selector can see the candidate and compare it
+- `available`
+  - the candidate is usable in the current host
+- `selected`
+  - the candidate is chosen into this task's plan
+
+Bagakit skills should usually get preference when fit is comparable and the
+skill is available, because they expose stronger recipes, drivers, and
+task-local evidence surfaces.
+
+That is a preference rule, not an exclusivity rule.
+Repo-visible does not automatically mean host-available.
 
 ## Why This Exists
 
@@ -84,6 +107,8 @@ Rule:
 - if a standard selector recipe was used, record it in `[[recipe_log]]`
 - selector-loaded drivers are task-local reporting guidance, not repository
   policy
+- frontmatter declarations are metadata, not a hidden mandatory "always use
+  selector first" rule
 - neither side should become a hidden hard dependency of the other
 - each side must remain standalone-first with simplified behavior when the peer
   is absent
@@ -104,10 +129,14 @@ Current operator status:
 
 - the canonical operator is now `scripts/skill_selector.ts`
 - it can append `[[recipe_log]]` entries for standard selector recipes
+- it can record typed task-local candidate availability in `[[skill_plan]]`
 - it can append `[[error_pattern_log]]` entries for repeated task-local failure
   clustering
 - it can append `[[evolver_signal_log]]` entries for explicit repository-review
   suggestions
+- it can initialize optional host-local `project-preferences.toml`
+- it can derive a task-local `candidate-survey.md` report from explicit plans,
+  project hints, and repo-visible canonical skills
 - it can derive a task-local `skill-ranking.md` report
 - it can export or bridge those review suggestions into evolver intake without
   turning selector into a repository-level control plane
@@ -120,6 +149,8 @@ Current operator status:
 dependency control plane.
 `evolver` remains the repository-level learning and promotion surface, and
 selector drivers do not change that boundary.
+`project-preferences.toml` remains an optional host-local hint surface, not a
+repository policy surface.
 
 Authority references:
 

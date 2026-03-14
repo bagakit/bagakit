@@ -26,6 +26,7 @@ under `recipes/`.
 Stable selector-versus-evolver meaning lives in:
 
 - `docs/specs/selector-evolver-boundary.md`
+- `docs/specs/selector-selection-model.md`
 
 Default stance:
 
@@ -39,6 +40,7 @@ This skill is for task-level or host-level adoption evidence.
 Authority references:
 
 - `docs/specs/selector-evolver-boundary.md`
+- `docs/specs/selector-selection-model.md`
 
 Use selector when one or more of these are true:
 
@@ -76,6 +78,31 @@ Think of the split as:
 The current monorepo name is already the clearer task-layer name.
 The older standalone repo name `bagakit-skill-evolve` should be treated as
 legacy naming.
+
+## Selection Scope Rule
+
+Selector compares all visible candidates that matter for the task, not just
+Bagakit.
+
+Keep these states distinct:
+
+- `visible`
+- `available`
+- `selected`
+
+Bagakit skills should usually get preference when fit is comparable and the
+skill is available, because Bagakit exposes stronger recipes, drivers, and
+task-local evidence surfaces.
+
+That is a preference rule, not an exclusion rule.
+
+Repo-visible does not mean host-available.
+Frontmatter may declare selector metadata, but it must not silently force
+selector invocation.
+
+Full candidate-scope semantics live in:
+
+- `docs/specs/selector-selection-model.md`
 
 ## Composition Entry Rule
 
@@ -122,6 +149,8 @@ Required behavior:
 - the file must exist before major implementation starts
 - it must be append-updated during execution
 - it must include explicit evaluation before task close
+- selected local candidates should carry explicit `availability` instead of
+  leaving host readiness implicit in prose
 - if the task chooses explicit multi-skill composition, that composition must be
   logged through `[[skill_plan]]` composition fields rather than hidden in prose
 - if the task intentionally follows one standard selector recipe, that choice
@@ -129,6 +158,14 @@ Required behavior:
 - if repeated failure or backoff suggests repository-level review, that
   suggestion should be visible through `[[evolver_signal_log]]` instead of
   being hidden inside notes
+
+Recommended derived outputs:
+
+- `.bagakit/skill-selector/tasks/<task-slug>/candidate-survey.md`
+  - compare visible candidates, recorded availability, and project-local
+    preference hints
+- `.bagakit/skill-selector/tasks/<task-slug>/bagakit-drivers.md`
+  - render selector-loaded Bagakit driver guidance
 
 ## Operator
 
@@ -158,7 +195,15 @@ node --experimental-strip-types scripts/skill_selector.ts plan \
   --kind local \
   --source "<path-or-url>" \
   --why "<selection reason>" \
-  --expected-impact "<expected contribution>"
+  --expected-impact "<expected contribution>" \
+  --availability available \
+  --availability-detail "<host check result>"
+
+node --experimental-strip-types scripts/skill_selector.ts availability \
+  --file .bagakit/skill-selector/tasks/<task-slug>/skill-usage.toml \
+  --skill-id "<skill-or-reference-id>" \
+  --availability available \
+  --availability-detail "<host check result>"
 
 node --experimental-strip-types scripts/skill_selector.ts recipe \
   --file .bagakit/skill-selector/tasks/<task-slug>/skill-usage.toml \
@@ -232,6 +277,14 @@ node --experimental-strip-types scripts/skill_selector.ts evolver-bridge \
 node --experimental-strip-types scripts/skill_selector.ts skill-ranking \
   --file .bagakit/skill-selector/tasks/<task-slug>/skill-usage.toml \
   --output .bagakit/skill-selector/tasks/<task-slug>/skill-ranking.md
+
+node --experimental-strip-types scripts/skill_selector.ts preferences-init \
+  --file .bagakit/skill-selector/project-preferences.toml
+
+node --experimental-strip-types scripts/skill_selector.ts candidate-survey \
+  --file .bagakit/skill-selector/tasks/<task-slug>/skill-usage.toml \
+  --root . \
+  --output .bagakit/skill-selector/tasks/<task-slug>/candidate-survey.md
 
 node --experimental-strip-types scripts/skill_selector.ts evaluate \
   --file .bagakit/skill-selector/tasks/<task-slug>/skill-usage.toml \
@@ -320,6 +373,15 @@ Treat these as candidate types:
 - research/practice references
 
 Use `kind` to distinguish source class: `local | external | research | custom`.
+
+Start from all visible candidates that matter for the task.
+
+Before assuming one repo-visible local candidate can execute:
+
+- check whether it is actually available in the current host
+- if not, keep the candidate visible in the comparison set but log the gap
+  explicitly through `skill_plan.availability`, `skill_plan.availability_detail`,
+  preflight rationale, or fallback choice
 
 For `kind=research`, add at least one benchmark log to avoid “only narrative,
 no evidence”.
@@ -491,8 +553,12 @@ is the canonical intake command for accepting that contract into `.mem_inbox/`.
 
 ## Resources
 
+- selector candidate-scope semantics: `docs/specs/selector-selection-model.md`
+- project-local preference hints: `docs/specs/selector-preference-surface.md`
 - schema and field semantics: `references/skill-usage-file-spec.md`
+- project preference file contract: `references/project-preferences-file-spec.md`
 - selector-loaded driver payload: `references/selector-driver.toml`
 - standard composition recipes: `recipes/`
 - starter template: `assets/skill-usage.template.toml`
+- project preference template: `assets/project-preferences.template.toml`
 - CLI helper: `scripts/skill_selector.ts`

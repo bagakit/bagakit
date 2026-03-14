@@ -29,6 +29,8 @@ export const SUITE: EvalSuiteDefinition = {
         const replacements = registerTempRepo(context, tempRepo);
         try {
           const target = path.join(tempRepo, ".bagakit", "skill-selector", "tasks", "demo", "skill-usage.toml");
+          const preferencesFile = path.join(tempRepo, ".bagakit", "skill-selector", "project-preferences.toml");
+          const survey = path.join(tempRepo, ".bagakit", "skill-selector", "tasks", "demo", "candidate-survey.md");
           const driverPack = path.join(tempRepo, ".bagakit", "skill-selector", "tasks", "demo", "bagakit-drivers.md");
           const ranking = path.join(tempRepo, ".bagakit", "skill-selector", "tasks", "demo", "skill-ranking.md");
           const evolverExport = path.join(tempRepo, ".bagakit", "skill-selector", "tasks", "demo", "evolver-signals.json");
@@ -47,10 +49,22 @@ export const SUITE: EvalSuiteDefinition = {
 
         run(["init", "--file", target, "--task-id", "demo-task", "--objective", "eval selector loop", "--owner", "validator"], "init");
         run(["preflight", "--file", target, "--answer", "partial", "--gap-summary", "need driver loading coverage", "--decision", "compose_then_execute", "--status", "in_progress"], "preflight");
-        run(["recipe", "--file", target, "--recipe-id", "research-to-knowledge", "--source", "skills/harness/bagakit-skill-selector/recipes/research-to-knowledge.md", "--why", "evaluate composition logging", "--status", "selected"], "recipe");
-        run(["plan", "--file", target, "--skill-id", "bagakit-skill-selector", "--kind", "local", "--source", "skills/harness/bagakit-skill-selector", "--why", "orchestrate composition", "--expected-impact", "keep composition visible", "--composition-role", "composition_entrypoint", "--composition-id", "loop", "--activation-mode", "composed"], "plan selector");
-        run(["plan", "--file", target, "--skill-id", "bagakit-living-knowledge", "--kind", "local", "--source", "skills/harness/bagakit-living-knowledge", "--why", "provide shared knowledge", "--expected-impact", "keep recall explicit", "--composition-role", "composition_peer", "--composition-id", "loop", "--activation-mode", "composed", "--fallback-strategy", "standalone_first"], "plan living-knowledge");
+        run(["recipe", "--file", target, "--recipe-id", "research-to-knowledge", "--source", "skills/harness/bagakit-skill-selector/recipes/research-to-knowledge.md", "--why", "evaluate composition logging", "--synthesis-artifact", ".bagakit/living-knowledge/notes/research-to-knowledge.md", "--status", "selected"], "recipe");
+        run(["preferences-init", "--file", preferencesFile], "preferences-init");
+        fs.appendFileSync(
+          preferencesFile,
+          "\n[[skill_preference]]\n"
+          + "timestamp = \"2026-04-20T00:00:00Z\"\n"
+          + "skill_id = \"bagakit-brainstorm\"\n"
+          + "preference = \"prefer\"\n"
+          + "reason = \"Option-shaping work in this host often benefits from explicit brainstorm handoff.\"\n"
+          + "notes = \"\"\n",
+          "utf8",
+        );
+        run(["plan", "--file", target, "--skill-id", "bagakit-skill-selector", "--kind", "local", "--source", "skills/harness/bagakit-skill-selector", "--why", "orchestrate composition", "--expected-impact", "keep composition visible", "--availability", "available", "--availability-detail", "available as a canonical local skill in the current catalog root", "--composition-role", "composition_entrypoint", "--composition-id", "loop", "--activation-mode", "composed"], "plan selector");
+        run(["plan", "--file", target, "--skill-id", "bagakit-living-knowledge", "--kind", "local", "--source", "skills/harness/bagakit-living-knowledge", "--why", "provide shared knowledge", "--expected-impact", "keep recall explicit", "--availability", "available", "--availability-detail", "available as a canonical local skill in the current catalog root", "--composition-role", "composition_peer", "--composition-id", "loop", "--activation-mode", "composed", "--fallback-strategy", "standalone_first"], "plan living-knowledge");
         run(["plan", "--file", target, "--skill-id", "bagakit-researcher", "--kind", "local", "--source", "skills/harness/bagakit-researcher", "--why", "provide evidence production", "--expected-impact", "keep research explicit", "--composition-role", "composition_peer", "--composition-id", "loop", "--activation-mode", "composed", "--fallback-strategy", "standalone_first"], "plan researcher");
+        run(["availability", "--file", target, "--skill-id", "bagakit-researcher", "--availability", "available", "--availability-detail", "available as a canonical local skill after explicit host check"], "availability researcher");
         run(["usage", "--file", target, "--skill-id", "bagakit-skill-selector", "--phase", "execution", "--attempt-key", "driver-pack-load", "--action", "loaded selector drivers", "--result", "partial", "--evidence", "suite.ts"], "usage partial");
         run(["usage", "--file", target, "--skill-id", "bagakit-skill-selector", "--phase", "execution", "--attempt-key", "driver-pack-load", "--action", "loaded selector drivers", "--result", "failed", "--evidence", "suite.ts"], "usage failed 1");
         run(["usage", "--file", target, "--skill-id", "bagakit-skill-selector", "--phase", "execution", "--attempt-key", "driver-pack-load", "--action", "loaded selector drivers", "--result", "failed", "--evidence", "suite.ts"], "usage failed 2");
@@ -85,6 +99,7 @@ export const SUITE: EvalSuiteDefinition = {
         run(["feedback", "--file", target, "--skill-id", "bagakit-skill-selector", "--channel", "self_review", "--signal", "positive", "--detail", "ranking stays readable", "--impact-scope", "driver-loop", "--confidence", "high"], "feedback");
         run(["search", "--file", target, "--reason", "retry backoff threshold hit", "--query", "driver-pack-load alternative strategy", "--source-scope", "local"], "search");
         run(["benchmark", "--file", target, "--benchmark-id", "selector-smoke", "--metric", "evidence_quality", "--baseline", "0.6", "--candidate", "0.8", "--higher-is-better", "--notes", "exercise benchmark logging"], "benchmark");
+        run(["candidate-survey", "--file", target, "--root", repoRoot, "--output", survey], "candidate-survey");
         run(["drivers", "--file", target, "--root", repoRoot, "--output", driverPack], "drivers");
         run(["skill-ranking", "--file", target, "--output", ranking], "skill-ranking");
         run(["evolver-export", "--file", target, "--output", evolverExport], "evolver-export");
@@ -93,6 +108,7 @@ export const SUITE: EvalSuiteDefinition = {
         run(["validate", "--file", target, "--strict"], "validate");
         const evolverSignals = JSON.parse(runEvolver(["list-signals", "--root", tempRepo, "--json"], "evolver list-signals").stdout) as Array<Record<string, unknown>>;
 
+        const surveyText = fs.readFileSync(survey, "utf8");
         const driverText = fs.readFileSync(driverPack, "utf8");
         const rankingText = fs.readFileSync(ranking, "utf8");
         const usageDoc = readSkillUsageDoc(target);
@@ -119,6 +135,8 @@ export const SUITE: EvalSuiteDefinition = {
         );
         assert.equal(usageDoc.next_actions.needs_new_search, true);
         assert.equal(usageDoc.usage_log.some((entry) => entry.backoff_required), true);
+        assert.ok(usageDoc.recipe_log.some((entry) => entry.synthesis_artifact === ".bagakit/living-knowledge/notes/research-to-knowledge.md"));
+        assert.ok(usageDoc.skill_plan.every((entry) => entry.kind !== "local" || entry.availability === "available"));
         assert.deepEqual([...exportedSignalsById.keys()].sort(), expectedSignalIds);
         assert.deepEqual([...importedSignalsById.keys()].sort(), expectedSignalIds);
         assert.equal(exportedSignalsById.get("demo-task-driver-load-review")?.source_channel, "selector");
@@ -159,6 +177,11 @@ export const SUITE: EvalSuiteDefinition = {
           (usageSignalsById.get("driver-load-review")?.updated_at ?? "") >=
           (usageSignalsById.get("driver-load-review")?.timestamp ?? ""),
         );
+        assert.ok(surveyText.includes("Candidate Survey"));
+        assert.ok(surveyText.includes("Project Preference Hints"));
+        assert.ok(surveyText.includes("bagakit-brainstorm"));
+        assert.ok(surveyText.includes("repo_visible"));
+        assert.ok(surveyText.includes("| bagakit-researcher | local | repo_visible | available | yes | neutral |"));
         assert.ok(driverText.includes("bagakit-researcher"));
         assert.ok(driverText.includes("RetryBackoffThreshold: `3`"));
         assert.ok(driverText.includes("EvolverReview=<pending review signals or none>"));
@@ -169,6 +192,7 @@ export const SUITE: EvalSuiteDefinition = {
           return {
           assertions: [
             "selector log records retry backoff and new-search requirement after repeated failures",
+            "candidate survey keeps visible, available, selected, and project-hint state explicit without becoming task SSOT drift",
             "selector auto-generated retry and error-pattern review signals are exported with normalized ids and routeable topic hints",
             "driver pack includes composed peers declared by the chosen plans",
             "skill ranking report is produced from the same task log without a second control plane",
@@ -176,12 +200,14 @@ export const SUITE: EvalSuiteDefinition = {
           ],
           commands: [
             `node --experimental-strip-types ${script} init --file <temp-repo>/.bagakit/skill-selector/tasks/demo/skill-usage.toml --task-id demo-task --objective "eval selector loop" --owner validator`,
+            `node --experimental-strip-types ${script} candidate-survey --file <temp-repo>/.bagakit/skill-selector/tasks/demo/skill-usage.toml --root . --output <temp-repo>/.bagakit/skill-selector/tasks/demo/candidate-survey.md`,
             `node --experimental-strip-types ${script} drivers --file <temp-repo>/.bagakit/skill-selector/tasks/demo/skill-usage.toml --root . --output <temp-repo>/.bagakit/skill-selector/tasks/demo/bagakit-drivers.md`,
             `node --experimental-strip-types ${script} skill-ranking --file <temp-repo>/.bagakit/skill-selector/tasks/demo/skill-usage.toml --output <temp-repo>/.bagakit/skill-selector/tasks/demo/skill-ranking.md`,
             `node --experimental-strip-types ${script} evolver-bridge --file <temp-repo>/.bagakit/skill-selector/tasks/demo/skill-usage.toml --root <temp-repo> --output <temp-repo>/.bagakit/skill-selector/tasks/demo/evolver-signals.json`,
           ],
           artifacts: [
             { label: "usage-log", path: target },
+            { label: "candidate-survey", path: survey },
             { label: "driver-pack", path: driverPack },
             { label: "ranking-report", path: ranking },
             { label: "evolver-export", path: evolverExport },

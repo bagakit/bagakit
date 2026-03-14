@@ -180,6 +180,8 @@ Sub-layout:
   - maintainer guidance for standard multi-skill recipes under selector
 - `selector-driver-maintenance.md`
   - maintainer guidance for selector-loadable driver files
+- `selector-project-preference-maintenance.md`
+  - maintainer guidance for optional host-local selector preference hints
 - `selector-usage-guidance.md`
   - maintainer guidance for when substantial work should consider selector preflight
 - `sop/`

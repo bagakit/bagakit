@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 
-import { getNestedString, parseMarkdownFrontmatter } from "./frontmatter.ts";
+import { readSkillDescriptorAtRelativeDir } from "./skill_catalog.ts";
 import {
   ACTIVATION_MODES,
   COMPOSITION_ROLES,
@@ -15,6 +15,7 @@ import {
   FEEDBACK_SIGNALS,
   PLAN_CONFIDENCE,
   PLAN_KINDS,
+  PLAN_AVAILABILITY,
   PLAN_STATUSES,
   PREFLIGHT_ANSWERS,
   RECIPE_STATUSES,
@@ -41,6 +42,7 @@ import {
   type FeedbackSignal,
   type PlanConfidence,
   type PlanKind,
+  type PlanAvailability,
   type PlanStatus,
   type PreflightAnswer,
   type PreflightDecision,
@@ -239,6 +241,12 @@ function parseSkillPlanEntry(record: Record<string, unknown>): SkillPlanEntry {
     why: readString(record, "why"),
     expected_impact: readString(record, "expected_impact"),
     confidence: assertEnumValue(PLAN_CONFIDENCE, readString(record, "confidence", "medium"), "skill_plan.confidence"),
+    availability: assertEnumValue(
+      PLAN_AVAILABILITY,
+      readString(record, "availability", "unknown"),
+      "skill_plan.availability",
+    ),
+    availability_detail: readString(record, "availability_detail"),
     selected: readBoolean(record, "selected", true),
     status: assertEnumValue(PLAN_STATUSES, readString(record, "status", "planned"), "skill_plan.status"),
     composition_role: assertEnumValue(
@@ -342,6 +350,7 @@ function parseRecipeLogEntry(record: Record<string, unknown>): RecipeLogEntry {
     source: readString(record, "source"),
     why: readString(record, "why"),
     status: assertEnumValue(RECIPE_STATUSES, readString(record, "status", "selected"), "recipe_log.status"),
+    synthesis_artifact: readOptionalString(record, "synthesis_artifact"),
     notes: readString(record, "notes"),
   };
 }
@@ -531,6 +540,7 @@ export function renderSkillUsageDoc(doc: SkillUsageDoc): string {
     "source",
     "why",
     "status",
+    "synthesis_artifact",
     "notes",
   ]);
   renderArrayTable(lines, "evolver_signal_log", doc.evolver_signal_log, [
@@ -560,6 +570,8 @@ export function renderSkillUsageDoc(doc: SkillUsageDoc): string {
     "why",
     "expected_impact",
     "confidence",
+    "availability",
+    "availability_detail",
     "selected",
     "status",
     "composition_role",
@@ -858,6 +870,7 @@ export function appendRecipeLog(
     source: string;
     why: string;
     status: RecipeStatus;
+    synthesis_artifact?: string;
     notes: string;
   },
 ): void {
@@ -867,6 +880,7 @@ export function appendRecipeLog(
     source: input.source,
     why: input.why,
     status: input.status,
+    synthesis_artifact: input.synthesis_artifact,
     notes: input.notes,
   });
   doc.updated_at = nowIso();
@@ -923,6 +937,8 @@ export function appendSkillPlan(
     why: string;
     expected_impact: string;
     confidence: PlanConfidence;
+    availability: PlanAvailability;
+    availability_detail: string;
     selected: boolean;
     status: PlanStatus;
     composition_role: CompositionRole;
@@ -965,6 +981,8 @@ export function appendSkillPlan(
     why: input.why,
     expected_impact: input.expected_impact,
     confidence: input.confidence,
+    availability: input.availability,
+    availability_detail: input.availability_detail,
     selected: input.selected,
     status: input.status,
     composition_role: input.composition_role,
@@ -1051,6 +1069,23 @@ export function appendUsageLog(
 
   doc.updated_at = nowIso();
   return messages;
+}
+
+export function updatePlanAvailability(
+  doc: SkillUsageDoc,
+  input: {
+    skill_id: string;
+    availability: PlanAvailability;
+    availability_detail: string;
+  },
+): void {
+  const plan = [...doc.skill_plan].reverse().find((entry) => entry.skill_id === input.skill_id);
+  if (!plan) {
+    throw new Error(`unknown planned skill_id: ${input.skill_id}`);
+  }
+  plan.availability = input.availability;
+  plan.availability_detail = input.availability_detail;
+  doc.updated_at = nowIso();
 }
 
 export function appendFeedbackLog(
@@ -1254,6 +1289,17 @@ export function validateSkillUsage(doc: SkillUsageDoc, strict: boolean): string[
     issues.push("attempt_policy.retry_backoff_threshold must be an integer >= 2");
   }
   const plannedSkillIds = new Set(doc.skill_plan.map((plan) => plan.skill_id));
+  for (const plan of doc.skill_plan) {
+    if (plan.skill_id.trim() === "") {
+      issues.push("skill_plan.skill_id must not be empty");
+    }
+    if (plan.availability === "unavailable" && plan.selected) {
+      issues.push(`skill_plan.selected candidate must not remain unavailable (${plan.skill_id})`);
+    }
+    if (plan.status === "used" && plan.availability === "unavailable") {
+      issues.push(`skill_plan.used candidate must not remain unavailable (${plan.skill_id})`);
+    }
+  }
   for (const errorPattern of doc.error_pattern_log) {
     if (!Number.isInteger(errorPattern.occurrence_index) || errorPattern.occurrence_index < 1) {
       issues.push(
@@ -1332,6 +1378,10 @@ export function validateSkillUsage(doc: SkillUsageDoc, strict: boolean): string[
     }
     if (plan.activation_mode !== "composed") {
       issues.push(`strict mode: composed skill_plan must use activation_mode=composed (${plan.skill_id})`);
+    }
+
+    if (plan.kind === "local" && plan.selected && plan.availability === "unknown") {
+      issues.push(`strict mode: selected local skill_plan must record availability (${plan.skill_id})`);
     }
 
     const bucket = composedCounts.get(plan.composition_id) ?? { entrypoint: 0, peer: 0 };
@@ -1430,22 +1480,17 @@ export function loadSelectorDrivers(
       continue;
     }
 
-    const skillDir = resolveRepoRelativePath(repoRoot, plan.source, "skill source");
-    const skillMdPath = path.join(skillDir, "SKILL.md");
-    if (!fs.existsSync(skillMdPath)) {
+    const descriptor = readSkillDescriptorAtRelativeDir(repoRoot, plan.source);
+    if (!descriptor || !descriptor.bagakit) {
       continue;
     }
-    const frontmatter = parseMarkdownFrontmatter(fs.readFileSync(skillMdPath, "utf-8"));
-    const skillName = getNestedString(frontmatter, ["name"]);
-    if (!skillName || !skillName.startsWith("bagakit-")) {
-      continue;
-    }
-    const driverRef = getNestedString(frontmatter, ["metadata", "bagakit", "selector_driver_file"]);
+    const skillName = descriptor.name;
+    const driverRef = descriptor.selector_driver_file;
     if (!driverRef) {
       continue;
     }
 
-    const driverPath = resolvePathInside(skillDir, driverRef, "selector driver file");
+    const driverPath = resolvePathInside(descriptor.absolute_dir, driverRef, "selector driver file");
     if (seenPaths.has(driverPath)) {
       continue;
     }

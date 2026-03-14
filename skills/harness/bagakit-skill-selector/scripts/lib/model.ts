@@ -10,6 +10,7 @@ export const PREFLIGHT_DECISIONS = [
 export const PLAN_KINDS = ["local", "external", "research", "custom"] as const;
 export const PLAN_CONFIDENCE = ["low", "medium", "high"] as const;
 export const PLAN_STATUSES = ["planned", "used", "not_used", "replaced", "deprecated"] as const;
+export const PLAN_AVAILABILITY = ["available", "unknown", "unavailable"] as const;
 export const COMPOSITION_ROLES = ["standalone", "composition_entrypoint", "composition_peer"] as const;
 export const ACTIVATION_MODES = ["standalone", "composed"] as const;
 export const FALLBACK_STRATEGIES = ["none", "standalone_first"] as const;
@@ -21,6 +22,7 @@ export const SEARCH_SOURCE_SCOPES = ["local", "external", "hybrid"] as const;
 export const SEARCH_STATUSES = ["open", "done", "discarded"] as const;
 export const EVALUATION_OVERALL = ["pass", "conditional_pass", "fail", "pending"] as const;
 export const RECIPE_STATUSES = ["considered", "selected", "used", "skipped", "rejected"] as const;
+export const PROJECT_PREFERENCE_VALUES = ["prefer", "avoid"] as const;
 export const EVOLVER_SIGNAL_KINDS = ["decision", "preference", "gotcha", "howto", "glossary"] as const;
 export const EVOLVER_SIGNAL_TRIGGERS = [
   "retry_backoff",
@@ -39,6 +41,7 @@ export type PreflightDecision = (typeof PREFLIGHT_DECISIONS)[number];
 export type PlanKind = (typeof PLAN_KINDS)[number];
 export type PlanConfidence = (typeof PLAN_CONFIDENCE)[number];
 export type PlanStatus = (typeof PLAN_STATUSES)[number];
+export type PlanAvailability = (typeof PLAN_AVAILABILITY)[number];
 export type CompositionRole = (typeof COMPOSITION_ROLES)[number];
 export type ActivationMode = (typeof ACTIVATION_MODES)[number];
 export type FallbackStrategy = (typeof FALLBACK_STRATEGIES)[number];
@@ -50,6 +53,7 @@ export type SearchSourceScope = (typeof SEARCH_SOURCE_SCOPES)[number];
 export type SearchStatus = (typeof SEARCH_STATUSES)[number];
 export type EvaluationOverall = (typeof EVALUATION_OVERALL)[number];
 export type RecipeStatus = (typeof RECIPE_STATUSES)[number];
+export type ProjectPreferenceValue = (typeof PROJECT_PREFERENCE_VALUES)[number];
 export type EvolverSignalKind = (typeof EVOLVER_SIGNAL_KINDS)[number];
 export type EvolverSignalTrigger = (typeof EVOLVER_SIGNAL_TRIGGERS)[number];
 export type EvolverScopeHint = (typeof EVOLVER_SCOPE_HINTS)[number];
@@ -105,6 +109,8 @@ export interface SkillPlanEntry {
   why: string;
   expected_impact: string;
   confidence: PlanConfidence;
+  availability: PlanAvailability;
+  availability_detail: string;
   selected: boolean;
   status: PlanStatus;
   composition_role: CompositionRole;
@@ -177,6 +183,20 @@ export interface RecipeLogEntry {
   status: RecipeStatus;
   synthesis_artifact?: string;
   notes: string;
+}
+
+export interface ProjectPreferenceEntry {
+  timestamp: string;
+  skill_id: string;
+  preference: ProjectPreferenceValue;
+  reason: string;
+  notes: string;
+}
+
+export interface ProjectPreferencesDoc {
+  schema_version: string;
+  updated_at: string;
+  skill_preference: ProjectPreferenceEntry[];
 }
 
 export interface EvolverSignalLogEntry {

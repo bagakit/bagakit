@@ -42,6 +42,50 @@ Ask one simple question:
 If yes, use selector.
 If no, act directly.
 
+## Selection Scope Rule
+
+Selector should compare all visible candidates that matter for the task, not
+just Bagakit skills.
+
+That comparison set may include:
+
+- repo-visible canonical Bagakit skills
+- currently installed host skills or tools
+- external utilities
+- research or practice references
+
+Bagakit skills should usually get preference when fit is comparable and the
+skill is actually available, because Bagakit can offer:
+
+- richer metadata
+- selector recipes
+- selector-loaded drivers
+- stronger task-local evidence surfaces
+
+This is a preference rule, not an exclusion rule.
+
+If the best fit is non-Bagakit or mixed, selector should say so explicitly.
+
+## Availability Rule
+
+Repo-visible does not mean host-available.
+
+So selector should separate:
+
+- `visible`
+  - the candidate exists and is relevant enough to compare
+- `available`
+  - the candidate is usable in the current host or session
+- `selected`
+  - the candidate is chosen for this task
+
+If a canonical Bagakit skill is visible in the repository but not available in
+the current host, keep it in the comparison picture but do not pretend it is
+executable.
+
+When selector is already in use, record explicit task-local availability in
+`[[skill_plan]]` instead of leaving it implicit in prose.
+
 ## Boundary Rule
 
 Selector owns:
@@ -61,6 +105,19 @@ Those belong to:
 
 - `bagakit-skill-evolver`
 
+## Frontmatter Rule
+
+Skill frontmatter may declare selector-relevant metadata such as:
+
+- Bagakit namespace identity
+- harness layer
+- selector driver file path
+
+It must not be treated as a hidden mandatory rule that every task must invoke
+selector first.
+
+Invocation remains a task-level decision.
+
 ## Legacy Absorption Rule
 
 Legacy `bagakit-skill-evolve` features that are still task-local should migrate
@@ -76,3 +133,37 @@ Good selector-side examples:
 
 Do not promote those directly into evolver unless they have already been
 compressed into reusable repository learning.
+
+## Self-Discipline Rule
+
+When an operator is already doing selector-oriented work, the same discipline
+still applies:
+
+- before doing a substantial subtask directly, ask whether a better-fit skill
+  should be used
+
+Example:
+
+- if the next subtask is research-heavy, consider a research-oriented skill
+  before treating selector as a reason to do the work ad hoc
+
+## Project-Local Preference Rule
+
+If project-local selector preference artifacts are later maintained under
+`.bagakit/skill-selector/`, treat them as:
+
+- host-local hints
+- comparison accelerators
+- optional input to derived candidate survey output
+
+Do not treat them as:
+
+- repository-level policy
+- evolver topic state
+- a reason to skip fresh task-level judgment
+
+Recommended companion artifact:
+
+- `.bagakit/skill-selector/tasks/<task-slug>/candidate-survey.md`
+  - derived comparison view only
+  - not a second task SSOT

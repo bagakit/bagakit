@@ -34,7 +34,9 @@ done
 ROOT="$(cd "$ROOT" && pwd)"
 TMP_DIR="$(mktemp -d)"
 TARGET="$TMP_DIR/.bagakit/skill-selector/tasks/demo/skill-usage.toml"
+PREFERENCES_FILE="$TMP_DIR/.bagakit/skill-selector/project-preferences.toml"
 DRIVER_PACK="$TMP_DIR/.bagakit/skill-selector/tasks/demo/bagakit-drivers.md"
+SURVEY_REPORT="$TMP_DIR/.bagakit/skill-selector/tasks/demo/candidate-survey.md"
 RANKING_REPORT="$TMP_DIR/.bagakit/skill-selector/tasks/demo/skill-ranking.md"
 EVOLVER_EXPORT="$TMP_DIR/.bagakit/skill-selector/tasks/demo/evolver-signals.json"
 SELECTOR_BIN=(node --experimental-strip-types "$ROOT/skills/harness/bagakit-skill-selector/scripts/skill_selector.ts")
@@ -58,7 +60,21 @@ EVOLVER_BIN=(node --experimental-strip-types "$ROOT/skills/harness/bagakit-skill
   --recipe-id "research-to-knowledge" \
   --source "skills/harness/bagakit-skill-selector/recipes/research-to-knowledge.md" \
   --why "need an explicit research-to-knowledge promotion handoff decision" \
+  --synthesis-artifact ".bagakit/living-knowledge/notes/research-to-knowledge.md" \
   --status selected
+
+"${SELECTOR_BIN[@]}" preferences-init \
+  --file "$PREFERENCES_FILE"
+
+cat >> "$PREFERENCES_FILE" <<'EOF'
+
+[[skill_preference]]
+timestamp = "2026-04-20T00:00:00Z"
+skill_id = "bagakit-brainstorm"
+preference = "prefer"
+reason = "Option-shaping work in this host often benefits from explicit brainstorm handoff."
+notes = ""
+EOF
 
 "${SELECTOR_BIN[@]}" plan \
   --file "$TARGET" \
@@ -67,6 +83,8 @@ EVOLVER_BIN=(node --experimental-strip-types "$ROOT/skills/harness/bagakit-skill
   --source "skills/harness/bagakit-skill-selector" \
   --why "validate selector-owned explicit composition entrypoint" \
   --expected-impact "keep coupled harness composition visible and auditable" \
+  --availability available \
+  --availability-detail "available as a canonical local skill in the current catalog root" \
   --composition-role composition_entrypoint \
   --composition-id "knowledge-research-loop" \
   --activation-mode composed
@@ -78,6 +96,8 @@ EVOLVER_BIN=(node --experimental-strip-types "$ROOT/skills/harness/bagakit-skill
   --source "skills/harness/bagakit-living-knowledge" \
   --why "provide host-side knowledge substrate inside the composed task loop" \
   --expected-impact "retain local project knowledge while selector orchestrates composition" \
+  --availability available \
+  --availability-detail "available as a canonical local skill in the current catalog root" \
   --composition-role composition_peer \
   --composition-id "knowledge-research-loop" \
   --activation-mode composed \
@@ -94,6 +114,12 @@ EVOLVER_BIN=(node --experimental-strip-types "$ROOT/skills/harness/bagakit-skill
   --composition-id "knowledge-research-loop" \
   --activation-mode composed \
   --fallback-strategy standalone_first
+
+"${SELECTOR_BIN[@]}" availability \
+  --file "$TARGET" \
+  --skill-id "bagakit-researcher" \
+  --availability available \
+  --availability-detail "available as a canonical local skill after explicit host check"
 
 "${SELECTOR_BIN[@]}" plan \
   --file "$TARGET" \
@@ -178,6 +204,11 @@ EVOLVER_BIN=(node --experimental-strip-types "$ROOT/skills/harness/bagakit-skill
   --candidate 0.8 \
   --higher-is-better \
   --notes "research composition example includes benchmark coverage"
+
+"${SELECTOR_BIN[@]}" candidate-survey \
+  --file "$TARGET" \
+  --root "$ROOT" \
+  --output "$SURVEY_REPORT"
 
 "${SELECTOR_BIN[@]}" drivers \
   --file "$TARGET" \
@@ -312,13 +343,20 @@ PY
 
 grep -q 'bagakit-researcher' "$TARGET"
 grep -q 'recipe_id = "research-to-knowledge"' "$TARGET"
+grep -q 'synthesis_artifact = ".bagakit/living-knowledge/notes/research-to-knowledge.md"' "$TARGET"
 grep -q 'attempt_key = "driver-pack-load"' "$TARGET"
 grep -q 'backoff_required = true' "$TARGET"
 grep -q 'error_type = "driver_load_failure"' "$TARGET"
 grep -q 'occurrence_index = 2' "$TARGET"
+grep -q 'availability = "available"' "$TARGET"
 grep -q 'needs_new_search = true' "$TARGET"
 grep -q '\[\[evolver_signal_log\]\]' "$TARGET"
 grep -q 'signal_id = "driver-load-review"' "$TARGET"
+grep -q 'Candidate Survey' "$SURVEY_REPORT"
+grep -q 'Project Preference Hints' "$SURVEY_REPORT"
+grep -q 'bagakit-brainstorm' "$SURVEY_REPORT"
+grep -q 'repo_visible' "$SURVEY_REPORT"
+grep -q 'available' "$SURVEY_REPORT"
 grep -q 'bagakit-skill-selector' "$DRIVER_PACK"
 grep -q 'bagakit-living-knowledge' "$DRIVER_PACK"
 grep -q 'bagakit-researcher' "$DRIVER_PACK"

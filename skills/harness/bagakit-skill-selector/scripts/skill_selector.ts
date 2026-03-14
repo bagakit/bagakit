@@ -4,6 +4,12 @@ import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
 import { parseCliArgs, readBooleanFlag, readNumberFlag, readStringFlag } from "./lib/args.ts";
+import { buildCandidateSurveyReport } from "./lib/candidate_survey.ts";
+import {
+  createProjectPreferencesDoc,
+  readProjectPreferencesDoc,
+  writeProjectPreferencesDoc,
+} from "./lib/project_preferences.ts";
 import {
   appendBenchmarkLog,
   appendEvolverSignal,
@@ -21,6 +27,7 @@ import {
   renderDriverPack,
   updateEvolverSignalStatuses,
   updateEvaluation,
+  updatePlanAvailability,
   updatePreflight,
   validateSkillUsage,
   writeSkillUsageDoc,
@@ -39,6 +46,7 @@ import {
   FEEDBACK_CHANNELS,
   FEEDBACK_SIGNALS,
   PLAN_CONFIDENCE,
+  PLAN_AVAILABILITY,
   PLAN_KINDS,
   PLAN_STATUSES,
   PREFLIGHT_ANSWERS,
@@ -60,8 +68,9 @@ function printHelp(): void {
 Commands:
   init --file <path> --task-id <id> --objective <text> [--owner <name>] [--force]
   preflight --file <path> --answer <yes|no|partial|pending> --decision <direct_execute|compare_then_execute|compose_then_execute|review_loop|pending> [--gap-summary <text>] [--status <task-status>]
-  plan --file <path> --skill-id <id> --kind <local|external|research|custom> --source <path-or-url> --why <text> --expected-impact <text> [--confidence <low|medium|high>] [--selected <true|false>] [--status <plan-status>] [--composition-role <role>] [--composition-id <id>] [--activation-mode <mode>] [--fallback-strategy <strategy>] [--notes <text>]
-  recipe --file <path> --recipe-id <id> --source <selector-recipe-path> --why <text> [--status <considered|selected|used|skipped|rejected>] [--notes <text>]
+  plan --file <path> --skill-id <id> --kind <local|external|research|custom> --source <path-or-url> --why <text> --expected-impact <text> [--confidence <low|medium|high>] [--availability <available|unknown|unavailable>] [--availability-detail <text>] [--selected <true|false>] [--status <plan-status>] [--composition-role <role>] [--composition-id <id>] [--activation-mode <mode>] [--fallback-strategy <strategy>] [--notes <text>]
+  availability --file <path> --skill-id <id> --availability <available|unknown|unavailable> [--availability-detail <text>]
+  recipe --file <path> --recipe-id <id> --source <selector-recipe-path> --why <text> [--status <considered|selected|used|skipped|rejected>] [--synthesis-artifact <path>] [--notes <text>]
   usage --file <path> --skill-id <id> --phase <phase> --action <text> --result <success|partial|failed|not_used> [--evidence <text>] [--metric-hint <text>] [--attempt-key <text>] [--notes <text>]
   feedback --file <path> --skill-id <id> --channel <user|metric|self_review> --signal <positive|neutral|negative> --detail <text> [--impact-scope <text>] [--confidence <low|medium|high>]
   search --file <path> --reason <text> --query <text> [--source-scope <local|external|hybrid>] [--status <open|done|discarded>] [--notes <text>]
@@ -71,6 +80,8 @@ Commands:
   evolver-export --file <path> [--output <path>] [--status <suggested|exported>] [--mark-exported]
   evolver-bridge --file <path> --root <repo-root> [--output <path>] [--status <suggested|exported>] [--evolver-cli <path>]
   skill-ranking --file <path> [--output <path>]
+  candidate-survey --file <path> [--root <catalog-root>] [--preferences-file <path>] [--query <text>] [--output <path>] [--include-all]
+  preferences-init --file <path> [--force]
   evaluate --file <path> --quality-score <n> --evidence-score <n> --feedback-score <n> --overall <pass|conditional_pass|fail|pending> --summary <text> [--status <task-status>] [--needs-feedback-confirmation <true|false>] [--needs-new-search <true|false>] [--next-search-query <text>] [--notes <text>]
   validate --file <path> [--strict]
   drivers --file <path> [--root <repo-root>] [--output <path>] [--include-unselected]
@@ -86,6 +97,10 @@ function assertEnum<const T extends readonly string[]>(values: T, raw: string, l
 
 function resolvePathFromCwd(rawPath: string): string {
   return path.resolve(process.cwd(), rawPath);
+}
+
+function taskRepoRootFromFile(filePath: string): string {
+  return path.resolve(path.dirname(filePath), "../../../../");
 }
 
 function selectorRepoRootFromTaskFile(filePath: string): string {
@@ -146,6 +161,12 @@ function cmdPlan(flags: Map<string, string | boolean>): number {
     why: requiredString(flags, "why"),
     expected_impact: requiredString(flags, "expected-impact"),
     confidence: assertEnum(PLAN_CONFIDENCE, readStringFlag(flags, "confidence") ?? "medium", "skill_plan.confidence"),
+    availability: assertEnum(
+      PLAN_AVAILABILITY,
+      readStringFlag(flags, "availability") ?? "unknown",
+      "skill_plan.availability",
+    ),
+    availability_detail: readStringFlag(flags, "availability-detail") ?? "",
     selected: readBooleanFlag(flags, "selected", true),
     status: assertEnum(PLAN_STATUSES, readStringFlag(flags, "status") ?? "planned", "skill_plan.status"),
     composition_role: assertEnum(
@@ -164,6 +185,23 @@ function cmdPlan(flags: Map<string, string | boolean>): number {
   });
   writeSkillUsageDoc(filePath, doc);
   console.log(`ok: appended skill_plan to ${filePath}`);
+  return 0;
+}
+
+function cmdAvailability(flags: Map<string, string | boolean>): number {
+  const filePath = resolvePathFromCwd(requiredString(flags, "file"));
+  const doc = readSkillUsageDoc(filePath);
+  updatePlanAvailability(doc, {
+    skill_id: requiredString(flags, "skill-id"),
+    availability: assertEnum(
+      PLAN_AVAILABILITY,
+      requiredString(flags, "availability"),
+      "skill_plan.availability",
+    ),
+    availability_detail: readStringFlag(flags, "availability-detail") ?? "",
+  });
+  writeSkillUsageDoc(filePath, doc);
+  console.log(`ok: updated skill_plan availability in ${filePath}`);
   return 0;
 }
 
@@ -401,6 +439,50 @@ function cmdSkillRanking(flags: Map<string, string | boolean>): number {
   return 0;
 }
 
+function resolvePreferenceFilePath(taskFilePath: string, rawPreferenceFile?: string): string | undefined {
+  if (rawPreferenceFile) {
+    return resolvePathFromCwd(rawPreferenceFile);
+  }
+  const defaultPath = path.join(taskRepoRootFromFile(taskFilePath), ".bagakit", "skill-selector", "project-preferences.toml");
+  if (fs.existsSync(defaultPath)) {
+    return defaultPath;
+  }
+  return undefined;
+}
+
+function cmdCandidateSurvey(flags: Map<string, string | boolean>): number {
+  const filePath = resolvePathFromCwd(requiredString(flags, "file"));
+  const catalogRoot = resolvePathFromCwd(readStringFlag(flags, "root") ?? ".");
+  const outputPath = resolvePathFromCwd(
+    readStringFlag(flags, "output") ?? path.join(path.dirname(filePath), "candidate-survey.md"),
+  );
+  const preferenceFilePath = resolvePreferenceFilePath(filePath, readStringFlag(flags, "preferences-file") ?? undefined);
+  const preferenceDoc = preferenceFilePath ? readProjectPreferencesDoc(preferenceFilePath) : undefined;
+  const doc = readSkillUsageDoc(filePath);
+  const rendered = buildCandidateSurveyReport(doc, {
+    catalogRoot,
+    query: readStringFlag(flags, "query") ?? undefined,
+    includeAll: readBooleanFlag(flags, "include-all", false),
+    preferenceDoc,
+    preferenceFilePath,
+  });
+  fs.mkdirSync(path.dirname(outputPath), { recursive: true });
+  fs.writeFileSync(outputPath, rendered, "utf-8");
+  console.log(`ok: wrote candidate survey report to ${outputPath}`);
+  return 0;
+}
+
+function cmdPreferencesInit(flags: Map<string, string | boolean>): number {
+  const filePath = resolvePathFromCwd(requiredString(flags, "file"));
+  const force = readBooleanFlag(flags, "force", false);
+  if (fs.existsSync(filePath) && !force) {
+    throw new Error(`file already exists: ${filePath}. use --force to overwrite`);
+  }
+  writeProjectPreferencesDoc(filePath, createProjectPreferencesDoc());
+  console.log(`ok: initialized ${filePath}`);
+  return 0;
+}
+
 function cmdEvaluate(flags: Map<string, string | boolean>): number {
   const filePath = resolvePathFromCwd(requiredString(flags, "file"));
   const doc = readSkillUsageDoc(filePath);
@@ -473,6 +555,8 @@ function main(argv: string[]): number {
       return cmdPreflight(flags);
     case "plan":
       return cmdPlan(flags);
+    case "availability":
+      return cmdAvailability(flags);
     case "recipe":
       return cmdRecipe(flags);
     case "usage":
@@ -493,6 +577,10 @@ function main(argv: string[]): number {
       return cmdEvolverBridge(flags);
     case "skill-ranking":
       return cmdSkillRanking(flags);
+    case "candidate-survey":
+      return cmdCandidateSurvey(flags);
+    case "preferences-init":
+      return cmdPreferencesInit(flags);
     case "evaluate":
       return cmdEvaluate(flags);
     case "validate":

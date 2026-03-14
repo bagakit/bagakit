@@ -1,0 +1,13 @@
+schema_version = "1.0"
+updated_at = "2026-04-20T00:00:00Z"
+
+# Optional host-local selector hints.
+# Keep these coarse and explicit.
+# Absence means neutral.
+#
+# [[skill_preference]]
+# timestamp = "2026-04-20T00:00:00Z"
+# skill_id = "bagakit-researcher"
+# preference = "prefer"
+# reason = "Research-heavy tasks in this project usually need explicit evidence production."
+# notes = ""
