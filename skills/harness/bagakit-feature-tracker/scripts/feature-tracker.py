@@ -155,16 +155,16 @@ def parse_transitional_feat_sequence(feat_id: str) -> int | None:
         return None
 
 
-def feat_sort_key(feat_id: str) -> tuple[int, int | str]:
+def feat_sort_key(feat_id: str) -> tuple[int, int, str]:
     if LEGACY_FEAT_ID_RE.match(feat_id):
-        return (0, feat_id)
+        return (0, -1, feat_id)
     seq = parse_transitional_feat_sequence(feat_id)
     if seq is not None:
-        return (1, seq)
+        return (1, seq, feat_id)
     seq = parse_current_feat_cursor(feat_id)
     if seq is not None:
-        return (2, seq)
-    return (3, feat_id)
+        return (2, seq, feat_id)
+    return (3, -1, feat_id)
 
 
 def history_event(action: str, detail: str) -> dict[str, str]:
@@ -463,6 +463,15 @@ def load_local_issuer(paths: HarnessPaths) -> dict[str, Any] | None:
     return payload
 
 
+def normalize_local_issuer_payload(payload: dict[str, Any], *, namespace: str) -> dict[str, Any]:
+    return {
+        "version": LOCAL_ISSUER_VERSION,
+        "scheme": FEATURE_ID_SCHEME,
+        "namespace": namespace,
+        "guard_key_source": f"git-config:{LOCAL_GUARD_KEY_CONFIG}",
+    }
+
+
 def tracked_paths_under(root: Path, rel_path: Path) -> list[str]:
     cp = run_cmd(["git", "-C", str(root), "ls-files", "--", rel_path.as_posix()])
     if cp.returncode != 0:
@@ -508,22 +517,14 @@ def ensure_local_issuer_state(root: Path, paths: HarnessPaths, *, force_rotate: 
     current_namespace = str(existing.get("namespace") or "").strip() if isinstance(existing, dict) else ""
 
     namespace = current_namespace
-    if force_rotate or not is_public_token(namespace, width=FEAT_NAMESPACE_WIDTH):
+    should_rewrite_issuer = force_rotate or not is_public_token(namespace, width=FEAT_NAMESPACE_WIDTH)
+    if should_rewrite_issuer:
         namespace = choose_local_namespace(
             paths,
             exclude={current_namespace} if current_namespace else set(),
         )
-        payload = {
-            "version": LOCAL_ISSUER_VERSION,
-            "scheme": FEATURE_ID_SCHEME,
-            "namespace": namespace,
-            "guard_key_source": f"git-config:{LOCAL_GUARD_KEY_CONFIG}",
-        }
-        save_json(paths.issuer_file, payload)
-        print(f"write: {paths.issuer_file}")
-    elif existing is not None and existing.get("guard_key_source") != f"git-config:{LOCAL_GUARD_KEY_CONFIG}":
-        payload = dict(existing)
-        payload["guard_key_source"] = f"git-config:{LOCAL_GUARD_KEY_CONFIG}"
+    payload = normalize_local_issuer_payload(existing or {}, namespace=namespace)
+    if existing != payload:
         save_json(paths.issuer_file, payload)
         print(f"write: {paths.issuer_file}")
 
