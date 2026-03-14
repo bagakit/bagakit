@@ -184,5 +184,7 @@ Sub-layout:
   - maintainer guidance for optional host-local selector preference hints
 - `selector-usage-guidance.md`
   - maintainer guidance for when substantial work should consider selector preflight
+- `feature-tracker-surface-sourcebook.md`
+  - external reference study for deciding which durable feature-tracker files deserve to exist
 - `sop/`
   - step-by-step maintainer procedures
