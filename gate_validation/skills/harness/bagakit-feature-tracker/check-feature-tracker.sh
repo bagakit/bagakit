@@ -111,11 +111,10 @@ assert "discarded_at" not in state_payload
 assert "last_checked_at" not in state_payload["gate"]
 assert all("at" not in item for item in state_payload.get("history", []))
 assert not (feature_dir / "tasks.md").exists()
-assert not (feature_dir / "spec-deltas").exists()
-assert not (feature_dir / "gate").exists()
 assert not (feature_dir / "artifacts").exists()
-assert (feature_dir / "spec-delta.md").exists()
-assert (feature_dir / "ui-verification.md").exists()
+assert not (feature_dir / "proposal.md").exists()
+assert not (feature_dir / "spec-delta.md").exists()
+assert not (feature_dir / "verification.md").exists()
 task = tasks_payload["tasks"][0]
 for key in ("last_gate_at", "started_at", "finished_at", "updated_at"):
     assert key not in task
@@ -138,5 +137,12 @@ check_ignore = subprocess.run(
 )
 assert check_ignore.returncode == 0
 PY
+
+bash "$SKILL_DIR/scripts/feature-tracker.sh" materialize-feature-artifact --root "$TMP_DIR" --feature "$FEATURE_ID" --kind proposal >/dev/null
+bash "$SKILL_DIR/scripts/feature-tracker.sh" materialize-feature-artifact --root "$TMP_DIR" --feature "$FEATURE_ID" --kind spec-delta >/dev/null
+bash "$SKILL_DIR/scripts/feature-tracker.sh" materialize-feature-artifact --root "$TMP_DIR" --feature "$FEATURE_ID" --kind verification >/dev/null
+test -f "$TMP_DIR/.bagakit/feature-tracker/features/$FEATURE_ID/proposal.md"
+test -f "$TMP_DIR/.bagakit/feature-tracker/features/$FEATURE_ID/spec-delta.md"
+test -f "$TMP_DIR/.bagakit/feature-tracker/features/$FEATURE_ID/verification.md"
 
 echo "ok: bagakit-feature-tracker canonical smoke passed"

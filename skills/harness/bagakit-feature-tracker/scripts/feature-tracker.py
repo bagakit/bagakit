@@ -44,8 +44,9 @@ REFERENCE_SKILLS_ENV = "BAGAKIT_REFERENCE_SKILLS_HOME"
 RUNTIME_POLICY_FILENAME = "runtime-policy.json"
 LEGACY_CONFIG_FILENAME = "config.json"
 FEATURES_DAG_FILENAME = "FEATURES_DAG.json"
+FEATURE_PROPOSAL_FILENAME = "proposal.md"
 FEATURE_SPEC_DELTA_FILENAME = "spec-delta.md"
-FEATURE_UI_VERIFICATION_FILENAME = "ui-verification.md"
+FEATURE_VERIFICATION_FILENAME = "verification.md"
 
 
 def sha256_bytes(data: bytes) -> str:
@@ -366,11 +367,14 @@ class HarnessPaths:
     def feat_summary(self, feat_id: str, *, status: str | None = None) -> Path:
         return self.feat_dir(feat_id, status=status) / "summary.md"
 
+    def feat_proposal(self, feat_id: str, *, status: str | None = None) -> Path:
+        return self.feat_dir(feat_id, status=status) / FEATURE_PROPOSAL_FILENAME
+
     def feat_spec_delta(self, feat_id: str, *, status: str | None = None) -> Path:
         return self.feat_dir(feat_id, status=status) / FEATURE_SPEC_DELTA_FILENAME
 
-    def feat_ui_verification(self, feat_id: str, *, status: str | None = None) -> Path:
-        return self.feat_dir(feat_id, status=status) / FEATURE_UI_VERIFICATION_FILENAME
+    def feat_verification(self, feat_id: str, *, status: str | None = None) -> Path:
+        return self.feat_dir(feat_id, status=status) / FEATURE_VERIFICATION_FILENAME
 
     def feat_artifacts_dir(self, feat_id: str, *, status: str | None = None) -> Path:
         return self.feat_dir(feat_id, status=status) / "artifacts"
@@ -724,6 +728,40 @@ def load_feat(paths: HarnessPaths, feat_id: str) -> tuple[dict[str, Any], dict[s
     state = load_json(state_file)
     tasks = load_json(tasks_file)
     return state, tasks
+
+
+def materialize_feature_artifact(
+    paths: HarnessPaths,
+    skill_dir: Path,
+    feat_id: str,
+    *,
+    kind: str,
+    overwrite: bool,
+) -> Path:
+    state, _ = load_feat(paths, feat_id)
+    status = str(state.get("status") or "")
+    if kind == "proposal":
+        target = paths.feat_proposal(feat_id, status=status)
+        template = (
+            load_template(skill_dir, "tpl/feature-proposal-template.md")
+            .replace("<feat-id>", feat_id)
+            .replace("<feature-id>", feat_id)
+            .replace("<goal>", str(state.get("goal") or ""))
+        )
+    elif kind == "spec-delta":
+        target = paths.feat_spec_delta(feat_id, status=status)
+        template = load_template(skill_dir, "tpl/feature-spec-delta-template.md").replace("<capability>", "core")
+    elif kind == "verification":
+        target = paths.feat_verification(feat_id, status=status)
+        template = load_template(skill_dir, "tpl/verification-template.md")
+    else:
+        raise SystemExit(f"error: unsupported artifact kind: {kind}")
+
+    if target.exists() and not overwrite:
+        raise SystemExit(f"error: artifact already exists: {target}")
+
+    write_text(target, template)
+    return target
 
 
 def save_feat(paths: HarnessPaths, feat_id: str, state: dict[str, Any], tasks: dict[str, Any]) -> None:
@@ -1171,6 +1209,22 @@ def cmd_rekey_local_issuer(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_materialize_feature_artifact(args: argparse.Namespace) -> int:
+    root = Path(args.root).resolve()
+    skill_dir = Path(args.skill_dir).resolve()
+    paths = HarnessPaths(root)
+    ensure_harness_exists(paths)
+    target = materialize_feature_artifact(
+        paths,
+        skill_dir,
+        args.feat,
+        kind=args.kind,
+        overwrite=bool(args.overwrite),
+    )
+    print(f"write: {target}")
+    return 0
+
+
 def allocate_feat_id(root: Path, paths: HarnessPaths) -> str:
     index_data = load_index(paths)
     issuance, _ = ensure_feature_id_issuance(index_data)
@@ -1245,17 +1299,6 @@ def cmd_feat_new(args: argparse.Namespace) -> int:
     feat_dir = paths.feat_dir(feat_id)
     feat_dir.mkdir(parents=True, exist_ok=False)
 
-    proposal = load_template(skill_dir, "tpl/feature-proposal-template.md")
-    proposal = (
-        proposal.replace("<feat-id>", feat_id)
-        .replace("<feature-id>", feat_id)
-        .replace("<goal>", goal)
-    )
-    write_text(feat_dir / "proposal.md", proposal)
-
-    spec_delta = load_template(skill_dir, "tpl/feature-spec-delta-template.md").replace("<capability>", "core")
-    write_text(paths.feat_spec_delta(feat_id), spec_delta)
-
     state: dict[str, Any] = {
         "version": 1,
         "feat_id": feat_id,
@@ -1309,10 +1352,6 @@ def cmd_feat_new(args: argparse.Namespace) -> int:
     }
 
     save_feat(paths, feat_id, state, tasks)
-    write_text(
-        paths.feat_ui_verification(feat_id),
-        load_template(skill_dir, "tpl/ui-gate-template.md"),
-    )
 
     print(f"write: {feat_dir / 'state.json'}")
     print(f"write: {feat_dir / 'tasks.json'}")
@@ -1558,16 +1597,36 @@ def collect_non_ui_commands(root: Path, config: dict[str, Any]) -> list[str]:
     return commands
 
 
-def validate_ui_evidence(evidence_file: Path) -> list[str]:
+def resolve_verification_policy(config: dict[str, Any]) -> str:
+    gate_cfg = config.get("gate", {}) if isinstance(config, dict) else {}
+    raw = str(gate_cfg.get("verification_policy", "on_demand")).strip().lower()
+    allowed = {"never", "on_demand", "auto_ui", "required"}
+    if raw not in allowed:
+        raise SystemExit(
+            "error: invalid gate.verification_policy: "
+            f"{raw}. expected one of {', '.join(sorted(allowed))}"
+        )
+    return raw
+
+
+def verification_required(policy: str, *, project_type: str, evidence_file: Path) -> bool:
+    if policy == "never":
+        return False
+    if policy == "required":
+        return True
+    if policy == "auto_ui":
+        return project_type == "ui" or evidence_file.exists()
+    return evidence_file.exists()
+
+
+def validate_verification_evidence(evidence_file: Path) -> list[str]:
     errors: list[str] = []
     if not evidence_file.exists():
-        return [f"missing UI verification file: {evidence_file}"]
+        return [f"missing verification file: {evidence_file}"]
     text = read_text(evidence_file)
-    for heading in ("## Critical Paths", "## Screenshots", "## Console Errors"):
+    for heading in ("## Automated Checks", "## Manual Checks", "## Residual Risks"):
         if heading not in text:
-            errors.append(f"missing heading in UI evidence: {heading}")
-    if "console errors: none" not in text.lower():
-        errors.append("UI evidence must declare 'Console Errors: none'")
+            errors.append(f"missing heading in verification evidence: {heading}")
     return errors
 
 
@@ -1587,17 +1646,20 @@ def cmd_task_gate(args: argparse.Namespace) -> int:
 
     config = load_runtime_policy(paths)
     project_type = detect_project_type(root, config)
+    verification_policy = resolve_verification_policy(config)
+    verification_file = paths.feat_verification(args.feat, status=str(state.get("status") or ""))
 
     records: list[dict[str, Any]] = []
     failed = False
     fail_reasons: list[str] = []
 
-    if project_type == "ui":
-        evidence = paths.feat_ui_verification(args.feat, status=str(state.get("status") or ""))
-        ui_errors = validate_ui_evidence(evidence)
-        if ui_errors:
+    if verification_required(verification_policy, project_type=project_type, evidence_file=verification_file):
+        verification_errors = validate_verification_evidence(verification_file)
+        if verification_errors:
             failed = True
-            fail_reasons.extend(ui_errors)
+            fail_reasons.extend(verification_errors)
+
+    if project_type == "ui":
         ui_cmds = config.get("gate", {}).get("ui_commands", []) if isinstance(config, dict) else []
         if isinstance(ui_cmds, list):
             for cmd in ui_cmds:
@@ -3204,6 +3266,13 @@ def build_parser() -> argparse.ArgumentParser:
     sp = sub.add_parser("rekey-local-issuer", help="rotate the local issuer namespace and git-local guard key")
     add_common(sp)
     sp.set_defaults(func=cmd_rekey_local_issuer)
+
+    sp = sub.add_parser("materialize-feature-artifact", help="write an optional feature helper file from the canonical template")
+    add_common(sp)
+    sp.add_argument("--feature", dest="feat", required=True)
+    sp.add_argument("--kind", choices=["proposal", "spec-delta", "verification"], required=True)
+    sp.add_argument("--overwrite", action="store_true")
+    sp.set_defaults(func=cmd_materialize_feature_artifact)
 
     sp = sub.add_parser("create-feature", help="create feature with explicit workspace mode")
     add_common(sp)

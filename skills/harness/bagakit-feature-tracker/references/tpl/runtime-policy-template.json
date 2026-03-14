@@ -14,6 +14,7 @@
   },
   "gate": {
     "project_type": "auto",
+    "verification_policy": "on_demand",
     "project_type_rules": {
       "ui": {
         "any_path_exists": [

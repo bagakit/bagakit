@@ -57,6 +57,15 @@ bash "$BAGAKIT_FEATURE_TRACKER_SKILL_DIR/scripts/feature-tracker.sh" start-task 
 `--slug` is planning metadata only.
 It does not affect the public feature id.
 
+Optional helper files can be materialized later:
+
+```bash
+bash "$BAGAKIT_FEATURE_TRACKER_SKILL_DIR/scripts/feature-tracker.sh" materialize-feature-artifact \
+  --root . \
+  --feature <feature-id> \
+  --kind verification
+```
+
 ## Runtime State
 
 Runtime state lives under:
@@ -82,9 +91,9 @@ The skill directory is the operator entry surface.
 The two specs above are the durable repository contract.
 
 Task SSOT lives only in `tasks.json`.
-Feature helper markdown files such as `proposal.md`, `spec-delta.md`, and
-`ui-verification.md` live at the feature root instead of nested helper
-directories.
+The default feature directory keeps only `state.json` and `tasks.json`.
+Optional helper markdown files such as `proposal.md`, `spec-delta.md`, and
+`verification.md` can be materialized later at the feature root.
 
 ## Public Commands
 
@@ -92,6 +101,7 @@ directories.
 - `validate-reference-report`
 - `initialize-tracker`
 - `rekey-local-issuer`
+- `materialize-feature-artifact`
 - `create-feature`
 - `assign-feature-workspace`
 - `show-feature-status`

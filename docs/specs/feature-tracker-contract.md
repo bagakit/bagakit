@@ -79,8 +79,9 @@ Stable local issuer surfaces are:
 Implications:
 
 - `tasks.json` is the only task source of truth
+- the default feature directory contains only `state.json` and `tasks.json`
 - root-level helper markdown files such as `proposal.md`, `spec-delta.md`, and
-  `ui-verification.md` are operator aids, not authoritative task state
+  `verification.md` are optional operator aids, not authoritative task state
 - local issuer state may help create new ids but may not redefine tracked
   feature truth
 - external bridges may read tracker truth but do not become tracker truth
@@ -100,6 +101,22 @@ Required invariants:
 - `worktree` carries branch, worktree name, and worktree path together
 
 The mode set is part of tracker contract, not a transient implementation detail.
+
+## Optional Artifact Rule
+
+The tracker may materialize optional helper files from canonical templates.
+
+Current optional helper artifacts are:
+
+- `proposal.md`
+- `spec-delta.md`
+- `verification.md`
+
+Rules:
+
+- none of these files are required in the default feature layout
+- their presence must not redefine `state.json` or `tasks.json`
+- `verification.md` is generic evidence, not a UI-only special case
 
 ## Closeout Rule
 

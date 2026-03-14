@@ -81,11 +81,10 @@ export const SUITE: EvalSuiteDefinition = {
           assert.match(JSON.stringify(dagPayload), new RegExp(featId));
           assert.equal(issuerPayload.namespace, featId.slice(5, 7));
           assert.equal(fs.existsSync(path.join(featureDir, "tasks.md")), false);
-          assert.equal(fs.existsSync(path.join(featureDir, "spec-deltas")), false);
-          assert.equal(fs.existsSync(path.join(featureDir, "gate")), false);
           assert.equal(fs.existsSync(path.join(featureDir, "artifacts")), false);
-          assert.equal(fs.existsSync(path.join(featureDir, "spec-delta.md")), true);
-          assert.equal(fs.existsSync(path.join(featureDir, "ui-verification.md")), true);
+          assert.equal(fs.existsSync(path.join(featureDir, "proposal.md")), false);
+          assert.equal(fs.existsSync(path.join(featureDir, "spec-delta.md")), false);
+          assert.equal(fs.existsSync(path.join(featureDir, "verification.md")), false);
           assert.equal("created_at" in statePayload, false);
           assert.equal("updated_at" in statePayload, false);
           assert.equal("generated_at" in dagPayload, false);
@@ -96,6 +95,7 @@ export const SUITE: EvalSuiteDefinition = {
             assertions: [
               "feature state records the assigned workspace mode and active task",
               "tasks.json marks the started task as in progress without per-task timestamps",
+              "new features start with a minimal default layout and no eager helper markdown files",
               "feature ids use the c3/n2/g4 opaque shape and stay aligned with local issuer state",
             ],
             commands: [
