@@ -91,17 +91,15 @@ Stable spec:
 - `filter-features`
 
 External bridges are intentionally out of scope for this skill.
-OpenSpec compatibility is not shipped in the canonical tracker surface.
 
 ## Design Notes
 
 - Runtime truth stays in JSON SSOT under `.bagakit/feature-tracker/`.
 - Markdown files are projections of that runtime truth.
-- Feature ids are short opaque tokens whose lexical order follows creation order.
+- Feature ids are short opaque tokens whose lexical order follows tracker
+  issuance cursor order.
 - Runtime JSON is intentionally low-churn and avoids per-mutation timestamps.
 - The tracker does not assume `bagakit-living-docs` or `bagakit-living-knowledge`
   repository seams.
 - The tracker does not ship external-system bridge logic in its canonical
   surface.
-- No backward-compatibility shims are kept for older tracker layouts.
-- Old projects must migrate their local runtime paths explicitly.

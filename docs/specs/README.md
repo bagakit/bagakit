@@ -44,12 +44,16 @@ system, it is not ready for `docs/specs/` yet.
 - runtime help that must ship inside one skill
 - full system architecture design
 
-Those belong respectively in:
+Those belong in:
 
 - `mem/`
+  - source-import comparisons that are not yet stable Bagakit semantics
 - `docs/stewardship/`
+  - one-off migration notes and maintainer operating procedure
 - `skills/`
+  - runtime help that must ship inside one skill
 - `docs/architecture/`
+  - full system architecture design
 
 ## Authority Relationship
 

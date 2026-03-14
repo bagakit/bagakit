@@ -105,19 +105,16 @@ Tracked issuance state:
 - the next issuance cursor
 - the active public id scheme token
 
-Local-only issuer surface:
-
-- `.bagakit/feature-tracker/local/issuer.json`
-
-Git-local secret surface:
-
-- local git config key owned by the tracker implementation
-
 Boundary rules:
 
 - `features.json` is canonical planning truth and may be committed
-- `local/issuer.json` is local issuer state and must not be committed
+- local issuer state must not be committed
 - git-local guard material must not be copied into tracker runtime json
+
+Current canonical implementation surfaces:
+
+- `.bagakit/feature-tracker/local/issuer.json`
+- one git-local config key owned by the tracker implementation
 
 ## Collision Model
 

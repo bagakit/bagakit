@@ -75,9 +75,9 @@ Allowed values:
 - `l2-behavior`
 - `l3-framework`
 
-## Current Naming Direction
+## Runtime Surface Names
 
-For harness-facing runtime units, the current naming direction is:
+For harness-facing runtime units, the stable runtime-surface names are:
 
 - `bagakit-feature-tracker`
   - the L1 execution surface that owns feature or ticket planning truth,
@@ -86,8 +86,8 @@ For harness-facing runtime units, the current naming direction is:
   - the L2 behavior surface that owns adjustable repeated execution flow over
     normalized work items
 
-These names are runtime-surface names, not replacements for the stable concept
-registry below.
+These names are runtime-surface names.
+They do not replace the stable concept registry below.
 
 ## Concept Registry
 
