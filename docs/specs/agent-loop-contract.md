@@ -127,6 +127,14 @@ Current host-path payload includes:
 - `session_meta_file`
 - `runner_result_file`
 
+When `recovery_from` is present, it should identify:
+
+- the previous item id
+- the previous session id
+- the previous stop reason
+- the previous next-safe-action
+- repo-relative paths for the previous host exhaust
+
 ## Runner Result Contract
 
 `runner-result.json` currently uses schema `bagakit/agent-loop/runner-result/v1`.
@@ -173,6 +181,7 @@ Stable fields:
 - `flow_next`
 - optional `host_notification_request`
 - optional `resume_candidates`
+- optional `recovery_request`
 
 `host_notification_request` is host-plane intent.
 
@@ -194,6 +203,18 @@ before escalating one stopped session into host stop.
 When `resume` cannot resolve one live candidate by itself, `run` payloads may
 also carry `resume_candidates` so the host can inspect the ambiguity without
 scraping flow-runner output.
+
+When the host stops before one bounded recovery session can run, `run` payloads
+may also carry `recovery_request` so the next explicit rerun can resume with
+the same recovery context instead of losing the previous session exhaust.
+
+The default automatic recovery shape is:
+
+- at most one bounded recovery session
+
+If that recovery session also stops unexpectedly while canonical flow truth is
+still runnable, the host should stop and return the recovery context instead of
+quietly chaining more recovery sessions.
 
 ## Current Contract
 
@@ -249,6 +270,7 @@ Stable fields include:
 - `session_budget`
 - optional `host_notification_request`
 - optional `resume_candidates`
+- optional `recovery_request`
 
 ## Watch Contract
 

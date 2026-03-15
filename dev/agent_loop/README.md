@@ -107,6 +107,11 @@ adds stuck-session fallback for weaker runners, that fallback should stay
 evidence-based and accuracy-first instead of interrupting long sessions just
 because elapsed time is large.
 
+When one recoverable session stop still leaves canonical flow truth runnable,
+`agent_loop` may open one bounded recovery session automatically. That recovery
+context is also persisted in host run payloads so a later explicit rerun does
+not lose the previous session exhaust.
+
 Configured runner argv is stored in:
 
 - `.bagakit/agent-loop/runner.json`

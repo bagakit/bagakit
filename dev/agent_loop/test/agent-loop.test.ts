@@ -55,6 +55,18 @@ test("trusted runner launchers do not use host timeout authority", () => {
     }),
     true,
   );
+  assert.equal(
+    shouldUseHostTimeout({
+      schema: "bagakit/agent-loop/runner-config/v1",
+      runner_name: "codex",
+      transport: "stdin_prompt",
+      argv: ["bash", "-lc", "codex exec --skip-git-repo-check -C {repo_root} -"],
+      env: {},
+      timeout_seconds: 1800,
+      refresh_commands: [],
+    }),
+    false,
+  );
 });
 
 test("apply initializes template config and marks it invalid until configured", () => {
@@ -422,8 +434,8 @@ test("continuation layer opens recovery when a stopped session still leaves flow
   const decision = decideContinuationAfterSessionStop(
     {
       run_status: "operator_action_required",
-      stop_reason: "runner_launch_failed",
-      operator_message: "buffer exhausted",
+      stop_reason: "runner_output_missing",
+      operator_message: "runner result was missing",
       next_safe_action: "inspect_runner_session",
       can_resume: true,
       checkpoint_observed: true,
@@ -456,7 +468,7 @@ test("continuation layer opens recovery when a stopped session still leaves flow
   assert.equal(decision.kind, "recover");
   if (decision.kind === "recover") {
     assert.equal(decision.recovery.previous_session_id, "sess-1");
-    assert.equal(decision.recovery.previous_stop_reason, "runner_launch_failed");
+    assert.equal(decision.recovery.previous_stop_reason, "runner_output_missing");
   }
 });
 

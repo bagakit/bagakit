@@ -3,6 +3,7 @@ import type {
   FlowActionReason,
   FlowNextPayload,
   FlowRecommendedAction,
+  RecoverySessionContext,
   RunStatus,
   RunStopReason,
 } from "./model.ts";
@@ -16,13 +17,6 @@ export type SessionStopEnvelope = Readonly<{
   checkpoint_observed: boolean;
   runner_session_id: string;
   flow_next: FlowNextPayload;
-}>;
-
-export type RecoverySessionContext = Readonly<{
-  previous_session_id: string;
-  previous_stop_reason: RunStopReason;
-  previous_operator_message: string;
-  previous_host_paths: AgentLoopPathsShape;
 }>;
 
 export type CanonicalFlowStop = Readonly<{
@@ -40,7 +34,6 @@ export type ContinuationDecision =
 
 function recoverableStopReason(stopReason: RunStopReason): boolean {
   return (
-    stopReason === "runner_launch_failed" ||
     stopReason === "runner_timeout" ||
     stopReason === "runner_exited_nonzero" ||
     stopReason === "runner_output_missing" ||
@@ -50,6 +43,16 @@ function recoverableStopReason(stopReason: RunStopReason): boolean {
 }
 
 export function canonicalFlowStop(flowNext: FlowNextPayload): CanonicalFlowStop {
+  if (flowNext.recommended_action === "archive_closeout") {
+    return {
+      stop_reason: "item_archived",
+      operator_message: "the selected runner-owned item is ready for archive closeout",
+      next_safe_action: "archive_owned_item",
+      can_resume: false,
+      run_status: "terminal",
+      flow_next: flowNext,
+    };
+  }
   if (flowNext.recommended_action === "clear_blocker") {
     return {
       stop_reason: "blocked_item",
@@ -100,9 +103,11 @@ export function decideContinuationAfterSessionStop(
   return {
     kind: "recover",
     recovery: {
+      previous_item_id: stop.flow_next.item_id || "",
       previous_session_id: stop.runner_session_id,
       previous_stop_reason: stop.stop_reason,
       previous_operator_message: stop.operator_message,
+      previous_next_safe_action: stop.next_safe_action,
       previous_host_paths: currentHostPaths,
     },
   };

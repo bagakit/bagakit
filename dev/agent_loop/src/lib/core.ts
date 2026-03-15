@@ -28,6 +28,7 @@ import {
   writeText,
 } from "./io.ts";
 import { describeRunnerLaunchError } from "./launch_error.ts";
+import { readSessionHostSnapshot } from "./session_host_snapshot.ts";
 import type {
   AgentLoopNextPayload,
   AgentLoopRunPayload,
@@ -36,6 +37,7 @@ import type {
   FlowResumeCandidatesPayload,
   HostNotificationRequest,
   NotificationSeverity,
+  RecoverySessionContext,
   RunLockPayload,
   RunLockState,
   RunRecord,
@@ -59,6 +61,7 @@ type StopEnvelope = Readonly<{
   runner_session_id: string;
   flow_next: FlowNextPayload;
   resume_candidates?: FlowResumeCandidatesPayload;
+  recovery_request?: RecoverySessionContext;
 }>;
 
 function notificationSeverity(stopReason: AgentLoopRunPayload["stop_reason"]): NotificationSeverity {
@@ -276,6 +279,7 @@ function buildRunRecord(
     runner_session_id: stop.runner_session_id,
     host_notification_request: hostNotificationRequest,
     resume_candidates: stop.resume_candidates,
+    recovery_request: stop.recovery_request,
   };
 }
 
@@ -339,18 +343,6 @@ function loadSessionMeta(filePath: string): {
   }
 }
 
-function sessionMetaIssue(filePath: string): string {
-  if (!fs.existsSync(filePath)) {
-    return "";
-  }
-  try {
-    readJsonFile<unknown>(filePath);
-    return "";
-  } catch (error) {
-    return error instanceof Error ? error.message : String(error);
-  }
-}
-
 function sortedSessionSummaries(paths: AgentLoopPaths): WatchSessionSummary[] {
   if (!fs.existsSync(paths.sessionsDir)) {
     return [];
@@ -375,7 +367,7 @@ function sortedSessionSummaries(paths: AgentLoopPaths): WatchSessionSummary[] {
         try {
           result = loadJsonIfExists<RunnerResult>(resultPath);
           if (metadata?.launch_error) {
-            issue = describeRunnerLaunchError(metadata.launch_error, brief.session_id);
+            issue = result ? "" : describeRunnerLaunchError(metadata.launch_error, brief.session_id);
           } else if (metadata) {
             issue = runnerResultIssue(result, brief.session_id);
           }
@@ -586,26 +578,16 @@ export function validateAgentLoop(root: string): string[] {
   }
   for (const session of sortedSessionSummaries(paths)) {
     const sessionDir = paths.sessionDir(session.session_id);
-    const hasSummaryIssue = Boolean(session.issue);
-    if (session.issue) {
-      issues.push(session.issue.startsWith("session ") ? session.issue : `session ${session.session_id} is unreadable: ${session.issue}`);
-    }
-    for (const required of ["session-brief.json", "prompt.txt", "stdout.txt", "stderr.txt", "session-meta.json"]) {
+    for (const required of ["session-brief.json", "prompt.txt"]) {
       if (!fs.existsSync(path.join(sessionDir, required))) {
         issues.push(`session ${session.session_id} is missing ${required}`);
       }
     }
-    const metaIssue = sessionMetaIssue(path.join(sessionDir, "session-meta.json"));
-    if (metaIssue) {
-      issues.push(`session ${session.session_id} has unreadable session-meta.json: ${metaIssue}`);
-    }
-    if (hasSummaryIssue) {
-      continue;
-    }
-    const result = loadJsonIfExists<RunnerResult>(path.join(sessionDir, "runner-result.json"));
-    const resultIssue = runnerResultIssue(result, session.session_id);
-    if (resultIssue) {
-      issues.push(resultIssue);
+    const snapshot = readSessionHostSnapshot(root, session.session_id);
+    for (const issue of snapshot.issues) {
+      if (issue.code === "brief_unreadable" || issue.code === "meta_unreadable" || issue.code === "result_unreadable") {
+        issues.push(issue.message.startsWith("session ") ? issue.message : `session ${session.session_id} is unreadable: ${issue.message}`);
+      }
     }
   }
   issues.push(...runRecordIssues(paths));
@@ -734,10 +716,10 @@ export function recordRun(
     flow_next: stop.flow_next,
     host_notification_request: record.host_notification_request,
     resume_candidates: stop.resume_candidates,
+    recovery_request: stop.recovery_request,
   };
 }
 
 export function snapshotLabel(itemId: string, sessionNumber: number): string {
   return `agent-loop-${sanitizeSegment(itemId)}-${sessionNumber}`;
 }
-import type { RecoverySessionContext } from "./continuation.ts";

@@ -18,7 +18,15 @@ export function deriveSessionHostStatus(snapshot: SessionHostSnapshot): SessionH
     snapshot.issues.every(
       (entry) => entry.code === "meta_missing" || entry.code === "result_missing" || entry.code === "artifact_missing",
     );
-  if (activeSessionArtifactsPending && snapshot.started_at && snapshot.runner_result === null) {
+  const hasMetaMissing = snapshot.issues.some((entry) => entry.code === "meta_missing");
+  if (
+    activeSessionArtifactsPending &&
+    !hasMetaMissing &&
+    snapshot.started_at &&
+    snapshot.exit_code === null &&
+    snapshot.signal === null &&
+    snapshot.runner_result === null
+  ) {
     return {
       session_id: snapshot.session_id,
       item_id: snapshot.item_id,

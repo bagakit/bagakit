@@ -209,6 +209,15 @@ export type AgentLoopPathsShape = Readonly<{
   runner_result_file: string;
 }>;
 
+export type RecoverySessionContext = Readonly<{
+  previous_item_id: string;
+  previous_session_id: string;
+  previous_stop_reason: RunStopReason;
+  previous_operator_message: string;
+  previous_next_safe_action: string;
+  previous_host_paths: AgentLoopPathsShape;
+}>;
+
 export type SessionBrief = Readonly<{
   schema: typeof SESSION_BRIEF_SCHEMA;
   session_id: string;
@@ -233,12 +242,7 @@ export type SessionBrief = Readonly<{
   flow_next: FlowNextPayload;
   flow_runner_command: string[];
   host_paths: AgentLoopPathsShape;
-  recovery_from?: {
-    previous_session_id: string;
-    previous_stop_reason: RunStopReason;
-    previous_operator_message: string;
-    previous_host_paths: AgentLoopPathsShape;
-  };
+  recovery_from?: RecoverySessionContext;
   boundaries: string[];
   required_steps: string[];
 }>;
@@ -320,6 +324,7 @@ export type RunRecord = Readonly<{
   runner_session_id: string;
   host_notification_request?: HostNotificationRequest;
   resume_candidates?: FlowResumeCandidatesPayload;
+  recovery_request?: RecoverySessionContext;
 }>;
 
 export type AgentLoopRunPayload = Readonly<{
@@ -340,6 +345,7 @@ export type AgentLoopRunPayload = Readonly<{
   flow_next: FlowNextPayload;
   host_notification_request?: HostNotificationRequest;
   resume_candidates?: FlowResumeCandidatesPayload;
+  recovery_request?: RecoverySessionContext;
 }>;
 
 export type AgentLoopCurrentPayload = Readonly<{

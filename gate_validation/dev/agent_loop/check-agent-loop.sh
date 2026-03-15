@@ -279,8 +279,9 @@ import sys
 from pathlib import Path
 
 payload = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
-assert payload["stop_reason"] == "session_budget_exhausted"
+assert payload["stop_reason"] == "runner_exited_nonzero"
 assert "recovery session" in payload["operator_message"]
+assert payload["recovery_request"]["previous_stop_reason"] == "runner_exited_nonzero"
 PY
 
 RECOVER_JSON="$TMP_DIR/recover-run.json"
@@ -335,8 +336,7 @@ import sys
 from pathlib import Path
 
 payload = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
-assert payload["stop_reason"] == "session_budget_exhausted"
-assert "recovery session" in payload["operator_message"]
+assert payload["stop_reason"] == "runner_launch_failed"
 PY
 
 TIMEOUT_JSON="$TMP_DIR/timeout-run.json"
@@ -355,8 +355,9 @@ import sys
 from pathlib import Path
 
 payload = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
-assert payload["stop_reason"] == "session_budget_exhausted"
+assert payload["stop_reason"] == "runner_timeout"
 assert "recovery session" in payload["operator_message"]
+assert payload["recovery_request"]["previous_stop_reason"] == "runner_timeout"
 PY
 
 REFRESH_JSON="$TMP_DIR/refresh-run.json"
@@ -395,9 +396,10 @@ import sys
 from pathlib import Path
 
 payload = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
-assert payload["stop_reason"] == "session_budget_exhausted"
+assert payload["stop_reason"] == "runner_output_missing"
 assert payload["sessions_launched"] == 1
 assert "recovery session" in payload["operator_message"]
+assert payload["recovery_request"]["previous_stop_reason"] == "runner_output_missing"
 PY
 
 bash "$AGENT_LOOP_DIR/agent-loop.sh" configure-runner --root "$TMP_DIR" --runner-name fake --argv-json "[\"python3\",\"$FAKE_RUNNER\",\"invalid\",\"{repo_root}\",\"{session_brief}\",\"{runner_result}\"]" >/dev/null
@@ -415,9 +417,10 @@ import sys
 from pathlib import Path
 
 payload = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
-assert payload["stop_reason"] == "session_budget_exhausted"
+assert payload["stop_reason"] == "runner_output_invalid"
 assert payload["sessions_launched"] == 1
 assert "recovery session" in payload["operator_message"]
+assert payload["recovery_request"]["previous_stop_reason"] == "runner_output_invalid"
 PY
 
 POST_INVALID_WATCH="$TMP_DIR/post-invalid-watch.json"

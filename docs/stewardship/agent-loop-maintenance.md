@@ -74,6 +74,9 @@ Bad uses:
   own
 - recoverable session failures that leave canonical flow truth runnable are
   being reconciled before host stop is emitted
+- automatic recovery is one-shot by default; if it cannot run or stops again,
+  the persisted recovery handle remains visible in host payloads instead of
+  being silently dropped
 - `agent_loop` still consumes flow-runner contract surfaces, not ad hoc text
 
 ## Front-Door Rule

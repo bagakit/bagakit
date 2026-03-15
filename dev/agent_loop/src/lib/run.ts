@@ -1,9 +1,10 @@
+import fs from "node:fs";
 import { spawnSync } from "node:child_process";
 import path from "node:path";
 
 import { captureSnapshot, itemExists } from "../adapters/flow_runner.ts";
 import { launchStdinRunnerSession } from "../../../agent_runner/src/lib/session.ts";
-import { canonicalFlowStop, decideContinuationAfterSessionStop, type RecoverySessionContext } from "./continuation.ts";
+import { canonicalFlowStop, decideContinuationAfterSessionStop } from "./continuation.ts";
 import { runnerConfigStatus } from "./config.ts";
 import { describeRunnerLaunchError } from "./launch_error.ts";
 import {
@@ -19,12 +20,14 @@ import {
   allocateSession,
 } from "./core.ts";
 import { resolveResumeTarget, safeLoadNextAction } from "./front_door.ts";
-import { ensureDir, repoRelative } from "./io.ts";
+import { ensureDir, readJsonFile, repoRelative } from "./io.ts";
 import type {
   AgentLoopRunPayload,
   AgentLoopSessionRunPayload,
   FlowNextPayload,
+  RecoverySessionContext,
   RunStopReason,
+  RunRecord,
   RunnerConfig,
   RunnerResult,
 } from "./model.ts";
@@ -146,6 +149,25 @@ function hostPathsForSession(root: string, sessionId: string) {
   };
 }
 
+function latestRecoveryRequest(root: string, itemId: string): RecoverySessionContext | undefined {
+  const paths = new AgentLoopPaths(root);
+  if (!itemId || !fs.existsSync(paths.runsDir)) {
+    return undefined;
+  }
+  const entries = fs.readdirSync(paths.runsDir) as string[];
+  for (const entry of entries.filter((name) => name.endsWith(".json")).sort().reverse()) {
+    try {
+      const record = readJsonFile<RunRecord>(path.join(paths.runsDir, entry));
+      if (record.item_id === itemId && record.run_status === "operator_action_required" && record.recovery_request) {
+        return record.recovery_request;
+      }
+    } catch {
+      continue;
+    }
+  }
+  return undefined;
+}
+
 function stopForFlowState(flowNext: FlowNextPayload): LaunchStop {
   return canonicalFlowStop(flowNext);
 }
@@ -232,6 +254,10 @@ function launchRunnerSession(
   } catch (error) {
     outputStop = "runner_output_invalid";
     outputMessage = error instanceof Error ? error.message : String(error);
+  }
+  if (stopReason === "runner_launch_failed" && result.launch_error === "ENOBUFS" && (runnerResult || observed)) {
+    stopReason = "";
+    launchMessage = "";
   }
   if (!stopReason && outputStop) {
     stopReason = outputStop;
@@ -402,6 +428,12 @@ export function runAgentLoop(
         });
       }
       let flowNext = nextAttempt.payload;
+      if (pendingRecovery && flowNext.item_id !== pendingRecovery.previous_item_id) {
+        pendingRecovery = undefined;
+      }
+      if (!pendingRecovery && flowNext.item_id) {
+        pendingRecovery = latestRecoveryRequest(root, flowNext.item_id);
+      }
 
       if (flowNext.recommended_action === "archive_closeout" && flowNext.item_id) {
         autoArchiveOwnedItem(root, flowNext.item_id);
@@ -433,23 +465,38 @@ export function runAgentLoop(
       if (sessionsLaunched >= maxSessions) {
         return recordRun(root, flowNext.item_id || "none", sessionsLaunched, maxSessions, {
           run_status: "operator_action_required",
-          stop_reason: "session_budget_exhausted",
+          stop_reason: pendingRecovery ? pendingRecovery.previous_stop_reason : "session_budget_exhausted",
           operator_message: pendingRecovery
-            ? "the session budget was exhausted before one bounded recovery session could run"
+            ? `the session budget was exhausted before one bounded recovery session could run after ${pendingRecovery.previous_stop_reason}`
             : "the session budget was exhausted before the loop reached a stop state",
-          next_safe_action: "resume_run",
+          next_safe_action: pendingRecovery ? pendingRecovery.previous_next_safe_action : "resume_run",
           can_resume: true,
           checkpoint_observed: false,
-          runner_session_id: "",
+          runner_session_id: pendingRecovery?.previous_session_id || "",
           flow_next: flowNext,
+          recovery_request: pendingRecovery || undefined,
         });
       }
 
-      const launch = launchRunnerSession(root, configStatus.config, flowNext, pendingRecovery);
+      const currentRecovery = pendingRecovery;
+      const launch = launchRunnerSession(root, configStatus.config, flowNext, currentRecovery);
       pendingRecovery = undefined;
       sessionsLaunched += 1;
 
       if (launch.stop_reason) {
+        if (currentRecovery) {
+          return recordRun(root, flowNext.item_id || "none", sessionsLaunched, maxSessions, {
+            run_status: launch.run_status,
+            stop_reason: launch.stop_reason,
+            operator_message: `one bounded recovery session already ran and stopped again: ${launch.operator_message}`,
+            next_safe_action: launch.next_safe_action,
+            can_resume: launch.can_resume,
+            checkpoint_observed: launch.checkpoint_observed,
+            runner_session_id: launch.runner_session_id,
+            flow_next: launch.flow_next,
+            recovery_request: currentRecovery,
+          });
+        }
         const continuation = decideContinuationAfterSessionStop(
           {
             run_status: launch.run_status,
@@ -466,6 +513,22 @@ export function runAgentLoop(
         if (continuation.kind === "recover") {
           pendingRecovery = continuation.recovery;
           continue;
+        }
+        if (continuation.stop.flow_next.recommended_action === "archive_closeout" && continuation.stop.flow_next.item_id) {
+          autoArchiveOwnedItem(root, continuation.stop.flow_next.item_id);
+          if (currentItem && currentItem === continuation.stop.flow_next.item_id) {
+            const terminalNext = safeLoadNextAction(root).payload;
+            return recordRun(root, continuation.stop.flow_next.item_id, sessionsLaunched, maxSessions, {
+              run_status: "terminal",
+              stop_reason: "item_archived",
+              operator_message: "the selected runner-owned item was archived",
+              next_safe_action: terminalNext.action_reason === "no_actionable_item" ? "idle" : "run",
+              can_resume: false,
+              checkpoint_observed: launch.checkpoint_observed,
+              runner_session_id: launch.runner_session_id,
+              flow_next: terminalNext,
+            });
+          }
         }
         return recordRun(root, flowNext.item_id || "none", sessionsLaunched, maxSessions, {
           run_status: continuation.stop.run_status,
