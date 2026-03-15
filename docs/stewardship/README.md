@@ -183,7 +183,8 @@ Sub-layout:
 - `selector-project-preference-maintenance.md`
   - maintainer guidance for optional host-local selector preference hints
 - `selector-usage-guidance.md`
-  - maintainer guidance for when substantial work should consider selector preflight
+  - maintainer guidance for mandatory selector preflight on non-trivial
+    Bagakit-shaped work
 - `feature-tracker-surface-sourcebook.md`
   - external reference study for deciding which durable feature-tracker files deserve to exist
 - `sop/`

@@ -48,10 +48,27 @@ required_files = [
   "gate_eval/skills/harness/bagakit-skill-selector/results/.gitignore",
   "gate_eval/skills/harness/bagakit-skill-selector/results/README.md",
   "gate_eval/skills/harness/bagakit-skill-selector/results/runs/.gitkeep",
+  "gate_validation/skills/harness/bagakit-skill-selector/check-selector-policy-alignment.py",
   "gate_validation/skills/harness/bagakit-skill-selector/check-selector-planning-entry.sh",
   "gate_validation/skills/harness/bagakit-skill-selector/check-selector-recipes.sh",
   "gate_validation/skills/harness/bagakit-skill-selector/check-skill-selector.sh",
   "gate_validation/skills/harness/bagakit-skill-selector/validation.toml",
+]
+
+[[suite]]
+id = "bagakit-skill-selector-policy-alignment"
+owner = "skills/harness/bagakit-skill-selector"
+description = "Keep mandatory selector-preflight policy aligned across specs, runtime docs, and bootstrap."
+default = true
+validation_class = "quality"
+groups = ["skills", "harness", "usage-loop", "policy", "quality"]
+
+[suite.runner]
+kind = "python_script"
+script = "gate_validation/skills/harness/bagakit-skill-selector/check-selector-policy-alignment.py"
+args = [
+  "--root",
+  "{repo_root}",
 ]
 
 [[suite]]

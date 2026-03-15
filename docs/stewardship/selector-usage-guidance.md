@@ -3,20 +3,24 @@
 Use this note when deciding whether a piece of work should explicitly go through
 `bagakit-skill-selector`.
 
-This note is maintainer guidance, not a runtime hard gate.
+This note is maintainer guidance that operationalizes the shared mandatory
+selector-preflight rule. It is not a hidden second control plane.
 
 ## First Principle
 
 `bagakit-skill-selector` exists to improve task-level skill choice,
 composition visibility, and execution evidence.
 
-It does not exist to wrap every tiny action in ceremony.
+For non-trivial Bagakit-shaped work, that means one explicit preflight should
+happen before major implementation.
+It still does not exist to wrap every tiny action in ceremony.
 
 ## Default Rule
 
-For substantial tasks, default to considering selector preflight first.
+For non-trivial Bagakit-shaped work, run selector preflight before major
+implementation.
 
-Substantial usually means at least one of:
+Bagakit-shaped non-trivial work usually means at least one of:
 
 - the task is likely to take multiple concrete steps
 - the task may need more than one skill or tool
@@ -24,7 +28,7 @@ Substantial usually means at least one of:
 - the task may benefit from explicit comparison, retry discipline, or
   composition logging
 
-For trivial work, do not force selector overhead.
+For trivial work, direct execution is acceptable.
 
 Trivial usually means:
 
@@ -34,13 +38,16 @@ Trivial usually means:
 
 ## Practical Rule
 
-Ask one simple question:
+Ask one simple classification question:
 
-- would this task benefit from explicit preflight, usage evidence, or
-  composition visibility?
+- is this trivial one-step work, or non-trivial Bagakit-shaped work that needs
+  a recorded preflight decision in `skill-usage.toml`?
 
-If yes, use selector.
-If no, act directly.
+If the task is trivial, act directly.
+If the task is non-trivial and Bagakit-shaped, run selector preflight first.
+
+Mandatory preflight may still end in `direct_execute` when current coverage is
+already sufficient or no better candidate exists.
 
 ## Selection Scope Rule
 
@@ -113,10 +120,9 @@ Skill frontmatter may declare selector-relevant metadata such as:
 - harness layer
 - Bagakit driver file path
 
-It must not be treated as a hidden mandatory rule that every task must invoke
-selector first.
-
-Invocation remains a task-level decision.
+It must not be treated as the surface that creates mandatory selector policy.
+Mandatory preflight policy for non-trivial Bagakit-shaped work belongs in
+shared specs and bootstrap guidance, not in hidden metadata.
 
 ## Legacy Absorption Rule
 
