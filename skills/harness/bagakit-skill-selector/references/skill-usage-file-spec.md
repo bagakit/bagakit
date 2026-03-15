@@ -71,8 +71,8 @@ decision = "compare_then_execute"
 - `decision`
   - typed selector-preflight route token for this task
   - `direct_execute | compare_then_execute | compose_then_execute | review_loop | pending`
-  - for non-trivial work, this decision must be recorded before major
-    implementation starts
+  - for non-trivial Bagakit-shaped work, this decision must be recorded before
+    major implementation starts
   - must not remain `pending` once execution has started
   - compatibility note: legacy `search_then_execute` should be normalized to
     `compare_then_execute`

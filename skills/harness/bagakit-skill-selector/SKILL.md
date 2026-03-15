@@ -30,7 +30,8 @@ Stable selector-versus-evolver meaning lives in:
 
 Default stance:
 
-- for non-trivial tasks, require selector preflight before major implementation
+- for non-trivial Bagakit-shaped work, require selector preflight before major
+  implementation
 - for trivial one-step work, do not add selector ceremony without a real reason
 
 ## Positioning
@@ -157,8 +158,8 @@ still be:
 
 ## Output Contract
 
-For each non-trivial task that enters through selector, maintain one structured
-TOML file.
+For each non-trivial Bagakit-shaped task that enters through selector, maintain
+one structured TOML file.
 
 Recommended path:
 
@@ -337,8 +338,8 @@ Isolation rule for fair multi-skill comparison:
 
 ### 1) Preflight
 
-Before major implementation, non-trivial tasks must enter through selector
-preflight:
+Before major implementation, non-trivial Bagakit-shaped work must enter through
+selector preflight:
 
 - do we have enough good skills now
 - do we need explicit composition or comparative evidence
@@ -362,10 +363,14 @@ Then choose one typed selector-preflight route:
 
 Do not leave preflight decision in `pending` once execution starts.
 
-For non-trivial work, selector preflight is the required entry gate.
+For non-trivial Bagakit-shaped work, selector preflight is the required entry
+gate.
 Mandatory preflight does not require multi-skill composition or comparison on
 every task; `direct_execute` remains valid when current coverage is already
 sufficient or no better fit exists.
+- planning-entry recipes are a narrower subset: use them when preflight
+  identifies substantial planning work that benefits from explicit route
+  selection across canonical Bagakit planning surfaces
 For trivial one-step work, direct execution is still acceptable when the extra
 selector loop would add no real value.
 

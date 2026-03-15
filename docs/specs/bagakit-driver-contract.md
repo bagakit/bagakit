@@ -87,7 +87,7 @@ That means the loading path must not become a second control plane for:
 - repository-level promotion routing
 - evolver topic state
 - durable repository decision memory
-- mandatory selector-preflight policy for non-trivial tasks
+- mandatory selector-preflight policy for non-trivial Bagakit-shaped work
 
 Current selector rule:
 
@@ -102,9 +102,10 @@ Selector is still allowed to skip:
 - non-local candidates
 - Bagakit skills with no driver file
 
-If one workspace wants mandatory selector preflight for non-trivial tasks, that
-rule must be declared through bootstrap/spec surfaces such as `AGENTS.md` and
-`docs/specs/selector-selection-model.md`, not encoded inside driver files.
+Mandatory selector preflight for non-trivial Bagakit-shaped work is declared
+through shared bootstrap/spec surfaces such as `AGENTS.md` and
+`docs/specs/selector-selection-model.md`; driver files must not redefine,
+weaken, or recreate that policy.
 
 ## Failure Rules
 

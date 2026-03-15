@@ -21,12 +21,17 @@ Split:
 
 ## When To Use
 
-For non-trivial work, selector preflight is mandatory before major
-implementation.
+For non-trivial Bagakit-shaped work, selector preflight is mandatory before
+major implementation.
 For trivial one-step work, selector should not become mandatory ceremony.
 
 Mandatory preflight may legitimately end in `direct_execute` when current
 coverage is already sufficient or no better candidate exists.
+
+To satisfy that gate:
+
+- initialize `.bagakit/skill-selector/tasks/<task-slug>/skill-usage.toml`
+- record one typed preflight decision before major implementation begins
 
 The fuller selector loop matters most when:
 
@@ -37,6 +42,10 @@ The fuller selector loop matters most when:
 
 Skip selector when the work is trivial, obvious, and unlikely to benefit from
 comparative skill evidence.
+
+Planning-entry recipes are a narrower subset of this rule.
+Use them when preflight identifies substantial planning work that benefits from
+explicit route selection across canonical Bagakit planning surfaces.
 
 When selector is used, preflight should settle one typed route decision:
 
@@ -123,7 +132,8 @@ Rule:
 - if a standard selector recipe was used, record it in `[[recipe_log]]`
 - selector-loaded Bagakit drivers are task-local reporting guidance, not repository
   policy
-- frontmatter declarations are metadata; mandatory non-trivial preflight
+- frontmatter declarations are metadata; mandatory non-trivial Bagakit-shaped
+  preflight
   belongs in bootstrap and shared spec surfaces, not in a hidden "always use
   selector first" rule
 - neither side should become a hidden hard dependency of the other

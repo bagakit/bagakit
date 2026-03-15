@@ -69,7 +69,8 @@ major implementation starts.
 
 This rule means:
 
-- mandatory preflight is the required entry gate for non-trivial work
+- mandatory preflight is the required entry gate for non-trivial
+  Bagakit-shaped work
 - preflight may still conclude `direct_execute`
 - preflight may still conclude that current coverage is already sufficient or
   that no better candidate exists

@@ -15,10 +15,9 @@ Use this spec when deciding:
 - whether one planning request should start in `bagakit-brainstorm`
 - whether one request is already ready for `bagakit-feature-tracker`
 - whether repeated bounded execution should move into `bagakit-flow-runner`
-- how mandatory selector preflight for non-trivial work still allows a clean
-  `direct_execute` exit
 - how selector should prefer canonical Bagakit planning routes over generic
-  host note-taking patterns when fit is comparable
+  host note-taking patterns when fit is comparable after preflight already
+  established that route selection is needed
 
 This file is the SSOT for:
 
@@ -58,22 +57,17 @@ It must not:
 - silently call downstream skills without explicit task-local evidence
 - turn route choice into repository-level policy
 
-## Entry Gate Rule
+## Preflight Assumption
 
-For non-trivial Bagakit-shaped work, selector preflight is the required entry
-gate before:
+This spec assumes selector preflight has already been handled according to:
 
-- choosing one canonical planning route
-- inventing one new planning surface
-- starting major implementation without route evidence
+- `docs/specs/selector-selection-model.md`
 
-That gate may still conclude:
+That means this file starts only after selector has already concluded that one
+planning-entry route is needed.
 
-- `direct_execute`
-
-Mandatory preflight does not mean every non-trivial task must use one
-planning-entry recipe. It means route choice or direct execution must be made
-explicitly first.
+Out-of-scope preflight outcomes such as `direct_execute` remain valid, but they
+are governed by selector preflight policy, not by this route spec.
 
 ## Planning Entry Scenes
 

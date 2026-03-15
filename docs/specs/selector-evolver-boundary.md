@@ -38,8 +38,8 @@ Those belong respectively in:
 
 | Surface | Primary question | Owns | Does not own |
 | --- | --- | --- | --- |
-| `bagakit-skill-selector` | "Do we have enough skill coverage for this task, and what actually happened when we tried it?" | task-local or host-local coverage preflight, non-trivial task-entry preflight, repo-aware candidate discovery, candidate planning, explicit composition, usage evidence, task-local evaluation, task-local recipes, selector-loaded Bagakit drivers | repository-level decision memory, durable promotion routing, repository-level handoff/archive artifacts, evolver topic state |
-| `bagakit-skill-evolver` | "Which lessons are reusable at repository scope, and what route and durable surface should they take?" | repository-level topic memory, candidate comparison, routing decisions, decision memory, promotion routing, promotion state, durable promotion preparation, repository-level handoff/archive artifacts | raw per-task selector logs, task-local composition control, selector entry policy for non-trivial tasks |
+| `bagakit-skill-selector` | "Do we have enough skill coverage for this task, and what actually happened when we tried it?" | task-local or host-local coverage preflight, repo-aware candidate discovery, candidate planning, explicit composition, usage evidence, task-local evaluation, task-local recipes, selector-loaded Bagakit drivers | repository-level decision memory, durable promotion routing, repository-level handoff/archive artifacts, evolver topic state |
+| `bagakit-skill-evolver` | "Which lessons are reusable at repository scope, and what route and durable surface should they take?" | repository-level topic memory, candidate comparison, routing decisions, decision memory, promotion routing, promotion state, durable promotion preparation, repository-level handoff/archive artifacts | raw per-task selector logs, task-local composition control, task-entry preflight evidence |
 
 The split is about authority, not importance.
 
@@ -51,6 +51,10 @@ does not make task logs part of evolver.
 Selector preflight is the task-local coverage check that happens before major
 execution for non-trivial Bagakit-shaped work, even when the eventual outcome
 is `direct_execute`.
+
+Whether that preflight is mandatory is defined in
+`docs/specs/selector-selection-model.md`.
+This boundary spec only defines what selector preflight means once it exists.
 
 It answers questions such as:
 

@@ -61,9 +61,9 @@ Choose a recipe only when preflight says explicit composition adds value.
 
 ## Planning Entry Rule
 
-For substantial Bagakit-shaped work, selector should prefer one explicit
-planning-entry recipe over generic root note-taking patterns when fit is
-comparable.
+For substantial planning work inside the broader non-trivial Bagakit-shaped
+entry set, selector should prefer one explicit planning-entry recipe over
+generic root note-taking patterns when fit is comparable.
 
 Current standard planning-entry recipes:
 

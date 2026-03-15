@@ -7,9 +7,9 @@ created_at = ""
 updated_at = ""
 status = "planning"
 
-# For non-trivial tasks, initialize selector preflight before major
-# implementation starts. "direct_execute" remains a valid outcome when current
-# coverage is already sufficient or no better candidate exists.
+# For non-trivial Bagakit-shaped work, initialize selector preflight before
+# major implementation starts. "direct_execute" remains a valid outcome when
+# current coverage is already sufficient or no better candidate exists.
 [preflight]
 question = "Do we have enough skill coverage for this task?"
 answer = "pending"
