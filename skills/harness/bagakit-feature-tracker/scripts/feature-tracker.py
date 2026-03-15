@@ -58,6 +58,12 @@ FEATURE_OPTIONAL_ROOT_FILES = frozenset(
 )
 FEATURE_CLOSEOUT_ROOT_FILES = frozenset({FEATURE_SUMMARY_FILENAME})
 FEATURE_ALLOWED_ROOT_DIRS = frozenset({"artifacts"})
+FEATURE_ROOT_FILE_HINTS = {
+    "prd.md": "route feature intent and scope to proposal.md or an upstream planning artifact instead",
+    "changelog.md": "route change history to repo/release surfaces; use summary.md only for closeout narrative",
+    "design.md": "route behavior or contract deltas to spec-delta.md when that helper is actually needed",
+    "tasks.md": "tasks.json is the only task source of truth",
+}
 
 
 def sha256_bytes(data: bytes) -> str:
@@ -100,6 +106,18 @@ def write_text(path: Path, text: str) -> None:
 
 def eprint(msg: str) -> None:
     print(msg, file=sys.stderr)
+
+
+def unsupported_feature_root_file_error(rel_path: str) -> str:
+    name = Path(rel_path).name.lower()
+    hint = FEATURE_ROOT_FILE_HINTS.get(name)
+    if hint:
+        return f"unsupported feature-root file: {rel_path}; hint: {hint}"
+    allowed = ", ".join(sorted(FEATURE_OPTIONAL_ROOT_FILES))
+    return (
+        f"unsupported feature-root file: {rel_path}; "
+        f"allowed live-feature helper files are state.json, tasks.json, {allowed}, and artifacts/"
+    )
 
 
 def is_public_token(raw: str, *, width: int) -> bool:
@@ -2513,7 +2531,7 @@ def validate_feat(paths: HarnessPaths, root: Path, feat_id: str) -> list[str]:
                     errors.append(f"{feat_id}: unsupported feature-root directory: {rel}")
                 continue
             if name not in allowed_files:
-                errors.append(f"{feat_id}: unsupported feature-root file: {rel}")
+                errors.append(f"{feat_id}: {unsupported_feature_root_file_error(rel)}")
 
     # Validate tracked commit messages for tasks that have commit hash.
     for task in task_items:

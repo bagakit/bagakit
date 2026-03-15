@@ -166,10 +166,14 @@ export const SUITE: EvalSuiteDefinition = {
           expectFail(validateResult, "validate-tracker");
           assert.ok(validateResult.stderr.includes("unsupported feature-root file"));
           assert.ok(validateResult.stderr.includes("PRD.md") || validateResult.stderr.includes("Changelog.md"));
+          assert.ok(validateResult.stderr.includes("proposal.md"));
+          assert.ok(validateResult.stderr.includes("repo/release surfaces"));
 
           return {
             assertions: [
               "feature-tracker validation rejects unsupported prose files in active feature roots",
+              "validation points PRD-like intent toward proposal.md or upstream planning artifacts",
+              "validation points changelog-like history toward repo or release surfaces",
               "the current contract keeps feature-root helper artifacts explicit instead of allowing a general markdown bucket",
             ],
             commands: [

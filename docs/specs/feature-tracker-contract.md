@@ -115,6 +115,10 @@ Rules:
   roots
 - `PRD.md` and `Changelog.md` are not supported feature-root artifacts under
   the current contract
+- feature intent or scope that would otherwise drift into `PRD.md` should route
+  to `proposal.md` or an upstream planning artifact
+- change history that would otherwise drift into `Changelog.md` should route to
+  repo or release surfaces; feature closeout narrative belongs in `summary.md`
 - if another artifact class becomes canonical later, it must be introduced
   through the contract instead of appearing ad hoc in feature roots
 

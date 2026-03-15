@@ -115,6 +115,8 @@ Optional helper markdown files such as `proposal.md`, `spec-delta.md`, and
 `verification.md` can be materialized later at the feature root.
 Unsupported feature-root files such as `PRD.md` and `Changelog.md` are outside
 the current tracker contract and should fail validation.
+Route feature intent to `proposal.md` or upstream planning artifacts, and keep
+change history in repo or release surfaces rather than in active feature roots.
 
 Use `verification.md` only when a task needs manual or mixed evidence beyond
 automated command output.

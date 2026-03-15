@@ -141,6 +141,8 @@ if bash "$SKILL_DIR/scripts/feature-tracker.sh" validate-tracker --root "$TMP_DI
   exit 1
 fi
 grep -q "unsupported feature-root file" /tmp/bagakit-feature-tracker-boundary.err
+grep -q "proposal.md" /tmp/bagakit-feature-tracker-boundary.err
+grep -q "repo/release surfaces" /tmp/bagakit-feature-tracker-boundary.err
 
 rm -f /tmp/bagakit-feature-tracker-boundary.out /tmp/bagakit-feature-tracker-boundary.err
 
