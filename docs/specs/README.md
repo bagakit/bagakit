@@ -76,6 +76,7 @@ Current examples include:
 - `document-surface-rules.md`
 - `feature-tracker-contract.md`
 - `feature-tracker-id-issuance.md`
+- `feature-tracker-projection-surfaces.md`
 - `bagakit-driver-contract.md`
 - `evolver-memory.md`
 - `flow-runner-contract.md`

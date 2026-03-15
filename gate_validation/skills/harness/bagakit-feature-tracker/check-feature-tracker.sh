@@ -104,6 +104,11 @@ assert "updated_at" not in index_payload
 assert index_payload["feature_id_issuance"]["scheme"] == "feature-tracker-id-v1-c3n2g4"
 assert isinstance(index_payload["feature_id_issuance"]["next_cursor"], int)
 assert "generated_at" not in dag_payload
+assert sorted(dag_payload.keys()) == ["features", "generated_by", "layers", "notes", "version"]
+assert "execution_mode" not in dag_payload
+assert "max_parallel" not in dag_payload
+assert "parallel_recommendation" not in dag_payload
+assert "first_unfinished_layer" not in dag_payload
 assert "created_at" not in state_payload
 assert "updated_at" not in state_payload
 assert "archived_at" not in state_payload

@@ -11,6 +11,7 @@ This contract covers:
 - closeout storage surfaces
 - local-only issuer boundary
 - source-of-truth rules
+- dependency projection semantics
 - task commit contract
 
 This contract does not define the public feature-id shape.
@@ -72,8 +73,8 @@ Stable local issuer surfaces are:
 - `tasks.json` owns one feature's task truth.
 - `runtime-policy.json` owns tracker policy defaults, gate policy, and doctor
   thresholds.
-- `FEATURES_DAG.json` owns the latest dependency projection, not the feature
-  records themselves.
+- `FEATURES_DAG.json` owns the latest generated dependency projection, not the
+  feature records themselves and not policy-resolved execution planning.
 - archive and discard directories own closed feature records after closeout.
 
 Implications:
@@ -85,6 +86,56 @@ Implications:
 - local issuer state may help create new ids but may not redefine tracked
   feature truth
 - external bridges may read tracker truth but do not become tracker truth
+
+## Dependency Projection Contract
+
+`FEATURES_DAG.json` is a generated projection.
+
+It is not:
+
+- canonical feature truth
+- an operator-edited planning file
+- a runtime execution history surface
+- a policy-resolved scheduling plan
+
+Stable current payload shape:
+
+- `version`
+- `generated_by`
+- `features`
+  - `feat_id`
+  - `depends_on`
+  - `dependents`
+  - `layer`
+- `layers`
+  - `layer`
+  - `feat_ids`
+- `notes`
+
+Required generation rules:
+
+- generate from active non-archived feature state
+- use `state.json.depends_on` as canonical dependency truth
+- derive dependents and pure topological layers from that truth
+- treat archived dependencies as already satisfied and record that as a note
+- fail closed on discarded dependencies
+- record missing active dependencies as notes instead of silently inventing
+  graph nodes
+
+Forbidden content in `FEATURES_DAG.json`:
+
+- policy-resolved execution mode
+- parallelism limits
+- execution recommendations
+- progress or resume cursors that belong to a separate execution-plan or
+  runtime-history surface
+
+Freshness rule:
+
+- the tracker must be able to recompute `FEATURES_DAG.json` from canonical
+  feature state
+- validation must be able to detect when the checked-in DAG projection has
+  drifted from that recomputed result
 
 ## Workspace Mode Contract
 
@@ -182,4 +233,5 @@ This contract intentionally rejects several easier but lower-quality shortcuts.
 - Feature ids do not carry slug or timestamp semantics.
 - Local issuer state does not become tracked planning truth.
 - DAG output does not replace feature state.
+- DAG output must not embed policy-resolved execution planning.
 - External bridge logic does not ship inside the canonical tracker contract.

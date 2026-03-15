@@ -100,6 +100,7 @@ External bridges are intentionally out of scope for this skill.
 
 - `docs/specs/feature-tracker-contract.md`
 - `docs/specs/feature-tracker-id-issuance.md`
+- `docs/specs/feature-tracker-projection-surfaces.md`
 
 The runtime payload is intentionally smaller than the canonical repo-spec layer.
 Use the specs above when you need the durable contract rather than the local
@@ -107,6 +108,9 @@ operator entrypoint.
 
 Task SSOT lives only in `tasks.json`.
 The default feature directory keeps only `state.json` and `tasks.json`.
+`FEATURES_DAG.json` is a generated dependency projection over active feature
+state; it is not the dependency source of truth and it does not carry
+policy-resolved execution planning.
 Optional helper markdown files such as `proposal.md`, `spec-delta.md`, and
 `verification.md` can be materialized later at the feature root.
 

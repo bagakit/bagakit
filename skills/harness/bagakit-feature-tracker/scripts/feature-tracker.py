@@ -2670,22 +2670,28 @@ def cmd_validate(args: argparse.Namespace) -> int:
             if not isinstance(dag, dict):
                 errors.append(f"invalid dag schema: {paths.dag_file}")
             else:
-                layers = dag.get("layers", [])
-                if not isinstance(layers, list):
+                for forbidden in ("execution_mode", "max_parallel", "parallel_recommendation", "first_unfinished_layer"):
+                    if forbidden in dag:
+                        errors.append(f"dag must not contain execution-planning field: {forbidden}")
+
+                if not isinstance(dag.get("features", []), list):
+                    errors.append(f"invalid dag features schema: {paths.dag_file}")
+                if not isinstance(dag.get("layers", []), list):
                     errors.append(f"invalid dag layers schema: {paths.dag_file}")
+                if not isinstance(dag.get("notes", []), list):
+                    errors.append(f"invalid dag notes schema: {paths.dag_file}")
+
+                try:
+                    active_states, _ = load_non_archived_feats(paths)
+                    expected_dag = build_dag_projection_payload(active_states, all_status_by_feat=feat_status_by_id)
+                except SystemExit as exc:
+                    errors.append(str(exc))
                 else:
-                    known_feats = set(feats)
-                    for layer in layers:
-                        if not isinstance(layer, dict):
-                            errors.append("invalid dag layer entry: expected object")
-                            continue
-                        feat_ids = layer.get("feat_ids", [])
-                        if not isinstance(feat_ids, list):
-                            errors.append("invalid dag layer feat_ids: expected list")
-                            continue
-                        for feat_id in feat_ids:
-                            if str(feat_id) not in known_feats:
-                                errors.append(f"dag references feat not in index: {feat_id}")
+                    if dag != expected_dag:
+                        errors.append(
+                            "dag projection drift from canonical feature state: "
+                            "run feature-tracker.sh replan-features to regenerate FEATURES_DAG.json"
+                        )
 
     if errors:
         for err in errors:
@@ -2794,19 +2800,10 @@ def parse_dependency_spec(raw: str) -> tuple[str, list[str]]:
     return feat_id, deps
 
 
-def feat_is_completed(status: str) -> bool:
-    return status in CLOSED_FEAT_STATUS
-
-
 def build_layered_dag(
     feat_ids: list[str],
     deps_by_feat: dict[str, set[str]],
-    *,
-    parallel_limit: int | None,
 ) -> list[list[str]]:
-    if parallel_limit is not None and parallel_limit <= 0:
-        raise SystemExit("error: parallel_limit must be >= 1")
-
     remaining: set[str] = set(feat_ids)
     unresolved: dict[str, set[str]] = {
         feat_id: set(deps_by_feat.get(feat_id, set())) for feat_id in feat_ids
@@ -2828,11 +2825,10 @@ def build_layered_dag(
                 "error: dependency cycle detected among feats: " + ", ".join(cycle_nodes)
             )
 
-        chosen = ready if parallel_limit is None else ready[:parallel_limit]
-        layers.append(chosen)
-        for feat_id in chosen:
+        layers.append(ready)
+        for feat_id in ready:
             remaining.remove(feat_id)
-        for feat_id in chosen:
+        for feat_id in ready:
             for child in dependents.get(feat_id, set()):
                 if child in remaining:
                     unresolved[child].discard(feat_id)
@@ -2841,15 +2837,8 @@ def build_layered_dag(
 
 
 def dag_is_complete(payload: dict[str, Any]) -> bool:
-    layers = payload.get("layers", [])
-    if not isinstance(layers, list) or not layers:
-        return True
-    for layer in layers:
-        if not isinstance(layer, dict):
-            return False
-        if not bool(layer.get("is_completed", False)):
-            return False
-    return True
+    features = payload.get("features", [])
+    return isinstance(features, list) and len(features) == 0
 
 
 def archive_existing_dag(paths: HarnessPaths, payload: dict[str, Any]) -> Path:
@@ -2878,51 +2867,86 @@ def load_non_archived_feats(paths: HarnessPaths) -> tuple[dict[str, dict[str, An
     return states, tasks_by_feat
 
 
+def build_dag_projection_payload(
+    states: dict[str, dict[str, Any]],
+    *,
+    all_status_by_feat: dict[str, str],
+) -> dict[str, Any]:
+    feat_ids = sorted(states.keys(), key=feat_sort_key)
+    if not feat_ids:
+        return {
+            "version": 1,
+            "generated_by": "bagakit-feature-tracker",
+            "features": [],
+            "layers": [],
+            "notes": [],
+        }
+
+    notes: list[str] = []
+    deps_by_feat: dict[str, set[str]] = {}
+    for feat_id, state in states.items():
+        raw_deps = state.get("depends_on", [])
+        if not isinstance(raw_deps, list):
+            raw_deps = []
+        deps: set[str] = set()
+        for raw_dep in raw_deps:
+            dep = str(raw_dep).strip()
+            if not dep:
+                continue
+            if dep == feat_id:
+                raise SystemExit(f"error: feat cannot depend on itself: {feat_id}")
+            dep_status = all_status_by_feat.get(dep, "")
+            if dep_status == "archived":
+                notes.append(f"{feat_id} depends on archived feat {dep}; treated as already satisfied")
+                continue
+            if dep_status == "discarded":
+                raise SystemExit(f"error: {feat_id} depends on discarded feat {dep}; update dependencies before replanning")
+            if dep not in states:
+                notes.append(f"{feat_id} dependency missing from active DAG set: {dep}")
+                continue
+            deps.add(dep)
+        deps_by_feat[feat_id] = deps
+
+    layers = build_layered_dag(feat_ids, deps_by_feat)
+    layer_by_feat: dict[str, int] = {}
+    for i, layer in enumerate(layers):
+        for feat_id in layer:
+            layer_by_feat[feat_id] = i
+
+    dependents_by_feat: dict[str, list[str]] = {feat_id: [] for feat_id in feat_ids}
+    for feat_id, deps in deps_by_feat.items():
+        for dep in sorted(deps, key=feat_sort_key):
+            dependents_by_feat.setdefault(dep, []).append(feat_id)
+
+    return {
+        "version": 1,
+        "generated_by": "bagakit-feature-tracker",
+        "features": [
+            {
+                "feat_id": feat_id,
+                "depends_on": sorted(deps_by_feat.get(feat_id, set()), key=feat_sort_key),
+                "dependents": sorted(dependents_by_feat.get(feat_id, []), key=feat_sort_key),
+                "layer": layer_by_feat.get(feat_id),
+            }
+            for feat_id in feat_ids
+        ],
+        "layers": [
+            {
+                "layer": i,
+                "feat_ids": layer,
+            }
+            for i, layer in enumerate(layers)
+        ],
+        "notes": sorted(set(notes)),
+    }
+
+
 def cmd_replan_feats(args: argparse.Namespace) -> int:
     root = Path(args.root).resolve()
     paths = HarnessPaths(root)
     ensure_harness_exists(paths)
 
-    policy = load_runtime_policy(paths)
-    dag_policy = policy.get("dag", {}) if isinstance(policy, dict) else {}
-
-    requested_mode = str(args.execution_mode or dag_policy.get("execution_mode", "auto")).strip().lower()
-    if requested_mode not in {"auto", "serial", "parallel"}:
-        eprint(f"error: invalid execution mode: {requested_mode}")
-        return 1
-
-    max_parallel = args.max_parallel if args.max_parallel is not None else int(dag_policy.get("max_parallel", 2))
-    if max_parallel < 1:
-        eprint("error: --max-parallel must be >= 1")
-        return 1
-
     states, tasks_by_feat = load_non_archived_feats(paths)
-    feat_ids = sorted(states.keys(), key=feat_sort_key)
-    if not feat_ids:
-        payload = {
-            "version": 1,
-            "generated_by": "bagakit-feature-tracker",
-            "execution_mode": "serial",
-            "max_parallel": max_parallel,
-            "parallel_recommendation": {
-                "recommended": False,
-                "reason": "no non-archived feats",
-                "natural_max_layer_width": 0,
-            },
-            "features": [],
-            "layers": [],
-            "first_unfinished_layer": None,
-        }
-        archived_path: Path | None = None
-        if paths.dag_file.exists():
-            archived_path = archive_existing_dag(paths, load_json(paths.dag_file))
-        save_json(paths.dag_file, payload)
-        print(f"write: {paths.dag_file}")
-        if archived_path:
-            print(f"archive: {archived_path}")
-        if args.json:
-            print(json.dumps(payload, ensure_ascii=False, indent=2))
-        return 0
 
     clear_ids = {str(item).strip() for item in (args.clear_dependencies or []) if str(item).strip()}
     for feat_id in clear_ids:
@@ -2966,115 +2990,17 @@ def cmd_replan_feats(args: argparse.Namespace) -> int:
     for feat_id in sorted(changed_feats, key=feat_sort_key):
         save_feat(paths, feat_id, states[feat_id], tasks_by_feat[feat_id])
 
-    archived_status: dict[str, str] = {}
+    all_status_by_feat: dict[str, str] = {}
     for item in load_index(paths).get("features", []):
         fid = str(item.get("feat_id", ""))
         if fid:
-            archived_status[fid] = str(item.get("status") or "")
+            all_status_by_feat[fid] = str(item.get("status") or "")
 
-    notes: list[str] = []
-    deps_by_feat: dict[str, set[str]] = {}
-    for feat_id, state in states.items():
-        raw_deps = state.get("depends_on", [])
-        if not isinstance(raw_deps, list):
-            raw_deps = []
-        deps: set[str] = set()
-        for raw_dep in raw_deps:
-            dep = str(raw_dep).strip()
-            if not dep:
-                continue
-            if dep == feat_id:
-                eprint(f"error: feat cannot depend on itself: {feat_id}")
-                return 1
-            dep_status = archived_status.get(dep, "")
-            if dep_status == "archived":
-                notes.append(f"{feat_id} depends on archived feat {dep}; treated as already satisfied")
-                continue
-            if dep_status == "discarded":
-                eprint(f"error: {feat_id} depends on discarded feat {dep}; update dependencies before replanning")
-                return 1
-            if dep not in states:
-                notes.append(f"{feat_id} dependency missing from active DAG set: {dep}")
-                continue
-            deps.add(dep)
-        deps_by_feat[feat_id] = deps
-
-    natural_layers = build_layered_dag(feat_ids, deps_by_feat, parallel_limit=None)
-    natural_max_width = max((len(layer) for layer in natural_layers), default=0)
-    parallel_recommended = natural_max_width > 1
-
-    if requested_mode == "serial":
-        resolved_mode = "serial"
-    elif requested_mode == "parallel":
-        resolved_mode = "parallel"
-    else:
-        resolved_mode = "parallel" if parallel_recommended and max_parallel > 1 else "serial"
-
-    parallel_limit = max_parallel if resolved_mode == "parallel" else 1
-    layers = build_layered_dag(feat_ids, deps_by_feat, parallel_limit=parallel_limit)
-
-    layer_by_feat: dict[str, int] = {}
-    for i, layer in enumerate(layers):
-        for feat_id in layer:
-            layer_by_feat[feat_id] = i
-
-    dependents_by_feat: dict[str, list[str]] = {feat_id: [] for feat_id in feat_ids}
-    for feat_id, deps in deps_by_feat.items():
-        for dep in sorted(deps, key=feat_sort_key):
-            dependents_by_feat.setdefault(dep, []).append(feat_id)
-
-    layer_payload: list[dict[str, Any]] = []
-    first_unfinished: int | None = None
-    for i, layer in enumerate(layers):
-        is_completed = all(feat_is_completed(str(states[feat_id].get("status") or "")) for feat_id in layer)
-        layer_payload.append(
-            {
-                "layer": i,
-                "feat_ids": layer,
-                "is_completed": is_completed,
-            }
-        )
-        if not is_completed and first_unfinished is None:
-            first_unfinished = i
-
-    feats_payload: list[dict[str, Any]] = []
-    for feat_id in feat_ids:
-        status = str(states[feat_id].get("status") or "proposal")
-        feats_payload.append(
-            {
-                "feat_id": feat_id,
-                "title": str(states[feat_id].get("title") or ""),
-                "status": status,
-                "workspace_mode": str(states[feat_id].get("workspace_mode") or ""),
-                "depends_on": sorted(deps_by_feat.get(feat_id, set()), key=feat_sort_key),
-                "dependents": sorted(dependents_by_feat.get(feat_id, []), key=feat_sort_key),
-                "layer": layer_by_feat.get(feat_id),
-                "is_completed": feat_is_completed(status),
-            }
-        )
-
-    if parallel_recommended:
-        recommendation_reason = (
-            f"independent layer width up to {natural_max_width}; parallel mode can reduce waiting time"
-        )
-    else:
-        recommendation_reason = "dependency chain is mostly linear; serial mode is sufficient"
-
-    payload = {
-        "version": 1,
-        "generated_by": "bagakit-feature-tracker",
-        "execution_mode": resolved_mode,
-        "max_parallel": max_parallel,
-        "parallel_recommendation": {
-            "recommended": parallel_recommended,
-            "reason": recommendation_reason,
-            "natural_max_layer_width": natural_max_width,
-        },
-        "features": feats_payload,
-        "layers": layer_payload,
-        "first_unfinished_layer": first_unfinished,
-        "notes": sorted(set(notes)),
-    }
+    try:
+        payload = build_dag_projection_payload(states, all_status_by_feat=all_status_by_feat)
+    except SystemExit as exc:
+        eprint(str(exc))
+        return 1
 
     archived_path: Path | None = None
     if paths.dag_file.exists():
@@ -3084,13 +3010,8 @@ def cmd_replan_feats(args: argparse.Namespace) -> int:
     print(f"write: {paths.dag_file}")
     if archived_path:
         print(f"archive: {archived_path}")
-    print(f"execution_mode: {resolved_mode}")
-    print(f"max_parallel: {max_parallel}")
-    print(
-        "parallel_recommended: "
-        + ("yes" if parallel_recommended else "no")
-        + f" ({recommendation_reason})"
-    )
+    print(f"feature_count: {len(payload.get('features', []))}")
+    print(f"layer_count: {len(payload.get('layers', []))}")
     print(f"next: feature-tracker.sh show-feature-dag --root {root}")
 
     if args.json:
@@ -3117,33 +3038,46 @@ def cmd_show_feat_dag(args: argparse.Namespace) -> int:
         return 0
 
     print(f"dag_file: {paths.dag_file}")
-    print(f"execution_mode: {payload.get('execution_mode', '')}")
-    print(f"max_parallel: {payload.get('max_parallel', '')}")
-    rec = payload.get("parallel_recommendation", {})
-    if isinstance(rec, dict):
-        print(
-            "parallel_recommended: "
-            + ("yes" if rec.get("recommended") else "no")
-            + f" ({rec.get('reason', '')})"
-        )
-    first_unfinished = payload.get("first_unfinished_layer")
-    print(f"first_unfinished_layer: {first_unfinished if first_unfinished is not None else 'none'}")
-
+    features = payload.get("features", [])
     layers = payload.get("layers", [])
+    print(f"feature_count: {len(features) if isinstance(features, list) else 0}")
+    print(f"layer_count: {len(layers) if isinstance(layers, list) else 0}")
     if not isinstance(layers, list) or not layers:
         print("layers: none")
-        return 0
+    else:
+        print("layers:")
+        for layer in layers:
+            if not isinstance(layer, dict):
+                continue
+            layer_id = layer.get("layer")
+            feat_ids = layer.get("feat_ids", [])
+            if not isinstance(feat_ids, list):
+                feat_ids = []
+            print(f"- L{layer_id}: {' '.join(str(fid) for fid in feat_ids)}")
 
-    print("layers:")
-    for layer in layers:
-        if not isinstance(layer, dict):
-            continue
-        layer_id = layer.get("layer")
-        feat_ids = layer.get("feat_ids", [])
-        if not isinstance(feat_ids, list):
-            feat_ids = []
-        done_flag = "done" if layer.get("is_completed") else "pending"
-        print(f"- L{layer_id} [{done_flag}] {' '.join(str(fid) for fid in feat_ids)}")
+    if isinstance(features, list) and features:
+        print("features:")
+        for feature in features:
+            if not isinstance(feature, dict):
+                continue
+            feat_id = str(feature.get("feat_id", ""))
+            depends_on = feature.get("depends_on", [])
+            dependents = feature.get("dependents", [])
+            if not isinstance(depends_on, list):
+                depends_on = []
+            if not isinstance(dependents, list):
+                dependents = []
+            layer = feature.get("layer")
+            print(
+                f"- {feat_id} | layer={layer} | depends_on={','.join(str(item) for item in depends_on) or 'none'} | "
+                f"dependents={','.join(str(item) for item in dependents) or 'none'}"
+            )
+
+    notes = payload.get("notes", [])
+    if isinstance(notes, list) and notes:
+        print("notes:")
+        for note in notes:
+            print(f"- {note}")
     return 0
 
 
@@ -3354,10 +3288,8 @@ def build_parser() -> argparse.ArgumentParser:
     add_common(sp)
     sp.set_defaults(func=cmd_doctor)
 
-    sp = sub.add_parser("replan-features", help="recompute feature DAG plan and archive previous DAG")
+    sp = sub.add_parser("replan-features", help="recompute feature dependency projection and archive previous DAG")
     add_common(sp)
-    sp.add_argument("--execution-mode", choices=["auto", "serial", "parallel"], default=None)
-    sp.add_argument("--max-parallel", type=int, default=None)
     sp.add_argument(
         "--dependency",
         action="append",

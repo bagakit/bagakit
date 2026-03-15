@@ -86,12 +86,16 @@ Stable specs:
 
 - `docs/specs/feature-tracker-contract.md`
 - `docs/specs/feature-tracker-id-issuance.md`
+- `docs/specs/feature-tracker-projection-surfaces.md`
 
 The skill directory is the operator entry surface.
 The two specs above are the durable repository contract.
 
 Task SSOT lives only in `tasks.json`.
 The default feature directory keeps only `state.json` and `tasks.json`.
+`FEATURES_DAG.json` is a generated dependency projection over active feature
+state; it is not the dependency source of truth and it does not carry
+policy-resolved execution planning.
 Optional helper markdown files such as `proposal.md`, `spec-delta.md`, and
 `verification.md` can be materialized later at the feature root.
 
@@ -130,6 +134,8 @@ External bridges are intentionally out of scope for this skill.
 
 - Runtime truth stays in JSON SSOT under `.bagakit/feature-tracker/`.
 - Markdown files are projections of that runtime truth.
+- `FEATURES_DAG.json` is a projection-only graph surface and may be regenerated
+  from canonical feature state.
 - Feature ids are short opaque tokens whose lexical order follows tracker
   issuance cursor order.
 - Runtime JSON is intentionally low-churn and avoids per-mutation timestamps.

@@ -79,6 +79,13 @@ export const SUITE: EvalSuiteDefinition = {
           assert.equal(tasksPayload.tasks[0].status, "in_progress");
           assert.ok(JSON.stringify(statusPayload).includes("T-001"));
           assert.match(JSON.stringify(dagPayload), new RegExp(featId));
+          assert.ok(Array.isArray(dagPayload.features));
+          assert.ok(Array.isArray(dagPayload.layers));
+          assert.deepEqual(Object.keys(dagPayload).sort(), ["features", "generated_by", "layers", "notes", "version"]);
+          assert.equal("execution_mode" in dagPayload, false);
+          assert.equal("max_parallel" in dagPayload, false);
+          assert.equal("parallel_recommendation" in dagPayload, false);
+          assert.equal("first_unfinished_layer" in dagPayload, false);
           assert.equal(issuerPayload.namespace, featId.slice(5, 7));
           assert.equal(fs.existsSync(path.join(featureDir, "tasks.md")), false);
           assert.equal(fs.existsSync(path.join(featureDir, "artifacts")), false);
@@ -97,6 +104,7 @@ export const SUITE: EvalSuiteDefinition = {
               "tasks.json marks the started task as in progress without per-task timestamps",
               "new features start with a minimal default layout and no eager helper markdown files",
               "feature ids use the c3/n2/g4 opaque shape and stay aligned with local issuer state",
+              "FEATURES_DAG.json stays a pure dependency projection instead of embedding execution-planning fields",
             ],
             commands: [
               `bash ${script} initialize-tracker --root <temp-repo>`,

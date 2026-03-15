@@ -24,3 +24,4 @@ dist_*/
 !.bagakit/researcher/topics/frontier/researcher-skill/
 !.bagakit/researcher/topics/frontier/researcher-skill/**
 mem/
+.codex

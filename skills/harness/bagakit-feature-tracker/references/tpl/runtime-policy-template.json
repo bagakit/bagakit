@@ -46,9 +46,5 @@
     },
     "ui_commands": [],
     "non_ui_commands": []
-  },
-  "dag": {
-    "execution_mode": "auto",
-    "max_parallel": 2
   }
 }

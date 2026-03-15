@@ -1,15 +1,7 @@
 {
   "version": 1,
   "generated_by": "bagakit-feature-tracker",
-  "execution_mode": "serial",
-  "max_parallel": 1,
-  "parallel_recommendation": {
-    "recommended": false,
-    "reason": "dag not planned yet",
-    "natural_max_layer_width": 0
-  },
   "features": [],
   "layers": [],
-  "first_unfinished_layer": null,
   "notes": []
 }
