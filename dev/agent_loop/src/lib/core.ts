@@ -27,6 +27,7 @@ import {
   writeJsonFile,
   writeText,
 } from "./io.ts";
+import { describeRunnerLaunchError } from "./launch_error.ts";
 import type {
   AgentLoopNextPayload,
   AgentLoopRunPayload,
@@ -320,6 +321,8 @@ function loadSessionMeta(filePath: string): {
   workload_id?: string;
   runner_name?: string;
   started_at?: string;
+  signal?: string | null;
+  launch_error?: string;
 } | null {
   try {
     return loadJsonIfExists<{
@@ -328,6 +331,8 @@ function loadSessionMeta(filePath: string): {
       workload_id?: string;
       runner_name?: string;
       started_at?: string;
+      signal?: string | null;
+      launch_error?: string;
     }>(filePath);
   } catch {
     return null;
@@ -369,7 +374,11 @@ function sortedSessionSummaries(paths: AgentLoopPaths): WatchSessionSummary[] {
         let issue = "";
         try {
           result = loadJsonIfExists<RunnerResult>(resultPath);
-          issue = runnerResultIssue(result, brief.session_id);
+          if (metadata?.launch_error) {
+            issue = describeRunnerLaunchError(metadata.launch_error, brief.session_id);
+          } else if (metadata) {
+            issue = runnerResultIssue(result, brief.session_id);
+          }
         } catch (error) {
           issue = error instanceof Error ? error.message : String(error);
         }
@@ -381,8 +390,10 @@ function sortedSessionSummaries(paths: AgentLoopPaths): WatchSessionSummary[] {
           runner_name: brief.runner_name,
           started_at: brief.started_at,
           exit_code: metadata?.exit_code ?? null,
+          signal: metadata?.signal ?? null,
           result_status: resultStatus,
           checkpoint_written: result?.checkpoint_written ?? null,
+          launch_error: metadata?.launch_error || undefined,
           issue: issue || undefined,
         };
       } catch (error) {
@@ -393,8 +404,10 @@ function sortedSessionSummaries(paths: AgentLoopPaths): WatchSessionSummary[] {
           runner_name: metadata?.runner_name || "",
           started_at: metadata?.started_at || "",
           exit_code: metadata?.exit_code ?? null,
+          signal: metadata?.signal ?? null,
           result_status: "" as const,
           checkpoint_written: null,
+          launch_error: metadata?.launch_error || undefined,
           issue: error instanceof Error ? error.message : String(error),
         };
       }
@@ -673,10 +686,11 @@ export function writeSessionArtifacts(
   sessionId: string,
   runnerName: string,
   flowNext: FlowNextPayload,
+  recovery?: RecoverySessionContext,
 ): string {
   const paths = new AgentLoopPaths(root);
   const state = readItemState(root, flowNext.item_id || "");
-  const brief = buildSessionBrief(root, sessionId, runnerName, paths, state, flowNext, flowRunnerCommand(root));
+  const brief = buildSessionBrief(root, sessionId, runnerName, paths, state, flowNext, flowRunnerCommand(root), recovery);
   writeJsonFile(paths.sessionBrief(sessionId), brief);
   return renderPrompt(brief);
 }
@@ -726,3 +740,4 @@ export function recordRun(
 export function snapshotLabel(itemId: string, sessionNumber: number): string {
   return `agent-loop-${sanitizeSegment(itemId)}-${sessionNumber}`;
 }
+import type { RecoverySessionContext } from "./continuation.ts";

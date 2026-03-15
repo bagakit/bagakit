@@ -13,6 +13,22 @@ export type SessionHostStatus = Readonly<{
 }>;
 
 export function deriveSessionHostStatus(snapshot: SessionHostSnapshot): SessionHostStatus {
+  const activeSessionArtifactsPending =
+    snapshot.issues.length > 0 &&
+    snapshot.issues.every(
+      (entry) => entry.code === "meta_missing" || entry.code === "result_missing" || entry.code === "artifact_missing",
+    );
+  if (activeSessionArtifactsPending && snapshot.started_at && snapshot.runner_result === null) {
+    return {
+      session_id: snapshot.session_id,
+      item_id: snapshot.item_id,
+      runner_name: snapshot.runner_name,
+      started_at: snapshot.started_at,
+      execution_state: "running",
+      summary: "runner session is still active or has not written host artifacts yet",
+      issue_count: snapshot.issues.length,
+    };
+  }
   if (snapshot.issues.length > 0) {
     return {
       session_id: snapshot.session_id,

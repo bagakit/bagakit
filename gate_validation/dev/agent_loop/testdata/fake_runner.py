@@ -47,6 +47,10 @@ def main() -> int:
 
         time.sleep(2)
         return 0
+    if mode == "recover-once":
+        recovery = brief.get("recovery_from")
+        if not isinstance(recovery, dict):
+            return 9
 
     flow_runner_command = brief["flow_runner_command"]
     item = brief["item"]

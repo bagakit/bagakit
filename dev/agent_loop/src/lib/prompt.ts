@@ -1,4 +1,7 @@
+import path from "node:path";
+
 import type { FlowItemState, FlowNextPayload, SessionBrief } from "./model.ts";
+import type { RecoverySessionContext } from "./continuation.ts";
 import { repoRelative, utcNow } from "./io.ts";
 import { AgentLoopPaths } from "./paths.ts";
 
@@ -10,6 +13,7 @@ export function buildSessionBrief(
   state: FlowItemState,
   nextPayload: FlowNextPayload,
   flowRunnerCommand: string[],
+  recovery?: RecoverySessionContext,
 ): SessionBrief {
   return {
     schema: "bagakit/agent-loop/session-brief/v1",
@@ -40,8 +44,17 @@ export function buildSessionBrief(
       prompt_file: repoRelative(root, paths.promptFile(sessionId)),
       stdout_file: repoRelative(root, paths.stdoutFile(sessionId)),
       stderr_file: repoRelative(root, paths.stderrFile(sessionId)),
+      session_meta_file: repoRelative(root, path.join(paths.sessionDir(sessionId), "session-meta.json")),
       runner_result_file: repoRelative(root, paths.runnerResultFile(sessionId)),
     },
+    recovery_from: recovery
+      ? {
+          previous_session_id: recovery.previous_session_id,
+          previous_stop_reason: recovery.previous_stop_reason,
+          previous_operator_message: recovery.previous_operator_message,
+          previous_host_paths: recovery.previous_host_paths,
+        }
+      : undefined,
     boundaries: [
       "Treat bagakit-flow-runner as the only execution-truth surface.",
       "Do not archive the item from the runner session.",
@@ -58,6 +71,20 @@ export function buildSessionBrief(
 }
 
 export function renderPrompt(brief: SessionBrief): string {
+  const recoverySection = brief.recovery_from
+    ? [
+        "",
+        "Recovery context:",
+        `- previous_session_id: ${brief.recovery_from.previous_session_id}`,
+        `- previous_stop_reason: ${brief.recovery_from.previous_stop_reason}`,
+        `- previous_operator_message: ${brief.recovery_from.previous_operator_message}`,
+        `- inspect previous session meta first: ${brief.recovery_from.previous_host_paths.session_meta_file}`,
+        `- inspect previous runner result: ${brief.recovery_from.previous_host_paths.runner_result_file}`,
+        `- inspect previous stderr: ${brief.recovery_from.previous_host_paths.stderr_file}`,
+        `- inspect previous stdout: ${brief.recovery_from.previous_host_paths.stdout_file}`,
+        "- decide whether canonical progress already landed before continuing mutable work.",
+      ]
+    : [];
   return [
     "You are running one bounded Bagakit agent-loop session.",
     "",
@@ -70,6 +97,7 @@ export function renderPrompt(brief: SessionBrief): string {
     "",
     "Required before exit:",
     ...brief.required_steps.map((line) => `- ${line}`),
+    ...recoverySection,
     "",
     "Finish by writing runner-result.json with this schema:",
     '{',

@@ -3,7 +3,9 @@ import path from "node:path";
 
 import { captureSnapshot, itemExists } from "../adapters/flow_runner.ts";
 import { launchStdinRunnerSession } from "../../../agent_runner/src/lib/session.ts";
+import { canonicalFlowStop, decideContinuationAfterSessionStop, type RecoverySessionContext } from "./continuation.ts";
 import { runnerConfigStatus } from "./config.ts";
+import { describeRunnerLaunchError } from "./launch_error.ts";
 import {
   acquireRunLock,
   autoArchiveOwnedItem,
@@ -27,6 +29,7 @@ import type {
   RunnerResult,
 } from "./model.ts";
 import { AgentLoopPaths } from "./paths.ts";
+import { shouldUseHostTimeout } from "./runner_truth.ts";
 
 type LaunchStop = Readonly<{
   stop_reason: RunStopReason;
@@ -130,43 +133,34 @@ function checkpointObserved(before: FlowNextPayload, after: FlowNextPayload): bo
   return afterSession > beforeSession;
 }
 
-function stopForFlowState(flowNext: FlowNextPayload): LaunchStop {
-  if (flowNext.recommended_action === "clear_blocker") {
-    return {
-      stop_reason: "blocked_item",
-      flow_next: flowNext,
-      operator_message: "the selected item is blocked and needs maintainer action",
-      next_safe_action: "resolve_blocker",
-      can_resume: true,
-      run_status: "operator_action_required",
-    };
-  }
-  if (flowNext.recommended_action === "stop" && flowNext.action_reason === "closeout_pending") {
-    return {
-      stop_reason: "closeout_pending",
-      flow_next: flowNext,
-      operator_message: "the selected item is waiting for upstream closeout or manual review",
-      next_safe_action: "close_item_upstream",
-      can_resume: true,
-      run_status: "operator_action_required",
-    };
-  }
+function hostPathsForSession(root: string, sessionId: string) {
+  const paths = new AgentLoopPaths(root);
   return {
-    stop_reason: "no_actionable_item",
-    flow_next: flowNext,
-    operator_message: "no actionable item is available",
-    next_safe_action: "idle",
-    can_resume: false,
-    run_status: "terminal",
+    session_dir: repoRelative(root, paths.sessionDir(sessionId)),
+    session_brief: repoRelative(root, paths.sessionBrief(sessionId)),
+    prompt_file: repoRelative(root, paths.promptFile(sessionId)),
+    stdout_file: repoRelative(root, paths.stdoutFile(sessionId)),
+    stderr_file: repoRelative(root, paths.stderrFile(sessionId)),
+    session_meta_file: repoRelative(root, path.join(paths.sessionDir(sessionId), "session-meta.json")),
+    runner_result_file: repoRelative(root, paths.runnerResultFile(sessionId)),
   };
 }
 
-function launchRunnerSession(root: string, config: RunnerConfig, flowNext: FlowNextPayload): LaunchOutcome {
+function stopForFlowState(flowNext: FlowNextPayload): LaunchStop {
+  return canonicalFlowStop(flowNext);
+}
+
+function launchRunnerSession(
+  root: string,
+  config: RunnerConfig,
+  flowNext: FlowNextPayload,
+  recovery?: RecoverySessionContext,
+): LaunchOutcome {
   if (!flowNext.item_id) {
     throw new Error("flow-runner next payload did not include item_id");
   }
   const { sessionId } = allocateSession(root, config.runner_name, flowNext.item_id);
-  const prompt = writeSessionArtifacts(root, sessionId, config.runner_name, flowNext);
+  const prompt = writeSessionArtifacts(root, sessionId, config.runner_name, flowNext, recovery);
   const paths = new AgentLoopPaths(root);
   const templateContext = {
     repo_root: root,
@@ -188,7 +182,10 @@ function launchRunnerSession(root: string, config: RunnerConfig, flowNext: FlowN
     started_at: startedAt,
     prompt_text: prompt,
     template_context: templateContext,
-    config,
+    config: {
+      ...config,
+      timeout_seconds: shouldUseHostTimeout(config) ? config.timeout_seconds : 0,
+    },
     paths: {
       session_dir: paths.sessionDir(sessionId),
       prompt_file: paths.promptFile(sessionId),
@@ -199,8 +196,10 @@ function launchRunnerSession(root: string, config: RunnerConfig, flowNext: FlowN
   });
 
   let stopReason: RunStopReason | "" = "";
+  let launchMessage = "";
   if (result.launch_error) {
     stopReason = result.launch_error === "ETIMEDOUT" ? "runner_timeout" : "runner_launch_failed";
+    launchMessage = describeRunnerLaunchError(result.launch_error, sessionId);
   } else if (result.signal === "SIGINT" || result.signal === "SIGTERM") {
     stopReason = "operator_cancelled";
   } else if ((result.exit_code ?? 0) !== 0) {
@@ -249,7 +248,7 @@ function launchRunnerSession(root: string, config: RunnerConfig, flowNext: FlowN
       checkpoint_observed: observed || ((fresh.session_number ?? 0) > (flowNext.session_number ?? 0)),
       runner_session_id: sessionId,
       flow_next: fresh,
-      operator_message: outputMessage || `runner session stopped because ${stopReason.replaceAll("_", " ")}`,
+      operator_message: launchMessage || outputMessage || `runner session stopped because ${stopReason.replaceAll("_", " ")}`,
       next_safe_action: stopReason === "checkpoint_missing" ? "repair_runner_result" : "inspect_runner_session",
       can_resume: stopReason !== "operator_cancelled",
       run_status: "operator_action_required",
@@ -295,6 +294,7 @@ export function runAgentLoop(
 
   let currentItem = itemId;
   let sessionsLaunched = 0;
+  let pendingRecovery: RecoverySessionContext | undefined;
   if (options.resume_mode) {
     const resolvedTarget = resolveResumeTarget(root, itemId);
     currentItem = resolvedTarget.itemId;
@@ -434,7 +434,9 @@ export function runAgentLoop(
         return recordRun(root, flowNext.item_id || "none", sessionsLaunched, maxSessions, {
           run_status: "operator_action_required",
           stop_reason: "session_budget_exhausted",
-          operator_message: "the session budget was exhausted before the loop reached a stop state",
+          operator_message: pendingRecovery
+            ? "the session budget was exhausted before one bounded recovery session could run"
+            : "the session budget was exhausted before the loop reached a stop state",
           next_safe_action: "resume_run",
           can_resume: true,
           checkpoint_observed: false,
@@ -443,20 +445,37 @@ export function runAgentLoop(
         });
       }
 
-      const launch = launchRunnerSession(root, configStatus.config, flowNext);
+      const launch = launchRunnerSession(root, configStatus.config, flowNext, pendingRecovery);
+      pendingRecovery = undefined;
       sessionsLaunched += 1;
 
       if (launch.stop_reason) {
-        const stopReason = launch.stop_reason;
+        const continuation = decideContinuationAfterSessionStop(
+          {
+            run_status: launch.run_status,
+            stop_reason: launch.stop_reason,
+            operator_message: launch.operator_message,
+            next_safe_action: launch.next_safe_action,
+            can_resume: launch.can_resume,
+            checkpoint_observed: launch.checkpoint_observed,
+            runner_session_id: launch.runner_session_id,
+            flow_next: launch.flow_next,
+          },
+          hostPathsForSession(root, launch.runner_session_id),
+        );
+        if (continuation.kind === "recover") {
+          pendingRecovery = continuation.recovery;
+          continue;
+        }
         return recordRun(root, flowNext.item_id || "none", sessionsLaunched, maxSessions, {
-          run_status: launch.run_status,
-          stop_reason: stopReason,
-          operator_message: launch.operator_message,
-          next_safe_action: launch.next_safe_action,
-          can_resume: launch.can_resume,
+          run_status: continuation.stop.run_status,
+          stop_reason: continuation.stop.stop_reason,
+          operator_message: continuation.stop.operator_message,
+          next_safe_action: continuation.stop.next_safe_action,
+          can_resume: continuation.stop.can_resume,
           checkpoint_observed: launch.checkpoint_observed,
           runner_session_id: launch.runner_session_id,
-          flow_next: launch.flow_next,
+          flow_next: continuation.stop.flow_next,
         });
       }
 

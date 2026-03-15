@@ -9,6 +9,8 @@ import {
   type AgentRunnerSessionMeta,
 } from "./model.ts";
 
+const RUNNER_STDIO_MAX_BUFFER_BYTES = 16 * 1024 * 1024;
+
 function expandTemplate(value: string, replacements: Record<string, string>): string {
   let rendered = value;
   for (const [key, replacement] of Object.entries(replacements)) {
@@ -57,7 +59,8 @@ export function launchStdinRunnerSession(request: AgentRunnerLaunchRequest): Age
     cwd: request.cwd,
     encoding: "utf8",
     input: request.prompt_text,
-    timeout: request.config.timeout_seconds * 1000,
+    timeout: request.config.timeout_seconds > 0 ? request.config.timeout_seconds * 1000 : undefined,
+    maxBuffer: RUNNER_STDIO_MAX_BUFFER_BYTES,
     env: {
       ...process.env,
       ...env,

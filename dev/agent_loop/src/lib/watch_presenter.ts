@@ -1,4 +1,4 @@
-import type { AgentLoopWatchPayload, RunRecord, WatchSessionSummary } from "./model.ts";
+import type { AgentLoopWatchPayload, RunRecord, WatchFocusItem, WatchSessionSummary } from "./model.ts";
 
 const RESET = "\u001b[0m";
 const COLORS = {
@@ -8,6 +8,24 @@ const COLORS = {
   warn: "\u001b[33m",
   critical: "\u001b[31m",
 };
+
+export type WatchRenderFrame = Readonly<{
+  text: string;
+  detailOffset: number;
+  maxDetailOffset: number;
+  detailVisibleCount: number;
+  detailTotalCount: number;
+}>;
+
+type WatchRenderOptions = Readonly<{
+  ansi: boolean;
+  width: number;
+  height?: number;
+  paused?: boolean;
+  detailOffset?: number;
+  refreshSeconds?: number;
+  notice?: string;
+}>;
 
 function colorize(text: string, color: keyof typeof COLORS, enabled: boolean): string {
   if (!enabled) {
@@ -26,11 +44,89 @@ function clampLine(text: string, width: number): string {
   return `${text.slice(0, width - 3)}...`;
 }
 
+function hardWrap(text: string, width: number): string[] {
+  if (text.length <= width) {
+    return [text];
+  }
+  const lines: string[] = [];
+  let rest = text;
+  while (rest.length > width) {
+    lines.push(rest.slice(0, width));
+    rest = rest.slice(width);
+  }
+  if (rest.length > 0) {
+    lines.push(rest);
+  }
+  return lines;
+}
+
+function wrapLine(text: string, width: number): string[] {
+  if (width <= 0) {
+    return [""];
+  }
+  if (text.trim() === "") {
+    return [""];
+  }
+  const chunks = text.split(/\s+/).filter((chunk) => chunk.length > 0);
+  if (chunks.length === 0) {
+    return [""];
+  }
+  const lines: string[] = [];
+  let current = "";
+  for (const chunk of chunks) {
+    if (chunk.length > width) {
+      if (current) {
+        lines.push(current);
+        current = "";
+      }
+      lines.push(...hardWrap(chunk, width));
+      continue;
+    }
+    const candidate = current ? `${current} ${chunk}` : chunk;
+    if (candidate.length > width) {
+      lines.push(current);
+      current = chunk;
+      continue;
+    }
+    current = candidate;
+  }
+  if (current) {
+    lines.push(current);
+  }
+  return lines.length > 0 ? lines : [""];
+}
+
+function wrapLines(lines: string[], width: number): string[] {
+  return lines.flatMap((line) => line.split("\n").flatMap((part) => wrapLine(part, width)));
+}
+
 function panel(title: string, lines: string[], width: number): string[] {
-  const inner = Math.max(8, width - 2);
-  const border = `+ ${clampLine(title, inner - 2).padEnd(inner - 2, "-")} +`;
-  const body = (lines.length > 0 ? lines : [""]).map((line) => `| ${clampLine(line, inner - 2).padEnd(inner - 2)} |`);
-  return [border, ...body, `+${"-".repeat(inner)}+`];
+  const inner = Math.max(18, width - 2);
+  const titleText = clampLine(title, inner - 2);
+  const border = `+ ${titleText.padEnd(inner - 2, "-")} +`;
+  const body = wrapLines(lines, inner - 2).map((line) => `| ${line.padEnd(inner - 2)} |`);
+  return [border, ...(body.length > 0 ? body : [`| ${"".padEnd(inner - 2)} |`]), `+${"-".repeat(inner)}+`];
+}
+
+function scrollingPanel(title: string, lines: string[], width: number, bodyHeight: number, detailOffset: number): WatchRenderFrame {
+  const inner = Math.max(18, width - 2);
+  const wrapped = wrapLines(lines, inner - 2);
+  const visibleCount = Math.max(1, bodyHeight);
+  const maxOffset = Math.max(0, wrapped.length - visibleCount);
+  const safeOffset = Math.max(0, Math.min(detailOffset, maxOffset));
+  const end = Math.min(wrapped.length, safeOffset + visibleCount);
+  const range = wrapped.length === 0 ? "0 of 0" : `${safeOffset + 1}-${end} of ${wrapped.length}`;
+  const border = `+ ${clampLine(`${title} [${range}]`, inner - 2).padEnd(inner - 2, "-")} +`;
+  const bodySource = wrapped.length > 0 ? wrapped.slice(safeOffset, end) : [""];
+  const body = bodySource.map((line) => `| ${line.padEnd(inner - 2)} |`);
+  const text = [border, ...body, `+${"-".repeat(inner)}+`].join("\n");
+  return {
+    text: `${text}\n`,
+    detailOffset: safeOffset,
+    maxDetailOffset: maxOffset,
+    detailVisibleCount: visibleCount,
+    detailTotalCount: wrapped.length,
+  };
 }
 
 function mergeColumns(left: string[], right: string[], leftWidth: number, rightWidth: number): string[] {
@@ -40,6 +136,11 @@ function mergeColumns(left: string[], right: string[], leftWidth: number, rightW
     lines.push(`${(left[index] || "").padEnd(leftWidth)}  ${(right[index] || "").padEnd(rightWidth)}`.trimEnd());
   }
   return lines;
+}
+
+function displaySource(focus: WatchFocusItem): string {
+  const prefixed = `${focus.source_kind}:`;
+  return focus.source_ref.startsWith(prefixed) ? focus.source_ref : `${prefixed}${focus.source_ref}`;
 }
 
 function statusHeadline(payload: AgentLoopWatchPayload): { label: string; reason: string; next: string; message: string; color: keyof typeof COLORS } {
@@ -97,22 +198,44 @@ function statusHeadline(payload: AgentLoopWatchPayload): { label: string; reason
   };
 }
 
+function renderTopBand(payload: AgentLoopWatchPayload, width: number, ansi: boolean, paused: boolean, refreshSeconds: number, notice: string): string[] {
+  const headline = statusHeadline(payload);
+  const focus = payload.focus_item;
+  const liveState = paused ? "PAUSED" : "LIVE";
+  const refreshed = payload.refreshed_at.slice(11, 19);
+  const lines = [
+    colorize(clampLine(`Bagakit Agent Loop | ${liveState} | refresh=${refreshSeconds.toFixed(1)}s | runner=${payload.runner_name} | refreshed=${refreshed}`, width), "title", ansi),
+    colorize(clampLine(`${headline.label} | next=${headline.next} | reason=${headline.reason}`, width), headline.color, ansi),
+    clampLine(
+      focus
+        ? `${focus.item_id} | stage=${focus.current_stage} | step=${focus.current_step_status} | source=${displaySource(focus)}`
+        : "No active focus item.",
+      width,
+    ),
+  ];
+  if (notice.trim()) {
+    lines.push(colorize(clampLine(`notice: ${notice}`, width), "muted", ansi));
+  }
+  return lines;
+}
+
 function renderActionPanel(payload: AgentLoopWatchPayload, width: number, ansi: boolean): string[] {
   const headline = statusHeadline(payload);
   const focus = payload.focus_item;
-  const itemSummary = focus
-    ? `item=${focus.item_id} | stage=${focus.current_stage} | step=${focus.current_step_status} | runner=${payload.runner_name} | lock=${payload.run_lock.status}`
-    : `runner=${payload.runner_name} | lock=${payload.run_lock.status} | config=${payload.runner_config_status}`;
-  const notification = payload.current_notification
-    ? `attention=${payload.current_notification.severity} | ${payload.current_notification.summary}`
-    : "attention=none";
+  const latestRun = payload.latest_run;
+  const nextCommand = latestRun?.next_command_example || "none";
   return panel(
     colorize("Action", "title", ansi),
     [
       colorize(`${headline.label} | next=${headline.next} | reason=${headline.reason}`, headline.color, ansi),
-      itemSummary,
+      focus
+        ? `item=${focus.item_id} | stage=${focus.current_stage} | step=${focus.current_step_status} | runner=${payload.runner_name} | lock=${payload.run_lock.status}`
+        : `runner=${payload.runner_name} | lock=${payload.run_lock.status}`,
       headline.message,
-      notification,
+      nextCommand === "none" ? "continue_with=none" : `continue_with=${nextCommand}`,
+      payload.current_notification
+        ? `attention=${payload.current_notification.severity} | ${payload.current_notification.summary}`
+        : "attention=none",
     ],
     width,
   );
@@ -128,20 +251,34 @@ function renderFocusPanel(payload: AgentLoopWatchPayload, width: number, ansi: b
     [
       `${focus.item_id} | ${focus.status} | ${focus.resolution}`,
       focus.title,
-      `source=${focus.source_kind}:${focus.source_ref}`,
+      `source=${displaySource(focus)}`,
       `stage=${focus.current_stage} | step=${focus.current_step_status} | session=${focus.session_number}`,
-      focus.checkpoint_request
-        ? `checkpoint=${focus.checkpoint_request.stage}:${focus.checkpoint_request.session_status}`
-        : "checkpoint=none",
+      focus.checkpoint_request ? `checkpoint=${focus.checkpoint_request.stage}:${focus.checkpoint_request.session_status}` : "checkpoint=none",
       focus.current_safe_anchor ? `safe_anchor=${focus.current_safe_anchor.kind}:${focus.current_safe_anchor.summary}` : "safe_anchor=none",
+      `handoff=${focus.handoff_path}`,
     ],
     width,
   );
 }
 
+function sessionSummaryLine(session: WatchSessionSummary | undefined): string[] {
+  if (!session) {
+    return ["latest_session=none"];
+  }
+  const lines = [
+    `latest_session=${session.session_id} | result=${session.result_status || "-"} | exit=${session.exit_code ?? "-"} | signal=${session.signal ?? "-"}`,
+  ];
+  if (session.launch_error) {
+    lines.push(`launch_error=${session.launch_error}`);
+  }
+  if (session.issue) {
+    lines.push(`session_issue=${session.issue}`);
+  }
+  return lines;
+}
+
 function renderLoopPanel(payload: AgentLoopWatchPayload, width: number, ansi: boolean): string[] {
   const latestRun = payload.latest_run;
-  const latestSession = payload.latest_session;
   const lines = [
     `runner=${payload.runner_name} | config=${payload.runner_config_status}`,
     payload.run_lock.status === "idle"
@@ -151,19 +288,10 @@ function renderLoopPanel(payload: AgentLoopWatchPayload, width: number, ansi: bo
       ? `latest_run=${latestRun.stop_reason} | can_resume=${latestRun.can_resume ? "yes" : "no"} | budget=${latestRun.sessions_launched} of ${latestRun.session_budget}`
       : "latest_run=none",
     latestRun ? latestRun.operator_message : "operator_message=none",
-    latestRun?.next_command_example ? `continue_with=${latestRun.next_command_example}` : "continue_with=none",
-    latestSession
-      ? `latest_session=${latestSession.session_id} | result=${latestSession.result_status || "-"} | exit=${latestSession.exit_code ?? "-"} | checkpoint=${latestSession.checkpoint_written === null ? "-" : latestSession.checkpoint_written ? "yes" : "no"}`
-      : "latest_session=none",
+    ...(latestRun?.next_command_example ? [`next_command=${latestRun.next_command_example}`] : []),
+    ...sessionSummaryLine(payload.latest_session),
   ];
-  if (latestSession?.issue) {
-    lines.push(`session_issue=${latestSession.issue}`);
-  }
   return panel(colorize("Loop Status", "title", ansi), lines, width);
-}
-
-function renderHistorySection(title: string, runs: string[], sessions: string[], width: number, ansi: boolean): string[] {
-  return panel(colorize(title, "title", ansi), [...runs, "", ...sessions], width);
 }
 
 function formatRunLine(run: RunRecord): string {
@@ -171,12 +299,29 @@ function formatRunLine(run: RunRecord): string {
 }
 
 function formatSessionLine(session: WatchSessionSummary): string {
-  const issue = session.issue ? ` issue=${session.issue}` : "";
+  const issue = session.launch_error ? ` launch=${session.launch_error}` : session.issue ? ` issue=${session.issue}` : "";
   return `${session.started_at ? session.started_at.slice(11, 19) : "--------"} ${session.session_id} result=${session.result_status || "-"} exit=${session.exit_code ?? "-"}${issue}`;
 }
 
-function renderDetailPanel(payload: AgentLoopWatchPayload, width: number, ansi: boolean): string[] {
+function renderHistoryPanel(payload: AgentLoopWatchPayload, width: number, ansi: boolean): string[] {
+  const lines = [
+    ...payload.recent_runs.slice(0, width >= 120 ? 4 : 3).map(formatRunLine),
+    "",
+    ...payload.recent_sessions.slice(0, width >= 120 ? 4 : 3).map(formatSessionLine),
+  ];
+  return panel(colorize("History", "title", ansi), lines, width);
+}
+
+function buildDetailLines(payload: AgentLoopWatchPayload): string[] {
   const lines: string[] = [];
+  if (payload.latest_session?.issue) {
+    lines.push("[session]");
+    lines.push(payload.latest_session.issue);
+  }
+  if (payload.latest_session?.launch_error) {
+    lines.push("[launch]");
+    lines.push(`launch_error=${payload.latest_session.launch_error}`);
+  }
   if (payload.detail.handoff_excerpt) {
     lines.push("[handoff]");
     lines.push(...payload.detail.handoff_excerpt.split("\n"));
@@ -193,30 +338,67 @@ function renderDetailPanel(payload: AgentLoopWatchPayload, width: number, ansi: 
     lines.push("[stdout]");
     lines.push(...payload.detail.stdout_excerpt.split("\n"));
   }
-  return panel(colorize("Detail", "title", ansi), lines.slice(0, 18), width);
+  return lines.length > 0 ? lines : ["No detail is available yet."];
+}
+
+function renderFooter(width: number, ansi: boolean, paused: boolean, detailOffset: number, maxDetailOffset: number): string[] {
+  const controls = "Controls: q quit | space pause | j/k scroll | g/G top/bottom | r refresh";
+  const scroll = `Detail: offset=${detailOffset} of ${maxDetailOffset} | mode=${paused ? "paused" : "live"}`;
+  return [
+    colorize(clampLine(controls, width), "muted", ansi),
+    colorize(clampLine(scroll, width), "muted", ansi),
+  ];
+}
+
+export function renderWatchFrame(payload: AgentLoopWatchPayload, options: WatchRenderOptions): WatchRenderFrame {
+  const width = Math.max(96, options.width);
+  const height = Math.max(24, options.height ?? 40);
+  const ansi = options.ansi;
+  const paused = options.paused ?? false;
+  const refreshSeconds = options.refreshSeconds ?? 1;
+  const notice = options.notice ?? "";
+
+  const topBand = renderTopBand(payload, width, ansi, paused, refreshSeconds, notice);
+  const action = renderActionPanel(payload, width, ansi);
+  const wide = width >= 132;
+  const panelWidth = wide ? Math.floor((width - 2) / 2) : width;
+  const focus = renderFocusPanel(payload, panelWidth, ansi);
+  const loop = renderLoopPanel(payload, panelWidth, ansi);
+  const middle = wide ? mergeColumns(focus, loop, panelWidth, panelWidth) : [...focus, "", ...loop];
+  const history = renderHistoryPanel(payload, width, ansi);
+  const footer = renderFooter(width, ansi, false, 0, 0);
+
+  const chromeHeight = topBand.length + 1 + action.length + 1 + middle.length + 1 + history.length + 1 + footer.length + 1;
+  const detailBodyHeight = Math.max(6, height - chromeHeight - 2);
+  const detailFrame = scrollingPanel("Detail", buildDetailLines(payload), width, detailBodyHeight, options.detailOffset ?? 0);
+  const actualFooter = renderFooter(width, ansi, paused, detailFrame.detailOffset, detailFrame.maxDetailOffset);
+
+  const lines = [
+    ...topBand,
+    "",
+    ...action,
+    "",
+    ...middle,
+    "",
+    ...history,
+    "",
+    ...detailFrame.text.trimEnd().split("\n"),
+    "",
+    ...actualFooter,
+  ];
+
+  return {
+    text: `${lines.join("\n")}\n`,
+    detailOffset: detailFrame.detailOffset,
+    maxDetailOffset: detailFrame.maxDetailOffset,
+    detailVisibleCount: detailFrame.detailVisibleCount,
+    detailTotalCount: detailFrame.detailTotalCount,
+  };
 }
 
 export function renderWatchScreen(payload: AgentLoopWatchPayload, options: { ansi: boolean; width: number }): string {
-  const width = Math.max(80, options.width);
-  const top = renderActionPanel(payload, width, options.ansi);
-  const focus = renderFocusPanel(payload, width >= 120 ? Math.floor((width - 2) / 2) : width, options.ansi);
-  const loop = renderLoopPanel(payload, width >= 120 ? Math.floor((width - 2) / 2) : width, options.ansi);
-  const history = renderHistorySection(
-    "History",
-    payload.recent_runs.slice(0, width >= 120 ? 4 : 3).map(formatRunLine),
-    payload.recent_sessions.slice(0, width >= 120 ? 4 : 3).map(formatSessionLine),
-    width,
-    options.ansi,
-  );
-  const detail = renderDetailPanel(payload, width, options.ansi);
-
-  const lines = [...top, ""];
-  if (width >= 120) {
-    const panelWidth = Math.floor((width - 2) / 2);
-    lines.push(...mergeColumns(focus, loop, panelWidth, panelWidth));
-  } else {
-    lines.push(...focus, "", ...loop);
-  }
-  lines.push("", ...history, "", ...detail);
-  return `${lines.join("\n")}\n`;
+  return renderWatchFrame(payload, {
+    ansi: options.ansi,
+    width: options.width,
+  }).text;
 }

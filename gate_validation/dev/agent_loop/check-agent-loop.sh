@@ -58,6 +58,7 @@ bash "$FLOW_RUNNER_DIR/scripts/flow-runner.sh" add-item --root "$TMP_DIR" --item
 bash "$FLOW_RUNNER_DIR/scripts/flow-runner.sh" add-item --root "$TMP_DIR" --item-id manual-budget --title "Manual budget" --source-kind manual --source-ref manual:budget >/dev/null
 bash "$FLOW_RUNNER_DIR/scripts/flow-runner.sh" add-item --root "$TMP_DIR" --item-id manual-cancel --title "Manual cancel" --source-kind manual --source-ref manual:cancel >/dev/null
 bash "$FLOW_RUNNER_DIR/scripts/flow-runner.sh" add-item --root "$TMP_DIR" --item-id manual-exit --title "Manual exit" --source-kind manual --source-ref manual:exit >/dev/null
+bash "$FLOW_RUNNER_DIR/scripts/flow-runner.sh" add-item --root "$TMP_DIR" --item-id manual-recover --title "Manual recover" --source-kind manual --source-ref manual:recover >/dev/null
 bash "$FLOW_RUNNER_DIR/scripts/flow-runner.sh" add-item --root "$TMP_DIR" --item-id manual-launch --title "Manual launch" --source-kind manual --source-ref manual:launch >/dev/null
 bash "$FLOW_RUNNER_DIR/scripts/flow-runner.sh" add-item --root "$TMP_DIR" --item-id manual-timeout --title "Manual timeout" --source-kind manual --source-ref manual:timeout >/dev/null
 bash "$FLOW_RUNNER_DIR/scripts/flow-runner.sh" add-item --root "$TMP_DIR" --item-id manual-refresh --title "Manual refresh" --source-kind manual --source-ref manual:refresh >/dev/null
@@ -278,7 +279,44 @@ import sys
 from pathlib import Path
 
 payload = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
-assert payload["stop_reason"] == "runner_exited_nonzero"
+assert payload["stop_reason"] == "session_budget_exhausted"
+assert "recovery session" in payload["operator_message"]
+PY
+
+RECOVER_JSON="$TMP_DIR/recover-run.json"
+bash "$AGENT_LOOP_DIR/agent-loop.sh" configure-runner --root "$TMP_DIR" --runner-name fake --argv-json "[\"python3\",\"$FAKE_RUNNER\",\"recover-once\",\"{repo_root}\",\"{session_brief}\",\"{runner_result}\"]" >/dev/null
+bash "$AGENT_LOOP_DIR/agent-loop.sh" run --root "$TMP_DIR" --item manual-recover --max-sessions 2 --json > "$RECOVER_JSON"
+python3 - "$RECOVER_JSON" "$TMP_DIR" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+payload = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+root = Path(sys.argv[2])
+assert payload["run_status"] == "terminal"
+assert payload["stop_reason"] == "item_archived"
+assert payload["sessions_launched"] == 2
+assert (root / ".bagakit" / "flow-runner" / "archive" / "manual-recover").is_dir()
+PY
+python3 - "$TMP_DIR" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+root = Path(sys.argv[1])
+sessions_root = root / ".bagakit" / "agent-loop" / "runner-sessions"
+matched = []
+for session_dir in sorted(sessions_root.iterdir()):
+    brief_path = session_dir / "session-brief.json"
+    if not brief_path.is_file():
+        continue
+    payload = json.loads(brief_path.read_text(encoding="utf-8"))
+    if payload.get("item", {}).get("item_id") == "manual-recover":
+        matched.append(payload)
+assert len(matched) == 2
+assert "recovery_from" not in matched[0]
+assert matched[1]["recovery_from"]["previous_session_id"] == matched[0]["session_id"]
+assert matched[1]["recovery_from"]["previous_stop_reason"] == "runner_exited_nonzero"
 PY
 
 LAUNCH_JSON="$TMP_DIR/launch-run.json"
@@ -297,7 +335,8 @@ import sys
 from pathlib import Path
 
 payload = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
-assert payload["stop_reason"] == "runner_launch_failed"
+assert payload["stop_reason"] == "session_budget_exhausted"
+assert "recovery session" in payload["operator_message"]
 PY
 
 TIMEOUT_JSON="$TMP_DIR/timeout-run.json"
@@ -316,7 +355,8 @@ import sys
 from pathlib import Path
 
 payload = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
-assert payload["stop_reason"] == "runner_timeout"
+assert payload["stop_reason"] == "session_budget_exhausted"
+assert "recovery session" in payload["operator_message"]
 PY
 
 REFRESH_JSON="$TMP_DIR/refresh-run.json"
@@ -355,8 +395,9 @@ import sys
 from pathlib import Path
 
 payload = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
-assert payload["stop_reason"] == "runner_output_missing"
+assert payload["stop_reason"] == "session_budget_exhausted"
 assert payload["sessions_launched"] == 1
+assert "recovery session" in payload["operator_message"]
 PY
 
 bash "$AGENT_LOOP_DIR/agent-loop.sh" configure-runner --root "$TMP_DIR" --runner-name fake --argv-json "[\"python3\",\"$FAKE_RUNNER\",\"invalid\",\"{repo_root}\",\"{session_brief}\",\"{runner_result}\"]" >/dev/null
@@ -374,8 +415,9 @@ import sys
 from pathlib import Path
 
 payload = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
-assert payload["stop_reason"] == "runner_output_invalid"
+assert payload["stop_reason"] == "session_budget_exhausted"
 assert payload["sessions_launched"] == 1
+assert "recovery session" in payload["operator_message"]
 PY
 
 POST_INVALID_WATCH="$TMP_DIR/post-invalid-watch.json"

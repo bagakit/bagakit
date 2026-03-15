@@ -205,6 +205,7 @@ export type AgentLoopPathsShape = Readonly<{
   prompt_file: string;
   stdout_file: string;
   stderr_file: string;
+  session_meta_file: string;
   runner_result_file: string;
 }>;
 
@@ -232,6 +233,12 @@ export type SessionBrief = Readonly<{
   flow_next: FlowNextPayload;
   flow_runner_command: string[];
   host_paths: AgentLoopPathsShape;
+  recovery_from?: {
+    previous_session_id: string;
+    previous_stop_reason: RunStopReason;
+    previous_operator_message: string;
+    previous_host_paths: AgentLoopPathsShape;
+  };
   boundaries: string[];
   required_steps: string[];
 }>;
@@ -402,8 +409,10 @@ export type WatchSessionSummary = Readonly<{
   runner_name: string;
   started_at: string;
   exit_code: number | null;
+  signal: string | null;
   result_status: RunnerResultStatus | "";
   checkpoint_written: boolean | null;
+  launch_error?: string;
   issue?: string;
 }>;
 

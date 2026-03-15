@@ -89,6 +89,13 @@ Current supported transport:
 
 For `stdin_prompt`, known CLIs must be configured in non-interactive forms.
 
+For first-class runners such as `codex` and `claude`, `timeout_seconds` does
+not override runner liveness truth.
+
+Bagakit outer drivers may keep that field for generic-process fallbacks, but
+they must not let host wall-clock timeout become authoritative stop truth for a
+live first-class runner session.
+
 `refresh_commands` are host-side refresh hooks.
 
 They may refresh normalized item mirrors before or after a session, but they
@@ -106,8 +113,19 @@ It may contain:
 - selected item identity
 - current flow-runner next payload
 - repo-relative paths to handoff and host artifacts
+- optional recovery context from one previous stopped session
 - explicit boundary reminders
 - required completion steps
+
+Current host-path payload includes:
+
+- `session_dir`
+- `session_brief`
+- `prompt_file`
+- `stdout_file`
+- `stderr_file`
+- `session_meta_file`
+- `runner_result_file`
 
 ## Runner Result Contract
 
@@ -128,6 +146,11 @@ If the runner fails or emits malformed host exhaust, `agent_loop` returns a
 typed stop.
 
 It does not synthesize flow-runner checkpoints on the runner's behalf.
+
+One stopped session does not automatically mean the flow stopped.
+
+`agent_loop` must reconcile runner-session facts with refreshed flow-runner
+truth before deciding whether to continue, recover, or stop.
 
 ## Run Payload Contract
 
@@ -157,6 +180,16 @@ It may tell the host how much attention a stop deserves and what the maintainer
 should do next.
 
 It does not become flow-runner truth.
+
+`run_status=operator_action_required` is a host decision, not a raw runner
+transport fact.
+
+For first-class runners, Bagakit should prefer:
+
+- refreshed flow reconciliation
+- bounded recovery continuation
+
+before escalating one stopped session into host stop.
 
 When `resume` cannot resolve one live candidate by itself, `run` payloads may
 also carry `resume_candidates` so the host can inspect the ambiguity without

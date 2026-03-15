@@ -37,6 +37,9 @@ leaving runtime truth under `.bagakit/agent-loop/`.
 - decide feature closeout
 - introduce a second hidden progress ledger
 - couple notification delivery transport into runner launch config
+- let host wall-clock timeout outrank first-class runner liveness truth
+- escalate one stopped session into host stop before refreshed flow
+  reconciliation
 
 ## Config Rule
 
@@ -45,7 +48,7 @@ Keep `.bagakit/agent-loop/runner.json` focused on launch mechanics.
 Good uses:
 
 - runner argv
-- timeout
+- generic-process timeout fallback
 - host env
 - explicit refresh commands
 
@@ -65,8 +68,12 @@ Bad uses:
 - run records point back to typed stop reasons instead of raw runner output
 - operator-required runs carry next-action intent and continuation handles
 - refresh commands update normalized item state without creating hidden truth
+- first-class runners such as `codex` or `claude` are not being cut off by
+  host wall-clock timeout
 - runner failure paths stop cleanly without mutating flow-runner truth on their
   own
+- recoverable session failures that leave canonical flow truth runnable are
+  being reconciled before host stop is emitted
 - `agent_loop` still consumes flow-runner contract surfaces, not ad hoc text
 
 ## Front-Door Rule
@@ -96,6 +103,10 @@ It must not:
 - repeat outer-loop orchestration
 - own current or resume resolution
 - own notification policy
+
+`session-run` is allowed to report one bounded session stop.
+
+It is not allowed to decide by itself whether the overall flow should stop.
 
 ## Watch Rule
 

@@ -85,3 +85,39 @@ test("launchStdinRunnerSession records timeout launch errors", () => {
   const meta = JSON.parse(fs.readFileSync(request.paths.session_meta_file, "utf8")) as Record<string, unknown>;
   assert.equal(meta.launch_error, "ETIMEDOUT");
 });
+
+test("launchStdinRunnerSession tolerates larger runner stderr transcripts without ENOBUFS", () => {
+  const tempRoot = tempDir("bagakit-agent-runner-");
+  const request = baseRequest(tempRoot);
+  request.config = {
+    ...request.config,
+    argv: [
+      "python3",
+      "-c",
+      "import sys; sys.stderr.write('x' * (2 * 1024 * 1024)); sys.stderr.flush()",
+    ],
+  };
+
+  const result = launchStdinRunnerSession(request);
+  assert.equal(result.launch_error, "");
+  assert.equal(result.exit_code, 0);
+  assert.ok(result.stderr.length >= 2 * 1024 * 1024);
+});
+
+test("launchStdinRunnerSession treats non-positive timeout as no host timeout", () => {
+  const tempRoot = tempDir("bagakit-agent-runner-");
+  const request = baseRequest(tempRoot);
+  request.config = {
+    ...request.config,
+    timeout_seconds: 0,
+    argv: [
+      "python3",
+      "-c",
+      "import time; time.sleep(1.1)",
+    ],
+  };
+
+  const result = launchStdinRunnerSession(request);
+  assert.equal(result.launch_error, "");
+  assert.equal(result.exit_code, 0);
+});

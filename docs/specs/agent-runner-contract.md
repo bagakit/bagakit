@@ -21,7 +21,7 @@ Bagakit needs one reusable bounded-session substrate so that:
 - prompt capture
 - stdout and stderr capture
 - one neutral session meta artifact
-- timeout and launch-error capture
+- optional host timeout and launch-error capture
 
 It does not own:
 
@@ -32,6 +32,12 @@ It does not own:
 - eval case loading
 - eval grading
 - repository execution truth
+
+It also does not own:
+
+- whether one timeout should have any authority over runner liveness truth
+
+That policy belongs to the higher-level host using this substrate.
 
 ## Session Meta
 
@@ -51,6 +57,10 @@ It records:
 - launch error
 - expanded argv
 - expanded env key list
+
+`launch_error` is only a runner-session-layer fact.
+
+It must not be treated as execution truth by itself.
 
 ## Shared Template ABI
 
@@ -79,6 +89,12 @@ If a tool needs exactly one bounded runner launch, it should use
 
 If a tool needs orchestration, stop policy, or grading, it should build that
 above this layer instead of pushing more policy into the substrate.
+
+That includes:
+
+- deciding whether first-class runners such as `codex` or `claude` should
+  ignore host wall-clock timeout
+- deciding whether a stopped session implies bounded recovery or operator stop
 
 ## Eval Boundary
 

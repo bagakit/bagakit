@@ -86,6 +86,8 @@ That means:
 - resolve work from `bagakit-flow-runner`
 - launch one bounded runner session at a time
 - refresh from canonical flow-runner state after each launch
+- reconcile one stopped session with refreshed canonical flow truth before
+  deciding whether the host should stop
 - persist host exhaust for inspection only
 - return typed stop reasons instead of hiding control flow in local caches
 - emit host-owned stop-attention intent without redefining runtime truth
@@ -98,6 +100,12 @@ That means:
 
 For `stdin_prompt`, known CLIs must still be configured in non-interactive
 forms such as `codex exec` or `claude -p`.
+
+For first-class runners such as `codex` or `claude`, host wall-clock timeout is
+not authoritative liveness truth. Long sessions are allowed. If Bagakit later
+adds stuck-session fallback for weaker runners, that fallback should stay
+evidence-based and accuracy-first instead of interrupting long sessions just
+because elapsed time is large.
 
 Configured runner argv is stored in:
 

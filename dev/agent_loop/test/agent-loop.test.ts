@@ -5,6 +5,7 @@ import path from "node:path";
 import test from "node:test";
 
 import { parseArgvJson, normalizeRefreshCommands, presetArgv, runnerConfigStatus, writeRunnerConfig } from "../src/lib/config.ts";
+import { decideContinuationAfterSessionStop } from "../src/lib/continuation.ts";
 import { notificationConfigIssue } from "../src/lib/notification_delivery.ts";
 import { applyAgentLoop } from "../src/lib/core.ts";
 import { writeJsonFile } from "../src/lib/io.ts";
@@ -143,6 +144,7 @@ test("watch presenter keeps action-first sections visible", () => {
         runner_name: "codex",
         started_at: "2026-04-20T00:00:00Z",
         exit_code: 0,
+        signal: null,
         result_status: "completed",
         checkpoint_written: true,
       },
@@ -174,6 +176,7 @@ test("watch presenter keeps action-first sections visible", () => {
   assert.ok(screen.includes("Action"));
   assert.ok(screen.includes("Focus Item"));
   assert.ok(screen.includes("Loop Status"));
+  assert.ok(screen.includes("Controls:"));
 });
 
 test("watch presenter prefers current decision over historical attention residue", () => {
@@ -368,4 +371,88 @@ test("session host status keeps active sessions running when result is not writt
   const snapshot = readSessionHostSnapshot(root, sessionId);
   const status = deriveSessionHostStatus(snapshot);
   assert.equal(status.execution_state, "running");
+});
+
+test("continuation layer opens recovery when a stopped session still leaves flow truth runnable", () => {
+  const decision = decideContinuationAfterSessionStop(
+    {
+      run_status: "operator_action_required",
+      stop_reason: "runner_launch_failed",
+      operator_message: "buffer exhausted",
+      next_safe_action: "inspect_runner_session",
+      can_resume: true,
+      checkpoint_observed: true,
+      runner_session_id: "sess-1",
+      flow_next: {
+        schema: "bagakit/flow-runner/next-action/v2",
+        command: "next",
+        item_id: "manual-one",
+        recommended_action: "run_session",
+        action_reason: "active_work",
+        session_contract: {
+          launch_bounded_session: true,
+          persist_state_before_stop: true,
+          checkpoint_before_stop: true,
+          snapshot_before_session: false,
+          archive_only_closeout: false,
+        },
+      },
+    },
+    {
+      session_dir: ".bagakit/agent-loop/runner-sessions/sess-1",
+      session_brief: ".bagakit/agent-loop/runner-sessions/sess-1/session-brief.json",
+      prompt_file: ".bagakit/agent-loop/runner-sessions/sess-1/prompt.txt",
+      stdout_file: ".bagakit/agent-loop/runner-sessions/sess-1/stdout.txt",
+      stderr_file: ".bagakit/agent-loop/runner-sessions/sess-1/stderr.txt",
+      session_meta_file: ".bagakit/agent-loop/runner-sessions/sess-1/session-meta.json",
+      runner_result_file: ".bagakit/agent-loop/runner-sessions/sess-1/runner-result.json",
+    },
+  );
+  assert.equal(decision.kind, "recover");
+  if (decision.kind === "recover") {
+    assert.equal(decision.recovery.previous_session_id, "sess-1");
+    assert.equal(decision.recovery.previous_stop_reason, "runner_launch_failed");
+  }
+});
+
+test("continuation layer stops on canonical flow closeout even if the session stop looked scary", () => {
+  const decision = decideContinuationAfterSessionStop(
+    {
+      run_status: "operator_action_required",
+      stop_reason: "runner_output_invalid",
+      operator_message: "bad runner result",
+      next_safe_action: "inspect_runner_session",
+      can_resume: true,
+      checkpoint_observed: true,
+      runner_session_id: "sess-2",
+      flow_next: {
+        schema: "bagakit/flow-runner/next-action/v2",
+        command: "next",
+        item_id: "manual-two",
+        recommended_action: "stop",
+        action_reason: "closeout_pending",
+        session_contract: {
+          launch_bounded_session: false,
+          persist_state_before_stop: true,
+          checkpoint_before_stop: true,
+          snapshot_before_session: false,
+          archive_only_closeout: false,
+        },
+      },
+    },
+    {
+      session_dir: ".bagakit/agent-loop/runner-sessions/sess-2",
+      session_brief: ".bagakit/agent-loop/runner-sessions/sess-2/session-brief.json",
+      prompt_file: ".bagakit/agent-loop/runner-sessions/sess-2/prompt.txt",
+      stdout_file: ".bagakit/agent-loop/runner-sessions/sess-2/stdout.txt",
+      stderr_file: ".bagakit/agent-loop/runner-sessions/sess-2/stderr.txt",
+      session_meta_file: ".bagakit/agent-loop/runner-sessions/sess-2/session-meta.json",
+      runner_result_file: ".bagakit/agent-loop/runner-sessions/sess-2/runner-result.json",
+    },
+  );
+  assert.equal(decision.kind, "stop");
+  if (decision.kind === "stop") {
+    assert.equal(decision.stop.stop_reason, "closeout_pending");
+    assert.equal(decision.stop.next_safe_action, "close_item_upstream");
+  }
 });

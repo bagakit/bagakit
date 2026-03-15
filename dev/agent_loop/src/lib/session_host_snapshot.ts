@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 
+import { describeRunnerLaunchError } from "./launch_error.ts";
 import type { RunnerResult } from "./model.ts";
 import { loadJsonIfExists, readJsonFile, repoRelative } from "./io.ts";
 import { AgentLoopPaths } from "./paths.ts";
@@ -30,9 +31,23 @@ export type SessionHostSnapshot = Readonly<{
   issues: SessionHostIssue[];
 }>;
 
-function loadSessionMeta(filePath: string): { item_id?: string; runner_name?: string; started_at?: string; exit_code: number | null; signal?: string } | null {
+function loadSessionMeta(filePath: string): {
+  item_id?: string;
+  runner_name?: string;
+  started_at?: string;
+  exit_code: number | null;
+  signal?: string;
+  launch_error?: string;
+} | null {
   try {
-    return loadJsonIfExists<{ item_id?: string; runner_name?: string; started_at?: string; exit_code: number | null; signal?: string }>(filePath);
+    return loadJsonIfExists<{
+      item_id?: string;
+      runner_name?: string;
+      started_at?: string;
+      exit_code: number | null;
+      signal?: string;
+      launch_error?: string;
+    }>(filePath);
   } catch {
     return null;
   }
@@ -78,6 +93,9 @@ export function readSessionHostSnapshot(root: string, sessionId: string): Sessio
   if (!fs.existsSync(metaPath)) {
     issues.push(issue("meta_missing", "session-meta.json is missing"));
   }
+  if (meta?.launch_error) {
+    issues.push(issue("launch_error", describeRunnerLaunchError(meta.launch_error, sessionId)));
+  }
 
   let runnerResult: RunnerResult | null = null;
   try {
@@ -85,7 +103,7 @@ export function readSessionHostSnapshot(root: string, sessionId: string): Sessio
   } catch (error) {
     issues.push(issue("result_unreadable", error instanceof Error ? error.message : String(error)));
   }
-  if (!fs.existsSync(resultPath) && meta?.exit_code !== null) {
+  if (!fs.existsSync(resultPath) && meta?.exit_code !== null && !meta?.launch_error) {
     issues.push(issue("result_missing", "runner-result.json is missing"));
   }
 

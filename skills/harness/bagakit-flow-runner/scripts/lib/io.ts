@@ -57,7 +57,7 @@ function assertJsonSafe(value: unknown, location: string): void {
 export function writeJsonFile(filePath: string, value: unknown): void {
   assertJsonSafe(value, filePath);
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
-  const tmpPath = `${filePath}.tmp`;
+  const tmpPath = `${filePath}.${process.pid}.${Date.now()}.tmp`;
   fs.writeFileSync(tmpPath, `${JSON.stringify(value, null, 2)}\n`, "utf8");
   fs.renameSync(tmpPath, filePath);
 }
