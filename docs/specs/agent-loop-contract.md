@@ -27,6 +27,7 @@ Those remain owned by `bagakit-flow-runner` and, when applicable,
 
 Stable host surfaces live under:
 
+- `.bagakit/bin/agent-loop`
 - `.bagakit/agent-loop/runner.json`
 - `.bagakit/agent-loop/notification.json`
 - `.bagakit/agent-loop/notification-delivery/`
@@ -44,6 +45,12 @@ Stable host surfaces live under:
 `runs/` is host summary exhaust.
 
 Neither surface becomes flow-runner truth.
+
+`.bagakit/bin/agent-loop` is the installed repo-local operator entrypoint.
+
+It is convenience surface only.
+
+It must not become execution truth or a second config plane.
 
 ## Source-Of-Truth Rule
 

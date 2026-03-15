@@ -2,6 +2,10 @@ import path from "node:path";
 
 export class AgentLoopPaths {
   readonly root: string;
+  readonly bagakitDir: string;
+  readonly binDir: string;
+  readonly installedEntrypoint: string;
+  readonly binGitignoreFile: string;
   readonly loopDir: string;
   readonly runnerConfigFile: string;
   readonly notificationConfigFile: string;
@@ -12,7 +16,11 @@ export class AgentLoopPaths {
 
   constructor(root: string) {
     this.root = root;
-    this.loopDir = path.join(root, ".bagakit", "agent-loop");
+    this.bagakitDir = path.join(root, ".bagakit");
+    this.binDir = path.join(this.bagakitDir, "bin");
+    this.installedEntrypoint = path.join(this.binDir, "agent-loop");
+    this.binGitignoreFile = path.join(this.binDir, ".gitignore");
+    this.loopDir = path.join(this.bagakitDir, "agent-loop");
     this.runnerConfigFile = path.join(this.loopDir, "runner.json");
     this.notificationConfigFile = path.join(this.loopDir, "notification.json");
     this.runLockFile = path.join(this.loopDir, "run.lock");

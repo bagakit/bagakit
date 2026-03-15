@@ -3,6 +3,18 @@
 Maintainers should treat `agent_loop` as host-side orchestration around
 `bagakit-flow-runner`, not as a second execution runtime.
 
+## Install Rule
+
+Install the consumer-repo operator entrypoint at:
+
+- `.bagakit/bin/agent-loop`
+
+Do not install `agent_loop` by wiring `dev/agent_loop/` into the consumer repo.
+That path is the source tree, not the installed command surface.
+
+`apply` should keep `.bagakit/bin/agent-loop` present and runnable while
+leaving runtime truth under `.bagakit/agent-loop/`.
+
 ## Main Rule
 
 `agent_loop` may:

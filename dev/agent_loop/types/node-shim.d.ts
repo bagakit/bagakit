@@ -3,6 +3,9 @@ declare module "node:fs" {
     name: string;
     isDirectory(): boolean;
   };
+  export type Stats = {
+    isSymbolicLink(): boolean;
+  };
 
   const value: {
     mkdirSync(path: string, options?: { recursive?: boolean }): void;
@@ -14,6 +17,11 @@ declare module "node:fs" {
     readdirSync(path: string, options?: { withFileTypes?: boolean }): string[] | Dirent[];
     unlinkSync(path: string): void;
     renameSync(source: string, destination: string): void;
+    chmodSync(path: string, mode: number): void;
+    lstatSync(path: string): Stats;
+    readlinkSync(path: string): string;
+    rmSync(path: string, options?: { force?: boolean }): void;
+    symlinkSync(target: string, path: string): void;
   };
   export default value;
 }

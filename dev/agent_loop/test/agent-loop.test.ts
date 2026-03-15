@@ -34,8 +34,24 @@ test("apply initializes template config and marks it invalid until configured", 
   const applied = applyAgentLoop(root, toolDir);
   assert.equal(applied, ".bagakit/agent-loop");
   const paths = new AgentLoopPaths(root);
+  const installed = fs.readFileSync(paths.installedEntrypoint, "utf8");
+  assert.ok(installed.startsWith("set -euo pipefail\n"));
+  assert.ok(installed.includes('exec bash "$script_dir/'));
+  assert.equal(fs.readFileSync(paths.binGitignoreFile, "utf8"), "*\n!.gitignore\n");
   const status = runnerConfigStatus(paths);
   assert.equal(status.status, "invalid");
+});
+
+test("apply replaces an old symlinked entrypoint with the installed wrapper", () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "agent-loop-"));
+  const toolDir = path.resolve(path.dirname(new URL(import.meta.url).pathname), "..");
+  const paths = new AgentLoopPaths(root);
+  fs.mkdirSync(paths.binDir, { recursive: true });
+  fs.symlinkSync(path.join(toolDir, "agent-loop.sh"), paths.installedEntrypoint);
+  applyAgentLoop(root, toolDir);
+  const installed = fs.readFileSync(paths.installedEntrypoint, "utf8");
+  assert.ok(installed.startsWith("set -euo pipefail\n"));
+  assert.ok(installed.includes('exec bash "$script_dir/'));
 });
 
 test("runner config becomes ready after explicit argv is written", () => {

@@ -120,10 +120,10 @@ function nextCommandExample(itemId: string, stop: StopEnvelope, sessionBudget: n
     case "repair_runner_result":
     case "resolve_blocker":
     case "close_item_upstream":
-      return `bash "dev/agent_loop/agent-loop.sh" run --root . --item ${itemId} --max-sessions ${sessionBudget}`;
+      return `.bagakit/bin/agent-loop run --root . --item ${itemId} --max-sessions ${sessionBudget}`;
     case "configure_runner":
     case "repair_runner_config":
-      return `bash "dev/agent_loop/agent-loop.sh" configure-runner --root . --preset codex`;
+      return `.bagakit/bin/agent-loop configure-runner --root . --preset codex`;
     case "inspect_run_lock":
       return `cat .bagakit/agent-loop/run.lock`;
     case "inspect_flow_runner_state":
@@ -157,12 +157,34 @@ function buildHostNotificationRequest(runId: string, itemId: string, stop: StopE
   };
 }
 
+function installEntrypoint(paths: AgentLoopPaths, toolDir: string): void {
+  ensureDir(paths.binDir);
+  if (!fs.existsSync(paths.binGitignoreFile)) {
+    writeText(paths.binGitignoreFile, "*\n!.gitignore\n");
+  }
+  if (fs.existsSync(paths.installedEntrypoint)) {
+    fs.unlinkSync(paths.installedEntrypoint);
+  }
+  const sourceEntrypoint = path.join(toolDir, "agent-loop.sh");
+  const relativeSource = repoRelative(paths.binDir, sourceEntrypoint);
+  const wrapper = [
+    "set -euo pipefail",
+    "",
+    'script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"',
+    `exec bash "$script_dir/${relativeSource}" "$@"`,
+    "",
+  ].join("\n");
+  writeText(paths.installedEntrypoint, wrapper);
+  fs.chmodSync(paths.installedEntrypoint, 0o755);
+}
+
 export function applyAgentLoop(root: string, toolDir: string): string {
   const paths = new AgentLoopPaths(root);
   ensureDir(paths.loopDir);
   ensureDir(paths.sessionsDir);
   ensureDir(paths.runsDir);
   ensureDir(paths.notificationDir);
+  installEntrypoint(paths, toolDir);
   initializeRunnerConfig(paths, toolDir);
   initializeNotificationConfig(root, toolDir);
   return repoRelative(root, paths.loopDir);

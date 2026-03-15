@@ -10,6 +10,23 @@ Shared launch substrate:
 
 - `dev/agent_runner/`
 
+## Install Shape
+
+Source lives under:
+
+- `dev/agent_loop/`
+
+Consumer-repo entrypoint should live under:
+
+- `.bagakit/bin/agent-loop`
+
+Use `apply` to initialize `.bagakit/agent-loop/` and install that repo-local
+entrypoint.
+
+Do not wire `dev/agent_loop/` into the consumer repo just to get a command.
+`dev/agent_loop/` is the source tree; `.bagakit/bin/agent-loop` is the
+installed operator entrypoint.
+
 ## What It Owns
 
 - repo-local run locking under `.bagakit/agent-loop/run.lock`
@@ -29,18 +46,21 @@ It does not own:
 
 ## Public Commands
 
-- `agent-loop.sh apply`
-- `agent-loop.sh configure-runner`
-- `agent-loop.sh configure-notification`
-- `agent-loop.sh current`
-- `agent-loop.sh deliver-notification`
-- `agent-loop.sh next`
-- `agent-loop.sh status`
-- `agent-loop.sh run`
-- `agent-loop.sh resume`
-- `agent-loop.sh session-run`
-- `agent-loop.sh watch`
-- `agent-loop.sh validate`
+- `.bagakit/bin/agent-loop apply`
+- `.bagakit/bin/agent-loop configure-runner`
+- `.bagakit/bin/agent-loop configure-notification`
+- `.bagakit/bin/agent-loop current`
+- `.bagakit/bin/agent-loop deliver-notification`
+- `.bagakit/bin/agent-loop next`
+- `.bagakit/bin/agent-loop status`
+- `.bagakit/bin/agent-loop run`
+- `.bagakit/bin/agent-loop resume`
+- `.bagakit/bin/agent-loop session-run`
+- `.bagakit/bin/agent-loop watch`
+- `.bagakit/bin/agent-loop validate`
+
+When working on `agent_loop` itself in this source repo, maintainers may still
+invoke `dev/agent_loop/agent-loop.sh` directly.
 
 `watch` supports one-shot snapshot rendering and live terminal refresh when
 stdout is a TTY.
