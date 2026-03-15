@@ -198,6 +198,22 @@ Current maintainer-side host tool above that runtime unit:
   - persists host exhaust under `.bagakit/agent-loop/`
   - stays subordinate to flow-runner contract truth
 
+The outer-driver side of this layer needs its own internal stop and recovery
+architecture.
+
+That architecture must keep these decisions distinct:
+
+- one bounded runner session stopped
+- canonical flow truth says continue or stop
+- the host should stop and return control to the operator
+
+If those decisions are collapsed into one host branch, outer-driver logic
+starts coupling transport facts, continuation policy, and operator escalation.
+
+The focused architecture for that split lives in:
+
+- `docs/architecture/C3-outer-driver-stop-and-recovery-model.md`
+
 ## Inputs
 
 L2 may consume:

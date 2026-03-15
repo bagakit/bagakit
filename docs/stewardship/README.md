@@ -180,6 +180,9 @@ Sub-layout:
   - maintainer guidance for standard multi-skill recipes under selector
 - `bagakit-driver-maintenance.md`
   - maintainer guidance for Bagakit footer-driving files
+- `agent-loop-case-session-stop-vs-flow-stop.md`
+  - recorded outer-driver failure case where one stopped session was escalated
+    into host stop before canonical flow reconciliation
 - `selector-project-preference-maintenance.md`
   - maintainer guidance for optional host-local selector preference hints
 - `selector-usage-guidance.md`
