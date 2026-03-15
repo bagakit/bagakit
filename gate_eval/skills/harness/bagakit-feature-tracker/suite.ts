@@ -10,6 +10,10 @@ function expectOk(result: CommandResult, label: string): void {
   assert.equal(result.status, 0, `${label} failed\nstdout:\n${result.stdout}\nstderr:\n${result.stderr}`);
 }
 
+function expectFail(result: CommandResult, label: string): void {
+  assert.notEqual(result.status, 0, `${label} unexpectedly passed\nstdout:\n${result.stdout}\nstderr:\n${result.stderr}`);
+}
+
 function initGitRepo(cwd: string, replacements: { from: string; to: string }[]): void {
   expectOk(runCommand("git", ["init", "-q"], { cwd, replacements }), "git init");
   expectOk(runCommand("git", ["config", "user.name", "Bagakit"], { cwd, replacements }), "git config user.name");
@@ -122,6 +126,61 @@ export const SUITE: EvalSuiteDefinition = {
             outputs: {
               feat_id: featId,
               status_keys: Object.keys(statusPayload),
+            },
+            replacements,
+          };
+        } finally {
+          cleanupTempDir(tempRepo, context.keepTemp);
+        }
+      },
+    },
+    {
+      id: "feature-root-rejects-unsupported-prose",
+      title: "Feature Root Rejects Unsupported Prose",
+      summary: "Feature roots should reject unsupported prose files like PRD.md and Changelog.md.",
+      focus: ["artifact-boundary", "validation", "feature-surface"],
+      run: (context) => {
+        const { repoRoot } = context;
+        const tempRepo = createTempDir("bagakit-feature-tracker-boundary-");
+        const replacements = registerTempRepo(context, tempRepo);
+        try {
+          initGitRepo(tempRepo, replacements);
+
+          const script = path.join(repoRoot, "skills", "harness", "bagakit-feature-tracker", "scripts", "feature-tracker.sh");
+          expectOk(runCommand("bash", [script, "check-reference-readiness", "--root", tempRepo], { cwd: repoRoot, replacements }), "check-reference-readiness");
+          expectOk(runCommand("bash", [script, "initialize-tracker", "--root", tempRepo], { cwd: repoRoot, replacements }), "initialize-tracker");
+          expectOk(
+            runCommand(
+              "bash",
+              [script, "create-feature", "--root", tempRepo, "--title", "Boundary feature", "--slug", "boundary-feature", "--goal", "Reject unsupported files", "--workspace-mode", "proposal_only"],
+              { cwd: repoRoot, replacements },
+            ),
+            "create-feature",
+          );
+          const featId = featureId(tempRepo);
+          const featureDir = path.join(tempRepo, ".bagakit", "feature-tracker", "features", featId);
+          writeTextFile(path.join(featureDir, "PRD.md"), "# shadow product doc\n");
+          writeTextFile(path.join(featureDir, "Changelog.md"), "# shadow changelog\n");
+
+          const validateResult = runCommand("bash", [script, "validate-tracker", "--root", tempRepo], { cwd: repoRoot, replacements });
+          expectFail(validateResult, "validate-tracker");
+          assert.ok(validateResult.stderr.includes("unsupported feature-root file"));
+          assert.ok(validateResult.stderr.includes("PRD.md") || validateResult.stderr.includes("Changelog.md"));
+
+          return {
+            assertions: [
+              "feature-tracker validation rejects unsupported prose files in active feature roots",
+              "the current contract keeps feature-root helper artifacts explicit instead of allowing a general markdown bucket",
+            ],
+            commands: [
+              `bash ${script} create-feature --root <temp-repo> --title "Boundary feature" --slug "boundary-feature" --goal "Reject unsupported files" --workspace-mode proposal_only`,
+              `bash ${script} validate-tracker --root <temp-repo>`,
+            ],
+            artifacts: [
+              { label: "feature-dir", path: featureDir },
+            ],
+            outputs: {
+              feat_id: featId,
             },
             replacements,
           };

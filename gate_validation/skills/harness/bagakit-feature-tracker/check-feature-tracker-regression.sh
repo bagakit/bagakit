@@ -110,6 +110,40 @@ test "$before_decision" = "$after_decision"
 test "$before_howto" = "$after_howto"
 test "$before_gotcha" = "$after_gotcha"
 
+bash "$SKILL_DIR/scripts/feature-tracker.sh" create-feature --root "$TMP_DIR" --title "Boundary feature" --slug "boundary-feature" --goal "Reject unsupported feature-root files" --workspace-mode proposal_only >/dev/null
+
+BOUNDARY_FEATURE_ID="$(python3 - "$TMP_DIR" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+index_path = Path(sys.argv[1]) / ".bagakit" / "feature-tracker" / "index" / "features.json"
+payload = json.loads(index_path.read_text(encoding="utf-8"))
+for item in payload.get("features", []):
+    if item.get("title") == "Boundary feature":
+        print(item["feat_id"])
+        break
+else:
+    raise SystemExit("boundary feature not found")
+PY
+)"
+
+BOUNDARY_DIR="$TMP_DIR/.bagakit/feature-tracker/features/$BOUNDARY_FEATURE_ID"
+cat > "$BOUNDARY_DIR/PRD.md" <<'EOF'
+shadow product doc
+EOF
+cat > "$BOUNDARY_DIR/Changelog.md" <<'EOF'
+shadow change log
+EOF
+
+if bash "$SKILL_DIR/scripts/feature-tracker.sh" validate-tracker --root "$TMP_DIR" >/tmp/bagakit-feature-tracker-boundary.out 2>/tmp/bagakit-feature-tracker-boundary.err; then
+  echo "error: unsupported feature-root files unexpectedly accepted" >&2
+  exit 1
+fi
+grep -q "unsupported feature-root file" /tmp/bagakit-feature-tracker-boundary.err
+
+rm -f /tmp/bagakit-feature-tracker-boundary.out /tmp/bagakit-feature-tracker-boundary.err
+
 mkdir -p "$TMP_DIR/.bagakit/feature-tracker/feats/legacy-test"
 if bash "$SKILL_DIR/scripts/feature-tracker.sh" validate-tracker --root "$TMP_DIR" >/dev/null 2>&1; then
   echo "error: legacy feats directory unexpectedly accepted" >&2

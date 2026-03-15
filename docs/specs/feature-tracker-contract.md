@@ -87,6 +87,37 @@ Implications:
   feature truth
 - external bridges may read tracker truth but do not become tracker truth
 
+## Feature Root File Policy
+
+Feature roots are not general-purpose documentation buckets.
+
+Allowed live-feature root files:
+
+- `state.json`
+- `tasks.json`
+- optional `proposal.md`
+- optional `spec-delta.md`
+- optional `verification.md`
+
+Allowed live-feature root directories:
+
+- optional `artifacts/`
+
+Allowed closeout-only root files:
+
+- `summary.md`
+
+Rules:
+
+- unsupported feature-root files must be rejected by validation
+- unsupported feature-root directories must be rejected by validation
+- `summary.md` is a closeout artifact and must not appear in active feature
+  roots
+- `PRD.md` and `Changelog.md` are not supported feature-root artifacts under
+  the current contract
+- if another artifact class becomes canonical later, it must be introduced
+  through the contract instead of appearing ad hoc in feature roots
+
 ## Dependency Projection Contract
 
 `FEATURES_DAG.json` is a generated projection.
@@ -234,4 +265,5 @@ This contract intentionally rejects several easier but lower-quality shortcuts.
 - Local issuer state does not become tracked planning truth.
 - DAG output does not replace feature state.
 - DAG output must not embed policy-resolved execution planning.
+- Unsupported feature-root prose files must not become shadow tracker truth.
 - External bridge logic does not ship inside the canonical tracker contract.

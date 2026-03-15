@@ -113,6 +113,8 @@ state; it is not the dependency source of truth and it does not carry
 policy-resolved execution planning.
 Optional helper markdown files such as `proposal.md`, `spec-delta.md`, and
 `verification.md` can be materialized later at the feature root.
+Unsupported feature-root files such as `PRD.md` and `Changelog.md` are outside
+the current tracker contract and should fail validation.
 
 Use `verification.md` only when a task needs manual or mixed evidence beyond
 automated command output.

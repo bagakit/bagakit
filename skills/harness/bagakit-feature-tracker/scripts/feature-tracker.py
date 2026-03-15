@@ -47,6 +47,17 @@ FEATURES_DAG_FILENAME = "FEATURES_DAG.json"
 FEATURE_PROPOSAL_FILENAME = "proposal.md"
 FEATURE_SPEC_DELTA_FILENAME = "spec-delta.md"
 FEATURE_VERIFICATION_FILENAME = "verification.md"
+FEATURE_SUMMARY_FILENAME = "summary.md"
+FEATURE_REQUIRED_ROOT_FILES = frozenset({"state.json", "tasks.json"})
+FEATURE_OPTIONAL_ROOT_FILES = frozenset(
+    {
+        FEATURE_PROPOSAL_FILENAME,
+        FEATURE_SPEC_DELTA_FILENAME,
+        FEATURE_VERIFICATION_FILENAME,
+    }
+)
+FEATURE_CLOSEOUT_ROOT_FILES = frozenset({FEATURE_SUMMARY_FILENAME})
+FEATURE_ALLOWED_ROOT_DIRS = frozenset({"artifacts"})
 
 
 def sha256_bytes(data: bytes) -> str:
@@ -2488,6 +2499,21 @@ def validate_feat(paths: HarnessPaths, root: Path, feat_id: str) -> list[str]:
         errors.append(f"{feat_id}: current_task_id does not match in_progress task")
     if workspace_mode == "proposal_only" and in_progress:
         errors.append(f"{feat_id}: proposal_only feat must not have in_progress tasks")
+
+    feat_dir = paths.feat_dir(feat_id, status=str(state.get("status") or ""))
+    if feat_dir.exists():
+        allowed_files = set(FEATURE_REQUIRED_ROOT_FILES) | set(FEATURE_OPTIONAL_ROOT_FILES)
+        if str(state.get("status") or "") in CLOSED_FEAT_STATUS:
+            allowed_files |= set(FEATURE_CLOSEOUT_ROOT_FILES)
+        for child in sorted(feat_dir.iterdir()):
+            name = child.name
+            rel = child.relative_to(root).as_posix()
+            if child.is_dir():
+                if name not in FEATURE_ALLOWED_ROOT_DIRS:
+                    errors.append(f"{feat_id}: unsupported feature-root directory: {rel}")
+                continue
+            if name not in allowed_files:
+                errors.append(f"{feat_id}: unsupported feature-root file: {rel}")
 
     # Validate tracked commit messages for tasks that have commit hash.
     for task in task_items:
