@@ -10,6 +10,7 @@ import { notificationConfigIssue } from "../src/lib/notification_delivery.ts";
 import { applyAgentLoop } from "../src/lib/core.ts";
 import { writeJsonFile } from "../src/lib/io.ts";
 import { AgentLoopPaths } from "../src/lib/paths.ts";
+import { shouldUseHostTimeout } from "../src/lib/runner_truth.ts";
 import { readSessionHostSnapshot } from "../src/lib/session_host_snapshot.ts";
 import { deriveSessionHostStatus } from "../src/lib/session_host_status.ts";
 import { renderWatchScreen } from "../src/lib/watch_presenter.ts";
@@ -27,6 +28,33 @@ test("custom argv parser rejects empty commands", () => {
 test("refresh command parser keeps argv matrices", () => {
   const commands = normalizeRefreshCommands(['["bash","scripts/demo.sh"]', '["node","tool.mjs"]']);
   assert.deepEqual(commands, [["bash", "scripts/demo.sh"], ["node", "tool.mjs"]]);
+});
+
+test("trusted runner launchers do not use host timeout authority", () => {
+  assert.equal(
+    shouldUseHostTimeout({
+      schema: "bagakit/agent-loop/runner-config/v1",
+      runner_name: "codexL",
+      transport: "stdin_prompt",
+      argv: ["codexL", "exec", "-"],
+      env: {},
+      timeout_seconds: 1800,
+      refresh_commands: [],
+    }),
+    false,
+  );
+  assert.equal(
+    shouldUseHostTimeout({
+      schema: "bagakit/agent-loop/runner-config/v1",
+      runner_name: "fake",
+      transport: "stdin_prompt",
+      argv: ["python3", "runner.py"],
+      env: {},
+      timeout_seconds: 1800,
+      refresh_commands: [],
+    }),
+    true,
+  );
 });
 
 test("apply initializes template config and marks it invalid until configured", () => {
@@ -82,6 +110,23 @@ test("runner config rejects bare interactive codex argv", () => {
     runner_name: "codex",
     transport: "stdin_prompt",
     argv: ["codex"],
+    env: {},
+    timeout_seconds: 60,
+    refresh_commands: [],
+  });
+  const status = runnerConfigStatus(paths);
+  assert.equal(status.status, "invalid");
+});
+
+test("runner config rejects bare interactive codexL argv", () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "agent-loop-"));
+  const paths = new AgentLoopPaths(root);
+  fs.mkdirSync(paths.loopDir, { recursive: true });
+  writeRunnerConfig(paths, {
+    schema: "bagakit/agent-loop/runner-config/v1",
+    runner_name: "codexL",
+    transport: "stdin_prompt",
+    argv: ["codexL"],
     env: {},
     timeout_seconds: 60,
     refresh_commands: [],

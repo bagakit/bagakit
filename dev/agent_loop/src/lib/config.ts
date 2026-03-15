@@ -112,8 +112,8 @@ export function runnerConfigStatus(paths: AgentLoopPaths): RunnerConfigStatus {
 
 function knownCliValidationIssue(argv: string[]): string {
   const head = argv[0] || "";
-  if (head === "codex" && argv[1] !== "exec") {
-    return "stdin_prompt transport requires non-interactive Codex; use `codex exec ...` instead of bare `codex`";
+  if ((head === "codex" || head === "codexL") && argv[1] !== "exec") {
+    return "stdin_prompt transport requires non-interactive Codex; use `codex exec ...` instead of a bare Codex launcher";
   }
   if (head === "claude" && !argv.includes("-p")) {
     return "stdin_prompt transport requires non-interactive Claude; include `-p` in the runner argv";
