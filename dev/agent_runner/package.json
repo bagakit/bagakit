@@ -1,0 +1,7 @@
+{
+  "name": "@bagakit/agent-runner",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Maintainer-only bounded runner substrate for Bagakit."
+}

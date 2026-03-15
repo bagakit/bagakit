@@ -1,0 +1,110 @@
+version = 2
+
+[[suite]]
+id = "agent-loop-layout"
+owner = "dev/agent_loop"
+description = "Require the canonical agent_loop tool layout, docs, and gate registration."
+default = true
+validation_class = "structure"
+groups = ["dev", "agent-loop", "structure"]
+
+[suite.runner]
+kind = "fs"
+required_dirs = [
+  "dev/agent_loop",
+  "dev/agent_loop/references",
+  "dev/agent_loop/references/tpl",
+  "dev/agent_loop/src",
+  "dev/agent_loop/src/lib",
+  "dev/agent_loop/src/adapters",
+  "dev/agent_loop/test",
+  "dev/agent_loop/types",
+  "gate_validation/dev/agent_loop",
+  "gate_validation/dev/agent_loop/testdata",
+]
+required_files = [
+  "dev/agent_loop/README.md",
+  "dev/agent_loop/package.json",
+  "dev/agent_loop/tsconfig.json",
+  "dev/agent_loop/agent-loop.sh",
+  "dev/agent_loop/references/tpl/runner-config-template.json",
+  "dev/agent_loop/references/tpl/notification-config-template.json",
+  "dev/agent_loop/src/cli.ts",
+  "dev/agent_loop/src/lib/model.ts",
+  "dev/agent_loop/src/lib/io.ts",
+  "dev/agent_loop/src/lib/paths.ts",
+  "dev/agent_loop/src/lib/config.ts",
+  "dev/agent_loop/src/lib/core.ts",
+  "dev/agent_loop/src/lib/front_door.ts",
+  "dev/agent_loop/src/lib/status.ts",
+  "dev/agent_loop/src/lib/session_host_snapshot.ts",
+  "dev/agent_loop/src/lib/session_host_status.ts",
+  "dev/agent_loop/src/lib/notification_delivery.ts",
+  "dev/agent_loop/src/lib/run.ts",
+  "dev/agent_loop/src/lib/prompt.ts",
+  "dev/agent_loop/src/lib/watch_presenter.ts",
+  "dev/agent_loop/src/lib/watch_ui.ts",
+  "dev/agent_loop/src/adapters/flow_runner.ts",
+  "dev/agent_loop/test/agent-loop.test.ts",
+  "dev/agent_loop/types/node-shim.d.ts",
+  "docs/specs/agent-loop-contract.md",
+  "docs/stewardship/agent-loop-maintenance.md",
+  "gate_validation/dev/agent_loop/validation.toml",
+  "gate_validation/dev/agent_loop/check-agent-loop.sh",
+  "gate_validation/dev/agent_loop/testdata/fake_runner.py",
+  "gate_validation/dev/agent_loop/testdata/fake_notification_delivery.py",
+]
+
+[[suite]]
+id = "agent-loop-smoke"
+owner = "dev/agent_loop"
+description = "Run tracker-backed and runner-owned agent_loop flows, stop-attention outputs, and watch rendering."
+default = true
+validation_class = "smoke"
+groups = ["dev", "agent-loop", "smoke"]
+
+[suite.runner]
+kind = "bash_script"
+script = "gate_validation/dev/agent_loop/check-agent-loop.sh"
+args = [
+  "--root",
+  "{repo_root}",
+]
+
+[[suite]]
+id = "agent-loop-tests"
+owner = "dev/agent_loop"
+description = "Run the agent_loop regression tests."
+default = true
+validation_class = "quality"
+groups = ["dev", "agent-loop", "quality"]
+
+[suite.runner]
+kind = "executable"
+command = "{node}"
+args = [
+  "--test",
+  "--experimental-strip-types",
+  "dev/agent_loop/test/agent-loop.test.ts",
+]
+
+[[suite]]
+id = "agent-loop-typecheck"
+owner = "dev/agent_loop"
+description = "Run a strict TypeScript typecheck for the agent_loop sources."
+default = true
+validation_class = "quality"
+groups = ["dev", "agent-loop", "quality", "typecheck"]
+
+[suite.runner]
+kind = "executable"
+command = "npx"
+args = [
+  "--yes",
+  "-p",
+  "typescript",
+  "tsc",
+  "-p",
+  "dev/agent_loop/tsconfig.json",
+  "--noEmit",
+]

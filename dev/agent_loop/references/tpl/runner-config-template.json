@@ -1,0 +1,9 @@
+{
+  "schema": "bagakit/agent-loop/runner-config/v1",
+  "runner_name": "unset",
+  "transport": "stdin_prompt",
+  "argv": [],
+  "env": {},
+  "timeout_seconds": 1800,
+  "refresh_commands": []
+}
