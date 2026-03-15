@@ -40,11 +40,11 @@ Trivial usually means:
 
 Ask one simple classification question:
 
-- is this trivial one-step work, or non-trivial Bagakit-shaped work that needs
-  a recorded preflight decision in `skill-usage.toml`?
+- is this trivial one-step work, or non-trivial Bagakit-shaped work?
 
 If the task is trivial, act directly.
-If the task is non-trivial and Bagakit-shaped, run selector preflight first.
+If the task is non-trivial and Bagakit-shaped, run selector preflight first and
+record the result in `skill-usage.toml`.
 
 Mandatory preflight may still end in `direct_execute` when current coverage is
 already sufficient or no better candidate exists.

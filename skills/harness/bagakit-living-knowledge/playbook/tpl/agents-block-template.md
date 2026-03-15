@@ -27,12 +27,7 @@ Substrate discipline:
 
 - Shared knowledge belongs under the configured shared root.
 - Research runtime belongs to `bagakit-researcher`.
-- Non-trivial Bagakit-shaped task entry and task-level composition/runtime
-  belong to `bagakit-skill-selector`; run selector preflight before major
-  implementation.
-- Trivial one-step work may still execute directly.
-- Stable selector invocation policy lives in
-  `docs/specs/selector-selection-model.md`.
+- Task-level composition/runtime belongs to `bagakit-skill-selector`.
 - Repository evolution memory belongs to `bagakit-skill-evolver`.
 - `living-knowledge` owns path protocol, normalization, indexing, and recall.
 - `living-knowledge` also owns generated `must-sop.md` and reusable-items
