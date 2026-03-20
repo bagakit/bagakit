@@ -127,6 +127,21 @@ That means:
 So Bagakit must not let a host timer override the liveness truth of a live
 first-class runner session.
 
+The architecture vocabulary should stay at this class level.
+
+It should not depend on one maintainer's launcher nickname or wrapper name.
+
+Examples of acceptable launch-shape variation are:
+
+- direct `codex exec`
+- `npx codex exec`
+- one shell wrapper that still launches Codex
+- one team-local Claude wrapper that still launches Claude
+
+Those are launcher details.
+
+They do not create new architecture-level runner identities.
+
 ### Host Timeout Rule
 
 For first-class runners:

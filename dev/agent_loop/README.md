@@ -101,6 +101,21 @@ That means:
 For `stdin_prompt`, known CLIs must still be configured in non-interactive
 forms such as `codex exec` or `claude -p`.
 
+Maintainers may still choose one local launcher shape in `argv`, for example:
+
+- `["bash","-lc","codex exec ..."]`
+- `["npx","codex","exec", ...]`
+- one repo-local wrapper script
+
+That is a configuration detail, not a new stable runner concept.
+
+Bagakit should reason about:
+
+- first-class runners
+- generic-process runners
+
+rather than promoting one machine-local launcher name into system vocabulary.
+
 For first-class runners such as `codex` or `claude`, host wall-clock timeout is
 not authoritative liveness truth. Long sessions are allowed. If Bagakit later
 adds stuck-session fallback for weaker runners, that fallback should stay

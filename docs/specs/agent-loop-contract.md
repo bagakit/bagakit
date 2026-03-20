@@ -96,6 +96,26 @@ Bagakit outer drivers may keep that field for generic-process fallbacks, but
 they must not let host wall-clock timeout become authoritative stop truth for a
 live first-class runner session.
 
+`runner_name` is the semantic runner identity.
+
+`argv[]` is only the launch shape.
+
+That means a maintainer may still use repo-local launch forms such as:
+
+- `["bash","-lc","codex exec --skip-git-repo-check -C {repo_root} -"]`
+- `["npx","codex","exec","--skip-git-repo-check","-C","{repo_root}","-"]`
+- one team-local wrapper script that still launches a first-class runner
+
+without redefining the system vocabulary.
+
+Bagakit should keep the policy language at the runner-class level:
+
+- first-class runner
+- generic process runner
+
+It should not promote one maintainer's local launcher name into the stable
+contract vocabulary.
+
 `refresh_commands` are host-side refresh hooks.
 
 They may refresh normalized item mirrors before or after a session, but they

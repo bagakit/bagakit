@@ -52,6 +52,21 @@ Good uses:
 - host env
 - explicit refresh commands
 
+Maintain this distinction:
+
+- `runner_name`
+  - semantic identity and trust class
+- `argv`
+  - local launch shape only
+
+So a maintainer may choose one repo-local launcher such as:
+
+- `bash -lc 'codex exec ...'`
+- `npx codex exec ...`
+- one local wrapper script
+
+without teaching Bagakit a new stable runner concept.
+
 Bad uses:
 
 - lifecycle policy
@@ -70,6 +85,8 @@ Bad uses:
 - refresh commands update normalized item state without creating hidden truth
 - first-class runners such as `codex` or `claude` are not being cut off by
   host wall-clock timeout
+- launcher customizations still preserve the intended runner identity instead of
+  accidentally downgrading a first-class runner into generic-process behavior
 - runner failure paths stop cleanly without mutating flow-runner truth on their
   own
 - recoverable session failures that leave canonical flow truth runnable are
