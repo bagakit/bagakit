@@ -1,0 +1,22 @@
+version = 2
+
+[[suite]]
+id = "bagakit-skill-selector-shared-runner-eval"
+owner = "gate_eval/skills/harness/bagakit-skill-selector"
+description = "Run deterministic non-gating eval for selector composition logging and retry-backoff behavior."
+default = true
+validation_class = "quality"
+groups = ["skills", "harness", "usage-loop", "eval", "quality"]
+
+[suite.runner]
+kind = "executable"
+command = "{node}"
+args = [
+  "--experimental-strip-types",
+  "dev/eval/src/cli.ts",
+  "run",
+  "--root",
+  "{repo_root}",
+  "--suite",
+  "gate_eval/skills/harness/bagakit-skill-selector/suite.ts",
+]

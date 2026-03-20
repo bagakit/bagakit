@@ -1,0 +1,22 @@
+version = 2
+
+[[suite]]
+id = "bagakit-git-message-craft-shared-runner-eval"
+owner = "gate_eval/skills/swe/bagakit-git-message-craft"
+description = "Run deterministic non-gating eval for git-message-craft draft and archive quality."
+default = true
+validation_class = "quality"
+groups = ["skills", "swe", "git-message-craft", "eval", "quality"]
+
+[suite.runner]
+kind = "executable"
+command = "{node}"
+args = [
+  "--experimental-strip-types",
+  "dev/eval/src/cli.ts",
+  "run",
+  "--root",
+  "{repo_root}",
+  "--suite",
+  "gate_eval/skills/swe/bagakit-git-message-craft/suite.ts",
+]

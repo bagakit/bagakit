@@ -1,0 +1,22 @@
+version = 2
+
+[[suite]]
+id = "bagakit-researcher-shared-runner-eval"
+owner = "gate_eval/skills/harness/bagakit-researcher"
+description = "Run deterministic non-gating eval for researcher evidence linkage with the shared dev/eval runner."
+default = true
+validation_class = "quality"
+groups = ["skills", "harness", "researcher", "eval", "quality"]
+
+[suite.runner]
+kind = "executable"
+command = "{node}"
+args = [
+  "--experimental-strip-types",
+  "dev/eval/src/cli.ts",
+  "run",
+  "--root",
+  "{repo_root}",
+  "--suite",
+  "gate_eval/skills/harness/bagakit-researcher/suite.ts",
+]

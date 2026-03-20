@@ -1,0 +1,17 @@
+version = 2
+
+[[suite]]
+id = "dev-eval-fixture-suite"
+owner = "gate_eval/dev/eval"
+description = "Dogfood the shared dev/eval runner and packet contract."
+default = true
+validation_class = "quality"
+groups = ["dev", "eval", "quality", "packet"]
+
+[suite.runner]
+kind = "executable"
+command = "{node}"
+args = [
+  "--experimental-strip-types",
+  "gate_eval/dev/eval/run_eval.ts",
+]

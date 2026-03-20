@@ -1,0 +1,22 @@
+version = 2
+
+[[suite]]
+id = "bagakit-living-knowledge-shared-runner-eval"
+owner = "gate_eval/skills/harness/bagakit-living-knowledge"
+description = "Run deterministic non-gating eval for living-knowledge recall and ingestion quality."
+default = true
+validation_class = "quality"
+groups = ["skills", "harness", "living-knowledge", "eval", "quality"]
+
+[suite.runner]
+kind = "executable"
+command = "{node}"
+args = [
+  "--experimental-strip-types",
+  "dev/eval/src/cli.ts",
+  "run",
+  "--root",
+  "{repo_root}",
+  "--suite",
+  "gate_eval/skills/harness/bagakit-living-knowledge/suite.ts",
+]
