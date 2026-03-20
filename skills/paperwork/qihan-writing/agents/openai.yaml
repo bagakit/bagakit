@@ -1,0 +1,4 @@
+interface:
+  display_name: "Qihan-Writing"
+  short_description: "Rewrite technical and research documents in an evidence-first, low-AI-smell style."
+  default_prompt: "Use qihan-writing workflow to rewrite or draft a document with explicit evidence, tradeoffs, and next steps."

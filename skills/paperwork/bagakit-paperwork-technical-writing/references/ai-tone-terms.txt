@@ -1,0 +1,12 @@
+# Warning-level lexicon only.
+# Checker reports hits as lint warnings; final rewrite decision is reviewed by agent gate.
+
+打稳
+抓手
+返工机器
+接得住
+赋能
+锁死
+拉齐
+打通
+打穿
