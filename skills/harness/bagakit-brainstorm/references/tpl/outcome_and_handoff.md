@@ -6,6 +6,7 @@
 - Chosen direction:
 - Why now:
 - Expected outcome:
+- Raw discussion record: `raw_discussion_log.md`
 
 ## Handoff Package
 | Item | Destination Path/ID | Owner | Notes |
@@ -16,6 +17,7 @@
 
 ## Action Checklist (Analysis Scope)
 - [ ] Decision rationale captured.
+- [ ] `raw_discussion_log.md` captures the original discussion trail behind the decision.
 - [ ] Expert forum reviewed and discussion is marked clear.
 - [ ] User review completed and `user_review_status=approved`.
 - [ ] Risks and guardrails listed.
@@ -26,6 +28,14 @@
 | Risk | Trigger | Mitigation | Owner |
 |------|---------|------------|-------|
 
+## Memory and Provenance
+- Raw discussion entry refs:
+- Question card refs:
+- Forum refs:
+- Canonical entity names:
+- Time anchors or absolute dates:
+- Quote/paraphrase note:
+
 ## Completion Definition
 - Brainstorm completion means analysis and handoff are done.
 - Downstream implementation execution is tracked elsewhere.
@@ -35,5 +45,6 @@
 - [ ] `expert_forum.md` sets `discussion_clear: true`.
 - [ ] `expert_forum.md` sets `user_review_status: approved`.
 - [ ] Handoff destinations are explicit.
+- [ ] Memory and provenance notes make key entities, times, and source refs explicit.
 - [ ] Archive command is ready to run.
 - [ ] Stage status set to `complete` when analysis/handoff closes.

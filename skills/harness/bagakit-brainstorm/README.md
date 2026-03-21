@@ -8,7 +8,17 @@ Brainstorm from Markdown context and convert ideas into an analysis + handoff pa
 - Generates multiple idea options with trade-offs.
 - Builds a decision matrix and recommends a path.
 - Produces reusable stage artifacts (`input_and_qa.md`, `finding_and_analyze.md`, `expert_forum.md`, `outcome_and_handoff.md`).
+- Produces a dedicated raw-discussion artifact (`raw_discussion_log.md`) so the summarized forum is not the only preserved discussion surface.
 - Uses forum-centric design: all critical debate and convergence must be centralized in `expert_forum.md`.
+- Uses question-card structure in `input_and_qa.md` so every user-facing clarification question is asked with the same readable shape.
+- Keeps question cards low-noise and user-facing; detailed normalization stays in the raw discussion log.
+- Uses a question ladder so brainstorm does not ask “whatever comes to mind”:
+  - frame
+  - blockers
+  - branch splitters
+  - detail expansion
+  - final confirmation
+- Adds memory-quality structure for future readability: canonical entity names, resolved references, time anchors, and source refs.
 - Enforces an expert-forum completion gate (`discussion_clear: true`) before brainstorm can be complete.
 - Keeps runtime artifacts sample-free: evidence/scoring tables ship with headers only, and obvious placeholder/example residue is blocked before completion.
 - Anchors option generation to a compact frontier context and asks each expert to declare domain identity, frontier focus, and judgment boundaries.
@@ -36,6 +46,13 @@ Optional artifacts:
   - structured review packet for one brainstorm run
 - `eval_effect_review.md`
   - structured discussion of whether the current eval stack helped, over-warned, or missed issues
+
+Default support artifact:
+
+- `raw_discussion_log.md`
+  - append-only capture of original user questions/answers, expert disagreements, and decision updates
+  - also carries memory-safe restatement fields so later sessions can understand the record without losing the raw wording
+  - clarification prefers QA bundles so one question and its answer stay together
 
 ## Runtime Payload
 

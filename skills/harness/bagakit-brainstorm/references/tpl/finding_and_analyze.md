@@ -33,15 +33,23 @@
 ## Open Questions
 -
 
+## Source Trace and Memory Safety
+- Question cards:
+- Raw discussion entry refs:
+- Canonical entity names:
+- Time anchors or absolute dates:
+
 ## Quality Review Prompt (Agent/Human)
 - Review focus: frontier grounding and option quality (qualitative, non-script gate).
 - Suggested checklist:
   - Frontier Context captures recent signals plus at least one failure case or anti-pattern.
   - Options respond to the frontier context instead of repeating generic solution families.
   - Recommended direction explains why the chosen path fits current evidence better than the fallback.
+  - Important claims resolve pronouns and relative dates into explicit references.
 
 ## Completion Gate
 - [ ] Frontier Context contains recent signals and at least one failure case or anti-pattern.
 - [ ] At least 3 materially different options were compared.
 - [ ] Primary and fallback choices are explicit.
+- [ ] Source trace and memory-safety notes are explicit for key entities and time-bound claims.
 - [ ] Stage status updated before moving to handoff.

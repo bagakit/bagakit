@@ -24,5 +24,12 @@ dist_*/
 !.bagakit/researcher/topics/frontier/researcher-skill/
 !.bagakit/researcher/topics/frontier/researcher-skill/**
 mem/
+!mem/
+mem/*
+!mem/README.md
+!mem/migration/
+!mem/migration/**
+!mem/brainstorm-memory-quality/
+!mem/brainstorm-memory-quality/**
 .codex
 __pycache__

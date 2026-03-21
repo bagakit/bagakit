@@ -26,7 +26,7 @@ export const SUITE: EvalSuiteDefinition = {
     {
       id: "init-status-surfaces-review-artifacts",
       title: "Init Status Surfaces Review Artifacts",
-      summary: "Init with review-quality and eval-effect review should create those files and expose them in status output.",
+      summary: "Init with review-quality and eval-effect review should create those files, including the raw discussion log, and expose them in status output.",
       focus: ["artifact-readiness", "status-reporting"],
       run: (context) => {
         const { repoRoot } = context;
@@ -42,6 +42,7 @@ export const SUITE: EvalSuiteDefinition = {
 
           const expectedFiles = [
             "input_and_qa.md",
+            "raw_discussion_log.md",
             "finding_and_analyze.md",
             "expert_forum.md",
             "outcome_and_handoff.md",
@@ -51,6 +52,8 @@ export const SUITE: EvalSuiteDefinition = {
           for (const fileName of expectedFiles) {
             assert.ok(fs.existsSync(path.join(artifactDir, fileName)), `missing ${fileName}`);
           }
+          assert.ok(statusResult.stdout.split("\n").includes("support_raw_discussion_log=in_progress"));
+          assert.ok(statusResult.stdout.split("\n").includes("raw_discussion_log_gate=fail"));
           assert.ok(statusResult.stdout.split("\n").includes("stage_review_quality=pending"));
           assert.ok(statusResult.stdout.split("\n").includes("stage_eval_effect_review=pending"));
           assert.ok(statusResult.stdout.split("\n").includes("archive_status=missing"));
@@ -58,7 +61,9 @@ export const SUITE: EvalSuiteDefinition = {
           return {
             assertions: [
               "init creates the optional review_quality and eval_effect_review artifacts when explicitly requested",
+              "init also creates the default raw_discussion_log support artifact for append-only discussion capture",
               "status output surfaces those optional stages separately from the required analysis stages",
+              "status output exposes raw_discussion_log gate state independently from analysis-stage state",
               "archive status stays missing until the run is explicitly archived",
             ],
             commands: [

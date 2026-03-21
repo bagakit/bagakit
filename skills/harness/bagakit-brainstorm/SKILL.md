@@ -14,8 +14,69 @@ Turn Markdown inputs into clear options, decisions, and an explicit handoff pack
 
 - Keep one bounded workflow: `input_and_qa -> finding_and_analyze -> expert_forum_review -> outcome_and_handoff`.
 - Keep expert-forum as the centralized decision arena: major争议必须汇总在 `expert_forum.md` 并完成收敛后才能进入 handoff.
+- Keep `raw_discussion_log.md` as the append-only raw transcript surface so original discussion does not disappear behind later summaries.
 - Keep this skill standalone-first so it works without mandatory external systems.
 - Keep outputs structured and reusable as Markdown artifacts in the project.
+
+## Memory Quality Rules
+
+All durable brainstorm records should satisfy both:
+
+- fidelity to the original communication
+- future readability without relying on the original chat window
+
+Apply these rules:
+
+1. keep raw and derived layers separate
+- preserve original wording in raw discussion entries
+- keep normalization in separate fields such as `memory-safe restatement`
+
+2. resolve references explicitly
+- do not let durable summaries rely only on `it`, `they`, `this`, or `that`
+- restate canonical entity names after topic shifts or long gaps
+
+3. normalize time
+- preserve the raw phrase such as `today`
+- also record an explicit absolute time anchor or date range
+
+4. keep provenance visible
+- derived recommendations should reference question ids, raw discussion entry ids, or external source refs
+- mark quote vs paraphrase when wording fidelity matters
+
+5. keep participant identity stable
+- prefer stable `speaker_id` plus display name/role over ambiguous labels alone
+
+## Question Guidance Rules
+
+Questioning should be strategy-led, not impulse-led.
+
+Ask only when the answer changes a downstream decision.
+
+Use this order:
+
+1. `frame`
+- clarify goal, audience, success bar, and non-goals
+
+2. `blockers`
+- clarify hard constraints, permissions, deadlines, and no-go conditions
+
+3. `branch splitters`
+- clarify the unknowns that would send planning down different paths
+
+4. `detail expansion`
+- ask for examples, preferences, local conventions, and supporting detail
+
+5. `final confirmation`
+- ask for delivery, review, and prioritization choices just before handoff
+
+Before asking, classify the concern:
+
+- `clarification`
+- `exploration`
+- `diagnosis`
+- `risk`
+
+Prefer asking the smallest question that most changes the decision.
 
 ## When to Use This Skill
 
@@ -67,11 +128,35 @@ Turn Markdown inputs into clear options, decisions, and an explicit handoff pack
 2. Input and QA stage (`input_and_qa.md`).
 - Extract goals, constraints, assumptions, unknowns, and evidence snippets.
 - Run a missing-details scan and ask targeted questions when user did not proactively provide key details.
+- Every user-facing clarification question must use the same question-card shape for readability:
+  - the card should optimize for user readability, not metadata density
+  - time/reference normalization belongs in `raw_discussion_log.md`
+
+```text
+---
+
+[[Brainstorm]]
+
+- **Q-###**: <one concrete question> 可以考虑：<suggested answer format>
+
+  > 问这个是因为：<what decision this unlocks>
+  > 得到答案后：<what this lets us decide next>
+
+---
+```
+
 - Use a prompt/rubric review for question quality (not script pass/fail):
   - recommended target: at least 4 high-impact clarification questions, or explicit `no high-impact unknowns` rationale.
   - recommended coverage: audience, success criteria, scope boundaries, constraints/resources, and delivery/review preference.
 - Maintain `Clarification Coverage (High-Impact Dimensions)` with statuses `answered|deferred|not_needed` plus evidence/rationale.
+- Maintain one explicit questioning strategy before the cards:
+  - what to ask first
+  - what to defer
+  - what the agent should self-resolve instead of asking
 - Record the clarification loop in `input_and_qa.md`.
+- Append each question and each raw user answer to `raw_discussion_log.md`; do not keep only the cleaned summary.
+- Keep question cards low-noise.
+- Put detailed normalization such as canonical entities, resolved references, time anchors, and source refs into `raw_discussion_log.md` instead of bloating the card.
 - Set `Clarification status: complete` only when high-impact unknowns are answered or explicitly deferred with rationale.
 - Set stage status explicitly before moving on.
 
@@ -102,6 +187,15 @@ Turn Markdown inputs into clear options, decisions, and an explicit handoff pack
   - each expert should declare frontier focus / recent attention
   - each expert should declare an explicit judgment frame and thinking tilt
 - Keep decision target explicit with `决策目标与准出条件` section before convergence.
+- Every substantial forum turn should also be appended to `raw_discussion_log.md` as a raw entry:
+  - expert claim
+  - expert challenge / rebuttal
+  - convergence statement
+  - decision update
+- Important forum conclusions should be traceable through:
+  - raw discussion entry ids
+  - question ids
+  - explicit entity/time normalization notes
 - Choose and record one primary facilitation method from `references/method-playbook.md` (optionally one secondary enhancer):
   - `Double Diamond` for framing-first rounds,
   - `NGT` for equal-participation and independent ranking,
@@ -147,6 +241,8 @@ Turn Markdown inputs into clear options, decisions, and an explicit handoff pack
 
 7. File persistence and status.
 - Initialize planning artifacts with `sh scripts/bagakit-brainstorm.sh init --topic "<topic>"`.
+- `raw_discussion_log.md` is created by default and should be kept append-only throughout the run.
+- QA bundles in `raw_discussion_log.md` should keep the clarified question and its answer together.
 - Optional files:
   - `related_insights.md` via `--with-related-insights`
 - `expert_forum.md` is required by default.
@@ -167,6 +263,9 @@ Turn Markdown inputs into clear options, decisions, and an explicit handoff pack
 ## Output Format
 
 - `input_and_qa.md`: scope, assumptions, unknowns, QA decisions.
+- `raw_discussion_log.md`: append-only raw capture of questions, answers, disagreements, and decision updates.
+  - important entries also carry memory-safe restatement, canonical entities, resolved references, time anchors, and source refs
+  - clarification should prefer QA bundles that keep one question, its answer, and the resulting state update in one place
 - `finding_and_analyze.md`: options, matrix, recommendation, open questions.
 - `expert_forum.md`: forum metadata + detailed conclusion + background + discussion rounds.
 - `outcome_and_handoff.md`: outcome, risk controls, explicit handoff destinations.
@@ -216,7 +315,9 @@ Turn Markdown inputs into clear options, decisions, and an explicit handoff pack
 - `references/design-notes.md`
 - `references/adapter-contract.md`
 - `references/method-playbook.md`
+- `references/question-guidance.md`
 - `references/tpl/input_and_qa.md`
+- `references/tpl/raw_discussion_log.md`
 - `references/tpl/finding_and_analyze.md`
 - `references/tpl/outcome_and_handoff.md`
 - `references/tpl/related_insights.md`

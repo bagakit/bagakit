@@ -192,12 +192,21 @@ scoring_rules:
 - 分歧：
 - 需后续验证项：
 
+## Source Trace And Memory Safety
+
+- 原始讨论条目引用（`Entry ###`）：
+- 关键 question card 引用（`Q-###`）：
+- 关键实体的 canonical 名称与消歧说明：
+- 相对时间短语及其绝对锚点：
+- 引述与转述说明（quote / paraphrase）：
+
 ## 会议结论清晰度判定
 
 - [ ] 关键问题与关键洞察已沉淀到 frontmatter
 - [ ] `final_one_liner` 已更新为明确结论句
 - [ ] `discussion_clear` 已设置为 `true`
 - [ ] 若议题属于快变领域，至少 1 位专家明确写出当前结论的时效边界。
+- [ ] 关键结论可追溯到 raw discussion 条目、问题卡或外部来源。
 
 ## 用户评判与确认
 

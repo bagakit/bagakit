@@ -26,6 +26,9 @@ REQUIRED_STAGES: tuple[tuple[str, str], ...] = (
     ("expert_forum_review", "expert_forum.md"),
     ("outcome_and_handoff", "outcome_and_handoff.md"),
 )
+REQUIRED_SUPPORT_FILES: tuple[tuple[str, str], ...] = (
+    ("raw_discussion_log", "raw_discussion_log.md"),
+)
 OPTIONAL_STAGES: tuple[tuple[str, str], ...] = (
     ("related_insights", "related_insights.md"),
     ("review_quality", "review_quality.md"),
@@ -247,6 +250,20 @@ def heading_section(text: str, heading: str) -> str:
     return match.group(1)
 
 
+def third_level_blocks(text: str) -> list[tuple[str, str]]:
+    return [
+        (match.group(1).strip(), match.group(2))
+        for match in re.finditer(r"(?ms)^###\s+(.+?)\s*$\n(.*?)(?=^###\s+|\Z)", text)
+    ]
+
+
+def block_scalar(block: str, label: str) -> str | None:
+    match = re.search(rf"(?im)^-\s*{re.escape(label)}(?:\:|：)\s*(.*?)\s*$", block)
+    if not match:
+        return None
+    return match.group(1).strip()
+
+
 def markdown_table_rows(text: str) -> list[list[str]]:
     rows: list[list[str]] = []
     for line in text.splitlines():
@@ -280,6 +297,10 @@ def url_count(text: str) -> int:
 def artifact_markdown_files(artifact_dir: Path) -> list[Path]:
     files: list[Path] = []
     for _, file_name in REQUIRED_STAGES:
+        path = artifact_dir / file_name
+        if path.is_file():
+            files.append(path)
+    for _, file_name in REQUIRED_SUPPORT_FILES:
         path = artifact_dir / file_name
         if path.is_file():
             files.append(path)
@@ -751,6 +772,91 @@ def clarification_status(path: Path) -> str:
     return match.group(1)
 
 
+def question_card_blocks(input_text: str) -> list[tuple[str, str]]:
+    section = heading_section(input_text, "Question Cards")
+    cards: list[tuple[str, str]] = []
+    current_id: str | None = None
+    current_lines: list[str] = []
+    for raw_line in section.splitlines():
+        line = raw_line.rstrip()
+        match = re.match(r"^\s*-\s+\*\*(Q-[0-9]+)\*\*:\s*(.*?)\s*$", line)
+        if match:
+            if current_id is not None:
+                cards.append((current_id, "\n".join(current_lines).strip()))
+            current_id = match.group(1).strip()
+            current_lines = [match.group(2).strip()]
+            continue
+        if current_id is not None:
+            current_lines.append(line)
+    if current_id is not None:
+        cards.append((current_id, "\n".join(current_lines).strip()))
+    return cards
+
+
+def question_card_header(card_block: str) -> str:
+    lines = [line.strip() for line in card_block.splitlines()]
+    if not lines:
+        return ""
+    header_lines: list[str] = []
+    for line in lines:
+        if not line:
+            continue
+        if line.startswith(">"):
+            break
+        if line == "---":
+            continue
+        header_lines.append(line)
+    return " ".join(header_lines).strip()
+
+
+def question_card_quote(card_block: str) -> str:
+    quote_lines = []
+    for line in card_block.splitlines()[1:]:
+        stripped = line.strip()
+        if stripped.startswith(">"):
+            quote_lines.append(stripped[1:].strip())
+    return "\n".join(item for item in quote_lines if item).strip()
+
+
+def question_card_quote_lines(card_block: str) -> list[str]:
+    return [
+        stripped[1:].strip()
+        for line in card_block.splitlines()[1:]
+        if (stripped := line.strip()).startswith(">")
+    ]
+
+
+def no_question_reason(input_text: str) -> str:
+    section = heading_section(input_text, "No-Question Path")
+    value = block_scalar(section, "No clarification questions needed because")
+    return value or ""
+
+
+def raw_discussion_entry_blocks(raw_text: str) -> list[tuple[str, str]]:
+    section = heading_section(raw_text, "Discussion Log")
+    return [
+        (title, block)
+        for title, block in third_level_blocks(section)
+        if title.startswith("Entry")
+    ]
+
+
+def raw_discussion_qa_bundles(raw_text: str) -> list[tuple[str, str]]:
+    section = heading_section(raw_text, "Clarification QA Bundles")
+    return [
+        (title, block)
+        for title, block in third_level_blocks(section)
+        if title.startswith("Q-")
+    ]
+
+
+def require_filled_bullets(issues: list[str], block_name: str, block: str, labels: tuple[str, ...]) -> None:
+    for label in labels:
+        value = block_scalar(block, label)
+        if value is None or not prompt_bullet_is_filled(value):
+            issues.append(f"{block_name} missing filled field: {label}")
+
+
 def input_and_qa_gate_issues(input_and_qa_file: Path) -> list[str]:
     if not input_and_qa_file.is_file():
         return [f"missing required file {input_and_qa_file.name}"]
@@ -765,7 +871,188 @@ def input_and_qa_gate_issues(input_and_qa_file: Path) -> list[str]:
 
     if not heading_exists(text, "Clarification Loop"):
         issues.append("input_and_qa missing required heading: Clarification Loop")
+    if not heading_exists(text, "Questioning Strategy"):
+        issues.append("input_and_qa missing required heading: Questioning Strategy")
+    if not heading_exists(text, "Question Cards"):
+        issues.append("input_and_qa missing required heading: Question Cards")
+    if not heading_exists(text, "No-Question Path"):
+        issues.append("input_and_qa missing required heading: No-Question Path")
+
+    cards = question_card_blocks(text)
+    no_question = no_question_reason(text)
+    question_cards_section = heading_section(text, "Question Cards")
+    if cards and "[[Brainstorm]]" not in question_cards_section:
+        issues.append("input_and_qa Question Cards missing [[Brainstorm]] marker")
+    if not cards and not prompt_bullet_is_filled(no_question):
+        issues.append("input_and_qa requires at least one question card or a filled No-Question Path rationale")
+    strategy_section = heading_section(text, "Questioning Strategy")
+    for expected_hint in ("Clarification gate", "First ask core framing questions", "Then ask dependency-unlocking questions"):
+        if expected_hint not in strategy_section:
+            issues.append(f"input_and_qa Questioning Strategy missing guidance: {expected_hint}")
+
+    for title, block in cards:
+        header = question_card_header(block)
+        if not prompt_bullet_is_filled(header):
+            issues.append(f"{title} missing readable question text")
+        quote_lines = question_card_quote_lines(block)
+        if not quote_lines:
+            issues.append(f"{title} missing explanatory blockquote")
+            continue
+        if not any(line.startswith("问这个是因为") for line in quote_lines):
+            issues.append(f"{title} missing '问这个是因为' line")
+        if not any(line.startswith("得到答案后") for line in quote_lines):
+            issues.append(f"{title} missing '得到答案后' line")
     return issues
+
+
+def raw_discussion_log_gate_issues(raw_discussion_file: Path) -> list[str]:
+    if not raw_discussion_file.is_file():
+        return [f"missing required file {raw_discussion_file.name}"]
+
+    text = read_text(raw_discussion_file)
+    issues: list[str] = []
+    if not heading_exists(text, "Capture Rules"):
+        issues.append("raw_discussion_log missing required heading: Capture Rules")
+    if not heading_exists(text, "Clarification QA Bundle Template"):
+        issues.append("raw_discussion_log missing required heading: Clarification QA Bundle Template")
+    if not heading_exists(text, "Clarification QA Bundles"):
+        issues.append("raw_discussion_log missing required heading: Clarification QA Bundles")
+    if not heading_exists(text, "Discussion Entry Template"):
+        issues.append("raw_discussion_log missing required heading: Discussion Entry Template")
+    if not heading_exists(text, "Discussion Log"):
+        issues.append("raw_discussion_log missing required heading: Discussion Log")
+
+    qa_bundles = raw_discussion_qa_bundles(text)
+    entries = raw_discussion_entry_blocks(text)
+    if not qa_bundles:
+        issues.append("raw_discussion_log requires at least one Clarification QA bundle before completion")
+    if not entries:
+        issues.append("raw_discussion_log requires at least one Discussion Log entry before completion")
+
+    for title, block in qa_bundles:
+        require_filled_bullets(
+            issues,
+            title,
+            block,
+            (
+                "Bundle kind",
+                "Question pass",
+                "Decision at stake",
+                "Current hypotheses",
+                "Asked at",
+                "Asked by",
+                "User-facing question",
+                "Suggested answer shape",
+                "Why this question was asked",
+                "What this unlocks next",
+                "Current answer",
+                "Answered at",
+                "Answered by",
+                "Answer evidence",
+                "State update",
+                "Confidence after",
+                "Question useful",
+                "Answer useful",
+                "Memory-safe restatement",
+                "Canonical entities",
+                "Resolved references",
+                "Time anchors",
+                "Source refs",
+                "Next action",
+            ),
+        )
+        bundle_kind = (block_scalar(block, "Bundle kind") or "").strip("` ").lower()
+        if bundle_kind and bundle_kind not in {"clarification", "exploration", "diagnosis", "risk"}:
+            issues.append(f"{title} has invalid Bundle kind: {bundle_kind}")
+        question_pass = (block_scalar(block, "Question pass") or "").strip("` ").lower()
+        if question_pass and question_pass not in {
+            "frame",
+            "blockers",
+            "branch_splitters",
+            "detail_expansion",
+            "final_confirmation",
+        }:
+            issues.append(f"{title} has invalid Question pass: {question_pass}")
+
+    for title, block in entries:
+        if "<id>" in title.lower():
+            issues.append("raw_discussion_log Discussion Log entry still uses placeholder id")
+        require_filled_bullets(
+            issues,
+            title,
+            block,
+            (
+                "Timestamp",
+                "Recorder",
+                "Stage",
+                "Participants",
+                "Entry type",
+                "Speaker id",
+                "Raw content (keep original wording as faithfully as practical)",
+                "Memory-safe restatement",
+                "Canonical entities",
+                "Resolved references",
+                "Time anchors",
+                "Source refs",
+                "Decision impact",
+            ),
+        )
+        stage = (block_scalar(block, "Stage") or "").strip("` ").lower()
+        if stage and stage not in {
+            "input_and_qa",
+            "finding_and_analyze",
+            "expert_forum_review",
+            "outcome_and_handoff",
+        }:
+            issues.append(f"{title} has invalid Stage: {stage}")
+        entry_type = (block_scalar(block, "Entry type") or "").strip("` ").lower()
+        if entry_type and entry_type not in {
+            "user_question",
+            "user_answer",
+            "expert_claim",
+            "expert_challenge",
+            "convergence",
+            "decision_update",
+        }:
+            issues.append(f"{title} has invalid Entry type: {entry_type}")
+    return issues
+
+
+def raw_discussion_log_warn_issues(raw_discussion_file: Path) -> list[str]:
+    if not raw_discussion_file.is_file():
+        return []
+
+    text = read_text(raw_discussion_file)
+    warns: list[str] = []
+    qa_bundle_ids = [title for title, _ in raw_discussion_qa_bundles(text)]
+    if not qa_bundle_ids:
+        warns.append("raw_discussion_log does not yet record any QA bundle; verify clarification capture")
+    entry_types = {
+        (block_scalar(block, "Entry type") or "").strip("` ").lower()
+        for _, block in raw_discussion_entry_blocks(text)
+    }
+    if entry_types and "decision_update" not in entry_types:
+        warns.append("raw_discussion_log does not yet record a decision_update entry; verify final decision traceability")
+    if entry_types and "expert_challenge" not in entry_types:
+        warns.append("raw_discussion_log does not yet record an expert_challenge entry; verify disagreement capture")
+    return warns
+
+
+def source_trace_memory_warn_issues(path: Path, *, heading: str, labels: tuple[str, ...], scope_name: str) -> list[str]:
+    if not path.is_file():
+        return []
+
+    text = read_text(path)
+    if not heading_exists(text, heading):
+        return [f"{scope_name} missing heading: {heading}"]
+
+    section = heading_section(text, heading)
+    warns: list[str] = []
+    for label in labels:
+        value = block_scalar(section, label)
+        if value is None or not prompt_bullet_is_filled(value):
+            warns.append(f"{scope_name} missing filled field under {heading}: {label}")
+    return warns
 
 
 def finding_and_analyze_warn_issues(finding_file: Path) -> list[str]:
@@ -1018,6 +1305,7 @@ def write_local_outcome(action_path: Path, topic: str, root: Path, artifact_dir:
     analysis_source = artifact_dir / "finding_and_analyze.md"
     forum_source = artifact_dir / "expert_forum.md"
     input_source = artifact_dir / "input_and_qa.md"
+    raw_discussion_source = artifact_dir / "raw_discussion_log.md"
     outcome_body = read_text(outcome_source) if outcome_source.is_file() else "No outcome_and_handoff.md found in artifact source."
     content = (
         f"# Brainstorm Handoff ({topic})\n\n"
@@ -1026,11 +1314,13 @@ def write_local_outcome(action_path: Path, topic: str, root: Path, artifact_dir:
         "> Completion scope: analysis_and_handoff_only\n\n"
         "## Source Files\n"
         f"- input_and_qa: `{rel(root, input_source)}`\n"
+        f"- raw_discussion_log: `{rel(root, raw_discussion_source)}`\n"
         f"- finding_and_analyze: `{rel(root, analysis_source)}`\n"
         f"- expert_forum: `{rel(root, forum_source)}`\n"
         f"- outcome_and_handoff: `{rel(root, outcome_source)}`\n\n"
         f"## Outcome and Handoff\n\n{outcome_body}\n"
         "## Memory Summary\n"
+        "- Original discussion and raw turns were preserved in raw_discussion_log.md.\n"
         "- Input assumptions and constraints were captured and clarified.\n"
         "- Options were compared with a decision matrix and explicit fallback.\n"
         "- Expert forum evidence, scoring, and MVP notes were recorded.\n"
@@ -1043,14 +1333,17 @@ def write_driver_handoff(action_path: Path, topic: str, root: Path, artifact_dir
     outcome_source = artifact_dir / "outcome_and_handoff.md"
     finding_source = artifact_dir / "finding_and_analyze.md"
     forum_source = artifact_dir / "expert_forum.md"
+    raw_discussion_source = artifact_dir / "raw_discussion_log.md"
     content = (
         f"# Brainstorm Handoff ({topic})\n\n"
         f"- Target: `{target}`\n"
         f"- Source outcome: `{rel(root, outcome_source)}`\n"
         f"- Source analysis: `{rel(root, finding_source)}`\n\n"
         f"- Source forum: `{rel(root, forum_source)}`\n\n"
+        f"- Source raw discussion: `{rel(root, raw_discussion_source)}`\n\n"
         "## Checklist\n"
         "- [ ] Confirm scope boundaries and assumptions\n"
+        "- [ ] Review raw_discussion_log.md for original question/answer and challenge context\n"
         "- [ ] Confirm expert forum conclusion and scoring rationale\n"
         "- [ ] Consume handoff checklist in outcome file\n"
         "- [ ] Feed execution results back to durable memory\n"
@@ -1062,12 +1355,15 @@ def write_local_summary(memory_path: Path, topic: str, root: Path, artifact_dir:
     outcome_source = artifact_dir / "outcome_and_handoff.md"
     analysis_source = artifact_dir / "finding_and_analyze.md"
     forum_source = artifact_dir / "expert_forum.md"
+    raw_discussion_source = artifact_dir / "raw_discussion_log.md"
     content = (
         f"# Brainstorm Summary ({topic})\n\n"
         f"- Source outcome: `{rel(root, outcome_source)}`\n"
         f"- Source analysis: `{rel(root, analysis_source)}`\n\n"
         f"- Source forum: `{rel(root, forum_source)}`\n\n"
+        f"- Source raw discussion: `{rel(root, raw_discussion_source)}`\n\n"
         "## Key Points\n"
+        "- Raw discussion trail preserved for later audit and replay.\n"
         "- Input and constraints validated.\n"
         "- Options compared with an explicit decision matrix.\n"
         "- Expert forum reviewed references and cross-scoring.\n"
@@ -1122,6 +1418,7 @@ def cmd_init(args: argparse.Namespace) -> int:
     created_files: list[Path] = []
     for template_name, output_name in (
         ("input_and_qa.md", "input_and_qa.md"),
+        ("raw_discussion_log.md", "raw_discussion_log.md"),
         ("finding_and_analyze.md", "finding_and_analyze.md"),
         ("expert_forum.md", "expert_forum.md"),
         ("outcome_and_handoff.md", "outcome_and_handoff.md"),
@@ -1146,7 +1443,9 @@ def cmd_init(args: argparse.Namespace) -> int:
     print("files:")
     for file in created_files:
         print(f"  - {file}")
-    print("next=fill input_and_qa.md, then finding_and_analyze.md, then expert_forum.md, then outcome_and_handoff.md")
+    print(
+        "next=fill input_and_qa.md, append raw_discussion_log.md as discussion happens, then finding_and_analyze.md, then expert_forum.md, then outcome_and_handoff.md"
+    )
     return 0
 
 
@@ -1156,10 +1455,44 @@ def cmd_status(args: argparse.Namespace) -> int:
     summary = summarize_stages(artifact_dir)
     expert_forum_file = artifact_dir / "expert_forum.md"
     input_and_qa_file = artifact_dir / "input_and_qa.md"
+    raw_discussion_file = artifact_dir / "raw_discussion_log.md"
     expert_forum_hard_issues = expert_forum_hard_gate_issues(artifact_dir / "expert_forum.md", artifact_dir)
     expert_forum_warns = expert_forum_warn_issues(artifact_dir / "expert_forum.md")
     input_and_qa_issues = input_and_qa_gate_issues(input_and_qa_file)
+    raw_discussion_issues = raw_discussion_log_gate_issues(raw_discussion_file)
+    raw_discussion_warns = raw_discussion_log_warn_issues(raw_discussion_file)
     finding_warns = finding_and_analyze_warn_issues(artifact_dir / "finding_and_analyze.md")
+    finding_memory_warns = source_trace_memory_warn_issues(
+        artifact_dir / "finding_and_analyze.md",
+        heading="Source Trace and Memory Safety",
+        labels=("Question cards", "Raw discussion entry refs", "Canonical entity names", "Time anchors or absolute dates"),
+        scope_name="finding_and_analyze",
+    )
+    forum_memory_warns = source_trace_memory_warn_issues(
+        artifact_dir / "expert_forum.md",
+        heading="Source Trace And Memory Safety",
+        labels=(
+            "原始讨论条目引用（`Entry ###`）",
+            "关键 question card 引用（`Q-###`）",
+            "关键实体的 canonical 名称与消歧说明",
+            "相对时间短语及其绝对锚点",
+            "引述与转述说明（quote / paraphrase）",
+        ),
+        scope_name="expert_forum",
+    )
+    outcome_memory_warns = source_trace_memory_warn_issues(
+        artifact_dir / "outcome_and_handoff.md",
+        heading="Memory and Provenance",
+        labels=(
+            "Raw discussion entry refs",
+            "Question card refs",
+            "Forum refs",
+            "Canonical entity names",
+            "Time anchors or absolute dates",
+            "Quote/paraphrase note",
+        ),
+        scope_name="outcome_and_handoff",
+    )
     clarification = clarification_status(input_and_qa_file)
     experiment_items = experiment_count(artifact_dir)
     bonus_points = experiment_bonus_points(artifact_dir)
@@ -1192,9 +1525,23 @@ def cmd_status(args: argparse.Namespace) -> int:
         print(f"input_and_qa_issue={issue}")
     for item in summary.items:
         print(f"stage_{item.name}={item.status}")
+    print(f"support_raw_discussion_log={read_status(raw_discussion_file)}")
+    print(f"raw_discussion_log_gate={'pass' if not raw_discussion_issues else 'fail'}")
+    for issue in raw_discussion_issues:
+        print(f"raw_discussion_log_issue={issue}")
+    print(f"raw_discussion_log_warn_count={len(raw_discussion_warns)}")
+    for warn in raw_discussion_warns:
+        print(f"raw_discussion_log_warn={warn}")
     print(f"finding_and_analyze_warn_count={len(finding_warns)}")
     for warn in finding_warns:
         print(f"finding_and_analyze_warn={warn}")
+    print(f"memory_quality_warn_count={len(finding_memory_warns) + len(forum_memory_warns) + len(outcome_memory_warns)}")
+    for warn in finding_memory_warns:
+        print(f"memory_quality_warn={warn}")
+    for warn in forum_memory_warns:
+        print(f"memory_quality_warn={warn}")
+    for warn in outcome_memory_warns:
+        print(f"memory_quality_warn={warn}")
     print(f"expert_forum_mode={forum_mode}")
     print(f"expert_forum_user_review_status={user_review_status}")
     print(f"expert_forum_gate={'pass' if not expert_forum_hard_issues else 'fail'}")
@@ -1224,6 +1571,9 @@ def cmd_archive(args: argparse.Namespace) -> int:
     artifact_scope_before = classify_artifact_scope(root, artifact_dir)
 
     missing_required = [file_name for _, file_name in REQUIRED_STAGES if not (artifact_dir / file_name).is_file()]
+    missing_required.extend(
+        file_name for _, file_name in REQUIRED_SUPPORT_FILES if not (artifact_dir / file_name).is_file()
+    )
     if missing_required:
         raise SystemExit(f"error: missing required artifact file(s): {', '.join(missing_required)}")
 
@@ -1255,10 +1605,46 @@ def cmd_archive(args: argparse.Namespace) -> int:
     input_and_qa_clear = not input_and_qa_issues
     for issue in input_and_qa_issues:
         unresolved_reasons.append(f"input_and_qa_gate: {issue}")
+    raw_discussion_issues = raw_discussion_log_gate_issues(artifact_dir / "raw_discussion_log.md")
+    raw_discussion_clear = not raw_discussion_issues
+    raw_discussion_warns = raw_discussion_log_warn_issues(artifact_dir / "raw_discussion_log.md")
+    for issue in raw_discussion_issues:
+        unresolved_reasons.append(f"raw_discussion_log_gate: {issue}")
     expert_forum_hard_issues = expert_forum_hard_gate_issues(artifact_dir / "expert_forum.md", artifact_dir)
     expert_forum_clear = not expert_forum_hard_issues
     expert_forum_warns = expert_forum_warn_issues(artifact_dir / "expert_forum.md")
     finding_warns = finding_and_analyze_warn_issues(artifact_dir / "finding_and_analyze.md")
+    finding_memory_warns = source_trace_memory_warn_issues(
+        artifact_dir / "finding_and_analyze.md",
+        heading="Source Trace and Memory Safety",
+        labels=("Question cards", "Raw discussion entry refs", "Canonical entity names", "Time anchors or absolute dates"),
+        scope_name="finding_and_analyze",
+    )
+    forum_memory_warns = source_trace_memory_warn_issues(
+        artifact_dir / "expert_forum.md",
+        heading="Source Trace And Memory Safety",
+        labels=(
+            "原始讨论条目引用（`Entry ###`）",
+            "关键 question card 引用（`Q-###`）",
+            "关键实体的 canonical 名称与消歧说明",
+            "相对时间短语及其绝对锚点",
+            "引述与转述说明（quote / paraphrase）",
+        ),
+        scope_name="expert_forum",
+    )
+    outcome_memory_warns = source_trace_memory_warn_issues(
+        artifact_dir / "outcome_and_handoff.md",
+        heading="Memory and Provenance",
+        labels=(
+            "Raw discussion entry refs",
+            "Question card refs",
+            "Forum refs",
+            "Canonical entity names",
+            "Time anchors or absolute dates",
+            "Quote/paraphrase note",
+        ),
+        scope_name="outcome_and_handoff",
+    )
     user_review_approved = False
     expert_forum_file = artifact_dir / "expert_forum.md"
     if expert_forum_file.is_file():
@@ -1269,8 +1655,16 @@ def cmd_archive(args: argparse.Namespace) -> int:
         unresolved_reasons.append(f"expert_forum_gate: {issue}")
     for warn in finding_warns:
         non_blocking_warnings.append(f"finding_and_analyze_warn: {warn}")
+    for warn in finding_memory_warns:
+        non_blocking_warnings.append(f"memory_quality_warn: {warn}")
+    for warn in raw_discussion_warns:
+        non_blocking_warnings.append(f"raw_discussion_log_warn: {warn}")
     for warn in expert_forum_warns:
         non_blocking_warnings.append(f"expert_forum_warn: {warn}")
+    for warn in forum_memory_warns:
+        non_blocking_warnings.append(f"memory_quality_warn: {warn}")
+    for warn in outcome_memory_warns:
+        non_blocking_warnings.append(f"memory_quality_warn: {warn}")
 
     version_policy_hard_issues = experiment_version_policy_hard_issues(artifact_dir)
     version_policy_warns = experiment_version_policy_warn_issues(artifact_dir)
@@ -1407,6 +1801,7 @@ def cmd_archive(args: argparse.Namespace) -> int:
         "## Archive Gate Checklist",
         f"- [x] Required stages complete: `{str(required_stages_complete).lower()}`",
         f"- [x] Input clarification gate clear: `{str(input_and_qa_clear).lower()}`",
+        f"- [x] Raw discussion log gate clear: `{str(raw_discussion_clear).lower()}`",
         f"- [x] Expert forum gate clear: `{str(expert_forum_clear).lower()}`",
         f"- [x] User review approved: `{str(user_review_approved).lower()}`",
         f"- [x] Action destination resolved: `{str(action_destination_resolved).lower()}`",
@@ -1445,6 +1840,7 @@ def cmd_archive(args: argparse.Namespace) -> int:
         "checks": {
             "required_stages_complete": required_stages_complete,
             "input_and_qa_gate_clear": input_and_qa_clear,
+            "raw_discussion_log_gate_clear": raw_discussion_clear,
             "expert_forum_gate_clear": expert_forum_clear,
             "experiment_version_policy_clear": not version_policy_hard_issues,
             "artifact_content_gate_clear": not placeholder_hard_issues,
@@ -1506,6 +1902,13 @@ def cmd_check_complete(args: argparse.Namespace) -> int:
         for issue in input_and_qa_issues:
             print(f"input_and_qa_issue={issue}")
         return 1
+    raw_discussion_issues = raw_discussion_log_gate_issues(artifact_dir / "raw_discussion_log.md")
+    if raw_discussion_issues:
+        print("TASK NOT COMPLETE")
+        print("raw_discussion_log_gate=fail")
+        for issue in raw_discussion_issues:
+            print(f"raw_discussion_log_issue={issue}")
+        return 1
     expert_forum_hard_issues = expert_forum_hard_gate_issues(artifact_dir / "expert_forum.md", artifact_dir)
     if expert_forum_hard_issues:
         print("TASK NOT COMPLETE")
@@ -1553,6 +1956,7 @@ def cmd_check_complete(args: argparse.Namespace) -> int:
     required_archive_checks = (
         "required_stages_complete",
         "input_and_qa_gate_clear",
+        "raw_discussion_log_gate_clear",
         "expert_forum_gate_clear",
         "action_destination_resolved",
         "memory_destination_resolved",

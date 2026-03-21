@@ -12,6 +12,7 @@ Rules:
 
 Current memory areas:
 
+- `brainstorm-memory-quality/`
 - `migration/`
 - `decisions/`
 - `benchmarks/`

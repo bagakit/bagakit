@@ -102,11 +102,46 @@ write(
     - Assumptions: The downstream owner can consume Markdown handoff files.
     - Constraints: Brainstorm must remain standalone-first and avoid auto-writing shared knowledge surfaces.
 
-    ## Questions to Resolve
-    - Q: Which completion signal matters most?
-      - Why it matters: Archive completion should capture analysis and handoff readiness, not downstream delivery.
-      - Answer owner: Product lead
-      - Due date: 2026-04-20
+    ## Questioning Strategy
+
+    - Clarification gate:
+      - ask only when the answer changes the plan, recommendation, constraint set, or handoff
+      - if the agent can resolve it by research, do that instead of asking the user
+    - First ask core framing questions:
+      - objective
+      - success bar
+      - hard constraints
+    - Then ask dependency-unlocking questions:
+      - questions whose answers change multiple downstream choices
+    - Then ask detail-expansion questions:
+      - preferences, examples, implementation taste, optional nice-to-haves
+    - Finally ask confirmation questions:
+      - delivery format
+      - review mode
+      - final prioritization
+    - Ordering rule:
+      - ask the highest-dependency, highest-branching questions first
+      - avoid style or formatting questions before direction-setting questions
+    - Questions the agent should self-resolve instead of asking:
+      - exact route-manifest parsing details once the lifecycle gate is known
+
+    ## Question Cards
+
+    ---
+
+    [[Brainstorm]]
+
+    - **Q-001**: Which completion signal matters most for this brainstorm run? 可以考虑：one sentence naming the lifecycle gate plus one sentence explaining why
+
+      > 问这个是因为，archive completion should capture analysis and handoff readiness, not downstream delivery.
+      > 得到答案后，我们就能确定 smoke coverage should stop at init/status 还是继续 through archive.
+
+    ---
+
+    ## No-Question Path
+
+    - Use only when no clarification question is needed.
+    - No clarification questions needed because: not used in this run; one high-impact clarification question was required and answered above.
 
     ## Clarification Coverage (High-Impact Dimensions)
     | Dimension | Status (`answered`/`deferred`/`not_needed`) | Evidence |
@@ -119,8 +154,8 @@ write(
 
     ## Clarification Loop
     - Missing details scan: Routed output path, review expectation, and archive boundary were the only high-impact unknowns.
-    - Questions asked to user: Which route types must be exercised and what should remain out of scope?
-    - User answers captured: Cover auto/local/adapter routing and keep shared knowledge writes out of brainstorm.
+    - Questions asked to user: see `Question Cards`
+    - User answers captured: see `Question Cards`
     - Remaining ambiguity (if any): None.
     - Exit rule:
       - Clarification status is complete because all high-impact unknowns were answered explicitly.
@@ -140,10 +175,144 @@ write(
 
     ## Completion Gate
     - [x] Scope and success criteria are explicit.
+    - [x] Each user-facing clarification question uses the question-card template or `No-Question Path` explains why none were needed.
     - [x] Critical unknowns are tracked with owner/date.
     - [x] Clarification coverage table is closed (`answered/deferred/not_needed` with evidence).
     - [x] Clarification loop completed (`Clarification status: complete`).
     - [x] Stage status updated before moving to analysis.
+    """,
+)
+
+write(
+    "raw_discussion_log.md",
+    f"""
+    # Raw Discussion Log: {topic}
+
+    - Status: complete
+    - Capture status: active
+
+    ## Capture Rules
+    - Record every user clarification question and raw answer.
+    - Record every major expert观点、质疑、反驳、收敛结论和方向切换。
+    - Keep entries append-only and chronological; do not overwrite earlier raw statements.
+    - When a later结论修正 earlier观点, add a new entry that references the earlier entry id.
+    - Link entries to `input_and_qa.md`, `finding_and_analyze.md`, `expert_forum.md`, or `outcome_and_handoff.md` when possible.
+
+    ## Clarification QA Bundle Template
+
+    ### Q-001
+    - Asked at:
+    - Asked by:
+    - User-facing question:
+    - Suggested answer shape:
+    - Why this question was asked:
+    - What this unlocks next:
+    - Current answer:
+    - Answered at:
+    - Answered by:
+    - Answer evidence:
+    - Memory-safe restatement:
+    - Canonical entities:
+    - Resolved references:
+    - Time anchors:
+    - Source refs:
+    - Follow-up:
+
+    ## Clarification QA Bundles
+
+    ### Q-001
+    - Bundle kind: `clarification`
+    - Question pass: `frame`
+    - Decision at stake: whether archive behavior is the real brainstorm completion gate for this run
+    - Current hypotheses: init/status-only smoke may be enough; archive-aware smoke may be necessary
+    - Asked at: 2026-04-20T09:00:00Z
+    - Asked by: validation-owner
+    - User-facing question: Which completion signal matters most for this brainstorm run?
+    - Suggested answer shape: one sentence naming the lifecycle gate plus one sentence explaining why
+    - Why this question was asked: Archive completion should capture analysis and handoff readiness, not downstream delivery.
+    - What this unlocks next: It determines whether smoke coverage should stop at init/status or continue through archive.
+    - Current answer: Archive completion is the main gate because it exposes route resolution, move state, and final handoff destinations.
+    - Answered at: 2026-04-20T09:02:00Z
+    - Answered by: product-lead
+    - Answer evidence: product-owner-clarification
+    - State update: archive-aware route validation became mandatory; init/status-only smoke was downgraded
+    - Confidence after: high
+    - Question useful: yes
+    - Answer useful: yes
+    - Memory-safe restatement: The product lead stated that archive completion is the decisive lifecycle gate for this run.
+    - Canonical entities: archive completion gate; route resolution; move state; handoff destinations
+    - Resolved references: `this brainstorm run` -> the current lifecycle smoke validation task
+    - Time anchors: question asked 2026-04-20T09:00:00Z; answer recorded 2026-04-20T09:02:00Z
+    - Source refs: input_and_qa.md#Q-001; raw_discussion_log.md#Q-001
+    - Next action: Compare route-aware options in `finding_and_analyze.md`.
+    - Follow-up: Use the answer to compare route-aware options in `finding_and_analyze.md`.
+
+    ## Discussion Entry Template
+
+    ### Entry <id>
+    - Timestamp:
+    - Recorder:
+    - Stage: `finding_and_analyze` | `expert_forum_review` | `outcome_and_handoff`
+    - Participants:
+    - Entry type: `expert_claim` | `expert_challenge` | `convergence` | `decision_update`
+    - Speaker id:
+    - Source artifact:
+    - Related question card:
+    - Raw content (keep original wording as faithfully as practical):
+    - Memory-safe restatement:
+    - Canonical entities:
+    - Resolved references:
+    - Time anchors:
+    - Source refs:
+    - Why it mattered:
+    - Decision impact:
+    - Follow-up:
+
+    ## Discussion Log
+
+    ### Entry 001
+    - Timestamp: 2026-04-20T09:20:00Z
+    - Recorder: validation owner
+    - Stage: `expert_forum_review`
+    - Participants: Lin, Maya, Ravi
+    - Entry type: `expert_challenge`
+    - Speaker id: expert-panel
+    - Source artifact: `expert_forum.md`
+    - Related question card: `Q-001`
+    - Raw content (keep original wording as faithfully as practical): The panel challenged the idea of keeping init/status-only smoke because that path would miss blocked adapter behavior and shared-boundary regressions.
+    - Memory-safe restatement: The expert panel rejected init/status-only smoke because it would miss blocked adapter behavior and brainstorm/shared-knowledge boundary failures.
+    - Canonical entities: init/status-only smoke; blocked adapter behavior; shared knowledge boundary
+    - Resolved references: `that path` -> init/status-only smoke
+    - Time anchors: challenge recorded at 2026-04-20T09:20:00Z
+    - Source refs: expert_forum.md#Source-Trace-And-Memory-Safety; raw_discussion_log.md#Q-001
+    - Why it mattered: It surfaced the core disagreement that changed the recommended scope.
+    - Decision impact: Ruled out minimal smoke coverage as the primary recommendation.
+    - Follow-up: Record convergence once the route matrix is agreed.
+
+    ### Entry 002
+    - Timestamp: 2026-04-20T09:35:00Z
+    - Recorder: validation owner
+    - Stage: `outcome_and_handoff`
+    - Participants: validation owner
+    - Entry type: `decision_update`
+    - Speaker id: validation-owner
+    - Source artifact: `outcome_and_handoff.md`
+    - Related question card: `Q-001`
+    - Raw content (keep original wording as faithfully as practical): Final decision is to cover blocked adapter plus complete local/auto/adapter archive routes while keeping shared knowledge promotion out of brainstorm runtime.
+    - Memory-safe restatement: The final implementation boundary is route-aware archive smoke coverage plus explicit protection of the shared-knowledge boundary.
+    - Canonical entities: blocked adapter route; complete local route; complete auto route; complete adapter route; shared knowledge promotion
+    - Resolved references: none
+    - Time anchors: decision updated at 2026-04-20T09:35:00Z
+    - Source refs: outcome_and_handoff.md#Memory-and-Provenance; expert_forum.md#Source-Trace-And-Memory-Safety; raw_discussion_log.md#Q-001
+    - Why it mattered: It is the final mutation that downstream validation and handoff need to follow.
+    - Decision impact: Locked the smoke implementation boundary and the archive assertions.
+    - Follow-up: Route the final package into archive and validate completion.
+
+    ## Coverage Checklist
+    - [x] User clarification questions and answers captured in QA bundles.
+    - [x] Material option changes captured.
+    - [x] Expert disagreements and convergence captured.
+    - [x] Final decision update captured before archive.
     """,
 )
 
@@ -193,6 +362,12 @@ write(
 
     ## Open Questions
     - None for this bounded smoke scenario.
+
+    ## Source Trace and Memory Safety
+    - Question cards: `Q-001`
+    - Raw discussion entry refs: `Entry 001`, `Entry 002`, `Entry 003`, `Entry 004`
+    - Canonical entity names: archive completion gate; blocked adapter route; shared knowledge boundary
+    - Time anchors or absolute dates: 2026-04-20 clarification and decision cycle
 
     ## Quality Review Prompt (Agent/Human)
     - Review focus: frontier grounding and option quality.
@@ -353,6 +528,14 @@ write(
     - 分歧：是否还需要再补一个 auto->local fallback 场景。
     - 需后续验证项：如果 archive payload 结构变化，需同步更新 smoke 断言。
 
+    ## Source Trace And Memory Safety
+
+    - 原始讨论条目引用（`Entry ###`）：`Entry 001`, `Entry 002`, `Entry 003`, `Entry 004`
+    - 关键 question card 引用（`Q-###`）：`Q-001`
+    - 关键实体的 canonical 名称与消歧说明：`archive completion gate` 指 brainstorm lifecycle archive gate，不指 downstream execution completion
+    - 相对时间短语及其绝对锚点：`recent`/`now` in this run refer to the 2026-04-20 review cycle
+    - 引述与转述说明（quote / paraphrase）：结论段和 handoff 段为 paraphrase；原始措辞保留在 `raw_discussion_log.md`
+
     ## 会议结论清晰度判定
 
     - [x] 关键问题与关键洞察已沉淀到 frontmatter
@@ -409,6 +592,14 @@ write(
     |------|---------|------------|-------|
     | Route coverage becomes stale | Archive payload changes | Keep smoke assertions aligned with current payload fields. | validation owner |
     | Boundary leakage | Brainstorm starts writing outside its outcome/archive surfaces | Assert knowledge surfaces remain absent. | risk reviewer |
+
+    ## Memory and Provenance
+    - Raw discussion entry refs: `Entry 002`, `Entry 003`, `Entry 004`
+    - Question card refs: `Q-001`
+    - Forum refs: `final_one_liner`, `key_issues`, `key_insights`, `Source Trace And Memory Safety`
+    - Canonical entity names: archive completion gate; route-aware smoke coverage; shared knowledge promotion
+    - Time anchors or absolute dates: 2026-04-20 review cycle
+    - Quote/paraphrase note: this artifact is a paraphrased handoff summary; raw wording remains in `raw_discussion_log.md`
 
     ## Completion Definition
     - Brainstorm completion means analysis and handoff are done.
@@ -474,6 +665,7 @@ INIT_ROOT="$TMP_DIR/init"
 INIT_ARTIFACT="$(init_artifact "$INIT_ROOT" "Init smoke demo" "init-smoke" --with-review-quality --with-eval-effect-review)"
 
 [[ -f "$INIT_ARTIFACT/input_and_qa.md" ]]
+[[ -f "$INIT_ARTIFACT/raw_discussion_log.md" ]]
 [[ -f "$INIT_ARTIFACT/finding_and_analyze.md" ]]
 [[ -f "$INIT_ARTIFACT/expert_forum.md" ]]
 [[ -f "$INIT_ARTIFACT/outcome_and_handoff.md" ]]
@@ -485,6 +677,8 @@ assert_output_line "$INIT_STATUS_OUTPUT" "artifact_scope=runs"
 assert_output_line "$INIT_STATUS_OUTPUT" "required_total=4"
 assert_output_line "$INIT_STATUS_OUTPUT" "required_complete=0"
 assert_output_line "$INIT_STATUS_OUTPUT" "next_stage=input_and_qa"
+assert_output_line "$INIT_STATUS_OUTPUT" "support_raw_discussion_log=in_progress"
+assert_output_line "$INIT_STATUS_OUTPUT" "raw_discussion_log_gate=fail"
 assert_output_line "$INIT_STATUS_OUTPUT" "archive_status=missing"
 
 BLOCKED_ROOT="$TMP_DIR/blocked-adapter"
@@ -841,6 +1035,7 @@ cat >"$FORGED_ARTIFACT/archive.json" <<'JSON'
   "checks": {
     "required_stages_complete": true,
     "input_and_qa_gate_clear": true,
+    "raw_discussion_log_gate_clear": true,
     "expert_forum_gate_clear": true,
     "action_destination_resolved": false,
     "memory_destination_resolved": false,
