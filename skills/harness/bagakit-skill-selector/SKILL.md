@@ -19,6 +19,10 @@ Use this skill for a task-level skill lifecycle loop:
 This skill is intentionally neutral at the task layer. It keeps one structured
 task log without turning every task into a repository-evolution topic.
 
+It may also keep one private day-scoped selector daily note under
+`.bagakit/skill-selector/daily/`, but that note is a sidecar memory surface,
+not part of task SSOT.
+
 It also owns the explicit recipe surface for standard multi-skill combinations
 under `recipes/`.
 
@@ -180,6 +184,15 @@ Required behavior:
   suggestion should be visible through `[[evolver_signal_log]]` instead of
   being hidden inside notes
 
+Private selector daily memory:
+
+- `.bagakit/skill-selector/daily/<yyyy-mm-dd>.md`
+  - optional private day-scoped note for same-day selector thinking across
+    multiple tasks
+  - must stay separate from `tasks/<task-slug>/skill-usage.toml`
+  - should be ignored through local git exclude by default
+  - must not replace task SSOT, candidate planning, or evaluation fields
+
 Recommended derived outputs:
 
 - `.bagakit/skill-selector/tasks/<task-slug>/candidate-survey.md`
@@ -205,6 +218,10 @@ node --experimental-strip-types scripts/skill_selector.ts init \
   --task-id <stable-task-id> \
   --objective "<task objective>" \
   --owner "<operator>"
+
+node --experimental-strip-types scripts/skill_selector.ts daily \
+  --root . \
+  --date <yyyy-mm-dd>
 
 node --experimental-strip-types scripts/skill_selector.ts preflight \
   --file .bagakit/skill-selector/tasks/<task-slug>/skill-usage.toml \

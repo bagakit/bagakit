@@ -1098,7 +1098,6 @@ def cmd_archive(args: argparse.Namespace) -> int:
         "# Commit Session Archive",
         "",
         "Status: complete",
-        f"- updated_at: {utc_now_iso()}",
         f"- action_handoff: {action_line}",
         f"- memory_handoff: {memory_line}",
         f"- archive: {archive_line}",

@@ -97,7 +97,7 @@ Minimal example:
 
 ```toml
 [[recipe_log]]
-timestamp = "2026-04-19T00:00:00Z"
+timestamp = "<event marker>"
 recipe_id = "brainstorm-with-research"
 source = "skills/harness/bagakit-skill-selector/recipes/brainstorm-with-research.md"
 why = "Need evidence-grounded option generation before decision handoff"

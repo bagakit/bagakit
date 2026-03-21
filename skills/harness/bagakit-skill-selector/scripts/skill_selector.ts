@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 
 import { parseCliArgs, readBooleanFlag, readNumberFlag, readStringFlag } from "./lib/args.ts";
 import { buildCandidateSurveyData, buildCandidateSurveyReport } from "./lib/candidate_survey.ts";
+import { currentLocalIsoDate, initSelectorDaily } from "./lib/daily.ts";
 import {
   createProjectPreferencesDoc,
   readProjectPreferencesDoc,
@@ -82,6 +83,7 @@ Commands:
   skill-ranking --file <path> [--output <path>] [--json]
   candidate-survey --file <path> [--root <catalog-root>] [--preferences-file <path>] [--query <text>] [--output <path>] [--include-all] [--json]
   preferences-init --file <path> [--force]
+  daily --root <repo-root> [--date <yyyy-mm-dd>] [--force] [--print-path]
   evaluate --file <path> --quality-score <n> --evidence-score <n> --feedback-score <n> --overall <pass|conditional_pass|fail|pending> --summary <text> [--status <task-status>] [--needs-feedback-confirmation <true|false>] [--needs-new-search <true|false>] [--next-search-query <text>] [--notes <text>]
   validate --file <path> [--strict]
   drivers --file <path> [--root <repo-root>] [--output <path>] [--include-unselected]
@@ -500,6 +502,27 @@ function cmdPreferencesInit(flags: Map<string, string | boolean>): number {
   return 0;
 }
 
+function cmdDaily(flags: Map<string, string | boolean>): number {
+  const repoRoot = resolvePathFromCwd(requiredString(flags, "root"));
+  const result = initSelectorDaily(
+    repoRoot,
+    readStringFlag(flags, "date") ?? currentLocalIsoDate(),
+    readBooleanFlag(flags, "force", false),
+  );
+  const relativePath = path.relative(repoRoot, result.dailyPath).split(path.sep).join("/");
+  if (readBooleanFlag(flags, "print-path", false)) {
+    console.log(relativePath);
+    return 0;
+  }
+  console.log(`ok: selector daily ready ${relativePath}`);
+  if (result.updatedExclude) {
+    console.log("ok: updated local git exclude for private selector daily notes");
+  } else if (result.excludeSkipped) {
+    console.log("warn: skipped local git exclude update because .git/info/exclude is unavailable");
+  }
+  return 0;
+}
+
 function cmdEvaluate(flags: Map<string, string | boolean>): number {
   const filePath = resolvePathFromCwd(requiredString(flags, "file"));
   const doc = readSkillUsageDoc(filePath);
@@ -598,6 +621,8 @@ function main(argv: string[]): number {
       return cmdCandidateSurvey(flags);
     case "preferences-init":
       return cmdPreferencesInit(flags);
+    case "daily":
+      return cmdDaily(flags);
     case "evaluate":
       return cmdEvaluate(flags);
     case "validate":

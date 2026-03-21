@@ -37,12 +37,12 @@ Brainstorm from Markdown context and convert ideas into an analysis + handoff pa
 ```bash
 sh scripts/bagakit-brainstorm.sh init --topic "new feature" --root .
 sh scripts/bagakit-brainstorm.sh init --topic "new feature" --root . --with-review-quality --with-eval-effect-review
-sh scripts/bagakit-brainstorm.sh status --dir .bagakit/brainstorm/runs/<timestamp>--new-feature
-sh scripts/bagakit-brainstorm.sh archive --dir .bagakit/brainstorm/runs/<timestamp>--new-feature --root .
-sh scripts/bagakit-brainstorm.sh check-complete --dir .bagakit/brainstorm/runs/<timestamp>--new-feature --root .
+sh scripts/bagakit-brainstorm.sh status --dir .bagakit/brainstorm/runs/<run-id>
+sh scripts/bagakit-brainstorm.sh archive --dir .bagakit/brainstorm/runs/<run-id> --root .
+sh scripts/bagakit-brainstorm.sh check-complete --dir .bagakit/brainstorm/runs/<run-id> --root .
 python3 scripts/bagakit-brainstorm.py export-planning-entry-handoff \
   --root . \
-  --dir .bagakit/brainstorm/archive/<timestamp>--new-feature \
+  --dir .bagakit/brainstorm/archive/<archive-id> \
   --scene ambiguous_delivery \
   --recipe-id planning-entry-brainstorm-to-feature
 ```

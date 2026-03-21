@@ -33,8 +33,10 @@ done
 
 ROOT="$(cd "$ROOT" && pwd)"
 TMP_DIR="$(mktemp -d)"
+git -C "$TMP_DIR" init -q
 TARGET="$TMP_DIR/.bagakit/skill-selector/tasks/demo/skill-usage.toml"
 PREFERENCES_FILE="$TMP_DIR/.bagakit/skill-selector/project-preferences.toml"
+DAILY_PATH="$TMP_DIR/.bagakit/skill-selector/daily/2026-04-28.md"
 DRIVER_PACK="$TMP_DIR/.bagakit/skill-selector/tasks/demo/bagakit-drivers.md"
 SURVEY_REPORT="$TMP_DIR/.bagakit/skill-selector/tasks/demo/candidate-survey.md"
 RANKING_REPORT="$TMP_DIR/.bagakit/skill-selector/tasks/demo/skill-ranking.md"
@@ -65,6 +67,20 @@ EVOLVER_BIN=(node --experimental-strip-types "$ROOT/skills/harness/bagakit-skill
 
 "${SELECTOR_BIN[@]}" preferences-init \
   --file "$PREFERENCES_FILE"
+
+"${SELECTOR_BIN[@]}" daily \
+  --root "$TMP_DIR" \
+  --date 2026-04-28
+
+test -f "$DAILY_PATH"
+grep -q '^date: 2026-04-28$' "$DAILY_PATH"
+grep -q 'It is not task SSOT and must stay separate from `tasks/<task-slug>/skill-usage.toml`.' "$DAILY_PATH"
+grep -q 'BAGAKIT:SKILL-SELECTOR:DAILY:START' "$TMP_DIR/.git/info/exclude"
+git -C "$TMP_DIR" check-ignore -q .bagakit/skill-selector/daily/2026-04-28.md
+if git -C "$TMP_DIR" status --short --untracked-files=all | grep -q '.bagakit/skill-selector/daily/2026-04-28.md'; then
+  echo "error: selector daily path unexpectedly remained visible in git status" >&2
+  exit 1
+fi
 
 cat >> "$PREFERENCES_FILE" <<'EOF'
 
@@ -352,6 +368,10 @@ grep -q 'availability = "available"' "$TARGET"
 grep -q 'needs_new_search = true' "$TARGET"
 grep -q '\[\[evolver_signal_log\]\]' "$TARGET"
 grep -q 'signal_id = "driver-load-review"' "$TARGET"
+if grep -q '.bagakit/skill-selector/daily/' "$TARGET"; then
+  echo "error: task SSOT unexpectedly mixed in selector daily memory references" >&2
+  exit 1
+fi
 grep -q 'Candidate Survey' "$SURVEY_REPORT"
 grep -q 'Project Preference Hints' "$SURVEY_REPORT"
 grep -q 'bagakit-brainstorm' "$SURVEY_REPORT"

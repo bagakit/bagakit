@@ -73,8 +73,6 @@ cat >"$HANDOFF_JSON" <<'JSON'
 {
   "schema": "bagakit/planning-entry-handoff/v1",
   "handoff_id": "peh-demo-approved",
-  "created_at": "2026-04-26T00:00:00Z",
-  "updated_at": "2026-04-26T00:00:00Z",
   "status": "approved",
   "producer_surface": "bagakit-brainstorm",
   "title": "Handoff feature",

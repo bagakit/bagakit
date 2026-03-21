@@ -24,6 +24,7 @@ required_dirs = [
 required_files = [
   "skills/harness/bagakit-skill-selector/README.md",
   "skills/harness/bagakit-skill-selector/SKILL.md",
+  "skills/harness/bagakit-skill-selector/assets/daily-note.template.md",
   "skills/harness/bagakit-skill-selector/assets/project-preferences.template.toml",
   "skills/harness/bagakit-skill-selector/assets/skill-usage.template.toml",
   "skills/harness/bagakit-skill-selector/recipes/README.md",
@@ -38,6 +39,7 @@ required_files = [
   "skills/harness/bagakit-skill-selector/references/bagakit-driver.toml",
   "skills/harness/bagakit-skill-selector/references/skill-usage-file-spec.md",
   "skills/harness/bagakit-skill-selector/scripts/skill_selector.ts",
+  "skills/harness/bagakit-skill-selector/scripts/lib/daily.ts",
   "skills/harness/bagakit-skill-selector/scripts/lib/candidate_survey.ts",
   "skills/harness/bagakit-skill-selector/scripts/lib/project_preferences.ts",
   "skills/harness/bagakit-skill-selector/scripts/lib/skill_catalog.ts",

@@ -101,7 +101,7 @@ sh scripts/bagakit-researcher.sh add-source-card \
   --title "Example Source" \
   --url "https://example.com" \
   --authority primary \
-  --published 2026-04-19 \
+  --published <yyyy-mm-dd> \
   --why "sets the baseline for the topic"
 ```
 

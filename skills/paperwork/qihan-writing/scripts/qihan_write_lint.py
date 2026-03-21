@@ -58,7 +58,7 @@ AI_PATTERNS = [
 NEGATION_PAIR_RE = re.compile(r"不是[^\n。！？!?；;]{0,80}而是")
 
 PORTABILITY_PATTERNS = [
-    r"/Users/[^)\s]+",
+    r"/(?:[^/\s)]+/){2,}[^/\s)]+",
     r"file://",
 ]
 

@@ -322,8 +322,6 @@ def load_planning_entry_handoff(handoff_path: Path) -> dict[str, Any]:
     return {
         "schema": schema,
         "handoff_id": require_nonempty_string(payload.get("handoff_id"), "planning-entry handoff handoff_id"),
-        "created_at": require_nonempty_string(payload.get("created_at"), "planning-entry handoff created_at"),
-        "updated_at": require_nonempty_string(payload.get("updated_at"), "planning-entry handoff updated_at"),
         "status": status,
         "producer_surface": require_nonempty_string(
             payload.get("producer_surface"),

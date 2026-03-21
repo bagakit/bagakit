@@ -15,14 +15,14 @@ It is not repository policy.
 
 ```toml
 schema_version = "1.0"
-updated_at = "2026-04-20T00:00:00Z"
+updated_at = "<host-local update marker>"
 ```
 
 ## Skill preference entries
 
 ```toml
 [[skill_preference]]
-timestamp = "2026-04-20T00:00:00Z"
+timestamp = "<observation marker>"
 skill_id = "bagakit-researcher"
 preference = "prefer"
 reason = "Research-heavy tasks in this host usually need explicit evidence production."

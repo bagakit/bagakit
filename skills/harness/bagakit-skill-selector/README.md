@@ -33,6 +33,18 @@ To satisfy that gate:
 - initialize `.bagakit/skill-selector/tasks/<task-slug>/skill-usage.toml`
 - record one typed preflight decision before major implementation begins
 
+Private day-scoped selector memory may also live under:
+
+- `.bagakit/skill-selector/daily/<yyyy-mm-dd>.md`
+
+Rules:
+
+- daily notes are private sidecar memory, not task SSOT
+- daily notes are intentionally day-based rather than task-based
+- daily notes must stay separate from `skill-usage.toml`
+- selector should install a local git-exclude rule for that directory by
+  default
+
 The fuller selector loop matters most when:
 
 - skill coverage is uncertain
@@ -161,6 +173,9 @@ Current operator status:
   clustering
 - it can append `[[evolver_signal_log]]` entries for explicit repository-review
   suggestions
+- it can initialize one private date-based selector daily note under
+  `.bagakit/skill-selector/daily/` without mixing that content into
+  `skill-usage.toml`
 - it can initialize optional host-local `project-preferences.toml`
 - it can derive a task-local `candidate-survey.md` report from explicit plans,
   project hints, and repo-visible canonical skills

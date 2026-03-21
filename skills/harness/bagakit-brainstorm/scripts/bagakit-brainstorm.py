@@ -1862,7 +1862,6 @@ def cmd_archive(args: argparse.Namespace) -> int:
     payload = {
         "version": 2,
         "status": status,
-        "created_at": utc_now_iso(),
         "topic": topic,
         "source_artifact": source_artifact_value,
         "archived_artifact": rel(root, artifact_dir),
@@ -2060,8 +2059,6 @@ def derive_planning_entry_handoff_payload(
     return {
         "schema": PLANNING_ENTRY_HANDOFF_SCHEMA,
         "handoff_id": (handoff_id_override or "").strip() or f"peh-{slug}",
-        "created_at": utc_now_iso(),
-        "updated_at": utc_now_iso(),
         "status": "approved",
         "producer_surface": "bagakit-brainstorm",
         "title": title,

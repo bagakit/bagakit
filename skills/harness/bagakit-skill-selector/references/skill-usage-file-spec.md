@@ -27,6 +27,14 @@ Recommended runtime location:
 
 - `.bagakit/skill-selector/tasks/<task-slug>/skill-usage.toml`
 
+Adjacent private selector daily surface:
+
+- `.bagakit/skill-selector/daily/<yyyy-mm-dd>.md`
+  - optional private day-scoped note
+  - intentionally grouped by day rather than by task
+  - must stay separate from task SSOT
+  - should be ignored through local git exclude by default
+
 Selection-state reminder:
 
 - selector reasons over `visible` candidates first
@@ -47,8 +55,8 @@ schema_version = "1.0"
 task_id = "task-001"
 objective = "Deliver a stable implementation"
 owner = "agent-name"
-created_at = "2026-03-01T00:00:00Z"
-updated_at = "2026-03-01T00:00:00Z"
+created_at = "<created marker>"
+updated_at = "<updated marker>"
 status = "planning"
 ```
 
@@ -134,7 +142,7 @@ recipe.
 
 ```toml
 [[recipe_log]]
-timestamp = "2026-03-01T00:00:00Z"
+timestamp = "<event marker>"
 recipe_id = "brainstorm-with-research"
 source = "skills/harness/bagakit-skill-selector/recipes/brainstorm-with-research.md"
 why = "Need evidence-grounded option generation before decision handoff"
@@ -177,7 +185,7 @@ task-local clustering evidence.
 
 ```toml
 [[error_pattern_log]]
-timestamp = "2026-03-01T00:00:00Z"
+timestamp = "<event marker>"
 error_type = "search_failure"
 message_pattern = "web search returned empty results"
 skill_id = "bagakit-researcher"
@@ -213,8 +221,8 @@ feedback loop now deserves explicit repository-level review.
 
 ```toml
 [[evolver_signal_log]]
-timestamp = "2026-03-01T00:00:00Z"
-updated_at = "2026-03-01T00:00:00Z"
+timestamp = "<event marker>"
+updated_at = "<updated marker>"
 signal_id = "repeated-search-failure"
 kind = "gotcha"
 trigger = "retry_backoff"
@@ -333,7 +341,7 @@ Automatic-suggestion rule:
 
 ```toml
 [[skill_plan]]
-timestamp = "2026-03-01T00:00:00Z"
+timestamp = "<event marker>"
 skill_id = "go-testing"
 kind = "local"
 source = "skills/go-testing"
@@ -402,7 +410,7 @@ Example for tightly coupled-but-standalone-first behavior:
 
 ```toml
 [[skill_plan]]
-timestamp = "2026-03-01T00:00:00Z"
+timestamp = "<event marker>"
 skill_id = "bagakit-skill-selector"
 kind = "local"
 source = "skills/harness/bagakit-skill-selector"
@@ -420,7 +428,7 @@ fallback_strategy = "none"
 notes = "coordinates bagakit-living-knowledge plus bagakit-researcher without hard-binding them"
 
 [[skill_plan]]
-timestamp = "2026-03-01T00:00:10Z"
+timestamp = "<later event marker>"
 skill_id = "bagakit-living-knowledge"
 kind = "local"
 source = "skills/harness/bagakit-living-knowledge"
@@ -438,7 +446,7 @@ fallback_strategy = "standalone_first"
 notes = "must still remain useful with simplified logic if researcher is absent"
 
 [[skill_plan]]
-timestamp = "2026-03-01T00:00:20Z"
+timestamp = "<latest event marker>"
 skill_id = "bagakit-researcher"
 kind = "research"
 source = "docs/architecture/B2-behavior-architecture.md"
@@ -475,7 +483,7 @@ Meaning:
 
 ```toml
 [[usage_log]]
-timestamp = "2026-03-01T00:00:00Z"
+timestamp = "<event marker>"
 skill_id = "go-testing"
 phase = "execution"
 action = "Designed table-driven tests"
@@ -502,7 +510,7 @@ notes = ""
 
 ```toml
 [[feedback_log]]
-timestamp = "2026-03-01T00:00:00Z"
+timestamp = "<event marker>"
 skill_id = "go-testing"
 channel = "user"
 signal = "positive"
@@ -546,7 +554,7 @@ Purpose:
 
 ```toml
 [[search_log]]
-timestamp = "2026-03-01T00:00:00Z"
+timestamp = "<event marker>"
 reason = "feedback is insufficient"
 query = "best practice for integration test isolation"
 source_scope = "hybrid"
@@ -561,7 +569,7 @@ notes = ""
 
 ```toml
 [[benchmark_log]]
-timestamp = "2026-03-01T00:00:00Z"
+timestamp = "<event marker>"
 benchmark_id = "memory-recall-latency"
 metric = "p95_latency_ms"
 baseline = 420.0
