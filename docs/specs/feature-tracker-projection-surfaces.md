@@ -55,6 +55,8 @@ It should answer:
 - what depends on what
 - what other active features each feature unlocks
 - how the active graph layers topologically
+- whether the currently checked-in projection still matches canonical feature
+  state
 
 It should not answer:
 
@@ -99,6 +101,21 @@ A good projection boundary makes these statements true:
 
 - truth can be edited without hand-editing the projection
 - projection can be regenerated at any time
+- graph-affecting commands can preflight the resulting projection before they
+  perform destructive side effects
+- commands that directly overwrite the current projection should also reject a
+  missing DAG file or broken DAG target path up front and route recovery
+  through `replan-features` while they are still mutating live feature state
+- already-closed archive/discard reruns may heal a missing or malformed DAG
+  path only after confirming the feature already lives in the matching closed
+  directory
+- already-closed archive/discard reruns do not rewrite a present schema-valid
+  DAG surface just to clear drift
+- if unrelated active-graph errors block recomputing a missing or malformed DAG
+  surface, already-closed reruns warn and leave recovery to `replan-features`
+- successful graph-affecting tracker commands refresh the current projection
 - validation can detect projection drift
+- validation fails when the projection file is missing instead of silently
+  skipping graph checks
 - users do not have to guess whether one field is graph truth or execution
   policy

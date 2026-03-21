@@ -113,12 +113,23 @@ Rules:
 - unsupported feature-root directories must be rejected by validation
 - `summary.md` is a closeout artifact and must not appear in active feature
   roots
+- closed feature roots must contain `summary.md`
+- live-feature helper files such as `proposal.md`, `spec-delta.md`, and
+  `verification.md` are not valid in closed feature roots
+- closeout should preserve legacy or live-only root entries by moving them
+  under `artifacts/closeout-preserved-root/` before the feature is finalized
+- if an active feature root already contains `summary.md`, closeout should
+  preserve that operator-authored file under
+  `artifacts/closeout-preserved-root/summary.md` before writing the canonical
+  closed summary
 - `PRD.md` and `Changelog.md` are not supported feature-root artifacts under
   the current contract
 - feature intent or scope that would otherwise drift into `PRD.md` should route
   to `proposal.md` or an upstream planning artifact
 - change history that would otherwise drift into `Changelog.md` should route to
   repo or release surfaces; feature closeout narrative belongs in `summary.md`
+- `ui-verification.md` is retired; validation should point operators to
+  `verification.md`
 - if another artifact class becomes canonical later, it must be introduced
   through the contract instead of appearing ad hoc in feature roots
 
@@ -151,6 +162,7 @@ Required generation rules:
 
 - generate from active non-archived feature state
 - use `state.json.depends_on` as canonical dependency truth
+- `state.json.depends_on` must be a list when present
 - derive dependents and pure topological layers from that truth
 - treat archived dependencies as already satisfied and record that as a note
 - fail closed on discarded dependencies
@@ -169,6 +181,25 @@ Freshness rule:
 
 - the tracker must be able to recompute `FEATURES_DAG.json` from canonical
   feature state
+- graph-affecting commands must validate the resulting active DAG before they
+  persist canonical state changes or run destructive closeout cleanup
+- direct graph-affecting commands that overwrite `FEATURES_DAG.json` should also
+  fail before mutation when the current DAG file is missing or the current DAG
+  path is not a writable regular file while they are still mutating live
+  feature state; use `replan-features` to recover missing or malformed DAG
+  targets first
+- already-closed `archive-feature` and `discard-feature` reruns may repair a
+  missing or malformed `FEATURES_DAG.json` only after they verify the feature
+  already lives in the matching closed directory with its closed summary
+- already-closed closeout reruns must not overwrite a present schema-valid DAG
+  surface just to clear projection drift
+- if unrelated active feature state prevents recomputing a missing or malformed
+  DAG surface, already-closed closeout reruns should warn and leave recovery to
+  `replan-features` instead of failing the rerun itself
+- successful graph-affecting tracker commands such as `create-feature`,
+  `archive-feature`, `discard-feature`, and `replan-features` should refresh the
+  current `FEATURES_DAG.json`
+- validation must fail if `FEATURES_DAG.json` is missing
 - validation must be able to detect when the checked-in DAG projection has
   drifted from that recomputed result
 
@@ -203,6 +234,8 @@ Rules:
 - none of these files are required in the default feature layout
 - their presence must not redefine `state.json` or `tasks.json`
 - `verification.md` is generic evidence, not a UI-only special case
+- closed features must not materialize or retain these live-feature helper files
+  at the feature root
 - the default gate policy is `verification_policy = on_demand`, which means
   `verification.md` is only checked when the file exists unless a stricter
   policy is configured
@@ -224,7 +257,11 @@ Migration note:
 
 - `ui-verification.md` is superseded by `verification.md`
 - current tracker contract expects `verification.md`
-- repositories carrying the old filename should rename it before rerunning gate
+- active feature roots carrying the old filename should rename it before
+  rerunning gate
+- closed feature roots should preserve legacy `ui-verification.md` under
+  `artifacts/closeout-preserved-root/` instead of restoring it at the root
+- tracker validation should provide a direct rename hint for this migration
 
 ## Closeout Rule
 
@@ -235,6 +272,12 @@ Stable closeout expectations:
 - archived features move into `features-archived/`
 - discarded features move into `features-discarded/`
 - closeout summaries live with the closed feature directory
+- live-only or unsupported legacy root entries should be preserved under
+  `artifacts/closeout-preserved-root/`
+- archive and discard must validate the post-closeout active DAG before they
+  remove worktrees, delete branches, or move the feature directory
+- archive/discard idempotent reruns must fail closed when directory placement
+  disagrees with the claimed closed status
 - closed features must not remain in `features/`
 
 The tracker must fail closed if active and closed directory placement disagree

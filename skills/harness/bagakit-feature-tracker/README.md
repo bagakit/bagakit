@@ -102,11 +102,19 @@ Unsupported feature-root files such as `PRD.md` and `Changelog.md` are outside
 the current tracker contract and should fail validation.
 Route feature intent to `proposal.md` or upstream planning artifacts, and keep
 change history in repo or release surfaces rather than in active feature roots.
+Closed feature roots keep `summary.md` instead; live-only or unsupported legacy
+root entries are preserved under `artifacts/closeout-preserved-root/` during
+archive/discard so the closed feature stays contract-valid.
+If an operator already wrote `summary.md` in an active feature root, closeout
+preserves that draft under `artifacts/closeout-preserved-root/summary.md`
+before writing the canonical closed summary.
 
 Use `verification.md` only when a task needs manual or mixed evidence beyond
 automated command output.
 The older `ui-verification.md` name is retired; rename old files to
-`verification.md` before rerunning gate.
+`verification.md` before rerunning gate in active feature roots.
+Closed feature roots should preserve legacy `ui-verification.md` under
+`artifacts/closeout-preserved-root/` instead of restoring it at the root.
 
 ## Public Commands
 
@@ -140,6 +148,17 @@ External bridges are intentionally out of scope for this skill.
 - Markdown files are projections of that runtime truth.
 - `FEATURES_DAG.json` is a projection-only graph surface and may be regenerated
   from canonical feature state.
+- Successful graph-affecting commands refresh `FEATURES_DAG.json` so normal
+  tracker flows do not leave validation broken.
+- `create-feature`, `archive-feature`, and `discard-feature` preflight the
+  resulting active graph before they commit tracker state or closeout cleanup.
+- If `FEATURES_DAG.json` is missing or has become a broken path shape, recover
+  it with `replan-features` before rerunning live graph-affecting commands.
+- Already-closed `archive-feature` or `discard-feature` reruns may heal a
+  missing or malformed DAG projection only after confirming the feature is
+  already in the matching closed directory.
+- Those already-closed reruns leave schema-valid DAG drift alone and warn
+  instead of failing if unrelated active-graph breakage blocks recomputation.
 - Feature ids are short opaque tokens whose lexical order follows tracker
   issuance cursor order.
 - Runtime JSON is intentionally low-churn and avoids per-mutation timestamps.

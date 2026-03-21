@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import copy
 import hashlib
 import json
 import os
@@ -48,6 +49,8 @@ FEATURE_PROPOSAL_FILENAME = "proposal.md"
 FEATURE_SPEC_DELTA_FILENAME = "spec-delta.md"
 FEATURE_VERIFICATION_FILENAME = "verification.md"
 FEATURE_SUMMARY_FILENAME = "summary.md"
+LEGACY_UI_VERIFICATION_FILENAME = "ui-verification.md"
+DAG_RECOVERY_HINT = "run feature-tracker.sh replan-features to regenerate FEATURES_DAG.json"
 FEATURE_REQUIRED_ROOT_FILES = frozenset({"state.json", "tasks.json"})
 FEATURE_OPTIONAL_ROOT_FILES = frozenset(
     {
@@ -58,11 +61,18 @@ FEATURE_OPTIONAL_ROOT_FILES = frozenset(
 )
 FEATURE_CLOSEOUT_ROOT_FILES = frozenset({FEATURE_SUMMARY_FILENAME})
 FEATURE_ALLOWED_ROOT_DIRS = frozenset({"artifacts"})
+FEATURE_CLOSEOUT_PRESERVE_DIRNAME = "closeout-preserved-root"
 FEATURE_ROOT_FILE_HINTS = {
     "prd.md": "route feature intent and scope to proposal.md or an upstream planning artifact instead",
     "changelog.md": "route change history to repo/release surfaces; use summary.md only for closeout narrative",
     "design.md": "route behavior or contract deltas to spec-delta.md when that helper is actually needed",
     "tasks.md": "tasks.json is the only task source of truth",
+    LEGACY_UI_VERIFICATION_FILENAME: "rename ui-verification.md to verification.md; the ui-only filename is retired",
+}
+LEGACY_RUNTIME_PATH_HINTS = {
+    "feats": ".bagakit/feature-tracker/features/",
+    "feats-archived": ".bagakit/feature-tracker/features-archived/",
+    "feats-discarded": ".bagakit/feature-tracker/features-discarded/",
 }
 
 
@@ -108,8 +118,14 @@ def eprint(msg: str) -> None:
     print(msg, file=sys.stderr)
 
 
-def unsupported_feature_root_file_error(rel_path: str) -> str:
+def unsupported_feature_root_file_error(rel_path: str, *, closed_root: bool = False) -> str:
     name = Path(rel_path).name.lower()
+    if closed_root:
+        return (
+            f"unsupported feature-root file: {rel_path}; "
+            f"hint: closed feature roots keep only summary.md and artifacts/ at the root; "
+            f"preserve live or legacy root entries under artifacts/{FEATURE_CLOSEOUT_PRESERVE_DIRNAME}/ instead"
+        )
     hint = FEATURE_ROOT_FILE_HINTS.get(name)
     if hint:
         return f"unsupported feature-root file: {rel_path}; hint: {hint}"
@@ -118,6 +134,31 @@ def unsupported_feature_root_file_error(rel_path: str) -> str:
         f"unsupported feature-root file: {rel_path}; "
         f"allowed live-feature helper files are state.json, tasks.json, {allowed}, and artifacts/"
     )
+
+
+def normalize_error_text(exc: BaseException) -> str:
+    text = str(exc).strip()
+    if text.startswith("error: "):
+        return text[len("error: ") :]
+    return text
+
+
+def relative_display(root: Path, path: Path) -> str:
+    try:
+        return path.relative_to(root).as_posix()
+    except ValueError:
+        return str(path)
+
+
+def legacy_runtime_path_error(root: Path, legacy_dir: Path) -> str:
+    rel = relative_display(root, legacy_dir)
+    mapped = LEGACY_RUNTIME_PATH_HINTS.get(legacy_dir.name)
+    if mapped:
+        return (
+            f"legacy feature-tracker runtime path is not supported: {rel}; "
+            f"repair: move contents to {mapped} and remove {rel}"
+        )
+    return f"legacy feature-tracker runtime path is not supported: {rel}"
 
 
 def is_public_token(raw: str, *, width: int) -> bool:
@@ -213,6 +254,27 @@ def next_numbered_path(directory: Path, *, prefix: str, suffix: str) -> Path:
                 continue
             next_number = max(next_number, int(match.group(1)) + 1)
     return directory / f"{prefix}{next_number:04d}{suffix}"
+
+
+def next_available_path(path: Path) -> Path:
+    if not path.exists():
+        return path
+    stem = path.stem if path.suffix else path.name
+    suffix = path.suffix if path.suffix else ""
+    counter = 1
+    while True:
+        candidate = path.with_name(f"{stem}-{counter:04d}{suffix}")
+        if not candidate.exists():
+            return candidate
+        counter += 1
+
+
+def move_path(src: Path, dst: Path) -> None:
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        src.rename(dst)
+    except OSError:
+        shutil.move(str(src), str(dst))
 
 
 def run_cmd(cmd: list[str], *, cwd: Path | None = None) -> subprocess.CompletedProcess[str]:
@@ -687,6 +749,7 @@ def make_worktree_assignment(
     wt_abs = root / wt_rel
     base_ref = pick_base_branch(root)
 
+    ensure_worktree_assignment_preflight(root, branch=branch, wt_abs=wt_abs)
     ensure_worktrees_ignored(root)
     (root / ".worktrees").mkdir(parents=True, exist_ok=True)
 
@@ -710,6 +773,29 @@ def make_worktree_assignment(
     return branch, wt_name, wt_rel, wt_abs, base_ref
 
 
+def ensure_worktree_assignment_preflight(
+    root: Path,
+    *,
+    branch: str,
+    wt_abs: Path,
+) -> None:
+    worktrees_root = root / ".worktrees"
+    if worktrees_root.exists() and not worktrees_root.is_dir():
+        raise SystemExit(
+            f"error: worktrees root path is not a directory: {relative_display(root, worktrees_root)}"
+        )
+    if git_local_branch_exists(root, branch):
+        raise SystemExit(f"error: worktree branch already exists: {branch}")
+    if wt_abs in git_worktree_paths(root):
+        raise SystemExit(
+            f"error: worktree path already registered: {relative_display(root, wt_abs)}"
+        )
+    if os.path.lexists(wt_abs):
+        raise SystemExit(
+            f"error: worktree path already exists: {relative_display(root, wt_abs)}"
+        )
+
+
 def get_feat_index_entry(index_data: dict[str, Any], feat_id: str) -> dict[str, Any] | None:
     for item in index_data.get("features", []):
         if item.get("feat_id") == feat_id:
@@ -717,10 +803,8 @@ def get_feat_index_entry(index_data: dict[str, Any], feat_id: str) -> dict[str, 
     return None
 
 
-def upsert_feat_index(paths: HarnessPaths, state: dict[str, Any]) -> None:
-    index_data = load_index(paths)
-    entries = index_data.setdefault("features", [])
-    payload = {
+def feat_index_payload(state: dict[str, Any]) -> dict[str, Any]:
+    return {
         "feat_id": state["feat_id"],
         "title": state.get("title", ""),
         "status": state.get("status", "proposal"),
@@ -728,14 +812,29 @@ def upsert_feat_index(paths: HarnessPaths, state: dict[str, Any]) -> None:
         "branch": state.get("branch", ""),
         "worktree_name": state.get("worktree_name", ""),
     }
+
+
+def upsert_feat_index_entry(index_data: dict[str, Any], state: dict[str, Any]) -> None:
+    normalize_index_data(index_data)
+    entries = index_data.setdefault("features", [])
+    payload = feat_index_payload(state)
     for i, item in enumerate(entries):
         if item.get("feat_id") == payload["feat_id"]:
             entries[i] = payload
-            save_index(paths, index_data)
             return
     entries.append(payload)
     entries.sort(key=lambda x: feat_sort_key(str(x.get("feat_id", ""))))
-    save_index(paths, index_data)
+
+
+def upsert_feat_index(
+    paths: HarnessPaths,
+    state: dict[str, Any],
+    *,
+    index_data: dict[str, Any] | None = None,
+) -> None:
+    working = index_data if index_data is not None else load_index(paths)
+    upsert_feat_index_entry(working, state)
+    save_index(paths, working)
 
 
 def feat_index_status(paths: HarnessPaths, feat_id: str) -> str:
@@ -759,6 +858,171 @@ def load_feat(paths: HarnessPaths, feat_id: str) -> tuple[dict[str, Any], dict[s
     return state, tasks
 
 
+def ensure_closed_feat_rerun_state(
+    paths: HarnessPaths,
+    feat_id: str,
+    *,
+    expected_status: str,
+) -> None:
+    if expected_status not in CLOSED_FEAT_STATUS:
+        raise SystemExit(f"error: unsupported closed feat status for rerun verification: {expected_status}")
+
+    active_dir = paths.feat_dir(feat_id)
+    expected_dir = paths.feat_dir(feat_id, status=expected_status)
+    sibling_status = "discarded" if expected_status == "archived" else "archived"
+    sibling_dir = paths.feat_dir(feat_id, status=sibling_status)
+
+    if active_dir.exists():
+        raise SystemExit(
+            "error: feat "
+            f"{feat_id} claims status={expected_status} but still lives under features/ directory: "
+            f"{relative_display(paths.root, active_dir)}"
+        )
+    if sibling_dir.exists():
+        raise SystemExit(
+            "error: feat "
+            f"{feat_id} claims status={expected_status} but also exists under "
+            f"{sibling_dir.parent.name} directory: {relative_display(paths.root, sibling_dir)}"
+        )
+    if not expected_dir.exists():
+        raise SystemExit(
+            "error: feat "
+            f"{feat_id} claims status={expected_status} but closed feat dir missing: "
+            f"{relative_display(paths.root, expected_dir)}"
+        )
+
+    state_file = paths.feat_state(feat_id, status=expected_status)
+    tasks_file = paths.feat_tasks(feat_id, status=expected_status)
+    summary_file = paths.feat_summary(feat_id, status=expected_status)
+    if not state_file.exists():
+        raise SystemExit(
+            "error: closed feat state file missing for "
+            f"{feat_id}: {relative_display(paths.root, state_file)}"
+        )
+    if not tasks_file.exists():
+        raise SystemExit(
+            "error: closed feat tasks file missing for "
+            f"{feat_id}: {relative_display(paths.root, tasks_file)}"
+        )
+    if not summary_file.exists():
+        raise SystemExit(
+            "error: closed feat summary missing for "
+            f"{feat_id}: {relative_display(paths.root, summary_file)}"
+        )
+
+    closed_state = load_json(state_file)
+    actual_status = str(closed_state.get("status") or "")
+    if actual_status != expected_status:
+        raise SystemExit(
+            f"error: closed feat state status drift for {feat_id}: expected {expected_status}, found {actual_status or '<missing>'}"
+        )
+
+
+def canonical_depends_on(state: dict[str, Any], *, feat_id: str) -> list[str]:
+    if "depends_on" not in state:
+        return []
+    raw_deps = state.get("depends_on")
+    if not isinstance(raw_deps, list):
+        raise SystemExit(
+            f"error: {feat_id}: state.json depends_on must be a list of feature ids"
+        )
+
+    deps: list[str] = []
+    seen: set[str] = set()
+    for index, raw_dep in enumerate(raw_deps):
+        dep = str(raw_dep).strip()
+        if not dep:
+            raise SystemExit(
+                f"error: {feat_id}: state.json depends_on[{index}] must be a non-empty feature id"
+            )
+        if not is_valid_feat_id(dep):
+            raise SystemExit(f"error: {feat_id}: invalid depends_on feature id: {dep}")
+        if dep == feat_id:
+            raise SystemExit(f"error: feat cannot depend on itself: {feat_id}")
+        if dep in seen:
+            continue
+        seen.add(dep)
+        deps.append(dep)
+    return deps
+
+
+def preserve_closeout_root_entries(
+    feat_dir: Path,
+    *,
+    include_closeout_root_files: bool = False,
+) -> list[str]:
+    preserved: list[str] = []
+    if not feat_dir.exists():
+        return preserved
+
+    preserve_dir = feat_dir / "artifacts" / FEATURE_CLOSEOUT_PRESERVE_DIRNAME
+    for child in sorted(feat_dir.iterdir()):
+        if child.is_file() and child.name in FEATURE_REQUIRED_ROOT_FILES:
+            continue
+        if child.is_file() and child.name in FEATURE_CLOSEOUT_ROOT_FILES and not include_closeout_root_files:
+            continue
+        if child.is_dir() and child.name == "artifacts":
+            continue
+        target = next_available_path(preserve_dir / child.name)
+        move_path(child, target)
+        preserved.append(target.relative_to(feat_dir).as_posix())
+    return preserved
+
+
+def dag_path_is_non_regular(path: Path) -> bool:
+    return path.is_symlink() or (path.exists() and not path.is_file())
+
+
+def ensure_direct_dag_write_target(paths: HarnessPaths) -> None:
+    dag_path = paths.dag_file
+    parent = dag_path.parent
+    if parent.exists():
+        if not parent.is_dir():
+            raise SystemExit(
+                "error: dag parent path is not a directory: "
+                f"{relative_display(paths.root, parent)}; {DAG_RECOVERY_HINT}"
+            )
+    else:
+        raise SystemExit(
+            "error: dag parent path missing: "
+            f"{relative_display(paths.root, parent)}; run feature-tracker.sh initialize-tracker first"
+        )
+
+    if dag_path_is_non_regular(dag_path):
+        raise SystemExit(
+            "error: dag target is not a regular file: "
+            f"{relative_display(paths.root, dag_path)}; {DAG_RECOVERY_HINT}"
+        )
+
+    if not dag_path.exists():
+        raise SystemExit(
+            f"error: dag file missing: {relative_display(paths.root, dag_path)}; {DAG_RECOVERY_HINT}"
+        )
+
+    try:
+        with dag_path.open("a", encoding="utf-8"):
+            pass
+    except OSError as exc:
+        raise SystemExit(
+            "error: dag target is not writable: "
+            f"{relative_display(paths.root, dag_path)}: {exc}; {DAG_RECOVERY_HINT}"
+        ) from exc
+
+    probe = next_available_path(parent / ".dag-write-probe")
+    try:
+        probe.write_text("", encoding="utf-8")
+    except OSError as exc:
+        raise SystemExit(
+            "error: dag target directory is not writable: "
+            f"{relative_display(paths.root, parent)}: {exc}; {DAG_RECOVERY_HINT}"
+        ) from exc
+    finally:
+        try:
+            probe.unlink()
+        except FileNotFoundError:
+            pass
+
+
 def materialize_feature_artifact(
     paths: HarnessPaths,
     skill_dir: Path,
@@ -769,6 +1033,11 @@ def materialize_feature_artifact(
 ) -> Path:
     state, _ = load_feat(paths, feat_id)
     status = str(state.get("status") or "")
+    if status in CLOSED_FEAT_STATUS:
+        raise SystemExit(
+            "error: closed feats keep only state.json, tasks.json, summary.md, and artifacts/ at the root; "
+            "live-feature helper files are not materializable after closeout"
+        )
     if kind == "proposal":
         target = paths.feat_proposal(feat_id, status=status)
         template = (
@@ -793,13 +1062,20 @@ def materialize_feature_artifact(
     return target
 
 
-def save_feat(paths: HarnessPaths, feat_id: str, state: dict[str, Any], tasks: dict[str, Any]) -> None:
+def save_feat(
+    paths: HarnessPaths,
+    feat_id: str,
+    state: dict[str, Any],
+    tasks: dict[str, Any],
+    *,
+    index_data: dict[str, Any] | None = None,
+) -> None:
     normalize_state_payload(state)
     normalize_tasks_payload(tasks)
     status = str(state.get("status") or "")
     save_json(paths.feat_state(feat_id, status=status), state)
     save_json(paths.feat_tasks(feat_id, status=status), tasks)
-    upsert_feat_index(paths, state)
+    upsert_feat_index(paths, state, index_data=index_data)
 
 
 def find_task(tasks: dict[str, Any], task_id: str) -> dict[str, Any]:
@@ -1254,7 +1530,7 @@ def cmd_materialize_feature_artifact(args: argparse.Namespace) -> int:
     return 0
 
 
-def allocate_feat_id(root: Path, paths: HarnessPaths) -> str:
+def allocate_feat_id(root: Path, paths: HarnessPaths) -> tuple[str, dict[str, Any]]:
     index_data = load_index(paths)
     issuance, _ = ensure_feature_id_issuance(index_data)
     existing_ids = {str(item.get("feat_id", "")) for item in index_data.get("features", [])}
@@ -1278,8 +1554,35 @@ def allocate_feat_id(root: Path, paths: HarnessPaths) -> str:
         if exists(candidate):
             continue
         issuance["next_cursor"] = next_sequence
-        save_index(paths, index_data)
-        return candidate
+        return candidate, index_data
+
+
+def build_create_dag_projection_payload(
+    paths: HarnessPaths,
+    *,
+    feat_id: str,
+    state: dict[str, Any],
+) -> dict[str, Any]:
+    states, _ = load_non_archived_feats(paths)
+    if feat_id in states:
+        raise SystemExit(f"error: feat already exists in active graph: {feat_id}")
+    states[feat_id] = copy.deepcopy(state)
+    all_status_by_feat = feature_status_by_id(paths)
+    all_status_by_feat[feat_id] = str(state.get("status") or "proposal")
+    return build_dag_projection_payload(states, all_status_by_feat=all_status_by_feat)
+
+
+def build_closeout_dag_projection_payload(
+    paths: HarnessPaths,
+    *,
+    feat_id: str,
+    target_status: str,
+) -> dict[str, Any]:
+    states, _ = load_non_archived_feats(paths)
+    states.pop(feat_id, None)
+    all_status_by_feat = feature_status_by_id(paths)
+    all_status_by_feat[feat_id] = target_status
+    return build_dag_projection_payload(states, all_status_by_feat=all_status_by_feat)
 
 
 def cmd_feat_new(args: argparse.Namespace) -> int:
@@ -1299,7 +1602,7 @@ def cmd_feat_new(args: argparse.Namespace) -> int:
     title = args.title.strip()
     goal = args.goal.strip()
     slug = slugify(args.slug if args.slug else title)
-    feat_id = allocate_feat_id(root, paths)
+    feat_id, planned_index_data = allocate_feat_id(root, paths)
     if not is_valid_feat_id(feat_id):
         eprint(f"error: generated invalid feat id: {feat_id}")
         return 1
@@ -1313,20 +1616,6 @@ def cmd_feat_new(args: argparse.Namespace) -> int:
     wt_name = ""
     wt_rel = ""
     wt_abs: Path | None = None
-
-    if workspace_mode == "worktree":
-        try:
-            branch, wt_name, wt_rel, wt_abs, base_ref = make_worktree_assignment(
-                root,
-                feat_id=feat_id,
-                branch_prefix=branch_prefix,
-            )
-        except SystemExit as exc:
-            eprint(str(exc))
-            return 1
-
-    feat_dir = paths.feat_dir(feat_id)
-    feat_dir.mkdir(parents=True, exist_ok=False)
 
     state: dict[str, Any] = {
         "version": 1,
@@ -1363,6 +1652,41 @@ def cmd_feat_new(args: argparse.Namespace) -> int:
         ],
     }
 
+    try:
+        dag_payload = build_create_dag_projection_payload(paths, feat_id=feat_id, state=state)
+    except SystemExit as exc:
+        eprint(str(exc))
+        return 1
+    try:
+        ensure_direct_dag_write_target(paths)
+    except SystemExit as exc:
+        eprint(str(exc))
+        return 1
+    if workspace_mode == "worktree":
+        branch = f"{branch_prefix}{feat_id}"
+        wt_abs = (root / ".worktrees" / f"wt-{feat_id}").resolve()
+        try:
+            ensure_worktree_assignment_preflight(root, branch=branch, wt_abs=wt_abs)
+        except SystemExit as exc:
+            eprint(str(exc))
+            return 1
+    save_index(paths, planned_index_data)
+
+    if workspace_mode == "worktree":
+        try:
+            branch, wt_name, wt_rel, wt_abs, base_ref = make_worktree_assignment(
+                root,
+                feat_id=feat_id,
+                branch_prefix=branch_prefix,
+            )
+        except SystemExit as exc:
+            eprint(str(exc))
+            return 1
+        state["base_ref"] = base_ref
+        state["branch"] = branch
+        state["worktree_name"] = wt_name
+        state["worktree_path"] = wt_rel
+
     tasks: dict[str, Any] = {
         "version": 1,
         "feat_id": feat_id,
@@ -1380,10 +1704,14 @@ def cmd_feat_new(args: argparse.Namespace) -> int:
         ],
     }
 
-    save_feat(paths, feat_id, state, tasks)
+    feat_dir = paths.feat_dir(feat_id)
+    feat_dir.mkdir(parents=True, exist_ok=False)
+    save_feat(paths, feat_id, state, tasks, index_data=planned_index_data)
+    save_json(paths.dag_file, dag_payload)
 
     print(f"write: {feat_dir / 'state.json'}")
     print(f"write: {feat_dir / 'tasks.json'}")
+    print(f"write: {relative_display(root, paths.dag_file)}")
     print(f"workspace_mode: {workspace_mode}")
     print(f"branch: {branch}")
     print(f"worktree: {wt_abs if wt_abs is not None else ''}")
@@ -2018,6 +2346,9 @@ def render_summary(state: dict[str, Any], tasks: dict[str, Any]) -> str:
         if isinstance(val, dict):
             cleanup = val
             break
+    preserved_root_entries = cleanup.get("preserved_root_entries", [])
+    if not isinstance(preserved_root_entries, list):
+        preserved_root_entries = []
 
     return "\n".join(
         [
@@ -2043,6 +2374,7 @@ def render_summary(state: dict[str, Any], tasks: dict[str, Any]) -> str:
             f"- Worktree Staged Patch: {cleanup.get('worktree_staged_patch', '')}",
             f"- Branch Patch: {cleanup.get('branch_patch', '')}",
             f"- Untracked Archive: {cleanup.get('untracked_archive', '')}",
+            f"- Preserved Root Entries: {', '.join(str(item) for item in preserved_root_entries) if preserved_root_entries else ''}",
             f"- Cleanup Note: {cleanup.get('note', '')}",
             "",
             "## Task Stats",
@@ -2159,7 +2491,6 @@ def export_discard_artifacts(
 
 def cmd_feat_archive(args: argparse.Namespace) -> int:
     root = Path(args.root).resolve()
-    skill_dir = Path(args.skill_dir).resolve()
     paths = HarnessPaths(root)
     ensure_harness_exists(paths)
     ensure_git_repo(root)
@@ -2167,6 +2498,25 @@ def cmd_feat_archive(args: argparse.Namespace) -> int:
     state, tasks = load_feat(paths, args.feat)
     workspace_mode = workspace_mode_of(state)
     current_status = str(state.get("status") or "")
+    if current_status == "archived":
+        try:
+            ensure_closed_feat_rerun_state(paths, args.feat, expected_status="archived")
+            archived_path, archived_invalid, wrote, warning = heal_dag_projection(paths)
+        except SystemExit as exc:
+            eprint(str(exc))
+            return 1
+        if archived_path:
+            print(f"archive: {relative_display(root, archived_path)}")
+        if archived_invalid:
+            eprint(
+                "warn: existing FEATURES_DAG.json was malformed; archived the raw file before writing a fresh projection"
+            )
+        if wrote:
+            print(f"write: {relative_display(root, paths.dag_file)}")
+        if warning:
+            eprint(warning)
+        print(f"ok: feat already archived {args.feat}")
+        return 0
     if current_status not in {"done", "blocked", "archived"}:
         eprint(
             "error: feat must be done/blocked before archive "
@@ -2178,6 +2528,21 @@ def cmd_feat_archive(args: argparse.Namespace) -> int:
     base_ref = str(state.get("base_ref") or pick_base_branch(root))
     worktree_path = str(state.get("worktree_path") or "")
     wt_abs = resolve_worktree_abs(root, worktree_path) if worktree_path else None
+
+    try:
+        dag_payload = build_closeout_dag_projection_payload(
+            paths,
+            feat_id=args.feat,
+            target_status="archived",
+        )
+    except SystemExit as exc:
+        eprint(str(exc))
+        return 1
+    try:
+        ensure_direct_dag_write_target(paths)
+    except SystemExit as exc:
+        eprint(str(exc))
+        return 1
 
     branch_exists = bool(branch) and git_local_branch_exists(root, branch)
     branch_merged = bool(branch_exists and git_branch_merged_into(root, branch, base_ref))
@@ -2236,8 +2601,7 @@ def cmd_feat_archive(args: argparse.Namespace) -> int:
         branch_deleted = True
         print(f"ok: branch deleted {branch}")
 
-    if current_status != "archived":
-        state["closed_from_status"] = current_status
+    state["closed_from_status"] = current_status
     state["status"] = "archived"
     state["archived_cleanup"] = {
         "workspace_mode": workspace_mode,
@@ -2256,29 +2620,41 @@ def cmd_feat_archive(args: argparse.Namespace) -> int:
     )
 
     # Physical archive: move feat dir into features-archived/.
-    if current_status != "archived":
-        src_dir = paths.feat_dir(args.feat, status=current_status)
-        dst_dir = paths.feat_dir(args.feat, status="archived")
-        if not src_dir.exists():
-            eprint(f"error: missing feature directory: {src_dir}")
-            return 1
-        if dst_dir.exists():
-            eprint(f"error: archived feature directory already exists: {dst_dir}")
-            return 1
-        dst_dir.parent.mkdir(parents=True, exist_ok=True)
-        try:
-            src_dir.rename(dst_dir)
-        except OSError:
-            shutil.move(str(src_dir), str(dst_dir))
-        print(f"ok: feat dir moved {src_dir} -> {dst_dir}")
+    src_dir = paths.feat_dir(args.feat, status=current_status)
+    dst_dir = paths.feat_dir(args.feat, status="archived")
+    if not src_dir.exists():
+        eprint(f"error: missing feature directory: {src_dir}")
+        return 1
+    if dst_dir.exists():
+        eprint(f"error: archived feature directory already exists: {dst_dir}")
+        return 1
+    move_path(src_dir, dst_dir)
+    print(f"ok: feat dir moved {src_dir} -> {dst_dir}")
+
+    archived_dir = paths.feat_dir(args.feat, status="archived")
+    preserved_root_entries = preserve_closeout_root_entries(
+        archived_dir,
+        include_closeout_root_files=True,
+    )
 
     # Write summary into the archived directory (source of truth after move).
+    state["archived_cleanup"]["preserved_root_entries"] = preserved_root_entries
     summary = render_summary(state, tasks)
     summary_file = paths.feat_summary(args.feat, status="archived")
     write_text(summary_file, summary)
     print(f"write: {summary_file}")
 
     save_feat(paths, args.feat, state, tasks)
+    save_json(paths.dag_file, dag_payload)
+    if preserved_root_entries:
+        print(f"preserved_root_entries: {len(preserved_root_entries)}")
+        print(
+            "preserved_root_dir: "
+            + relative_display(
+                root, archived_dir / "artifacts" / FEATURE_CLOSEOUT_PRESERVE_DIRNAME
+            )
+        )
+    print(f"write: {relative_display(root, paths.dag_file)}")
     print(f"ok: feat archived {args.feat}")
     return 0
 
@@ -2292,6 +2668,22 @@ def cmd_feat_discard(args: argparse.Namespace) -> int:
     state, tasks = load_feat(paths, args.feat)
     current_status = str(state.get("status") or "")
     if current_status == "discarded":
+        try:
+            ensure_closed_feat_rerun_state(paths, args.feat, expected_status="discarded")
+            archived_path, archived_invalid, wrote, warning = heal_dag_projection(paths)
+        except SystemExit as exc:
+            eprint(str(exc))
+            return 1
+        if archived_path:
+            print(f"archive: {relative_display(root, archived_path)}")
+        if archived_invalid:
+            eprint(
+                "warn: existing FEATURES_DAG.json was malformed; archived the raw file before writing a fresh projection"
+            )
+        if wrote:
+            print(f"write: {relative_display(root, paths.dag_file)}")
+        if warning:
+            eprint(warning)
         print(f"ok: feat already discarded {args.feat}")
         return 0
     if current_status == "archived":
@@ -2313,6 +2705,21 @@ def cmd_feat_discard(args: argparse.Namespace) -> int:
             eprint(f"error: replacement feat not indexed: {replacement}")
             return 1
 
+    try:
+        dag_payload = build_closeout_dag_projection_payload(
+            paths,
+            feat_id=args.feat,
+            target_status="discarded",
+        )
+    except SystemExit as exc:
+        eprint(str(exc))
+        return 1
+    try:
+        ensure_direct_dag_write_target(paths)
+    except SystemExit as exc:
+        eprint(str(exc))
+        return 1
+
     if current_status == "in_progress":
         for task in tasks.get("tasks", []):
             if task.get("status") == "in_progress":
@@ -2327,14 +2734,14 @@ def cmd_feat_discard(args: argparse.Namespace) -> int:
     wt_abs = resolve_worktree_abs(root, worktree_path) if worktree_path else None
     feat_dir = paths.feat_dir(args.feat, status=current_status)
 
-    cleanup = export_discard_artifacts(root, feat_dir, base_ref=base_ref, branch=branch, wt_abs=wt_abs)
-
     if workspace_mode == "current_tree":
         changes = non_harness_git_status_lines(root)
         if changes:
             eprint("error: current_tree feature has non-harness changes; discard is not fail-closed")
             eprint("hint: preserve or clean the root tree before discarding this feature")
             return 1
+
+    cleanup = export_discard_artifacts(root, feat_dir, base_ref=base_ref, branch=branch, wt_abs=wt_abs)
 
     worktree_removed = False
     worktree_pruned = False
@@ -2381,14 +2788,14 @@ def cmd_feat_discard(args: argparse.Namespace) -> int:
     if dst_dir.exists():
         eprint(f"error: discarded feature directory already exists: {dst_dir}")
         return 1
-    dst_dir.parent.mkdir(parents=True, exist_ok=True)
-    try:
-        src_dir.rename(dst_dir)
-    except OSError:
-        shutil.move(str(src_dir), str(dst_dir))
+    move_path(src_dir, dst_dir)
     print(f"ok: feat dir moved {src_dir} -> {dst_dir}")
 
     discarded_artifacts_dir = dst_dir / "artifacts"
+    preserved_root_entries = preserve_closeout_root_entries(
+        dst_dir,
+        include_closeout_root_files=True,
+    )
     state["discarded_cleanup"] = {
         "workspace_mode": workspace_mode,
         "base_ref": base_ref,
@@ -2416,6 +2823,7 @@ def cmd_feat_discard(args: argparse.Namespace) -> int:
             if cleanup.get("untracked_archive")
             else ""
         ),
+        "preserved_root_entries": preserved_root_entries,
         "note": (
             "discard closes stale/superseded work while preserving feat artifacts; "
             "worktree mode force-removes worktree and deletes branch after exporting patches when available"
@@ -2428,6 +2836,14 @@ def cmd_feat_discard(args: argparse.Namespace) -> int:
     print(f"write: {summary_file}")
 
     save_feat(paths, args.feat, state, tasks)
+    save_json(paths.dag_file, dag_payload)
+    if preserved_root_entries:
+        print(f"preserved_root_entries: {len(preserved_root_entries)}")
+        print(
+            "preserved_root_dir: "
+            + relative_display(root, discarded_artifacts_dir / FEATURE_CLOSEOUT_PRESERVE_DIRNAME)
+        )
+    print(f"write: {relative_display(root, paths.dag_file)}")
     print(f"ok: feat discarded {args.feat}")
     return 0
 
@@ -2435,16 +2851,21 @@ def cmd_feat_discard(args: argparse.Namespace) -> int:
 def validate_feat(paths: HarnessPaths, root: Path, feat_id: str) -> list[str]:
     errors: list[str] = []
     state, tasks = load_feat(paths, feat_id)
+    status = state.get("status")
 
     if not is_valid_feat_id(feat_id):
         errors.append(f"invalid feat id format: {feat_id}")
 
-    status = state.get("status")
     if status not in FEAT_STATUS:
         errors.append(f"{feat_id}: invalid feature status: {status}")
 
     if state.get("feat_id") != feat_id:
         errors.append(f"{feat_id}: state feat_id mismatch")
+
+    try:
+        canonical_depends_on(state, feat_id=feat_id)
+    except SystemExit as exc:
+        errors.append(normalize_error_text(exc))
 
     index_entry = get_feat_index_entry(load_index(paths), feat_id)
     if index_entry is None:
@@ -2520,9 +2941,12 @@ def validate_feat(paths: HarnessPaths, root: Path, feat_id: str) -> list[str]:
 
     feat_dir = paths.feat_dir(feat_id, status=str(state.get("status") or ""))
     if feat_dir.exists():
-        allowed_files = set(FEATURE_REQUIRED_ROOT_FILES) | set(FEATURE_OPTIONAL_ROOT_FILES)
-        if str(state.get("status") or "") in CLOSED_FEAT_STATUS:
+        is_closed = str(state.get("status") or "") in CLOSED_FEAT_STATUS
+        allowed_files = set(FEATURE_REQUIRED_ROOT_FILES)
+        if is_closed:
             allowed_files |= set(FEATURE_CLOSEOUT_ROOT_FILES)
+        else:
+            allowed_files |= set(FEATURE_OPTIONAL_ROOT_FILES)
         for child in sorted(feat_dir.iterdir()):
             name = child.name
             rel = child.relative_to(root).as_posix()
@@ -2531,7 +2955,13 @@ def validate_feat(paths: HarnessPaths, root: Path, feat_id: str) -> list[str]:
                     errors.append(f"{feat_id}: unsupported feature-root directory: {rel}")
                 continue
             if name not in allowed_files:
-                errors.append(f"{feat_id}: {unsupported_feature_root_file_error(rel)}")
+                errors.append(
+                    f"{feat_id}: {unsupported_feature_root_file_error(rel, closed_root=is_closed)}"
+                )
+        if is_closed:
+            summary_file = paths.feat_summary(feat_id, status=str(state.get("status") or ""))
+            if not summary_file.exists():
+                errors.append(f"{feat_id}: closed feat missing summary.md")
 
     # Validate tracked commit messages for tasks that have commit hash.
     for task in task_items:
@@ -2602,7 +3032,7 @@ def cmd_validate(args: argparse.Namespace) -> int:
     ]
     for legacy_dir in legacy_dirs:
         if legacy_dir.exists():
-            errors.append(f"legacy feature-tracker runtime path is not supported: {legacy_dir}")
+            errors.append(legacy_runtime_path_error(root, legacy_dir))
 
     feats: list[str] = []
     feat_status_by_id: dict[str, str] = {}
@@ -2663,10 +3093,15 @@ def cmd_validate(args: argparse.Namespace) -> int:
         discarded_dir = paths.feat_dir(feat_id, status="discarded")
         if status in CLOSED_FEAT_STATUS:
             if active_dir.exists():
-                errors.append(f"{feat_id}: closed feat dir must not exist in feats/: {active_dir}")
+                errors.append(
+                    f"{feat_id}: closed feat dir must not exist in features directory: "
+                    f"{relative_display(root, active_dir)}"
+                )
             closed_dir = archived_dir if status == "archived" else discarded_dir
             if not closed_dir.exists():
-                errors.append(f"{feat_id}: {status} feat dir missing: {closed_dir}")
+                errors.append(
+                    f"{feat_id}: {status} feat dir missing: {relative_display(root, closed_dir)}"
+                )
             try:
                 state, _ = load_feat(paths, feat_id)
             except SystemExit as exc:
@@ -2677,18 +3112,23 @@ def cmd_validate(args: argparse.Namespace) -> int:
                 wt_abs = resolve_worktree_abs(root, wt_raw)
                 if wt_abs in registered_worktrees:
                     errors.append(
-                        f"{feat_id}: closed feat still has registered git worktree entry: {wt_abs}"
+                        f"{feat_id}: closed feat still has registered git worktree entry: "
+                        f"{relative_display(root, wt_abs)}"
                     )
         else:
             if not active_dir.exists():
-                errors.append(f"{feat_id}: feat dir missing: {active_dir}")
+                errors.append(
+                    f"{feat_id}: feat dir missing: {relative_display(root, active_dir)}"
+                )
             if archived_dir.exists():
                 errors.append(
-                    f"{feat_id}: non-archived feat dir must not exist in features-archived/: {archived_dir}"
+                    f"{feat_id}: non-archived feat dir must not exist in features-archived directory: "
+                    f"{relative_display(root, archived_dir)}"
                 )
             if discarded_dir.exists():
                 errors.append(
-                    f"{feat_id}: non-discarded feat dir must not exist in features-discarded/: {discarded_dir}"
+                    f"{feat_id}: non-discarded feat dir must not exist in features-discarded directory: "
+                    f"{relative_display(root, discarded_dir)}"
                 )
 
     # Detect feat directories missing from index (active + archived).
@@ -2705,37 +3145,42 @@ def cmd_validate(args: argparse.Namespace) -> int:
             if child.is_dir() and child.name not in feats:
                 errors.append(f"discarded feature directory not indexed: {child.name}")
 
-    if paths.dag_file.exists():
+    expected_dag: dict[str, Any] | None = None
+    try:
+        active_states, _ = load_non_archived_feats(paths)
+        expected_dag = build_dag_projection_payload(active_states, all_status_by_feat=feat_status_by_id)
+    except SystemExit as exc:
+        errors.append(normalize_error_text(exc))
+
+    if dag_path_is_non_regular(paths.dag_file):
+        errors.append(
+            f"dag file is not a regular file: {relative_display(root, paths.dag_file)}; {DAG_RECOVERY_HINT}"
+        )
+    elif not paths.dag_file.exists():
+        errors.append(
+            f"missing dag file: {relative_display(root, paths.dag_file)}; {DAG_RECOVERY_HINT}"
+        )
+    else:
         try:
             dag = load_json(paths.dag_file)
         except Exception as exc:  # noqa: BLE001
             errors.append(f"failed to load dag file: {exc}")
         else:
-            if not isinstance(dag, dict):
-                errors.append(f"invalid dag schema: {paths.dag_file}")
+            schema_errors = validate_dag_payload_schema(
+                dag, path=relative_display(root, paths.dag_file)
+            )
+            if schema_errors:
+                errors.extend(schema_errors)
             else:
                 for forbidden in ("execution_mode", "max_parallel", "parallel_recommendation", "first_unfinished_layer"):
                     if forbidden in dag:
                         errors.append(f"dag must not contain execution-planning field: {forbidden}")
 
-                if not isinstance(dag.get("features", []), list):
-                    errors.append(f"invalid dag features schema: {paths.dag_file}")
-                if not isinstance(dag.get("layers", []), list):
-                    errors.append(f"invalid dag layers schema: {paths.dag_file}")
-                if not isinstance(dag.get("notes", []), list):
-                    errors.append(f"invalid dag notes schema: {paths.dag_file}")
-
-                try:
-                    active_states, _ = load_non_archived_feats(paths)
-                    expected_dag = build_dag_projection_payload(active_states, all_status_by_feat=feat_status_by_id)
-                except SystemExit as exc:
-                    errors.append(str(exc))
-                else:
-                    if dag != expected_dag:
-                        errors.append(
-                            "dag projection drift from canonical feature state: "
-                            "run feature-tracker.sh replan-features to regenerate FEATURES_DAG.json"
-                        )
+                if expected_dag is not None and dag != expected_dag:
+                    errors.append(
+                        "dag projection drift from canonical feature state: "
+                        + DAG_RECOVERY_HINT
+                    )
 
     if errors:
         for err in errors:
@@ -2885,13 +3330,186 @@ def dag_is_complete(payload: dict[str, Any]) -> bool:
     return isinstance(features, list) and len(features) == 0
 
 
-def archive_existing_dag(paths: HarnessPaths, payload: dict[str, Any]) -> Path:
+def archive_existing_dag_file(paths: HarnessPaths) -> tuple[Path | None, bool]:
+    if not paths.dag_file.exists():
+        return None, False
+    target = next_numbered_path(paths.dag_archive_dir, prefix="dag-", suffix=".json")
+    try:
+        payload = load_json(paths.dag_file)
+    except Exception:  # noqa: BLE001
+        move_path(paths.dag_file, target)
+        return target, True
+
+    if not isinstance(payload, dict):
+        move_path(paths.dag_file, target)
+        return target, True
+
     archived = json.loads(json.dumps(payload, ensure_ascii=False))
     archived.pop("generated_at", None)
     archived["is_completed_archive"] = dag_is_complete(payload)
-    target = next_numbered_path(paths.dag_archive_dir, prefix="dag-", suffix=".json")
     save_json(target, archived)
-    return target
+    return target, False
+
+
+def validate_dag_payload_schema(payload: Any, *, path: str) -> list[str]:
+    errors: list[str] = []
+    if not isinstance(payload, dict):
+        return [f"invalid dag schema: {path}"]
+
+    if "version" not in payload:
+        errors.append(f"missing dag version field: {path}")
+    else:
+        version = payload.get("version")
+        if not isinstance(version, int) or isinstance(version, bool) or version != 1:
+            errors.append(f"invalid dag version value: {path}")
+
+    if "generated_by" not in payload:
+        errors.append(f"missing dag generated_by field: {path}")
+    else:
+        generated_by = payload.get("generated_by")
+        if generated_by != "bagakit-feature-tracker":
+            errors.append(f"invalid dag generated_by value: {path}")
+
+    if "features" not in payload:
+        errors.append(f"missing dag features field: {path}")
+        features: Any = None
+    else:
+        features = payload.get("features")
+    if features is not None and not isinstance(features, list):
+        errors.append(f"invalid dag features schema: {path}")
+    elif isinstance(features, list):
+        for index, item in enumerate(features):
+            if not isinstance(item, dict):
+                errors.append(f"invalid dag feature entry[{index}] schema: {path}")
+                continue
+            if "feat_id" not in item:
+                errors.append(f"missing dag feat_id field for feature[{index}]: {path}")
+                feat_id = None
+            else:
+                feat_id = item.get("feat_id")
+            if not isinstance(feat_id, str) or not feat_id.strip():
+                errors.append(f"invalid dag feature feat_id[{index}]: {path}")
+            if "depends_on" not in item:
+                errors.append(f"missing dag depends_on field for feature[{index}]: {path}")
+                depends_on = None
+            else:
+                depends_on = item.get("depends_on")
+            if depends_on is not None and not isinstance(depends_on, list):
+                errors.append(f"invalid dag depends_on schema for feature[{index}]: {path}")
+            elif isinstance(depends_on, list) and any(
+                not isinstance(dep, str) or not dep.strip() for dep in depends_on
+            ):
+                errors.append(f"invalid dag depends_on item types for feature[{index}]: {path}")
+            if "dependents" not in item:
+                errors.append(f"missing dag dependents field for feature[{index}]: {path}")
+                dependents = None
+            else:
+                dependents = item.get("dependents")
+            if dependents is not None and not isinstance(dependents, list):
+                errors.append(f"invalid dag dependents schema for feature[{index}]: {path}")
+            elif isinstance(dependents, list) and any(
+                not isinstance(dep, str) or not dep.strip() for dep in dependents
+            ):
+                errors.append(f"invalid dag dependents item types for feature[{index}]: {path}")
+            if "layer" not in item:
+                errors.append(f"missing dag layer field for feature[{index}]: {path}")
+                layer = None
+            else:
+                layer = item.get("layer")
+            if "layer" in item and (not isinstance(layer, int) or isinstance(layer, bool)):
+                errors.append(f"invalid dag layer value for feature[{index}]: {path}")
+
+    if "layers" not in payload:
+        errors.append(f"missing dag layers field: {path}")
+        layers: Any = None
+    else:
+        layers = payload.get("layers")
+    if layers is not None and not isinstance(layers, list):
+        errors.append(f"invalid dag layers schema: {path}")
+    elif isinstance(layers, list):
+        for index, item in enumerate(layers):
+            if not isinstance(item, dict):
+                errors.append(f"invalid dag layer entry[{index}] schema: {path}")
+                continue
+            if "layer" not in item:
+                errors.append(f"missing dag layer field for layer[{index}]: {path}")
+            elif not isinstance(item.get("layer"), int) or isinstance(item.get("layer"), bool):
+                errors.append(f"invalid dag layer id[{index}]: {path}")
+            if "feat_ids" not in item:
+                errors.append(f"missing dag feat_ids field for layer[{index}]: {path}")
+                feat_ids = None
+            else:
+                feat_ids = item.get("feat_ids")
+            if feat_ids is not None and not isinstance(feat_ids, list):
+                errors.append(f"invalid dag layer feat_ids schema[{index}]: {path}")
+            elif isinstance(feat_ids, list) and any(
+                not isinstance(feat_id, str) or not feat_id.strip() for feat_id in feat_ids
+            ):
+                errors.append(f"invalid dag layer feat_ids item types[{index}]: {path}")
+
+    if "notes" not in payload:
+        errors.append(f"missing dag notes field: {path}")
+        notes: Any = None
+    else:
+        notes = payload.get("notes")
+    if notes is not None and not isinstance(notes, list):
+        errors.append(f"invalid dag notes schema: {path}")
+    elif isinstance(notes, list) and any(not isinstance(note, str) for note in notes):
+        errors.append(f"invalid dag notes item types: {path}")
+
+    return errors
+
+
+def heal_dag_projection(paths: HarnessPaths) -> tuple[Path | None, bool, bool, str | None]:
+    archived_path: Path | None = None
+    archived_invalid = False
+    wrote = False
+    warning: str | None = None
+
+    needs_repair = False
+    if not paths.dag_file.exists():
+        needs_repair = True
+    elif dag_path_is_non_regular(paths.dag_file):
+        needs_repair = True
+    else:
+        try:
+            existing = load_json(paths.dag_file)
+        except Exception:  # noqa: BLE001
+            needs_repair = True
+        else:
+            schema_errors = validate_dag_payload_schema(
+                existing, path=relative_display(paths.root, paths.dag_file)
+            )
+            if not schema_errors:
+                return archived_path, archived_invalid, wrote, warning
+            needs_repair = True
+
+    if not needs_repair:
+        return archived_path, archived_invalid, wrote, warning
+
+    try:
+        payload = compute_dag_projection(paths)
+    except SystemExit as exc:
+        warning = (
+            "warn: skipped FEATURES_DAG.json repair on already-closed rerun; "
+            f"active graph recompute failed: {normalize_error_text(exc)}; {DAG_RECOVERY_HINT}"
+        )
+        return archived_path, archived_invalid, wrote, warning
+
+    if paths.dag_file.exists():
+        archived_path, archived_invalid = archive_existing_dag_file(paths)
+    save_json(paths.dag_file, payload)
+    wrote = True
+    return archived_path, archived_invalid, wrote, warning
+
+
+def feature_status_by_id(paths: HarnessPaths) -> dict[str, str]:
+    statuses: dict[str, str] = {}
+    for item in load_index(paths).get("features", []):
+        feat_id = str(item.get("feat_id", ""))
+        if feat_id:
+            statuses[feat_id] = str(item.get("status") or "")
+    return statuses
 
 
 def load_non_archived_feats(paths: HarnessPaths) -> tuple[dict[str, dict[str, Any]], dict[str, dict[str, Any]]]:
@@ -2929,16 +3547,8 @@ def build_dag_projection_payload(
     notes: list[str] = []
     deps_by_feat: dict[str, set[str]] = {}
     for feat_id, state in states.items():
-        raw_deps = state.get("depends_on", [])
-        if not isinstance(raw_deps, list):
-            raw_deps = []
         deps: set[str] = set()
-        for raw_dep in raw_deps:
-            dep = str(raw_dep).strip()
-            if not dep:
-                continue
-            if dep == feat_id:
-                raise SystemExit(f"error: feat cannot depend on itself: {feat_id}")
+        for dep in canonical_depends_on(state, feat_id=feat_id):
             dep_status = all_status_by_feat.get(dep, "")
             if dep_status == "archived":
                 notes.append(f"{feat_id} depends on archived feat {dep}; treated as already satisfied")
@@ -2985,12 +3595,33 @@ def build_dag_projection_payload(
     }
 
 
+def compute_dag_projection(paths: HarnessPaths) -> dict[str, Any]:
+    states, _ = load_non_archived_feats(paths)
+    return build_dag_projection_payload(states, all_status_by_feat=feature_status_by_id(paths))
+
+
+def refresh_dag_projection(
+    paths: HarnessPaths,
+    *,
+    archive_existing: bool = False,
+) -> tuple[dict[str, Any], Path | None, bool]:
+    payload = compute_dag_projection(paths)
+    archived_path: Path | None = None
+    archived_invalid = False
+    if archive_existing:
+        archived_path, archived_invalid = archive_existing_dag_file(paths)
+    save_json(paths.dag_file, payload)
+    return payload, archived_path, archived_invalid
+
+
 def cmd_replan_feats(args: argparse.Namespace) -> int:
     root = Path(args.root).resolve()
     paths = HarnessPaths(root)
     ensure_harness_exists(paths)
 
     states, tasks_by_feat = load_non_archived_feats(paths)
+    proposed_states = {feat_id: copy.deepcopy(state) for feat_id, state in states.items()}
+    all_status_by_feat = feature_status_by_id(paths)
 
     clear_ids = {str(item).strip() for item in (args.clear_dependencies or []) if str(item).strip()}
     for feat_id in clear_ids:
@@ -3011,7 +3642,7 @@ def cmd_replan_feats(args: argparse.Namespace) -> int:
 
     changed_feats: set[str] = set()
     for feat_id in clear_ids:
-        state = states[feat_id]
+        state = proposed_states[feat_id]
         if state.get("depends_on") != []:
             state["depends_on"] = []
             state.setdefault("history", []).append(
@@ -3020,7 +3651,7 @@ def cmd_replan_feats(args: argparse.Namespace) -> int:
             changed_feats.add(feat_id)
 
     for feat_id, deps in set_deps.items():
-        state = states[feat_id]
+        state = proposed_states[feat_id]
         if state.get("depends_on") != deps:
             state["depends_on"] = deps
             state.setdefault("history", []).append(
@@ -3031,32 +3662,31 @@ def cmd_replan_feats(args: argparse.Namespace) -> int:
             )
             changed_feats.add(feat_id)
 
-    for feat_id in sorted(changed_feats, key=feat_sort_key):
-        save_feat(paths, feat_id, states[feat_id], tasks_by_feat[feat_id])
-
-    all_status_by_feat: dict[str, str] = {}
-    for item in load_index(paths).get("features", []):
-        fid = str(item.get("feat_id", ""))
-        if fid:
-            all_status_by_feat[fid] = str(item.get("status") or "")
-
     try:
-        payload = build_dag_projection_payload(states, all_status_by_feat=all_status_by_feat)
+        payload = build_dag_projection_payload(proposed_states, all_status_by_feat=all_status_by_feat)
     except SystemExit as exc:
         eprint(str(exc))
         return 1
 
+    for feat_id in sorted(changed_feats, key=feat_sort_key):
+        save_feat(paths, feat_id, proposed_states[feat_id], tasks_by_feat[feat_id])
+
     archived_path: Path | None = None
+    archived_invalid = False
     if paths.dag_file.exists():
-        archived_path = archive_existing_dag(paths, load_json(paths.dag_file))
+        archived_path, archived_invalid = archive_existing_dag_file(paths)
     save_json(paths.dag_file, payload)
 
-    print(f"write: {paths.dag_file}")
+    print(f"write: {relative_display(root, paths.dag_file)}")
     if archived_path:
-        print(f"archive: {archived_path}")
+        print(f"archive: {relative_display(root, archived_path)}")
+    if archived_invalid:
+        eprint(
+            "warn: existing FEATURES_DAG.json was malformed; archived the raw file before writing a fresh projection"
+        )
     print(f"feature_count: {len(payload.get('features', []))}")
     print(f"layer_count: {len(payload.get('layers', []))}")
-    print(f"next: feature-tracker.sh show-feature-dag --root {root}")
+    print("next: feature-tracker.sh show-feature-dag --root .")
 
     if args.json:
         print(json.dumps(payload, ensure_ascii=False, indent=2))
@@ -3067,21 +3697,36 @@ def cmd_show_feat_dag(args: argparse.Namespace) -> int:
     root = Path(args.root).resolve()
     paths = HarnessPaths(root)
     ensure_harness_exists(paths)
+    if dag_path_is_non_regular(paths.dag_file):
+        eprint(
+            f"error: dag file is not a regular file: {relative_display(root, paths.dag_file)}"
+        )
+        eprint(f"hint: {DAG_RECOVERY_HINT}")
+        return 1
     if not paths.dag_file.exists():
-        eprint(f"error: dag file missing: {paths.dag_file}")
-        eprint("hint: run feature-tracker.sh replan-features first")
+        eprint(f"error: dag file missing: {relative_display(root, paths.dag_file)}")
+        eprint(f"hint: {DAG_RECOVERY_HINT}")
         return 1
 
-    payload = load_json(paths.dag_file)
-    if not isinstance(payload, dict):
-        eprint(f"error: invalid dag schema: {paths.dag_file}")
+    try:
+        payload = load_json(paths.dag_file)
+    except Exception as exc:  # noqa: BLE001
+        eprint(f"error: failed to read dag file: {exc}")
+        eprint(f"hint: {DAG_RECOVERY_HINT}")
+        return 1
+    schema_errors = validate_dag_payload_schema(
+        payload, path=relative_display(root, paths.dag_file)
+    )
+    if schema_errors:
+        eprint(f"error: {schema_errors[0]}")
+        eprint(f"hint: {DAG_RECOVERY_HINT}")
         return 1
 
     if args.json:
         print(json.dumps(payload, ensure_ascii=False, indent=2))
         return 0
 
-    print(f"dag_file: {paths.dag_file}")
+    print(f"dag_file: {relative_display(root, paths.dag_file)}")
     features = payload.get("features", [])
     layers = payload.get("layers", [])
     print(f"feature_count: {len(features) if isinstance(features, list) else 0}")
@@ -3096,7 +3741,11 @@ def cmd_show_feat_dag(args: argparse.Namespace) -> int:
             layer_id = layer.get("layer")
             feat_ids = layer.get("feat_ids", [])
             if not isinstance(feat_ids, list):
-                feat_ids = []
+                eprint(
+                    "error: invalid dag layer feat_ids schema: "
+                    + relative_display(root, paths.dag_file)
+                )
+                return 1
             print(f"- L{layer_id}: {' '.join(str(fid) for fid in feat_ids)}")
 
     if isinstance(features, list) and features:
@@ -3108,9 +3757,11 @@ def cmd_show_feat_dag(args: argparse.Namespace) -> int:
             depends_on = feature.get("depends_on", [])
             dependents = feature.get("dependents", [])
             if not isinstance(depends_on, list):
-                depends_on = []
+                eprint(f"error: invalid dag depends_on schema for {feat_id or '<unknown>'}")
+                return 1
             if not isinstance(dependents, list):
-                dependents = []
+                eprint(f"error: invalid dag dependents schema for {feat_id or '<unknown>'}")
+                return 1
             layer = feature.get("layer")
             print(
                 f"- {feat_id} | layer={layer} | depends_on={','.join(str(item) for item in depends_on) or 'none'} | "

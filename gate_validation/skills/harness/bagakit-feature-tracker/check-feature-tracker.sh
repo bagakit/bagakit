@@ -67,6 +67,19 @@ print(items[0]["feat_id"])
 PY
 )"
 
+python3 - "$TMP_DIR" "$FEATURE_ID" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+root = Path(sys.argv[1])
+feature_id = sys.argv[2]
+dag_path = root / ".bagakit" / "feature-tracker" / "index" / "FEATURES_DAG.json"
+dag_payload = json.loads(dag_path.read_text(encoding="utf-8"))
+assert [item["feat_id"] for item in dag_payload["features"]] == [feature_id]
+assert dag_payload["layers"] == [{"layer": 0, "feat_ids": [feature_id]}]
+PY
+
 bash "$SKILL_DIR/scripts/feature-tracker.sh" assign-feature-workspace --root "$TMP_DIR" --feature "$FEATURE_ID" --workspace-mode current_tree
 bash "$SKILL_DIR/scripts/feature-tracker.sh" start-task --root "$TMP_DIR" --feature "$FEATURE_ID" --task T-001
 bash "$SKILL_DIR/scripts/feature-tracker.sh" show-feature-status --root "$TMP_DIR" --feature "$FEATURE_ID" --json >/dev/null

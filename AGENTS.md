@@ -182,16 +182,8 @@ Maintainer review procedure lives in
 
 ## Commit Rule
 
-For commits made under this migration effort, use `git-commit-nt` instead of
-calling `git commit` directly.
-
-Usage:
-
-```bash
-git-commit-nt <commit-message> [git-commit-args...]
-```
-
-Do not bypass this wrapper unless the user explicitly overrides the rule.
+For migration-effort commits, use `git-commit-nt <commit-message> [args...]`
+instead of `git commit` unless the user explicitly overrides the rule.
 
 ## Working Rule
 
