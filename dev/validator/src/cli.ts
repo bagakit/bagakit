@@ -7,6 +7,7 @@ import type { LoadedProject, SuiteConfig, ValidationClass } from "./lib/model.ts
 import { VALIDATION_CLASSES } from "./lib/model.ts";
 import { describeProcessSuite, hasProcessRunner, runFileSystemSuite, runProcessSuite, validateProcessSuiteShape } from "./lib/runners.ts";
 import { filterSuites, resolveSelectorList, validateSkipAliases } from "./lib/selection.ts";
+import { elapsedMs, nowTick, renderTimingSummary, suiteTimingRecord, type SuiteRunOutcome } from "./lib/timing.ts";
 
 const defaultRoot = path.resolve(fileURLToPath(new URL("../../..", import.meta.url)));
 const defaultConfig = "gate_validation/validation.toml";
@@ -125,6 +126,21 @@ function runSuite(project: LoadedProject, suite: SuiteConfig, requestedParams: s
   return exitCode;
 }
 
+function runSuiteWithTiming(
+  project: LoadedProject,
+  suite: SuiteConfig,
+  requestedParams: string[] = [],
+): { exitCode: number; outcome: SuiteRunOutcome; durationMs: number } {
+  const startedAt = nowTick();
+  const exitCode = runSuite(project, suite, requestedParams);
+  const durationMs = elapsedMs(startedAt);
+  return {
+    exitCode,
+    outcome: exitCode === 0 ? "passed" : "failed",
+    durationMs,
+  };
+}
+
 function cmdCheckConfig(argv: string[]): number {
   const { values } = parseArgs({
     args: argv,
@@ -229,6 +245,8 @@ function cmdRunDefault(argv: string[]): number {
   let passed = 0;
   let failed = 0;
   let skipped = 0;
+  const gateStartedAt = nowTick();
+  const timingRecords = [];
   for (const suite of suites) {
     if (skipIds.has(suite.id)) {
       skipped += 1;
@@ -237,14 +255,21 @@ function cmdRunDefault(argv: string[]): number {
       );
       continue;
     }
-    const exitCode = runSuite(project, suite);
-    if (exitCode === 0) {
+    const result = runSuiteWithTiming(project, suite);
+    timingRecords.push(suiteTimingRecord(suite, result.outcome, result.durationMs));
+    if (result.exitCode === 0) {
       passed += 1;
     } else {
       failed += 1;
     }
   }
   console.log(`Summary: ${passed} passed, ${failed} failed, ${skipped} skipped`);
+  for (const line of renderTimingSummary(timingRecords, {
+    totalWallMs: elapsedMs(gateStartedAt),
+    executionModeLabel: "sequential suites",
+  })) {
+    console.log(line);
+  }
   if (failed > 0) {
     console.error(`Repository validation failed: ${failed} suite(s)`);
     return 1;
@@ -273,7 +298,13 @@ function cmdRunSuite(argv: string[]): number {
   if (hasProcessRunner(suite)) {
     validateProcessSuiteShape(suite, project.repoRoot, requestedParams);
   }
-  return runSuite(project, suite, requestedParams);
+  const result = runSuiteWithTiming(project, suite, requestedParams);
+  for (const line of renderTimingSummary([suiteTimingRecord(suite, result.outcome, result.durationMs)], {
+    totalWallMs: result.durationMs,
+  })) {
+    console.log(line);
+  }
+  return result.exitCode;
 }
 
 function main(argv: string[]): number {

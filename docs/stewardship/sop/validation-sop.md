@@ -62,3 +62,56 @@ When adding a validation extension:
 - keep tool- or skill-specific semantics out of `dev/validator/`
 - keep eval assets out of `gate_validation/`
 - keep compatibility logic out of the validation architecture
+
+## Assertion Choice Rule
+
+Before writing a new validation assertion, choose the proof surface in this
+order:
+
+1. canonical structured state
+2. generated artifact structure
+3. explicit CLI boundary summaries
+4. free-form prose as last resort
+
+Ask these questions:
+
+1. does the owning surface already emit json, toml, ndjson, or another stable
+   machine-readable payload
+2. if yes, why is the check not validating that payload directly
+3. if no, is the current string match proving a real boundary or only checking
+   wording
+4. if the check is wording-heavy, should the owner expose a smaller structured
+   artifact instead
+
+Default stance:
+
+- use string matching sparingly
+- keep exact stdout matching at thin command-smoke boundaries
+- avoid making long markdown or large shell output the primary gate surface
+- move rich semantic checks toward structured owner-owned state whenever
+  feasible
+
+## Timing Review Rule
+
+Before proposing:
+
+- more parallelism
+- prepared repo templates
+- changed-scope execution
+
+collect the current timing summary from the validator first.
+
+Reason:
+
+- Bagakit should optimize against the real current key path
+- per-suite timings are the current primary signal
+- wall-clock total confirms whether aggregate suite cost matches operator pain
+- class totals cluster mutually exclusive suite ownership
+- group totals help cluster cost without inventing fake lane
+  semantics
+
+Interpretation rule:
+
+- treat skipped suites as scheduling information, not executed timing proof
+- treat group totals as overlapping clustering, not as a second additive total
+- do not propose new lane metadata just to make one timing table prettier

@@ -46,6 +46,14 @@ Design rule:
 - do not scatter `validate.sh` or `validation.py` into tool or skill
   directories unless the framework boundary is demonstrably insufficient
 
+Assertion note:
+
+- the validator framework is neutral about what one suite checks
+- repository quality still depends on owner-local assertion discipline
+- owner-local suites should prefer structured state and bounded payload
+  assertions over large free-form string matching whenever the owning surface
+  already exposes machine-readable truth
+
 Implementation note:
 
 - the framework is TypeScript-first
@@ -79,6 +87,21 @@ node --experimental-strip-types dev/validator/src/cli.ts run-default --root . --
 node --experimental-strip-types dev/validator/src/cli.ts run-suite validator-framework-config --root . --config gate_validation/validation.toml
 node --experimental-strip-types dev/validator/src/cli.ts run-default --root . --config gate_eval/validation.toml
 ```
+
+Execution summary note:
+
+- `run-default` emits one timing summary after suite execution
+- the summary reports:
+  - total wall-clock duration for the command
+  - per-suite duration
+  - aggregate duration by `validation_class`
+  - aggregate duration by `groups`
+- skipped suites stay in the execution log, but they are not counted as
+  executed timing rows
+- group totals are intentionally overlapping diagnostic clusters, not an
+  additive replacement for wall-clock duration
+- this is intentionally not called a lane summary, because the current
+  validator does not yet model lanes as a first-class owned concept
 
 Minimal v2 example:
 

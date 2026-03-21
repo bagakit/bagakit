@@ -557,6 +557,172 @@ test("cli run-default supports group filtering and skip aliases", () => {
   }
 });
 
+test("cli run-default prints suite timing summary and validation class aggregates", () => {
+  const repoRoot = makeTempRepo();
+  writeFile(
+    repoRoot,
+    "gate_validation/validation.toml",
+    [
+      "version = 2",
+      "",
+      "[project]",
+      'discovery_roots = ["gate_validation/dev"]',
+      "",
+    ].join("\n"),
+  );
+  writeFile(
+    repoRoot,
+    "gate_validation/dev/example/validation.toml",
+    [
+      "version = 2",
+      "",
+      "[[suite]]",
+      'id = "fast-suite"',
+      'owner = "gate_validation/dev/example"',
+      'description = "fast timing suite"',
+      "default = true",
+      'groups = ["smoke", "fast"]',
+      'validation_class = "smoke"',
+      "",
+      "[suite.runner]",
+      'kind = "executable"',
+      'command = "{node}"',
+      'args = ["scripts/sleep.cjs", "5"]',
+      "",
+      "[[suite]]",
+      'id = "slow-suite"',
+      'owner = "gate_validation/dev/example"',
+      'description = "slow timing suite"',
+      "default = true",
+      'groups = ["smoke", "slow"]',
+      'validation_class = "quality"',
+      "",
+      "[suite.runner]",
+      'kind = "executable"',
+      'command = "{node}"',
+      'args = ["scripts/sleep.cjs", "250"]',
+      "",
+    ].join("\n"),
+  );
+  writeFile(
+    repoRoot,
+    "scripts/sleep.cjs",
+    [
+      "const ms = Number(process.argv[2] || '0');",
+      "setTimeout(() => process.exit(0), ms);",
+      "",
+    ].join("\n"),
+  );
+
+  try {
+    const result = runCli(repoRoot, [
+      "run-default",
+      "--root",
+      repoRoot,
+      "--config",
+      "gate_validation/validation.toml",
+    ]);
+    assert.equal(result.status, 0, result.stderr);
+    assert.ok(result.stdout.includes("Timing summary:"));
+    assert.ok(result.stdout.includes("- total wall time: "));
+    assert.ok(result.stdout.includes("- execution mode: sequential suites"));
+    assert.ok(result.stdout.includes("- executed suite timings (slowest first):"));
+    assert.ok(result.stdout.includes("slow-suite | passed |"));
+    assert.ok(result.stdout.includes("fast-suite | passed |"));
+    assert.ok(result.stdout.includes("- validation_class totals:"));
+    assert.ok(result.stdout.includes("quality | 1 suite |"));
+    assert.ok(result.stdout.includes("smoke | 1 suite |"));
+    const timingSection = result.stdout.slice(result.stdout.indexOf("Timing summary:"));
+    const slowIndex = timingSection.indexOf("slow-suite | passed |");
+    const fastIndex = timingSection.indexOf("fast-suite | passed |");
+    assert.ok(slowIndex >= 0 && fastIndex >= 0 && slowIndex < fastIndex);
+  } finally {
+    rmSync(repoRoot, { recursive: true, force: true });
+  }
+});
+
+test("cli run-default timing summary excludes skipped suites from executed aggregates", () => {
+  const repoRoot = makeTempRepo();
+  writeFile(
+    repoRoot,
+    "gate_validation/validation.toml",
+    [
+      "version = 2",
+      "",
+      "[project]",
+      'discovery_roots = ["gate_validation/dev"]',
+      "",
+      "[[skip_alias]]",
+      'id = "skip-slow"',
+      'selectors = ["group:slow"]',
+      "",
+    ].join("\n"),
+  );
+  writeFile(
+    repoRoot,
+    "gate_validation/dev/example/validation.toml",
+    [
+      "version = 2",
+      "",
+      "[[suite]]",
+      'id = "fast-suite"',
+      'owner = "gate_validation/dev/example"',
+      'description = "fast timing suite"',
+      "default = true",
+      'groups = ["smoke", "fast"]',
+      'validation_class = "smoke"',
+      "",
+      "[suite.runner]",
+      'kind = "executable"',
+      'command = "{node}"',
+      'args = ["scripts/sleep.cjs", "5"]',
+      "",
+      "[[suite]]",
+      'id = "slow-suite"',
+      'owner = "gate_validation/dev/example"',
+      'description = "slow timing suite"',
+      "default = true",
+      'groups = ["smoke", "slow"]',
+      'validation_class = "quality"',
+      "",
+      "[suite.runner]",
+      'kind = "executable"',
+      'command = "{node}"',
+      'args = ["scripts/sleep.cjs", "30"]',
+      "",
+    ].join("\n"),
+  );
+  writeFile(
+    repoRoot,
+    "scripts/sleep.cjs",
+    [
+      "const ms = Number(process.argv[2] || '0');",
+      "setTimeout(() => process.exit(0), ms);",
+      "",
+    ].join("\n"),
+  );
+
+  try {
+    const result = runCli(repoRoot, [
+      "run-default",
+      "--root",
+      repoRoot,
+      "--config",
+      "gate_validation/validation.toml",
+      "--skip-alias",
+      "skip-slow",
+    ]);
+    assert.equal(result.status, 0, result.stderr);
+    assert.ok(result.stdout.includes("SKIP [executable] slow-suite"));
+    assert.ok(result.stdout.includes("fast-suite | passed |"));
+    assert.ok(!result.stdout.includes("slow-suite | skipped |"));
+    assert.ok(!result.stdout.includes("quality | 1 suite |"));
+    assert.ok(!result.stdout.includes("slow | 1 suite |"));
+  } finally {
+    rmSync(repoRoot, { recursive: true, force: true });
+  }
+});
+
 test("cli run-default rejects unknown group filters and check-config validates executable entry scripts", () => {
   const repoRoot = makeTempRepo();
   writeFile(

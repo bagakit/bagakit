@@ -126,6 +126,76 @@ Rule:
 - when built-in runners are not enough, place an extension script under the
   matching gate subtree and call it through a process runner
 
+## Assertion Discipline
+
+Validation quality should prefer high-signal assertions over broad text
+scraping.
+
+Preferred evidence order:
+
+1. canonical structured state
+   - json, toml, ndjson, or other owner-defined machine-readable payloads
+2. stable generated artifact structure
+   - file presence, path placement, schema fields, and bounded section shape
+3. process exit behavior plus bounded payload excerpts
+4. CLI summary lines at explicit command boundaries
+5. free-form prose or large text-body substring matching
+
+Default rule:
+
+- if a stable structured surface exists, validate that surface first
+- do not scrape prose or long CLI output just because it is convenient
+
+Allowed uses of string matching:
+
+- thin CLI smoke boundaries
+- exact contract token presence where the token itself is the stable output
+- placeholder cleanup checks for completion-critical artifacts
+- bounded human-facing report sections when no structured owner surface exists
+
+Discouraged uses of string matching:
+
+- proving semantic correctness of a workflow that already has structured state
+- checking many incidental wording details in long markdown or shell output
+- using line-by-line grep as the main proof for owner-owned runtime behavior
+
+Promotion rule:
+
+- if one validation needs repeated brittle string matching, that is evidence
+  that the owning surface should expose a smaller structured proof artifact
+  instead of expanding the matcher
+
+## Timing Summary Rule
+
+The default repository gate should emit one timing summary after execution.
+
+Current Bagakit rule:
+
+- the summary must report per-suite duration for the suites that actually ran
+- the summary must report one wall-clock total for the command invocation
+- the summary should also report aggregate duration views by existing stable
+  validator metadata such as:
+  - `validation_class`
+  - `groups`
+- skipped suites must remain visible through the regular execution log, but
+  they must not be counted as executed timing records
+- group totals are an overlapping diagnostic clustering view, not an additive
+  second wall-clock total
+
+Current non-goal:
+
+- do not invent fake lane terminology when the validator does not yet model
+  lanes explicitly
+- do not turn timing into a new metadata control plane before scope or lane
+  semantics are real validator-owned concepts
+
+That means today:
+
+- per-suite timing is the primary key-path view
+- class and group totals are diagnostic aggregates
+- future lane timing may be added only after lane semantics become a real
+  validator-owned concept
+
 Current authoring baseline is the v2 runner-table form.
 Configs must declare:
 
@@ -162,6 +232,8 @@ at the same time.
 
 Boundary note:
 
+- `dev/eval/`
+  - shared maintainer-only eval runner mechanics and result-packet helpers
 - `dev/skill_quality/`
   - reusable maintainer tooling, helpers, or harness pieces
 - `gate_eval/`
@@ -173,14 +245,17 @@ Boundary note:
 `gate_eval/` should own:
 
 - fixture and case registration
-- run packet shape
-- result artifact layout
+- registered result artifact layout
 - non-gating quality or benchmark execution
 
 `mem/benchmarks/` should own:
 
 - durable conclusions promoted out of repeated eval observations
 - review-ready benchmark summaries and comparison packets
+
+Related boundary source:
+
+- `docs/specs/eval-system-boundary.md`
 
 ## Protected Boundaries
 
