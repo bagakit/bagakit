@@ -1,0 +1,18 @@
+schema_version = 1
+surface_id = "evolver-runtime"
+surface_root = ".bagakit/evolver"
+owner_kind = "skill"
+owner_id = "bagakit-skill-evolver"
+lifecycle_class = "durable_state"
+edit_policy = "mixed"
+cleanup_safe = false
+source_of_truth = [
+  "docs/specs/runtime-surface-contract.md",
+  "docs/specs/evolver-memory.md",
+  "skills/harness/bagakit-skill-evolver/SKILL.md",
+  ".bagakit/evolver/README.md",
+]
+reviewable_outputs = [
+  "topics/<topic>/README.md",
+  "topics/<topic>/REPORT.md",
+]

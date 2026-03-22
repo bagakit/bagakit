@@ -10,6 +10,10 @@ It exists so research evidence can stay:
 - filesystem-first
 - separate from durable promotion
 
+Machine-readable ownership lives in:
+
+- `surface.toml`
+
 ## What Lives Here
 
 - topic workspaces under `topics/<topic-class>/<topic>/`

@@ -32,6 +32,16 @@ Brainstorm from Markdown context and convert ideas into an analysis + handoff pa
 - Can export one approved brainstorm artifact into canonical planning-entry
   handoff json under `.bagakit/planning-entry/handoffs/`.
 
+## Runtime Surface Declaration
+
+- top-level runtime surface root when materialized:
+  - `.bagakit/brainstorm/`
+- shared exchange path not owned by this skill:
+  - `.bagakit/planning-entry/handoffs/`
+- stable contract:
+  - `docs/specs/runtime-surface-contract.md`
+- if the top-level root exists in a host repo, it should carry `surface.toml`
+
 ## Quick Start
 
 ```bash

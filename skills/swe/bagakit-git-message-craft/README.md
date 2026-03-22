@@ -18,6 +18,14 @@ instead of bloated, chat-dependent text.
 - `archive` defaults to the current branch and treats memory handoff as
   optional.
 
+## Runtime Surface Declaration
+
+- top-level runtime surface root when materialized:
+  - `.bagakit/git-message-craft/`
+- stable contract:
+  - `docs/specs/runtime-surface-contract.md`
+- if the top-level root exists in a host repo, it should carry `surface.toml`
+
 ## Commit shape
 
 ```text

@@ -1,0 +1,20 @@
+schema_version = 1
+surface_id = "living-knowledge-local-state"
+surface_root = ".bagakit/living-knowledge"
+owner_kind = "skill"
+owner_id = "bagakit-living-knowledge"
+lifecycle_class = "generated_state"
+edit_policy = "generated_only"
+cleanup_safe = true
+source_of_truth = [
+  "docs/specs/runtime-surface-contract.md",
+  "docs/specs/living-knowledge-system.md",
+  "skills/harness/bagakit-living-knowledge/SKILL.md",
+  ".bagakit/living-knowledge/README.md",
+]
+reviewable_outputs = [
+  ".generated/guidebook-map.md",
+]
+adjacent_protocol_files = [
+  ".bagakit/knowledge_conf.toml",
+]

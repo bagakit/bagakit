@@ -19,6 +19,14 @@ Split:
 - `bagakit-skill-selector`
   - task-level skill selection and usage evidence under `.bagakit/skill-selector/tasks/<task-slug>/skill-usage.toml`
 
+## Runtime Surface Declaration
+
+- top-level runtime surface root when materialized:
+  - `.bagakit/skill-selector/`
+- stable contract:
+  - `docs/specs/runtime-surface-contract.md`
+- if the top-level root exists in a host repo, it should carry `surface.toml`
+
 ## When To Use
 
 For non-trivial Bagakit-shaped work, selector preflight is mandatory before

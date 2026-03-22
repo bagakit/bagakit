@@ -28,6 +28,16 @@ Use `bagakit-flow-runner` for repeated execution flow.
 For tiny single-shot changes, work directly in the repository tree and keep the
 task local instead of creating tracker lifecycle state.
 
+## Runtime Surface Declaration
+
+- top-level runtime surface root when materialized:
+  - `.bagakit/feature-tracker/`
+- shared exchange path not owned by this skill:
+  - `.bagakit/planning-entry/handoffs/`
+- stable contract:
+  - `docs/specs/runtime-surface-contract.md`
+- if the top-level root exists in a host repo, it should carry `surface.toml`
+
 ## Quick Start
 
 ```bash

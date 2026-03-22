@@ -1,0 +1,18 @@
+schema_version = 1
+surface_id = "skill-selector-runtime"
+surface_root = ".bagakit/skill-selector"
+owner_kind = "skill"
+owner_id = "bagakit-skill-selector"
+lifecycle_class = "durable_state"
+edit_policy = "mixed"
+cleanup_safe = false
+source_of_truth = [
+  "docs/specs/runtime-surface-contract.md",
+  "skills/harness/bagakit-skill-selector/SKILL.md",
+  ".bagakit/skill-selector/README.md",
+]
+reviewable_outputs = [
+  "tasks/<task-slug>/skill-usage.toml",
+  "tasks/<task-slug>/candidate-survey.md",
+  "tasks/<task-slug>/skill-ranking.md",
+]

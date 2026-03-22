@@ -4,15 +4,31 @@
 
 它只解决一件事：起草前，agent 怎么更稳定地判断该选哪张 narrative-angle card。
 
+它不负责拯救基础薄弱的稿子。材料、边界、证据底座不够时，应该退出选卡，改走 depth escalation。
+
 ## 什么时候用
 
 当你已经缩到 1 到 2 个候选卡，但还不确定哪张才是正文主梁时，用这份 heuristic。
 
 如果任务只是局部改写、终稿收束、公告或 API 文档，可以跳过。
 
+如果你连稳定候选都缩不出来，而且原因是对象边界、样本边界、证据底座或原材料主线本身不稳，先看：
+
+- `references/workflow/OPERATING_SURFACE_MATRIX.md`
+- `references/workflow/DEPTH_ESCALATION_LOOP.md`
+- `references/knowledge/DEPTH_RESEARCH_PACKET_TEMPLATE.md`
+- `references/knowledge/REVERSE_OUTLINE_TEMPLATE.md`
+
+不要拿这份 heuristic 代替 research。
+
 ## 先写 5 行路由底稿
 
-在选卡之前，先自己写出这 5 行：
+在选卡之前，先拿到一份 route surface：
+
+- 普通起草：`references/knowledge/PRE_DRAFT_ROUTE_MEMO_TEMPLATE.md`
+- depth escalation 回稿：`references/knowledge/RESEARCH_TO_DRAFT_HANDOFF_TEMPLATE.md`
+
+route surface 里至少要有这 5 行：
 
 1. 标题承诺：这篇文章最终要让读者接受什么判断
 2. 第一问题：读者进入正文时最先想问什么
@@ -20,7 +36,23 @@
 4. 章节运动：各节是在推进一个问题、走一张地图、做几种比较，还是讲规则如何长出来
 5. 退出动作：读者读完后是更会判断对象、更会避错、更会做选择，还是更会复用一条规则
 
-如果这 5 行写不出来，通常说明正文主梁还没选定。
+如果这 5 行写不出来，先判断为什么写不出来：
+
+- 主张还没压实，但材料基础足够：转 `references/workflow/INSIGHT_INTERVIEW_LOOP.md`
+- 材料、证据、对象边界或样本边界不稳：转 `references/workflow/DEPTH_ESCALATION_LOOP.md`
+
+不要在这个状态下继续比较卡片。
+
+## 先判定 foundation problem
+
+下面这些信号一旦出现，说明当前更像基础层缺口，不是主卡和 runner-up 的竞争：
+
+- 标题承诺只能写成模糊立场，无法落到可复核判断
+- 第一问题还依赖补定义、补对象边界、补样本边界
+- `evidence_shape` 说不清，或者任何卡都拿不到够硬的前置证据
+- reverse outline 暴露出原材料没有稳定主线，只有零散观点或样本堆叠
+
+这时应该停止选卡，进入 depth escalation。
 
 ## 快速路由问题
 
@@ -145,7 +177,10 @@
 - `why_not_runner_up`: 为什么 runner-up 不该做主梁
 - `evidence_shape`: 证据会如何移动
 
-如果这 5 行写完还摇摆，优先进入 `S4_insight_loop`，不要硬写正文。
+如果这 5 行写完还摇摆，分两种处理：
+
+- 是用户判断还没被压成更好的标题承诺或第一问题：优先进入 `S4_insight_loop`
+- 是材料、边界或证据底座仍然撑不住任何卡：退出并进入 depth escalation
 
 ## 什么时候必须问用户
 

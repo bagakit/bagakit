@@ -44,6 +44,7 @@ required_files = [
   "Makefile",
   "README.md",
   "docs/specs/tooling-rules.md",
+  "docs/specs/runtime-surface-contract.md",
   "docs/specs/agent-runner-contract.md",
   "docs/specs/validation-system.md",
   "docs/stewardship/roles.md",
@@ -72,6 +73,7 @@ required_files = [
   "gate_validation/validation.toml",
   "gate_validation/backbone/check-canonical-packaging.sh",
   "gate_validation/backbone/check-canonical-skill-layout.sh",
+  "gate_validation/backbone/check-runtime-surface-contract.py",
   "gate_validation/backbone/validation.toml",
   "gate_validation/dev/agent_runner/validation.toml",
   "gate_validation/dev/agent_loop/validation.toml",
@@ -168,6 +170,22 @@ groups = ["repo", "backbone", "smoke"]
 [suite.runner]
 kind = "bash_script"
 script = "gate_validation/backbone/check-canonical-packaging.sh"
+args = [
+  "--root",
+  "{repo_root}",
+]
+
+[[suite]]
+id = "runtime-surface-contract"
+owner = "gate_validation/backbone"
+description = "Require the runtime-surface contract to stay aligned across specs, skill docs, and current materialized .bagakit roots."
+default = true
+validation_class = "contract"
+groups = ["repo", "backbone", "contract", "runtime-surface"]
+
+[suite.runner]
+kind = "python_script"
+script = "gate_validation/backbone/check-runtime-surface-contract.py"
 args = [
   "--root",
   "{repo_root}",

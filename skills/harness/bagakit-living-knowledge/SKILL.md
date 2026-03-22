@@ -38,6 +38,18 @@ This skill does not own:
 
 Those are separate systems.
 
+## Runtime Surface Declaration
+
+- top-level runtime surface root when materialized:
+  - `.bagakit/living-knowledge/`
+- root-adjacent protocol file:
+  - `.bagakit/knowledge_conf.toml`
+- shared checked-in knowledge root, not a project-local runtime root:
+  - `docs/`
+- stable contract:
+  - `docs/specs/runtime-surface-contract.md`
+- if the top-level root exists in a host repo, it should carry `surface.toml`
+
 ## Successor Boundary
 
 This skill is not the full one-to-one successor of legacy

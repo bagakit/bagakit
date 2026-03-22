@@ -103,6 +103,8 @@ Current core references:
 
 - document placement and authority:
   - `docs/specs/document-surface-rules.md`
+- runtime-surface ownership and local root protocol:
+  - `docs/specs/runtime-surface-contract.md`
 - selector entry policy:
   - `docs/specs/selector-selection-model.md`
 

@@ -7,6 +7,16 @@ Standalone local-first research workflow for repositories that need:
 - reusable summaries
 - topic indexes
 
+## Runtime Surface Declaration
+
+- top-level runtime surface root when materialized:
+  - `.bagakit/researcher/`
+- optional root-adjacent protocol file:
+  - `.bagakit/knowledge_conf.toml`
+- stable contract:
+  - `docs/specs/runtime-surface-contract.md`
+- if the top-level root exists in a host repo, it should carry `surface.toml`
+
 ## Core Surfaces
 
 - default runtime root:

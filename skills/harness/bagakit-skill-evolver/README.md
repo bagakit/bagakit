@@ -9,6 +9,18 @@ This skill is the behavioral layer.
 This skill ships its own low-level operator scripts for working with
 `.bagakit/evolver/`.
 
+## Runtime Surface Declaration
+
+- top-level runtime surface root when materialized:
+  - `.bagakit/evolver/`
+- optional intake or context paths not owned as the primary top-level runtime
+  surface:
+  - `.mem_inbox/`
+  - `.bagakit/researcher/topics/<topic-class>/<topic>/`
+- stable contract:
+  - `docs/specs/runtime-surface-contract.md`
+- if the top-level root exists in a host repo, it should carry `surface.toml`
+
 Common intake commands:
 
 - `node --experimental-strip-types skills/harness/bagakit-skill-evolver/scripts/evolver.ts capture-signal ...`

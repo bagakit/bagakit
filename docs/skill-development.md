@@ -42,6 +42,38 @@ Preferred documentation shape for canonical skills when it fits the surface:
 Do not force this exact outline onto every skill.
 Use it as the default when the skill defines one clear bounded runtime surface.
 
+## 0.1.1) Runtime Surface Declaration Policy
+
+Canonical skill docs must also declare project-local runtime-surface ownership.
+
+Required policy:
+
+- `README.md` and `SKILL.md` must agree on the skill's runtime-surface
+  declaration.
+- If the skill owns one or more Bagakit project-local runtime surfaces, name
+  the top-level `.bagakit/<surface>/` roots explicitly.
+- If the skill owns root-adjacent protocol files under `.bagakit/`, name those
+  too.
+- If the skill owns no Bagakit persistent runtime surface by default, say so
+  explicitly.
+- If one declared top-level runtime surface is materialized in a host repo, it
+  must carry `surface.toml` per `docs/specs/runtime-surface-contract.md`.
+- Path-local `AGENTS.md` inside one runtime surface is optional and should be
+  used only when the subtree needs narrower execution guidance than the root
+  `AGENTS.md`.
+
+Recommended shape:
+
+- `Runtime Surface Declaration`
+  - top-level roots
+  - root-adjacent protocol files
+  - shared exchange paths not owned by the skill, when confusion risk is high
+  - stable contract reference
+
+Stable spec:
+
+- `docs/specs/runtime-surface-contract.md`
+
 ## 0.2) Repository Placement Policy (Core vs Domain vs Experimental)
 
 Not every valid Bagakit skill should be onboarded into this meta-repo.

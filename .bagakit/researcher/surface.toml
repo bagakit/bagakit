@@ -1,0 +1,20 @@
+schema_version = 1
+surface_id = "researcher-runtime"
+surface_root = ".bagakit/researcher"
+owner_kind = "skill"
+owner_id = "bagakit-researcher"
+lifecycle_class = "durable_state"
+edit_policy = "mixed"
+cleanup_safe = false
+source_of_truth = [
+  "docs/specs/runtime-surface-contract.md",
+  "skills/harness/bagakit-researcher/SKILL.md",
+  ".bagakit/researcher/README.md",
+]
+reviewable_outputs = [
+  "topics/<topic-class>/<topic>/index.md",
+  "topics/<topic-class>/<topic>/summaries/",
+]
+adjacent_protocol_files = [
+  ".bagakit/knowledge_conf.toml",
+]

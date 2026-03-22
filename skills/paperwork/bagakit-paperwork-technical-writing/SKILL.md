@@ -58,6 +58,15 @@ Deliver technical writing that is readable for publication and actionable for ex
   - `outline.md`: structured outline before drafting.
   - `forum_minutes.md`: when expert-forum review is enabled.
 
+## Runtime Surface Declaration
+
+- top-level Bagakit runtime surface roots:
+  - none by default
+- this skill writes explicit working-directory outputs instead of owning one
+  Bagakit persistent runtime root
+- stable contract:
+  - `docs/specs/runtime-surface-contract.md`
+
 ## Non-Negotiable Boundary
 
 - `article.md` is publish-only narrative.

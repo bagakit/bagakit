@@ -2,9 +2,29 @@
 
 场景 lane 解决的是“这轮工作怎么推进”，叙事视角解决的是“正文按什么命题和顺序推进”。
 
-很多稿子败在正文开头主轴选错。材料未必差，句子也未必假，但读者先收到的是错误的第一问题，于是后面每一节都在补救开头没有立稳的东西。
+很多稿子败在正文开头主轴选错。材料未必差，句子也未必假，但读者先收到的是错误的第一问题，于是后面每一节都在补救开头没有说清的东西。
 
 所以，非 trivial 的长文、方案、研究、方法论说明，在起草前都要先选一个主叙事视角。
+
+但先选视角，不等于拿视角去硬撑一份基础薄弱的稿子。选卡之前，先确认这篇文章已经有资格进入“正文主梁选择”。
+
+## 先过基础门，再选卡
+
+先看 `references/workflow/OPERATING_SURFACE_MATRIX.md`，再用 `references/knowledge/PRE_DRAFT_ROUTE_MEMO_TEMPLATE.md` 压一版最小 route memo。
+
+如果下面任一项还不稳，不要继续翻 narrative-angle 卡，直接转去 `references/workflow/DEPTH_ESCALATION_LOOP.md`：
+
+- 文章承诺写不成一句不含猜测的话
+- 第一问题要靠补对象定义、补边界、补样本边界才能成立
+- 证据形状说不清，或者只能靠空泛判断撑结论
+- 原材料一做 reverse outline 就散，说明主线还没长出来
+
+这条支线需要时，再打开：
+
+- `references/knowledge/DEPTH_RESEARCH_PACKET_TEMPLATE.md`
+- `references/knowledge/REVERSE_OUTLINE_TEMPLATE.md`
+
+不要把“选卡困难”一律理解成“需要更会写”。很多时候，真正缺的是更扎实的材料底座。
 
 ## 叙事视角决定什么
 
@@ -26,7 +46,7 @@
 
 - 这篇文章最终想让读者接受什么判断
 
-这句话写不出来，通常说明视角还没定。
+这句话写不出来，要先判断原因。如果只是主张还没压实，可以继续往下收缩候选；如果是因为对象边界、证据或材料本身不稳，回到 depth escalation，不要继续选卡。
 
 ### 2. 先定义读者此刻的第一问题
 
@@ -42,7 +62,7 @@
 
 ### 3. 在卡片里先缩到 1 到 2 个候选
 
-先去 `references/writing/narrative-angles/` 里找最像的卡，再决定是否需要自己改骨架。卡片提供的是常见结构判断，能把主轴选择前移到起草之前。
+只有 route memo 已经稳定后，才去 `references/writing/narrative-angles/` 里找最像的卡，再决定是否需要自己改骨架。卡片提供的是常见结构判断，能把主轴选择前移到起草之前；它们不是 research substitute。
 
 ### 4. 跑一轮视角复核
 
@@ -53,6 +73,8 @@
 - 这张卡为什么对
 - runner-up 卡为什么不对
 - 标题承诺和第一问题有没有真的对齐
+
+如果复核结果暴露的问题不是“主梁竞争”，而是“证据根本撑不住任何主梁”，就退出选卡流程，回到 depth escalation。
 
 ### 5. 给自己写一个最小视角摘要
 
@@ -66,6 +88,8 @@
 ### 6. 决定要不要向用户确认
 
 默认动作是先选视角。只有多个强候选都会显著改写正文时，才需要向用户确认。
+
+如果真正的问题是材料基础不够，不要把 research 缺口伪装成“请用户二选一”的视角确认题。
 
 ## 什么情况下必须确认
 
@@ -119,6 +143,9 @@
 
 ## 和其他文档的关系
 
+- operating route：看 `references/workflow/OPERATING_SURFACE_MATRIX.md`
+- depth escalation：看 `references/workflow/DEPTH_ESCALATION_LOOP.md`
+- 写前 route memo：看 `references/knowledge/PRE_DRAFT_ROUTE_MEMO_TEMPLATE.md`
 - 场景路由：看 `references/workflow/SCENARIO_ROUTER.md`
 - 场景 SOP：看 `references/workflow/SOP_LANES.md`
 - 视角复核：看 `references/writing/NARRATIVE_ANGLE_REVIEW_HEURISTIC.md`

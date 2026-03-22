@@ -30,7 +30,7 @@ AI_WORDS_ZH = [
     # note: "构建/全面" are often legitimate in technical writing; do NOT flag by default.
     "挂起", "钉死", "挂出来",
     # author-strengthening / floating-action words that often replace object judgment
-    "值钱", "立住",
+    "值钱", "立住", "讲透",
 ]
 
 AI_WORDS_EN = [
@@ -42,6 +42,9 @@ AI_PATTERNS = [
     r"到底是什么",
     r"本文将",
     r"这篇(总结|文章|稿子)(以|将|会|主要)",
+    r"这篇文章(会先|先讲|后讲|分成|主要分为)",
+    r"后文(会|将|分成|展开)",
+    r"下面(先|再)解释(为什么这样写|写法|结构)",
     r"我在整理时",
     r"这里的推断",
     r"值得注意的是",
@@ -55,6 +58,16 @@ AI_PATTERNS = [
     r"最值钱",
     r"值钱的",
     r"立住",
+    r"讲透",
+    # `稳` is too generic for bare-word matching; only flag the common
+    # judgment-smuggling forms that repeatedly correlate with qihan feedback.
+    r"更稳",
+    r"稳很多",
+    r"稳得多",
+    r"稳感",
+    r"稳劲",
+    r"先稳住",
+    r"立稳",
     r"这种说(法|词)",
     r"接得住",
     r"被[^。！？\n]{0,10}接住",
@@ -66,6 +79,24 @@ PORTABILITY_PATTERNS = [
     r"/(?:[^/\s)]+/){2,}[^/\s)]+",
     r"file://",
 ]
+
+INLINE_CODE_RE = re.compile(r"`([^`\n]+)`")
+CODE_CONTEXT_HINTS = (
+    "| Field |",
+    "| Command |",
+    "| Path |",
+    "| Surface |",
+    "| Class |",
+    "| Layer |",
+    "| Focus |",
+    "主要 CLI",
+    "顶层字段",
+    "核心字段",
+    "字段如下",
+    "Command | Role",
+    "Field | Meaning",
+    "Path | Class",
+)
 
 
 @dataclass
@@ -342,6 +373,79 @@ def portability_checks(md: str):
     return findings
 
 
+def looks_codeish(span: str) -> bool:
+    if any(ch in span for ch in "/\\._:=()[]{}@#"):
+        return True
+    if span.startswith("--"):
+        return True
+    if re.fullmatch(r"[A-Z][A-Z0-9_]*", span):
+        return True
+    if re.fullmatch(r"[A-Za-z0-9_:-]+", span) and ("_" in span or any(ch.isdigit() for ch in span)):
+        return True
+    if re.search(r"[a-z][A-Z]", span):
+        return True
+    if re.search(r"\.(md|txt|py|json|yaml|yml|toml|ts|tsx|js|jsx|sh|go|rs)$", span):
+        return True
+    if span.lower() in {"api", "cli", "sdk", "sql", "json", "yaml", "toml", "csv", "http", "https"}:
+        return True
+    return False
+
+
+def line_has_code_context(line: str, prev_nonempty: str) -> bool:
+    haystacks = (line, prev_nonempty)
+    if any(hint in text for text in haystacks for hint in CODE_CONTEXT_HINTS):
+        return True
+    if any(marker in line for marker in (".py", ".md", ".json", ".toml", "*.json", "*.md", "cli.py")):
+        return True
+    return False
+
+
+def inline_code_checks(md: str):
+    findings = []
+    hits = []
+    prev_nonempty = ""
+    table_code_context = False
+    for line_no, raw_line in iter_non_code_lines(md, strip_inline=False):
+        stripped = raw_line.strip()
+        if stripped.startswith("|") and stripped.count("|") >= 2:
+            if any(hint in raw_line for hint in CODE_CONTEXT_HINTS):
+                table_code_context = True
+            elif re.fullmatch(r"\|\s*-+\s*(\|\s*-+\s*)+\|?", stripped):
+                pass
+            context_codeish = table_code_context or line_has_code_context(raw_line, prev_nonempty)
+        else:
+            if stripped:
+                table_code_context = False
+            context_codeish = line_has_code_context(raw_line, prev_nonempty)
+        for match in INLINE_CODE_RE.finditer(raw_line):
+            span = match.group(1).strip()
+            if not span or looks_codeish(span):
+                continue
+            if context_codeish and re.fullmatch(r"[a-z0-9-]+", span):
+                continue
+            if re.fullmatch(r"[A-Za-z][A-Za-z0-9-]*", span) and len(span) <= 3:
+                continue
+            if re.fullmatch(r"[A-Za-z][A-Za-z0-9-]*", span) and span.lower() in {"api", "cli", "sdk", "sql", "json", "yaml", "toml"}:
+                continue
+            if re.fullmatch(r"[\u4e00-\u9fffA-Za-z][\u4e00-\u9fffA-Za-z \-]{1,80}", span):
+                hits.append({"line": line_no, "text": span})
+                continue
+            if " " in span and not looks_codeish(span):
+                hits.append({"line": line_no, "text": span})
+        if raw_line.strip():
+            prev_nonempty = raw_line
+    if hits:
+        findings.append(
+            Finding(
+                "WARN",
+                "INLINE_CODE_PLAIN",
+                "Inline code used for plain-language concepts; prefer prose or bold unless the code identity matters",
+                {"items": hits[:20]},
+            )
+        )
+    return findings
+
+
 def heading_rules(md: str):
     findings = []
     headings = list(iter_headings(md))
@@ -393,6 +497,7 @@ def score(md: str):
     findings += negation_checks(md)
     findings += semicolon_check(md)
     findings += portability_checks(md)
+    findings += inline_code_checks(md)
 
     ratios = line_ratios(md)
     list_blocks = list_block_stats(md)

@@ -1,5 +1,13 @@
 # Research Note Template
 
+如果这轮 research 的目标是“补足文章基础，再回到正文”，优先先看：
+
+- `references/workflow/DEPTH_ESCALATION_LOOP.md`
+- `references/knowledge/DEPTH_RESEARCH_PACKET_TEMPLATE.md`
+- `references/knowledge/RESEARCH_TO_DRAFT_HANDOFF_TEMPLATE.md`
+
+这份模板更适合通用精读和荟萃，不负责 research-to-draft 路由。
+
 ## 单篇精读
 1) 问题定义：它解决的“痛点”是什么？
 2) 核心机制：写入/检索/更新/遗忘/评测 哪个环节创新？

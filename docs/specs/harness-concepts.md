@@ -95,6 +95,7 @@ They do not replace the stable concept registry below.
 
 | Concept | Meaning |
 | --- | --- |
+| `runtime_surface` | one explicit owned project-local Bagakit runtime root or root-adjacent protocol file, usually under `.bagakit/`, with a stable ownership and lifecycle contract |
 | `task` | one concrete execution unit |
 | `task_gate` | the acceptance check that must pass before a task is accepted as done |
 | `task_commit_protocol` | the structured commit contract for task closeout |

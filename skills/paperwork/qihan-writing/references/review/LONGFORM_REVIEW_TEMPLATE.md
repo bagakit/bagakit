@@ -16,6 +16,8 @@
 - [ ] 结尾回到主命题
 - [ ] 首屏 3 段内兑现标题承诺
 - [ ] 没有无依据的人群泛化或拉踩表达
+- [ ] 无上下文读者能在首屏理解文章主张和 stakes
+- [ ] 正文没有把“文章怎么写”误写成内容主线
 
 ## Weighted Review
 
@@ -33,6 +35,7 @@
 | 标题、首屏与正文一致性 |  |  |
 | 分享/收藏动机 |  |  |
 | 完读拉力与段落抓手 |  |  |
+| 无上下文可理解性与跨层穿透力 |  |  |
 
 ## Blind Review
 
@@ -40,6 +43,22 @@
 - Reviewer 类型：`subagent` | `human`
 - 主要结论：
 - 可疑句段：
+
+## Audience Panel Review
+
+- 是否做了 audience panel review：
+- Reviewer 类型：`subagent` | `human`
+- confidence reduced:
+- panel artifact path:
+- 小白 reader verdict：
+- 相关领域 reader verdict：
+- 领域专家 verdict：
+- 各 reviewer 的对照文章：
+- 各 reviewer 的证据句 / 段：
+- 跨角色重复优点：
+- 跨角色重复问题：
+- publish-blocking reason：
+- 结论：`可发` | `需重写首屏` | `需重建主梁` | `需补基础`
 
 ## Craft Bonus
 

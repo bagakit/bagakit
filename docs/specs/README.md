@@ -72,6 +72,7 @@ When specs and stewardship touch the same topic:
 
 Current examples include:
 
+- `runtime-surface-contract.md`
 - `canonical-capability-ladder.md`
 - `document-surface-rules.md`
 - `feature-tracker-contract.md`

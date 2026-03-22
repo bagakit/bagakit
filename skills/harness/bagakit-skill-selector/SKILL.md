@@ -38,6 +38,14 @@ Default stance:
   implementation
 - for trivial one-step work, do not add selector ceremony without a real reason
 
+## Runtime Surface Declaration
+
+- top-level runtime surface root when materialized:
+  - `.bagakit/skill-selector/`
+- stable contract:
+  - `docs/specs/runtime-surface-contract.md`
+- if the top-level root exists in a host repo, it should carry `surface.toml`
+
 ## Positioning
 
 This skill is for task-level or host-level adoption evidence.

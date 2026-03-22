@@ -6,7 +6,6 @@ fit_scenarios:
   - S1_from_scratch
   - S2_synthesis
   - S4_insight_loop
-  - S6_final_polish
 fit_signals:
   - 主题表面不复杂，但一旦落地就会暴露出多个关键难点
   - 如果不先点出难点，后文只会像补充 caveat

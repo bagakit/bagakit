@@ -25,6 +25,14 @@ It does not own feature or task planning truth. That belongs to
 For tracker-sourced items, feature lifecycle remains upstream; the runner owns
 only local execution state and sidecars.
 
+## Runtime Surface Declaration
+
+- top-level runtime surface root when materialized:
+  - `.bagakit/flow-runner/`
+- stable contract:
+  - `docs/specs/runtime-surface-contract.md`
+- if the top-level root exists in a host repo, it should carry `surface.toml`
+
 ## Quick Start
 
 ```bash

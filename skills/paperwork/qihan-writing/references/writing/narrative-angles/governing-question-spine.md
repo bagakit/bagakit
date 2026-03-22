@@ -6,7 +6,6 @@ fit_scenarios:
   - S1_from_scratch
   - S2_synthesis
   - S4_insight_loop
-  - S6_final_polish
 fit_signals:
   - 文章很长，但其实都在回答同一个核心问题
   - 有很多 anecdote、case 或 side path，需要一根主线把它们拴住

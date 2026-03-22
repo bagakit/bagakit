@@ -85,6 +85,18 @@ Optional local context may live under:
 
 Those researcher paths are weak references only.
 
+## Runtime Surface Declaration
+
+- top-level runtime surface root when materialized:
+  - `.bagakit/evolver/`
+- optional intake or context paths not owned as the primary top-level runtime
+  surface:
+  - `.mem_inbox/`
+  - `.bagakit/researcher/topics/<topic-class>/<topic>/`
+- stable contract:
+  - `docs/specs/runtime-surface-contract.md`
+- if the top-level root exists in a host repo, it should carry `surface.toml`
+
 ## Four-Layer Rule
 
 Think in these layers:

@@ -15,30 +15,31 @@ Many drafts are structurally correct but still weak in three places:
 `qihan-writing` turns those problems into an explicit runtime workflow:
 
 - identify the writing scenario first
+- route the operator through one visible operating surface before drafting
 - choose a narrative angle before drafting longform text
+- escalate into deeper research when the article foundation is weak instead of forcing a card choice
 - force evidence and mechanism ahead of vague praise
 - absorb user rewrites as reusable rules
 - run a lightweight lint pass before publishing or long-term storage
-- review longform drafts with an explicit rubric instead of relying on taste alone
+- review longform drafts with an explicit rubric and a multi-role quiet-room panel instead of relying on taste alone
+
+## Operator route
+
+- `Must do`
+  Open `references/workflow/OPERATING_SURFACE_MATRIX.md` first. It is the authoritative router.
+- `Must read before non-trivial drafting`
+  Follow the route-scoped must-read set defined in `references/workflow/OPERATING_SURFACE_MATRIX.md`. Do not reconstruct your own reading list from scattered docs.
+- `Escalate when foundation is weak`
+  If you cannot state a stable article promise, first question, object boundary, or evidence shape, switch to `references/workflow/DEPTH_ESCALATION_LOOP.md` and use its packet / handoff route before you return to card selection.
 
 ## What ships in this skill
 
-- `SKILL.md`
-  runtime workflow and hard style constraints
-- `references/README.md`
-  grouped index for workflow, writing, knowledge, and review
-- `references/*`
-  workflow rules, writing rules, knowledge assets, and review standards
-- `references/writing/NARRATIVE_ANGLE_SELECTION.md`
-  angle-selection guide that separates workflow lane choice from article spine choice
-- `references/writing/NARRATIVE_ANGLE_REVIEW_HEURISTIC.md`
-  pre-draft routing heuristic for picking the right narrative-angle card
-- `references/writing/narrative-angles/*`
-  reusable narrative-angle cards with frontmatter-scoped fit signals, representative articles, and mini reverse outlines
-- `scripts/qihan_write_lint.py`
-  objective markdown checks for structure, list ratio, AI-ish wording, negation-crutch overuse, and local-path leakage
-- `agents/openai.yaml`
-  runtime metadata for agent surfaces that read agent descriptors
+- one operator route for starting, escalating, and reviewing
+- one writing route for card selection and structural drafting
+- one knowledge route for packet, handoff, reverse-outline, and route-tool compression
+- one review route for lint, rubric, and longform checks
+
+File-level inventory stays in `references/README.md`.
 
 ## Runtime Surface Declaration
 
@@ -52,13 +53,13 @@ Many drafts are structurally correct but still weak in three places:
 ## Reference layout
 
 - `references/workflow`
-  route the task, choose the lane, govern interaction, run insight loop, absorb rewrites
+  route the task, choose the lane, govern interaction, decide depth escalation, run insight loop, absorb rewrites
 - `references/writing`
-  voice, angle selection, angle review, structure, layout, tone, POV, and no-regression rules
+  voice, inline-code discipline, angle selection, angle review, structure, layout, tone, POV, and no-regression rules
 - `references/knowledge`
-  evidence architecture, research template, interview record template, and rewrite casebook
+  route memos, depth research packets, research handoffs, reverse outlines, evidence architecture, research templates, interview records, and rewrite casebooks
 - `references/review`
-  lint-facing metrics, longform rubric, and review template
+  lint-facing metrics, audience-panel review, longform rubric, and review templates
 
 ## Notes on examples
 
@@ -71,7 +72,12 @@ identifiers into the runtime payload.
 
 ```bash
 python3 scripts/qihan_write_lint.py article.md
+python3 scripts/qihan_route_tools.py check-foundation route-memo.md
+python3 scripts/qihan_route_tools.py derive-route handoff.md --output route-state.md
 ```
+
+`derive-route` only emits a derived route-state view. The handoff remains the
+authority surface.
 
 Exit code semantics:
 

@@ -20,6 +20,14 @@ Two bounded surfaces:
 - Record only non-inferable facts; leave timestamps/authorship/hash to Git itself.
 - Force the message to resolve context, not rely on local conversational memory.
 
+## Runtime Surface Declaration
+
+- top-level runtime surface root when materialized:
+  - `.bagakit/git-message-craft/`
+- stable contract:
+  - `docs/specs/runtime-surface-contract.md`
+- if the top-level root exists in a host repo, it should carry `surface.toml`
+
 ## When to Use This Skill
 
 - User asks to split mixed changes into clearer commits.

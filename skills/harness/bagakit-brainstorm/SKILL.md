@@ -18,6 +18,16 @@ Turn Markdown inputs into clear options, decisions, and an explicit handoff pack
 - Keep this skill standalone-first so it works without mandatory external systems.
 - Keep outputs structured and reusable as Markdown artifacts in the project.
 
+## Runtime Surface Declaration
+
+- top-level runtime surface root when materialized:
+  - `.bagakit/brainstorm/`
+- shared exchange path not owned by this skill:
+  - `.bagakit/planning-entry/handoffs/`
+- stable contract:
+  - `docs/specs/runtime-surface-contract.md`
+- if the top-level root exists in a host repo, it should carry `surface.toml`
+
 ## Memory Quality Rules
 
 All durable brainstorm records should satisfy both:
