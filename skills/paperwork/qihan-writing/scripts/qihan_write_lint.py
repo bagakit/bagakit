@@ -29,6 +29,8 @@ AI_WORDS_ZH = [
     "赋能", "打造", "范式",
     # note: "构建/全面" are often legitimate in technical writing; do NOT flag by default.
     "挂起", "钉死", "挂出来",
+    # author-strengthening / floating-action words that often replace object judgment
+    "值钱", "立住",
 ]
 
 AI_WORDS_EN = [
@@ -50,6 +52,9 @@ AI_PATTERNS = [
     r"最容易被[^\n，。,]{0,8}",
     r"说轻",
     r"钉住",
+    r"最值钱",
+    r"值钱的",
+    r"立住",
     r"这种说(法|词)",
     r"接得住",
     r"被[^。！？\n]{0,10}接住",
@@ -414,7 +419,7 @@ def score(md: str):
 
 def parse_args(argv):
     parser = argparse.ArgumentParser(description="Static checks for qihan-writing markdown.")
-    parser.add_argument("path", help="Path to the markdown file")
+    parser.add_argument("path", help="Path to the markdown file or directory")
     parser.add_argument(
         "--fail-on",
         choices=("warn", "fail", "none"),
@@ -424,15 +429,22 @@ def parse_args(argv):
     return parser.parse_args(argv[1:])
 
 
-def main(argv):
-    args = parse_args(argv)
-    p = Path(args.path).expanduser()
-    if not p.exists():
-        print(f"file not found: {p}")
-        return 2
+def summarize_findings(findings: list[Finding]) -> dict:
+    by_level: dict[str, int] = {}
+    by_code: dict[str, int] = {}
+    for finding in findings:
+        by_level[finding.level] = by_level.get(finding.level, 0) + 1
+        by_code[finding.code] = by_code.get(finding.code, 0) + 1
+    return {
+        "total": len(findings),
+        "byLevel": by_level,
+        "byCode": dict(sorted(by_code.items())),
+    }
+
+
+def lint_one_file(p: Path) -> tuple[dict, list[Finding]]:
     md = read_text(p)
     findings, ratios, list_blocks, stats = score(md)
-
     report = {
         "file": str(p),
         "ratios": ratios,
@@ -440,6 +452,43 @@ def main(argv):
         "paragraph": stats,
         "findings": [f.__dict__ for f in findings],
     }
+    return report, findings
+
+
+def lint_directory(p: Path) -> tuple[dict, list[Finding]]:
+    files = sorted(
+        candidate for candidate in p.rglob("*.md")
+        if candidate.is_file()
+    )
+    reports = []
+    all_findings: list[Finding] = []
+    files_with_findings = 0
+    for file_path in files:
+        report, findings = lint_one_file(file_path)
+        reports.append(report)
+        all_findings.extend(findings)
+        if findings:
+            files_with_findings += 1
+    summary = {
+        "path": str(p),
+        "filesScanned": len(files),
+        "filesWithFindings": files_with_findings,
+        "findings": summarize_findings(all_findings),
+    }
+    return {"path": str(p), "summary": summary, "files": reports}, all_findings
+
+
+def main(argv):
+    args = parse_args(argv)
+    p = Path(args.path).expanduser()
+    if not p.exists():
+        print(f"file not found: {p}")
+        return 2
+
+    if p.is_dir():
+        report, findings = lint_directory(p)
+    else:
+        report, findings = lint_one_file(p)
 
     print(json.dumps(report, ensure_ascii=False, indent=2))
 

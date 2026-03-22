@@ -7,11 +7,16 @@ not like a flat file dump.
 
 1. `references/workflow/SCENARIO_ROUTER.md`
 2. `references/workflow/SOP_LANES.md`
-3. `references/workflow/INTERACTION_CONTRACT.md`
-4. `references/writing/STRUCTURE_PYRAMID.md`
-5. `references/review/QA_HARD_METRICS.md`
-6. `references/review/LONGFORM_RUBRIC.md`
-7. `references/knowledge/REWRITE_CASEBOOK.md`
+3. `references/writing/NARRATIVE_ANGLE_SELECTION.md`
+4. `references/writing/NARRATIVE_ANGLE_REVIEW_HEURISTIC.md`
+5. `references/workflow/INTERACTION_CONTRACT.md`
+6. `references/writing/STRUCTURE_PYRAMID.md`
+7. `references/review/QA_HARD_METRICS.md`
+8. `references/review/LONGFORM_RUBRIC.md`
+9. `references/knowledge/REWRITE_CASEBOOK.md`
+
+If the task is interview feedback or hiring notes, also open
+`references/knowledge/INTERVIEW_RECORD_TEMPLATE.md`.
 
 ## Directory map
 
@@ -30,6 +35,12 @@ not like a flat file dump.
 
 ### writing
 
+- `references/writing/NARRATIVE_ANGLE_SELECTION.md`
+  choose the article spine before drafting
+- `references/writing/NARRATIVE_ANGLE_REVIEW_HEURISTIC.md`
+  run a pre-draft heuristic to justify the chosen card and reject runner-up cards
+- `references/writing/narrative-angles/README.md`
+  card index for reusable narrative angles
 - `references/writing/STRUCTURE_PYRAMID.md`
   3-7 hierarchy rule
 - `references/writing/FEISHU_LAYOUT.md`
@@ -51,6 +62,8 @@ not like a flat file dump.
   split judgment, appendix, sample frame, glossary, and evidence portability
 - `references/knowledge/RESEARCH_TEMPLATE.md`
   reading and synthesis skeletons
+- `references/knowledge/INTERVIEW_RECORD_TEMPLATE.md`
+  structured interview note and final recommendation template
 - `references/knowledge/REWRITE_CASEBOOK.md`
   sentence-level rewrite samples and generalization patterns
 
