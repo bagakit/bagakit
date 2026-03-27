@@ -66,6 +66,33 @@ function gitWorktreeCount(tempRepo: string, replacements: { from: string; to: st
     .length;
 }
 
+function readFeatureState(tempRepo: string, featId: string): Record<string, unknown> {
+  const statePath = path.join(tempRepo, ".bagakit", "feature-tracker", "features", featId, "state.json");
+  return JSON.parse(fs.readFileSync(statePath, "utf8")) as Record<string, unknown>;
+}
+
+function readFeatureTasks(tempRepo: string, featId: string): { tasks: Array<Record<string, unknown>> } {
+  const tasksPath = path.join(tempRepo, ".bagakit", "feature-tracker", "features", featId, "tasks.json");
+  return JSON.parse(fs.readFileSync(tasksPath, "utf8")) as { tasks: Array<Record<string, unknown>> };
+}
+
+function writeRuntimePolicy(tempRepo: string, mutate: (policy: Record<string, unknown>) => void): void {
+  const policyPath = path.join(tempRepo, ".bagakit", "feature-tracker", "runtime-policy.json");
+  const policy = JSON.parse(fs.readFileSync(policyPath, "utf8")) as Record<string, unknown>;
+  mutate(policy);
+  fs.writeFileSync(policyPath, `${JSON.stringify(policy, null, 2)}\n`);
+}
+
+function configureWorktreeSentinelGate(tempRepo: string, sentinelPath: string): void {
+  writeRuntimePolicy(tempRepo, (policy) => {
+    const gate = (policy.gate && typeof policy.gate === "object" ? policy.gate : {}) as Record<string, unknown>;
+    gate.project_type = "non_ui";
+    gate.verification_policy = "never";
+    gate.non_ui_commands = [`test -f ${sentinelPath}`];
+    policy.gate = gate;
+  });
+}
+
 export const SUITE: EvalSuiteDefinition = {
   id: "bagakit-feature-tracker-shared-runner-eval",
   owner: "gate_eval/skills/harness/bagakit-feature-tracker",
@@ -163,6 +190,124 @@ export const SUITE: EvalSuiteDefinition = {
             outputs: {
               feat_id: featId,
               status_keys: Object.keys(statusPayload),
+            },
+            replacements,
+          };
+        } finally {
+          cleanupTempDir(tempRepo, context.keepTemp);
+        }
+      },
+    },
+    {
+      id: "worktree-execution-root-contract",
+      title: "Worktree Execution Root Contract",
+      summary: "Worktree-mode gates and executed commits should run from the assigned feature worktree, not the root checkout.",
+      focus: ["workspace-mode", "run-task-gate", "prepare-task-commit", "commit-contract"],
+      run: (context) => {
+        const { repoRoot } = context;
+        const tempRepo = createTempDir("bagakit-feature-tracker-worktree-context-");
+        const replacements = registerTempRepo(context, tempRepo);
+        try {
+          initGitRepo(tempRepo, replacements);
+
+          const script = path.join(repoRoot, "skills", "harness", "bagakit-feature-tracker", "scripts", "feature-tracker.sh");
+          const contractPath = path.join(repoRoot, "docs", "specs", "feature-tracker-contract.md");
+          const readmePath = path.join(repoRoot, "skills", "harness", "bagakit-feature-tracker", "README.md");
+          const skillPath = path.join(repoRoot, "skills", "harness", "bagakit-feature-tracker", "SKILL.md");
+          assert.ok(fs.readFileSync(contractPath, "utf8").includes("git -C <execution-root>"));
+          assert.ok(fs.readFileSync(contractPath, "utf8").includes("Concurrency Contract"));
+          assert.ok(fs.readFileSync(readmePath, "utf8").includes("git -C <execution-root>"));
+          assert.ok(fs.readFileSync(skillPath, "utf8").includes("git -C <execution-root>"));
+
+          expectOk(runCommand("bash", [script, "check-reference-readiness", "--root", tempRepo], { cwd: repoRoot, replacements }), "check-reference-readiness");
+          expectOk(runCommand("bash", [script, "initialize-tracker", "--root", tempRepo], { cwd: repoRoot, replacements }), "initialize-tracker");
+          expectOk(
+            runCommand(
+              "bash",
+              [script, "create-feature", "--root", tempRepo, "--title", "Worktree gate feature", "--slug", "worktree-gate-feature", "--goal", "Run gate from the feature worktree", "--workspace-mode", "worktree"],
+              { cwd: repoRoot, replacements },
+            ),
+            "create worktree gate feature",
+          );
+
+          const gateFeatId = featureIdByTitle(tempRepo, "Worktree gate feature");
+          const gateState = readFeatureState(tempRepo, gateFeatId);
+          const gateWorktreePath = path.join(tempRepo, String(gateState.worktree_path));
+          const gateSentinel = path.join(gateWorktreePath, "worktree-only", "gate-sentinel.txt");
+          writeTextFile(gateSentinel, "gate should run in the feature worktree\n");
+          configureWorktreeSentinelGate(tempRepo, "worktree-only/gate-sentinel.txt");
+
+          expectOk(runCommand("bash", [script, "start-task", "--root", tempRepo, "--feature", gateFeatId, "--task", "T-001"], { cwd: repoRoot, replacements }), "start gate task");
+          expectOk(runCommand("bash", [script, "run-task-gate", "--root", tempRepo, "--feature", gateFeatId, "--task", "T-001"], { cwd: repoRoot, replacements }), "run gate from worktree");
+          const gateTask = readFeatureTasks(tempRepo, gateFeatId).tasks[0];
+          assert.equal(gateTask.gate_result, "pass");
+          const gateCommands = gateTask.last_gate_commands as Array<Record<string, unknown>>;
+          assert.equal(gateCommands.length, 1);
+          assert.equal(gateCommands[0].command, "test -f worktree-only/gate-sentinel.txt");
+          assert.equal(gateCommands[0].exit_code, 0);
+          assert.equal(gateCommands[0].status, "pass");
+
+          expectOk(
+            runCommand(
+              "bash",
+              [script, "create-feature", "--root", tempRepo, "--title", "Worktree commit feature", "--slug", "worktree-commit-feature", "--goal", "Commit from the feature worktree branch", "--workspace-mode", "worktree"],
+              { cwd: repoRoot, replacements },
+            ),
+            "create worktree commit feature",
+          );
+
+          const commitFeatId = featureIdByTitle(tempRepo, "Worktree commit feature");
+          const commitState = readFeatureState(tempRepo, commitFeatId);
+          const commitBranch = String(commitState.branch);
+          const commitWorktreePath = path.join(tempRepo, String(commitState.worktree_path));
+          const commitSentinelRel = "worktree-only/commit-sentinel.txt";
+          writeTextFile(path.join(commitWorktreePath, commitSentinelRel), "commit should be created from the feature worktree\n");
+          expectOk(runCommand("git", ["add", commitSentinelRel], { cwd: commitWorktreePath, replacements }), "stage worktree sentinel");
+          configureWorktreeSentinelGate(tempRepo, commitSentinelRel);
+          expectOk(runCommand("bash", [script, "start-task", "--root", tempRepo, "--feature", commitFeatId, "--task", "T-001"], { cwd: repoRoot, replacements }), "start commit task");
+          expectOk(runCommand("bash", [script, "run-task-gate", "--root", tempRepo, "--feature", commitFeatId, "--task", "T-001"], { cwd: repoRoot, replacements }), "run commit gate from worktree");
+          expectOk(
+            runCommand(
+              "bash",
+              [script, "prepare-task-commit", "--root", tempRepo, "--feature", commitFeatId, "--task", "T-001", "--summary", "Commit worktree sentinel", "--task-status", "done", "--execute"],
+              { cwd: repoRoot, replacements },
+            ),
+            "execute commit from worktree",
+          );
+
+          const lastCommitHash = String(readFeatureTasks(tempRepo, commitFeatId).tasks[0].last_commit_hash);
+          assert.match(lastCommitHash, new RegExp("^[0-9a-f]{40}$"));
+          expectOk(runCommand("git", ["cat-file", "-e", `${lastCommitHash}^{commit}`], { cwd: tempRepo, replacements }), "commit exists");
+          expectOk(runCommand("git", ["merge-base", "--is-ancestor", lastCommitHash, commitBranch], { cwd: tempRepo, replacements }), "commit is on feature branch");
+          const treeResult = runCommand("git", ["ls-tree", "-r", "--name-only", lastCommitHash], { cwd: tempRepo, replacements });
+          expectOk(treeResult, "inspect commit tree");
+          assert.ok(treeResult.stdout.split("\n").includes(commitSentinelRel));
+          assert.equal(runCommand("git", ["rev-parse", "HEAD"], { cwd: commitWorktreePath, replacements }).stdout.trim(), lastCommitHash);
+          assert.equal(runCommand("git", ["rev-parse", commitBranch], { cwd: tempRepo, replacements }).stdout.trim(), lastCommitHash);
+          assert.notEqual(runCommand("git", ["rev-parse", "HEAD"], { cwd: tempRepo, replacements }).stdout.trim(), lastCommitHash);
+
+          return {
+            assertions: [
+              "worktree-mode gate commands execute from the assigned feature worktree and can see a worktree-only sentinel file",
+              "prepare-task-commit --execute records last_commit_hash for a commit created on the assigned worktree feature branch",
+              "the recorded feature-branch commit includes the worktree-only staged file and does not become the root checkout HEAD",
+              "operator guidance uses git -C <execution-root> for worktree commit commands",
+            ],
+            commands: [
+              `bash ${script} create-feature --root <temp-repo> --title "Worktree gate feature" --slug "worktree-gate-feature" --goal "Run gate from the feature worktree" --workspace-mode worktree`,
+              `bash ${script} run-task-gate --root <temp-repo> --feature ${gateFeatId} --task T-001`,
+              `bash ${script} prepare-task-commit --root <temp-repo> --feature ${commitFeatId} --task T-001 --summary "Commit worktree sentinel" --task-status done --execute`,
+            ],
+            artifacts: [
+              { label: "feature-contract", path: contractPath },
+              { label: "gate-worktree-sentinel", path: gateSentinel },
+              { label: "commit-worktree-sentinel", path: path.join(commitWorktreePath, commitSentinelRel) },
+            ],
+            outputs: {
+              gate_feat_id: gateFeatId,
+              commit_feat_id: commitFeatId,
+              last_commit_hash: lastCommitHash,
+              commit_branch: commitBranch,
             },
             replacements,
           };

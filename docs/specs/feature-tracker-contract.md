@@ -243,7 +243,52 @@ Required invariants:
 - `current_tree` carries no dedicated branch or worktree assignment
 - `worktree` carries branch, worktree name, and worktree path together
 
+Workspace assignment determines the execution root for task gate and commit
+commands:
+
+- `worktree` features execute task gates from the assigned worktree path
+- `worktree` features execute task commits from the assigned worktree path and
+  branch
+- `current_tree` features execute task gates and commits from the repository
+  root supplied to the tracker command
+- `proposal_only` features must not run task gates or commits against a hidden
+  implementation tree
+
+Task commit guidance for worktree features must show commit commands as
+`git -C <execution-root> ...`, where `<execution-root>` is the assigned
+worktree path. Guidance must not imply that a worktree feature commit should be
+created from the root checkout. Closeout merge guidance may still target the
+repository root checkout because Git does not allow the same branch to be
+checked out in multiple worktrees.
+
 The mode set is part of tracker contract, not a transient implementation detail.
+
+## Concurrency Contract
+
+Tracker state mutation must be serialized at the repository level.
+
+Required behavior:
+
+- concurrent tracker commands must not corrupt `features.json`, `state.json`,
+  `tasks.json`, or `FEATURES_DAG.json`
+- long-running task gate and commit execution must not hold the global tracker
+  state lock for the whole external command duration
+- task gate and commit commands must capture the feature workspace assignment
+  before executing external commands and revalidate that assignment before
+  writing results back to tracker state
+- workspace assignment must not be changed while a feature has an `in_progress`
+  task
+- feature discard must not close or clean up a feature while a task is
+  `in_progress`; the active task must be finished first
+- worktree execution must verify that the assigned worktree path is a registered
+  Git worktree and that its checked-out branch matches feature state
+- tracker-initiated commit execution against the same execution root must be
+  serialized so the recorded `last_commit_hash` refers to the commit just
+  created by that command
+
+Concurrency does not mean multiple simultaneous implementation tasks inside one
+feature. A feature still has at most one `current_task_id`; parallel work should
+be represented as independent features or independent worktrees.
 
 ## Optional Artifact Rule
 
@@ -329,6 +374,16 @@ Required trailers:
 - `Task-Status: done|blocked`
 
 `Task-Status: done` requires `Gate-Result: pass`.
+
+Executed commit behavior:
+
+- the same workspace execution-root rule applies to `prepare-task-commit
+  --execute`
+- for `worktree` features, the resulting commit must be created on the feature
+  branch checked out by the assigned worktree
+- `last_commit_hash` records that feature-branch commit
+- the recorded commit must include files staged in the feature worktree and must
+  not accidentally commit from the root checkout
 
 ## Protected Boundaries
 

@@ -104,13 +104,24 @@ Stable specs:
 - `docs/specs/feature-tracker-projection-surfaces.md`
 
 The skill directory is the operator entry surface.
-The two specs above are the durable repository contract.
+The specs above are the durable repository contract.
 
 Task SSOT lives only in `tasks.json`.
 The default feature directory keeps only `state.json` and `tasks.json`.
 `FEATURES_DAG.json` is a generated dependency projection over active feature
 state; it is not the dependency source of truth and it does not carry
 policy-resolved execution planning.
+Workspace assignment determines where task gate and commit commands execute.
+For `worktree` features, `run-task-gate` and `prepare-task-commit --execute`
+must run from the assigned worktree path and feature branch.
+Commit guidance for these features should spell out commands as
+`git -C <execution-root> ...`, where `<execution-root>` is the assigned
+worktree path, not the root checkout.
+Tracker state mutation is serialized, but long-running gate and commit commands
+release the global state lock while external commands run and revalidate the
+workspace assignment before recording results.
+Do not reassign a feature workspace while a task is `in_progress`; same-feature
+task execution remains single-active-task by contract.
 Optional helper markdown files such as `proposal.md`, `spec-delta.md`, and
 `verification.md` can be materialized later at the feature root.
 Unsupported feature-root files such as `PRD.md` and `Changelog.md` are outside

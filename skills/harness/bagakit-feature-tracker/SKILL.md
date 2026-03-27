@@ -127,6 +127,17 @@ The default feature directory keeps only `state.json` and `tasks.json`.
 `FEATURES_DAG.json` is a generated dependency projection over active feature
 state; it is not the dependency source of truth and it does not carry
 policy-resolved execution planning.
+Workspace assignment determines where task gate and commit commands execute.
+For `worktree` features, `run-task-gate` and `prepare-task-commit --execute`
+must run from the assigned worktree path and feature branch.
+Commit guidance for these features should spell out commands as
+`git -C <execution-root> ...`, where `<execution-root>` is the assigned
+worktree path, not the root checkout.
+Tracker state mutation is serialized, but long-running gate and commit commands
+release the global state lock while external commands run and revalidate the
+workspace assignment before recording results.
+Do not reassign a feature workspace while a task is `in_progress`; same-feature
+task execution remains single-active-task by contract.
 `create-feature`, `archive-feature`, and `discard-feature` preflight the
 resulting active graph before they commit tracker state or closeout cleanup.
 If `FEATURES_DAG.json` is missing or has become a broken path shape, recover it

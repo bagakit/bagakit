@@ -1064,5 +1064,6 @@ grep -q "skipped FEATURES_DAG.json repair on already-closed rerun" /tmp/bagakit-
 grep -q "feat cannot depend on itself" /tmp/bagakit-feature-tracker-closed-broken.err
 test ! -e "$TMP_DIR/.bagakit/feature-tracker/index/FEATURES_DAG.json"
 rm -f /tmp/bagakit-feature-tracker-closed-broken.out /tmp/bagakit-feature-tracker-closed-broken.err
+bash "$SKILL_DIR/scripts/feature-tracker.sh" replan-features --root "$TMP_DIR" --clear-dependencies "$BROKEN_ACTIVE_ID" >/dev/null
 
 echo "ok: bagakit-feature-tracker legacy regression passed"

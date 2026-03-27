@@ -34,7 +34,9 @@ required_files = [
   "gate_eval/skills/harness/bagakit-feature-tracker/results/runs/.gitkeep",
   "gate_validation/skills/harness/bagakit-feature-tracker/validation.toml",
   "gate_validation/skills/harness/bagakit-feature-tracker/check-feature-tracker.sh",
+  "gate_validation/skills/harness/bagakit-feature-tracker/check-feature-tracker-concurrency.sh",
   "gate_validation/skills/harness/bagakit-feature-tracker/check-feature-tracker-regression.sh",
+  "gate_validation/skills/harness/bagakit-feature-tracker/lib/feature-tracker-testlib.sh",
 ]
 forbidden_paths = [
   "skills/harness/bagakit-feature-tracker/SKILL_PAYLOAD.json",
@@ -66,6 +68,22 @@ groups = ["skills", "harness", "feature-tracker", "smoke"]
 [suite.runner]
 kind = "bash_script"
 script = "gate_validation/skills/harness/bagakit-feature-tracker/check-feature-tracker.sh"
+args = [
+  "--root",
+  "{repo_root}",
+]
+
+[[suite]]
+id = "bagakit-feature-tracker-concurrency-regression"
+owner = "skills/harness/bagakit-feature-tracker"
+description = "Keep concurrent tracker state mutation serialized while worktree task gates and commits execute from the assigned feature branch."
+default = true
+validation_class = "quality"
+groups = ["skills", "harness", "feature-tracker", "quality", "concurrency"]
+
+[suite.runner]
+kind = "bash_script"
+script = "gate_validation/skills/harness/bagakit-feature-tracker/check-feature-tracker-concurrency.sh"
 args = [
   "--root",
   "{repo_root}",

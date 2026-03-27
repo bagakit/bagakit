@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import copy
+import fcntl
 import hashlib
 import json
 import os
@@ -15,9 +16,10 @@ import sys
 import tarfile
 import urllib.error
 import urllib.request
+from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any, Generator, Iterable
 
 sys.dont_write_bytecode = True
 
@@ -466,6 +468,17 @@ def ensure_git_repo(root: Path) -> None:
         raise SystemExit(f"error: not a git repository: {root}")
 
 
+def git_common_dir(root: Path) -> Path:
+    cp = run_cmd(["git", "-C", str(root), "rev-parse", "--git-common-dir"])
+    if cp.returncode != 0:
+        raise SystemExit(cp.stderr.strip() or cp.stdout.strip() or f"error: cannot resolve git common dir for {root}")
+    raw = cp.stdout.strip()
+    if not raw:
+        raise SystemExit(f"error: empty git common dir for {root}")
+    path = Path(raw)
+    return path if path.is_absolute() else (root / path).resolve()
+
+
 def command_exists(name: str) -> bool:
     cp = run_cmd(["bash", "-lc", f"command -v {shlex.quote(name)} >/dev/null 2>&1"])
     return cp.returncode == 0
@@ -631,6 +644,41 @@ class HarnessPaths:
 
     def feat_artifacts_dir(self, feat_id: str, *, status: str | None = None) -> Path:
         return self.feat_dir(feat_id, status=status) / "artifacts"
+
+
+@dataclass(frozen=True)
+class FeatureExecutionRoot:
+    path: Path
+    workspace_mode: str
+    detail: str
+
+
+@contextmanager
+def tracker_state_lock(root: Path, *, allow_create: bool = False) -> Generator[None, None, None]:
+    paths = HarnessPaths(root)
+    if not allow_create and not paths.harness_dir.exists():
+        raise SystemExit("error: tracker not initialized. run feature-tracker.sh initialize-tracker first")
+    lock_file = git_common_dir(root) / "bagakit" / "feature-tracker.lock"
+    lock_file.parent.mkdir(parents=True, exist_ok=True)
+    with lock_file.open("a+", encoding="utf-8") as lock:
+        fcntl.flock(lock.fileno(), fcntl.LOCK_EX)
+        try:
+            yield
+        finally:
+            fcntl.flock(lock.fileno(), fcntl.LOCK_UN)
+
+
+@contextmanager
+def workspace_git_lock(root: Path, execution_root: Path) -> Generator[None, None, None]:
+    lock_name = f"feature-tracker-workspace-{short_hash_token(str(execution_root.resolve()), width=8)}.lock"
+    lock_file = git_common_dir(root) / "bagakit" / lock_name
+    lock_file.parent.mkdir(parents=True, exist_ok=True)
+    with lock_file.open("a+", encoding="utf-8") as lock:
+        fcntl.flock(lock.fileno(), fcntl.LOCK_EX)
+        try:
+            yield
+        finally:
+            fcntl.flock(lock.fileno(), fcntl.LOCK_UN)
 
 
 def infer_next_feat_sequence(index_data: dict[str, Any]) -> int:
@@ -897,6 +945,35 @@ def workspace_mode_of(state: dict[str, Any]) -> str:
             f"{state.get('feat_id', '<unknown>')}"
         )
     return raw
+
+
+def workspace_signature(state: dict[str, Any], execution: FeatureExecutionRoot) -> dict[str, str]:
+    return {
+        "workspace_mode": str(state.get("workspace_mode") or ""),
+        "branch": str(state.get("branch") or ""),
+        "worktree_path": str(state.get("worktree_path") or ""),
+        "execution_root": str(execution.path.resolve()),
+    }
+
+
+def revalidate_workspace_signature(
+    root: Path,
+    state: dict[str, Any],
+    expected: dict[str, str],
+    *,
+    label: str,
+) -> FeatureExecutionRoot | None:
+    try:
+        execution = resolve_feature_execution_root(root, state)
+    except SystemExit as exc:
+        eprint(str(exc))
+        eprint(f"error: workspace changed while {label} was running; result was not recorded")
+        return None
+    current = workspace_signature(state, execution)
+    if current != expected:
+        eprint(f"error: workspace changed while {label} was running; result was not recorded")
+        return None
+    return execution
 
 
 def make_worktree_assignment(
@@ -1991,6 +2068,11 @@ def cmd_assign_feat_workspace(args: argparse.Namespace) -> int:
     if target_mode == current_mode:
         print(f"ok: workspace already assigned {args.feat} => {target_mode}")
         return 0
+    if count_tasks(tasks, "in_progress") > 0:
+        eprint(
+            f"error: cannot reassign workspace while feat has in_progress tasks: {args.feat}"
+        )
+        return 1
 
     branch = ""
     wt_name = ""
@@ -2237,103 +2319,118 @@ def cmd_task_gate(args: argparse.Namespace) -> int:
     paths = HarnessPaths(root)
     ensure_harness_exists(paths)
 
-    state, tasks = load_feat(paths, args.feat)
-    task = find_task(tasks, args.task)
-    if task.get("status") != "in_progress":
-        eprint(f"error: task {args.task} must be in_progress before gate")
-        return 1
-    if state.get("current_task_id") != args.task:
-        eprint("error: current feature current_task_id does not match requested task")
-        return 1
-
-    config = load_runtime_policy(paths)
-    project_type = detect_project_type(root, config)
-    verification_policy = resolve_verification_policy(config)
-    verification_file = paths.feat_verification(args.feat, status=str(state.get("status") or ""))
-
     records: list[dict[str, Any]] = []
     failed = False
     fail_reasons: list[str] = []
+    commands: list[str] = []
+    command_failure_prefix = "command failed"
 
-    if verification_required(verification_policy, project_type=project_type, evidence_file=verification_file):
-        verification_errors = validate_verification_evidence(verification_file)
-        if verification_errors:
-            failed = True
-            fail_reasons.extend(verification_errors)
+    with tracker_state_lock(root):
+        state, tasks = load_feat(paths, args.feat)
+        task = find_task(tasks, args.task)
+        if task.get("status") != "in_progress":
+            eprint(f"error: task {args.task} must be in_progress before gate")
+            return 1
+        if state.get("current_task_id") != args.task:
+            eprint("error: current feature current_task_id does not match requested task")
+            return 1
+        try:
+            execution = resolve_feature_execution_root(root, state)
+        except SystemExit as exc:
+            eprint(str(exc))
+            return 1
+        execution_sig = workspace_signature(state, execution)
 
-    if project_type == "ui":
-        ui_cmds = config.get("gate", {}).get("ui_commands", []) if isinstance(config, dict) else []
-        if isinstance(ui_cmds, list):
-            for cmd in ui_cmds:
-                cp = run_shell(str(cmd), cwd=root)
-                rec = {
-                    "command": str(cmd),
-                    "exit_code": cp.returncode,
-                    "status": "pass" if cp.returncode == 0 else "fail",
-                }
-                records.append(rec)
-                if cp.returncode != 0:
-                    failed = True
-                    fail_reasons.append(f"ui command failed: {cmd}")
-    else:
-        commands = collect_non_ui_commands(root, config)
-        if not commands:
-            failed = True
-            fail_reasons.append(
-                "no non-ui gate command available; "
-                f"set gate.non_ui_commands in {paths.runtime_policy_file.relative_to(root)}"
-            )
+        config = load_runtime_policy(paths)
+        project_type = detect_project_type(execution.path, config)
+        verification_policy = resolve_verification_policy(config)
+        verification_file = paths.feat_verification(args.feat, status=str(state.get("status") or ""))
+
+        if verification_required(verification_policy, project_type=project_type, evidence_file=verification_file):
+            verification_errors = validate_verification_evidence(verification_file)
+            if verification_errors:
+                failed = True
+                fail_reasons.extend(verification_errors)
+
+        if project_type == "ui":
+            ui_cmds = config.get("gate", {}).get("ui_commands", []) if isinstance(config, dict) else []
+            if isinstance(ui_cmds, list):
+                commands = [str(cmd) for cmd in ui_cmds]
+            command_failure_prefix = "ui command failed"
         else:
-            for cmd in commands:
-                cp = run_shell(cmd, cwd=root)
-                rec = {
-                    "command": cmd,
-                    "exit_code": cp.returncode,
-                    "status": "pass" if cp.returncode == 0 else "fail",
-                }
-                records.append(rec)
-                if cp.returncode != 0:
-                    failed = True
-                    fail_reasons.append(f"command failed: {cmd}")
+            commands = collect_non_ui_commands(execution.path, config)
+            if not commands:
+                failed = True
+                fail_reasons.append(
+                    "no non-ui gate command available; "
+                    f"set gate.non_ui_commands in {paths.runtime_policy_file.relative_to(root)}"
+                )
+
+    for cmd in commands:
+        cp = run_shell(cmd, cwd=execution.path)
+        rec = {
+            "command": cmd,
+            "exit_code": cp.returncode,
+            "status": "pass" if cp.returncode == 0 else "fail",
+        }
+        records.append(rec)
+        if cp.returncode != 0:
+            failed = True
+            fail_reasons.append(f"{command_failure_prefix}: {cmd}")
 
     gate_result = "fail" if failed else "pass"
 
-    logs_dir = paths.feat_artifacts_dir(args.feat, status=str(state.get("status") or ""))
-    logs_dir.mkdir(parents=True, exist_ok=True)
-    next_round = int(state.setdefault("counters", {}).get("round_count", 0)) + 1
-    log_file = next_numbered_path(logs_dir, prefix=f"gate-{args.task}-r{next_round}-", suffix=".log")
-    lines = [f"project_type={project_type}", f"result={gate_result}"]
-    if fail_reasons:
-        lines.append("reasons:")
-        for r in fail_reasons:
-            lines.append(f"- {r}")
-    lines.append("commands:")
-    for rec in records:
-        lines.append(f"- {rec['command']} => {rec['status']} ({rec['exit_code']})")
-    write_text(log_file, "\n".join(lines) + "\n")
+    with tracker_state_lock(root):
+        state, tasks = load_feat(paths, args.feat)
+        task = find_task(tasks, args.task)
+        if task.get("status") != "in_progress" or state.get("current_task_id") != args.task:
+            eprint("error: task state changed while gate was running; gate result was not recorded")
+            return 1
+        if revalidate_workspace_signature(root, state, execution_sig, label="gate") is None:
+            return 1
 
-    counters = state.setdefault("counters", {})
-    counters["round_count"] = int(counters.get("round_count", 0)) + 1
-    counters["no_progress_rounds"] = int(counters.get("no_progress_rounds", 0)) + 1
-    if gate_result == "pass":
-        counters["gate_fail_streak"] = 0
-    else:
-        counters["gate_fail_streak"] = int(counters.get("gate_fail_streak", 0)) + 1
+        logs_dir = paths.feat_artifacts_dir(args.feat, status=str(state.get("status") or ""))
+        logs_dir.mkdir(parents=True, exist_ok=True)
+        next_round = int(state.setdefault("counters", {}).get("round_count", 0)) + 1
+        log_file = next_numbered_path(logs_dir, prefix=f"gate-{args.task}-r{next_round}-", suffix=".log")
+        lines = [
+            f"project_type={project_type}",
+            f"execution_root={relative_display(root, execution.path)}",
+            f"workspace_mode={execution.workspace_mode}",
+            f"execution_detail={execution.detail}",
+            f"result={gate_result}",
+        ]
+        if fail_reasons:
+            lines.append("reasons:")
+            for r in fail_reasons:
+                lines.append(f"- {r}")
+        lines.append("commands:")
+        for rec in records:
+            lines.append(f"- {rec['command']} => {rec['status']} ({rec['exit_code']})")
+        write_text(log_file, "\n".join(lines) + "\n")
 
-    state["gate"] = {
-        "last_result": gate_result,
-        "last_task_id": args.task,
-        "last_check_commands": records,
-        "last_log_path": str(log_file.relative_to(root)),
-    }
-    state.setdefault("history", []).append(
-        history_event("task_gate", f"{args.task} => {gate_result}")
-    )
+        counters = state.setdefault("counters", {})
+        counters["round_count"] = int(counters.get("round_count", 0)) + 1
+        counters["no_progress_rounds"] = int(counters.get("no_progress_rounds", 0)) + 1
+        if gate_result == "pass":
+            counters["gate_fail_streak"] = 0
+        else:
+            counters["gate_fail_streak"] = int(counters.get("gate_fail_streak", 0)) + 1
 
-    task["gate_result"] = gate_result
-    task["last_gate_commands"] = records
+        state["gate"] = {
+            "last_result": gate_result,
+            "last_task_id": args.task,
+            "last_check_commands": records,
+            "last_log_path": str(log_file.relative_to(root)),
+        }
+        state.setdefault("history", []).append(
+            history_event("task_gate", f"{args.task} => {gate_result}")
+        )
 
-    save_feat(paths, args.feat, state, tasks)
+        task["gate_result"] = gate_result
+        task["last_gate_commands"] = records
+
+        save_feat(paths, args.feat, state, tasks)
 
     if gate_result == "fail":
         eprint(f"error: gate failed for {args.feat}/{args.task}")
@@ -2348,6 +2445,7 @@ def cmd_task_gate(args: argparse.Namespace) -> int:
         return 1
 
     print(f"ok: gate passed {args.feat}/{args.task}")
+    print(f"execution_root: {execution.path}")
     print(f"gate_log: {log_file}")
     return 0
 
@@ -2454,57 +2552,96 @@ def cmd_task_commit(args: argparse.Namespace) -> int:
     ensure_harness_exists(paths)
     ensure_git_repo(root)
 
-    state, tasks = load_feat(paths, args.feat)
-    feat_dir = paths.feat_dir(args.feat, status=str(state.get("status") or ""))
-    task = find_task(tasks, args.task)
-    if task.get("status") != "in_progress":
-        eprint(f"error: task must be in_progress before commit: {args.task}")
-        return 1
+    with tracker_state_lock(root):
+        state, tasks = load_feat(paths, args.feat)
+        task = find_task(tasks, args.task)
+        if task.get("status") != "in_progress":
+            eprint(f"error: task must be in_progress before commit: {args.task}")
+            return 1
 
-    gate_result = str(task.get("gate_result") or "")
-    if gate_result not in GATE_STATUS:
-        eprint("error: task gate_result is missing; run feature-tracker.sh run-task-gate first")
-        return 1
+        gate_result = str(task.get("gate_result") or "")
+        if gate_result not in GATE_STATUS:
+            eprint("error: task gate_result is missing; run feature-tracker.sh run-task-gate first")
+            return 1
+        try:
+            execution = resolve_feature_execution_root(root, state)
+        except SystemExit as exc:
+            eprint(str(exc))
+            return 1
+        execution_sig = workspace_signature(state, execution)
 
-    task_status = args.task_status
-    if task_status == "done" and gate_result != "pass":
-        eprint("error: Task-Status done requires Gate-Result pass")
-        return 1
+        task_status = args.task_status
+        if task_status == "done" and gate_result != "pass":
+            eprint("error: Task-Status done requires Gate-Result pass")
+            return 1
 
-    msg = build_commit_message(state, task, args.summary.strip(), task_status, gate_result)
-    artifacts_dir = paths.feat_artifacts_dir(args.feat, status=str(state.get("status") or ""))
-    msg_file = (
-        Path(args.message_out).resolve()
-        if args.message_out
-        else artifacts_dir / next_numbered_path(artifacts_dir, prefix=f"commit-{args.task}-", suffix=".msg").name
-    )
-    write_text(msg_file, msg)
+        msg = build_commit_message(state, task, args.summary.strip(), task_status, gate_result)
+        artifacts_dir = paths.feat_artifacts_dir(args.feat, status=str(state.get("status") or ""))
+        msg_file = (
+            Path(args.message_out).resolve()
+            if args.message_out
+            else artifacts_dir / next_numbered_path(artifacts_dir, prefix=f"commit-{args.task}-", suffix=".msg").name
+        )
+        write_text(msg_file, msg)
 
-    errors = validate_commit_message(
-        msg,
-        expected_feat=args.feat,
-        expected_task=args.task,
-        expected_task_status=task_status,
-        expected_gate_result=gate_result,
-    )
-    if errors:
-        for err in errors:
-            eprint(f"error: {err}")
-        return 1
+        errors = validate_commit_message(
+            msg,
+            expected_feat=args.feat,
+            expected_task=args.task,
+            expected_task_status=task_status,
+            expected_gate_result=gate_result,
+        )
+        if errors:
+            for err in errors:
+                eprint(f"error: {err}")
+            return 1
 
     print(f"message_file: {msg_file}")
     print(
-        "next: git add -A && "
-        f"git commit -F {shlex.quote(str(msg_file))}"
+        "next: git -C "
+        f"{shlex.quote(str(execution.path))} add -A && "
+        f"git -C {shlex.quote(str(execution.path))} commit -F {shlex.quote(str(msg_file))}"
     )
 
     if args.execute:
-        cp = run_cmd(["git", "-C", str(root), "commit", "-F", str(msg_file)])
-        if cp.returncode != 0:
-            eprint(cp.stderr.strip() or cp.stdout.strip() or "git commit failed")
-            return 1
-        head = run_cmd(["git", "-C", str(root), "rev-parse", "HEAD"])
-        if head.returncode == 0:
+        with workspace_git_lock(root, execution.path):
+            with tracker_state_lock(root):
+                state, tasks = load_feat(paths, args.feat)
+                task = find_task(tasks, args.task)
+                if task.get("status") != "in_progress" or state.get("current_task_id") != args.task:
+                    eprint("error: task state changed before commit; commit was not created")
+                    return 1
+                if str(task.get("gate_result") or "") != gate_result:
+                    eprint("error: task gate_result changed before commit; commit was not created")
+                    return 1
+                if revalidate_workspace_signature(root, state, execution_sig, label="commit") is None:
+                    return 1
+            before_head = run_cmd(["git", "-C", str(execution.path), "rev-parse", "HEAD"])
+            cp = run_cmd(["git", "-C", str(execution.path), "commit", "-F", str(msg_file)])
+            if cp.returncode != 0:
+                eprint(cp.stderr.strip() or cp.stdout.strip() or "git commit failed")
+                return 1
+            head = run_cmd(["git", "-C", str(execution.path), "rev-parse", "HEAD"])
+            if before_head.returncode == 0 and head.returncode == 0 and before_head.stdout.strip() == head.stdout.strip():
+                eprint("error: git commit returned success but HEAD did not change")
+                return 1
+            if head.returncode != 0:
+                eprint(head.stderr.strip() or head.stdout.strip() or "error: failed to resolve committed HEAD")
+                return 1
+        with tracker_state_lock(root):
+            state, tasks = load_feat(paths, args.feat)
+            task = find_task(tasks, args.task)
+            if task.get("status") != "in_progress" or state.get("current_task_id") != args.task:
+                eprint("error: task state changed after commit; commit hash was not recorded")
+                eprint(f"commit_hash: {head.stdout.strip()}")
+                return 1
+            if str(task.get("gate_result") or "") != gate_result:
+                eprint("error: task gate_result changed after commit; commit hash was not recorded")
+                eprint(f"commit_hash: {head.stdout.strip()}")
+                return 1
+            if revalidate_workspace_signature(root, state, execution_sig, label="commit") is None:
+                eprint(f"commit_hash: {head.stdout.strip()}")
+                return 1
             task["last_commit_hash"] = head.stdout.strip()
             save_feat(paths, args.feat, state, tasks)
             print(f"commit_hash: {task['last_commit_hash']}")
@@ -2678,6 +2815,49 @@ def git_worktree_paths(root: Path) -> set[Path]:
             continue
         out.add(Path(path).resolve())
     return out
+
+
+def resolve_feature_execution_root(root: Path, state: dict[str, Any]) -> FeatureExecutionRoot:
+    feat_id = str(state.get("feat_id") or "<unknown>")
+    workspace_mode = workspace_mode_of(state)
+    if workspace_mode == "current_tree":
+        return FeatureExecutionRoot(
+            path=root,
+            workspace_mode=workspace_mode,
+            detail="current_tree uses the tracker root",
+        )
+    if workspace_mode == "worktree":
+        raw = str(state.get("worktree_path") or "").strip()
+        if not raw:
+            raise SystemExit(f"error: feat {feat_id} workspace_mode=worktree but state.worktree_path is missing")
+        execution_root = resolve_worktree_abs(root, raw).resolve()
+        if not execution_root.exists():
+            raise SystemExit(f"error: feat {feat_id} worktree path does not exist: {execution_root}")
+        if not execution_root.is_dir():
+            raise SystemExit(f"error: feat {feat_id} worktree path is not a directory: {execution_root}")
+        cp = run_cmd(["git", "-C", str(execution_root), "rev-parse", "--is-inside-work-tree"])
+        if cp.returncode != 0 or cp.stdout.strip() != "true":
+            raise SystemExit(f"error: feat {feat_id} worktree path is not a git work tree: {execution_root}")
+        if execution_root not in git_worktree_paths(root):
+            raise SystemExit(
+                "error: feat "
+                f"{feat_id} worktree path is not registered under tracker root: {execution_root}"
+            )
+        branch = str(state.get("branch") or "").strip()
+        if not branch:
+            raise SystemExit(f"error: feat {feat_id} workspace_mode=worktree but state.branch is missing")
+        current = current_branch(execution_root)
+        if current != branch:
+            actual = current or "detached"
+            raise SystemExit(
+                f"error: feat {feat_id} worktree is on {actual}, expected {branch}: {execution_root}"
+            )
+        return FeatureExecutionRoot(
+            path=execution_root,
+            workspace_mode=workspace_mode,
+            detail=f"worktree uses state.worktree_path={raw}",
+        )
+    raise SystemExit(f"error: feat {feat_id} is not execution-ready: workspace_mode={workspace_mode}")
 
 
 def export_discard_artifacts(
@@ -2937,8 +3117,9 @@ def cmd_feat_discard(args: argparse.Namespace) -> int:
     if current_status not in {"proposal", "ready", "in_progress", "blocked", "done"}:
         eprint(f"error: feat cannot be discarded from status={current_status}")
         return 1
-    if current_status == "in_progress" and not args.force:
-        eprint("error: in_progress feat requires --force before discard")
+    if current_status == "in_progress" and count_tasks(tasks, "in_progress") > 0:
+        eprint("error: cannot discard feat while a task is in_progress")
+        eprint("hint: finish the active task as blocked or done before discard-feature")
         return 1
 
     replacement = str(args.replacement or "").strip()
@@ -2964,13 +3145,6 @@ def cmd_feat_discard(args: argparse.Namespace) -> int:
     except SystemExit as exc:
         eprint(str(exc))
         return 1
-
-    if current_status == "in_progress":
-        for task in tasks.get("tasks", []):
-            if task.get("status") == "in_progress":
-                task["status"] = "blocked"
-                task.setdefault("notes", []).append("force-discarded before task completion")
-        state["current_task_id"] = None
 
     workspace_mode = workspace_mode_of(state)
     branch = str(state.get("branch") or "")
@@ -4231,7 +4405,6 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--feature", dest="feat", required=True)
     sp.add_argument("--reason", choices=["stale", "superseded", "cancelled", "invalid"], required=True)
     sp.add_argument("--replacement", default="")
-    sp.add_argument("--force", action="store_true")
     sp.set_defaults(func=cmd_feat_discard)
 
     sp = sub.add_parser("validate-tracker", help="validate tracker consistency")
@@ -4278,9 +4451,32 @@ def build_parser() -> argparse.ArgumentParser:
     return p
 
 
+def command_requires_global_tracker_lock(args: argparse.Namespace) -> bool:
+    command = str(getattr(args, "cmd", "") or "")
+    # Gate and commit stage their own short tracker locks around long-running
+    # external commands so unrelated tracker readers and writers are not blocked.
+    return command in {
+        "initialize-tracker",
+        "rekey-local-issuer",
+        "materialize-feature-artifact",
+        "create-feature",
+        "create-feature-from-planning-entry-handoff",
+        "assign-feature-workspace",
+        "start-task",
+        "finish-task",
+        "archive-feature",
+        "discard-feature",
+        "replan-features",
+    }
+
+
 def main(argv: Iterable[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(list(argv) if argv is not None else None)
+    if command_requires_global_tracker_lock(args):
+        root = Path(args.root).resolve()
+        with tracker_state_lock(root, allow_create=str(args.cmd) == "initialize-tracker"):
+            return int(args.func(args))
     return int(args.func(args))
 
 
