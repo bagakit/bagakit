@@ -353,6 +353,28 @@ PY
   --summary "smoke lifecycle passes with explicit retry backoff evidence" \
   --status completed
 
+INVALID_SCORE_TARGET="$TMP_DIR/.bagakit/skill-selector/tasks/invalid-score/skill-usage.toml"
+"${SELECTOR_BIN[@]}" init \
+  --file "$INVALID_SCORE_TARGET" \
+  --task-id "invalid-score" \
+  --objective "reject invalid evaluation scores before state write" \
+  --owner "validator"
+
+INVALID_SCORE_ERR="$TMP_DIR/invalid-score.err"
+if "${SELECTOR_BIN[@]}" evaluate \
+  --file "$INVALID_SCORE_TARGET" \
+  --quality-score 4 \
+  --evidence-score 0.8 \
+  --feedback-score 0.7 \
+  --overall pass \
+  --summary "invalid score should fail" \
+  --status completed 2>"$INVALID_SCORE_ERR"; then
+  echo "error: selector accepted an out-of-range evaluation score" >&2
+  exit 1
+fi
+grep -q 'flag must be within \[0,1\]: --quality-score' "$INVALID_SCORE_ERR"
+grep -q 'overall = "pending"' "$INVALID_SCORE_TARGET"
+
 "${SELECTOR_BIN[@]}" validate \
   --file "$TARGET" \
   --strict

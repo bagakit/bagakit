@@ -134,6 +134,14 @@ function requiredString(flags: Map<string, string | boolean>, key: string): stri
   return readStringFlag(flags, key, true)!;
 }
 
+function readUnitScoreFlag(flags: Map<string, string | boolean>, key: string): number {
+  const value = readNumberFlag(flags, key, true)!;
+  if (value < 0 || value > 1) {
+    throw new Error(`flag must be within [0,1]: --${key}`);
+  }
+  return value;
+}
+
 function cmdInit(flags: Map<string, string | boolean>): number {
   const filePath = resolvePathFromCwd(requiredString(flags, "file"));
   const force = readBooleanFlag(flags, "force", false);
@@ -527,9 +535,9 @@ function cmdEvaluate(flags: Map<string, string | boolean>): number {
   const filePath = resolvePathFromCwd(requiredString(flags, "file"));
   const doc = readSkillUsageDoc(filePath);
   updateEvaluation(doc, {
-    quality_score: readNumberFlag(flags, "quality-score", true)!,
-    evidence_score: readNumberFlag(flags, "evidence-score", true)!,
-    feedback_score: readNumberFlag(flags, "feedback-score", true)!,
+    quality_score: readUnitScoreFlag(flags, "quality-score"),
+    evidence_score: readUnitScoreFlag(flags, "evidence-score"),
+    feedback_score: readUnitScoreFlag(flags, "feedback-score"),
     overall: assertEnum(EVALUATION_OVERALL, requiredString(flags, "overall"), "evaluation.overall"),
     summary: requiredString(flags, "summary"),
     status: readStringFlag(flags, "status")
