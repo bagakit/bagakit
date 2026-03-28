@@ -42,6 +42,16 @@ It does not own:
 For tracker-sourced items, feature lifecycle remains upstream; the runner owns
 only local execution state and sidecars.
 
+## Output Discipline
+
+Follow `docs/specs/output-discipline.md` for runner-owned sidecars.
+
+- trust structured state, checkpoint receipts, next actions, and incidents over
+  free-form stdout
+- write gaps and blocked conditions as explicit resume information
+- add ratchets as runner checks only for failures the runner can observe
+- do not let policy or score fields redefine upstream planning truth
+
 ## Runtime Surface Declaration
 
 - top-level runtime surface root when materialized:

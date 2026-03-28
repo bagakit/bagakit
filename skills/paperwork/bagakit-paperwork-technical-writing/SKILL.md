@@ -42,6 +42,17 @@ Deliver technical writing that is readable for publication and actionable for ex
   - External references for evidence.
   - Prior audit feedback.
 
+## Output Discipline
+
+Follow `docs/specs/output-discipline.md` for writing deliverables.
+
+- settle reader, objective, and evidence shape before drafting high-stakes work
+- keep source evidence in `review_report.md` or `execution_appendix.md`, not as
+  hidden confidence in the article
+- use explicit gap notes when evidence is missing
+- make no-regression checks preserve baseline evidence classes, not just word
+  count or style
+
 ## Output Routes and Default Mode
 
 - Deliverable archetype/type: technical-writing transformation skill (`source notes/draft -> publishable article + execution handoff`).

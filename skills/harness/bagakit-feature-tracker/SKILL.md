@@ -42,6 +42,16 @@ It does not own:
 - external system bridges
 - repository-level learning or promotion
 
+## Output Discipline
+
+Follow `docs/specs/output-discipline.md` through tracker-owned artifacts.
+
+- task acceptance depends on task gates, not persuasive prose
+- optional helper artifacts should state what they prove and what remains open
+- repeated tracker failures should become task-gate or validation ratchets only
+  when the failure mode is reproducible
+- do not add subjective scores to feature lifecycle transitions
+
 ## Runtime Surface Declaration
 
 - top-level runtime surface root when materialized:

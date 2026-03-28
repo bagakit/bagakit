@@ -109,6 +109,17 @@ Prefer asking the smallest question that most changes the decision.
   `bagakit-skill-selector/recipes/`, not hidden inside brainstorm runtime
   behavior.
 
+## Output Discipline
+
+Follow `docs/specs/output-discipline.md` when a brainstorm result becomes a
+durable handoff.
+
+- keep input facts, open gaps, and derived recommendations separate
+- generate distinct options only when they imply different decisions
+- mark unsupported assumptions instead of smoothing them into the conclusion
+- make the final recommendation traceable to source refs, question ids, or
+  expert-forum entries
+
 ## Output Routes and Default Mode
 
 - Deliverable type: analysis/result-heavy planning skill (`markdown context -> decision -> handoff package`).

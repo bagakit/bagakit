@@ -40,6 +40,16 @@ Two bounded surfaces:
 - The work is still exploratory and the intent boundary is unstable.
 - A one-line local checkpoint is enough and no review-quality history is needed.
 
+## Output Discipline
+
+Follow `docs/specs/output-discipline.md` for Git-facing text.
+
+- treat ranked facts as the commit's evidence contract
+- keep unresolved uncertainty in `Follow-ups`, not in factual claims
+- lint objective invariants; keep style guidance as review advice
+- if one commit needs too many facts, split by rollback boundary instead of
+  making the message carry mixed intent
+
 ## Core Contract
 
 ### Commit Surface

@@ -79,6 +79,7 @@ Current examples include:
 - `feature-tracker-id-issuance.md`
 - `feature-tracker-projection-surfaces.md`
 - `planning-entry-handoff-contract.md`
+- `output-discipline.md`
 - `bagakit-driver-contract.md`
 - `evolver-memory.md`
 - `flow-runner-contract.md`

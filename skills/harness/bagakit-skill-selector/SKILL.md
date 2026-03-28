@@ -26,6 +26,16 @@ not part of task SSOT.
 It also owns the explicit recipe surface for standard multi-skill combinations
 under `recipes/`.
 
+## Output Discipline
+
+Follow `docs/specs/output-discipline.md` for task-local skill evidence.
+
+- distinguish `visible`, `available`, and `selected` candidates
+- compare alternatives only when they change the task route
+- record what each selected skill actually did, with evidence
+- surface repeated task-local failure as an evolver signal instead of silently
+  widening selector's role
+
 Stable selector-versus-evolver meaning lives in:
 
 - `docs/specs/selector-evolver-boundary.md`

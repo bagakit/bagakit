@@ -95,6 +95,18 @@ Do not use this skill when:
 - you need task-level composition or usage evidence
 - you want a mandatory RAG or hosted retrieval dependency
 
+## Output Discipline
+
+Follow `docs/specs/output-discipline.md` for reviewed shared knowledge.
+
+- publish only reviewed conclusions, stable rules, or normalized reusable
+  material
+- keep research gaps in researcher surfaces until they are reviewed
+- preserve low-leakage refs, but do not carry raw source names or timestamps as
+  durable identity
+- if an imported page has unresolved evidence gaps, ingest a gap report rather
+  than presenting it as shared truth
+
 ## Path And Identifier Hygiene
 
 Shared knowledge published through this skill must stay low-leakage.

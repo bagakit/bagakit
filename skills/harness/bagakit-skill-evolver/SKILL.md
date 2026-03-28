@@ -56,6 +56,16 @@ It does not:
 - replace ordinary docs or straightforward execution
 - auto-promote repository learning by confidence alone
 
+## Output Discipline
+
+Follow `docs/specs/output-discipline.md` for repository evolution topics.
+
+- add candidates only when there is a real decision fork
+- record what evidence changed the decision, not only the final preference
+- treat scores and reviews as evidence, not promotion authority
+- turn accepted regressions or repeated failures into durable specs, gates,
+  evals, or skill changes only after route ownership is clear
+
 Conceptually, `evolver` contains two planes:
 
 - `memory plane`

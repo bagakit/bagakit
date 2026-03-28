@@ -64,6 +64,16 @@ This skill does not:
   `bagakit-skill-selector` workspaces on its own
 - require another Bagakit skill in default mode
 
+## Output Discipline
+
+Follow `docs/specs/output-discipline.md` inside topic workspaces.
+
+- charter the question before broad search
+- keep source summaries source-bound; promote only claim-backed conclusions
+- record counterevidence or confidence limits for recommendations
+- use `doctor --quality --drift` before synthesis or downstream handoff
+- turn recurring research drift into warnings or checks, not hidden heuristics
+
 ## Runtime Surface Declaration
 
 - top-level runtime surface root when materialized:
