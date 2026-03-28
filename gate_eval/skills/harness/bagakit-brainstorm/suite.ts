@@ -84,5 +84,40 @@ export const SUITE: EvalSuiteDefinition = {
         }
       },
     },
+    {
+      id: "lifecycle-regression-signals",
+      title: "Lifecycle Regression Signals",
+      summary: "Run the lifecycle validation harness and surface regression signals for archive placement, adapter escapes, and incomplete export failures.",
+      focus: ["archive-completion-gate", "adapter-boundary", "export-error-cleanliness"],
+      run: (context) => {
+        const { repoRoot } = context;
+        const validationScript = path.join(repoRoot, "gate_validation", "skills", "harness", "bagakit-brainstorm", "check-bagakit-brainstorm.sh");
+        const result = runCommand("bash", [validationScript, "--root", repoRoot], { cwd: repoRoot });
+        expectOk(result, "lifecycle validation");
+        assert.ok(result.stdout.split("\n").includes("ok: bagakit-brainstorm lifecycle smoke passed"));
+        assert.equal(result.stderr.includes("Traceback"), false, `validation emitted traceback\nstderr:\n${result.stderr}`);
+
+        const stdoutLines = result.stdout.split("\n").filter((line) => line.length > 0).length;
+        const stderrLines = result.stderr.split("\n").filter((line) => line.length > 0).length;
+
+        return {
+          assertions: [
+            "valid local archive completion remains accepted by check-complete",
+            "forged complete archive placement is rejected unless archived_artifact is under the archive root",
+            "adapter absolute and parent-traversal rendered paths are blocked without writing external files",
+            "incomplete export fails with error lines and no Python traceback",
+          ],
+          commands: [
+            "bash gate_validation/skills/harness/bagakit-brainstorm/check-bagakit-brainstorm.sh --root <repo-root>",
+          ],
+          outputs: {
+            validation_status: result.status,
+            stdout_line_count: stdoutLines,
+            stderr_line_count: stderrLines,
+            emitted_traceback: result.stderr.includes("Traceback"),
+          },
+        };
+      },
+    },
   ],
 };

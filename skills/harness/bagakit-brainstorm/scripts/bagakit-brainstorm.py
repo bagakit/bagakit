@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import json
 import re
+import sys
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -1305,8 +1306,11 @@ def resolve_action_adapter(
         return None, None, [f"adapter {adapter.adapter_id} unresolved template field: {exc.args[0]}"]
 
     destination = Path(path_rendered)
-    if not destination.is_absolute():
-        destination = (root / destination).resolve()
+    if destination.is_absolute():
+        return None, None, [f"adapter {adapter.adapter_id} rendered absolute path: {path_rendered}"]
+    destination = (root / destination).resolve()
+    if root not in (destination, *destination.parents):
+        return None, None, [f"adapter {adapter.adapter_id} rendered path escapes root: {path_rendered}"]
 
     return target_rendered, destination, []
 
@@ -1952,12 +1956,12 @@ def completion_gate_issues(root: Path, artifact_dir: Path) -> list[str]:
 
     archive_json = resolve_archive_json_path(root, artifact_dir)
     if not archive_json.is_file():
-        issues.append(f"missing archive record: {archive_json}")
+        issues.append(f"missing archive record: {rel(root, archive_json)}")
         return issues
     try:
         archive = json.loads(read_text(archive_json))
     except json.JSONDecodeError:
-        issues.append(f"invalid archive json: {archive_json}")
+        issues.append(f"invalid archive json: {rel(root, archive_json)}")
         return issues
     if archive.get("status") != "complete":
         issues.append(f"archive status is not complete: {archive.get('status', 'unknown')}")
@@ -1974,6 +1978,7 @@ def completion_gate_issues(root: Path, artifact_dir: Path) -> list[str]:
         "action_destination_resolved",
         "memory_destination_resolved",
         "archive_written",
+        "artifact_moved_on_complete",
     )
     for key in required_archive_checks:
         if checks.get(key) is not True:
@@ -1982,7 +1987,16 @@ def completion_gate_issues(root: Path, artifact_dir: Path) -> list[str]:
     if not isinstance(archived_artifact, str) or not archived_artifact.strip():
         issues.append("archive archived_artifact is missing")
     else:
-        archived_artifact_path = (root / archived_artifact).resolve()
+        if Path(archived_artifact).is_absolute():
+            issues.append(f"archive archived_artifact must be repo-relative: {archived_artifact}")
+            archived_artifact_path = Path(archived_artifact).resolve()
+        else:
+            archived_artifact_path = (root / archived_artifact).resolve()
+        archive_base = archive_root(root).resolve()
+        if archive_base not in (archived_artifact_path, *archived_artifact_path.parents):
+            issues.append(f"archive archived_artifact outside archive root: {archived_artifact}")
+        if archived_artifact_path != artifact_dir.resolve():
+            issues.append(f"archive archived_artifact does not match artifact dir: {archived_artifact}")
         if not archived_artifact_path.is_dir():
             issues.append(f"archived artifact dir missing: {archived_artifact_path}")
     handoff = archive.get("handoff")

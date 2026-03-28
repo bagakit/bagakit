@@ -1084,6 +1084,209 @@ fi
 assert_output_line "$FORGED_OUTPUT" "TASK NOT COMPLETE"
 assert_output_line "$FORGED_OUTPUT" "archive check failed: action_destination_resolved=False"
 
+FORGED_PLACEMENT_ROOT="$TMP_DIR/forged-archive-placement"
+FORGED_PLACEMENT_ARTIFACT="$(init_artifact "$FORGED_PLACEMENT_ROOT" "Forged archive placement demo" "forged-placement")"
+write_complete_artifact "$FORGED_PLACEMENT_ARTIFACT" "Forged archive placement demo"
+FORGED_PLACEMENT_NAME="$(basename "$FORGED_PLACEMENT_ARTIFACT")"
+FORGED_PLACEMENT_OUTCOME="$FORGED_PLACEMENT_ROOT/.bagakit/brainstorm/outcome/brainstorm-handoff-forged-placement.md"
+mkdir -p "$(dirname "$FORGED_PLACEMENT_OUTCOME")"
+printf 'forged handoff\n' >"$FORGED_PLACEMENT_OUTCOME"
+cat >"$FORGED_PLACEMENT_ARTIFACT/archive.json" <<JSON
+{
+  "version": 2,
+  "status": "complete",
+  "archived_artifact": ".bagakit/brainstorm/runs/$FORGED_PLACEMENT_NAME",
+  "checks": {
+    "required_stages_complete": true,
+    "input_and_qa_gate_clear": true,
+    "raw_discussion_log_gate_clear": true,
+    "expert_forum_gate_clear": true,
+    "action_destination_resolved": true,
+    "memory_destination_resolved": true,
+    "archive_written": true,
+    "artifact_moved_on_complete": true
+  },
+  "handoff": {
+    "action": {"path": ".bagakit/brainstorm/outcome/brainstorm-handoff-forged-placement.md"},
+    "memory": {"path": ".bagakit/brainstorm/outcome/brainstorm-handoff-forged-placement.md"}
+  }
+}
+JSON
+if FORGED_PLACEMENT_OUTPUT="$(
+  python3 "$SKILL_DIR/scripts/bagakit-brainstorm.py" check-complete \
+    --root "$FORGED_PLACEMENT_ROOT" \
+    --dir "$FORGED_PLACEMENT_ARTIFACT"
+)"; then
+  echo "error: forged wrong archive placement unexpectedly passed check-complete" >&2
+  exit 1
+fi
+assert_output_line "$FORGED_PLACEMENT_OUTPUT" "TASK NOT COMPLETE"
+assert_contains_line "$FORGED_PLACEMENT_OUTPUT" "archive archived_artifact outside archive root: .bagakit/brainstorm/runs/$FORGED_PLACEMENT_NAME"
+
+FORGED_MISMATCH_ROOT="$TMP_DIR/forged-archive-mismatch"
+FORGED_MISMATCH_ARTIFACT="$(init_artifact "$FORGED_MISMATCH_ROOT" "Forged archive mismatch demo" "forged-mismatch")"
+write_complete_artifact "$FORGED_MISMATCH_ARTIFACT" "Forged archive mismatch demo"
+FORGED_MISMATCH_NAME="$(basename "$FORGED_MISMATCH_ARTIFACT")"
+FORGED_MISMATCH_ARCHIVE="$FORGED_MISMATCH_ROOT/.bagakit/brainstorm/archive/$FORGED_MISMATCH_NAME"
+FORGED_MISMATCH_OUTCOME="$FORGED_MISMATCH_ROOT/.bagakit/brainstorm/outcome/brainstorm-handoff-forged-mismatch.md"
+mkdir -p "$FORGED_MISMATCH_ARCHIVE" "$(dirname "$FORGED_MISMATCH_OUTCOME")"
+printf 'forged handoff\n' >"$FORGED_MISMATCH_OUTCOME"
+cat >"$FORGED_MISMATCH_ARTIFACT/archive.json" <<JSON
+{
+  "version": 2,
+  "status": "complete",
+  "archived_artifact": ".bagakit/brainstorm/archive/$FORGED_MISMATCH_NAME",
+  "checks": {
+    "required_stages_complete": true,
+    "input_and_qa_gate_clear": true,
+    "raw_discussion_log_gate_clear": true,
+    "expert_forum_gate_clear": true,
+    "action_destination_resolved": true,
+    "memory_destination_resolved": true,
+    "archive_written": true,
+    "artifact_moved_on_complete": true
+  },
+  "handoff": {
+    "action": {"path": ".bagakit/brainstorm/outcome/brainstorm-handoff-forged-mismatch.md"},
+    "memory": {"path": ".bagakit/brainstorm/outcome/brainstorm-handoff-forged-mismatch.md"}
+  }
+}
+JSON
+if FORGED_MISMATCH_OUTPUT="$(
+  python3 "$SKILL_DIR/scripts/bagakit-brainstorm.py" check-complete \
+    --root "$FORGED_MISMATCH_ROOT" \
+    --dir "$FORGED_MISMATCH_ARTIFACT"
+)"; then
+  echo "error: forged archive mismatch unexpectedly passed check-complete" >&2
+  exit 1
+fi
+assert_output_line "$FORGED_MISMATCH_OUTPUT" "TASK NOT COMPLETE"
+assert_contains_line "$FORGED_MISMATCH_OUTPUT" "archive archived_artifact does not match artifact dir: .bagakit/brainstorm/archive/$FORGED_MISMATCH_NAME"
+
+FORGED_MISSING_MOVE_ROOT="$TMP_DIR/forged-archive-missing-move"
+FORGED_MISSING_MOVE_ARTIFACT="$(init_artifact "$FORGED_MISSING_MOVE_ROOT" "Forged missing move flag demo" "forged-missing-move")"
+write_complete_artifact "$FORGED_MISSING_MOVE_ARTIFACT" "Forged missing move flag demo"
+FORGED_MISSING_MOVE_NAME="$(basename "$FORGED_MISSING_MOVE_ARTIFACT")"
+FORGED_MISSING_MOVE_ARCHIVE="$FORGED_MISSING_MOVE_ROOT/.bagakit/brainstorm/archive/$FORGED_MISSING_MOVE_NAME"
+FORGED_MISSING_MOVE_OUTCOME="$FORGED_MISSING_MOVE_ROOT/.bagakit/brainstorm/outcome/brainstorm-handoff-forged-missing-move.md"
+mkdir -p "$FORGED_MISSING_MOVE_ARCHIVE" "$(dirname "$FORGED_MISSING_MOVE_OUTCOME")"
+printf 'forged handoff\n' >"$FORGED_MISSING_MOVE_OUTCOME"
+find "$FORGED_MISSING_MOVE_ARTIFACT" -maxdepth 1 -type f -name '*.md' -exec cp {} "$FORGED_MISSING_MOVE_ARCHIVE"/ \;
+cat >"$FORGED_MISSING_MOVE_ARCHIVE/archive.json" <<JSON
+{
+  "version": 2,
+  "status": "complete",
+  "archived_artifact": ".bagakit/brainstorm/archive/$FORGED_MISSING_MOVE_NAME",
+  "checks": {
+    "required_stages_complete": true,
+    "input_and_qa_gate_clear": true,
+    "raw_discussion_log_gate_clear": true,
+    "expert_forum_gate_clear": true,
+    "action_destination_resolved": true,
+    "memory_destination_resolved": true,
+    "archive_written": true
+  },
+  "handoff": {
+    "action": {"path": ".bagakit/brainstorm/outcome/brainstorm-handoff-forged-missing-move.md"},
+    "memory": {"path": ".bagakit/brainstorm/outcome/brainstorm-handoff-forged-missing-move.md"}
+  }
+}
+JSON
+if FORGED_MISSING_MOVE_OUTPUT="$(
+  python3 "$SKILL_DIR/scripts/bagakit-brainstorm.py" check-complete \
+    --root "$FORGED_MISSING_MOVE_ROOT" \
+    --dir "$FORGED_MISSING_MOVE_ARCHIVE"
+)"; then
+  echo "error: forged missing move flag unexpectedly passed check-complete" >&2
+  exit 1
+fi
+assert_output_line "$FORGED_MISSING_MOVE_OUTPUT" "TASK NOT COMPLETE"
+assert_output_line "$FORGED_MISSING_MOVE_OUTPUT" "archive check failed: artifact_moved_on_complete=None"
+
+ABSOLUTE_ADAPTER_ROOT="$TMP_DIR/adapter-absolute-path"
+ABSOLUTE_ADAPTER_ARTIFACT="$(init_artifact "$ABSOLUTE_ADAPTER_ROOT" "Adapter absolute path demo" "absolute-route")"
+write_complete_artifact "$ABSOLUTE_ADAPTER_ARTIFACT" "Adapter absolute path demo"
+ABSOLUTE_ADAPTER_EXTERNAL="$TMP_DIR/external-absolute-route.md"
+write_adapter_manifest \
+  "$ABSOLUTE_ADAPTER_ROOT" \
+  "absolute-route.json" \
+  "absolute-route" \
+  "200" \
+  "$ABSOLUTE_ADAPTER_EXTERNAL" \
+  "absolute-route" \
+  "" \
+  ""
+if ABSOLUTE_ADAPTER_OUTPUT="$(
+  python3 "$SKILL_DIR/scripts/bagakit-brainstorm.py" archive \
+    --root "$ABSOLUTE_ADAPTER_ROOT" \
+    --dir "$ABSOLUTE_ADAPTER_ARTIFACT" \
+    --driver adapter \
+    --adapter-id absolute-route
+)"; then
+  echo "error: absolute adapter path unexpectedly passed archive" >&2
+  exit 1
+fi
+assert_output_line "$ABSOLUTE_ADAPTER_OUTPUT" "status=blocked"
+assert_output_line "$ABSOLUTE_ADAPTER_OUTPUT" "archive_dir=$ABSOLUTE_ADAPTER_ARTIFACT"
+assert_contains_line "$ABSOLUTE_ADAPTER_OUTPUT" "blocked_reason=adapter route: adapter absolute-route rendered absolute path: $ABSOLUTE_ADAPTER_EXTERNAL"
+test ! -f "$ABSOLUTE_ADAPTER_EXTERNAL"
+test -f "$ABSOLUTE_ADAPTER_ARTIFACT/archive.json"
+
+TRAVERSAL_ADAPTER_ROOT="$TMP_DIR/adapter-parent-traversal"
+TRAVERSAL_ADAPTER_ARTIFACT="$(init_artifact "$TRAVERSAL_ADAPTER_ROOT" "Adapter parent traversal demo" "traversal-route")"
+write_complete_artifact "$TRAVERSAL_ADAPTER_ARTIFACT" "Adapter parent traversal demo"
+TRAVERSAL_ADAPTER_EXTERNAL="$TMP_DIR/escaped-traversal-route.md"
+write_adapter_manifest \
+  "$TRAVERSAL_ADAPTER_ROOT" \
+  "traversal-route.json" \
+  "traversal-route" \
+  "200" \
+  "../escaped-traversal-route.md" \
+  "traversal-route" \
+  "" \
+  ""
+if TRAVERSAL_ADAPTER_OUTPUT="$(
+  python3 "$SKILL_DIR/scripts/bagakit-brainstorm.py" archive \
+    --root "$TRAVERSAL_ADAPTER_ROOT" \
+    --dir "$TRAVERSAL_ADAPTER_ARTIFACT" \
+    --driver adapter \
+    --adapter-id traversal-route
+)"; then
+  echo "error: parent traversal adapter path unexpectedly passed archive" >&2
+  exit 1
+fi
+assert_output_line "$TRAVERSAL_ADAPTER_OUTPUT" "status=blocked"
+assert_output_line "$TRAVERSAL_ADAPTER_OUTPUT" "archive_dir=$TRAVERSAL_ADAPTER_ARTIFACT"
+assert_contains_line "$TRAVERSAL_ADAPTER_OUTPUT" "blocked_reason=adapter route: adapter traversal-route rendered path escapes root: ../escaped-traversal-route.md"
+test ! -f "$TRAVERSAL_ADAPTER_EXTERNAL"
+test -f "$TRAVERSAL_ADAPTER_ARTIFACT/archive.json"
+
+INCOMPLETE_EXPORT_ROOT="$TMP_DIR/incomplete-export"
+INCOMPLETE_EXPORT_ARTIFACT="$(init_artifact "$INCOMPLETE_EXPORT_ROOT" "Incomplete export demo" "incomplete-export")"
+INCOMPLETE_EXPORT_STDOUT="$TMP_DIR/incomplete-export.stdout"
+INCOMPLETE_EXPORT_STDERR="$TMP_DIR/incomplete-export.stderr"
+if python3 "$SKILL_DIR/scripts/bagakit-brainstorm.py" export-planning-entry-handoff \
+  --root "$INCOMPLETE_EXPORT_ROOT" \
+  --dir "$INCOMPLETE_EXPORT_ARTIFACT" \
+  --scene ambiguous_delivery \
+  --recipe-id planning-entry-brainstorm-to-feature \
+  >"$INCOMPLETE_EXPORT_STDOUT" \
+  2>"$INCOMPLETE_EXPORT_STDERR"; then
+  echo "error: incomplete export unexpectedly passed" >&2
+  exit 1
+fi
+test ! -s "$INCOMPLETE_EXPORT_STDOUT"
+grep -q '^error: required stages incomplete: 0/4$' "$INCOMPLETE_EXPORT_STDERR"
+grep -q '^error: missing archive record: .bagakit/brainstorm/archive/' "$INCOMPLETE_EXPORT_STDERR"
+if grep -q 'Traceback' "$INCOMPLETE_EXPORT_STDERR"; then
+  echo "error: incomplete export emitted traceback" >&2
+  exit 1
+fi
+if grep -Eq '(^|[[:space:]])/[^[:space:]]+' "$INCOMPLETE_EXPORT_STDERR"; then
+  echo "error: incomplete export leaked an absolute path" >&2
+  exit 1
+fi
+
 STALE_ROOT="$TMP_DIR/stale-archive"
 STALE_ARTIFACT="$(init_artifact "$STALE_ROOT" "Stale archive demo" "stale-route")"
 write_complete_artifact "$STALE_ARTIFACT" "Stale archive demo"
