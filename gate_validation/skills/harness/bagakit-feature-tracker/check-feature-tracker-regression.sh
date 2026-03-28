@@ -110,6 +110,47 @@ test "$before_decision" = "$after_decision"
 test "$before_howto" = "$after_howto"
 test "$before_gotcha" = "$after_gotcha"
 
+bash "$SKILL_DIR/scripts/feature-tracker.sh" create-feature --root "$TMP_DIR" --title "Dirty current tree archive" --slug "dirty-current-tree-archive" --goal "Archive should ignore unrelated dirty work" --workspace-mode proposal_only >/dev/null
+DIRTY_ARCHIVE_ID="$(python3 - "$TMP_DIR" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+index_path = Path(sys.argv[1]) / ".bagakit" / "feature-tracker" / "index" / "features.json"
+payload = json.loads(index_path.read_text(encoding="utf-8"))
+for item in payload.get("features", []):
+    if item.get("title") == "Dirty current tree archive":
+        print(item["feat_id"])
+        break
+else:
+    raise SystemExit("dirty current_tree archive feature not found")
+PY
+)"
+bash "$SKILL_DIR/scripts/feature-tracker.sh" assign-feature-workspace --root "$TMP_DIR" --feature "$DIRTY_ARCHIVE_ID" --workspace-mode current_tree >/dev/null
+python3 - "$TMP_DIR" "$DIRTY_ARCHIVE_ID" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+root = Path(sys.argv[1])
+feature_id = sys.argv[2]
+state_path = root / ".bagakit" / "feature-tracker" / "features" / feature_id / "state.json"
+state = json.loads(state_path.read_text(encoding="utf-8"))
+state["status"] = "done"
+state_path.write_text(json.dumps(state, indent=2) + "\n", encoding="utf-8")
+PY
+DIRTY_ARCHIVE_OUT="$TMP_DIR/bagakit-feature-tracker-dirty-archive.out"
+DIRTY_ARCHIVE_ERR="$TMP_DIR/bagakit-feature-tracker-dirty-archive.err"
+cat > "$TMP_DIR/UNRELATED.md" <<'EOF'
+unrelated dirty work
+EOF
+bash "$SKILL_DIR/scripts/feature-tracker.sh" archive-feature --root "$TMP_DIR" --feature "$DIRTY_ARCHIVE_ID" >"$DIRTY_ARCHIVE_OUT" 2>"$DIRTY_ARCHIVE_ERR"
+grep -q "current_tree archive leaves unrelated non-harness repo changes untouched" "$DIRTY_ARCHIVE_ERR"
+test -d "$TMP_DIR/.bagakit/feature-tracker/features-archived/$DIRTY_ARCHIVE_ID"
+test -f "$TMP_DIR/UNRELATED.md"
+rm -f "$DIRTY_ARCHIVE_OUT" "$DIRTY_ARCHIVE_ERR"
+rm -f "$TMP_DIR/UNRELATED.md"
+
 bash "$SKILL_DIR/scripts/feature-tracker.sh" create-feature --root "$TMP_DIR" --title "Boundary feature" --slug "boundary-feature" --goal "Reject unsupported feature-root files" --workspace-mode proposal_only >/dev/null
 
 BOUNDARY_FEATURE_ID="$(python3 - "$TMP_DIR" <<'PY'

@@ -179,6 +179,9 @@ External bridges are intentionally out of scope for this skill.
   tracker flows do not leave validation broken.
 - `create-feature`, `archive-feature`, and `discard-feature` preflight the
   resulting active graph before they commit tracker state or closeout cleanup.
+- For `current_tree` features, `archive-feature` may proceed with unrelated
+  non-harness repo changes because it only closes tracker metadata;
+  `discard-feature` still requires a clean non-harness tree before closeout.
 - If `FEATURES_DAG.json` is missing or has become a broken path shape, recover
   it with `replan-features` before rerunning live graph-affecting commands.
 - Already-closed `archive-feature` or `discard-feature` reruns may heal a

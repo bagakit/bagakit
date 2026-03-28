@@ -2981,9 +2981,7 @@ def cmd_feat_archive(args: argparse.Namespace) -> int:
     if workspace_mode == "current_tree":
         changes = non_harness_git_status_lines(root)
         if changes:
-            eprint("error: current_tree feature has non-harness changes; archive is not fail-closed")
-            eprint("hint: clean the root tree or use discard-feature after preserving the work elsewhere")
-            return 1
+            eprint("warn: current_tree archive leaves unrelated non-harness repo changes untouched")
 
     # Safety: don't remove a dirty worktree.
     if wt_abs is not None and wt_abs.exists():

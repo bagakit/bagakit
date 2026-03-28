@@ -347,6 +347,11 @@ Stable closeout expectations:
   `artifacts/closeout-preserved-root/`
 - archive and discard must validate the post-closeout active DAG before they
   remove worktrees, delete branches, or move the feature directory
+- `current_tree` archive may proceed with unrelated non-harness repo changes
+  because archive only closes tracker metadata and does not preserve or delete
+  implementation files
+- `current_tree` discard must still fail closed on non-harness repo changes
+  because discard can otherwise hide unpreserved work
 - archive/discard idempotent reruns must fail closed when directory placement
   disagrees with the claimed closed status
 - closed features must not remain in `features/`
