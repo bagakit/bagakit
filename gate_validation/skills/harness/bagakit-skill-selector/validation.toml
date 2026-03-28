@@ -5,6 +5,9 @@ id = "bagakit-skill-selector-structure"
 owner = "skills/harness/bagakit-skill-selector"
 description = "Require selector runtime files, recipes, and references that define explicit task-level composition behavior."
 default = true
+proof_mode = "structural"
+proves = ["bagakit-skill-selector-structure proves: Require selector runtime files, recipes, and references that define explicit task-level composition behavior."]
+does_not_prove = ["bagakit-skill-selector-structure does not prove runtime behavior, semantic correctness, or eval quality."]
 validation_class = "structure"
 groups = ["skills", "harness", "usage-loop", "structure"]
 
@@ -62,6 +65,10 @@ id = "bagakit-skill-selector-policy-alignment"
 owner = "skills/harness/bagakit-skill-selector"
 description = "Keep mandatory selector-preflight policy aligned across specs, runtime docs, and bootstrap."
 default = true
+proof_mode = "runtime"
+proves = ["bagakit-skill-selector-policy-alignment proves: Keep mandatory selector-preflight policy aligned across specs, runtime docs, and bootstrap."]
+does_not_prove = ["bagakit-skill-selector-policy-alignment does not prove live service behavior, stochastic agent quality, or unrelated repository surfaces."]
+timeout_seconds = 120
 validation_class = "quality"
 groups = ["skills", "harness", "usage-loop", "policy", "quality"]
 
@@ -78,6 +85,10 @@ id = "bagakit-skill-selector-planning-entry"
 owner = "skills/harness/bagakit-skill-selector"
 description = "Validate canonical planning-entry route semantics, including participant sets and rejection of generic root planning artifacts."
 default = true
+proof_mode = "runtime"
+proves = ["bagakit-skill-selector-planning-entry proves: Validate canonical planning-entry route semantics, including participant sets and rejection of generic root planning artifacts."]
+does_not_prove = ["bagakit-skill-selector-planning-entry does not prove live service behavior, stochastic agent quality, or unrelated repository surfaces."]
+timeout_seconds = 120
 validation_class = "quality"
 groups = ["skills", "harness", "usage-loop", "planning-entry", "quality"]
 
@@ -94,6 +105,10 @@ id = "bagakit-skill-selector-smoke"
 owner = "skills/harness/bagakit-skill-selector"
 description = "Run a minimal task-level skill-selector lifecycle with explicit composition and strict validation."
 default = true
+proof_mode = "runtime"
+proves = ["bagakit-skill-selector-smoke proves: Run a minimal task-level skill-selector lifecycle with explicit composition and strict validation."]
+does_not_prove = ["bagakit-skill-selector-smoke does not prove live service behavior, stochastic agent quality, or unrelated repository surfaces."]
+timeout_seconds = 120
 validation_class = "smoke"
 groups = ["skills", "harness", "usage-loop", "smoke"]
 
@@ -110,6 +125,10 @@ id = "bagakit-skill-selector-recipe-contract"
 owner = "skills/harness/bagakit-skill-selector"
 description = "Require selector recipes to carry the stable contract sections for fit, order, synthesis, and fallback."
 default = true
+proof_mode = "wording_contract"
+proves = ["bagakit-skill-selector-recipe-contract proves: Require selector recipes to carry the stable contract sections for fit, order, synthesis, and fallback."]
+does_not_prove = ["bagakit-skill-selector-recipe-contract does not prove behavior outside its documented contract anchors."]
+timeout_seconds = 120
 validation_class = "contract"
 groups = ["skills", "harness", "usage-loop", "contract"]
 

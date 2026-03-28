@@ -23,6 +23,18 @@ export const RUNNER_KINDS = ["fs", ...PROCESS_RUNNER_KINDS] as const;
 
 export type RunnerKind = (typeof RUNNER_KINDS)[number];
 
+export const PROOF_MODES = [
+  "structural",
+  "runtime",
+  "state_machine",
+  "wording_contract",
+  "live",
+  "manual",
+  "stochastic_judge",
+] as const;
+
+export type ProofMode = (typeof PROOF_MODES)[number];
+
 export interface RootConfig {
   version: 2;
   configPath: string;
@@ -44,6 +56,10 @@ interface SuiteBase {
   configPath: string;
   defaultInGate: boolean;
   validationClass: ValidationClass;
+  proofMode?: ProofMode;
+  proves: string[];
+  doesNotProve: string[];
+  timeoutSeconds?: number;
   groups: string[];
   params: Record<string, string[]>;
   defaultParams: string[];

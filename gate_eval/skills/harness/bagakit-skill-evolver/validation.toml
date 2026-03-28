@@ -5,6 +5,7 @@ id = "bagakit-skill-evolver-deterministic-eval"
 owner = "gate_eval/skills/harness/bagakit-skill-evolver"
 description = "Run deterministic non-gating eval for the evolver runtime closure surface."
 default = true
+timeout_seconds = 180
 validation_class = "quality"
 groups = ["skills", "harness", "evolver", "eval", "quality"]
 

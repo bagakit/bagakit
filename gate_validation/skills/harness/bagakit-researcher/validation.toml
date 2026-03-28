@@ -5,6 +5,9 @@ id = "bagakit-researcher-layout"
 owner = "skills/harness/bagakit-researcher"
 description = "Require the canonical runtime layout and keep non-runtime repo artifacts out of bagakit-researcher."
 default = true
+proof_mode = "structural"
+proves = ["bagakit-researcher-layout proves: Require the canonical runtime layout and keep non-runtime repo artifacts out of bagakit-researcher."]
+does_not_prove = ["bagakit-researcher-layout does not prove runtime behavior, semantic correctness, or eval quality."]
 validation_class = "structure"
 groups = ["skills", "harness", "researcher", "structure"]
 
@@ -48,6 +51,10 @@ id = "bagakit-researcher-smoke"
 owner = "skills/harness/bagakit-researcher"
 description = "Run a minimal researcher lifecycle: initialize a topic, list it, and validate workspace shape."
 default = true
+proof_mode = "runtime"
+proves = ["bagakit-researcher-smoke proves: Run a minimal researcher lifecycle: initialize a topic, list it, and validate workspace shape."]
+does_not_prove = ["bagakit-researcher-smoke does not prove live service behavior, stochastic agent quality, or unrelated repository surfaces."]
+timeout_seconds = 300
 validation_class = "smoke"
 groups = ["skills", "harness", "researcher", "smoke"]
 

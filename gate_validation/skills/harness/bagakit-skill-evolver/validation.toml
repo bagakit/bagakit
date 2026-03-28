@@ -5,6 +5,9 @@ id = "bagakit-skill-evolver-layout"
 owner = "skills/harness/bagakit-skill-evolver"
 description = "Require the canonical evolver runtime layout and keep legacy standalone repo control files out of the canonical skill."
 default = true
+proof_mode = "structural"
+proves = ["bagakit-skill-evolver-layout proves: Require the canonical evolver runtime layout and keep legacy standalone repo control files out of the canonical skill."]
+does_not_prove = ["bagakit-skill-evolver-layout does not prove runtime behavior, semantic correctness, or eval quality."]
 validation_class = "structure"
 groups = ["skills", "harness", "evolver", "structure"]
 
@@ -57,6 +60,10 @@ id = "bagakit-skill-evolver-state"
 owner = "skills/harness/bagakit-skill-evolver"
 description = "Validate repository evolver state when present, or else validate the operator contract against an isolated bootstrap layout."
 default = true
+proof_mode = "state_machine"
+proves = ["bagakit-skill-evolver-state proves: Validate repository evolver state when present, or else validate the operator contract against an isolated bootstrap layout."]
+does_not_prove = ["bagakit-skill-evolver-state does not prove live service behavior, stochastic agent quality, or unrelated workflows."]
+timeout_seconds = 300
 validation_class = "tooling"
 groups = ["skills", "harness", "evolver", "smoke"]
 
@@ -73,6 +80,10 @@ id = "bagakit-skill-evolver-smoke"
 owner = "skills/harness/bagakit-skill-evolver"
 description = "Run a minimal evolver lifecycle covering routing, promotion readiness, handoff, and archive artifacts."
 default = true
+proof_mode = "runtime"
+proves = ["bagakit-skill-evolver-smoke proves: Run a minimal evolver lifecycle covering routing, promotion readiness, handoff, and archive artifacts."]
+does_not_prove = ["bagakit-skill-evolver-smoke does not prove live service behavior, stochastic agent quality, or unrelated repository surfaces."]
+timeout_seconds = 300
 validation_class = "smoke"
 groups = ["skills", "harness", "evolver", "smoke"]
 

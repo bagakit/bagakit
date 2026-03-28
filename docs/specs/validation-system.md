@@ -65,6 +65,9 @@ It may normalize and run suites for:
 
 That shared engine does not erase the semantic split between the two surfaces.
 
+It may also emit report-only audits for validation and eval registration
+health. Audit findings are diagnostic review prompts, not gate failures.
+
 ## Registration Model
 
 Root validation entrypoint:
@@ -104,6 +107,78 @@ Current suite contract supports:
   - named argv fragments for process runners
 - `default_params`
   - named param bundles enabled by default
+- `proof_mode`
+  - what kind of proof the suite provides
+  - current labels:
+    - `structural`
+    - `runtime`
+    - `state_machine`
+    - `wording_contract`
+    - `live`
+    - `manual`
+    - `stochastic_judge`
+- `proves`
+  - concise claims this suite actually proves
+- `does_not_prove`
+  - concise claims this suite explicitly does not prove
+- `timeout_seconds`
+  - scheduler-enforced timeout for process runners
+
+Default `gate_validation/` suite eligibility is fail-closed:
+
+- every default suite must declare non-empty `proof_mode`, `proves`, and
+  `does_not_prove`
+- every default process-runner suite must declare `timeout_seconds`
+- `fs` suites must not declare `timeout_seconds` because they execute inside the
+  validator process
+- `live`, `manual`, and `stochastic_judge` proof modes must not enter the
+  default release-blocking gate
+
+This proof contract is intentionally small. It is not a full suite ontology.
+Do not add new fields such as risk class, hermeticity, or parallel safety until
+the validator has a real consumer for them.
+
+Default `gate_eval/` process suites must also declare `timeout_seconds`.
+This is an execution-safety requirement, not a claim that eval is release
+proof.
+
+Default process suites must not bootstrap packages through implicit registry
+installation such as `npx --yes -p ...`. Tooling used by default gates should
+come from repo-declared dependencies, checked-in wrappers, or explicitly
+configured host tools.
+
+Authoring rule:
+
+- `proves` should name the observable boundary the suite checks, not merely
+  restate that the suite runs
+- `does_not_prove` should name the nearest tempting overclaim
+- when a suite mostly checks wording, set `proof_mode = "wording_contract"` so
+  phrase checks do not masquerade as runtime or state proof
+
+`gate_eval/` remains non-gating even when the shared validator engine runs its
+configured default eval suites. Eval suites may use the same metadata over time,
+but this default-gate proof contract is enforced for `gate_validation/`.
+
+Default gate entrypoints should fail fast. Full inventory runs are useful for
+maintenance sweeps, but the normal release-blocking entrypoint should stop on
+the first failed suite to keep feedback bounded and actionable.
+
+## Report-Only Audit
+
+The validator may expose a non-blocking audit command for maintainer review.
+
+Current audit signals include:
+
+- default proof-mode distribution
+- default runner and validation-class distribution
+- missing or large default process timeouts
+- large validation or eval files under registered discovery roots
+- heuristic string-match usage
+- heuristic scenario/eval vocabulary
+
+Audit output must stay report-only unless a repeated failure mode is later
+promoted into an explicit gate with a reproducer and negative case. This keeps
+diagnostics from becoming a second hidden control plane.
 
 Current runner kinds:
 

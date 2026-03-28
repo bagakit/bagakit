@@ -9,7 +9,7 @@ from pathlib import Path
 try:
     import tomllib
 except ModuleNotFoundError:  # pragma: no cover
-    import tomli as tomllib  # type: ignore[no-redef]
+    tomllib = None  # type: ignore[assignment]
 
 
 EXPECTED_SURFACES = {
@@ -235,7 +235,58 @@ EXPECTED_TEXT_TOKENS = {
 }
 
 
+def parse_surface_toml(text: str) -> dict:
+    data: dict[str, object] = {}
+    current_array_key: str | None = None
+    current_array: list[str] = []
+
+    def finish_array() -> None:
+        nonlocal current_array_key, current_array
+        if current_array_key is not None:
+            data[current_array_key] = current_array
+            current_array_key = None
+            current_array = []
+
+    for raw_line in text.splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#"):
+            continue
+        if current_array_key is not None:
+            if line == "]":
+                finish_array()
+                continue
+            current_array.append(line.rstrip(",").strip().strip('"'))
+            continue
+        key, sep, value = line.partition("=")
+        if not sep:
+            raise ValueError(f"unsupported TOML line: {raw_line}")
+        key = key.strip()
+        value = value.strip()
+        if value == "[":
+            current_array_key = key
+            current_array = []
+            continue
+        if value.startswith('"') and value.endswith('"'):
+            data[key] = value.strip('"')
+            continue
+        if value == "true":
+            data[key] = True
+            continue
+        if value == "false":
+            data[key] = False
+            continue
+        try:
+            data[key] = int(value)
+        except ValueError as exc:
+            raise ValueError(f"unsupported TOML value for {key}: {value}") from exc
+
+    finish_array()
+    return data
+
+
 def load_toml(path: Path) -> dict:
+    if tomllib is None:
+        return parse_surface_toml(path.read_text(encoding="utf-8"))
     with path.open("rb") as handle:
         return tomllib.load(handle)
 

@@ -5,6 +5,9 @@ id = "bagakit-feature-tracker-layout"
 owner = "skills/harness/bagakit-feature-tracker"
 description = "Require the canonical runtime layout and keep non-runtime repo artifacts out of bagakit-feature-tracker."
 default = true
+proof_mode = "structural"
+proves = ["bagakit-feature-tracker-layout proves: Require the canonical runtime layout and keep non-runtime repo artifacts out of bagakit-feature-tracker."]
+does_not_prove = ["bagakit-feature-tracker-layout does not prove runtime behavior, semantic correctness, or eval quality."]
 validation_class = "structure"
 groups = ["skills", "harness", "feature-tracker", "structure"]
 
@@ -62,6 +65,10 @@ id = "bagakit-feature-tracker-smoke"
 owner = "skills/harness/bagakit-feature-tracker"
 description = "Run a minimal feature-tracker lifecycle: initialize, create feature, assign workspace, start task, and replan."
 default = true
+proof_mode = "runtime"
+proves = ["bagakit-feature-tracker-smoke proves: Run a minimal feature-tracker lifecycle: initialize, create feature, assign workspace, start task, and replan."]
+does_not_prove = ["bagakit-feature-tracker-smoke does not prove live service behavior, stochastic agent quality, or unrelated repository surfaces."]
+timeout_seconds = 300
 validation_class = "smoke"
 groups = ["skills", "harness", "feature-tracker", "smoke"]
 
@@ -78,6 +85,10 @@ id = "bagakit-feature-tracker-concurrency-regression"
 owner = "skills/harness/bagakit-feature-tracker"
 description = "Keep concurrent tracker state mutation serialized while worktree task gates and commits execute from the assigned feature branch."
 default = true
+proof_mode = "state_machine"
+proves = ["bagakit-feature-tracker-concurrency-regression proves: Keep concurrent tracker state mutation serialized while worktree task gates and commits execute from the assigned feature branch."]
+does_not_prove = ["bagakit-feature-tracker-concurrency-regression does not prove live service behavior, stochastic agent quality, or unrelated workflows."]
+timeout_seconds = 300
 validation_class = "quality"
 groups = ["skills", "harness", "feature-tracker", "quality", "concurrency"]
 
@@ -94,6 +105,10 @@ id = "bagakit-feature-tracker-legacy-regression"
 owner = "skills/harness/bagakit-feature-tracker"
 description = "Keep legacy docs-side inbox paths untouched on archive flows and keep pre-v2 tracker runtime layouts rejected while the canonical lifecycle stays isolated in smoke."
 default = true
+proof_mode = "state_machine"
+proves = ["bagakit-feature-tracker-legacy-regression proves: Keep legacy docs-side inbox paths untouched on archive flows and keep pre-v2 tracker runtime layouts rejected while the canonical lifecycle stays isolated in smoke."]
+does_not_prove = ["bagakit-feature-tracker-legacy-regression does not prove live service behavior, stochastic agent quality, or unrelated workflows."]
+timeout_seconds = 300
 validation_class = "quality"
 groups = ["skills", "harness", "feature-tracker", "quality", "legacy"]
 

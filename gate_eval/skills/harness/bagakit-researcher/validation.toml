@@ -5,6 +5,7 @@ id = "bagakit-researcher-shared-runner-eval"
 owner = "gate_eval/skills/harness/bagakit-researcher"
 description = "Run deterministic non-gating eval for researcher evidence linkage with the shared dev/eval runner."
 default = true
+timeout_seconds = 180
 validation_class = "quality"
 groups = ["skills", "harness", "researcher", "eval", "quality"]
 

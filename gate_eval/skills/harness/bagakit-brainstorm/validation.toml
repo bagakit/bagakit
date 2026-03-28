@@ -5,6 +5,7 @@ id = "bagakit-brainstorm-shared-runner-eval"
 owner = "gate_eval/skills/harness/bagakit-brainstorm"
 description = "Run deterministic non-gating eval for brainstorm init-time review surfaces and status reporting."
 default = true
+timeout_seconds = 180
 validation_class = "quality"
 groups = ["skills", "harness", "brainstorm", "eval", "quality"]
 

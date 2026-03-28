@@ -8,6 +8,7 @@ site/
 dist/
 dist_*/
 .dist-*
+node_modules/
 .bagakit/*
 !.bagakit/README.md
 !.bagakit/knowledge_conf.toml

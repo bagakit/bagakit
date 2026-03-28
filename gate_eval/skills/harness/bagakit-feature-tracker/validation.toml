@@ -5,6 +5,7 @@ id = "bagakit-feature-tracker-shared-runner-eval"
 owner = "gate_eval/skills/harness/bagakit-feature-tracker"
 description = "Run deterministic non-gating eval for feature-tracker lifecycle and status projection quality."
 default = true
+timeout_seconds = 180
 validation_class = "quality"
 groups = ["skills", "harness", "feature-tracker", "eval", "quality"]
 

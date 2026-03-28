@@ -5,6 +5,9 @@ id = "agent-runner-layout"
 owner = "dev/agent_runner"
 description = "Require the canonical shared agent-runner substrate layout and contract docs."
 default = true
+proof_mode = "structural"
+proves = ["agent-runner-layout proves: Require the canonical shared agent-runner substrate layout and contract docs."]
+does_not_prove = ["agent-runner-layout does not prove runtime behavior, semantic correctness, or eval quality."]
 validation_class = "structure"
 groups = ["dev", "agent-runner", "structure"]
 
@@ -37,6 +40,10 @@ id = "agent-runner-tests"
 owner = "dev/agent_runner"
 description = "Run bounded-session substrate regression tests."
 default = true
+proof_mode = "runtime"
+proves = ["agent-runner-tests proves: Run bounded-session substrate regression tests."]
+does_not_prove = ["agent-runner-tests does not prove live service behavior, stochastic agent quality, or unrelated repository surfaces."]
+timeout_seconds = 180
 validation_class = "quality"
 groups = ["dev", "agent-runner", "quality"]
 
@@ -54,17 +61,20 @@ id = "agent-runner-typecheck"
 owner = "dev/agent_runner"
 description = "Run a strict TypeScript typecheck for the agent-runner substrate."
 default = true
+proof_mode = "structural"
+proves = ["agent-runner-typecheck proves: the agent-runner TypeScript sources typecheck against dev/agent_runner/tsconfig.json."]
+does_not_prove = ["agent-runner-typecheck does not prove runtime behavior, state-machine behavior, live service behavior, stochastic agent quality, or unrelated repository surfaces."]
+timeout_seconds = 180
 validation_class = "quality"
 groups = ["dev", "agent-runner", "quality", "typecheck"]
 
 [suite.runner]
-kind = "executable"
-command = "npx"
+kind = "bash_script"
+script = "dev/host_tools/typescript/tsc-local.sh"
 args = [
-  "--yes",
-  "-p",
-  "typescript",
-  "tsc",
+  "--root",
+  "{repo_root}",
+  "--",
   "-p",
   "dev/agent_runner/tsconfig.json",
   "--noEmit",

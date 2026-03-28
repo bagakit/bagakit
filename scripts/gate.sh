@@ -10,9 +10,13 @@ usage() {
   cat <<'EOF'
 usage:
   scripts/gate.sh validate [validator args...]
+  scripts/gate.sh validate-all [validator args...]
   scripts/gate.sh validate-plan [validator args...]
+  scripts/gate.sh validate-audit [validator args...]
   scripts/gate.sh eval [validator args...]
+  scripts/gate.sh eval-all [validator args...]
   scripts/gate.sh eval-plan [validator args...]
+  scripts/gate.sh eval-audit [validator args...]
 
 Semantic entrypoint for the repository gate surface.
 EOF
@@ -33,6 +37,15 @@ case "$MODE" in
       run-default \
       --root "$ROOT" \
       --config gate_validation/validation.toml \
+      --fail-fast \
+      "$@"
+    ;;
+  validate-all)
+    exec node --experimental-strip-types \
+      "$ROOT/dev/validator/src/cli.ts" \
+      run-default \
+      --root "$ROOT" \
+      --config gate_validation/validation.toml \
       "$@"
     ;;
   validate-plan)
@@ -43,10 +56,35 @@ case "$MODE" in
       --config gate_validation/validation.toml \
       "$@"
     ;;
+  validate-audit)
+    exec node --experimental-strip-types \
+      "$ROOT/dev/validator/src/cli.ts" \
+      audit \
+      --root "$ROOT" \
+      --config gate_validation/validation.toml \
+      "$@"
+    ;;
   eval)
     exec node --experimental-strip-types \
       "$ROOT/dev/validator/src/cli.ts" \
       run-default \
+      --root "$ROOT" \
+      --config gate_eval/validation.toml \
+      --fail-fast \
+      "$@"
+    ;;
+  eval-all)
+    exec node --experimental-strip-types \
+      "$ROOT/dev/validator/src/cli.ts" \
+      run-default \
+      --root "$ROOT" \
+      --config gate_eval/validation.toml \
+      "$@"
+    ;;
+  eval-audit)
+    exec node --experimental-strip-types \
+      "$ROOT/dev/validator/src/cli.ts" \
+      audit \
       --root "$ROOT" \
       --config gate_eval/validation.toml \
       "$@"

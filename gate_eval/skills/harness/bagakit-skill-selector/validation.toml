@@ -5,6 +5,7 @@ id = "bagakit-skill-selector-shared-runner-eval"
 owner = "gate_eval/skills/harness/bagakit-skill-selector"
 description = "Run deterministic non-gating eval for selector composition logging and retry-backoff behavior."
 default = true
+timeout_seconds = 180
 validation_class = "quality"
 groups = ["skills", "harness", "usage-loop", "eval", "quality"]
 

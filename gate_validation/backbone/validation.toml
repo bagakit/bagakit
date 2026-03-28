@@ -5,6 +5,9 @@ id = "repo-structure"
 owner = "gate_validation/backbone"
 description = "Require the canonical repository layout for the validator-era monorepo."
 default = true
+proof_mode = "structural"
+proves = ["repo-structure proves: Require the canonical repository layout for the validator-era monorepo."]
+does_not_prove = ["repo-structure does not prove runtime behavior, semantic correctness, or eval quality."]
 validation_class = "structure"
 groups = ["repo", "backbone", "structure"]
 
@@ -99,6 +102,9 @@ id = "repo-legacy-cut"
 owner = "gate_validation/backbone"
 description = "Keep removed legacy control planes, legacy installer surfaces, and payload manifests out of the canonical repo."
 default = true
+proof_mode = "structural"
+proves = ["repo-legacy-cut proves: Keep removed legacy control planes, legacy installer surfaces, and payload manifests out of the canonical repo."]
+does_not_prove = ["repo-legacy-cut does not prove runtime behavior, semantic correctness, or eval quality."]
 validation_class = "policy"
 groups = ["repo", "backbone", "policy"]
 
@@ -148,6 +154,10 @@ id = "canonical-skill-layout"
 owner = "gate_validation/backbone"
 description = "Require install-ready directory-protocol skill discovery semantics and reject manifest-based payload control."
 default = true
+proof_mode = "runtime"
+proves = ["canonical-skill-layout proves: Require install-ready directory-protocol skill discovery semantics and reject manifest-based payload control."]
+does_not_prove = ["canonical-skill-layout does not prove live service behavior, stochastic agent quality, or unrelated repository surfaces."]
+timeout_seconds = 120
 validation_class = "tooling"
 groups = ["repo", "backbone", "tooling"]
 
@@ -164,6 +174,10 @@ id = "canonical-packaging-smoke"
 owner = "gate_validation/backbone"
 description = "Package discovered installable skills and verify the expected archives are emitted."
 default = true
+proof_mode = "runtime"
+proves = ["canonical-packaging-smoke proves: Package discovered installable skills and verify the expected archives are emitted."]
+does_not_prove = ["canonical-packaging-smoke does not prove live service behavior, stochastic agent quality, or unrelated repository surfaces."]
+timeout_seconds = 300
 validation_class = "smoke"
 groups = ["repo", "backbone", "smoke"]
 
@@ -180,6 +194,10 @@ id = "runtime-surface-contract"
 owner = "gate_validation/backbone"
 description = "Require the runtime-surface contract to stay aligned across specs, skill docs, and current materialized .bagakit roots."
 default = true
+proof_mode = "wording_contract"
+proves = ["runtime-surface-contract proves: Require the runtime-surface contract to stay aligned across specs, skill docs, and current materialized .bagakit roots."]
+does_not_prove = ["runtime-surface-contract does not prove behavior outside its documented contract anchors."]
+timeout_seconds = 120
 validation_class = "contract"
 groups = ["repo", "backbone", "contract", "runtime-surface"]
 
@@ -196,6 +214,10 @@ id = "skill-surface-tests"
 owner = "gate_validation/backbone"
 description = "Run the repo skill-surface regression tests."
 default = true
+proof_mode = "runtime"
+proves = ["skill-surface-tests proves: Run the repo skill-surface regression tests."]
+does_not_prove = ["skill-surface-tests does not prove live service behavior, stochastic agent quality, or unrelated repository surfaces."]
+timeout_seconds = 180
 validation_class = "quality"
 groups = ["repo", "backbone", "quality", "skill-surface"]
 

@@ -12,6 +12,7 @@ Scope:
 - run built-in validation runners
 - dispatch explicit command-based validation extensions
 - aggregate one default repository gate
+- report non-blocking validation and eval imbalance signals
 
 Non-goals:
 
@@ -79,14 +80,34 @@ CLI examples:
 
 ```bash
 bash scripts/gate.sh validate-plan
+bash scripts/gate.sh validate-audit
 bash scripts/gate.sh validate --skip-group slow
+bash scripts/gate.sh validate-all
 bash scripts/gate.sh eval
+bash scripts/gate.sh eval-audit
+bash scripts/gate.sh eval-all
 node --experimental-strip-types dev/validator/src/cli.ts check-config --root . --config gate_validation/validation.toml
 node --experimental-strip-types dev/validator/src/cli.ts plan --root . --config gate_validation/validation.toml
-node --experimental-strip-types dev/validator/src/cli.ts run-default --root . --config gate_validation/validation.toml --skip-group slow
+node --experimental-strip-types dev/validator/src/cli.ts audit --root . --config gate_validation/validation.toml
+node --experimental-strip-types dev/validator/src/cli.ts run-default --root . --config gate_validation/validation.toml --skip-group slow --fail-fast
 node --experimental-strip-types dev/validator/src/cli.ts run-suite validator-framework-config --root . --config gate_validation/validation.toml
 node --experimental-strip-types dev/validator/src/cli.ts run-default --root . --config gate_eval/validation.toml
 ```
+
+Default entrypoint note:
+
+- `scripts/gate.sh validate` and `scripts/gate.sh eval` pass `--fail-fast`
+- use `validate-all` or `eval-all` when a full inventory is more useful than
+  bounded feedback
+- default process suites must declare `timeout_seconds`
+- default suites must not install packages through registry-backed `npx -p`
+
+Audit note:
+
+- `audit` is report-only and does not add pass or fail criteria
+- it surfaces default proof-mode mix, runner mix, timeout declarations, large
+  gate/eval files, string-match heuristics, and scenario/eval vocabulary
+- heuristic findings are prompts for maintainer review; they are not proof
 
 Execution summary note:
 

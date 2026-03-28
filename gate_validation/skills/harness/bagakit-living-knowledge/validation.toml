@@ -5,6 +5,9 @@ id = "bagakit-living-knowledge-layout"
 owner = "skills/harness/bagakit-living-knowledge"
 description = "Require the canonical runtime layout, keep maintainer-only design material out of bagakit-living-knowledge, and preserve repo-relative low-leakage shared-surface hygiene."
 default = true
+proof_mode = "structural"
+proves = ["bagakit-living-knowledge-layout proves: Require the canonical runtime layout, keep maintainer-only design material out of bagakit-living-knowledge, and preserve repo-relative low-leakage shared-surface hygiene."]
+does_not_prove = ["bagakit-living-knowledge-layout does not prove runtime behavior, semantic correctness, or eval quality."]
 validation_class = "structure"
 groups = ["skills", "harness", "living-knowledge", "structure"]
 
@@ -59,6 +62,10 @@ id = "bagakit-living-knowledge-smoke"
 owner = "skills/harness/bagakit-living-knowledge"
 description = "Run the canonical bagakit-living-knowledge substrate smoke checks, including repo-relative path and low-leakage ingestion hygiene."
 default = true
+proof_mode = "runtime"
+proves = ["bagakit-living-knowledge-smoke proves: Run the canonical bagakit-living-knowledge substrate smoke checks, including repo-relative path and low-leakage ingestion hygiene."]
+does_not_prove = ["bagakit-living-knowledge-smoke does not prove live service behavior, stochastic agent quality, or unrelated repository surfaces."]
+timeout_seconds = 300
 validation_class = "smoke"
 groups = ["skills", "harness", "living-knowledge", "smoke"]
 
@@ -75,6 +82,10 @@ id = "bagakit-living-knowledge-spec-alignment"
 owner = "skills/harness/bagakit-living-knowledge"
 description = "Keep the repository-owned living-knowledge spec aligned with the runtime docs, managed bootstrap template, and repo-relative low-leakage hygiene contract."
 default = true
+proof_mode = "wording_contract"
+proves = ["bagakit-living-knowledge-spec-alignment proves: Keep the repository-owned living-knowledge spec aligned with the runtime docs, managed bootstrap template, and repo-relative low-leakage hygiene contract."]
+does_not_prove = ["bagakit-living-knowledge-spec-alignment does not prove behavior outside its documented contract anchors."]
+timeout_seconds = 300
 validation_class = "contract"
 groups = ["skills", "harness", "living-knowledge", "contract"]
 

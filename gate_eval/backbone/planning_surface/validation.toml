@@ -29,6 +29,7 @@ id = "planning-surface-eval-run"
 owner = "gate_eval/backbone/planning_surface"
 description = "Run the comparative planning-surface eval against the current repo and installed planning-with-files skill."
 default = false
+timeout_seconds = 300
 validation_class = "quality"
 groups = ["planning", "eval", "backbone", "comparison"]
 

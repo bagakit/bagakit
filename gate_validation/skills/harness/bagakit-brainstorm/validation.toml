@@ -5,6 +5,9 @@ id = "bagakit-brainstorm-layout"
 owner = "skills/harness/bagakit-brainstorm"
 description = "Require the canonical runtime layout and keep legacy standalone repo control files out of bagakit-brainstorm."
 default = true
+proof_mode = "structural"
+proves = ["bagakit-brainstorm-layout proves: Require the canonical runtime layout and keep legacy standalone repo control files out of bagakit-brainstorm."]
+does_not_prove = ["bagakit-brainstorm-layout does not prove runtime behavior, semantic correctness, or eval quality."]
 validation_class = "structure"
 groups = ["skills", "harness", "brainstorm", "structure"]
 
@@ -60,6 +63,10 @@ id = "bagakit-brainstorm-smoke"
 owner = "skills/harness/bagakit-brainstorm"
 description = "Run the brainstorm lifecycle across blocked explicit-adapter plus complete local, auto-with-fallback, and explicit-adapter archive routes."
 default = true
+proof_mode = "runtime"
+proves = ["bagakit-brainstorm-smoke proves: Run the brainstorm lifecycle across blocked explicit-adapter plus complete local, auto-with-fallback, and explicit-adapter archive routes."]
+does_not_prove = ["bagakit-brainstorm-smoke does not prove live service behavior, stochastic agent quality, or unrelated repository surfaces."]
+timeout_seconds = 300
 validation_class = "smoke"
 groups = ["skills", "harness", "brainstorm", "smoke"]
 

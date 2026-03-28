@@ -5,6 +5,7 @@ id = "dev-eval-fixture-suite"
 owner = "gate_eval/dev/eval"
 description = "Dogfood the shared dev/eval runner and packet contract."
 default = true
+timeout_seconds = 180
 validation_class = "quality"
 groups = ["dev", "eval", "quality", "packet"]
 

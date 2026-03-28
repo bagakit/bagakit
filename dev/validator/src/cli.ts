@@ -1,3 +1,4 @@
+import fs from "node:fs";
 import path from "node:path";
 import { parseArgs } from "node:util";
 import { fileURLToPath } from "node:url";
@@ -11,6 +12,38 @@ import { elapsedMs, nowTick, renderTimingSummary, suiteTimingRecord, type SuiteR
 
 const defaultRoot = path.resolve(fileURLToPath(new URL("../../..", import.meta.url)));
 const defaultConfig = "gate_validation/validation.toml";
+const auditFileExtensions = new Set([".cjs", ".js", ".mjs", ".mts", ".py", ".sh", ".toml", ".ts", ".tsx"]);
+const auditSkipDirs = new Set([
+  ".git",
+  ".pytest_cache",
+  "__pycache__",
+  "dist",
+  "node_modules",
+  "results",
+]);
+const stringMatchSignals = [
+  new RegExp(String.raw`\bgrep\b.*\s-q\b`),
+  new RegExp(String.raw`\brg\b.*\s-q\b`),
+  new RegExp(String.raw`\.includes\s*\(`),
+  new RegExp(String.raw`\bcontains\b`),
+  new RegExp(String.raw`\bnot_contains\b`),
+];
+const scenarioSignals = [
+  new RegExp(String.raw`\bcase(s)?\b`, "i"),
+  new RegExp(String.raw`\bexpected\b`, "i"),
+  new RegExp(String.raw`\bfixture(s)?\b`, "i"),
+  new RegExp(String.raw`\bgrader(s)?\b`, "i"),
+  new RegExp(String.raw`\bscenario(s)?\b`, "i"),
+  new RegExp(String.raw`\btrace(s)?\b`, "i"),
+  new RegExp(String.raw`\btranscript(s)?\b`, "i"),
+];
+
+interface AuditFileSignal {
+  relativePath: string;
+  lines: number;
+  stringMatches: number;
+  scenarioTerms: number;
+}
 
 function printHelp(): void {
   console.log(`bagakit validator
@@ -19,7 +52,8 @@ Commands:
   check-config [--root <repo-root>] [--config <path>]
   list [--root <repo-root>] [--config <path>] [--default-only] [--group <name>] [--validation-class <label>]
   plan [--root <repo-root>] [--config <path>] [--group <name>] [--validation-class <label>] [--skip-suite <id>] [--skip-group <name>] [--skip-alias <id>]
-  run-default [--root <repo-root>] [--config <path>] [--group <name>] [--validation-class <label>] [--skip-suite <id>] [--skip-group <name>] [--skip-alias <id>]
+  audit [--root <repo-root>] [--config <path>]
+  run-default [--root <repo-root>] [--config <path>] [--group <name>] [--validation-class <label>] [--skip-suite <id>] [--skip-group <name>] [--skip-alias <id>] [--fail-fast]
   run-suite <suite-id> [--root <repo-root>] [--config <path>] [--param <name>]
 `);
 }
@@ -90,6 +124,84 @@ function suiteSummary(suite: SuiteConfig): string {
   const groups = suite.groups.length > 0 ? suite.groups.join(",") : "-";
   const defaultMark = suite.defaultInGate ? "default" : "optional";
   return `${suite.id}\t[${suite.runner.kind}]\t${suite.validationClass}\t${defaultMark}\t${groups}\t${suite.owner}\t${suite.description}`;
+}
+
+function repoRelative(project: LoadedProject, absolutePath: string): string {
+  return path.relative(project.repoRoot, absolutePath).split(path.sep).join("/") || ".";
+}
+
+function incrementCount(counts: Map<string, number>, key: string): void {
+  counts.set(key, (counts.get(key) ?? 0) + 1);
+}
+
+function renderCounts(counts: Map<string, number>): string[] {
+  return [...counts.entries()]
+    .sort(([leftKey, leftCount], [rightKey, rightCount]) => rightCount - leftCount || leftKey.localeCompare(rightKey))
+    .map(([key, count]) => `- ${key}: ${count}`);
+}
+
+function walkAuditFiles(dirPath: string): string[] {
+  const entries = fs.readdirSync(dirPath, { withFileTypes: true });
+  const dirs = entries.filter((entry) => entry.isDirectory()).map((entry) => entry.name).sort();
+  const files = entries.filter((entry) => entry.isFile()).map((entry) => entry.name).sort();
+  const found: string[] = [];
+
+  for (const fileName of files) {
+    if (auditFileExtensions.has(path.extname(fileName))) {
+      found.push(path.join(dirPath, fileName));
+    }
+  }
+  for (const dirName of dirs) {
+    if (auditSkipDirs.has(dirName)) {
+      continue;
+    }
+    found.push(...walkAuditFiles(path.join(dirPath, dirName)));
+  }
+  return found;
+}
+
+function countLineSignals(lines: string[], patterns: RegExp[]): number {
+  let count = 0;
+  for (const line of lines) {
+    for (const pattern of patterns) {
+      if (pattern.test(line)) {
+        count += 1;
+      }
+    }
+  }
+  return count;
+}
+
+function auditFileSignals(project: LoadedProject): AuditFileSignal[] {
+  const absoluteRoots = [...new Set(project.discoveryRoots.map((root) => path.resolve(project.repoRoot, root)))];
+  const filePaths = [...new Set(absoluteRoots.flatMap((root) => walkAuditFiles(root)))].sort();
+  return filePaths.map((filePath) => {
+    const contents = fs.readFileSync(filePath, "utf8");
+    const lines = contents.length === 0 ? [] : contents.replace(/\r\n/g, "\n").split("\n");
+    return {
+      relativePath: repoRelative(project, filePath),
+      lines: lines.length,
+      stringMatches: countLineSignals(lines, stringMatchSignals),
+      scenarioTerms: countLineSignals(lines, scenarioSignals),
+    };
+  });
+}
+
+function renderAuditTopFiles(label: string, files: AuditFileSignal[], selector: (file: AuditFileSignal) => number): void {
+  const ranked = files
+    .filter((file) => selector(file) > 0)
+    .sort((left, right) => selector(right) - selector(left) || left.relativePath.localeCompare(right.relativePath))
+    .slice(0, 10);
+  console.log(label);
+  if (ranked.length === 0) {
+    console.log("- none");
+    return;
+  }
+  for (const file of ranked) {
+    console.log(
+      `- ${file.relativePath}: ${file.lines} lines, string_match=${file.stringMatches}, scenario_terms=${file.scenarioTerms}`,
+    );
+  }
 }
 
 function runSuite(project: LoadedProject, suite: SuiteConfig, requestedParams: string[] = []): number {
@@ -203,7 +315,17 @@ function cmdPlan(argv: string[]): number {
     console.log(`- [${suite.runner.kind}] ${suite.id}`);
     console.log(`  owner: ${suite.owner}`);
     console.log(`  class: ${suite.validationClass}`);
+    console.log(`  proof: ${suite.proofMode ?? "unspecified"}`);
+    if (suite.proves.length > 0) {
+      console.log(`  proves: ${suite.proves.join("; ")}`);
+    }
+    if (suite.doesNotProve.length > 0) {
+      console.log(`  does not prove: ${suite.doesNotProve.join("; ")}`);
+    }
     console.log(`  groups: ${suite.groups.join(", ") || "-"}`);
+    if (suite.timeoutSeconds !== undefined) {
+      console.log(`  timeout: ${suite.timeoutSeconds}s`);
+    }
     if (suite.runner.kind === "fs") {
       console.log("  runs:  built-in fs runner");
       continue;
@@ -218,6 +340,89 @@ function cmdPlan(argv: string[]): number {
   return 0;
 }
 
+function cmdAudit(argv: string[]): number {
+  const { values } = parseArgs({
+    args: argv,
+    options: commonOptions(),
+    strict: true,
+    allowPositionals: false,
+  });
+  const project = loadFrom(values as { root: string; config: string });
+  checkConfig(project);
+
+  const defaultSuites = project.defaultGate;
+  const defaultProcessSuites = defaultSuites.filter(hasProcessRunner);
+  const proofModes = new Map<string, number>();
+  const runnerKinds = new Map<string, number>();
+  const validationClasses = new Map<string, number>();
+  for (const suite of defaultSuites) {
+    incrementCount(proofModes, suite.proofMode ?? "unspecified");
+    incrementCount(runnerKinds, suite.runner.kind);
+    incrementCount(validationClasses, suite.validationClass);
+  }
+
+  const defaultProcessSuitesWithoutTimeout = defaultProcessSuites.filter((suite) => suite.timeoutSeconds === undefined);
+  const defaultProcessTimeouts = defaultProcessSuites
+    .filter((suite) => suite.timeoutSeconds !== undefined)
+    .sort((left, right) => (right.timeoutSeconds ?? 0) - (left.timeoutSeconds ?? 0) || left.id.localeCompare(right.id))
+    .slice(0, 10);
+  const fileSignals = auditFileSignals(project);
+  const totalStringMatches = fileSignals.reduce((sum, file) => sum + file.stringMatches, 0);
+  const totalScenarioTerms = fileSignals.reduce((sum, file) => sum + file.scenarioTerms, 0);
+
+  console.log("Validation audit (report-only)");
+  console.log(`- config: ${repoRelative(project, project.rootConfigPath)}`);
+  console.log(`- suites: ${project.suites.length} total, ${defaultSuites.length} default, ${defaultProcessSuites.length} default process`);
+  console.log(`- scanned files: ${fileSignals.length}`);
+  console.log("");
+
+  console.log("Default proof modes:");
+  for (const line of renderCounts(proofModes)) {
+    console.log(line);
+  }
+  console.log("");
+
+  console.log("Default runner kinds:");
+  for (const line of renderCounts(runnerKinds)) {
+    console.log(line);
+  }
+  console.log("");
+
+  console.log("Default validation classes:");
+  for (const line of renderCounts(validationClasses)) {
+    console.log(line);
+  }
+  console.log("");
+
+  console.log("Default timeout signal:");
+  console.log(`- missing timeout on default process suites: ${defaultProcessSuitesWithoutTimeout.length}`);
+  for (const suite of defaultProcessSuitesWithoutTimeout.slice(0, 10)) {
+    console.log(`- missing: ${suite.id}`);
+  }
+  console.log("Top default process timeouts:");
+  if (defaultProcessTimeouts.length === 0) {
+    console.log("- none");
+  } else {
+    for (const suite of defaultProcessTimeouts) {
+      console.log(`- ${suite.id}: ${suite.timeoutSeconds}s`);
+    }
+  }
+  console.log("");
+
+  renderAuditTopFiles("Largest validation/eval files:", fileSignals, (file) => file.lines);
+  console.log("");
+  console.log("String-match signal:");
+  console.log(`- total heuristic matches: ${totalStringMatches}`);
+  renderAuditTopFiles("Top string-match files:", fileSignals, (file) => file.stringMatches);
+  console.log("");
+  console.log("Scenario/eval vocabulary signal:");
+  console.log(`- total heuristic terms: ${totalScenarioTerms}`);
+  console.log("- interpretation: vocabulary hits are review prompts, not proof");
+  renderAuditTopFiles("Top scenario/eval files:", fileSignals, (file) => file.scenarioTerms);
+
+  return 0;
+}
+
 function cmdRunDefault(argv: string[]): number {
   const { values } = parseArgs({
     args: argv,
@@ -227,6 +432,7 @@ function cmdRunDefault(argv: string[]): number {
       "skip-suite": { type: "string" as const, multiple: true, default: [] },
       "skip-group": { type: "string" as const, multiple: true, default: [] },
       "skip-alias": { type: "string" as const, multiple: true, default: [] },
+      "fail-fast": { type: "boolean" as const, default: false },
     },
     strict: true,
     allowPositionals: false,
@@ -261,6 +467,10 @@ function cmdRunDefault(argv: string[]): number {
       passed += 1;
     } else {
       failed += 1;
+      if (values["fail-fast"]) {
+        console.error(`Fail-fast stopping after failed suite: ${suite.id}`);
+        break;
+      }
     }
   }
   console.log(`Summary: ${passed} passed, ${failed} failed, ${skipped} skipped`);
@@ -321,6 +531,8 @@ function main(argv: string[]): number {
       return cmdList(rest);
     case "plan":
       return cmdPlan(rest);
+    case "audit":
+      return cmdAudit(rest);
     case "run-default":
       return cmdRunDefault(rest);
     case "run-suite":

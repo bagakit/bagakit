@@ -5,6 +5,7 @@ id = "bagakit-git-message-craft-shared-runner-eval"
 owner = "gate_eval/skills/swe/bagakit-git-message-craft"
 description = "Run deterministic non-gating eval for git-message-craft draft and archive quality."
 default = true
+timeout_seconds = 180
 validation_class = "quality"
 groups = ["skills", "swe", "git-message-craft", "eval", "quality"]
 

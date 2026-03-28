@@ -3,6 +3,7 @@ import path from "node:path";
 
 import {
   PROCESS_RUNNER_KINDS,
+  PROOF_MODES,
   RUNNER_KINDS,
   VALIDATION_CLASSES,
 } from "./model.ts";
@@ -13,6 +14,7 @@ import type {
   FileSystemRunner,
   LoadedProject,
   ProcessRunner,
+  ProofMode,
   PythonScriptRunner,
   RootConfig,
   SkipAlias,
@@ -55,6 +57,16 @@ function readStringArray(value: unknown, label: string, fallback: string[] = [])
   return [...value];
 }
 
+function readPositiveInteger(value: unknown, label: string): number | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+  if (!Number.isInteger(value) || Number(value) <= 0) {
+    throw new Error(`${label} must be a positive integer when present`);
+  }
+  return Number(value);
+}
+
 function uniqueStrings(values: string[], label: string): string[] {
   const seen = new Set<string>();
   const unique: string[] = [];
@@ -87,6 +99,18 @@ function readValidationClass(
   return value as ValidationClass;
 }
 
+function readProofMode(value: unknown, label: string): ProofMode | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+  if (typeof value !== "string" || !PROOF_MODES.includes(value as ProofMode)) {
+    throw new Error(
+      `${label} must be one of ${PROOF_MODES.map((item) => JSON.stringify(item)).join(", ")}`,
+    );
+  }
+  return value as ProofMode;
+}
+
 function readParams(value: unknown, label: string): Record<string, string[]> {
   if (value === undefined) {
     return {};
@@ -100,6 +124,19 @@ function readParams(value: unknown, label: string): Record<string, string[]> {
     params[key] = readStringArray(rawValue, `${label}.${key}`);
   }
   return params;
+}
+
+function usesNpxPackageInstall(suite: SuiteConfig): boolean {
+  if (suite.runner.kind === "argv") {
+    return (
+      suite.runner.command[0] === "npx" &&
+      suite.runner.command.some((arg) => arg === "-p" || arg === "--package" || arg.startsWith("--package="))
+    );
+  }
+  if (suite.runner.kind !== "executable" || suite.runner.command !== "npx") {
+    return false;
+  }
+  return suite.runner.args.some((arg) => arg === "-p" || arg === "--package" || arg.startsWith("--package="));
 }
 
 function loadRootSkipAliases(rawPayload: Record<string, unknown>, configPath: string): SkipAlias[] {
@@ -299,19 +336,64 @@ function loadSuiteMetadata(
       `${configPath} suite.validation_class`,
       rawRunnerKind,
     ),
+    proofMode: readProofMode(rawSuite.proof_mode, `${configPath} suite.proof_mode`),
+    proves: uniqueStrings(
+      readStringArray(rawSuite.proves, `${configPath} suite.proves`),
+      `${configPath} suite.proves`,
+    ),
+    doesNotProve: uniqueStrings(
+      readStringArray(rawSuite.does_not_prove, `${configPath} suite.does_not_prove`),
+      `${configPath} suite.does_not_prove`,
+    ),
+    timeoutSeconds: readPositiveInteger(rawSuite.timeout_seconds, `${configPath} suite.timeout_seconds`),
     groups,
     params,
     defaultParams,
   };
 }
 
-function validateSuiteShape(suite: SuiteConfig): void {
+interface SuiteShapePolicy {
+  requireDefaultProofContract: boolean;
+  requireDefaultProcessTimeout: boolean;
+  forbidDefaultPackageBootstrap: boolean;
+}
+
+function validateSuiteShape(suite: SuiteConfig, policy: SuiteShapePolicy): void {
   if (suite.runner.kind === "fs" && (Object.keys(suite.params).length > 0 || suite.defaultParams.length > 0)) {
     throw new Error(`suite ${suite.id} uses the fs runner and cannot declare params or default_params`);
   }
+  if (suite.runner.kind === "fs" && suite.timeoutSeconds !== undefined) {
+    throw new Error(`suite ${suite.id} uses the fs runner and cannot declare timeout_seconds`);
+  }
+  if (suite.runner.kind === "fs" && suite.proofMode !== undefined && suite.proofMode !== "structural") {
+    throw new Error(`suite ${suite.id} uses the fs runner and must use proof_mode structural`);
+  }
+  if (!suite.defaultInGate) {
+    return;
+  }
+  if (policy.requireDefaultProofContract) {
+    if (suite.proves.length === 0 || suite.doesNotProve.length === 0) {
+      throw new Error(`default suite ${suite.id} must declare non-empty proves and does_not_prove`);
+    }
+    if (!suite.proofMode) {
+      throw new Error(`default suite ${suite.id} must declare proof_mode`);
+    }
+    if (suite.proofMode === "live" || suite.proofMode === "manual" || suite.proofMode === "stochastic_judge") {
+      throw new Error(`default suite ${suite.id} uses non-hermetic proof_mode: ${suite.proofMode}`);
+    }
+  }
+  if (policy.requireDefaultProcessTimeout && suite.runner.kind !== "fs" && suite.timeoutSeconds === undefined) {
+    throw new Error(`default process suite ${suite.id} must declare timeout_seconds`);
+  }
+  if (
+    policy.forbidDefaultPackageBootstrap &&
+    usesNpxPackageInstall(suite)
+  ) {
+    throw new Error(`default suite ${suite.id} must not use npx package installation; use a repo-owned tool runner`);
+  }
 }
 
-function loadSuitesFromFile(configPath: string): SuiteConfig[] {
+function loadSuitesFromFile(configPath: string, policy: SuiteShapePolicy): SuiteConfig[] {
   const payload = assertRecord(parseTomlFile(configPath), configPath);
   const version = payload.version;
   if (version === undefined) {
@@ -337,7 +419,7 @@ function loadSuitesFromFile(configPath: string): SuiteConfig[] {
       ),
       runner,
     };
-    validateSuiteShape(suite);
+    validateSuiteShape(suite, policy);
     return suite;
   });
 }
@@ -346,6 +428,12 @@ export function loadProject(repoRootArg: string, configPathArg: string): LoadedP
   const repoRoot = path.resolve(repoRootArg);
   const rootConfigPath = path.resolve(repoRoot, configPathArg);
   const rootConfig = loadRootConfig(rootConfigPath);
+  const rootConfigRel = path.relative(repoRoot, rootConfigPath).split(path.sep).join("/");
+  const gatePolicy: SuiteShapePolicy = {
+    requireDefaultProofContract: rootConfigRel.startsWith("gate_validation/"),
+    requireDefaultProcessTimeout: rootConfigRel.startsWith("gate_validation/") || rootConfigRel.startsWith("gate_eval/"),
+    forbidDefaultPackageBootstrap: rootConfigRel.startsWith("gate_validation/") || rootConfigRel.startsWith("gate_eval/"),
+  };
 
   const suitesById = new Map<string, SuiteConfig>();
   const suitesByGroup = new Map<string, SuiteConfig[]>();
@@ -354,7 +442,7 @@ export function loadProject(repoRootArg: string, configPathArg: string): LoadedP
   const discoveredFiles = discoverSuiteConfigPaths(repoRoot, rootConfig.discoveryRoots);
 
   for (const discoveredFile of discoveredFiles) {
-    for (const suite of loadSuitesFromFile(discoveredFile)) {
+    for (const suite of loadSuitesFromFile(discoveredFile, gatePolicy)) {
       if (suitesById.has(suite.id)) {
         const existing = suitesById.get(suite.id)!;
         throw new Error(

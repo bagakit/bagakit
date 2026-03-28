@@ -5,6 +5,9 @@ id = "bagakit-git-message-craft-layout"
 owner = "skills/swe/bagakit-git-message-craft"
 description = "Require the canonical runtime layout and keep maintainer-only payload out of bagakit-git-message-craft."
 default = true
+proof_mode = "structural"
+proves = ["bagakit-git-message-craft-layout proves: Require the canonical runtime layout and keep maintainer-only payload out of bagakit-git-message-craft."]
+does_not_prove = ["bagakit-git-message-craft-layout does not prove runtime behavior, semantic correctness, or eval quality."]
 validation_class = "structure"
 groups = ["skills", "swe", "git-message-craft", "structure"]
 
@@ -58,6 +61,10 @@ id = "bagakit-git-message-craft-smoke"
 owner = "skills/swe/bagakit-git-message-craft"
 description = "Run the canonical bagakit-git-message-craft lint, archive, and payload-boundary smoke checks."
 default = true
+proof_mode = "runtime"
+proves = ["bagakit-git-message-craft-smoke proves: Run the canonical bagakit-git-message-craft lint, archive, and payload-boundary smoke checks."]
+does_not_prove = ["bagakit-git-message-craft-smoke does not prove live service behavior, stochastic agent quality, or unrelated repository surfaces."]
+timeout_seconds = 300
 validation_class = "smoke"
 groups = ["skills", "swe", "git-message-craft", "smoke"]
 

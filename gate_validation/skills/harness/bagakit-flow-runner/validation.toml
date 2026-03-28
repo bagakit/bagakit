@@ -5,6 +5,9 @@ id = "bagakit-flow-runner-layout"
 owner = "skills/harness/bagakit-flow-runner"
 description = "Require the canonical runtime layout and keep legacy long-run repo artifacts out of bagakit-flow-runner."
 default = true
+proof_mode = "structural"
+proves = ["bagakit-flow-runner-layout proves: Require the canonical runtime layout and keep legacy long-run repo artifacts out of bagakit-flow-runner."]
+does_not_prove = ["bagakit-flow-runner-layout does not prove runtime behavior, semantic correctness, or eval quality."]
 validation_class = "structure"
 groups = ["skills", "harness", "flow-runner", "structure"]
 
@@ -66,6 +69,10 @@ id = "bagakit-flow-runner-contract"
 owner = "skills/harness/bagakit-flow-runner"
 description = "Check that documented policy and recipe contracts stay aligned with shipped templates and applied runtime files."
 default = true
+proof_mode = "wording_contract"
+proves = ["bagakit-flow-runner-contract proves: Check that documented policy and recipe contracts stay aligned with shipped templates and applied runtime files."]
+does_not_prove = ["bagakit-flow-runner-contract does not prove behavior outside its documented contract anchors."]
+timeout_seconds = 300
 validation_class = "quality"
 groups = ["skills", "harness", "flow-runner", "contract"]
 
@@ -82,6 +89,10 @@ id = "bagakit-flow-runner-smoke"
 owner = "skills/harness/bagakit-flow-runner"
 description = "Run a minimal flow-runner lifecycle including feature-tracker ingest, next-item selection, snapshot, checkpoint, and archive."
 default = true
+proof_mode = "runtime"
+proves = ["bagakit-flow-runner-smoke proves: Run a minimal flow-runner lifecycle including feature-tracker ingest, next-item selection, snapshot, checkpoint, and archive."]
+does_not_prove = ["bagakit-flow-runner-smoke does not prove live service behavior, stochastic agent quality, or unrelated repository surfaces."]
+timeout_seconds = 300
 validation_class = "smoke"
 groups = ["skills", "harness", "flow-runner", "smoke"]
 
@@ -98,6 +109,10 @@ id = "bagakit-flow-runner-tests"
 owner = "skills/harness/bagakit-flow-runner"
 description = "Run the TypeScript flow-runner regression tests."
 default = true
+proof_mode = "runtime"
+proves = ["bagakit-flow-runner-tests proves: Run the TypeScript flow-runner regression tests."]
+does_not_prove = ["bagakit-flow-runner-tests does not prove live service behavior, stochastic agent quality, or unrelated repository surfaces."]
+timeout_seconds = 180
 validation_class = "quality"
 groups = ["skills", "harness", "flow-runner", "quality"]
 

@@ -5,6 +5,9 @@ id = "agent-loop-layout"
 owner = "dev/agent_loop"
 description = "Require the canonical agent_loop tool layout, docs, and gate registration."
 default = true
+proof_mode = "structural"
+proves = ["agent-loop-layout proves: Require the canonical agent_loop tool layout, docs, and gate registration."]
+does_not_prove = ["agent-loop-layout does not prove runtime behavior, semantic correctness, or eval quality."]
 validation_class = "structure"
 groups = ["dev", "agent-loop", "structure"]
 
@@ -60,6 +63,10 @@ id = "agent-loop-smoke"
 owner = "dev/agent_loop"
 description = "Run tracker-backed and runner-owned agent_loop flows, stop-attention outputs, and watch rendering."
 default = true
+proof_mode = "state_machine"
+proves = ["agent-loop-smoke proves: Run tracker-backed and runner-owned agent_loop flows, stop-attention outputs, and watch rendering."]
+does_not_prove = ["agent-loop-smoke does not prove live service behavior, stochastic agent quality, or unrelated workflows."]
+timeout_seconds = 300
 validation_class = "smoke"
 groups = ["dev", "agent-loop", "smoke"]
 
@@ -76,6 +83,10 @@ id = "agent-loop-tests"
 owner = "dev/agent_loop"
 description = "Run the agent_loop regression tests."
 default = true
+proof_mode = "state_machine"
+proves = ["agent-loop-tests proves: Run the agent_loop regression tests."]
+does_not_prove = ["agent-loop-tests does not prove live service behavior, stochastic agent quality, or unrelated workflows."]
+timeout_seconds = 180
 validation_class = "quality"
 groups = ["dev", "agent-loop", "quality"]
 
@@ -93,17 +104,20 @@ id = "agent-loop-typecheck"
 owner = "dev/agent_loop"
 description = "Run a strict TypeScript typecheck for the agent_loop sources."
 default = true
+proof_mode = "structural"
+proves = ["agent-loop-typecheck proves: the agent_loop TypeScript sources typecheck against dev/agent_loop/tsconfig.json."]
+does_not_prove = ["agent-loop-typecheck does not prove runtime behavior, state-machine behavior, live service behavior, stochastic agent quality, or unrelated workflows."]
+timeout_seconds = 180
 validation_class = "quality"
 groups = ["dev", "agent-loop", "quality", "typecheck"]
 
 [suite.runner]
-kind = "executable"
-command = "npx"
+kind = "bash_script"
+script = "dev/host_tools/typescript/tsc-local.sh"
 args = [
-  "--yes",
-  "-p",
-  "typescript",
-  "tsc",
+  "--root",
+  "{repo_root}",
+  "--",
   "-p",
   "dev/agent_loop/tsconfig.json",
   "--noEmit",

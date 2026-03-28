@@ -5,6 +5,7 @@ id = "bagakit-flow-runner-shared-runner-eval"
 owner = "gate_eval/skills/harness/bagakit-flow-runner"
 description = "Run deterministic non-gating eval for flow-runner next-action and closeout signaling quality."
 default = true
+timeout_seconds = 180
 validation_class = "quality"
 groups = ["skills", "harness", "flow-runner", "eval", "quality"]
 

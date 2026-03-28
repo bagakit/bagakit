@@ -119,6 +119,7 @@ export function runProcessSuite(
   const result = spawnSync(resolved.argv[0], resolved.argv.slice(1), {
     cwd: resolved.cwd,
     stdio: "inherit",
+    timeout: suite.timeoutSeconds === undefined ? undefined : suite.timeoutSeconds * 1000,
     env: {
       ...process.env,
       PYTHONDONTWRITEBYTECODE: "1",
@@ -126,6 +127,10 @@ export function runProcessSuite(
   });
 
   if (result.error) {
+    if (result.error.name === "ETIMEDOUT" || result.error.message.includes("ETIMEDOUT")) {
+      console.error(`suite ${suite.id} timed out after ${suite.timeoutSeconds} second(s)`);
+      return 1;
+    }
     console.error(`failed to launch suite ${suite.id}: ${result.error.message}`);
     return 1;
   }
