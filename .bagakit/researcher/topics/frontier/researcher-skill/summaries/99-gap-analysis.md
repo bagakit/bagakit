@@ -1,5 +1,8 @@
 # Gap Analysis
 
+Status: historical baseline, superseded by
+`50-integrated-implementation-plan.md` and the current runtime implementation.
+
 ## Current Strengths
 
 - Bagakit already has the architecture distinction:
