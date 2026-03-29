@@ -14,6 +14,8 @@ const CONTROL_SYNTAX_RE = new RegExp("control syntax");
 const EVIDENCE_PATH_RE = new RegExp("evidence must be repo-relative");
 const INVALID_MARKER_RE = new RegExp("invalid frontdoor marker layout");
 const SKILL_ID_REJECTION_RE = new RegExp("skill must match");
+const SKILL_DIR_REJECTION_RE = new RegExp("skill directory must match");
+const UNSAFE_RENDER_RE = new RegExp("unsafe skill id");
 
 function makeTempRepo(): string {
   return fs.mkdtempSync(path.join(os.tmpdir(), "bagakit-frontdoor-"));
@@ -98,6 +100,29 @@ test("project validation rejects skill ids that cannot be rendered as safe attri
   const issues = validateProject(loadProject(root));
   assert.equal(hasErrors(issues), true);
   assert.match(issues.map((item) => item.message).join("\n"), SKILL_ID_REJECTION_RE);
+});
+
+test("project validation rejects unsafe directory ids even when frontmatter matches", () => {
+  const root = makeTempRepo();
+  writeSkill(root, "harness", "bad_skill", rule("bad_skill"));
+
+  const issues = validateProject(loadProject(root));
+  assert.equal(hasErrors(issues), true);
+  assert.match(issues.map((item) => item.message).join("\n"), SKILL_DIR_REJECTION_RE);
+});
+
+test("renderer refuses unsafe skill ids even when called directly", () => {
+  const root = makeTempRepo();
+  writeSkill(root, "harness", 'bad"skill', [
+    "version = 1",
+    'skill = "bad\\"skill"',
+    'trigger = "Use bad skill."',
+    'do = "Run bad skill."',
+    `see = "${["skills", "harness", "bad-skill", "SKILL.md"].join("/")}"`,
+    "",
+  ].join("\n"));
+
+  assert.throws(() => renderManagedBlock(loadProject(root).rules), UNSAFE_RENDER_RE);
 });
 
 test("managed-region validation requires current AGENTS block to match renderer", () => {

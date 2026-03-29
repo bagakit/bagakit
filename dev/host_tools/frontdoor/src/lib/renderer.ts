@@ -2,6 +2,7 @@ import {
   FRONTDOOR_END,
   FRONTDOOR_START,
   RENDERED_RULE_FIELDS,
+  SKILL_ID_RE,
   type LoadedRule,
   type RenderedRuleField,
   type RuleDeclaration,
@@ -42,6 +43,9 @@ function renderBullet(rule: RuleDeclaration, field: RenderedRuleField): string |
 
 export function renderManagedBlock(rules: LoadedRule[]): string {
   const renderedRules = orderedRules(rules).map(({ declaration }) => {
+    if (!SKILL_ID_RE.test(declaration.skill)) {
+      throw new Error(`unsafe skill id for frontdoor render: ${declaration.skill}`);
+    }
     const bullets = RENDERED_RULE_FIELDS
       .map((field) => renderBullet(declaration, field))
       .filter((line): line is string => Boolean(line));

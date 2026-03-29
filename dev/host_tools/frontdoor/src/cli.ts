@@ -34,17 +34,21 @@ function loadAndValidate(root: string, includeBootstrap: boolean): { root: strin
   const project = loadProject(resolvedRoot);
   const issues = validateProject(project);
   const agentsPath = path.join(resolvedRoot, AGENTS_PATH);
+  const projectHasErrors = hasErrors(issues);
+  const block = projectHasErrors ? "" : renderManagedBlock(project.rules);
 
-  if (includeBootstrap && fs.existsSync(agentsPath)) {
-    issues.push(...validateManagedRegionMatches(readTextFile(agentsPath), AGENTS_PATH, renderManagedBlock(project.rules)));
-  } else if (includeBootstrap) {
-    issues.push({ severity: "error", path: AGENTS_PATH, message: "missing AGENTS.md" });
+  if (includeBootstrap && !projectHasErrors) {
+    if (fs.existsSync(agentsPath)) {
+      issues.push(...validateManagedRegionMatches(readTextFile(agentsPath), AGENTS_PATH, block));
+    } else {
+      issues.push({ severity: "error", path: AGENTS_PATH, message: "missing AGENTS.md" });
+    }
   }
 
   return {
     root: resolvedRoot,
     issues,
-    block: renderManagedBlock(project.rules),
+    block,
   };
 }
 
