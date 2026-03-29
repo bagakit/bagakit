@@ -112,7 +112,7 @@ function addSource(
         "--authority",
         "primary",
         "--published",
-        "2026-04-19",
+        "unknown",
         "--source-role",
         "primary",
         "--scope-fit",
@@ -873,6 +873,105 @@ Keep this curation intact.
             outputs: {
               quality: quality.stdout.trim(),
               drift: drift.stdout.trim(),
+            },
+            replacements: fixture.replacements,
+          };
+        } finally {
+          cleanupTempDir(fixture.tempRepo, context.keepTemp);
+        }
+      },
+    },
+    {
+      id: "wiki-frontdoor-links-topic-evidence",
+      title: "Wiki Frontdoor Links Topic Evidence",
+      summary: "refresh-wiki should derive researcher-local frontdoor pages from multiple topic workspaces without replacing topic evidence or mutating peer systems.",
+      focus: ["wiki-frontdoor", "cross-topic-navigation", "evidence-preservation"],
+      run: (context): EvalCaseResult => {
+        const { repoRoot } = context;
+        const fixture = withFixture(context);
+        const firstTopic = "wiki-alpha";
+        const secondTopic = "wiki-beta";
+        try {
+          initTopic(fixture, repoRoot, firstTopic, "Wiki Alpha");
+          addSource(fixture, repoRoot, firstTopic, "a01", "Alpha Source");
+          addSummary(fixture, repoRoot, firstTopic, "a01", "Alpha Summary");
+
+          initTopic(fixture, repoRoot, secondTopic, "Wiki Beta");
+          addSource(fixture, repoRoot, secondTopic, "b01", "Beta Source");
+          addSummary(fixture, repoRoot, secondTopic, "b01", "Beta Summary");
+
+          const claimArgs = [
+            "add-claim",
+            "--root",
+            fixture.tempRepo,
+            "--topic-class",
+            TOPIC_CLASS,
+            "--topic",
+            firstTopic,
+            "--claim-id",
+            "alpha-claim",
+            "--kind",
+            "observation",
+            "--statement",
+            "Wiki frontdoors should cite topic evidence.",
+            "--evidence-ref",
+            "originals/a01.md",
+            "--confidence",
+            "medium",
+            "--status",
+            "supported",
+          ];
+          expectOk(runResearcher(fixture, claimArgs, repoRoot), "add-claim alpha");
+
+          const refreshArgs = ["refresh-wiki", "--root", fixture.tempRepo, "--title", "Researcher Frontdoor"];
+          expectOk(runResearcher(fixture, refreshArgs, repoRoot), "refresh-wiki");
+          expectOk(runResearcher(fixture, ["doctor", "--root", fixture.tempRepo, "--wiki"], repoRoot), "doctor --wiki");
+
+          const researchRoot = path.join(fixture.tempRepo, ".bagakit", "researcher");
+          const frontdoorPath = path.join(researchRoot, "index.md");
+          const wikiReadmePath = path.join(researchRoot, "wiki", "README.md");
+          const conceptPath = path.join(researchRoot, "wiki", "concepts", "research-topics.md");
+          const claimsPath = path.join(researchRoot, "wiki", "claims", "supported-claims.md");
+          const questionsPath = path.join(researchRoot, "wiki", "questions", "open-questions.md");
+
+          for (const artifactPath of [frontdoorPath, wikiReadmePath, conceptPath, claimsPath, questionsPath]) {
+            assert.ok(fs.existsSync(artifactPath), `expected ${artifactPath}`);
+          }
+          const frontdoorText = fs.readFileSync(frontdoorPath, "utf8");
+          const conceptText = fs.readFileSync(conceptPath, "utf8");
+          const claimsText = fs.readFileSync(claimsPath, "utf8");
+          assert.ok(frontdoorText.includes("frontier/wiki-alpha"));
+          assert.ok(frontdoorText.includes("frontier/wiki-beta"));
+          assert.ok(frontdoorText.includes("not the shared"));
+          assert.ok(conceptText.includes(".bagakit/researcher/topics/frontier/wiki-alpha/index.md"));
+          assert.ok(conceptText.includes(".bagakit/researcher/topics/frontier/wiki-beta/index.md"));
+          assert.ok(claimsText.includes("claims.md#alpha-claim"));
+
+          const forbiddenRoots = [
+            path.join(fixture.tempRepo, ".bagakit", "living-knowledge"),
+            path.join(fixture.tempRepo, ".bagakit", "evolver"),
+          ];
+          for (const forbiddenRoot of forbiddenRoots) {
+            assert.equal(fs.existsSync(forbiddenRoot), false, `unexpected mutation: ${forbiddenRoot}`);
+          }
+          assertNoPathLeaks(fixture.tempRepo, [frontdoorPath, wikiReadmePath, conceptPath, claimsPath, questionsPath]);
+
+          return {
+            assertions: [
+              "refresh-wiki creates researcher-local frontdoor pages",
+              "frontdoor pages link to both topic workspaces",
+              "supported claim index points back to the topic claim ledger",
+              "refresh-wiki does not mutate peer runtime roots",
+            ],
+            commands: [commandLine(refreshArgs), commandLine(["doctor", "--root", fixture.tempRepo, "--wiki"])],
+            artifacts: [
+              { label: "researcher-frontdoor", path: frontdoorPath },
+              { label: "research-topics", path: conceptPath },
+              { label: "supported-claims", path: claimsPath },
+            ],
+            outputs: {
+              frontdoor_topics: ["frontier/wiki-alpha", "frontier/wiki-beta"],
+              forbidden_roots_checked: [".bagakit/living-knowledge", ".bagakit/evolver"],
             },
             replacements: fixture.replacements,
           };

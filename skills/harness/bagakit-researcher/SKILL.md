@@ -96,12 +96,27 @@ Each topic lives under:
 
 - `<researcher_root>/topics/<topic-class>/<topic>/`
 
+Researcher may also maintain a researcher-local wiki/frontdoor:
+
+- `<researcher_root>/index.md`
+- `<researcher_root>/wiki/`
+
 Rule:
 
 - `researcher_root` may override the default path only when it stays under
   `.bagakit/`
 - hidden `docs/.<topic-class>/...` roots are not valid Bagakit researcher
   runtime paths
+- `topics/` remains the evidence source of truth
+- `wiki/` is a derived navigation and synthesis frontdoor over topic evidence,
+  not shared checked-in knowledge and not repository evolution memory
+- before opening a new topic, pass, or broad search, inspect the existing
+  researcher frontdoor when it exists or can be refreshed from prior topics
+- a researcher that reads the wiki inherits a maintenance duty for the current
+  research loop: before final response or handoff, update topic evidence first,
+  refresh the topic index, refresh the wiki, and run `doctor --wiki`
+- wiki maintenance means regenerating from topic artifacts, not hand-editing
+  generated wiki pages as the source of truth
 
 Base topic members:
 
@@ -131,24 +146,55 @@ Extended workflow members are created by the command that needs them.
 - `handoffs/`
   - optional downstream handoff artifacts
 
+Frontdoor members are refreshed by `refresh-wiki`:
+
+- `index.md`
+  - root-level researcher frontdoor across topics
+- `wiki/README.md`
+  - wiki boundary, update rule, and coverage map
+- `wiki/concepts/`
+  - cross-topic concept indexes
+- `wiki/questions/`
+  - open question and lead indexes
+- `wiki/claims/`
+  - claim indexes that point back to topic claim ledgers
+
 ## Optimized Flow
 
 The normal workflow is:
 
-1. Create or update `charter.md`.
-2. Plan one bounded pass under `passes/`.
-3. Split the pass into track contracts under `tracks/`.
-4. Execute track work outside researcher; parallel workers should write only their owned track files, source ids, and summaries.
-5. Add source cards under `originals/` and reusable summaries under `summaries/`.
-6. Record sourced claims in `claims.md`, cross-source insights under `insights/`, and active-mining leads in `leads.md`.
-7. Run `doctor --quality` and `doctor --drift` before synthesis or handoff.
-8. Refresh the managed sections of `index.md` without overwriting curated notes.
-9. Optionally render a handoff artifact under `handoffs/`.
+1. Before new research, refresh or inspect the researcher frontdoor and read
+   relevant existing topic, question, and claim links.
+2. Create or update `charter.md`.
+3. Plan one bounded pass under `passes/`.
+4. Split the pass into track contracts under `tracks/`.
+5. Execute track work outside researcher; parallel workers should write only their owned track files, source ids, and summaries.
+6. Add source cards under `originals/` and reusable summaries under `summaries/`.
+7. Record sourced claims in `claims.md`, cross-source insights under `insights/`, and active-mining leads in `leads.md`.
+8. Run `doctor --quality` and `doctor --drift` before synthesis or handoff.
+9. Refresh the managed sections of `index.md` without overwriting curated notes.
+10. Refresh the researcher-local wiki/frontdoor when cross-topic discovery
+   matters.
+11. If the loop read the wiki and changed topic evidence, close the maintenance
+    duty with `doctor --wiki` before final response or handoff.
+12. Optionally render a handoff artifact under `handoffs/`.
 
 Researcher may generate retrieval plans and query sketches, but provider
 execution belongs outside this skill.
 
 ## Commands
+
+0. Before new search, inspect the existing researcher frontdoor:
+
+```bash
+sh scripts/bagakit-researcher.sh refresh-wiki --root .
+sh scripts/bagakit-researcher.sh list-topics --root .
+sh scripts/bagakit-researcher.sh doctor --root . --wiki
+```
+
+Read `<researcher_root>/index.md` and relevant pages under
+`<researcher_root>/wiki/` before deciding whether to open a new topic or extend
+an existing one.
 
 1. Initialize one topic workspace:
 
@@ -208,7 +254,7 @@ sh scripts/bagakit-researcher.sh add-source-card \
   --title "Example Source" \
   --url "https://example.com" \
   --authority primary \
-  --published 2026-04-19 \
+  --published unknown \
   --source-role primary \
   --scope-fit core \
   --limitations "sample limitation" \
@@ -300,7 +346,28 @@ sh scripts/bagakit-researcher.sh refresh-index \
 `refresh-index` owns only managed artifact sections. It must not overwrite
 operator-written topic goals, reading order, conclusions, or open questions.
 
-9. Optionally render one handoff artifact:
+9. Refresh the researcher-local wiki/frontdoor:
+
+```bash
+sh scripts/bagakit-researcher.sh refresh-wiki \
+  --root . \
+  --title "Researcher Frontdoor"
+```
+
+`refresh-wiki` writes researcher-local derived pages under `<researcher_root>/`.
+Every meaningful wiki page should point back to topic evidence under `topics/`.
+The wiki is not a replacement for topic workspaces and is not the shared
+knowledge root.
+If this loop read the wiki and changed topic evidence, this refresh is a
+required closeout step, not an optional cleanup.
+
+10. Confirm the wiki maintenance closeout:
+
+```bash
+sh scripts/bagakit-researcher.sh doctor --root . --wiki
+```
+
+11. Optionally render one handoff artifact:
 
 ```bash
 sh scripts/bagakit-researcher.sh render-handoff \
@@ -314,11 +381,11 @@ Supported handoff kinds are `selector`, `evolver`, and `living-knowledge`.
 Rendering a handoff writes a file under `handoffs/`; it does not mutate the
 target system.
 
-10. Before new search, inspect what already exists:
+12. Before another new search, inspect what already exists:
 
 ```bash
 sh scripts/bagakit-researcher.sh list-topics --root .
-sh scripts/bagakit-researcher.sh doctor --root .
+sh scripts/bagakit-researcher.sh doctor --root . --wiki
 ```
 
 ## Handoff

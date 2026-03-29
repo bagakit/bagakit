@@ -63,7 +63,7 @@ add_source() {
     --title "$title" \
     --url "https://example.com/$source_id" \
     --authority primary \
-    --published 2026-04-19 \
+    --published unknown \
     --source-role primary \
     --scope-fit core \
     --limitations "example limitation" \
@@ -437,7 +437,8 @@ run_researcher add-claim \
   --statement "Complete evidence chains should remain warning-free." \
   --evidence-ref "originals/c001.md" \
   --counterevidence-ref "summaries/c001.md#avoid" \
-  --confidence medium >/dev/null
+  --confidence medium \
+  --status supported >/dev/null
 run_researcher add-insight \
   --root "$TMP_DIR" \
   --topic-class frontier \
@@ -480,6 +481,21 @@ run_researcher refresh-index \
   --topic-class frontier \
   --topic clean-topic \
   --title "Clean Topic" >/dev/null
+run_researcher refresh-wiki \
+  --root "$TMP_DIR" \
+  --title "Researcher Frontdoor" >/dev/null
+assert_file "$TMP_DIR/.bagakit/researcher/index.md"
+assert_file "$TMP_DIR/.bagakit/researcher/wiki/README.md"
+assert_file "$TMP_DIR/.bagakit/researcher/wiki/concepts/research-topics.md"
+assert_file "$TMP_DIR/.bagakit/researcher/wiki/questions/open-questions.md"
+assert_file "$TMP_DIR/.bagakit/researcher/wiki/claims/supported-claims.md"
+assert_contains "$TMP_DIR/.bagakit/researcher/index.md" 'frontier/clean-topic'
+assert_contains "$TMP_DIR/.bagakit/researcher/index.md" 'not the shared'
+assert_contains "$TMP_DIR/.bagakit/researcher/wiki/concepts/research-topics.md" '.bagakit/researcher/topics/frontier/clean-topic/index.md'
+assert_contains "$TMP_DIR/.bagakit/researcher/wiki/claims/supported-claims.md" 'claims.md#clean-claim'
+assert_no_warnings "$TMP_DIR/wiki.out" run_researcher doctor \
+  --root "$TMP_DIR" \
+  --wiki
 assert_no_warnings "$TMP_DIR/clean-quality.out" run_researcher doctor \
   --root "$TMP_DIR" \
   --topic-class frontier \
@@ -493,5 +509,11 @@ assert_no_warnings "$TMP_DIR/clean-drift.out" run_researcher doctor \
 assert_not_contains "$CLEAN_WS/index.md" "$TMP_DIR"
 assert_no_path_leaks "$INTEGRATED_WS"
 assert_no_path_leaks "$CLEAN_WS"
+assert_no_path_leaks "$TMP_DIR/.bagakit/researcher/index.md"
+assert_no_path_leaks "$TMP_DIR/.bagakit/researcher/wiki"
+
+assert_contains "$SKILL_DIR/SKILL.md" "reads the wiki inherits a maintenance duty"
+assert_contains "$SKILL_DIR/SKILL.md" "Before new research, refresh or inspect the researcher frontdoor"
+assert_contains "$SKILL_DIR/references/research-workspace-spec.md" "maintenance means updating topic evidence first"
 
 echo "ok: bagakit-researcher canonical smoke passed"

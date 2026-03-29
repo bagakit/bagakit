@@ -6,7 +6,7 @@ from __future__ import annotations
 import argparse
 import re
 import sys
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 
 DEFAULT_RESEARCHER_ROOT = ".bagakit/researcher"
@@ -27,6 +27,8 @@ HANDOFF_FILES = {
     "evolver": "evolver-context.md",
     "living-knowledge": "living-knowledge-intake.md",
 }
+
+WIKI_DIRS = ("concepts", "questions", "claims")
 
 
 def slugify(raw: str) -> str:
@@ -49,6 +51,16 @@ def resolve_root(raw: str) -> Path:
 
 def repo_rel(root: Path, path: Path) -> str:
     return path.relative_to(root).as_posix()
+
+
+def posix_join(*parts: object) -> str:
+    cleaned = [str(part).strip("/") for part in parts if str(part)]
+    if not cleaned:
+        return ""
+    current = PurePosixPath(cleaned[0])
+    for part in cleaned[1:]:
+        current = current / part
+    return current.as_posix()
 
 
 def validate_researcher_root(raw: str) -> str:
@@ -96,6 +108,10 @@ def load_researcher_root(root: Path) -> str:
 
 def workspace_dir(root: Path, topic_class: str, topic: str) -> Path:
     return root / load_researcher_root(root) / "topics" / normalize_topic_class(topic_class) / slugify(topic)
+
+
+def researcher_root_dir(root: Path) -> Path:
+    return root / load_researcher_root(root)
 
 
 def require_workspace(root: Path, topic_class: str, topic: str) -> Path:
@@ -1131,6 +1147,278 @@ def normalized_ref_tokens(refs: str) -> set[str]:
     return tokens
 
 
+def topic_rel(root: Path, workspace: Path, relpath: str) -> str:
+    return f"{repo_rel(root, workspace)}/{relpath}"
+
+
+def first_nonempty_line(text: str) -> str:
+    for line in text.splitlines():
+        value = line.strip()
+        if value and not value.startswith("#") and not value.startswith("- "):
+            return value
+    return ""
+
+
+def collect_topic_record(root: Path, topic_class: str, workspace: Path) -> dict[str, object]:
+    index = workspace / "index.md"
+    rel_workspace = repo_rel(root, workspace)
+    title = title_of(index) if index.is_file() else workspace.name.replace("-", " ").title()
+    synthesis_files = [
+        path
+        for path in markdown_file_list(workspace, "summaries")
+        if "synthesis" in path.stem or "synthesis" in title_of(path).lower()
+    ]
+    source_count = len(markdown_file_list(workspace, "originals"))
+    summary_count = len(markdown_file_list(workspace, "summaries"))
+    claim_ids = second_level_ids(workspace / "claims.md")
+    insight_count = len(markdown_file_list(workspace, "insights"))
+    lead_count = len(second_level_ids(workspace / "leads.md"))
+    current_view = first_nonempty_line(markdown_section(index.read_text(encoding="utf-8", errors="replace"), "Current View")) if index.is_file() else ""
+    return {
+        "class": topic_class,
+        "slug": workspace.name,
+        "title": title,
+        "rel": rel_workspace,
+        "index": posix_join(rel_workspace, "index.md"),
+        "synthesis": posix_join(rel_workspace, "summaries", synthesis_files[0].name) if synthesis_files else "",
+        "source_count": source_count,
+        "summary_count": summary_count,
+        "claim_count": len(claim_ids),
+        "insight_count": insight_count,
+        "lead_count": lead_count,
+        "current_view": current_view,
+    }
+
+
+def collect_topic_records(root: Path) -> list[dict[str, object]]:
+    return [collect_topic_record(root, topic_class, workspace) for topic_class, workspace in iter_topics(root) or []]
+
+
+def render_researcher_frontdoor(root: Path, records: list[dict[str, object]], title: str) -> str:
+    lines = [
+        f"# {title}",
+        "",
+        "## Purpose",
+        "",
+        "This is the researcher-local frontdoor for research evidence.",
+        "",
+        "It is a navigation layer over topic workspaces. It is not the shared",
+        "checked-in knowledge root and it is not repository evolution memory.",
+        "",
+        "## Boundary",
+        "",
+        "- source of truth: `topics/<topic-class>/<topic>/`",
+        "- semantic frontdoor: `wiki/`",
+        "- shared knowledge promotion remains explicit outside researcher",
+        "",
+        "## Wiki Pages",
+        "",
+        "- [wiki/README.md](wiki/README.md)",
+        "- [wiki/concepts/research-topics.md](wiki/concepts/research-topics.md)",
+        "- [wiki/questions/open-questions.md](wiki/questions/open-questions.md)",
+        "- [wiki/claims/supported-claims.md](wiki/claims/supported-claims.md)",
+        "",
+        "## Topic Index",
+    ]
+    if records:
+        for record in records:
+            line = (
+                f"- `{record['class']}/{record['slug']}` — "
+                f"[{record['title']}]({record['index']})"
+            )
+            if record["synthesis"]:
+                line += f"; synthesis: [{Path(str(record['synthesis'])).name}]({record['synthesis']})"
+            counts = (
+                f"sources={record['source_count']}, summaries={record['summary_count']}, "
+                f"claims={record['claim_count']}"
+            )
+            line += f" ({counts})"
+            lines.append(line)
+    else:
+        lines.append("- none yet")
+    lines.extend(
+        [
+            "",
+            "## Status",
+            "",
+            "- local researcher synthesis",
+            "- derived from topic artifacts",
+            "- not promoted shared knowledge",
+            "",
+        ]
+    )
+    return "\n".join(lines)
+
+
+def render_wiki_readme(records: list[dict[str, object]]) -> str:
+    lines = [
+        "# Researcher Wiki",
+        "",
+        "This wiki is a researcher-local semantic frontdoor.",
+        "",
+        "Rules:",
+        "",
+        "- topics remain the evidence source of truth",
+        "- wiki pages must cite topic-local evidence paths",
+        "- wiki pages are not shared knowledge until explicitly promoted",
+        "- update this surface with `refresh-wiki`",
+        "",
+        "## Pages",
+        "",
+        "- [concepts/research-topics.md](concepts/research-topics.md)",
+        "- [questions/open-questions.md](questions/open-questions.md)",
+        "- [claims/supported-claims.md](claims/supported-claims.md)",
+        "",
+        "## Topic Coverage",
+    ]
+    if records:
+        lines.extend([f"- `{record['class']}/{record['slug']}` — `{record['index']}`" for record in records])
+    else:
+        lines.append("- none yet")
+    lines.append("")
+    return "\n".join(lines)
+
+
+def render_research_topics_page(records: list[dict[str, object]]) -> str:
+    lines = [
+        "# Research Topics",
+        "",
+        "Status: research-local semantic index.",
+        "",
+        "This page groups topic workspaces without replacing their evidence.",
+        "",
+        "## Topics",
+    ]
+    if records:
+        for record in records:
+            lines.extend(
+                [
+                    f"### {record['title']}",
+                    "",
+                    f"- topic: `{record['class']}/{record['slug']}`",
+                    f"- evidence: `{record['index']}`",
+                    f"- synthesis: `{record['synthesis'] or 'none recorded'}`",
+                    f"- counts: sources={record['source_count']}, summaries={record['summary_count']}, claims={record['claim_count']}",
+                    "",
+                ]
+            )
+    else:
+        lines.append("- none yet")
+    return "\n".join(lines).rstrip() + "\n"
+
+
+def render_open_questions_page(records: list[dict[str, object]]) -> str:
+    lines = [
+        "# Open Questions",
+        "",
+        "Status: research-local semantic index.",
+        "",
+        "Open leads and unresolved questions should stay attached to topic evidence.",
+        "",
+        "## Topic Leads",
+    ]
+    any_leads = False
+    for record in records:
+        if int(record["lead_count"]) > 0:
+            any_leads = True
+            lead_ref = posix_join(record["rel"], "leads.md")
+            lines.append(f"- `{record['class']}/{record['slug']}` — leads: `{lead_ref}`")
+    if not any_leads:
+        lines.append("- none yet")
+    lines.extend(["", "## Topic Coverage"])
+    if records:
+        lines.extend([f"- `{record['class']}/{record['slug']}` — `{record['index']}`" for record in records])
+    else:
+        lines.append("- none yet")
+    lines.append("")
+    return "\n".join(lines)
+
+
+def render_supported_claims_page(root: Path, records: list[dict[str, object]]) -> str:
+    lines = [
+        "# Supported Claims",
+        "",
+        "Status: research-local semantic index.",
+        "",
+        "Claims listed here are pointers into topic claim ledgers.",
+        "",
+        "## Claims",
+    ]
+    found = False
+    for record in records:
+        claims = researcher_root_dir(root) / "topics" / str(record["class"]) / str(record["slug"]) / "claims.md"
+        for claim_id, body in claim_sections(claims):
+            status = field_value(body, "status") or "open"
+            if status not in {"supported", "promoted"}:
+                continue
+            found = True
+            statement = markdown_section(body, "Statement", level=3).replace("\n", " ").strip()
+            rel = f"{posix_join(record['rel'], 'claims.md')}#{slugify(claim_id)}"
+            lines.append(f"- `{rel}` — {status}: {statement or claim_id}")
+    if not found:
+        lines.append("- none yet")
+    lines.extend(["", "## Topic Coverage"])
+    if records:
+        lines.extend([f"- `{record['class']}/{record['slug']}` — `{record['index']}`" for record in records])
+    else:
+        lines.append("- none yet")
+    lines.append("")
+    return "\n".join(lines)
+
+
+def refresh_wiki(args: argparse.Namespace) -> int:
+    root = resolve_root(args.root)
+    research_root = researcher_root_dir(root)
+    records = collect_topic_records(root)
+    wiki = research_root / "wiki"
+    for dirname in WIKI_DIRS:
+        (wiki / dirname).mkdir(parents=True, exist_ok=True)
+    (research_root / "index.md").write_text(
+        render_researcher_frontdoor(root, records, args.title or "Researcher Frontdoor"),
+        encoding="utf-8",
+    )
+    (wiki / "README.md").write_text(render_wiki_readme(records), encoding="utf-8")
+    (wiki / "concepts" / "research-topics.md").write_text(render_research_topics_page(records), encoding="utf-8")
+    (wiki / "questions" / "open-questions.md").write_text(render_open_questions_page(records), encoding="utf-8")
+    (wiki / "claims" / "supported-claims.md").write_text(render_supported_claims_page(root, records), encoding="utf-8")
+    print(f"ok: refreshed {repo_rel(root, research_root / 'index.md')} and {repo_rel(root, wiki)}")
+    return 0
+
+
+def collect_wiki_warnings(root: Path) -> list[str]:
+    warnings: list[str] = []
+    research_root = researcher_root_dir(root)
+    wiki = research_root / "wiki"
+    required = [
+        research_root / "index.md",
+        wiki / "README.md",
+        wiki / "concepts" / "research-topics.md",
+        wiki / "questions" / "open-questions.md",
+        wiki / "claims" / "supported-claims.md",
+    ]
+    for path in required:
+        if not path.is_file():
+            warnings.append(f"{repo_rel(root, path)}: wiki/frontdoor file missing")
+            continue
+        text = path.read_text(encoding="utf-8", errors="replace")
+        absolute_markers = ("/" + "Users", "/" + "var/folders", "file" + "://")
+        if any(marker in text for marker in absolute_markers):
+            warnings.append(f"{repo_rel(root, path)}: wiki/frontdoor contains absolute path marker")
+    if (research_root / "index.md").is_file():
+        frontdoor = (research_root / "index.md").read_text(encoding="utf-8", errors="replace")
+        if "topics/" not in frontdoor:
+            warnings.append(f"{repo_rel(root, research_root / 'index.md')}: frontdoor has no topic evidence refs")
+        if "not the shared" not in frontdoor.lower():
+            warnings.append(f"{repo_rel(root, research_root / 'index.md')}: frontdoor missing shared-knowledge boundary")
+    for page in sorted(wiki.rglob("*.md")) if wiki.is_dir() else []:
+        if page.name == "README.md":
+            continue
+        text = page.read_text(encoding="utf-8", errors="replace")
+        if "topics/" not in text and ".bagakit/researcher/topics" not in text:
+            warnings.append(f"{repo_rel(root, page)}: wiki page has no topic evidence ref")
+    return warnings
+
+
 def collect_drift_warnings(root: Path, workspace: Path) -> list[str]:
     warnings: list[str] = []
     rel_workspace = repo_rel(root, workspace)
@@ -1226,6 +1514,8 @@ def doctor(args: argparse.Namespace) -> int:
     if args.drift:
         for workspace in workspaces:
             warnings.extend(collect_drift_warnings(root, workspace))
+    if args.wiki:
+        warnings.extend(collect_wiki_warnings(root))
 
     for warning in warnings:
         print(f"warning: {warning}", file=sys.stderr)
@@ -1284,6 +1574,11 @@ def build_parser() -> argparse.ArgumentParser:
     refresh_p.add_argument("--title")
     refresh_p.add_argument("--force-rewrite", action="store_true", help="rewrite the generated index before refreshing managed sections")
     refresh_p.set_defaults(func=refresh_index)
+
+    wiki_p = sub.add_parser("refresh-wiki", help="refresh researcher-local wiki/frontdoor pages")
+    wiki_p.add_argument("--root", default=".")
+    wiki_p.add_argument("--title")
+    wiki_p.set_defaults(func=refresh_wiki)
 
     pass_p = sub.add_parser("plan-pass", help="create one bounded research pass and optional track contracts")
     add_topic_args(pass_p)
@@ -1413,6 +1708,7 @@ def build_parser() -> argparse.ArgumentParser:
     doctor_p.add_argument("--topic")
     doctor_p.add_argument("--quality", action="store_true", help="print warning-only quality findings")
     doctor_p.add_argument("--drift", action="store_true", help="print warning-only research drift findings")
+    doctor_p.add_argument("--wiki", action="store_true", help="print warning-only wiki/frontdoor findings")
     doctor_p.set_defaults(func=doctor)
 
     return parser

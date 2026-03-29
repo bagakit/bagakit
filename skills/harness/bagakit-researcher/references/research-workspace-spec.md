@@ -43,6 +43,20 @@ Extended workflow members are added only when a command needs them:
 └── handoffs/
 ```
 
+Researcher-local wiki/frontdoor members are derived from topic artifacts and
+live under the researcher runtime root:
+
+```text
+<researcher_root>/
+├── index.md
+├── wiki/
+│   ├── README.md
+│   ├── concepts/
+│   ├── questions/
+│   └── claims/
+└── topics/
+```
+
 ## Root Rule
 
 `researcher_root` may override the default root only when it stays under
@@ -50,19 +64,36 @@ Extended workflow members are added only when a command needs them:
 
 Hidden `docs/.<topic-class>/...` paths are not valid Bagakit researcher roots.
 
+`topics/` remains the source-of-truth evidence layer.
+
+`wiki/` is a researcher-local frontdoor over topic evidence. It must not become
+the shared checked-in knowledge root, and it must not replace repository
+evolution memory.
+
+Before opening a new topic, pass, or broad search, the researcher should
+refresh or inspect the researcher frontdoor when prior topics exist. The
+frontdoor is a recall surface: it tells the next researcher what already
+exists, where evidence lives, and which questions or claims are still active.
+
 ## Workflow Rule
 
 The preferred workflow is:
 
-1. Anchor the topic in `charter.md`.
-2. Plan a bounded pass in `passes/`.
-3. Split parallel work into track contracts under `tracks/`.
-4. Preserve source cards under `originals/`.
-5. Write source-bound summaries under `summaries/`.
-6. Record claims, insights, and active-mining leads.
-7. Run quality and drift checks.
-8. Refresh managed sections in `index.md`.
-9. Optionally render a handoff under `handoffs/`.
+1. Refresh or inspect the researcher frontdoor and read relevant existing
+   topic, question, and claim links.
+2. Anchor the topic in `charter.md`.
+3. Plan a bounded pass in `passes/`.
+4. Split parallel work into track contracts under `tracks/`.
+5. Preserve source cards under `originals/`.
+6. Write source-bound summaries under `summaries/`.
+7. Record claims, insights, and active-mining leads.
+8. Run quality and drift checks.
+9. Refresh managed sections in `index.md`.
+10. Refresh the researcher-local wiki/frontdoor when cross-topic discovery
+   matters.
+11. If the loop read the wiki and changed topic evidence, run `doctor --wiki`
+    before final response or handoff.
+12. Optionally render a handoff under `handoffs/`.
 
 The skill may prepare retrieval plans, but provider execution happens outside
 researcher.
@@ -197,6 +228,32 @@ Leads prevent proactive exploration from silently changing the topic.
 `refresh-index` should update managed artifact sections only. Human-written
 goals, read order, conclusions, and open questions must be preserved.
 
+## Wiki Frontdoor Rule
+
+The researcher wiki is a semantic navigation layer, not the evidence layer.
+
+Rules:
+
+- every durable wiki statement should point to topic evidence under `topics/`
+- topic workspaces remain independently readable and auditable
+- wiki pages should stay researcher-local until explicit promotion
+- promoted shared knowledge belongs in the configured shared knowledge root,
+  not in researcher wiki pages
+- repository-level evolution decisions belong in `.bagakit/evolver/`
+- a researcher that reads the wiki inherits a maintenance duty for the current
+  loop
+- maintenance means updating topic evidence first, refreshing the relevant topic
+  index, regenerating the wiki, and running `doctor --wiki`
+- generated wiki pages should not be hand-edited as the durable source of truth
+
+`refresh-wiki` should generate at least:
+
+- `<researcher_root>/index.md`
+- `<researcher_root>/wiki/README.md`
+- `<researcher_root>/wiki/concepts/research-topics.md`
+- `<researcher_root>/wiki/questions/open-questions.md`
+- `<researcher_root>/wiki/claims/supported-claims.md`
+
 ## Doctor Rule
 
 `doctor --quality` checks structural completeness, including required topic
@@ -209,6 +266,9 @@ leads without outcomes.
 
 Quality and drift checks are warning-first unless a gate explicitly raises the
 bar for a release or migration.
+
+`doctor --wiki` checks the researcher-local frontdoor shape, evidence refs, and
+path hygiene. It is warning-first unless a gate explicitly raises the bar.
 
 ## Handoff Rule
 
