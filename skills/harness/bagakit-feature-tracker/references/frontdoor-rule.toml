@@ -1,0 +1,5 @@
+version = 1
+skill = "bagakit-feature-tracker"
+trigger = "A repository needs durable feature or task planning truth before implementation or repeated flow execution."
+do = "Create or update tracker state with explicit workspace mode, task gates, and lifecycle status."
+see = "skills/harness/bagakit-feature-tracker/SKILL.md"

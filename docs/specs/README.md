@@ -78,6 +78,7 @@ Current examples include:
 - `feature-tracker-contract.md`
 - `feature-tracker-id-issuance.md`
 - `feature-tracker-projection-surfaces.md`
+- `frontdoor-index-contract.md`
 - `planning-entry-handoff-contract.md`
 - `output-discipline.md`
 - `bagakit-driver-contract.md`

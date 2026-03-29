@@ -1,0 +1,5 @@
+version = 1
+skill = "bagakit-brainstorm"
+trigger = "Markdown notes need option exploration, trade-offs, expert-forum review, and a next-step handoff."
+do = "Run the bounded brainstorm workflow and produce explicit handoff artifacts."
+see = "skills/harness/bagakit-brainstorm/SKILL.md"

@@ -1,0 +1,6 @@
+version = 1
+skill = "bagakit-skill-selector"
+trigger = "Non-trivial Bagakit-shaped work, skill choice, composition, retries, eval evidence, or possible evolver handoff."
+do = "Run selector preflight before major implementation; preflight may choose direct execution."
+see = "docs/specs/selector-selection-model.md"
+evidence = ".bagakit/skill-selector/tasks/<task-slug>/skill-usage.toml"

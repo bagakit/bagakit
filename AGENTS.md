@@ -105,6 +105,8 @@ Current core references:
   - `docs/specs/document-surface-rules.md`
 - runtime-surface ownership and local root protocol:
   - `docs/specs/runtime-surface-contract.md`
+- all-skills frontdoor index contract:
+  - `docs/specs/frontdoor-index-contract.md`
 - selector entry policy:
   - `docs/specs/selector-selection-model.md`
 
@@ -112,6 +114,9 @@ Current core references:
 
 For non-trivial Bagakit-shaped work, run selector preflight before major
 implementation.
+
+Selector frontdoor and candidate-scope semantics live in
+`docs/specs/selector-selection-model.md`.
 
 ## Tool Rule
 
@@ -245,3 +250,65 @@ reporting, the response footer may use:
 - `[[BAGAKIT]]`
 - `- LivingKnowledge: Surface=<updated shared surfaces or none>; Evidence=<commands/checks>; Next=<one deterministic next action>`
 <!-- BAGAKIT:LIVING-KNOWLEDGE:END -->
+<!-- BAGAKIT:FRONTDOOR:START -->
+<bagakit-rule skill="bagakit-skill-selector">
+- Trigger: Non-trivial Bagakit-shaped work, skill choice, composition, retries, eval evidence, or possible evolver handoff.
+- Do: Run selector preflight before major implementation; preflight may choose direct execution.
+- See: `docs/specs/selector-selection-model.md`
+- Evidence: `.bagakit/skill-selector/tasks/<task-slug>/skill-usage.toml`
+</bagakit-rule>
+
+<bagakit-rule skill="bagakit-brainstorm">
+- Trigger: Markdown notes need option exploration, trade-offs, expert-forum review, and a next-step handoff.
+- Do: Run the bounded brainstorm workflow and produce explicit handoff artifacts.
+- See: `skills/harness/bagakit-brainstorm/SKILL.md`
+</bagakit-rule>
+
+<bagakit-rule skill="bagakit-feature-tracker">
+- Trigger: A repository needs durable feature or task planning truth before implementation or repeated flow execution.
+- Do: Create or update tracker state with explicit workspace mode, task gates, and lifecycle status.
+- See: `skills/harness/bagakit-feature-tracker/SKILL.md`
+</bagakit-rule>
+
+<bagakit-rule skill="bagakit-flow-runner">
+- Trigger: Existing planning truth needs a repeatable runner for one bounded execution item, checkpoint, or resume.
+- Do: Select one item, run the bounded session, and write checkpoint or incident state.
+- See: `skills/harness/bagakit-flow-runner/SKILL.md`
+</bagakit-rule>
+
+<bagakit-rule skill="bagakit-git-message-craft">
+- Trigger: Git changes need clearer commit splitting, review-quality commit messages, or merge request text.
+- Do: Plan the Git-facing message from the diff, lint it against the message contract, and preserve validation facts.
+- See: `skills/swe/bagakit-git-message-craft/SKILL.md`
+</bagakit-rule>
+
+<bagakit-rule skill="bagakit-living-knowledge">
+- Trigger: A repository needs shared checked-in knowledge, deterministic recall, managed bootstrap guidance, or path protocol.
+- Do: Use the living-knowledge operator for indexing, recall, ingestion, and managed guidebook surfaces.
+- See: `skills/harness/bagakit-living-knowledge/SKILL.md`
+</bagakit-rule>
+
+<bagakit-rule skill="bagakit-paperwork-technical-writing">
+- Trigger: Technical notes, drafts, or transcripts need a publishable article plus execution-ready handoff.
+- Do: Draft or rewrite with explicit quality gates, source evidence, and review output.
+- See: `skills/paperwork/bagakit-paperwork-technical-writing/SKILL.md`
+</bagakit-rule>
+
+<bagakit-rule skill="bagakit-researcher">
+- Trigger: A repository needs a local-first research loop with topic charter, source cards, summaries, claims, or drift checks.
+- Do: Create a topic workspace, preserve source-bound evidence, and synthesize only after quality checks.
+- See: `skills/harness/bagakit-researcher/SKILL.md`
+</bagakit-rule>
+
+<bagakit-rule skill="bagakit-skill-evolver">
+- Trigger: A long-lived repository evolution topic spans multiple candidates, decisions, or promotion paths.
+- Do: Open or update evolver topic state before the decision history becomes too large for the current task.
+- See: `skills/harness/bagakit-skill-evolver/SKILL.md`
+</bagakit-rule>
+
+<bagakit-rule skill="qihan-writing">
+- Trigger: Technical, research, planning, weekly-review, or Feishu-oriented prose needs qihan-style rewriting or drafting.
+- Do: Route through the operating surface matrix before drafting, then apply the writing and review references.
+- See: `skills/paperwork/qihan-writing/references/workflow/OPERATING_SURFACE_MATRIX.md`
+</bagakit-rule>
+<!-- BAGAKIT:FRONTDOOR:END -->

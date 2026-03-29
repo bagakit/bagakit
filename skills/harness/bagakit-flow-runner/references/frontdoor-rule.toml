@@ -1,0 +1,5 @@
+version = 1
+skill = "bagakit-flow-runner"
+trigger = "Existing planning truth needs a repeatable runner for one bounded execution item, checkpoint, or resume."
+do = "Select one item, run the bounded session, and write checkpoint or incident state."
+see = "skills/harness/bagakit-flow-runner/SKILL.md"

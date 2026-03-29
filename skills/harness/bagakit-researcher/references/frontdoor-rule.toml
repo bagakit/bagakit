@@ -1,0 +1,5 @@
+version = 1
+skill = "bagakit-researcher"
+trigger = "A repository needs a local-first research loop with topic charter, source cards, summaries, claims, or drift checks."
+do = "Create a topic workspace, preserve source-bound evidence, and synthesize only after quality checks."
+see = "skills/harness/bagakit-researcher/SKILL.md"

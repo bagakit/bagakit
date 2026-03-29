@@ -1,0 +1,5 @@
+version = 1
+skill = "bagakit-paperwork-technical-writing"
+trigger = "Technical notes, drafts, or transcripts need a publishable article plus execution-ready handoff."
+do = "Draft or rewrite with explicit quality gates, source evidence, and review output."
+see = "skills/paperwork/bagakit-paperwork-technical-writing/SKILL.md"

@@ -1,0 +1,5 @@
+version = 1
+skill = "bagakit-skill-evolver"
+trigger = "A long-lived repository evolution topic spans multiple candidates, decisions, or promotion paths."
+do = "Open or update evolver topic state before the decision history becomes too large for the current task."
+see = "skills/harness/bagakit-skill-evolver/SKILL.md"

@@ -1,0 +1,5 @@
+version = 1
+skill = "bagakit-living-knowledge"
+trigger = "A repository needs shared checked-in knowledge, deterministic recall, managed bootstrap guidance, or path protocol."
+do = "Use the living-knowledge operator for indexing, recall, ingestion, and managed guidebook surfaces."
+see = "skills/harness/bagakit-living-knowledge/SKILL.md"
