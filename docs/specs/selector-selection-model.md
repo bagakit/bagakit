@@ -29,6 +29,7 @@ This file is the SSOT for:
 
 It is not the SSOT for:
 
+- the full selector evidence data model
 - selector-versus-evolver boundary authority
 - runtime command examples
 - per-task file field contracts
@@ -36,6 +37,7 @@ It is not the SSOT for:
 
 Those belong respectively in:
 
+- `docs/specs/selector-data-model.md`
 - `docs/specs/selector-evolver-boundary.md`
 - `docs/specs/selector-planning-entry-routes.md`
 - `docs/specs/selector-preference-surface.md`
@@ -61,6 +63,14 @@ Repo awareness does not mean selector assumes those skills are executable in
 the current host.
 
 Repo awareness is a task aid, not a repository-level control plane.
+
+The broader selector evidence vocabulary is defined in:
+
+- `docs/specs/selector-data-model.md`
+
+In that vocabulary, one selector task is a `selection_episode` containing
+task signals, candidates, selection lessons, composition patterns,
+candidate results, lesson updates, and optional evolver signals.
 
 ## Mandatory Preflight Rule
 
@@ -108,6 +118,21 @@ Task-local runtime rule:
 - `used` is still recorded through `[[usage_log]]`
 - broader comparison views such as `candidate-survey.md` are derived reports,
   not second task SSOT files
+
+Candidate state is intentionally split across concerns:
+
+- visibility and availability answer whether the candidate can be considered
+- selection answers whether selector chose it for this episode
+- usage and candidate result answer what happened after it was tried
+
+For richer task evidence, use the data-model concepts:
+
+- `candidate`
+- `candidate_result`
+- `selection_lesson`
+- `lesson_update`
+
+from `docs/specs/selector-data-model.md`.
 
 ## Selection Scope Rule
 
@@ -205,6 +230,34 @@ So the correct rule is:
 - mandatory preflight may legitimately end in `direct_execute`
 - frontmatter may declare capabilities, but it must not silently force
   selector invocation policy
+
+## Frontdoor Rule
+
+Skill installation and skill frontmatter are discovery mechanisms, not a
+reliable execution frontdoor.
+
+For a project to actually enforce selector entry, the rule must appear in that
+project's root bootstrap guidance such as `AGENTS.md` or an equivalent managed
+instruction block.
+
+The active frontdoor text should preserve these semantics:
+
+- non-trivial Bagakit-shaped work starts with selector preflight
+- the preflight result may be `direct_execute`
+- trivial one-step work may skip selector
+- selector runtime evidence belongs under
+  `.bagakit/skill-selector/tasks/<task-slug>/skill-usage.toml`
+- the project frontdoor points to this spec instead of copying a full selector
+  playbook
+
+When a project uses the grouped Bagakit frontdoor format, selector's root rule
+should be rendered as a `<bagakit-rule skill="bagakit-skill-selector">` item in
+the `BAGAKIT:FRONTDOOR` managed region. That rendered format is defined in:
+
+- `docs/specs/frontdoor-index-contract.md`
+
+This keeps the mandatory policy visible to host agents without turning
+frontmatter into a hidden control plane.
 
 ## Composition Rule
 

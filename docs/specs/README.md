@@ -81,6 +81,7 @@ Current examples include:
 - `frontdoor-index-contract.md`
 - `planning-entry-handoff-contract.md`
 - `output-discipline.md`
+- `selector-data-model.md`
 - `bagakit-driver-contract.md`
 - `evolver-memory.md`
 - `flow-runner-contract.md`

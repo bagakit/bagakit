@@ -22,6 +22,7 @@ This file is the SSOT for stable meaning of that split.
 
 It is not the SSOT for:
 
+- selector-owned evidence layer vocabulary
 - selector candidate visibility or availability semantics
 - full cross-layer flow design
 - maintainer operating procedure
@@ -29,6 +30,7 @@ It is not the SSOT for:
 
 Those belong respectively in:
 
+- `docs/specs/selector-data-model.md`
 - `docs/specs/selector-selection-model.md`
 - `docs/architecture/`
 - `docs/stewardship/`
@@ -45,6 +47,14 @@ The split is about authority, not importance.
 
 Task-level evidence is often the input to later repository learning, but that
 does not make task logs part of evolver.
+
+Selector-owned task evidence is modeled as one `selection_episode`.
+The stable selector data-model vocabulary lives in:
+
+- `docs/specs/selector-data-model.md`
+
+This boundary spec only decides which side owns authority once that evidence
+exists.
 
 ## Selector Preflight Concept
 
@@ -84,6 +94,8 @@ Selector answers:
 - which ones were actually used
 - what helped, failed, or stalled
 - whether this task should stay host-local or later inform upstream work
+- which task signals, candidate results, selection lessons, and lesson updates
+  were observed inside the task-local episode
 
 Evolver answers:
 
@@ -220,12 +232,16 @@ Typical trigger shapes include:
 - retry backoff threshold reached for one `attempt_key`
 - one repeated `error_pattern_log` cluster
 - repeated failed benchmark or negative feedback loops
+- stale selection lesson invalidation
+- repeated positive candidate result in one task cluster
 
 Selector owns:
 
 - detecting those task-local triggers
 - making the review suggestion visible
 - preserving the task-local evidence trail
+- keeping the candidate result and lesson update evidence task-local unless it
+  is explicitly exported or bridged
 
 Evolver owns:
 
