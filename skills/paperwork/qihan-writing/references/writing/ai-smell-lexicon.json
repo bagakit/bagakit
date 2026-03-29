@@ -1,0 +1,143 @@
+{
+  "version": 1,
+  "maintenance_rule": "When adding or changing an AI smell word, ask for the usage context, normal-language replacement suggestions, and whether the term should be linted by default.",
+  "zh": [
+    {
+      "term": "赋能",
+      "lint": true,
+      "suggestions": ["协助", "提升", "增强"]
+    },
+    {
+      "term": "打造",
+      "lint": true,
+      "suggestions": []
+    },
+    {
+      "term": "范式",
+      "lint": true,
+      "suggestions": []
+    },
+    {
+      "term": "挂起",
+      "lint": true,
+      "suggestions": []
+    },
+    {
+      "term": "钉死",
+      "lint": true,
+      "suggestions": ["明确"]
+    },
+    {
+      "term": "挂出来",
+      "lint": true,
+      "suggestions": ["列出来", "说清楚"]
+    },
+    {
+      "term": "值钱",
+      "lint": true,
+      "suggestions": ["有价值"]
+    },
+    {
+      "term": "立住",
+      "lint": true,
+      "suggestions": ["确定", "可靠"]
+    },
+    {
+      "term": "讲透",
+      "lint": true,
+      "suggestions": ["说明白"]
+    },
+    {
+      "term": "落账",
+      "lint": true,
+      "suggestions": ["确定", "明确", "落地"]
+    },
+    {
+      "term": "闭环",
+      "lint": true,
+      "suggestions": ["完善"]
+    },
+    {
+      "term": "稳",
+      "lint": false,
+      "suggestions": ["好", "较优", "不错"]
+    },
+    {
+      "term": "深入",
+      "lint": false,
+      "suggestions": []
+    },
+    {
+      "term": "探索",
+      "lint": false,
+      "suggestions": []
+    },
+    {
+      "term": "构建",
+      "lint": false,
+      "suggestions": []
+    },
+    {
+      "term": "全面",
+      "lint": false,
+      "suggestions": []
+    },
+    {
+      "term": "显著",
+      "lint": false,
+      "suggestions": []
+    },
+    {
+      "term": "极大",
+      "lint": false,
+      "suggestions": []
+    },
+    {
+      "term": "生态",
+      "lint": false,
+      "suggestions": []
+    }
+  ],
+  "en": [
+    {
+      "term": "crucial",
+      "lint": true,
+      "suggestions": []
+    },
+    {
+      "term": "vital",
+      "lint": true,
+      "suggestions": []
+    },
+    {
+      "term": "pivotal",
+      "lint": true,
+      "suggestions": []
+    },
+    {
+      "term": "robust",
+      "lint": true,
+      "suggestions": []
+    },
+    {
+      "term": "seamless",
+      "lint": true,
+      "suggestions": []
+    },
+    {
+      "term": "cutting-edge",
+      "lint": true,
+      "suggestions": []
+    },
+    {
+      "term": "leverage",
+      "lint": true,
+      "suggestions": []
+    },
+    {
+      "term": "delve",
+      "lint": true,
+      "suggestions": []
+    }
+  ]
+}

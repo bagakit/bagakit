@@ -70,6 +70,7 @@ description: |
 8) **标题要是命题，不是描述**：标题要覆盖文章的核心判断，不只标记主题。
 9) **把判断写在对象上，不写在作者姿态上**：少写作者自评式元话，也少拿模糊群体当论证替身。
 10) **优先具体机制，少用黑箱比喻**：像“接住”“接得住”这类词不算机制，机制要写成动作和落点。
+11) **AI smell 词表走 SSOT**：新增或调整词时，先问语境和正常说法建议；词表、lint 开关和 advisory suggestions 只维护在 `references/writing/ai-smell-lexicon.json`。
 
 ## 输出纪律
 
@@ -112,12 +113,14 @@ description: |
   按 `references/workflow/REWRITE_FEEDBACK_LOOP.md` 执行；先记录原句与改写句，再做四维分析、抽规则、回扫全文。需要找成熟句型时，先查 `references/knowledge/REWRITE_CASEBOOK.md`。
 - **Step 3：去 AI 味**
   按 `references/writing/AI_SMELLS.md` 执行，优先删掉模板化连接词和空转动词，把判断改成动词 + 阈值 + 例子 / 反例，同时回扫黑话动词、后台口吻、分号硬切、静态清单句。
+- **Step 3.2：系列概念首现检查**
+  如果是系列文章，标题或章节标题里出现非通用概念、项目内术语、场景特化表达时，确认它已在前序文章介绍过；否则在当前第一次出现处解释，或用 quote 注释补一句定义。
 
 ### C. 排版与评审
 - **Step 4：飞书文档排版**
   按 `references/writing/FEISHU_LAYOUT.md` 执行；控制标题层级、callout、表格、流程图，并避免正文开头重复 title。
 - **Step 4.5：硬性校验**
-  当输出要进入飞书 / 对外分享 / 进入长期沉淀时，先跑 `scripts/qihan_write_lint.py`。它会检查标题括号、结构树 3–7、罗列比例、超长列表块、AI 词命中、`不是…而是…` 口癖与负定义过密、作者自评式元话（如“很硬的”“要回答的问题更具体”“最容易被…”“钉住”）、黑箱吞吐比喻（如“被系统接住”“接得住”）、callout / hr / mermaid 比例等；指标说明见 `references/review/QA_HARD_METRICS.md`。
+  当输出要进入飞书 / 对外分享 / 进入长期沉淀时，先跑 `scripts/qihan_write_lint.py`。它会检查标题括号、结构树 3–7、系列标题概念首现、罗列比例、超长列表块、AI 词命中、`不是…而是…` 口癖与负定义过密、作者自评式元话（如“很硬的”“要回答的问题更具体”“最容易被…”“钉住”）、黑箱吞吐比喻（如“被系统接住”“接得住”）、callout / hr / mermaid 比例等；指标说明见 `references/review/QA_HARD_METRICS.md`。
 - **Step 4.6：长文终稿评审**
   当输出是博客 / 公众号 / 内部专题长文时，再按 `references/review/LONGFORM_RUBRIC.md` 做一轮 review，并用 `references/review/LONGFORM_REVIEW_TEMPLATE.md` 记录 hard gate、weighted review、craft bonus、anti-pattern penalty。涉及“无依据的人群泛化 / 拉踩表达 / 语气过界”的问题，不用脚本裁决；要求独立 reviewer 做静室打分，优先使用 subagent blind review。
 - **Step 4.65：audience panel review**

@@ -23,19 +23,43 @@ from dataclasses import dataclass
 from pathlib import Path
 
 
-AI_WORDS_ZH = [
-    # high-risk generic words (context-dependent). Keep this list short to reduce false positives.
-    # Expand only when we repeatedly see a word correlate with "AI smell" in your feedback.
-    "赋能", "打造", "范式",
-    # note: "构建/全面" are often legitimate in technical writing; do NOT flag by default.
-    "挂起", "钉死", "挂出来",
-    # author-strengthening / floating-action words that often replace object judgment
-    "值钱", "立住", "讲透",
-]
+SCRIPT_DIR = Path(__file__).resolve().parent
+SKILL_DIR = SCRIPT_DIR.parent
+AI_SMELL_LEXICON_REF = "references/writing/ai-smell-lexicon.json"
+AI_SMELL_LEXICON_PATH = SKILL_DIR / AI_SMELL_LEXICON_REF
 
-AI_WORDS_EN = [
-    "crucial", "vital", "pivotal", "robust", "seamless", "cutting-edge", "leverage", "delve",
-]
+
+def load_ai_smell_lexicon() -> tuple[list[str], list[str], dict[str, list[str]]]:
+    try:
+        payload = json.loads(AI_SMELL_LEXICON_PATH.read_text(encoding="utf-8"))
+    except FileNotFoundError as exc:
+        raise SystemExit(f"missing AI smell lexicon: {AI_SMELL_LEXICON_REF}") from exc
+    except json.JSONDecodeError as exc:
+        raise SystemExit(
+            f"invalid AI smell lexicon: {AI_SMELL_LEXICON_REF}:{exc.lineno}:{exc.colno}"
+        ) from exc
+
+    lint_terms: dict[str, list[str]] = {"zh": [], "en": []}
+    suggestions: dict[str, list[str]] = {}
+
+    for group in ("zh", "en"):
+        entries = payload.get(group, [])
+        if not isinstance(entries, list):
+            raise SystemExit(f"invalid AI smell lexicon: `{group}` must be a list")
+        for entry in entries:
+            if not isinstance(entry, dict) or not entry.get("term"):
+                raise SystemExit(f"invalid AI smell lexicon: `{group}` entries need `term`")
+            term = str(entry["term"])
+            replacement_terms = [str(item) for item in entry.get("suggestions", [])]
+            if replacement_terms:
+                suggestions[term] = replacement_terms
+            if entry.get("lint", True):
+                lint_terms[group].append(term)
+
+    return lint_terms["zh"], lint_terms["en"], suggestions
+
+
+AI_WORDS_ZH, AI_WORDS_EN, AI_WORD_SUGGESTIONS = load_ai_smell_lexicon()
 
 AI_PATTERNS = [
     r"通过.+从而.+进而",
@@ -98,6 +122,22 @@ CODE_CONTEXT_HINTS = (
     "Path | Class",
 )
 
+SERIES_CONCEPT_RE = re.compile(r"\b[A-Za-z][A-Za-z0-9-]{2,}\b")
+COMMON_HEADING_WORDS = {
+    "about", "advanced", "after", "and", "appendix", "are", "as", "basic",
+    "before", "best", "by", "case", "cases", "chapter", "checklist", "demo",
+    "doc", "docs", "example", "examples", "faq", "for", "from", "getting",
+    "guide", "how", "intro", "introduction", "into", "is", "loop", "next",
+    "old", "new", "of", "on", "or", "overview", "part", "pattern",
+    "patterns", "practice", "practices", "quick", "section", "start",
+    "started", "step", "steps", "the", "to", "use", "using", "via", "vs",
+    "what", "when", "where", "why", "with", "without", "workflow",
+    "workflows",
+    # Common implementation identities usually do not need first-use lint noise.
+    "api", "cli", "css", "csv", "docx", "html", "http", "https", "json",
+    "llm", "markdown", "md", "pdf", "sdk", "sql", "toml", "yaml", "yml",
+}
+
 
 @dataclass
 class Finding:
@@ -142,6 +182,15 @@ def iter_non_code_lines(md: str, *, strip_inline: bool = False):
 def iter_headings(md: str):
     for i, line in enumerate(md.splitlines(), start=1):
         m = re.match(r"^(#{2,4})\s+(.*)$", line.strip())
+        if m:
+            level = len(m.group(1))
+            title = m.group(2).strip()
+            yield i, level, title
+
+
+def iter_title_and_headings(md: str):
+    for i, line in enumerate(md.splitlines(), start=1):
+        m = re.match(r"^(#{1,4})\s+(.*)$", line.strip())
         if m:
             level = len(m.group(1))
             title = m.group(2).strip()
@@ -290,14 +339,86 @@ def ai_smells(md: str):
         if w in lower:
             hits.append(w)
     if hits:
-        findings.append(Finding("WARN", "AI_WORDS", "Hit AI-ish words", {"hits": sorted(set(hits))}))
+        unique_hits = sorted(set(hits))
+        suggestions = {w: AI_WORD_SUGGESTIONS[w] for w in unique_hits if w in AI_WORD_SUGGESTIONS}
+        findings.append(
+            Finding(
+                "WARN",
+                "AI_WORDS",
+                "Hit AI-ish words; suggested replacements are advisory",
+                {"hits": unique_hits, "suggestions": suggestions},
+            )
+        )
 
     pat_hits = []
     for pat in AI_PATTERNS:
         if re.search(pat, text):
             pat_hits.append(pat)
     if pat_hits:
-        findings.append(Finding("WARN", "AI_PATTERNS", "Hit AI-ish sentence patterns", {"patterns": pat_hits}))
+        pattern_suggestions = {
+            term: suggestions
+            for term, suggestions in AI_WORD_SUGGESTIONS.items()
+            if any(term in pattern for pattern in pat_hits)
+        }
+        meta = {"patterns": pat_hits}
+        if pattern_suggestions:
+            meta["suggestions"] = pattern_suggestions
+        findings.append(Finding("WARN", "AI_PATTERNS", "Hit AI-ish sentence patterns", meta))
+
+    return findings
+
+
+def line_introduces_concept(line: str, term: str) -> bool:
+    escaped = re.escape(term)
+    patterns = [
+        rf"`?{escaped}`?\s*(是|指|表示|意味着|称为)",
+        rf"`?{escaped}`?\s*(在这里|这里|本文中)?\s*指",
+        rf"(这里的|本文中的|所谓)\s*`?{escaped}`?",
+        rf"`?{escaped}`?\s*[：:]\s*\S+",
+        rf">.*`?{escaped}`?",
+    ]
+    return any(re.search(pattern, line, flags=re.IGNORECASE) for pattern in patterns)
+
+
+def series_concept_checks(md: str):
+    findings = []
+    heading_terms = []
+    seen = set()
+
+    for line_no, _level, title in iter_title_and_headings(md):
+        stripped_title = strip_code_spans(title)
+        for match in SERIES_CONCEPT_RE.finditer(stripped_title):
+            term = match.group(0)
+            normalized = term.lower()
+            if normalized in COMMON_HEADING_WORDS or normalized.isdigit():
+                continue
+            if len(normalized) <= 2 or normalized in seen:
+                continue
+            seen.add(normalized)
+            heading_terms.append({"line": line_no, "term": term, "heading": title})
+
+    if not heading_terms:
+        return findings
+
+    introduced = set()
+    for _line_no, line in iter_non_code_lines(md, strip_inline=False):
+        for item in heading_terms:
+            normalized = item["term"].lower()
+            if normalized in introduced:
+                continue
+            if line_introduces_concept(line, item["term"]):
+                introduced.add(normalized)
+
+    missing = [item for item in heading_terms if item["term"].lower() not in introduced]
+    if missing:
+        findings.append(
+            Finding(
+                "WARN",
+                "SERIES_CONCEPT_FIRST_USE",
+                "Heading/title introduces a specialized concept without onsite definition; introduce it before use or add a quote note",
+                {"items": missing[:12]},
+            )
+        )
 
     return findings
 
@@ -493,6 +614,7 @@ def semicolon_check(md: str):
 def score(md: str):
     findings = []
     findings += heading_rules(md)
+    findings += series_concept_checks(md)
     findings += ai_smells(md)
     findings += negation_checks(md)
     findings += semicolon_check(md)
