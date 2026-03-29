@@ -6,6 +6,7 @@ import {
   FRONTDOOR_START,
   REQUIRED_RULE_FIELDS,
   RENDERED_RULE_FIELDS,
+  SKILL_ID_RE,
   type RenderedRuleField,
   type FrontdoorProject,
   type LoadedRule,
@@ -91,8 +92,14 @@ function validateRuleAgainstSkill(root: string, loaded: LoadedRule, issues: Vali
       ),
     );
   }
+  if (declaration.skill && !SKILL_ID_RE.test(declaration.skill)) {
+    issues.push(issue("error", declaration.sourcePath, `skill must match ${SKILL_ID_RE.source}: ${declaration.skill}`));
+  }
   if (source.skillId !== source.declaredName) {
     issues.push(issue("error", source.skillPath, `frontmatter name must match skill directory ${source.skillId}`));
+  }
+  if (!SKILL_ID_RE.test(source.skillId)) {
+    issues.push(issue("error", source.skillPath, `skill directory must match ${SKILL_ID_RE.source}: ${source.skillId}`));
   }
 
   validateRulePaths(root, declaration, issues);

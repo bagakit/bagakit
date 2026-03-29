@@ -134,6 +134,8 @@ Optional body labels:
 Rules:
 
 - `skill` is the rendered rule key
+- `skill` must be a safe Bagakit skill id: lowercase ASCII letters, digits, and
+  hyphens, starting with a letter or digit
 - one frontdoor region should contain at most one rule for a given `skill`
 - the body should not contain headings
 - the body should not include nested long procedures
@@ -211,6 +213,7 @@ A renderer or validator should treat these as errors:
 - duplicate `BAGAKIT:FRONTDOOR` start or end markers
 - unclosed `<bagakit-rule>` item
 - duplicate `skill` values in one region
+- a `skill` value that is not safe to render as the only tag attribute
 - missing required body labels
 - absolute filesystem paths in durable rule text
 - a `See` path that is not repo-relative

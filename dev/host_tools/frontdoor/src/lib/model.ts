@@ -3,6 +3,7 @@ export const FRONTDOOR_END = "<!-- BAGAKIT:FRONTDOOR:END -->";
 export const AGENTS_PATH = "AGENTS.md";
 export const RULE_REPO_PATH = "references/frontdoor-rule.toml";
 export const SKILL_FILE_NAME = "SKILL.md";
+export const SKILL_ID_RE = new RegExp(String.raw`^[a-z0-9][a-z0-9-]*$`);
 
 export const REQUIRED_RULE_FIELDS = ["skill", "trigger", "do", "see"] as const;
 export const OPTIONAL_RULE_FIELDS = ["evidence", "surface", "fallback"] as const;

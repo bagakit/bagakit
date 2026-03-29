@@ -13,6 +13,7 @@ const EXPECTED_DECLARATION_RE = new RegExp("expected exactly one declaration");
 const CONTROL_SYNTAX_RE = new RegExp("control syntax");
 const EVIDENCE_PATH_RE = new RegExp("evidence must be repo-relative");
 const INVALID_MARKER_RE = new RegExp("invalid frontdoor marker layout");
+const SKILL_ID_REJECTION_RE = new RegExp("skill must match");
 
 function makeTempRepo(): string {
   return fs.mkdtempSync(path.join(os.tmpdir(), "bagakit-frontdoor-"));
@@ -81,6 +82,22 @@ test("project validation rejects control syntax and path escapes in declarations
   const messages = issues.map((item) => item.message).join("\n");
   assert.match(messages, CONTROL_SYNTAX_RE);
   assert.match(messages, EVIDENCE_PATH_RE);
+});
+
+test("project validation rejects skill ids that cannot be rendered as safe attributes", () => {
+  const root = makeTempRepo();
+  writeSkill(root, "harness", 'bad"skill', [
+    "version = 1",
+    'skill = "bad\\"skill"',
+    'trigger = "Use bad skill."',
+    'do = "Run bad skill."',
+    `see = "${["skills", "harness", "bad-skill", "SKILL.md"].join("/")}"`,
+    "",
+  ].join("\n"));
+
+  const issues = validateProject(loadProject(root));
+  assert.equal(hasErrors(issues), true);
+  assert.match(issues.map((item) => item.message).join("\n"), SKILL_ID_REJECTION_RE);
 });
 
 test("managed-region validation requires current AGENTS block to match renderer", () => {
