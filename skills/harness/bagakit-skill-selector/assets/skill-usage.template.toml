@@ -35,9 +35,15 @@ retry_backoff_threshold = 3
 [evolver_handoff_policy]
 enabled = true
 
-# Append records below with [[recipe_log]], [[skill_plan]], [[usage_log]],
-# [[feedback_log]], [[search_log]], [[benchmark_log]], [[error_pattern_log]],
-# and [[evolver_signal_log]].
+[episode_refs]
+source_prompt_ref = ""
+final_artifact_ref = ""
+verification_ref = ""
+
+# Append records below with [[recipe_log]], [[task_signal_log]],
+# [[selection_lesson_log]], [[lesson_update_log]], [[evolver_signal_log]],
+# [[skill_plan]], [[candidate_result_log]], [[usage_log]], [[feedback_log]],
+# [[search_log]], [[benchmark_log]], and [[error_pattern_log]].
 #
 # Historical note:
 # - [[skill_plan]] and skill_id remain the field names
@@ -59,6 +65,18 @@ enabled = true
 # - composition_id = "<task-local-composition-id>"
 # - activation_mode = "standalone" | "composed"
 # - fallback_strategy = "none" | "standalone_first"
+#
+# Optional negative candidate evidence on [[skill_plan]]:
+# - rejection_reason = "<why one visible non-selected candidate was not chosen>"
+# - expected_failure_mode = "<risk selector expects if this candidate is used>"
+# - evidence_needed = "<evidence required to reconsider the candidate>"
+#
+# Gold-ready eval fields:
+# - [[task_signal_log]] captures why selector attention mattered
+# - [[candidate_result_log]] captures verified candidate consequences
+# - [[selection_lesson_log]] captures task-local reusable guidance
+# - [[lesson_update_log]] confirms, weakens, invalidates, supersedes, or abstains
+#   on prior selection lessons
 #
 # Optional error pattern fields:
 # - error_type = "<stable error cluster token>"

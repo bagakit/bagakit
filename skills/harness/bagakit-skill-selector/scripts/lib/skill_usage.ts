@@ -4,6 +4,7 @@ import path from "node:path";
 import { readSkillDescriptorAtRelativeDir } from "./skill_catalog.ts";
 import {
   ACTIVATION_MODES,
+  CANDIDATE_RESULT_STATUSES,
   COMPOSITION_ROLES,
   EVALUATION_OVERALL,
   EVOLVER_SCOPE_HINTS,
@@ -13,6 +14,7 @@ import {
   FALLBACK_STRATEGIES,
   FEEDBACK_CHANNELS,
   FEEDBACK_SIGNALS,
+  LESSON_UPDATE_ACTIONS,
   PLAN_CONFIDENCE,
   PLAN_KINDS,
   PLAN_AVAILABILITY,
@@ -24,6 +26,7 @@ import {
   SEARCH_SOURCE_SCOPES,
   SEARCH_STATUSES,
   TASK_STATUSES,
+  TASK_SIGNAL_KINDS,
   USAGE_PHASES,
   USAGE_RESULTS,
   normalizePreflightDecisionToken,
@@ -56,9 +59,16 @@ import {
   type SearchStatus,
   type BagakitDriverDirective,
   type BagakitDriverPayload,
+  type CandidateResultLogEntry,
+  type CandidateResultStatus,
   type SkillPlanEntry,
   type SkillUsageDoc,
+  type LessonUpdateAction,
+  type LessonUpdateLogEntry,
   type TaskStatus,
+  type TaskSignalKind,
+  type TaskSignalLogEntry,
+  type SelectionLessonLogEntry,
   type UsageLogEntry,
   type UsagePhase,
   type UsageResult,
@@ -144,6 +154,13 @@ function readNumber(record: Record<string, unknown>, key: string, fallback = 0):
     return value;
   }
   throw new Error(`expected numeric value for ${key}`);
+}
+
+function readOptionalNumber(record: Record<string, unknown>, key: string): number | undefined {
+  if (record[key] === undefined) {
+    return undefined;
+  }
+  return readNumber(record, key);
 }
 
 function readRecord(record: Record<string, unknown>, key: string): Record<string, unknown> {
@@ -299,6 +316,9 @@ function parseSkillPlanEntry(record: Record<string, unknown>): SkillPlanEntry {
       readString(record, "fallback_strategy", "none"),
       "skill_plan.fallback_strategy",
     ),
+    rejection_reason: readString(record, "rejection_reason"),
+    expected_failure_mode: readString(record, "expected_failure_mode"),
+    evidence_needed: readString(record, "evidence_needed"),
     notes: readString(record, "notes"),
   };
 }
@@ -420,6 +440,76 @@ function parseEvolverSignalLogEntry(record: Record<string, unknown>): EvolverSig
   };
 }
 
+function parseTaskSignalLogEntry(record: Record<string, unknown>): TaskSignalLogEntry {
+  return {
+    timestamp: readString(record, "timestamp"),
+    signal_id: readString(record, "signal_id"),
+    kind: assertEnumValue(TASK_SIGNAL_KINDS, readString(record, "kind"), "task_signal_log.kind"),
+    summary: readString(record, "summary"),
+    task_cluster: readString(record, "task_cluster"),
+    evidence_ref: readString(record, "evidence_ref"),
+    confidence: assertEnumValue(PLAN_CONFIDENCE, readString(record, "confidence", "medium"), "task_signal_log.confidence"),
+    notes: readString(record, "notes"),
+  };
+}
+
+function parseCandidateResultLogEntry(record: Record<string, unknown>): CandidateResultLogEntry {
+  return {
+    timestamp: readString(record, "timestamp"),
+    result_id: readString(record, "result_id"),
+    candidate_id: readString(record, "candidate_id"),
+    task_signal_id: readString(record, "task_signal_id"),
+    action_ref: readString(record, "action_ref"),
+    result_status: assertEnumValue(
+      CANDIDATE_RESULT_STATUSES,
+      readString(record, "result_status"),
+      "candidate_result_log.result_status",
+    ),
+    verification_ref: readString(record, "verification_ref"),
+    feedback_ref: readString(record, "feedback_ref"),
+    score: readOptionalNumber(record, "score"),
+    cost_hint: readString(record, "cost_hint"),
+    latency_hint: readString(record, "latency_hint"),
+    notes: readString(record, "notes"),
+  };
+}
+
+function parseSelectionLessonLogEntry(record: Record<string, unknown>): SelectionLessonLogEntry {
+  return {
+    timestamp: readString(record, "timestamp"),
+    lesson_id: readString(record, "lesson_id"),
+    task_signal_kind: assertEnumValue(
+      TASK_SIGNAL_KINDS,
+      readString(record, "task_signal_kind"),
+      "selection_lesson_log.task_signal_kind",
+    ),
+    task_cluster: readString(record, "task_cluster"),
+    candidate_id: readString(record, "candidate_id"),
+    recommendation: readString(record, "recommendation"),
+    confidence: assertEnumValue(
+      PLAN_CONFIDENCE,
+      readString(record, "confidence", "medium"),
+      "selection_lesson_log.confidence",
+    ),
+    support_ref: readString(record, "support_ref"),
+    limitation: readString(record, "limitation"),
+    invalidates_ref: readString(record, "invalidates_ref"),
+    notes: readString(record, "notes"),
+  };
+}
+
+function parseLessonUpdateLogEntry(record: Record<string, unknown>): LessonUpdateLogEntry {
+  return {
+    timestamp: readString(record, "timestamp"),
+    lesson_id: readString(record, "lesson_id"),
+    action: assertEnumValue(LESSON_UPDATE_ACTIONS, readString(record, "action"), "lesson_update_log.action"),
+    target_ref: readString(record, "target_ref"),
+    reason: readString(record, "reason"),
+    evidence_ref: readString(record, "evidence_ref"),
+    notes: readString(record, "notes"),
+  };
+}
+
 export function createSkillUsageDoc(taskId: string, objective: string, owner: string): SkillUsageDoc {
   const timestamp = nowIso();
   return {
@@ -455,6 +545,11 @@ export function createSkillUsageDoc(taskId: string, objective: string, owner: st
     evolver_handoff_policy: {
       enabled: true,
     },
+    episode_refs: {
+      source_prompt_ref: "",
+      final_artifact_ref: "",
+      verification_ref: "",
+    },
     skill_plan: [],
     usage_log: [],
     feedback_log: [],
@@ -462,6 +557,10 @@ export function createSkillUsageDoc(taskId: string, objective: string, owner: st
     benchmark_log: [],
     error_pattern_log: [],
     recipe_log: [],
+    task_signal_log: [],
+    candidate_result_log: [],
+    selection_lesson_log: [],
+    lesson_update_log: [],
     evolver_signal_log: [],
   };
 }
@@ -513,6 +612,11 @@ export function readSkillUsageDoc(filePath: string): SkillUsageDoc {
     evolver_handoff_policy: {
       enabled: readBoolean(readRecord(raw, "evolver_handoff_policy"), "enabled", true),
     },
+    episode_refs: {
+      source_prompt_ref: readString(readRecord(raw, "episode_refs"), "source_prompt_ref"),
+      final_artifact_ref: readString(readRecord(raw, "episode_refs"), "final_artifact_ref"),
+      verification_ref: readString(readRecord(raw, "episode_refs"), "verification_ref"),
+    },
     skill_plan: readRecordArray(raw, "skill_plan").map(parseSkillPlanEntry),
     usage_log: readRecordArray(raw, "usage_log").map(parseUsageLogEntry),
     feedback_log: readRecordArray(raw, "feedback_log").map(parseFeedbackLogEntry),
@@ -520,6 +624,10 @@ export function readSkillUsageDoc(filePath: string): SkillUsageDoc {
     benchmark_log: readRecordArray(raw, "benchmark_log").map(parseBenchmarkLogEntry),
     error_pattern_log: readRecordArray(raw, "error_pattern_log").map(parseErrorPatternLogEntry),
     recipe_log: readRecordArray(raw, "recipe_log").map(parseRecipeLogEntry),
+    task_signal_log: readRecordArray(raw, "task_signal_log").map(parseTaskSignalLogEntry),
+    candidate_result_log: readRecordArray(raw, "candidate_result_log").map(parseCandidateResultLogEntry),
+    selection_lesson_log: readRecordArray(raw, "selection_lesson_log").map(parseSelectionLessonLogEntry),
+    lesson_update_log: readRecordArray(raw, "lesson_update_log").map(parseLessonUpdateLogEntry),
     evolver_signal_log: readRecordArray(raw, "evolver_signal_log").map(parseEvolverSignalLogEntry),
   };
 }
@@ -564,8 +672,13 @@ export function renderSkillUsageDoc(doc: SkillUsageDoc): string {
   lines.push("[evolver_handoff_policy]");
   pushKeyValue(lines, "enabled", doc.evolver_handoff_policy.enabled);
   lines.push("");
+  lines.push("[episode_refs]");
+  pushKeyValue(lines, "source_prompt_ref", doc.episode_refs.source_prompt_ref);
+  pushKeyValue(lines, "final_artifact_ref", doc.episode_refs.final_artifact_ref);
+  pushKeyValue(lines, "verification_ref", doc.episode_refs.verification_ref);
+  lines.push("");
   lines.push(
-    "# Append records below with [[recipe_log]], [[skill_plan]], [[usage_log]], [[feedback_log]], [[search_log]], [[benchmark_log]], [[error_pattern_log]], and [[evolver_signal_log]].",
+    "# Append records below with [[recipe_log]], [[task_signal_log]], [[selection_lesson_log]], [[lesson_update_log]], [[evolver_signal_log]], [[skill_plan]], [[candidate_result_log]], [[usage_log]], [[feedback_log]], [[search_log]], [[benchmark_log]], and [[error_pattern_log]].",
   );
 
   renderArrayTable(lines, "recipe_log", doc.recipe_log, [
@@ -575,6 +688,38 @@ export function renderSkillUsageDoc(doc: SkillUsageDoc): string {
     "why",
     "status",
     "synthesis_artifact",
+    "notes",
+  ]);
+  renderArrayTable(lines, "task_signal_log", doc.task_signal_log, [
+    "timestamp",
+    "signal_id",
+    "kind",
+    "summary",
+    "task_cluster",
+    "evidence_ref",
+    "confidence",
+    "notes",
+  ]);
+  renderArrayTable(lines, "selection_lesson_log", doc.selection_lesson_log, [
+    "timestamp",
+    "lesson_id",
+    "task_signal_kind",
+    "task_cluster",
+    "candidate_id",
+    "recommendation",
+    "confidence",
+    "support_ref",
+    "limitation",
+    "invalidates_ref",
+    "notes",
+  ]);
+  renderArrayTable(lines, "lesson_update_log", doc.lesson_update_log, [
+    "timestamp",
+    "lesson_id",
+    "action",
+    "target_ref",
+    "reason",
+    "evidence_ref",
     "notes",
   ]);
   renderArrayTable(lines, "evolver_signal_log", doc.evolver_signal_log, [
@@ -612,6 +757,23 @@ export function renderSkillUsageDoc(doc: SkillUsageDoc): string {
     "composition_id",
     "activation_mode",
     "fallback_strategy",
+    "rejection_reason",
+    "expected_failure_mode",
+    "evidence_needed",
+    "notes",
+  ]);
+  renderArrayTable(lines, "candidate_result_log", doc.candidate_result_log, [
+    "timestamp",
+    "result_id",
+    "candidate_id",
+    "task_signal_id",
+    "action_ref",
+    "result_status",
+    "verification_ref",
+    "feedback_ref",
+    "score",
+    "cost_hint",
+    "latency_hint",
     "notes",
   ]);
   renderArrayTable(lines, "usage_log", doc.usage_log, [
@@ -716,6 +878,33 @@ function upsertEvolverSignal(
   existing.notes = entry.notes;
   doc.updated_at = nowIso();
   return true;
+}
+
+function requireUniqueSignalId(doc: SkillUsageDoc, signalId: string): void {
+  if (signalId.trim() === "") {
+    throw new Error("task_signal_log.signal_id must not be empty");
+  }
+  if (doc.task_signal_log.some((entry) => entry.signal_id === signalId)) {
+    throw new Error(`task_signal_log.signal_id already exists: ${signalId}`);
+  }
+}
+
+function requireUniqueCandidateResultId(doc: SkillUsageDoc, resultId: string): void {
+  if (resultId.trim() === "") {
+    throw new Error("candidate_result_log.result_id must not be empty");
+  }
+  if (doc.candidate_result_log.some((entry) => entry.result_id === resultId)) {
+    throw new Error(`candidate_result_log.result_id already exists: ${resultId}`);
+  }
+}
+
+function requireUniqueSelectionLessonId(doc: SkillUsageDoc, lessonId: string): void {
+  if (lessonId.trim() === "") {
+    throw new Error("selection_lesson_log.lesson_id must not be empty");
+  }
+  if (doc.selection_lesson_log.some((entry) => entry.lesson_id === lessonId)) {
+    throw new Error(`selection_lesson_log.lesson_id already exists: ${lessonId}`);
+  }
 }
 
 function autoBackoffSignalId(skillId: string, attemptKey: string): string {
@@ -866,6 +1055,112 @@ export function buildEvolverSignalContract(
   };
 }
 
+export interface SelectorEvalCaseScaffold {
+  episode: Record<string, unknown>;
+  expected: Record<string, unknown>;
+}
+
+export function selectorEvalCaseScaffoldFromDoc(
+  doc: SkillUsageDoc,
+  filePath: string,
+  options: { label: "silver" | "gold"; reviewNeeded: boolean },
+): SelectorEvalCaseScaffold {
+  const repoRoot = resolveSelectorRepoRoot(filePath);
+  const episodeRef = normalizeRepoRelativeRef(filePath, repoRoot);
+  return {
+    episode: {
+      schema: "bagakit.selector.eval.episode.v1",
+      task_id: doc.task_id,
+      objective: doc.objective,
+      episode_ref: episodeRef,
+      source_prompt_ref: doc.episode_refs.source_prompt_ref,
+      final_artifact_ref: doc.episode_refs.final_artifact_ref,
+      verification_ref: doc.episode_refs.verification_ref,
+      preflight: doc.preflight,
+      task_signals: doc.task_signal_log.map((entry) => ({
+        signal_id: entry.signal_id,
+        kind: entry.kind,
+        task_cluster: entry.task_cluster,
+        evidence_ref: entry.evidence_ref,
+      })),
+      candidates: doc.skill_plan.map((entry) => ({
+        candidate_id: entry.skill_id,
+        kind: entry.kind,
+        source: entry.source,
+        selected: entry.selected,
+        availability: entry.availability,
+        rejection_reason: entry.rejection_reason,
+        expected_failure_mode: entry.expected_failure_mode,
+        evidence_needed: entry.evidence_needed,
+      })),
+      composition_patterns: doc.recipe_log.map((entry) => ({
+        recipe_id: entry.recipe_id,
+        status: entry.status,
+        synthesis_artifact: entry.synthesis_artifact ?? "",
+      })),
+      candidate_results: doc.candidate_result_log.map((entry) => ({
+        result_id: entry.result_id,
+        candidate_id: entry.candidate_id,
+        task_signal_id: entry.task_signal_id,
+        result_status: entry.result_status,
+        verification_ref: entry.verification_ref,
+        score: entry.score ?? null,
+      })),
+      lesson_updates: doc.lesson_update_log.map((entry) => ({
+        lesson_id: entry.lesson_id,
+        action: entry.action,
+        evidence_ref: entry.evidence_ref,
+      })),
+      evolver_signals: doc.evolver_signal_log.map((entry) => ({
+        signal_id: entry.signal_id,
+        trigger: entry.trigger,
+        status: entry.status,
+        confidence: entry.confidence,
+      })),
+    },
+    expected: {
+      schema: "bagakit.selector.eval.expected.v1",
+      label: options.label,
+      review_needed: options.reviewNeeded,
+      expected_task_signals: doc.task_signal_log.map((entry) => entry.signal_id),
+      expected_candidates: doc.skill_plan.map((entry) => entry.skill_id),
+      expected_selected_candidates: doc.skill_plan.filter((entry) => entry.selected).map((entry) => entry.skill_id),
+      expected_route: doc.preflight.decision,
+      expected_candidate_results: doc.candidate_result_log.map((entry) => entry.result_id),
+      expected_lesson_updates: doc.lesson_update_log.map((entry) => `${entry.lesson_id}:${entry.action}`),
+      expected_evolver_signals: doc.evolver_signal_log.map((entry) => entry.signal_id),
+      maintainer_notes: options.reviewNeeded
+        ? "Silver scaffold generated from selector episode. Review against original task context before promoting to gold."
+        : "",
+    },
+  };
+}
+
+export function renderSelectorEvalCaseScaffold(scaffold: SelectorEvalCaseScaffold): string {
+  const episode = scaffold.episode;
+  const expected = scaffold.expected;
+  return [
+    "# Selector Eval Case Scaffold",
+    "",
+    `Task: ${String(episode.task_id ?? "")}`,
+    `Label: ${String(expected.label ?? "")}`,
+    `Review Needed: ${String(expected.review_needed ?? "")}`,
+    "",
+    "Files:",
+    "",
+    "- `episode.json` captures what the selector episode recorded.",
+    "- `expected.json` starts as a silver label and should be reviewed before gold promotion.",
+    "",
+    "Review checklist:",
+    "",
+    "- confirm the expected task signals are ideal, not merely copied from the log",
+    "- confirm rejected candidates and missing candidates are represented",
+    "- confirm candidate results have reviewable evidence",
+    "- confirm lesson updates and evolver signals are warranted",
+    "",
+  ].join("\n");
+}
+
 export function updateEvolverSignalStatuses(
   doc: SkillUsageDoc,
   signalIds: string[],
@@ -894,6 +1189,26 @@ export function updatePreflight(
   doc.preflight.gap_summary = input.gap_summary;
   doc.preflight.decision = input.decision;
   doc.status = input.status;
+  doc.updated_at = nowIso();
+}
+
+export function updateEpisodeRefs(
+  doc: SkillUsageDoc,
+  input: {
+    source_prompt_ref?: string;
+    final_artifact_ref?: string;
+    verification_ref?: string;
+  },
+): void {
+  if (input.source_prompt_ref !== undefined) {
+    doc.episode_refs.source_prompt_ref = input.source_prompt_ref;
+  }
+  if (input.final_artifact_ref !== undefined) {
+    doc.episode_refs.final_artifact_ref = input.final_artifact_ref;
+  }
+  if (input.verification_ref !== undefined) {
+    doc.episode_refs.verification_ref = input.verification_ref;
+  }
   doc.updated_at = nowIso();
 }
 
@@ -962,6 +1277,136 @@ export function appendEvolverSignal(
   });
 }
 
+export function appendTaskSignalLog(
+  doc: SkillUsageDoc,
+  input: {
+    signal_id: string;
+    kind: TaskSignalKind;
+    summary: string;
+    task_cluster: string;
+    evidence_ref: string;
+    confidence: PlanConfidence;
+    notes: string;
+  },
+): void {
+  requireUniqueSignalId(doc, input.signal_id);
+  doc.task_signal_log.push({
+    timestamp: nowIso(),
+    signal_id: input.signal_id,
+    kind: input.kind,
+    summary: input.summary,
+    task_cluster: input.task_cluster,
+    evidence_ref: input.evidence_ref,
+    confidence: input.confidence,
+    notes: input.notes,
+  });
+  doc.updated_at = nowIso();
+}
+
+export function appendCandidateResultLog(
+  doc: SkillUsageDoc,
+  input: {
+    result_id: string;
+    candidate_id: string;
+    task_signal_id: string;
+    action_ref: string;
+    result_status: CandidateResultStatus;
+    verification_ref: string;
+    feedback_ref: string;
+    score?: number;
+    cost_hint: string;
+    latency_hint: string;
+    notes: string;
+  },
+): void {
+  requireUniqueCandidateResultId(doc, input.result_id);
+  if (!doc.skill_plan.some((entry) => entry.skill_id === input.candidate_id)) {
+    throw new Error(`candidate_result_log.candidate_id must refer to a planned candidate: ${input.candidate_id}`);
+  }
+  if (input.task_signal_id.trim() && !doc.task_signal_log.some((entry) => entry.signal_id === input.task_signal_id)) {
+    throw new Error(`candidate_result_log.task_signal_id must refer to a task signal: ${input.task_signal_id}`);
+  }
+  if (input.score !== undefined && (input.score < 0 || input.score > 1)) {
+    throw new Error("candidate_result_log.score must be within [0,1]");
+  }
+  doc.candidate_result_log.push({
+    timestamp: nowIso(),
+    result_id: input.result_id,
+    candidate_id: input.candidate_id,
+    task_signal_id: input.task_signal_id,
+    action_ref: input.action_ref,
+    result_status: input.result_status,
+    verification_ref: input.verification_ref,
+    feedback_ref: input.feedback_ref,
+    score: input.score,
+    cost_hint: input.cost_hint,
+    latency_hint: input.latency_hint,
+    notes: input.notes,
+  });
+  doc.updated_at = nowIso();
+}
+
+export function appendSelectionLessonLog(
+  doc: SkillUsageDoc,
+  input: {
+    lesson_id: string;
+    task_signal_kind: TaskSignalKind;
+    task_cluster: string;
+    candidate_id: string;
+    recommendation: string;
+    confidence: PlanConfidence;
+    support_ref: string;
+    limitation: string;
+    invalidates_ref: string;
+    notes: string;
+  },
+): void {
+  requireUniqueSelectionLessonId(doc, input.lesson_id);
+  if (input.candidate_id.trim() && !doc.skill_plan.some((entry) => entry.skill_id === input.candidate_id)) {
+    throw new Error(`selection_lesson_log.candidate_id must refer to a planned candidate: ${input.candidate_id}`);
+  }
+  doc.selection_lesson_log.push({
+    timestamp: nowIso(),
+    lesson_id: input.lesson_id,
+    task_signal_kind: input.task_signal_kind,
+    task_cluster: input.task_cluster,
+    candidate_id: input.candidate_id,
+    recommendation: input.recommendation,
+    confidence: input.confidence,
+    support_ref: input.support_ref,
+    limitation: input.limitation,
+    invalidates_ref: input.invalidates_ref,
+    notes: input.notes,
+  });
+  doc.updated_at = nowIso();
+}
+
+export function appendLessonUpdateLog(
+  doc: SkillUsageDoc,
+  input: {
+    lesson_id: string;
+    action: LessonUpdateAction;
+    target_ref: string;
+    reason: string;
+    evidence_ref: string;
+    notes: string;
+  },
+): void {
+  if (input.lesson_id.trim() === "") {
+    throw new Error("lesson_update_log.lesson_id must not be empty");
+  }
+  doc.lesson_update_log.push({
+    timestamp: nowIso(),
+    lesson_id: input.lesson_id,
+    action: input.action,
+    target_ref: input.target_ref,
+    reason: input.reason,
+    evidence_ref: input.evidence_ref,
+    notes: input.notes,
+  });
+  doc.updated_at = nowIso();
+}
+
 export function appendSkillPlan(
   doc: SkillUsageDoc,
   input: {
@@ -979,6 +1424,9 @@ export function appendSkillPlan(
     composition_id: string;
     activation_mode: ActivationMode;
     fallback_strategy: string;
+    rejection_reason: string;
+    expected_failure_mode: string;
+    evidence_needed: string;
     notes: string;
   },
 ): void {
@@ -1030,6 +1478,9 @@ export function appendSkillPlan(
       input.fallback_strategy,
       "skill_plan.fallback_strategy",
     ),
+    rejection_reason: input.rejection_reason,
+    expected_failure_mode: input.expected_failure_mode,
+    evidence_needed: input.evidence_needed,
     notes: input.notes,
   });
   doc.updated_at = nowIso();
@@ -1328,6 +1779,9 @@ export function validateSkillUsage(doc: SkillUsageDoc, strict: boolean): string[
   }
   const plannedSkillIds = new Set(doc.skill_plan.map((plan) => plan.skill_id));
   const selectedSkillIds = new Set(doc.skill_plan.filter((plan) => plan.selected).map((plan) => plan.skill_id));
+  const taskSignalIds = new Set<string>();
+  const candidateResultIds = new Set<string>();
+  const selectionLessonIds = new Set<string>();
   if (plannedSkillIds.size !== doc.skill_plan.length) {
     issues.push("skill_plan.skill_id must be unique within one task file");
   }
@@ -1340,6 +1794,68 @@ export function validateSkillUsage(doc: SkillUsageDoc, strict: boolean): string[
     }
     if (plan.status === "used" && plan.availability === "unavailable") {
       issues.push(`skill_plan.used candidate must not remain unavailable (${plan.skill_id})`);
+    }
+  }
+  for (const signal of doc.task_signal_log) {
+    if (signal.signal_id.trim() === "") {
+      issues.push("task_signal_log.signal_id must not be empty");
+    } else if (taskSignalIds.has(signal.signal_id)) {
+      issues.push(`duplicate task_signal_log.signal_id (${signal.signal_id})`);
+    } else {
+      taskSignalIds.add(signal.signal_id);
+    }
+    if (signal.summary.trim() === "") {
+      issues.push(`task_signal_log.summary must not be empty (${signal.signal_id})`);
+    }
+    if (signal.evidence_ref.trim() === "") {
+      issues.push(`task_signal_log.evidence_ref must not be empty (${signal.signal_id})`);
+    }
+  }
+  for (const result of doc.candidate_result_log) {
+    if (result.result_id.trim() === "") {
+      issues.push("candidate_result_log.result_id must not be empty");
+    } else if (candidateResultIds.has(result.result_id)) {
+      issues.push(`duplicate candidate_result_log.result_id (${result.result_id})`);
+    } else {
+      candidateResultIds.add(result.result_id);
+    }
+    if (!plannedSkillIds.has(result.candidate_id)) {
+      issues.push(`candidate_result_log.candidate_id must refer to a planned skill (${result.candidate_id})`);
+    }
+    if (result.task_signal_id.trim() !== "" && !taskSignalIds.has(result.task_signal_id)) {
+      issues.push(`candidate_result_log.task_signal_id must refer to a task signal (${result.task_signal_id})`);
+    }
+    if (result.verification_ref.trim() === "") {
+      issues.push(`candidate_result_log.verification_ref must not be empty (${result.result_id})`);
+    }
+    if (result.score !== undefined && (result.score < 0 || result.score > 1)) {
+      issues.push(`candidate_result_log.score must be within [0,1] (${result.result_id})`);
+    }
+  }
+  for (const lesson of doc.selection_lesson_log) {
+    if (lesson.lesson_id.trim() === "") {
+      issues.push("selection_lesson_log.lesson_id must not be empty");
+    } else if (selectionLessonIds.has(lesson.lesson_id)) {
+      issues.push(`duplicate selection_lesson_log.lesson_id (${lesson.lesson_id})`);
+    } else {
+      selectionLessonIds.add(lesson.lesson_id);
+    }
+    if (lesson.candidate_id.trim() !== "" && !plannedSkillIds.has(lesson.candidate_id)) {
+      issues.push(`selection_lesson_log.candidate_id must refer to a planned skill (${lesson.candidate_id})`);
+    }
+    if (lesson.support_ref.trim() === "") {
+      issues.push(`selection_lesson_log.support_ref must not be empty (${lesson.lesson_id})`);
+    }
+  }
+  for (const update of doc.lesson_update_log) {
+    if (update.lesson_id.trim() === "") {
+      issues.push("lesson_update_log.lesson_id must not be empty");
+    }
+    if (update.reason.trim() === "") {
+      issues.push(`lesson_update_log.reason must not be empty (${update.lesson_id})`);
+    }
+    if (update.evidence_ref.trim() === "") {
+      issues.push(`lesson_update_log.evidence_ref must not be empty (${update.lesson_id})`);
     }
   }
   for (const usage of doc.usage_log) {
@@ -1457,10 +1973,39 @@ export function validateSkillUsage(doc: SkillUsageDoc, strict: boolean): string[
     return issues;
   }
 
+  const hasGoldReadyEvidence =
+    doc.task_signal_log.length > 0 ||
+    doc.candidate_result_log.length > 0 ||
+    doc.selection_lesson_log.length > 0 ||
+    doc.lesson_update_log.length > 0 ||
+    doc.episode_refs.source_prompt_ref.trim() !== "" ||
+    doc.episode_refs.final_artifact_ref.trim() !== "" ||
+    doc.episode_refs.verification_ref.trim() !== "";
+  if (hasGoldReadyEvidence) {
+    for (const ref of [
+      ["episode_refs.source_prompt_ref", doc.episode_refs.source_prompt_ref],
+      ["episode_refs.final_artifact_ref", doc.episode_refs.final_artifact_ref],
+      ["episode_refs.verification_ref", doc.episode_refs.verification_ref],
+    ] as const) {
+      if (ref[1].trim() === "") {
+        issues.push(`strict mode: ${ref[0]} should be set for gold-ready selector episodes`);
+      }
+    }
+  }
+
   const composedCounts = new Map<string, { entrypoint: number; peer: number }>();
   for (const plan of doc.skill_plan) {
     if (plan.kind === "local" && plan.selected && plan.availability === "unknown") {
       issues.push(`strict mode: selected local skill_plan must record availability (${plan.skill_id})`);
+    }
+    if (!plan.selected && ["not_used", "replaced", "deprecated"].includes(plan.status)) {
+      const hasNegativeEvidence =
+        plan.rejection_reason.trim() !== "" ||
+        plan.expected_failure_mode.trim() !== "" ||
+        plan.evidence_needed.trim() !== "";
+      if (!hasNegativeEvidence) {
+        issues.push(`strict mode: non-selected skill_plan should preserve rejection evidence (${plan.skill_id})`);
+      }
     }
 
     if (plan.composition_role === "standalone") {

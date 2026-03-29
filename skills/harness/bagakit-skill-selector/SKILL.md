@@ -1,6 +1,6 @@
 ---
 name: bagakit-skill-selector
-description: Meta-skill for task-level or host-level skill coverage preflight, explicit composition, usage tracking, and task-local evaluation. Non-trivial Bagakit-shaped work must enter through selector preflight before major implementation, while trivial or obvious one-step work may execute directly.
+description: Frontdoor meta-skill for non-trivial Bagakit-shaped work: run selector preflight before major implementation, compare visible/available candidates, choose explicit skill or composition routes, record task signals, candidate results, lesson updates, usage evidence, and task-local evaluation. Use when a repo task involves skill choice, multiple tools, composition, retries, eval evidence, gold/silver selector cases, or possible evolver handoff; trivial one-step work may execute directly.
 metadata:
   bagakit:
     harness_layer: l1-execution
@@ -38,6 +38,7 @@ Follow `docs/specs/output-discipline.md` for task-local skill evidence.
 
 Stable selector-versus-evolver meaning lives in:
 
+- `docs/specs/selector-data-model.md`
 - `docs/specs/selector-evolver-boundary.md`
 - `docs/specs/selector-selection-model.md`
 - `docs/specs/selector-planning-entry-routes.md`
@@ -46,7 +47,28 @@ Default stance:
 
 - for non-trivial Bagakit-shaped work, require selector preflight before major
   implementation
+- Non-trivial Bagakit-shaped work must enter through selector preflight before
+  major implementation
 - for trivial one-step work, do not add selector ceremony without a real reason
+
+## Frontdoor Enforcement
+
+Installing or listing this skill does not by itself force host agents to call
+it.
+
+The reliable frontdoor is project bootstrap guidance, usually the root
+`AGENTS.md` or equivalent managed instruction block. That frontdoor should say:
+
+- for non-trivial Bagakit-shaped work, run selector preflight before major
+  implementation
+- preflight may conclude `direct_execute`
+- trivial one-step work may bypass selector
+- if selector is used, write the task-local episode under
+  `.bagakit/skill-selector/tasks/<task-slug>/skill-usage.toml`
+
+This mirrors the living-docs pattern: the skill description makes the
+capability discoverable, while the project frontdoor makes the rule active in
+that repository.
 
 ## Runtime Surface Declaration
 
@@ -80,8 +102,13 @@ unlikely to benefit from comparative skill evidence.
 It is useful when you need to know:
 
 - whether current skill coverage was enough for one concrete task
+- which task signals made selector attention useful
 - which candidate skills or references were tried
+- which visible candidates were rejected and why
 - what they actually did in execution
+- what candidate result and feedback evidence was observed
+- whether one prior selection lesson should be confirmed, weakened,
+  invalidated, superseded, or ignored
 - whether the resulting learning should stay host-side or later inform
   upstream Bagakit evolution
 - whether one task should explicitly compose multiple coupled harness skills
@@ -94,6 +121,21 @@ It is useful when you need to know:
   feature-tracker, flow-runner, or one explicit combination of them
 
 This is not the same thing as repository-level `evolver`.
+
+Selector's native evidence model is:
+
+- `selection_episode`
+- `task_signal`
+- `candidate`
+- `selection_lesson`
+- `composition_pattern`
+- `candidate_result`
+- `lesson_update`
+- `evolver_signal`
+
+The stable vocabulary lives in:
+
+- `docs/specs/selector-data-model.md`
 
 Think of the split as:
 
@@ -192,6 +234,10 @@ Required behavior:
 - the file must exist before major implementation starts
 - it must be append-updated during execution
 - it must include explicit evaluation before task close
+- when an episode may later seed selector eval cases, set `episode_refs` for
+  source prompt, final artifact, and verification evidence
+- it should preserve decision-relevant task signals, candidate reasoning,
+  candidate results, and lesson updates when those affect future selection
 - selected local candidates should carry explicit `availability` instead of
   leaving host readiness implicit in prose
 - if the task chooses explicit multi-skill composition, that composition must be
@@ -221,6 +267,16 @@ Recommended derived outputs:
 - json stdout for `candidate-survey` and `skill-ranking`
   - preferred proof surface when eval or validation wants shortlist or ranking
     semantics instead of markdown presentation
+
+Eval-set handoff:
+
+- `gate_eval/skills/harness/bagakit-skill-selector/scaffold_eval_case.ts`
+  - turns one real `skill-usage.toml` episode into a silver/gold candidate
+    directory for maintainer review
+- generated silver labels are scaffolds, not final truth
+- promote to gold only after checking the original task prompt, final artifact,
+  verification evidence, missed or rejected candidates, candidate results,
+  lesson updates, and evolver signals
 
 ## Operator
 

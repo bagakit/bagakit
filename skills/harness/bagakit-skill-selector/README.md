@@ -7,6 +7,7 @@ This skill is not the same as `bagakit-skill-evolver`.
 Stable boundary meaning lives in `docs/specs/selector-evolver-boundary.md`.
 Selector candidate-scope semantics live in
 `docs/specs/selector-selection-model.md`.
+Selector data-model vocabulary lives in `docs/specs/selector-data-model.md`.
 Planning-entry route semantics live in
 `docs/specs/selector-planning-entry-routes.md`.
 Project-local preference-hint semantics live in
@@ -40,6 +41,11 @@ To satisfy that gate:
 
 - initialize `.bagakit/skill-selector/tasks/<task-slug>/skill-usage.toml`
 - record one typed preflight decision before major implementation begins
+
+In projects where this skill is installed but not consistently invoked, add a
+root frontdoor rule to `AGENTS.md` or the equivalent managed bootstrap block.
+The skill description makes selector discoverable; project bootstrap guidance
+makes selector mandatory for non-trivial Bagakit-shaped work.
 
 Private day-scoped selector memory may also live under:
 
@@ -175,6 +181,13 @@ Why the operator is now TypeScript:
 Current operator status:
 
 - the canonical operator is now `scripts/skill_selector.ts`
+- it can record `episode_refs` for source prompt, final artifact, and
+  verification evidence when an episode should become eval-set material
+- it can append `[[task_signal_log]]`, `[[candidate_result_log]]`,
+  `[[selection_lesson_log]]`, and `[[lesson_update_log]]` entries for
+  gold-ready selector evidence
+- it can preserve negative candidate evidence through `rejection_reason`,
+  `expected_failure_mode`, and `evidence_needed` on `[[skill_plan]]`
 - it can append `[[recipe_log]]` entries for standard selector recipes
 - it can record typed task-local candidate availability in `[[skill_plan]]`
 - it can append `[[error_pattern_log]]` entries for repeated task-local failure
@@ -196,6 +209,8 @@ Current operator status:
   conventional driver payload at `references/bagakit-driver.toml`
 - it counts repeated concrete attempts and forces selector-visible backoff once
   one method is stalling
+- `gate_eval/skills/harness/bagakit-skill-selector/scaffold_eval_case.ts` can
+  convert real selector episodes into silver/gold eval case scaffolds
 
 `recipes/` is selector's composition knowledge surface, not a runtime hard
 dependency control plane.

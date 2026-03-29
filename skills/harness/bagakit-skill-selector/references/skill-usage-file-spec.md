@@ -41,6 +41,22 @@ Selection-state reminder:
 - `visible` does not mean `available`
 - `[[skill_plan]]` records the candidates that became explicit task options
 
+Data-model reminder:
+
+- one file is one `selection_episode`
+- candidate planning currently lives in `[[skill_plan]]`
+- concrete candidate use currently lives in `[[usage_log]]`
+- task-local repository-review suggestions currently live in
+  `[[evolver_signal_log]]`
+- richer selector evidence uses explicit `[[task_signal_log]]`,
+  `[[selection_lesson_log]]`, `[[candidate_result_log]]`, and
+  `[[lesson_update_log]]` when future selection or eval-set construction needs
+  stronger evidence
+
+Stable vocabulary lives in:
+
+- `docs/specs/selector-data-model.md`
+
 Entry rule:
 
 - for non-trivial Bagakit-shaped work, initialize this file before major
@@ -64,6 +80,53 @@ status = "planning"
   - must already be a stable lowercase token so bridge ids stay collision-safe
   - use lowercase letters, digits, and hyphens only
 - `status`: `planning | in_progress | review | completed | blocked`
+
+## Episode refs section
+
+```toml
+[episode_refs]
+source_prompt_ref = ".bagakit/skill-selector/tasks/demo/source-prompt.md"
+final_artifact_ref = "docs/specs/demo.md"
+verification_ref = "gate_eval/skills/harness/bagakit-skill-selector/results/demo.json"
+```
+
+Use `episode_refs` when a selector episode should be usable as an eval-set
+candidate.
+
+- `source_prompt_ref`
+  - repo-relative pointer to the original task request or task brief
+- `final_artifact_ref`
+  - repo-relative pointer to the main delivered artifact, diff summary, or
+    handoff
+- `verification_ref`
+  - repo-relative pointer to tests, benchmark output, review notes, or other
+    result evidence
+
+Strict validation requires all three refs only when the episode starts using
+gold-ready evidence layers such as `[[task_signal_log]]`,
+`[[candidate_result_log]]`, `[[selection_lesson_log]]`, or
+`[[lesson_update_log]]`.
+
+## Selector evidence layers
+
+`skill-usage.toml` represents one `selection_episode`.
+
+Current runtime tables already cover part of the selector evidence model:
+
+| Data-model layer | File shape | Meaning |
+| --- | --- | --- |
+| `selection_episode` | top-level fields plus `[preflight]`, `[evaluation]`, and `[next_actions]` | one task-local selector loop |
+| `task_signal` | `[[task_signal_log]]` | why selector attention is useful |
+| `candidate` | `[[skill_plan]]` | visible task option and task-local plan |
+| `selection_lesson` | `[[selection_lesson_log]]` | reusable task-local selection guidance |
+| `composition_pattern` | `[[recipe_log]]` plus `[[skill_plan]]` composition fields | explicit composed task pattern |
+| `candidate_result` | `[[candidate_result_log]]`, or simple `[[usage_log]].result` when enough | verified result of using one candidate |
+| `lesson_update` | `[[lesson_update_log]]` | how this episode changes a prior selection lesson |
+| `evolver_signal` | `[[evolver_signal_log]]` | task-local repository-review suggestion |
+
+The richer shapes are optional for ordinary lightweight tasks. They become the
+preferred daily collection path when the episode may later seed selector eval
+cases.
 
 ## Preflight section
 
@@ -177,6 +240,47 @@ Planning-entry reminder:
   participating skills
 - do not treat generic root note-taking files as canonical planning truth for
   Bagakit-shaped delivery work
+
+## Task signal log
+
+```toml
+[[task_signal_log]]
+timestamp = "<event marker>"
+signal_id = "missing-memory-eval"
+kind = "capability_gap"
+summary = "Current selector evidence cannot evaluate stale lesson invalidation"
+task_cluster = "selector-memory"
+evidence_ref = "docs/specs/selector-data-model.md"
+confidence = "medium"
+notes = ""
+```
+
+- `signal_id`
+  - stable inside one selection episode
+- `kind`
+  - values:
+    - `error`
+    - `capability_gap`
+    - `workflow_friction`
+    - `benchmark_gap`
+    - `user_preference`
+    - `opportunity`
+    - `stale_lesson`
+    - `abstention`
+- `task_cluster`
+  - compact token for related future episodes
+- `evidence_ref`
+  - repo-relative artifact, source card, test output, or task-local evidence
+- `confidence`
+  - `low | medium | high`
+
+Recording rule:
+
+- use `[[task_signal_log]]` for decision-relevant signals, not for every
+  incidental observation
+- prefer compact typed signal records over raw transcript capture
+- a task signal may later support candidate choice, candidate rejection,
+  candidate result interpretation, lesson update, or evolver signal creation
 
 ## Error pattern log
 
@@ -378,6 +482,23 @@ notes = ""
 - `activation_mode`: `standalone | composed`
 - `fallback_strategy`: `none | standalone_first`
 
+```toml
+rejection_reason = ""
+expected_failure_mode = ""
+evidence_needed = ""
+```
+
+- `rejection_reason`
+  - why one visible but non-selected candidate was not chosen
+- `expected_failure_mode`
+  - the risk selector expects if this candidate is used
+- `evidence_needed`
+  - what evidence would be required to reconsider the candidate
+
+Negative candidate evidence is part of selector's useful task-local data.
+When it affects future selection, preserve it explicitly instead of leaving it
+only in prose.
+
 Availability rule:
 
 - `selected = true` means the candidate is task-selected
@@ -506,6 +627,52 @@ notes = ""
   - `true` once the same `attempt_key` reaches the retry backoff threshold
     without success
 
+## Candidate result log
+
+```toml
+[[candidate_result_log]]
+timestamp = "<event marker>"
+result_id = "result-selector-researcher-pass"
+candidate_id = "bagakit-researcher"
+task_signal_id = "missing-memory-eval"
+action_ref = "usage_log#try-1"
+result_status = "success"
+verification_ref = ".bagakit/researcher/topics/frontier/selector-valuable-data-collection/index.md"
+feedback_ref = ""
+score = 0.84
+cost_hint = "moderate"
+latency_hint = ""
+notes = "Produced source cards, summaries, claims, insights, and handoffs"
+```
+
+- `result_status`
+  - values:
+    - `success`
+    - `partial`
+    - `failed`
+    - `inconclusive`
+- `candidate_id`
+  - references the task-local candidate id, usually `skill_id`
+- `task_signal_id`
+  - optional link to the task signal this result addresses
+- `action_ref`
+  - optional link to the usage event or artifact that performed the action
+- `verification_ref`
+  - test, benchmark, generated artifact, source card, review note, or other
+    evidence supporting the result
+- `feedback_ref`
+  - optional user, metric, or self-review feedback artifact
+- `score`
+  - optional normalized result score between `0.0` and `1.0`
+
+Relationship to `[[usage_log]]`:
+
+- `[[usage_log]]` records that a candidate was used, skipped, failed, or
+  replaced for one concrete action
+- `[[candidate_result_log]]` records the verified consequence when that
+  consequence should influence future selector decisions
+- simple tasks may only need `[[usage_log]].result`
+
 ## Feedback events
 
 ```toml
@@ -521,6 +688,62 @@ confidence = "high"
 
 - `channel`: `user | metric | self_review`
 - `signal`: `positive | neutral | negative`
+
+## Selection lesson log
+
+```toml
+[[selection_lesson_log]]
+timestamp = "<event marker>"
+lesson_id = "research-before-selector-data-model"
+task_signal_kind = "capability_gap"
+task_cluster = "selector-memory"
+candidate_id = "bagakit-researcher"
+recommendation = "Use researcher before changing selector data-model semantics"
+confidence = "medium"
+support_ref = "candidate_result_log#result-selector-researcher-pass"
+limitation = "Research evidence still needs implementation validation"
+invalidates_ref = ""
+notes = ""
+```
+
+A `selection_lesson` is task-local guidance for later selector episodes.
+
+It is not:
+
+- repository-level route state
+- durable repository policy
+- an evolver topic
+
+Only promote a repeated or high-value lesson through explicit evolver review.
+
+## Lesson update log
+
+```toml
+[[lesson_update_log]]
+timestamp = "<event marker>"
+lesson_id = "research-before-selector-data-model"
+action = "confirm"
+target_ref = "selection_lesson_log#research-before-selector-data-model"
+reason = "Research pass produced useful selector field recommendations"
+evidence_ref = "candidate_result_log#result-selector-researcher-pass"
+notes = ""
+```
+
+- `action`
+  - values:
+    - `confirm`
+    - `weaken`
+    - `invalidate`
+    - `supersede`
+    - `abstain`
+- `target_ref`
+  - the prior lesson, candidate result, or selector artifact being updated
+- `evidence_ref`
+  - the task-local evidence that justifies the update
+
+Use `[[lesson_update_log]]` when this episode changes how a prior selector
+lesson should influence future selection. This is the selector-side mechanism
+for stale-lesson suppression.
 
 ## Skill ranking report
 
@@ -549,6 +772,9 @@ Purpose:
   repository-level evolver state
 - treat `result = "not_used"` as preserved task telemetry, not as a failed
   execution attempt inside the ranking math
+- ranking views should prefer `candidate_result` evidence when present, because
+  it is the verified consequence of candidate use rather than the fact that a
+  usage attempt happened
 
 ## Search loop events
 
@@ -601,6 +827,8 @@ Before a task is considered complete:
    follow-up search or method-change note before close
 7. if a standard recipe was intentionally used, add a matching `[[recipe_log]]`
    entry instead of hiding the composition only in prose
+8. if one prior selection lesson was used or contradicted, record the relevant
+   lesson update or explain why no update is needed
 
 ## Strict completion checklist
 
@@ -617,3 +845,5 @@ Use strict mode as the close gate for higher-quality tasks:
    "standalone_first"`
 6. if any `[[usage_log]]` sets `backoff_required = true`, at least one
    `[[search_log]]` follow-up exists
+7. if selector creates a `candidate_result` or `lesson_update` shape, its
+   evidence refs are repo-relative and point to reviewable task-local evidence

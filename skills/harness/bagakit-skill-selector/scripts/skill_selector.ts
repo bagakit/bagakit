@@ -13,12 +13,16 @@ import {
 } from "./lib/project_preferences.ts";
 import {
   appendBenchmarkLog,
+  appendCandidateResultLog,
   appendEvolverSignal,
   appendErrorPatternLog,
   appendFeedbackLog,
+  appendLessonUpdateLog,
   appendRecipeLog,
   appendSearchLog,
+  appendSelectionLessonLog,
   appendSkillPlan,
+  appendTaskSignalLog,
   appendUsageLog,
   buildEvolverSignalContract,
   buildValidationSummary,
@@ -28,6 +32,7 @@ import {
   renderDriverPack,
   updateEvolverSignalStatuses,
   updateEvaluation,
+  updateEpisodeRefs,
   updatePlanAvailability,
   updatePreflight,
   validateSkillUsage,
@@ -36,6 +41,7 @@ import {
 import { buildSkillRankingData, buildSkillRankingReport } from "./lib/reports.ts";
 import {
   ACTIVATION_MODES,
+  CANDIDATE_RESULT_STATUSES,
   COMPOSITION_ROLES,
   EVALUATION_OVERALL,
   EVOLVER_SCOPE_HINTS,
@@ -46,6 +52,7 @@ import {
   FALLBACK_STRATEGIES,
   FEEDBACK_CHANNELS,
   FEEDBACK_SIGNALS,
+  LESSON_UPDATE_ACTIONS,
   PLAN_CONFIDENCE,
   PLAN_AVAILABILITY,
   PLAN_KINDS,
@@ -54,6 +61,7 @@ import {
   RECIPE_STATUSES,
   SEARCH_SOURCE_SCOPES,
   SEARCH_STATUSES,
+  TASK_SIGNAL_KINDS,
   TASK_STATUSES,
   USAGE_PHASES,
   USAGE_RESULTS,
@@ -69,10 +77,15 @@ function printHelp(): void {
 Commands:
   init --file <path> --task-id <id> --objective <text> [--owner <name>] [--force]
   preflight --file <path> --answer <yes|no|partial|pending> --decision <direct_execute|compare_then_execute|compose_then_execute|review_loop|pending> [--gap-summary <text>] [--status <task-status>]
-  plan --file <path> --skill-id <id> --kind <local|external|research|custom> --source <path-or-url> --why <text> --expected-impact <text> [--confidence <low|medium|high>] [--availability <available|unknown|unavailable>] [--availability-detail <text>] [--selected <true|false>] [--status <plan-status>] [--composition-role <role>] [--composition-id <id>] [--activation-mode <mode>] [--fallback-strategy <strategy>] [--notes <text>]
+  episode-refs --file <path> [--source-prompt-ref <path>] [--final-artifact-ref <path>] [--verification-ref <path>]
+  task-signal --file <path> --signal-id <id> --kind <error|capability_gap|workflow_friction|benchmark_gap|user_preference|opportunity|stale_lesson|abstention> --summary <text> --evidence-ref <path> [--task-cluster <id>] [--confidence <low|medium|high>] [--notes <text>]
+  plan --file <path> --skill-id <id> --kind <local|external|research|custom> --source <path-or-url> --why <text> --expected-impact <text> [--confidence <low|medium|high>] [--availability <available|unknown|unavailable>] [--availability-detail <text>] [--selected <true|false>] [--status <plan-status>] [--composition-role <role>] [--composition-id <id>] [--activation-mode <mode>] [--fallback-strategy <strategy>] [--rejection-reason <text>] [--expected-failure-mode <text>] [--evidence-needed <text>] [--notes <text>]
   availability --file <path> --skill-id <id> --availability <available|unknown|unavailable> [--availability-detail <text>]
   recipe --file <path> --recipe-id <id> --source <selector-recipe-path> --why <text> [--status <considered|selected|used|skipped|rejected>] [--synthesis-artifact <path>] [--notes <text>]
   usage --file <path> --skill-id <id> --phase <phase> --action <text> --result <success|partial|failed|not_used> [--evidence <text>] [--metric-hint <text>] [--attempt-key <text>] [--notes <text>]
+  candidate-result --file <path> --result-id <id> --candidate-id <id> --result-status <success|partial|failed|inconclusive> --verification-ref <path> [--task-signal-id <id>] [--action-ref <ref>] [--feedback-ref <ref>] [--score <0..1>] [--cost-hint <text>] [--latency-hint <text>] [--notes <text>]
+  selection-lesson --file <path> --lesson-id <id> --task-signal-kind <kind> --task-cluster <id> --candidate-id <id> --recommendation <text> --support-ref <ref> [--confidence <low|medium|high>] [--limitation <text>] [--invalidates-ref <ref>] [--notes <text>]
+  lesson-update --file <path> --lesson-id <id> --action <confirm|weaken|invalidate|supersede|abstain> --target-ref <ref> --reason <text> --evidence-ref <ref> [--notes <text>]
   feedback --file <path> --skill-id <id> --channel <user|metric|self_review> --signal <positive|neutral|negative> --detail <text> [--impact-scope <text>] [--confidence <low|medium|high>]
   search --file <path> --reason <text> --query <text> [--source-scope <local|external|hybrid>] [--status <open|done|discarded>] [--notes <text>]
   benchmark --file <path> --benchmark-id <id> --metric <name> --baseline <n> --candidate <n> [--higher-is-better | --no-higher-is-better] [--notes <text>]
@@ -172,6 +185,36 @@ function cmdPreflight(flags: Map<string, string | boolean>): number {
   return 0;
 }
 
+function cmdEpisodeRefs(flags: Map<string, string | boolean>): number {
+  const filePath = resolvePathFromCwd(requiredString(flags, "file"));
+  const doc = readSkillUsageDoc(filePath);
+  updateEpisodeRefs(doc, {
+    source_prompt_ref: readStringFlag(flags, "source-prompt-ref") ?? undefined,
+    final_artifact_ref: readStringFlag(flags, "final-artifact-ref") ?? undefined,
+    verification_ref: readStringFlag(flags, "verification-ref") ?? undefined,
+  });
+  writeSkillUsageDoc(filePath, doc);
+  console.log(`ok: updated episode_refs in ${filePath}`);
+  return 0;
+}
+
+function cmdTaskSignal(flags: Map<string, string | boolean>): number {
+  const filePath = resolvePathFromCwd(requiredString(flags, "file"));
+  const doc = readSkillUsageDoc(filePath);
+  appendTaskSignalLog(doc, {
+    signal_id: requiredString(flags, "signal-id"),
+    kind: assertEnum(TASK_SIGNAL_KINDS, requiredString(flags, "kind"), "task_signal_log.kind"),
+    summary: requiredString(flags, "summary"),
+    task_cluster: readStringFlag(flags, "task-cluster") ?? "",
+    evidence_ref: requiredString(flags, "evidence-ref"),
+    confidence: assertEnum(PLAN_CONFIDENCE, readStringFlag(flags, "confidence") ?? "medium", "task_signal_log.confidence"),
+    notes: readStringFlag(flags, "notes") ?? "",
+  });
+  writeSkillUsageDoc(filePath, doc);
+  console.log(`ok: appended task_signal_log to ${filePath}`);
+  return 0;
+}
+
 function cmdPlan(flags: Map<string, string | boolean>): number {
   const filePath = resolvePathFromCwd(requiredString(flags, "file"));
   const doc = readSkillUsageDoc(filePath);
@@ -202,10 +245,82 @@ function cmdPlan(flags: Map<string, string | boolean>): number {
       "skill_plan.activation_mode",
     ),
     fallback_strategy: readStringFlag(flags, "fallback-strategy") ?? "none",
+    rejection_reason: readStringFlag(flags, "rejection-reason") ?? "",
+    expected_failure_mode: readStringFlag(flags, "expected-failure-mode") ?? "",
+    evidence_needed: readStringFlag(flags, "evidence-needed") ?? "",
     notes: readStringFlag(flags, "notes") ?? "",
   });
   writeSkillUsageDoc(filePath, doc);
   console.log(`ok: appended skill_plan to ${filePath}`);
+  return 0;
+}
+
+function cmdCandidateResult(flags: Map<string, string | boolean>): number {
+  const filePath = resolvePathFromCwd(requiredString(flags, "file"));
+  const doc = readSkillUsageDoc(filePath);
+  appendCandidateResultLog(doc, {
+    result_id: requiredString(flags, "result-id"),
+    candidate_id: requiredString(flags, "candidate-id"),
+    task_signal_id: readStringFlag(flags, "task-signal-id") ?? "",
+    action_ref: readStringFlag(flags, "action-ref") ?? "",
+    result_status: assertEnum(
+      CANDIDATE_RESULT_STATUSES,
+      requiredString(flags, "result-status"),
+      "candidate_result_log.result_status",
+    ),
+    verification_ref: requiredString(flags, "verification-ref"),
+    feedback_ref: readStringFlag(flags, "feedback-ref") ?? "",
+    score: readNumberFlag(flags, "score"),
+    cost_hint: readStringFlag(flags, "cost-hint") ?? "",
+    latency_hint: readStringFlag(flags, "latency-hint") ?? "",
+    notes: readStringFlag(flags, "notes") ?? "",
+  });
+  writeSkillUsageDoc(filePath, doc);
+  console.log(`ok: appended candidate_result_log to ${filePath}`);
+  return 0;
+}
+
+function cmdSelectionLesson(flags: Map<string, string | boolean>): number {
+  const filePath = resolvePathFromCwd(requiredString(flags, "file"));
+  const doc = readSkillUsageDoc(filePath);
+  appendSelectionLessonLog(doc, {
+    lesson_id: requiredString(flags, "lesson-id"),
+    task_signal_kind: assertEnum(
+      TASK_SIGNAL_KINDS,
+      requiredString(flags, "task-signal-kind"),
+      "selection_lesson_log.task_signal_kind",
+    ),
+    task_cluster: requiredString(flags, "task-cluster"),
+    candidate_id: requiredString(flags, "candidate-id"),
+    recommendation: requiredString(flags, "recommendation"),
+    confidence: assertEnum(
+      PLAN_CONFIDENCE,
+      readStringFlag(flags, "confidence") ?? "medium",
+      "selection_lesson_log.confidence",
+    ),
+    support_ref: requiredString(flags, "support-ref"),
+    limitation: readStringFlag(flags, "limitation") ?? "",
+    invalidates_ref: readStringFlag(flags, "invalidates-ref") ?? "",
+    notes: readStringFlag(flags, "notes") ?? "",
+  });
+  writeSkillUsageDoc(filePath, doc);
+  console.log(`ok: appended selection_lesson_log to ${filePath}`);
+  return 0;
+}
+
+function cmdLessonUpdate(flags: Map<string, string | boolean>): number {
+  const filePath = resolvePathFromCwd(requiredString(flags, "file"));
+  const doc = readSkillUsageDoc(filePath);
+  appendLessonUpdateLog(doc, {
+    lesson_id: requiredString(flags, "lesson-id"),
+    action: assertEnum(LESSON_UPDATE_ACTIONS, requiredString(flags, "action"), "lesson_update_log.action"),
+    target_ref: requiredString(flags, "target-ref"),
+    reason: requiredString(flags, "reason"),
+    evidence_ref: requiredString(flags, "evidence-ref"),
+    notes: readStringFlag(flags, "notes") ?? "",
+  });
+  writeSkillUsageDoc(filePath, doc);
+  console.log(`ok: appended lesson_update_log to ${filePath}`);
   return 0;
 }
 
@@ -601,6 +716,10 @@ function main(argv: string[]): number {
       return cmdInit(flags);
     case "preflight":
       return cmdPreflight(flags);
+    case "episode-refs":
+      return cmdEpisodeRefs(flags);
+    case "task-signal":
+      return cmdTaskSignal(flags);
     case "plan":
       return cmdPlan(flags);
     case "availability":
@@ -609,6 +728,12 @@ function main(argv: string[]): number {
       return cmdRecipe(flags);
     case "usage":
       return cmdUsage(flags);
+    case "candidate-result":
+      return cmdCandidateResult(flags);
+    case "selection-lesson":
+      return cmdSelectionLesson(flags);
+    case "lesson-update":
+      return cmdLessonUpdate(flags);
     case "feedback":
       return cmdFeedback(flags);
     case "search":

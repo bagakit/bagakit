@@ -18,6 +18,18 @@ export const USAGE_PHASES = ["planning", "execution", "review", "postmortem"] as
 export const USAGE_RESULTS = ["success", "partial", "failed", "not_used"] as const;
 export const FEEDBACK_CHANNELS = ["user", "metric", "self_review"] as const;
 export const FEEDBACK_SIGNALS = ["positive", "neutral", "negative"] as const;
+export const TASK_SIGNAL_KINDS = [
+  "error",
+  "capability_gap",
+  "workflow_friction",
+  "benchmark_gap",
+  "user_preference",
+  "opportunity",
+  "stale_lesson",
+  "abstention",
+] as const;
+export const CANDIDATE_RESULT_STATUSES = ["success", "partial", "failed", "inconclusive"] as const;
+export const LESSON_UPDATE_ACTIONS = ["confirm", "weaken", "invalidate", "supersede", "abstain"] as const;
 export const SEARCH_SOURCE_SCOPES = ["local", "external", "hybrid"] as const;
 export const SEARCH_STATUSES = ["open", "done", "discarded"] as const;
 export const EVALUATION_OVERALL = ["pass", "conditional_pass", "fail", "pending"] as const;
@@ -55,6 +67,9 @@ export type UsagePhase = (typeof USAGE_PHASES)[number];
 export type UsageResult = (typeof USAGE_RESULTS)[number];
 export type FeedbackChannel = (typeof FEEDBACK_CHANNELS)[number];
 export type FeedbackSignal = (typeof FEEDBACK_SIGNALS)[number];
+export type TaskSignalKind = (typeof TASK_SIGNAL_KINDS)[number];
+export type CandidateResultStatus = (typeof CANDIDATE_RESULT_STATUSES)[number];
+export type LessonUpdateAction = (typeof LESSON_UPDATE_ACTIONS)[number];
 export type SearchSourceScope = (typeof SEARCH_SOURCE_SCOPES)[number];
 export type SearchStatus = (typeof SEARCH_STATUSES)[number];
 export type EvaluationOverall = (typeof EVALUATION_OVERALL)[number];
@@ -108,6 +123,12 @@ export interface EvolverHandoffPolicySection {
   enabled: boolean;
 }
 
+export interface EpisodeRefsSection {
+  source_prompt_ref: string;
+  final_artifact_ref: string;
+  verification_ref: string;
+}
+
 export interface SkillPlanEntry {
   timestamp: string;
   skill_id: string;
@@ -124,6 +145,9 @@ export interface SkillPlanEntry {
   composition_id: string;
   activation_mode: ActivationMode;
   fallback_strategy: FallbackStrategy;
+  rejection_reason: string;
+  expected_failure_mode: string;
+  evidence_needed: string;
   notes: string;
 }
 
@@ -233,6 +257,56 @@ export interface EvolverSignalLogEntry {
   notes: string;
 }
 
+export interface TaskSignalLogEntry {
+  timestamp: string;
+  signal_id: string;
+  kind: TaskSignalKind;
+  summary: string;
+  task_cluster: string;
+  evidence_ref: string;
+  confidence: PlanConfidence;
+  notes: string;
+}
+
+export interface CandidateResultLogEntry {
+  timestamp: string;
+  result_id: string;
+  candidate_id: string;
+  task_signal_id: string;
+  action_ref: string;
+  result_status: CandidateResultStatus;
+  verification_ref: string;
+  feedback_ref: string;
+  score?: number;
+  cost_hint: string;
+  latency_hint: string;
+  notes: string;
+}
+
+export interface SelectionLessonLogEntry {
+  timestamp: string;
+  lesson_id: string;
+  task_signal_kind: TaskSignalKind;
+  task_cluster: string;
+  candidate_id: string;
+  recommendation: string;
+  confidence: PlanConfidence;
+  support_ref: string;
+  limitation: string;
+  invalidates_ref: string;
+  notes: string;
+}
+
+export interface LessonUpdateLogEntry {
+  timestamp: string;
+  lesson_id: string;
+  action: LessonUpdateAction;
+  target_ref: string;
+  reason: string;
+  evidence_ref: string;
+  notes: string;
+}
+
 export interface SkillUsageDoc {
   schema_version: string;
   task_id: string;
@@ -246,6 +320,7 @@ export interface SkillUsageDoc {
   next_actions: NextActionsSection;
   attempt_policy: AttemptPolicySection;
   evolver_handoff_policy: EvolverHandoffPolicySection;
+  episode_refs: EpisodeRefsSection;
   skill_plan: SkillPlanEntry[];
   usage_log: UsageLogEntry[];
   feedback_log: FeedbackLogEntry[];
@@ -253,6 +328,10 @@ export interface SkillUsageDoc {
   benchmark_log: BenchmarkLogEntry[];
   error_pattern_log: ErrorPatternLogEntry[];
   recipe_log: RecipeLogEntry[];
+  task_signal_log: TaskSignalLogEntry[];
+  candidate_result_log: CandidateResultLogEntry[];
+  selection_lesson_log: SelectionLessonLogEntry[];
+  lesson_update_log: LessonUpdateLogEntry[];
   evolver_signal_log: EvolverSignalLogEntry[];
 }
 

@@ -5,7 +5,10 @@ import path from "node:path";
 import { runCommand, type CommandResult } from "../../../../dev/eval/src/lib/command.ts";
 import type { EvalSuiteDefinition } from "../../../../dev/eval/src/lib/model.ts";
 import { cleanupTempDir, createTempDir, registerTempRepo } from "../../../../dev/eval/src/lib/temp.ts";
-import { readSkillUsageDoc } from "../../../../skills/harness/bagakit-skill-selector/scripts/lib/skill_usage.ts";
+import {
+  readSkillUsageDoc,
+  selectorEvalCaseScaffoldFromDoc,
+} from "../../../../skills/harness/bagakit-skill-selector/scripts/lib/skill_usage.ts";
 
 function expectOk(result: CommandResult, label: string): void {
   assert.equal(result.status, 0, `${label} failed\nstdout:\n${result.stdout}\nstderr:\n${result.stderr}`);
@@ -18,6 +21,147 @@ export const SUITE: EvalSuiteDefinition = {
   summary: "Measure deterministic composition logging, retry-backoff evidence, and explicit selector->evolver bridge behavior for bagakit-skill-selector.",
   defaultOutputDir: "gate_eval/skills/harness/bagakit-skill-selector/results/runs",
   cases: [
+    {
+      id: "gold-ready-evidence-scaffold-from-daily-selector-log",
+      title: "Gold-Ready Evidence Scaffold From Daily Selector Log",
+      summary: "Selector should record task signals, negative candidates, candidate results, lesson updates, and source/final refs so real project episodes can become silver or gold eval cases.",
+      focus: ["gold-ready-evidence", "eval-set", "task-signal", "candidate-result", "lesson-update"],
+      run: (context) => {
+        const { repoRoot } = context;
+        const tempRepo = createTempDir("bagakit-skill-selector-gold-ready-");
+        const replacements = registerTempRepo(context, tempRepo);
+        try {
+          const target = path.join(tempRepo, ".bagakit", "skill-selector", "tasks", "gold-ready", "skill-usage.toml");
+          const sourcePrompt = path.join(tempRepo, ".bagakit", "skill-selector", "tasks", "gold-ready", "source-prompt.md");
+          const finalArtifact = path.join(tempRepo, "docs", "specs", "selector-example.md");
+          const verification = path.join(tempRepo, "gate_eval", "skills", "harness", "bagakit-skill-selector", "results", "gold-ready.json");
+          fs.mkdirSync(path.dirname(sourcePrompt), { recursive: true });
+          fs.mkdirSync(path.dirname(finalArtifact), { recursive: true });
+          fs.mkdirSync(path.dirname(verification), { recursive: true });
+          fs.writeFileSync(sourcePrompt, "Optimize selector eval evidence collection.\n", "utf8");
+          fs.writeFileSync(finalArtifact, "# Selector Example\n", "utf8");
+          fs.writeFileSync(verification, "{\"passed\":true}\n", "utf8");
+          const script = path.join(repoRoot, "skills", "harness", "bagakit-skill-selector", "scripts", "skill_selector.ts");
+          const scaffoldScript = path.join(repoRoot, "gate_eval", "skills", "harness", "bagakit-skill-selector", "scaffold_eval_case.ts");
+          const scaffoldOut = path.join(tempRepo, "gate_eval", "skills", "harness", "bagakit-skill-selector", "cases");
+          const run = (argv: string[], label: string) => {
+            const result = runCommand("node", ["--experimental-strip-types", script, ...argv], { cwd: repoRoot, replacements });
+            expectOk(result, label);
+            return result;
+          };
+          const runScaffold = (argv: string[], label: string) => {
+            const result = runCommand("node", ["--experimental-strip-types", scaffoldScript, ...argv], { cwd: repoRoot, replacements });
+            expectOk(result, label);
+            return result;
+          };
+
+          run(["init", "--file", target, "--task-id", "gold-ready-task", "--objective", "collect selector eval gold evidence", "--owner", "validator"], "init gold-ready");
+          run(["episode-refs", "--file", target, "--source-prompt-ref", ".bagakit/skill-selector/tasks/gold-ready/source-prompt.md", "--final-artifact-ref", "docs/specs/selector-example.md", "--verification-ref", "gate_eval/skills/harness/bagakit-skill-selector/results/gold-ready.json"], "episode refs");
+          run(["preflight", "--file", target, "--answer", "partial", "--gap-summary", "need structured selector eval evidence", "--decision", "compare_then_execute", "--status", "in_progress"], "preflight gold-ready");
+          run(["task-signal", "--file", target, "--signal-id", "missing-gold-fields", "--kind", "capability_gap", "--summary", "selector log needs first-class eval labels", "--task-cluster", "selector-eval", "--evidence-ref", ".bagakit/skill-selector/tasks/gold-ready/source-prompt.md", "--confidence", "high"], "task signal");
+          run([
+            "plan",
+            "--file",
+            target,
+            "--skill-id",
+            "bagakit-skill-selector",
+            "--kind",
+            "local",
+            "--source",
+            "skills/harness/bagakit-skill-selector",
+            "--why",
+            "own selector eval collection",
+            "--expected-impact",
+            "make real episodes gold-ready",
+            "--availability",
+            "available",
+            "--availability-detail",
+            "available as a canonical local skill in the current catalog root",
+            "--selected",
+            "true",
+          ], "plan selected selector");
+          run([
+            "plan",
+            "--file",
+            target,
+            "--skill-id",
+            "external-memory-tool",
+            "--kind",
+            "external",
+            "--source",
+            "external://memory-tool",
+            "--why",
+            "visible comparison reference",
+            "--expected-impact",
+            "could supply memory labels but lacks Bagakit task SSOT",
+            "--availability",
+            "unknown",
+            "--selected",
+            "false",
+            "--status",
+            "not_used",
+            "--rejection-reason",
+            "no local operator and no selector task-log contract",
+            "--expected-failure-mode",
+            "would lose candidate_result provenance",
+            "--evidence-needed",
+            "installed operator plus auditable output contract",
+          ], "plan rejected external");
+          run(["usage", "--file", target, "--skill-id", "bagakit-skill-selector", "--phase", "execution", "--attempt-key", "gold-ready-fields", "--action", "recorded gold-ready selector evidence", "--result", "success", "--evidence", "gate_eval/skills/harness/bagakit-skill-selector/results/gold-ready.json"], "usage gold-ready");
+          run(["candidate-result", "--file", target, "--result-id", "selector-fields-pass", "--candidate-id", "bagakit-skill-selector", "--task-signal-id", "missing-gold-fields", "--action-ref", "usage_log#gold-ready-fields", "--result-status", "success", "--verification-ref", "gate_eval/skills/harness/bagakit-skill-selector/results/gold-ready.json", "--score", "0.9", "--cost-hint", "low"], "candidate result");
+          run(["selection-lesson", "--file", target, "--lesson-id", "selector-gold-fields-needed", "--task-signal-kind", "capability_gap", "--task-cluster", "selector-eval", "--candidate-id", "bagakit-skill-selector", "--recommendation", "Use selector first-class evidence fields before promoting real episodes into gold eval cases", "--confidence", "high", "--support-ref", "candidate_result_log#selector-fields-pass"], "selection lesson");
+          run(["lesson-update", "--file", target, "--lesson-id", "selector-gold-fields-needed", "--action", "confirm", "--target-ref", "selection_lesson_log#selector-gold-fields-needed", "--reason", "first-class fields made the expected labels derivable", "--evidence-ref", "candidate_result_log#selector-fields-pass"], "lesson update");
+          run(["evaluate", "--file", target, "--quality-score", "0.9", "--evidence-score", "0.92", "--feedback-score", "0.8", "--overall", "pass", "--summary", "gold-ready selector evidence is recorded and scaffoldable", "--status", "completed"], "evaluate gold-ready");
+          run(["validate", "--file", target, "--strict"], "validate gold-ready");
+          runScaffold(["--file", target, "--out", scaffoldOut, "--label", "silver"], "scaffold gold-ready");
+
+          const usageDoc = readSkillUsageDoc(target);
+          const scaffold = selectorEvalCaseScaffoldFromDoc(usageDoc, target, { label: "silver", reviewNeeded: true });
+          const expectedPath = path.join(scaffoldOut, "gold-ready-task", "expected.json");
+          const expectedPayload = JSON.parse(fs.readFileSync(expectedPath, "utf8")) as {
+            expected_task_signals: string[];
+            expected_candidates: string[];
+            expected_selected_candidates: string[];
+            expected_candidate_results: string[];
+            expected_lesson_updates: string[];
+          };
+
+          assert.deepEqual(expectedPayload.expected_task_signals, ["missing-gold-fields"]);
+          assert.ok(expectedPayload.expected_candidates.includes("external-memory-tool"));
+          assert.deepEqual(expectedPayload.expected_selected_candidates, ["bagakit-skill-selector"]);
+          assert.deepEqual(expectedPayload.expected_candidate_results, ["selector-fields-pass"]);
+          assert.deepEqual(expectedPayload.expected_lesson_updates, ["selector-gold-fields-needed:confirm"]);
+          assert.equal(scaffold.episode.source_prompt_ref, ".bagakit/skill-selector/tasks/gold-ready/source-prompt.md");
+          assert.equal(usageDoc.skill_plan.find((entry) => entry.skill_id === "external-memory-tool")?.rejection_reason, "no local operator and no selector task-log contract");
+
+          return {
+            assertions: [
+              "selector can record first-class task_signal, candidate_result, selection_lesson, and lesson_update entries",
+              "non-selected candidates preserve rejection evidence instead of hiding it in prose",
+              "source prompt, final artifact, and verification refs make the episode gold-ready",
+              "the scaffold tool converts one real selector episode into episode.json and expected.json for maintainer review",
+            ],
+            commands: [
+              `node --experimental-strip-types ${script} task-signal --file <temp-repo>/.bagakit/skill-selector/tasks/gold-ready/skill-usage.toml --signal-id missing-gold-fields --kind capability_gap --summary "..."`,
+              `node --experimental-strip-types ${script} candidate-result --file <temp-repo>/.bagakit/skill-selector/tasks/gold-ready/skill-usage.toml --result-id selector-fields-pass --candidate-id bagakit-skill-selector --result-status success --verification-ref gate_eval/skills/harness/bagakit-skill-selector/results/gold-ready.json`,
+              `node --experimental-strip-types ${scaffoldScript} --file <temp-repo>/.bagakit/skill-selector/tasks/gold-ready/skill-usage.toml --out <temp-repo>/gate_eval/skills/harness/bagakit-skill-selector/cases`,
+            ],
+            artifacts: [
+              { label: "usage-log", path: target },
+              { label: "scaffold-expected", path: expectedPath },
+            ],
+            outputs: {
+              task_signals: usageDoc.task_signal_log.length,
+              candidate_results: usageDoc.candidate_result_log.length,
+              expected_candidates: expectedPayload.expected_candidates.length,
+            },
+            replacements,
+          };
+        } finally {
+          cleanupTempDir(tempRepo, context.keepTemp);
+        }
+      },
+    },
     {
       id: "planning-entry-route-keeps-brainstorm-feature-flow-explicit",
       title: "Planning Entry Route Keeps Brainstorm, Feature, And Flow Explicit",
