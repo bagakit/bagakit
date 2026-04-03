@@ -49,6 +49,7 @@ export function buildSessionBrief(
     recovery_from: recovery
       ? {
           previous_item_id: recovery.previous_item_id,
+          previous_flow_session_number: recovery.previous_flow_session_number,
           previous_session_id: recovery.previous_session_id,
           previous_stop_reason: recovery.previous_stop_reason,
           previous_operator_message: recovery.previous_operator_message,
@@ -77,6 +78,7 @@ export function renderPrompt(brief: SessionBrief): string {
         "",
         "Recovery context:",
         `- previous_item_id: ${brief.recovery_from.previous_item_id}`,
+        `- previous_flow_session_number: ${brief.recovery_from.previous_flow_session_number}`,
         `- previous_session_id: ${brief.recovery_from.previous_session_id}`,
         `- previous_stop_reason: ${brief.recovery_from.previous_stop_reason}`,
         `- previous_operator_message: ${brief.recovery_from.previous_operator_message}`,

@@ -18,6 +18,8 @@ import {
   writeSessionArtifacts,
   loadRunnerResult,
   allocateSession,
+  updateRunLock,
+  writeSessionObservation,
 } from "./core.ts";
 import { resolveResumeTarget, safeLoadNextAction } from "./front_door.ts";
 import { ensureDir, readJsonFile, repoRelative } from "./io.ts";
@@ -89,12 +91,17 @@ function recordSessionRun(
 }
 
 function runRefreshCommands(root: string, config: RunnerConfig): void {
+  const timeoutMs = Math.max(1, Math.min(config.timeout_seconds || 30, 30)) * 1000;
   for (const argv of config.refresh_commands) {
     const command = argv.map((part) => part.split("{repo_root}").join(root));
     const result = spawnSync(command[0]!, command.slice(1), {
       cwd: root,
       encoding: "utf8",
+      timeout: timeoutMs,
     });
+    if (result.error) {
+      throw new Error(`refresh command failed: ${result.error.message}`);
+    }
     if (result.status !== 0) {
       throw new Error((result.stderr || result.stdout || "refresh command failed").trim());
     }
@@ -149,7 +156,7 @@ function hostPathsForSession(root: string, sessionId: string) {
   };
 }
 
-function latestRecoveryRequest(root: string, itemId: string): RecoverySessionContext | undefined {
+function latestRecoveryRequest(root: string, itemId: string, flowNext: FlowNextPayload): RecoverySessionContext | undefined {
   const paths = new AgentLoopPaths(root);
   if (!itemId || !fs.existsSync(paths.runsDir)) {
     return undefined;
@@ -158,14 +165,27 @@ function latestRecoveryRequest(root: string, itemId: string): RecoverySessionCon
   for (const entry of entries.filter((name) => name.endsWith(".json")).sort().reverse()) {
     try {
       const record = readJsonFile<RunRecord>(path.join(paths.runsDir, entry));
-      if (record.item_id === itemId && record.run_status === "operator_action_required" && record.recovery_request) {
+      if (record.item_id !== itemId) {
+        continue;
+      }
+      if (
+        record.run_status === "operator_action_required"
+        && record.recovery_request
+        && recoveryMatchesFlow(record.recovery_request, flowNext)
+      ) {
         return record.recovery_request;
       }
+      return undefined;
     } catch {
       continue;
     }
   }
   return undefined;
+}
+
+function recoveryMatchesFlow(recovery: RecoverySessionContext, flowNext: FlowNextPayload): boolean {
+  return recovery.previous_item_id === flowNext.item_id
+    && recovery.previous_flow_session_number === (flowNext.session_number ?? 0);
 }
 
 function stopForFlowState(flowNext: FlowNextPayload): LaunchStop {
@@ -177,11 +197,15 @@ function launchRunnerSession(
   config: RunnerConfig,
   flowNext: FlowNextPayload,
   recovery?: RecoverySessionContext,
+  lockPath?: string,
 ): LaunchOutcome {
   if (!flowNext.item_id) {
     throw new Error("flow-runner next payload did not include item_id");
   }
   const { sessionId } = allocateSession(root, config.runner_name, flowNext.item_id);
+  if (lockPath) {
+    updateRunLock(lockPath, { phase: "session_runner", item_id: flowNext.item_id, session_id: sessionId });
+  }
   const prompt = writeSessionArtifacts(root, sessionId, config.runner_name, flowNext, recovery);
   const paths = new AgentLoopPaths(root);
   const templateContext = {
@@ -230,7 +254,7 @@ function launchRunnerSession(
 
   const refreshedAttempt = safeLoadNextAction(root, flowNext.item_id, flowNext);
   if (refreshedAttempt.error) {
-    return {
+    const outcome = {
       stop_reason: "flow_runner_refresh_failed",
       checkpoint_observed: false,
       runner_session_id: sessionId,
@@ -239,7 +263,9 @@ function launchRunnerSession(
       next_safe_action: "inspect_flow_runner_state",
       can_resume: true,
       run_status: "operator_action_required",
-    };
+    } as const;
+    recordSessionObservationFromOutcome(root, flowNext, config.runner_name, outcome, null);
+    return outcome;
   }
   const refreshed = refreshedAttempt.payload;
   const observed = checkpointObserved(flowNext, refreshed);
@@ -262,6 +288,10 @@ function launchRunnerSession(
   if (!stopReason && outputStop) {
     stopReason = outputStop;
   }
+  if (!stopReason && runnerResult?.checkpoint_written && !observed) {
+    stopReason = "checkpoint_missing";
+    outputMessage = "runner reported checkpoint_written=true, but flow-runner progress did not advance";
+  }
   if (!stopReason && runnerResult && !runnerResult.checkpoint_written && !observed) {
     stopReason = "checkpoint_missing";
   }
@@ -269,7 +299,7 @@ function launchRunnerSession(
   if (stopReason) {
     const freshAttempt = safeLoadNextAction(root, flowNext.item_id, refreshed);
     const fresh = freshAttempt.payload;
-    return {
+    const outcome = {
       stop_reason: stopReason,
       checkpoint_observed: observed || ((fresh.session_number ?? 0) > (flowNext.session_number ?? 0)),
       runner_session_id: sessionId,
@@ -278,12 +308,14 @@ function launchRunnerSession(
       next_safe_action: stopReason === "checkpoint_missing" ? "repair_runner_result" : "inspect_runner_session",
       can_resume: stopReason !== "operator_cancelled",
       run_status: "operator_action_required",
-    };
+    } as const;
+    recordSessionObservationFromOutcome(root, flowNext, config.runner_name, outcome, runnerResult);
+    return outcome;
   }
 
   const finalNextAttempt = safeLoadNextAction(root, flowNext.item_id, refreshed);
   if (finalNextAttempt.error) {
-    return {
+    const outcome = {
       stop_reason: "flow_runner_refresh_failed",
       checkpoint_observed: observed,
       runner_session_id: sessionId,
@@ -292,10 +324,12 @@ function launchRunnerSession(
       next_safe_action: "inspect_flow_runner_state",
       can_resume: true,
       run_status: "operator_action_required",
-    };
+    } as const;
+    recordSessionObservationFromOutcome(root, flowNext, config.runner_name, outcome, runnerResult);
+    return outcome;
   }
   const finalNext = finalNextAttempt.payload;
-  return {
+  const outcome = {
     stop_reason: "",
     checkpoint_observed: observed,
     runner_session_id: sessionId,
@@ -304,7 +338,29 @@ function launchRunnerSession(
     next_safe_action: "continue",
     can_resume: true,
     run_status: "terminal",
-  };
+  } as const;
+  recordSessionObservationFromOutcome(root, flowNext, config.runner_name, outcome, runnerResult);
+  return outcome;
+}
+
+function recordSessionObservationFromOutcome(
+  root: string,
+  flowNext: FlowNextPayload,
+  runnerName: string,
+  outcome: LaunchOutcome,
+  runnerResult: RunnerResult | null,
+): void {
+  writeSessionObservation(root, {
+    kind: outcome.stop_reason ? "runner_stop" : "runner_result",
+    session_id: outcome.runner_session_id,
+    item_id: flowNext.item_id || outcome.flow_next.item_id || "",
+    runner_name: runnerName,
+    stop_reason: outcome.stop_reason,
+    operator_message: outcome.operator_message || runnerResult?.note || "",
+    checkpoint_observed: outcome.checkpoint_observed,
+    next_safe_action: outcome.next_safe_action,
+    runner_result: runnerResult || undefined,
+  });
 }
 
 export function runAgentLoop(
@@ -345,7 +401,7 @@ export function runAgentLoop(
   const lockAttempt = (() => {
     try {
       return {
-        lockPath: acquireRunLock(root, runnerName),
+        lockPath: acquireRunLock(root, runnerName, currentItem),
         error: "",
       };
     } catch (error) {
@@ -428,11 +484,12 @@ export function runAgentLoop(
         });
       }
       let flowNext = nextAttempt.payload;
-      if (pendingRecovery && flowNext.item_id !== pendingRecovery.previous_item_id) {
+      updateRunLock(lockPath, { phase: "host_loop", item_id: flowNext.item_id || currentItem || "", session_id: "" });
+      if (pendingRecovery && !recoveryMatchesFlow(pendingRecovery, flowNext)) {
         pendingRecovery = undefined;
       }
       if (!pendingRecovery && flowNext.item_id) {
-        pendingRecovery = latestRecoveryRequest(root, flowNext.item_id);
+        pendingRecovery = latestRecoveryRequest(root, flowNext.item_id, flowNext);
       }
 
       if (flowNext.recommended_action === "archive_closeout" && flowNext.item_id) {
@@ -479,7 +536,8 @@ export function runAgentLoop(
       }
 
       const currentRecovery = pendingRecovery;
-      const launch = launchRunnerSession(root, configStatus.config, flowNext, currentRecovery);
+      const launch = launchRunnerSession(root, configStatus.config, flowNext, currentRecovery, lockPath);
+      updateRunLock(lockPath, { phase: "host_loop", item_id: launch.flow_next.item_id || flowNext.item_id || "", session_id: "" });
       pendingRecovery = undefined;
       sessionsLaunched += 1;
 
@@ -629,7 +687,7 @@ export function runSingleSession(root: string, itemId: string): AgentLoopSession
   const lockAttempt = (() => {
     try {
       return {
-        lockPath: acquireRunLock(root, configStatus.config.runner_name),
+        lockPath: acquireRunLock(root, configStatus.config.runner_name, itemId),
         error: "",
       };
     } catch (error) {
@@ -680,6 +738,7 @@ export function runSingleSession(root: string, itemId: string): AgentLoopSession
       });
     }
     const flowNext = nextAttempt.payload;
+    updateRunLock(lockPath, { phase: "host_loop", item_id: flowNext.item_id || itemId, session_id: "" });
     if (flowNext.recommended_action !== "run_session") {
       const stop = stopForFlowState(flowNext);
       return recordSessionRun(root, flowNext.item_id || itemId, 0, {
@@ -692,7 +751,8 @@ export function runSingleSession(root: string, itemId: string): AgentLoopSession
         flow_next: flowNext,
       });
     }
-    const launched = launchRunnerSession(root, configStatus.config, flowNext);
+    const launched = launchRunnerSession(root, configStatus.config, flowNext, undefined, lockPath);
+    updateRunLock(lockPath, { phase: "host_loop", item_id: launched.flow_next.item_id || flowNext.item_id || itemId, session_id: "" });
     return recordSessionRun(root, flowNext.item_id || itemId, 1, {
       run_status: launched.stop_reason ? launched.run_status : "terminal",
       stop_reason: launched.stop_reason || "session_completed",

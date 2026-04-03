@@ -64,9 +64,23 @@ bash "$FLOW_RUNNER_DIR/scripts/flow-runner.sh" add-item --root "$TMP_DIR" --item
 bash "$FLOW_RUNNER_DIR/scripts/flow-runner.sh" add-item --root "$TMP_DIR" --item-id manual-refresh --title "Manual refresh" --source-kind manual --source-ref manual:refresh >/dev/null
 bash "$FLOW_RUNNER_DIR/scripts/flow-runner.sh" add-item --root "$TMP_DIR" --item-id manual-missing --title "Manual missing" --source-kind manual --source-ref manual:missing >/dev/null
 bash "$FLOW_RUNNER_DIR/scripts/flow-runner.sh" add-item --root "$TMP_DIR" --item-id manual-invalid --title "Manual invalid" --source-kind manual --source-ref manual:invalid >/dev/null
+bash "$FLOW_RUNNER_DIR/scripts/flow-runner.sh" add-item --root "$TMP_DIR" --item-id manual-claim-only --title "Manual claim only" --source-kind manual --source-ref manual:claim-only >/dev/null
 bash "$FLOW_RUNNER_DIR/scripts/flow-runner.sh" add-item --root "$TMP_DIR" --item-id manual-locked --title "Manual lock" --source-kind manual --source-ref manual:locked >/dev/null
+bash "$FLOW_RUNNER_DIR/scripts/flow-runner.sh" add-item --root "$TMP_DIR" --item-id manual-stale-recovery --title "Manual stale recovery" --source-kind manual --source-ref manual:stale-recovery >/dev/null
 
 bash "$AGENT_LOOP_DIR/agent-loop.sh" apply --root "$TMP_DIR" >/dev/null
+if bash "$AGENT_LOOP_DIR/agent-loop.sh" configure-runner --root "$TMP_DIR" --runner-name "bad runner" --argv-json "[\"python3\",\"$FAKE_RUNNER\"]" >/dev/null 2>&1; then
+  echo "configure-runner unexpectedly accepted unsafe runner name" >&2
+  exit 1
+fi
+if bash "$AGENT_LOOP_DIR/agent-loop.sh" configure-runner --root "$TMP_DIR" --runner-name codex --argv-json "[\"codex\"]" >/dev/null 2>&1; then
+  echo "configure-runner unexpectedly accepted bare interactive codex argv" >&2
+  exit 1
+fi
+if bash "$AGENT_LOOP_DIR/agent-loop.sh" configure-runner --root "$TMP_DIR" --runner-name codex --argv-json "[\"npx\",\"-y\",\"codex\"]" >/dev/null 2>&1; then
+  echo "configure-runner unexpectedly accepted package-manager wrapped interactive codex argv" >&2
+  exit 1
+fi
 bash "$AGENT_LOOP_DIR/agent-loop.sh" configure-runner --root "$TMP_DIR" --runner-name fake --argv-json "[\"python3\",\"$FAKE_RUNNER\",\"{repo_root}\",\"{session_brief}\",\"{runner_result}\"]" >/dev/null
 
 CURRENT_JSON="$TMP_DIR/current.json"
@@ -119,6 +133,11 @@ assert payload["run_status"] == "terminal"
 assert payload["stop_reason"] == "item_archived"
 assert payload["sessions_launched"] == 1
 assert (root / ".bagakit" / "flow-runner" / "archive" / "manual-one").is_dir()
+observation_path = root / ".bagakit" / "agent-loop" / "runner-sessions" / payload["runner_session_id"] / "session-observation.json"
+observation = json.loads(observation_path.read_text(encoding="utf-8"))
+assert observation["schema"] == "bagakit/agent-loop/session-observation/v1"
+assert observation["kind"] == "runner_result"
+assert observation["item_id"] == "manual-one"
 PY
 
 SESSION_JSON="$TMP_DIR/session-run.json"
@@ -282,6 +301,47 @@ payload = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
 assert payload["stop_reason"] == "runner_exited_nonzero"
 assert "recovery session" in payload["operator_message"]
 assert payload["recovery_request"]["previous_stop_reason"] == "runner_exited_nonzero"
+assert payload["recovery_request"]["previous_item_id"] == "manual-exit"
+assert payload["recovery_request"]["previous_flow_session_number"] == payload["flow_next"]["session_number"]
+PY
+
+STALE_ONE_JSON="$TMP_DIR/stale-recovery-one.json"
+bash "$AGENT_LOOP_DIR/agent-loop.sh" configure-runner --root "$TMP_DIR" --runner-name fake --argv-json "[\"python3\",\"$FAKE_RUNNER\",\"missing\",\"{repo_root}\",\"{session_brief}\",\"{runner_result}\"]" >/dev/null
+set +e
+bash "$AGENT_LOOP_DIR/agent-loop.sh" run --root "$TMP_DIR" --item manual-stale-recovery --max-sessions 1 --json > "$STALE_ONE_JSON"
+status=$?
+set -e
+if [[ "$status" -ne 1 ]]; then
+  echo "error: stale-recovery setup should stop with operator action required" >&2
+  exit 1
+fi
+python3 - "$STALE_ONE_JSON" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+payload = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+assert payload["recovery_request"]["previous_stop_reason"] == "runner_output_missing"
+PY
+bash "$FLOW_RUNNER_DIR/scripts/flow-runner.sh" checkpoint --root "$TMP_DIR" --item manual-stale-recovery --stage inspect --session-status progress --objective "Advance after stale request" --attempted "Manual protocol progress" --result "Progress advanced" --next-action "Continue" --clean-state yes --json >/dev/null
+STALE_TWO_JSON="$TMP_DIR/stale-recovery-two.json"
+bash "$AGENT_LOOP_DIR/agent-loop.sh" configure-runner --root "$TMP_DIR" --runner-name fake --argv-json "[\"python3\",\"$FAKE_RUNNER\",\"progress\",\"{repo_root}\",\"{session_brief}\",\"{runner_result}\"]" >/dev/null
+set +e
+bash "$AGENT_LOOP_DIR/agent-loop.sh" run --root "$TMP_DIR" --item manual-stale-recovery --max-sessions 1 --json > "$STALE_TWO_JSON"
+status=$?
+set -e
+if [[ "$status" -ne 1 ]]; then
+  echo "error: stale-recovery budget run should stop with operator action required" >&2
+  exit 1
+fi
+python3 - "$STALE_TWO_JSON" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+payload = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+assert payload["stop_reason"] == "session_budget_exhausted"
+assert "recovery_request" not in payload
 PY
 
 RECOVER_JSON="$TMP_DIR/recover-run.json"
@@ -317,6 +377,7 @@ for session_dir in sorted(sessions_root.iterdir()):
 assert len(matched) == 2
 assert "recovery_from" not in matched[0]
 assert matched[1]["recovery_from"]["previous_session_id"] == matched[0]["session_id"]
+assert matched[1]["recovery_from"]["previous_flow_session_number"] == matched[0]["item"]["session_number"]
 assert matched[1]["recovery_from"]["previous_stop_reason"] == "runner_exited_nonzero"
 PY
 
@@ -423,6 +484,27 @@ assert "recovery session" in payload["operator_message"]
 assert payload["recovery_request"]["previous_stop_reason"] == "runner_output_invalid"
 PY
 
+CLAIM_ONLY_JSON="$TMP_DIR/claim-only-session.json"
+bash "$AGENT_LOOP_DIR/agent-loop.sh" configure-runner --root "$TMP_DIR" --runner-name fake --argv-json "[\"python3\",\"$FAKE_RUNNER\",\"claim-only\",\"{repo_root}\",\"{session_brief}\",\"{runner_result}\"]" >/dev/null
+set +e
+bash "$AGENT_LOOP_DIR/agent-loop.sh" session-run --root "$TMP_DIR" --item manual-claim-only --json > "$CLAIM_ONLY_JSON"
+status=$?
+set -e
+if [[ "$status" -ne 1 ]]; then
+  echo "error: session-run accepted runner checkpoint claim without protocol progress" >&2
+  exit 1
+fi
+python3 - "$CLAIM_ONLY_JSON" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+payload = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+assert payload["command"] == "session-run"
+assert payload["stop_reason"] == "checkpoint_missing"
+assert payload["checkpoint_observed"] is False
+PY
+
 POST_INVALID_WATCH="$TMP_DIR/post-invalid-watch.json"
 bash "$AGENT_LOOP_DIR/agent-loop.sh" watch --root "$TMP_DIR" --item manual-invalid --json > "$POST_INVALID_WATCH"
 python3 - "$POST_INVALID_WATCH" <<'PY'
@@ -432,6 +514,7 @@ from pathlib import Path
 
 payload = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
 assert any(session.get("issue") for session in payload["recent_sessions"])
+assert any(session.get("observation_stop_reason") == "runner_output_invalid" for session in payload["recent_sessions"])
 PY
 
 python3 - "$TMP_DIR" <<'PY'
@@ -442,11 +525,20 @@ from pathlib import Path
 
 root = Path(sys.argv[1])
 lock_path = root / ".bagakit" / "agent-loop" / "run.lock"
+pid = os.getppid()
+if sys.platform.startswith("linux"):
+    raw = Path(f"/proc/{pid}/stat").read_text(encoding="utf-8")
+    rest = raw.split(") ", 1)[1] if ") " in raw else raw
+    parts = rest.strip().split()
+    pid_start = parts[19]
+else:
+    pid_start = " ".join(os.popen(f"ps -o lstart= -p {pid}").read().split())
 lock_path.write_text(
     json.dumps(
         {
             "schema": "bagakit/agent-loop/run-lock/v1",
-            "pid": os.getppid(),
+            "pid": pid,
+            "pid_start": pid_start,
             "created_at": "2026-01-01T00:00:00Z",
             "runner_name": "fake",
         },
@@ -475,6 +567,47 @@ payload = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
 assert payload["stop_reason"] == "run_lock_conflict"
 PY
 rm -f "$TMP_DIR/.bagakit/agent-loop/run.lock"
+
+python3 - "$TMP_DIR" <<'PY'
+import json
+import os
+import sys
+from pathlib import Path
+
+root = Path(sys.argv[1])
+lock_path = root / ".bagakit" / "agent-loop" / "run.lock"
+lock_path.write_text(
+    json.dumps(
+        {
+            "schema": "bagakit/agent-loop/run-lock/v1",
+            "pid": os.getppid(),
+            "created_at": "2026-01-01T00:00:00Z",
+            "runner_name": "fake",
+        },
+        indent=2,
+    )
+    + "\n",
+    encoding="utf-8",
+)
+PY
+MISSING_TOKEN_LOCK_JSON="$TMP_DIR/missing-token-lock-run.json"
+set +e
+bash "$AGENT_LOOP_DIR/agent-loop.sh" run --root "$TMP_DIR" --item manual-locked --max-sessions 1 --json > "$MISSING_TOKEN_LOCK_JSON"
+status=$?
+set -e
+if [[ "$status" -ne 1 ]]; then
+  echo "error: missing-token lock run should continue past lock recovery and then stop for runner state" >&2
+  exit 1
+fi
+test ! -f "$TMP_DIR/.bagakit/agent-loop/run.lock"
+python3 - "$MISSING_TOKEN_LOCK_JSON" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+payload = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+assert payload["stop_reason"] != "run_lock_conflict"
+PY
 
 python3 - "$TMP_DIR" <<'PY'
 import json
@@ -508,6 +641,30 @@ payload = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
 assert any(session.get("issue") for session in payload["recent_sessions"])
 PY
 
+python3 - "$TMP_DIR" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+root = Path(sys.argv[1])
+sessions_root = root / ".bagakit" / "agent-loop" / "runner-sessions"
+target = None
+for session_dir in sorted(sessions_root.iterdir()):
+    brief_path = session_dir / "session-brief.json"
+    observation_path = session_dir / "session-observation.json"
+    if not brief_path.is_file() or not observation_path.is_file():
+        continue
+    payload = json.loads(brief_path.read_text(encoding="utf-8"))
+    if payload.get("item", {}).get("item_id") == "manual-one":
+        target = observation_path
+        break
+if target is None:
+    raise SystemExit("could not find manual-one observation")
+observation = json.loads(target.read_text(encoding="utf-8"))
+observation["item_id"] = "wrong-item"
+target.write_text(json.dumps(observation, indent=2) + "\n", encoding="utf-8")
+PY
+
 CORRUPT_VALIDATE="$TMP_DIR/corrupt-validate.json"
 set +e
 bash "$AGENT_LOOP_DIR/agent-loop.sh" validate --root "$TMP_DIR" --json > "$CORRUPT_VALIDATE"
@@ -524,6 +681,7 @@ from pathlib import Path
 
 payload = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
 assert any("unreadable" in issue for issue in payload["issues"])
+assert any("session-observation.json item_id does not match session brief" in issue for issue in payload["issues"])
 PY
 
 RESUME_TMP_DIR="$(mktemp -d)"

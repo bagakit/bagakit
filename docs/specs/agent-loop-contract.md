@@ -38,6 +38,7 @@ Stable host surfaces live under:
 - `.bagakit/agent-loop/runner-sessions/<session-id>/stderr.txt`
 - `.bagakit/agent-loop/runner-sessions/<session-id>/session-meta.json`
 - `.bagakit/agent-loop/runner-sessions/<session-id>/runner-result.json`
+- `.bagakit/agent-loop/runner-sessions/<session-id>/session-observation.json`
 - `.bagakit/agent-loop/runs/<run-id>.json`
 
 `runner-sessions/` is host exhaust.
@@ -88,6 +89,8 @@ Current supported transport:
 - `stdin_prompt`
 
 For `stdin_prompt`, known CLIs must be configured in non-interactive forms.
+Runner names and argv entries must stay single-line. Runner names should remain
+short semantic identifiers matching `[A-Za-z0-9][A-Za-z0-9._-]*`.
 
 For first-class runners such as `codex` and `claude`, `timeout_seconds` does
 not override runner liveness truth.
@@ -180,6 +183,33 @@ One stopped session does not automatically mean the flow stopped.
 `agent_loop` must reconcile runner-session facts with refreshed flow-runner
 truth before deciding whether to continue, recover, or stop.
 
+## Session Observation Contract
+
+`session-observation.json` currently uses schema
+`bagakit/agent-loop/session-observation/v1`.
+
+It is host exhaust derived after one bounded session is reconciled with
+flow-runner state.
+
+Supported fields include:
+
+- `kind`
+- `session_id`
+- `item_id`
+- `runner_name`
+- `stop_reason`
+- `operator_message`
+- `checkpoint_observed`
+- `next_safe_action`
+- optional `runner_result`
+
+This file exists so watch, status, and validation can display one typed session
+observation without scraping stdout or treating `runner-result.json` as control
+truth.
+
+It must not drive item selection, checkpoint creation, archive authority, or
+flow-runner lifecycle decisions.
+
 ## Run Payload Contract
 
 `run` currently emits schema `bagakit/agent-loop/run/v2`.
@@ -227,6 +257,11 @@ scraping flow-runner output.
 When the host stops before one bounded recovery session can run, `run` payloads
 may also carry `recovery_request` so the next explicit rerun can resume with
 the same recovery context instead of losing the previous session exhaust.
+
+Recovery requests are only fresh for the same item and the same flow-runner
+session number observed after the failed session. Once flow-runner projection
+advances, the host must ignore older recovery requests and recompute from the
+current protocol truth.
 
 The default automatic recovery shape is:
 
@@ -310,6 +345,9 @@ Stable fields include:
 - `recent_runs[]`
 - `recent_sessions[]`
 - `detail`
+
+`run_lock` may include host diagnostic context such as `phase`, `item_id`, and
+`session_id`. These fields are operator visibility only.
 
 A host-local recency marker may exist in watch payloads, but it is not part of
 the durable contract surface.

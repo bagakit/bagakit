@@ -274,6 +274,9 @@ function sessionSummaryLine(session: WatchSessionSummary | undefined): string[] 
   if (session.issue) {
     lines.push(`session_issue=${session.issue}`);
   }
+  if (session.observation_stop_reason) {
+    lines.push(`observation=${session.observation_stop_reason} | ${session.observation_message || "no message"}`);
+  }
   return lines;
 }
 
@@ -299,7 +302,13 @@ function formatRunLine(run: RunRecord): string {
 }
 
 function formatSessionLine(session: WatchSessionSummary): string {
-  const issue = session.launch_error ? ` launch=${session.launch_error}` : session.issue ? ` issue=${session.issue}` : "";
+  const issue = session.launch_error
+    ? ` launch=${session.launch_error}`
+    : session.observation_stop_reason
+      ? ` observation=${session.observation_stop_reason}`
+      : session.issue
+        ? ` issue=${session.issue}`
+        : "";
   return `${session.started_at ? session.started_at.slice(11, 19) : "--------"} ${session.session_id} result=${session.result_status || "-"} exit=${session.exit_code ?? "-"}${issue}`;
 }
 
@@ -321,6 +330,10 @@ function buildDetailLines(payload: AgentLoopWatchPayload): string[] {
   if (payload.latest_session?.launch_error) {
     lines.push("[launch]");
     lines.push(`launch_error=${payload.latest_session.launch_error}`);
+  }
+  if (payload.latest_session?.observation_message) {
+    lines.push("[observation]");
+    lines.push(payload.latest_session.observation_message);
   }
   if (payload.detail.handoff_excerpt) {
     lines.push("[handoff]");

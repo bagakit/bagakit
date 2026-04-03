@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import { spawnSync } from "node:child_process";
 
 import {
   archiveItem,
@@ -12,6 +13,7 @@ import {
 import {
   initializeRunnerConfig,
   runnerConfigStatus,
+  validateRunnerConfigForWrite,
   writeRunnerConfig,
 } from "./config.ts";
 import { initializeNotificationConfig, latestNotificationReceipt, notificationConfigIssue, notificationReceiptIssue } from "./notification_delivery.ts";
@@ -38,16 +40,18 @@ import type {
   HostNotificationRequest,
   NotificationSeverity,
   RecoverySessionContext,
+  RunStopReason,
   RunLockPayload,
   RunLockState,
   RunRecord,
   RunnerConfig,
   RunnerConfigStatus,
   RunnerResult,
+  SessionObservation,
   WatchFocusItem,
   WatchSessionSummary,
 } from "./model.ts";
-import { HOST_NOTIFICATION_SCHEMA, RUN_LOCK_SCHEMA, RUN_RECORD_SCHEMA, RUNNER_RESULT_SCHEMA, RUN_SCHEMA, WATCH_SCHEMA } from "./model.ts";
+import { HOST_NOTIFICATION_SCHEMA, RUN_LOCK_SCHEMA, RUN_RECORD_SCHEMA, RUNNER_RESULT_SCHEMA, RUN_SCHEMA, SESSION_OBSERVATION_SCHEMA, WATCH_SCHEMA } from "./model.ts";
 import { AgentLoopPaths } from "./paths.ts";
 import { buildSessionBrief, renderPrompt } from "./prompt.ts";
 
@@ -203,7 +207,7 @@ export function configureRunner(
 ): RunnerConfig {
   const paths = new AgentLoopPaths(root);
   ensureDir(paths.loopDir);
-  const nextConfig: RunnerConfig = {
+  const nextConfig = validateRunnerConfigForWrite({
     schema: "bagakit/agent-loop/runner-config/v1",
     runner_name: runnerName,
     transport: "stdin_prompt",
@@ -211,7 +215,7 @@ export function configureRunner(
     env: {},
     timeout_seconds: timeoutSeconds,
     refresh_commands: refreshCommands,
-  };
+  }, paths.runnerConfigFile);
   writeRunnerConfig(paths, nextConfig);
   return nextConfig;
 }
@@ -343,6 +347,15 @@ function loadSessionMeta(filePath: string): {
   }
 }
 
+function loadSessionObservation(filePath: string): SessionObservation | null {
+  try {
+    const observation = loadJsonIfExists<SessionObservation>(filePath);
+    return observation?.schema === SESSION_OBSERVATION_SCHEMA ? observation : null;
+  } catch {
+    return null;
+  }
+}
+
 function sortedSessionSummaries(paths: AgentLoopPaths): WatchSessionSummary[] {
   if (!fs.existsSync(paths.sessionsDir)) {
     return [];
@@ -354,6 +367,7 @@ function sortedSessionSummaries(paths: AgentLoopPaths): WatchSessionSummary[] {
       const briefPath = path.join(paths.sessionDir(entry.name), "session-brief.json");
       const metadataPath = path.join(paths.sessionDir(entry.name), "session-meta.json");
       const resultPath = path.join(paths.sessionDir(entry.name), "runner-result.json");
+      const observation = loadSessionObservation(paths.sessionObservationFile(entry.name));
       try {
         const brief = readJsonFile<{
           session_id: string;
@@ -385,20 +399,27 @@ function sortedSessionSummaries(paths: AgentLoopPaths): WatchSessionSummary[] {
           signal: metadata?.signal ?? null,
           result_status: resultStatus,
           checkpoint_written: result?.checkpoint_written ?? null,
+          observation_kind: observation?.kind,
+          observation_stop_reason: observation?.stop_reason,
+          observation_message: observation?.operator_message,
           launch_error: metadata?.launch_error || undefined,
           issue: issue || undefined,
         };
       } catch (error) {
         const metadata = loadSessionMeta(metadataPath);
+        const fallbackObservation = loadSessionObservation(paths.sessionObservationFile(entry.name));
         return {
           session_id: entry.name,
-          item_id: metadata?.workload_id || metadata?.item_id || "",
-          runner_name: metadata?.runner_name || "",
+          item_id: fallbackObservation?.item_id || metadata?.workload_id || metadata?.item_id || "",
+          runner_name: fallbackObservation?.runner_name || metadata?.runner_name || "",
           started_at: metadata?.started_at || "",
           exit_code: metadata?.exit_code ?? null,
           signal: metadata?.signal ?? null,
           result_status: "" as const,
           checkpoint_written: null,
+          observation_kind: fallbackObservation?.kind,
+          observation_stop_reason: fallbackObservation?.stop_reason,
+          observation_message: fallbackObservation?.operator_message,
           launch_error: metadata?.launch_error || undefined,
           issue: error instanceof Error ? error.message : String(error),
         };
@@ -439,10 +460,13 @@ function runLockState(paths: AgentLoopPaths): RunLockState {
     return { status: "idle" };
   }
   return {
-    status: isPidLive(lock.pid) ? "held" : "stale",
+    status: runLockPidIsLive(lock) ? "held" : "stale",
     pid: lock.pid,
     runner_name: lock.runner_name,
     created_at: lock.created_at,
+    phase: lock.phase,
+    item_id: lock.item_id,
+    session_id: lock.session_id,
   };
 }
 
@@ -572,7 +596,7 @@ export function validateAgentLoop(root: string): string[] {
       issues.push("run.lock is not valid JSON");
     } else if (lock.schema !== RUN_LOCK_SCHEMA) {
       issues.push("run.lock schema is invalid");
-    } else if (!isPidLive(lock.pid)) {
+    } else if (!runLockPidIsLive(lock)) {
       issues.push("run.lock is stale");
     }
   }
@@ -585,7 +609,14 @@ export function validateAgentLoop(root: string): string[] {
     }
     const snapshot = readSessionHostSnapshot(root, session.session_id);
     for (const issue of snapshot.issues) {
-      if (issue.code === "brief_unreadable" || issue.code === "meta_unreadable" || issue.code === "result_unreadable") {
+      if (
+        issue.code === "brief_unreadable"
+        || issue.code === "meta_unreadable"
+        || issue.code === "result_unreadable"
+        || issue.code === "observation_unreadable"
+        || issue.code === "observation_invalid"
+        || issue.code === "observation_mismatch"
+      ) {
         issues.push(issue.message.startsWith("session ") ? issue.message : `session ${session.session_id} is unreadable: ${issue.message}`);
       }
     }
@@ -609,7 +640,7 @@ export function validateAgentLoop(root: string): string[] {
 
 function recoverStaleLock(paths: AgentLoopPaths): boolean {
   const payload = loadJsonIfExists<RunLockPayload>(paths.runLockFile);
-  if (!payload || isPidLive(payload.pid)) {
+  if (!payload || runLockPidIsLive(payload)) {
     return false;
   }
   const stalePath = path.join(paths.loopDir, `run.lock.stale.${uniqueStampedId("", "agent-loop")}.json`);
@@ -617,14 +648,86 @@ function recoverStaleLock(paths: AgentLoopPaths): boolean {
   return true;
 }
 
-export function acquireRunLock(root: string, runnerName: string): string {
+let currentProcessStartTokenCache = "";
+
+function linuxProcessStartToken(pid: number): string {
+  try {
+    const raw = fs.readFileSync(`/proc/${pid}/stat`, "utf8");
+    const match = raw.match(/\)\s+(.*)$/);
+    const parts = match ? match[1]?.trim().split(/\s+/) ?? [] : raw.trim().split(/\s+/);
+    return parts[19] || "";
+  } catch {
+    return "";
+  }
+}
+
+function darwinProcessStartToken(pid: number): string {
+  try {
+    const child = fs.existsSync("/bin/ps") ? "/bin/ps" : "ps";
+    const output = spawnSync(child, ["-o", "lstart=", "-p", String(pid)], { encoding: "utf8" }).stdout || "";
+    return output.trim().split(/\s+/).join(" ");
+  } catch {
+    return "";
+  }
+}
+
+function processStartToken(pid: number): string {
+  if (pid <= 0) {
+    return "";
+  }
+  if (process.platform === "linux") {
+    return linuxProcessStartToken(pid);
+  }
+  if (process.platform === "darwin") {
+    return darwinProcessStartToken(pid);
+  }
+  return "";
+}
+
+function currentProcessStartToken(): string {
+  if (!currentProcessStartTokenCache) {
+    currentProcessStartTokenCache = processStartToken(process.pid);
+  }
+  if (!currentProcessStartTokenCache) {
+    currentProcessStartTokenCache = `${process.pid}:${Math.floor(Date.now() - process.uptime() * 1000)}`;
+  }
+  return currentProcessStartTokenCache;
+}
+
+function runLockPidIsLive(lock: RunLockPayload): boolean {
+  if (!isPidLive(lock.pid)) {
+    return false;
+  }
+  const recorded = lock.pid_start?.trim();
+  if (!recorded) {
+    return false;
+  }
+  const current = lock.pid === process.pid ? currentProcessStartToken() : processStartToken(lock.pid);
+  return Boolean(current) && recorded === current;
+}
+
+function lockOwnedByCurrentProcess(lock: RunLockPayload): boolean {
+  if (lock.pid !== process.pid) {
+    return false;
+  }
+  if (!lock.pid_start) {
+    return false;
+  }
+  return lock.pid_start === currentProcessStartToken();
+}
+
+export function acquireRunLock(root: string, runnerName: string, itemId?: string): string {
   const paths = new AgentLoopPaths(root);
   ensureDir(paths.loopDir);
   const payload: RunLockPayload = {
     schema: RUN_LOCK_SCHEMA,
     pid: process.pid,
+    pid_start: currentProcessStartToken() || undefined,
     created_at: utcNow(),
     runner_name: runnerName,
+    phase: "front_door",
+    item_id: itemId || undefined,
+    session_id: undefined,
   };
   while (true) {
     try {
@@ -643,9 +746,26 @@ export function acquireRunLock(root: string, runnerName: string): string {
 }
 
 export function releaseRunLock(lockPath: string): void {
-  if (fs.existsSync(lockPath)) {
+  if (!fs.existsSync(lockPath)) {
+    return;
+  }
+  const lock = loadJsonIfExists<RunLockPayload>(lockPath);
+  if (lock && lockOwnedByCurrentProcess(lock)) {
     fs.unlinkSync(lockPath);
   }
+}
+
+export function updateRunLock(lockPath: string, update: { phase?: string; item_id?: string; session_id?: string }): void {
+  const lock = loadJsonIfExists<RunLockPayload>(lockPath);
+  if (!lock || !lockOwnedByCurrentProcess(lock)) {
+    return;
+  }
+  writeJsonFile(lockPath, {
+    ...lock,
+    phase: update.phase ?? lock.phase,
+    item_id: update.item_id ?? lock.item_id,
+    session_id: update.session_id ?? lock.session_id,
+  });
 }
 
 export function autoArchiveOwnedItem(root: string, itemId: string): void {
@@ -685,6 +805,18 @@ export function loadRunnerResult(root: string, sessionId: string): RunnerResult 
 export function resultPathForSession(root: string, sessionId: string): string {
   const paths = new AgentLoopPaths(root);
   return repoRelative(root, paths.runnerResultFile(sessionId));
+}
+
+export function writeSessionObservation(
+  root: string,
+  observation: Omit<SessionObservation, "schema" | "recorded_at">,
+): void {
+  const paths = new AgentLoopPaths(root);
+  writeJsonFile(paths.sessionObservationFile(observation.session_id), {
+    schema: SESSION_OBSERVATION_SCHEMA,
+    recorded_at: utcNow(),
+    ...observation,
+  });
 }
 
 export function recordRun(

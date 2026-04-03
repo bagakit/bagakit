@@ -20,6 +20,8 @@ import {
 } from "./io.ts";
 import { AgentLoopPaths } from "./paths.ts";
 
+const runnerNamePattern = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
+
 export function templatePath(toolDir: string): string {
   return path.join(toolDir, "references", "tpl", "runner-config-template.json");
 }
@@ -28,7 +30,7 @@ export function initializeRunnerConfig(paths: AgentLoopPaths, toolDir: string): 
   copyFileIfMissing(templatePath(toolDir), paths.runnerConfigFile);
 }
 
-function validateRunnerConfigPayload(payload: unknown, filePath: string): RunnerConfig {
+export function validateRunnerConfigPayload(payload: unknown, filePath: string): RunnerConfig {
   const record = assertRecord(payload, filePath);
   if (record.schema !== RUNNER_CONFIG_SCHEMA) {
     throw new Error(`${filePath} must declare schema ${RUNNER_CONFIG_SCHEMA}`);
@@ -43,15 +45,32 @@ function validateRunnerConfigPayload(payload: unknown, filePath: string): Runner
   for (const [key, value] of Object.entries(envRecord)) {
     env[key] = assertString(value, `${filePath}.env.${key}`);
   }
+  const runnerName = assertSingleLineString(record.runner_name, `${filePath}.runner_name`);
+  if (!runnerNamePattern.test(runnerName)) {
+    throw new Error(`${filePath}.runner_name must match [A-Za-z0-9][A-Za-z0-9._-]*`);
+  }
+  const argv = assertSingleLineStringArray(record.argv, `${filePath}.argv`);
+  const refreshCommands = assertStringMatrix(record.refresh_commands ?? [], `${filePath}.refresh_commands`).map((row, rowIndex) =>
+    row.map((entry, entryIndex) => assertSingleLineString(entry, `${filePath}.refresh_commands[${rowIndex}][${entryIndex}]`)),
+  );
   return {
     schema: RUNNER_CONFIG_SCHEMA,
-    runner_name: assertString(record.runner_name, `${filePath}.runner_name`),
+    runner_name: runnerName,
     transport: transport as RunnerTransport,
-    argv: assertStringArray(record.argv, `${filePath}.argv`),
+    argv,
     env,
     timeout_seconds: assertNumber(record.timeout_seconds, `${filePath}.timeout_seconds`),
-    refresh_commands: assertStringMatrix(record.refresh_commands ?? [], `${filePath}.refresh_commands`),
+    refresh_commands: refreshCommands,
   };
+}
+
+export function validateRunnerConfigForWrite(payload: unknown, filePath: string): RunnerConfig {
+  const config = validateRunnerConfigPayload(payload, filePath);
+  const issue = runnerConfigExecutionIssue(config);
+  if (issue) {
+    throw new Error(issue);
+  }
+  return config;
 }
 
 export function loadRunnerConfig(paths: AgentLoopPaths): RunnerConfig | null {
@@ -74,25 +93,11 @@ export function runnerConfigStatus(paths: AgentLoopPaths): RunnerConfigStatus {
   }
   try {
     const config = validateRunnerConfigPayload(payload, paths.runnerConfigFile);
-    if (config.argv.length === 0) {
+    const issue = runnerConfigExecutionIssue(config);
+    if (issue) {
       return {
         status: "invalid",
-        message: "runner argv must not be empty",
-        config,
-      };
-    }
-    const knownCliIssue = knownCliValidationIssue(config.argv);
-    if (knownCliIssue) {
-      return {
-        status: "invalid",
-        message: knownCliIssue,
-        config,
-      };
-    }
-    if (config.timeout_seconds <= 0) {
-      return {
-        status: "invalid",
-        message: "timeout_seconds must be positive",
+        message: issue,
         config,
       };
     }
@@ -110,15 +115,73 @@ export function runnerConfigStatus(paths: AgentLoopPaths): RunnerConfigStatus {
   }
 }
 
-function knownCliValidationIssue(argv: string[]): string {
-  const head = argv[0] || "";
-  if ((head === "codex" || head === "codexL") && argv[1] !== "exec") {
-    return "stdin_prompt transport requires non-interactive Codex; use `codex exec ...` instead of a bare Codex launcher";
+function runnerConfigExecutionIssue(config: RunnerConfig): string {
+  if (config.argv.length === 0) {
+    return "runner argv must not be empty";
   }
-  if (head === "claude" && !argv.includes("-p")) {
-    return "stdin_prompt transport requires non-interactive Claude; include `-p` in the runner argv";
+  const knownCliIssue = knownCliValidationIssue(config.argv);
+  if (knownCliIssue) {
+    return knownCliIssue;
+  }
+  if (config.timeout_seconds <= 0) {
+    return "timeout_seconds must be positive";
   }
   return "";
+}
+
+function knownCliValidationIssue(argv: string[]): string {
+  const head = normalizedCommandName(argv[0] || "");
+  if ((head === "codex" || head === "codexl") && argv[1] !== "exec") {
+    return "stdin_prompt transport requires non-interactive Codex; use `codex exec ...` instead of a bare Codex launcher";
+  }
+  if (isPackageRunner(head)) {
+    const nested = firstNestedRunner(argv);
+    if ((nested.name === "codex" || nested.name === "codexl") && argv[nested.index + 1] !== "exec") {
+      return "stdin_prompt transport requires non-interactive Codex; use `codex exec ...` instead of a bare Codex launcher";
+    }
+    if (nested.name === "claude" && !argv.includes("-p") && !argv.includes("--print")) {
+      return "stdin_prompt transport requires non-interactive Claude; include `-p` in the runner argv";
+    }
+  }
+  if (head === "claude" && !argv.includes("-p") && !argv.includes("--print")) {
+    return "stdin_prompt transport requires non-interactive Claude; include `-p` or `--print` in the runner argv";
+  }
+  return "";
+}
+
+function isPackageRunner(command: string): boolean {
+  return command === "npx" || command === "pnpm" || command === "pnpx" || command === "bunx" || command === "yarn";
+}
+
+function firstNestedRunner(argv: string[]): { name: string; index: number } {
+  for (let index = 1; index < argv.length; index += 1) {
+    const name = normalizedCommandName(argv[index] || "");
+    if (name === "codex" || name === "codexl" || name === "claude") {
+      return { name, index };
+    }
+  }
+  return { name: "", index: -1 };
+}
+
+function assertSingleLineString(value: unknown, label: string): string {
+  const text = assertString(value, label);
+  if (text.includes("\n") || text.includes("\r")) {
+    throw new Error(`${label} must stay on one line`);
+  }
+  return text;
+}
+
+function assertSingleLineStringArray(value: unknown, label: string): string[] {
+  return assertStringArray(value, label).map((entry, index) => assertSingleLineString(entry, `${label}[${index}]`));
+}
+
+function normalizedCommandName(value: string): string {
+  const trimmed = value.trim().toLowerCase();
+  if (!trimmed) {
+    return "";
+  }
+  const segments = trimmed.split(/[\\/]/).filter((segment) => segment.length > 0);
+  return segments[segments.length - 1] || trimmed;
 }
 
 export function presetArgv(preset: string): { runner_name: string; argv: string[] } {

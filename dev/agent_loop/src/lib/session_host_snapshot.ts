@@ -2,7 +2,8 @@ import fs from "node:fs";
 import path from "node:path";
 
 import { describeRunnerLaunchError } from "./launch_error.ts";
-import type { RunnerResult } from "./model.ts";
+import { SESSION_OBSERVATION_SCHEMA } from "./model.ts";
+import type { RunnerResult, SessionObservation } from "./model.ts";
 import { loadJsonIfExists, readJsonFile, repoRelative } from "./io.ts";
 import { AgentLoopPaths } from "./paths.ts";
 
@@ -19,11 +20,13 @@ export type SessionHostSnapshot = Readonly<{
   exit_code: number | null;
   signal: string | null;
   runner_result: RunnerResult | null;
+  observation: SessionObservation | null;
   paths: {
     session_dir: string;
     session_brief: string;
     session_meta: string;
     runner_result: string;
+    observation: string;
     prompt: string;
     stdout: string;
     stderr: string;
@@ -63,6 +66,7 @@ export function readSessionHostSnapshot(root: string, sessionId: string): Sessio
   const briefPath = paths.sessionBrief(sessionId);
   const metaPath = path.join(sessionDir, "session-meta.json");
   const resultPath = paths.runnerResultFile(sessionId);
+  const observationPath = paths.sessionObservationFile(sessionId);
   const issues: SessionHostIssue[] = [];
 
   let itemId = "";
@@ -107,6 +111,25 @@ export function readSessionHostSnapshot(root: string, sessionId: string): Sessio
     issues.push(issue("result_missing", "runner-result.json is missing"));
   }
 
+  let observation: SessionObservation | null = null;
+  try {
+    observation = loadJsonIfExists<SessionObservation>(observationPath);
+    if (observation && observation.schema !== SESSION_OBSERVATION_SCHEMA) {
+      issues.push(issue("observation_invalid", "session-observation.json schema is invalid"));
+    }
+    if (observation && observation.session_id !== sessionId) {
+      issues.push(issue("observation_mismatch", "session-observation.json session_id does not match session directory"));
+    }
+    if (observation && itemId && observation.item_id !== itemId) {
+      issues.push(issue("observation_mismatch", "session-observation.json item_id does not match session brief"));
+    }
+    if (observation && runnerName && observation.runner_name !== runnerName) {
+      issues.push(issue("observation_mismatch", "session-observation.json runner_name does not match session brief"));
+    }
+  } catch (error) {
+    issues.push(issue("observation_unreadable", error instanceof Error ? error.message : String(error)));
+  }
+
   for (const required of ["session-brief.json", "prompt.txt", "stdout.txt", "stderr.txt"]) {
     if (!fs.existsSync(path.join(sessionDir, required))) {
       issues.push(issue("artifact_missing", `${required} is missing`));
@@ -121,11 +144,13 @@ export function readSessionHostSnapshot(root: string, sessionId: string): Sessio
     exit_code: meta?.exit_code ?? null,
     signal: meta?.signal ?? null,
     runner_result: runnerResult,
+    observation,
     paths: {
       session_dir: repoRelative(root, sessionDir),
       session_brief: repoRelative(root, briefPath),
       session_meta: repoRelative(root, metaPath),
       runner_result: repoRelative(root, resultPath),
+      observation: repoRelative(root, observationPath),
       prompt: repoRelative(root, path.join(sessionDir, "prompt.txt")),
       stdout: repoRelative(root, path.join(sessionDir, "stdout.txt")),
       stderr: repoRelative(root, path.join(sessionDir, "stderr.txt")),

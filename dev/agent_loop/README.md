@@ -34,6 +34,7 @@ installed operator entrypoint.
 - per-session host exhaust under `.bagakit/agent-loop/runner-sessions/`
 - per-run host summaries under `.bagakit/agent-loop/runs/`
 - typed host stop payloads for `run`, `next`, and `watch`
+- typed per-session host observations for watch and status diagnosis
 - host-owned stop-attention objects on operator-required stops
 
 It does not own:

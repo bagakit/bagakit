@@ -7,7 +7,7 @@ import test from "node:test";
 import { parseArgvJson, normalizeRefreshCommands, presetArgv, runnerConfigStatus, writeRunnerConfig } from "../src/lib/config.ts";
 import { decideContinuationAfterSessionStop } from "../src/lib/continuation.ts";
 import { notificationConfigIssue } from "../src/lib/notification_delivery.ts";
-import { applyAgentLoop } from "../src/lib/core.ts";
+import { acquireRunLock, applyAgentLoop, configureRunner, releaseRunLock, updateRunLock, writeSessionObservation } from "../src/lib/core.ts";
 import { writeJsonFile } from "../src/lib/io.ts";
 import { AgentLoopPaths } from "../src/lib/paths.ts";
 import { shouldUseHostTimeout } from "../src/lib/runner_truth.ts";
@@ -145,6 +145,87 @@ test("runner config rejects bare interactive codexL argv", () => {
   });
   const status = runnerConfigStatus(paths);
   assert.equal(status.status, "invalid");
+});
+
+test("runner config rejects unsafe runner names and multiline argv entries", () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "agent-loop-"));
+  const paths = new AgentLoopPaths(root);
+  fs.mkdirSync(paths.loopDir, { recursive: true });
+  writeJsonFile(paths.runnerConfigFile, {
+    schema: "bagakit/agent-loop/runner-config/v1",
+    runner_name: "bad runner",
+    transport: "stdin_prompt",
+    argv: ["python3", "runner.py"],
+    env: {},
+    timeout_seconds: 60,
+    refresh_commands: [],
+  });
+  assert.equal(runnerConfigStatus(paths).status, "invalid");
+
+  writeJsonFile(paths.runnerConfigFile, {
+    schema: "bagakit/agent-loop/runner-config/v1",
+    runner_name: "custom",
+    transport: "stdin_prompt",
+    argv: ["python3", "runner.py\n--oops"],
+    env: {},
+    timeout_seconds: 60,
+    refresh_commands: [],
+  });
+  const status = runnerConfigStatus(paths);
+  assert.equal(status.status, "invalid");
+  assert.ok(status.message.includes("one line"));
+});
+
+test("configure runner rejects invalid configs before writing them", () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "agent-loop-"));
+  const paths = new AgentLoopPaths(root);
+
+  assert.throws(
+    () => configureRunner(root, "bad runner", ["python3", "runner.py"], 60, []),
+    /runner_name/,
+  );
+  assert.equal(fs.existsSync(paths.runnerConfigFile), false);
+
+  assert.throws(
+    () => configureRunner(root, "codex", ["codex"], 60, []),
+    /codex exec/,
+  );
+  assert.equal(fs.existsSync(paths.runnerConfigFile), false);
+
+  const config = configureRunner(root, "custom", ["python3", "runner.py"], 60, []);
+  assert.equal(config.runner_name, "custom");
+  assert.equal(runnerConfigStatus(paths).status, "ready");
+});
+
+test("runner config rejects package-manager wrapped interactive codex argv", () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "agent-loop-"));
+  const paths = new AgentLoopPaths(root);
+  fs.mkdirSync(paths.loopDir, { recursive: true });
+  writeRunnerConfig(paths, {
+    schema: "bagakit/agent-loop/runner-config/v1",
+    runner_name: "codex",
+    transport: "stdin_prompt",
+    argv: ["npx", "codex"],
+    env: {},
+    timeout_seconds: 60,
+    refresh_commands: [],
+  });
+  const status = runnerConfigStatus(paths);
+  assert.equal(status.status, "invalid");
+  assert.ok(status.message.includes("codex exec"));
+
+  writeRunnerConfig(paths, {
+    schema: "bagakit/agent-loop/runner-config/v1",
+    runner_name: "codex",
+    transport: "stdin_prompt",
+    argv: ["npx", "-y", "codex"],
+    env: {},
+    timeout_seconds: 60,
+    refresh_commands: [],
+  });
+  const optionWrappedStatus = runnerConfigStatus(paths);
+  assert.equal(optionWrappedStatus.status, "invalid");
+  assert.ok(optionWrappedStatus.message.includes("codex exec"));
 });
 
 test("watch presenter keeps action-first sections visible", () => {
@@ -430,6 +511,77 @@ test("session host status keeps active sessions running when result is not writt
   assert.equal(status.execution_state, "running");
 });
 
+test("run lock carries host context and release does not delete another pid lock", () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "agent-loop-"));
+  const paths = new AgentLoopPaths(root);
+  const lockPath = acquireRunLock(root, "codex", "manual-one");
+  updateRunLock(lockPath, { phase: "session_runner", item_id: "manual-one", session_id: "sess-1" });
+  const lock = JSON.parse(fs.readFileSync(paths.runLockFile, "utf8")) as {
+    pid: number;
+    pid_start?: string;
+    phase?: string;
+    item_id?: string;
+    session_id?: string;
+  };
+  assert.equal(lock.pid, process.pid);
+  assert.equal(lock.phase, "session_runner");
+  assert.equal(lock.item_id, "manual-one");
+  assert.equal(lock.session_id, "sess-1");
+  assert.ok(Object.hasOwn(lock, "pid_start"));
+
+  writeJsonFile(paths.runLockFile, {
+    schema: "bagakit/agent-loop/run-lock/v1",
+    pid: process.pid + 99999,
+    created_at: "2026-04-20T00:00:00Z",
+    runner_name: "codex",
+  });
+  releaseRunLock(lockPath);
+  assert.ok(fs.existsSync(paths.runLockFile));
+  fs.unlinkSync(paths.runLockFile);
+});
+
+test("session observation is read into host snapshot and status", () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "agent-loop-"));
+  const paths = new AgentLoopPaths(root);
+  const sessionId = "sess-observed";
+  fs.mkdirSync(paths.sessionDir(sessionId), { recursive: true });
+  writeJsonFile(paths.sessionBrief(sessionId), {
+    session_id: sessionId,
+    started_at: "2026-04-20T00:00:00Z",
+    runner_name: "codex",
+    item: {
+      item_id: "manual-one",
+    },
+  });
+  writeJsonFile(path.join(paths.sessionDir(sessionId), "session-meta.json"), {
+    item_id: "manual-one",
+    runner_name: "codex",
+    started_at: "2026-04-20T00:00:00Z",
+    exit_code: 0,
+    signal: null,
+  });
+  fs.writeFileSync(path.join(paths.sessionDir(sessionId), "prompt.txt"), "", "utf8");
+  fs.writeFileSync(path.join(paths.sessionDir(sessionId), "stdout.txt"), "", "utf8");
+  fs.writeFileSync(path.join(paths.sessionDir(sessionId), "stderr.txt"), "", "utf8");
+  writeSessionObservation(root, {
+    kind: "runner_stop",
+    session_id: sessionId,
+    item_id: "manual-one",
+    runner_name: "codex",
+    stop_reason: "runner_output_missing",
+    operator_message: "runner result was missing",
+    checkpoint_observed: false,
+    next_safe_action: "inspect_runner_session",
+  });
+
+  const snapshot = readSessionHostSnapshot(root, sessionId);
+  assert.equal(snapshot.observation?.stop_reason, "runner_output_missing");
+  assert.equal(snapshot.paths.observation, ".bagakit/agent-loop/runner-sessions/sess-observed/session-observation.json");
+  const status = deriveSessionHostStatus(snapshot);
+  assert.equal(status.execution_state, "degraded");
+  assert.equal(status.summary, "runner-result.json is missing");
+});
+
 test("continuation layer opens recovery when a stopped session still leaves flow truth runnable", () => {
   const decision = decideContinuationAfterSessionStop(
     {
@@ -446,6 +598,7 @@ test("continuation layer opens recovery when a stopped session still leaves flow
         item_id: "manual-one",
         recommended_action: "run_session",
         action_reason: "active_work",
+        session_number: 3,
         session_contract: {
           launch_bounded_session: true,
           persist_state_before_stop: true,
@@ -468,6 +621,7 @@ test("continuation layer opens recovery when a stopped session still leaves flow
   assert.equal(decision.kind, "recover");
   if (decision.kind === "recover") {
     assert.equal(decision.recovery.previous_session_id, "sess-1");
+    assert.equal(decision.recovery.previous_flow_session_number, 3);
     assert.equal(decision.recovery.previous_stop_reason, "runner_output_missing");
   }
 });

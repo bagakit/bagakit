@@ -12,6 +12,7 @@ export const STATUS_SCHEMA = "bagakit/agent-loop/status/v1";
 export const SESSION_RUN_SCHEMA = "bagakit/agent-loop/session-run/v1";
 export const NOTIFICATION_CONFIG_SCHEMA = "bagakit/agent-loop/notification-config/v1";
 export const NOTIFICATION_RECEIPT_SCHEMA = "bagakit/agent-loop/notification-receipt/v1";
+export const SESSION_OBSERVATION_SCHEMA = "bagakit/agent-loop/session-observation/v1";
 
 export const RUNNER_TRANSPORTS = ["stdin_prompt"] as const;
 export type RunnerTransport = (typeof RUNNER_TRANSPORTS)[number];
@@ -211,6 +212,7 @@ export type AgentLoopPathsShape = Readonly<{
 
 export type RecoverySessionContext = Readonly<{
   previous_item_id: string;
+  previous_flow_session_number: number;
   previous_session_id: string;
   previous_stop_reason: RunStopReason;
   previous_operator_message: string;
@@ -253,6 +255,20 @@ export type RunnerResult = Readonly<{
   status: RunnerResultStatus;
   checkpoint_written: boolean;
   note: string;
+}>;
+
+export type SessionObservation = Readonly<{
+  schema: typeof SESSION_OBSERVATION_SCHEMA;
+  recorded_at: string;
+  kind: "runner_result" | "runner_stop";
+  session_id: string;
+  item_id: string;
+  runner_name: string;
+  stop_reason: RunStopReason | "";
+  operator_message: string;
+  checkpoint_observed: boolean;
+  next_safe_action: string;
+  runner_result?: RunnerResult;
 }>;
 
 export type HostNotificationRequest = Readonly<{
@@ -387,6 +403,9 @@ export type RunLockState = Readonly<{
   pid?: number;
   runner_name?: string;
   created_at?: string;
+  phase?: string;
+  item_id?: string;
+  session_id?: string;
 }>;
 
 export type WatchFocusItem = Readonly<{
@@ -418,6 +437,9 @@ export type WatchSessionSummary = Readonly<{
   signal: string | null;
   result_status: RunnerResultStatus | "";
   checkpoint_written: boolean | null;
+  observation_kind?: SessionObservation["kind"];
+  observation_stop_reason?: RunStopReason | "";
+  observation_message?: string;
   launch_error?: string;
   issue?: string;
 }>;
@@ -453,6 +475,10 @@ export type AgentLoopWatchPayload = Readonly<{
 export type RunLockPayload = Readonly<{
   schema: typeof RUN_LOCK_SCHEMA;
   pid: number;
+  pid_start?: string;
   created_at: string;
   runner_name: string;
+  phase?: string;
+  item_id?: string;
+  session_id?: string;
 }>;

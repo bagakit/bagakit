@@ -48,6 +48,28 @@ export function deriveSessionHostStatus(snapshot: SessionHostSnapshot): SessionH
       issue_count: snapshot.issues.length,
     };
   }
+  if (snapshot.observation?.kind === "runner_stop") {
+    return {
+      session_id: snapshot.session_id,
+      item_id: snapshot.item_id,
+      runner_name: snapshot.runner_name,
+      started_at: snapshot.started_at,
+      execution_state: "degraded",
+      summary: snapshot.observation.operator_message || snapshot.observation.stop_reason || "runner session stopped",
+      issue_count: snapshot.issues.length,
+    };
+  }
+  if (snapshot.observation?.kind === "runner_result") {
+    return {
+      session_id: snapshot.session_id,
+      item_id: snapshot.item_id,
+      runner_name: snapshot.runner_name,
+      started_at: snapshot.started_at,
+      execution_state: "completed",
+      summary: snapshot.observation.operator_message || "runner session completed",
+      issue_count: snapshot.issues.length,
+    };
+  }
   if (snapshot.runner_result?.status === "completed") {
     return {
       session_id: snapshot.session_id,

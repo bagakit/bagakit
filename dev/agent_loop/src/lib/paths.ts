@@ -53,6 +53,10 @@ export class AgentLoopPaths {
     return path.join(this.sessionDir(sessionId), "runner-result.json");
   }
 
+  sessionObservationFile(sessionId: string): string {
+    return path.join(this.sessionDir(sessionId), "session-observation.json");
+  }
+
   runRecordFile(runId: string): string {
     return path.join(this.runsDir, `${runId}.json`);
   }

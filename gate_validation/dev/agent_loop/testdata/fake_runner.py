@@ -57,33 +57,34 @@ def main() -> int:
     item_id = item["item_id"]
     source_kind = item["source_kind"]
 
-    checkpoint_cmd = [
-        *flow_runner_command,
-        "checkpoint",
-        "--root",
-        ".",
-        "--item",
-        item_id,
-        "--stage",
-        "inspect" if mode == "progress" else "review",
-        "--session-status",
-        "progress" if mode == "progress" else "gate_passed",
-        "--objective",
-        "Review one bounded session",
-        "--attempted",
-        "Drive agent-loop smoke coverage",
-        "--result",
-        "Ready for closeout",
-        "--next-action",
-        "Move to closeout handling",
-        "--clean-state",
-        "yes",
-        "--json",
-    ]
-    if source_kind != "feature-tracker" and mode != "progress":
-        checkpoint_cmd.extend(["--item-status", "completed"])
+    if mode != "claim-only":
+        checkpoint_cmd = [
+            *flow_runner_command,
+            "checkpoint",
+            "--root",
+            ".",
+            "--item",
+            item_id,
+            "--stage",
+            "inspect" if mode == "progress" else "review",
+            "--session-status",
+            "progress" if mode == "progress" else "gate_passed",
+            "--objective",
+            "Review one bounded session",
+            "--attempted",
+            "Drive agent-loop smoke coverage",
+            "--result",
+            "Ready for closeout",
+            "--next-action",
+            "Move to closeout handling",
+            "--clean-state",
+            "yes",
+            "--json",
+        ]
+        if source_kind != "feature-tracker" and mode != "progress":
+            checkpoint_cmd.extend(["--item-status", "completed"])
 
-    subprocess.run(checkpoint_cmd, cwd=repo_root, check=True)
+        subprocess.run(checkpoint_cmd, cwd=repo_root, check=True)
     if mode == "refresh-break":
         flow_runner_link = repo_root / "skills" / "harness" / "bagakit-flow-runner"
         broken_target = repo_root / "skills" / "harness" / "bagakit-flow-runner.broken"

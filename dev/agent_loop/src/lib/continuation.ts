@@ -104,6 +104,7 @@ export function decideContinuationAfterSessionStop(
     kind: "recover",
     recovery: {
       previous_item_id: stop.flow_next.item_id || "",
+      previous_flow_session_number: stop.flow_next.session_number ?? 0,
       previous_session_id: stop.runner_session_id,
       previous_stop_reason: stop.stop_reason,
       previous_operator_message: stop.operator_message,
