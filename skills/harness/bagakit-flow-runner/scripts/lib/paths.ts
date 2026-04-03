@@ -59,6 +59,10 @@ export class FlowRunnerPaths {
     return path.join(this.itemDir(itemId, archived), "progress.ndjson");
   }
 
+  itemMutationReceipts(itemId: string, archived = false): string {
+    return path.join(this.itemDir(itemId, archived), "mutation-receipts.ndjson");
+  }
+
   itemPlanRevisionsDir(itemId: string, archived = false): string {
     return path.join(this.itemDir(itemId, archived), "plan-revisions");
   }

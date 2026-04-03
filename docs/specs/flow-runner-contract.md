@@ -26,6 +26,7 @@ Stable runtime files live under:
 - `.bagakit/flow-runner/items/<item-id>/state.json`
 - `.bagakit/flow-runner/items/<item-id>/checkpoints.ndjson`
 - `.bagakit/flow-runner/items/<item-id>/progress.ndjson`
+- `.bagakit/flow-runner/items/<item-id>/mutation-receipts.ndjson`
 - `.bagakit/flow-runner/items/<item-id>/handoff.md`
 - `.bagakit/flow-runner/items/<item-id>/plan-revisions/`
 - `.bagakit/flow-runner/items/<item-id>/incidents/`
@@ -133,8 +134,90 @@ Hosts should trust:
 - `next-action.json`
 - `resume-candidates.json`
 - checkpoint and progress receipts
+- mutation receipts
 
 Hosts should not infer authority from raw command stdout beyond those payloads.
+
+## Mutation Receipt Rule
+
+`bagakit-flow-runner` is Bagakit's current protocol owner for accepted
+execution-state mutations.
+
+Mutation commands that change execution-facing state must return or persist a
+structured receipt before a host treats the change as durable.
+
+Accepted protocol mutation receipts use schema
+`bagakit/flow-runner/mutation-receipt/v1` and append to the owning item's
+`mutation-receipts.ndjson` log.
+
+Current mutation receipt fields:
+
+- `schema`: always `bagakit/flow-runner/mutation-receipt/v1`
+- `receipt_id`: unique protocol receipt identity
+- `mutation`: accepted mutation kind
+- `item_id`: target item identity
+- `recorded_at`: protocol-assigned receipt timestamp
+- `authority`: `runner_local` or `source_mirror`
+- `changed`: whether the accepted mutation changed durable state
+- `events`: field-level before or after JSON-safe mutation events
+- `notes`: optional protocol notes for the accepted mutation
+
+Current receipt-bearing mutation surfaces include:
+
+- `add-item` and `ingest-feature-tracker`
+  - create or refresh item state through protocol mutation services
+  - append one mutation receipt for each accepted state mutation
+- `checkpoint`
+  - returns schema `bagakit/flow-runner/checkpoint/v2`
+  - appends one checkpoint receipt to `checkpoints.ndjson`
+  - appends one progress receipt to `progress.ndjson`
+  - appends one protocol mutation receipt to `mutation-receipts.ndjson`
+  - updates `state.json` after validating stage and source ownership rules
+- `open-incident` and `resolve-incident`
+  - persist incident payloads under `incidents/`
+  - update item state through protocol-owned incident rules
+  - append protocol mutation receipts for the state transition
+- `snapshot`
+  - returns schema `bagakit/flow-runner/snapshot/v1`
+  - stores a protocol-scoped snapshot reference
+  - appends one protocol mutation receipt for the snapshot anchor
+- `archive-item`
+  - moves runner-owned closeout items into `archive/`
+  - appends one protocol mutation receipt before the physical move
+Checkpoint receipt fields currently include:
+
+- `stage`
+- `session_status`
+- `objective`
+- `attempted`
+- `result`
+- `next_action`
+- `clean_state`
+- `recorded_at`
+- `session_number`
+
+Progress receipts currently include those fields plus:
+
+- `schema`
+- `item_id`
+
+Receipt validation expectations:
+
+- invalid stages fail before any checkpoint or progress receipt is appended
+- tracker-sourced items reject direct `--item-status` mutation overrides
+- checkpoint and progress session numbers match the updated runtime
+  `session_count`
+- receipt `item_id` values match the owning item directory
+- mutation receipt logs move with archived items and keep paths aligned with
+  `state.json`
+- host exhaust, runner stdout, and notification delivery receipts do not count
+  as flow-runner mutation receipts
+
+`activate-feature-tracker` returns schema
+`bagakit/flow-runner/feature-activation/v1`. It is an activation proof over
+current tracker and flow-runner state, not a separate mutation receipt surface.
+If activation has to import or refresh the mirrored item first, that accepted
+state mutation is recorded by `ingest-feature-tracker`.
 
 ## Ownership Overlay Rule
 

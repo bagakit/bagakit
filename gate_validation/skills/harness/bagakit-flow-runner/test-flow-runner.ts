@@ -47,6 +47,14 @@ function readJson<T>(filePath: string): T {
   return JSON.parse(fs.readFileSync(filePath, "utf8")) as T;
 }
 
+function readNdjson(filePath: string): Record<string, unknown>[] {
+  return fs.readFileSync(filePath, "utf8")
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0)
+    .map((line) => JSON.parse(line) as Record<string, unknown>);
+}
+
 function initFeatureTrackerFixture(root: string, status: string): void {
   const trackerRoot = path.join(root, ".bagakit", "feature-tracker");
   writeJson(path.join(trackerRoot, "index", "features.json"), {
@@ -133,6 +141,18 @@ test("manual item next/checkpoint/archive flow stays coherent", () => {
     const resumePayload = computeResumeCandidates(root);
     assert.equal(resumePayload.closeout.length, 1);
     archiveItem(root, "demo");
+    const receipts = readNdjson(path.join(root, ".bagakit", "flow-runner", "archive", "demo", "mutation-receipts.ndjson"));
+    assert.deepEqual(receipts.map((receipt) => receipt.mutation), [
+      "create_item",
+      "open_incident",
+      "open_incident",
+      "resolve_incident",
+      "resolve_incident",
+      "checkpoint",
+      "checkpoint",
+      "archive_item",
+    ]);
+    assert.equal(receipts.at(-1)?.authority, "runner_local");
     assert.deepEqual(validateFlowRunner(root), []);
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
@@ -190,6 +210,31 @@ test("feature-tracker refresh preserves local incident blocks until source close
     assert.equal(incident.status, "closed");
     assert.match(incident.close_note, /feature-tracker closeout/);
     assert.deepEqual(validateFlowRunner(root), []);
+
+    const featureDir = path.join(root, ".bagakit", "feature-tracker", "features", "f-demo");
+    const discardedDir = path.join(root, ".bagakit", "feature-tracker", "features-discarded", "f-demo");
+    fs.mkdirSync(path.dirname(discardedDir), { recursive: true });
+    fs.renameSync(featureDir, discardedDir);
+    writeJson(path.join(root, ".bagakit", "feature-tracker", "index", "features.json"), {
+      features: [
+        {
+          feat_id: "f-demo",
+          title: "Demo feature",
+          status: "discarded",
+          workspace_mode: "worktree",
+        },
+      ],
+    });
+    const discardedState = readJson<Record<string, unknown>>(path.join(discardedDir, "state.json"));
+    discardedState.status = "discarded";
+    writeJson(path.join(discardedDir, "state.json"), discardedState);
+
+    result = ingestFeatureTracker(root);
+    assert.equal(result.retired, 1);
+    const receipts = readNdjson(path.join(root, ".bagakit", "flow-runner", "archive", itemId, "mutation-receipts.ndjson"));
+    assert.equal(receipts.at(-1)?.mutation, "state_normalization");
+    assert.equal(receipts.at(-1)?.authority, "source_mirror");
+    assert.deepEqual(validateFlowRunner(root), []);
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }
@@ -237,6 +282,21 @@ test("manual item creation rejects non-finite numbers before writing state", () 
       /finite number/,
     );
     assert.equal(fs.existsSync(path.join(root, ".bagakit", "flow-runner", "items", "bad", "state.json")), false);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("manual item creation rejects forged feature-tracker source ownership", () => {
+  const root = makeTempRepo();
+  try {
+    initGitRepo(root);
+    applyFlowRunner(root, skillDir);
+    assert.throws(
+      () => createManualItem(root, skillDir, "forged", "Forged tracker", "feature-tracker", "feature-tracker:f-demo", 100, 0.8),
+      /feature-tracker sourced items/,
+    );
+    assert.equal(fs.existsSync(path.join(root, ".bagakit", "flow-runner", "items", "forged", "state.json")), false);
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }

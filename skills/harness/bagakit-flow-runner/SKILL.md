@@ -85,6 +85,7 @@ Stable runtime surfaces:
 - `.bagakit/flow-runner/items/<item-id>/state.json`
 - `.bagakit/flow-runner/items/<item-id>/checkpoints.ndjson`
 - `.bagakit/flow-runner/items/<item-id>/progress.ndjson`
+- `.bagakit/flow-runner/items/<item-id>/mutation-receipts.ndjson`
 - `.bagakit/flow-runner/items/<item-id>/handoff.md`
 - `.bagakit/flow-runner/items/<item-id>/plan-revisions/`
 - `.bagakit/flow-runner/items/<item-id>/incidents/`

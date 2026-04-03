@@ -18,10 +18,12 @@ required_dirs = [
   "skills/harness/bagakit-flow-runner/references",
   "skills/harness/bagakit-flow-runner/references/tpl",
   "skills/harness/bagakit-flow-runner/scripts",
+  "skills/harness/bagakit-flow-runner/scripts/lib/protocol",
   "gate_eval/skills/harness/bagakit-flow-runner",
   "gate_eval/skills/harness/bagakit-flow-runner/results",
   "gate_eval/skills/harness/bagakit-flow-runner/results/runs",
   "gate_validation/skills/harness/bagakit-flow-runner",
+  "gate_validation/skills/harness/bagakit-flow-runner/protocol",
 ]
 required_files = [
   "docs/specs/flow-runner-contract.md",
@@ -34,6 +36,12 @@ required_files = [
   "skills/harness/bagakit-flow-runner/scripts/lib/io.ts",
   "skills/harness/bagakit-flow-runner/scripts/lib/paths.ts",
   "skills/harness/bagakit-flow-runner/scripts/lib/core.ts",
+  "skills/harness/bagakit-flow-runner/scripts/lib/protocol/index.ts",
+  "skills/harness/bagakit-flow-runner/scripts/lib/protocol/model.ts",
+  "skills/harness/bagakit-flow-runner/scripts/lib/protocol/mutation.ts",
+  "skills/harness/bagakit-flow-runner/scripts/lib/protocol/persistence.ts",
+  "skills/harness/bagakit-flow-runner/scripts/lib/protocol/projection.ts",
+  "skills/harness/bagakit-flow-runner/scripts/lib/protocol/validation.ts",
   "skills/harness/bagakit-flow-runner/references/tpl/runner-policy-template.json",
   "skills/harness/bagakit-flow-runner/references/tpl/loop-recipe-template.json",
   "skills/harness/bagakit-flow-runner/references/tpl/item-handoff-template.md",
@@ -47,6 +55,7 @@ required_files = [
   "gate_validation/skills/harness/bagakit-flow-runner/check-flow-runner-contract.sh",
   "gate_validation/skills/harness/bagakit-flow-runner/check-flow-runner.sh",
   "gate_validation/skills/harness/bagakit-flow-runner/test-flow-runner.ts",
+  "gate_validation/skills/harness/bagakit-flow-runner/protocol/flow-protocol-kernel.test.ts",
 ]
 forbidden_paths = [
   "skills/harness/bagakit-flow-runner/SKILL_PAYLOAD.json",
@@ -123,4 +132,5 @@ args = [
   "--test",
   "--experimental-strip-types",
   "gate_validation/skills/harness/bagakit-flow-runner/test-flow-runner.ts",
+  "gate_validation/skills/harness/bagakit-flow-runner/protocol/flow-protocol-kernel.test.ts",
 ]

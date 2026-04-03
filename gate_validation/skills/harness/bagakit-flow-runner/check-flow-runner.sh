@@ -51,6 +51,11 @@ bash "$FEATURE_TRACKER_DIR/scripts/feature-tracker.sh" assign-feature-workspace 
 bash "$FLOW_RUNNER_DIR/scripts/flow-runner.sh" apply --root "$TMP_DIR"
 bash "$FLOW_RUNNER_DIR/scripts/flow-runner.sh" ingest-feature-tracker --root "$TMP_DIR"
 
+if bash "$FLOW_RUNNER_DIR/scripts/flow-runner.sh" add-item --root "$TMP_DIR" --item-id forged-tracker --title "Forged tracker" --source-kind feature-tracker --source-ref "feature-tracker:$FEATURE_ID" >/dev/null 2>&1; then
+  echo "error: add-item unexpectedly accepted forged feature-tracker source ownership" >&2
+  exit 1
+fi
+
 ACTIVATE_JSON="$TMP_DIR/activate.json"
 bash "$FLOW_RUNNER_DIR/scripts/flow-runner.sh" activate-feature-tracker --root "$TMP_DIR" --feature "$FEATURE_ID" --json > "$ACTIVATE_JSON"
 python3 - "$ACTIVATE_JSON" "$FEATURE_ID" <<'PY'
@@ -97,9 +102,46 @@ PY
 bash "$FLOW_RUNNER_DIR/scripts/flow-runner.sh" snapshot --root "$TMP_DIR" --item "$ITEM_ID" --label "../../../escape" --json >/dev/null
 test ! -d "$TMP_DIR/.bagakit/flow-runner/escape"
 bash "$FLOW_RUNNER_DIR/scripts/flow-runner.sh" checkpoint --root "$TMP_DIR" --item "$ITEM_ID" --stage inspect --session-status progress --objective "Inspect" --attempted "Read runtime" --result "Ready" --next-action "Run one bounded session" --clean-state yes --json >/dev/null
+RECEIPTS="$TMP_DIR/.bagakit/flow-runner/items/$ITEM_ID/mutation-receipts.ndjson"
+CHECKPOINTS="$TMP_DIR/.bagakit/flow-runner/items/$ITEM_ID/checkpoints.ndjson"
+PROGRESS="$TMP_DIR/.bagakit/flow-runner/items/$ITEM_ID/progress.ndjson"
+test -s "$RECEIPTS"
+python3 - "$RECEIPTS" <<'PY'
+import json
+import sys
+from pathlib import Path
 
+entries = [json.loads(line) for line in Path(sys.argv[1]).read_text(encoding="utf-8").splitlines() if line.strip()]
+assert entries
+assert all(entry["schema"] == "bagakit/flow-runner/mutation-receipt/v1" for entry in entries)
+assert all(entry["item_id"].startswith("feature-") for entry in entries)
+assert all(entry["authority"] in {"runner_local", "source_mirror"} for entry in entries)
+checkpoint_receipts = [entry for entry in entries if entry["mutation"] == "checkpoint"]
+assert checkpoint_receipts
+assert checkpoint_receipts[-1]["authority"] == "runner_local"
+assert len({entry["receipt_id"] for entry in entries}) == len(entries)
+PY
+
+BEFORE_COUNTS="$(python3 - "$RECEIPTS" "$CHECKPOINTS" "$PROGRESS" <<'PY'
+import sys
+from pathlib import Path
+
+print(",".join(str(len([line for line in Path(path).read_text(encoding="utf-8").splitlines() if line.strip()])) for path in sys.argv[1:]))
+PY
+)"
 if bash "$FLOW_RUNNER_DIR/scripts/flow-runner.sh" checkpoint --root "$TMP_DIR" --item "$ITEM_ID" --stage bogus --session-status progress --objective "Bad" --attempted "Bad" --result "Bad" --next-action "Bad" --clean-state yes >/dev/null 2>&1; then
   echo "error: bogus checkpoint stage unexpectedly passed" >&2
+  exit 1
+fi
+AFTER_COUNTS="$(python3 - "$RECEIPTS" "$CHECKPOINTS" "$PROGRESS" <<'PY'
+import sys
+from pathlib import Path
+
+print(",".join(str(len([line for line in Path(path).read_text(encoding="utf-8").splitlines() if line.strip()])) for path in sys.argv[1:]))
+PY
+)"
+if [[ "$BEFORE_COUNTS" != "$AFTER_COUNTS" ]]; then
+  echo "error: invalid checkpoint stage changed protocol receipt files" >&2
   exit 1
 fi
 
@@ -138,6 +180,19 @@ bash "$FEATURE_TRACKER_DIR/scripts/feature-tracker.sh" discard-feature --root "$
 bash "$FLOW_RUNNER_DIR/scripts/flow-runner.sh" ingest-feature-tracker --root "$TMP_DIR" >/dev/null
 test -d "$TMP_DIR/.bagakit/flow-runner/archive/$ITEM_ID"
 test ! -d "$TMP_DIR/.bagakit/flow-runner/items/$ITEM_ID"
+ARCHIVE_RECEIPTS="$TMP_DIR/.bagakit/flow-runner/archive/$ITEM_ID/mutation-receipts.ndjson"
+test -s "$ARCHIVE_RECEIPTS"
+python3 - "$ARCHIVE_RECEIPTS" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+entries = [json.loads(line) for line in Path(sys.argv[1]).read_text(encoding="utf-8").splitlines() if line.strip()]
+assert entries[-1]["schema"] == "bagakit/flow-runner/mutation-receipt/v1"
+assert entries[-1]["mutation"] == "state_normalization"
+assert entries[-1]["authority"] == "source_mirror"
+assert any(event["field_path"] == "paths" for event in entries[-1]["events"])
+PY
 
 bash "$FEATURE_TRACKER_DIR/scripts/feature-tracker.sh" create-feature --root "$TMP_DIR" --title "Blocked flow source" --slug "blocked-flow-source" --goal "Stay proposal only" --workspace-mode proposal_only >/dev/null
 BLOCKED_FEATURE_ID="$(python3 - "$TMP_DIR" <<'PY'

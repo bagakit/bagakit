@@ -68,12 +68,13 @@ When `source_kind` is not `feature-tracker`:
 
 - `next-action.json` matches the selected item state
 - `resume-candidates.json` partitions live vs closeout items correctly
-- each active item keeps `state.json`, `checkpoints.ndjson`, `progress.ndjson`,
-  and `handoff.md` together
+- each active item keeps `state.json`, `checkpoints.ndjson`,
+  `progress.ndjson`, `mutation-receipts.ndjson`, and `handoff.md` together
 - `archive/` contains only archived items
 - `items/` contains only active items
 - `policy.json` and `recipe.json` use only the supported contract fields
-- `progress.ndjson` and `checkpoints.ndjson` are parseable
+- `progress.ndjson`, `checkpoints.ndjson`, and `mutation-receipts.ndjson` are
+  parseable
 - `plan-revisions/` and `incidents/` match runtime pointers
 - tracker-sourced items remain mirrors, not owner records
 
