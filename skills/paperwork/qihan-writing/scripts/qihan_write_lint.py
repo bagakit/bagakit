@@ -143,6 +143,32 @@ COMMON_HEADING_WORDS = {
     "llm", "markdown", "md", "pdf", "sdk", "sql", "toml", "yaml", "yml",
 }
 
+COHESION_BRIDGE_RE = re.compile(
+    r"(因为|所以|因此|但是|但|然而|否则|同时|接着|于是|这意味着|换句话|例如|比如|具体来说|为了|从而|"
+    r"\bbecause\b|\btherefore\b|\bhowever\b|\bbut\b|\bso\b|\bfor example\b|\bthis means\b)",
+    re.IGNORECASE,
+)
+META_NARRATION_RE = re.compile(
+    r"(本文|本节|这一节|这一段|这篇文章|这篇文档|后文|下面|接下来|前面|上一节|下一节)"
+    r"[^。！？!?，,\n]{0,18}(会|将|先|再|分成|展开|解释|介绍|说明|讨论|回到|看到|进入)"
+)
+READER_PROBLEM_RE = re.compile(
+    r"(问题|痛点|目标|为了|为什么|怎么|如何|需要解决|要解决|面对|卡住|risk|problem|goal|why|how)",
+    re.IGNORECASE,
+)
+READER_CLAIM_RE = re.compile(
+    r"(关键|核心|结论|判断|应该|必须|需要|意味着|不是|而是|结果|invariant|claim|should|must|means)",
+    re.IGNORECASE,
+)
+READER_ACTION_RE = re.compile(
+    r"(下一步|接下来|先|然后|进入|(?<!可)执行|使用|检查|验证|交付|next|run|use|check|verify)",
+    re.IGNORECASE,
+)
+READER_OBJECT_RE = re.compile(
+    r"(对象|读者|用户|系统|文档|任务|状态|协议|证据|surface|state|protocol|evidence|reader|user)",
+    re.IGNORECASE,
+)
+
 
 @dataclass
 class Finding:
@@ -158,6 +184,23 @@ def read_text(p: Path) -> str:
 
 def strip_code_spans(text: str) -> str:
     return re.sub(r"`[^`\n]+`", " ", text)
+
+
+def compact_preview(text: str, limit: int = 90) -> str:
+    cleaned = re.sub(r"\s+", " ", strip_code_spans(text)).strip()
+    return cleaned[:limit]
+
+
+def normalize_sentence_key(text: str) -> str:
+    stripped = strip_code_spans(text).lower()
+    stripped = re.sub(r"[\s`*_#>\-+|:：,，.。;；!?！？()\[\]{}<>《》\"“”'‘’/\\]+", "", stripped)
+    return stripped
+
+
+def semantic_repeat_prefix(key: str) -> str:
+    if re.search(r"[a-z0-9]", key):
+        return key[:14]
+    return key[:8]
 
 
 def strip_fenced_code(text: str, *, strip_inline: bool = False) -> str:
@@ -192,6 +235,27 @@ def is_content_line(line: str) -> bool:
     if stripped.startswith("|") and stripped.endswith("|"):
         return False
     return True
+
+
+def cue_prefix(text: str) -> str:
+    cleaned = strip_code_spans(text).strip().lower()
+    cleaned = re.sub(r"^\s*([-*+]\s+|\d+\.\s+)", "", cleaned)
+    cleaned = re.sub(r"^[`*_#>\-+|:：,，.。;；!?！？()\[\]{}<>《》\"“”'‘’]+", "", cleaned)
+    if not cleaned:
+        return ""
+    ascii_match = re.match(r"[a-z][a-z0-9-]{2,}", cleaned)
+    if ascii_match:
+        return ascii_match.group(0)
+    return re.sub(r"\s+", "", cleaned)[:2]
+
+
+def signal_present(pattern: re.Pattern, text: str) -> bool:
+    for match in pattern.finditer(text):
+        prefix = text[max(0, match.start() - 8):match.start()]
+        if re.search(r"(没有|并未|并没有|未|不|无|缺少|缺失|还不知道)$", prefix):
+            continue
+        return True
+    return False
 
 
 def iter_non_code_lines(md: str, *, strip_inline: bool = False):
@@ -253,12 +317,23 @@ def count_sentences(text: str) -> int:
 
 
 def paragraph_stats(md: str):
+    paras = paragraph_items(md)
+    sent_counts = [item["sentences"] for item in paras]
+    return {
+        "paragraphs": len(paras),
+        "avgSentPerPara": (sum(sent_counts) / len(sent_counts)) if sent_counts else 0,
+        "sentPerPara": sent_counts,
+    }
+
+
+def paragraph_items(md: str):
     # paragraphs separated by blank lines; ignore headings, tables, list blocks, code blocks
     lines = md.splitlines()
     paras = []
     cur = []
+    cur_start = 0
     in_code = False
-    for line in lines:
+    for line_no, line in enumerate(lines, start=1):
         s = line.rstrip("\n")
         if s.strip().startswith("```"):
             in_code = not in_code
@@ -267,40 +342,72 @@ def paragraph_stats(md: str):
             continue
         if not s.strip():
             if cur:
-                paras.append("\n".join(cur).strip())
+                text = "\n".join(cur).strip()
+                paras.append({
+                    "line": cur_start,
+                    "text": text,
+                    "sentences": count_sentences(text),
+                })
                 cur = []
+                cur_start = 0
             continue
         if re.match(r"^#{1,6}\s+", s.strip()):
             if cur:
-                paras.append("\n".join(cur).strip())
+                text = "\n".join(cur).strip()
+                paras.append({
+                    "line": cur_start,
+                    "text": text,
+                    "sentences": count_sentences(text),
+                })
                 cur = []
+                cur_start = 0
             continue
         if re.match(r"^\s*[-*+]\s+", s) or re.match(r"^\s*\d+\.\s+", s):
             # treat list lines as not paragraphs
             if cur:
-                paras.append("\n".join(cur).strip())
+                text = "\n".join(cur).strip()
+                paras.append({
+                    "line": cur_start,
+                    "text": text,
+                    "sentences": count_sentences(text),
+                })
                 cur = []
+                cur_start = 0
             continue
         if s.strip().startswith("|") and s.strip().endswith("|"):
             if cur:
-                paras.append("\n".join(cur).strip())
+                text = "\n".join(cur).strip()
+                paras.append({
+                    "line": cur_start,
+                    "text": text,
+                    "sentences": count_sentences(text),
+                })
                 cur = []
+                cur_start = 0
             continue
         if s.strip().startswith("<callout") or s.strip().startswith("</callout"):
             if cur:
-                paras.append("\n".join(cur).strip())
+                text = "\n".join(cur).strip()
+                paras.append({
+                    "line": cur_start,
+                    "text": text,
+                    "sentences": count_sentences(text),
+                })
                 cur = []
+                cur_start = 0
             continue
+        if not cur:
+            cur_start = line_no
         cur.append(s)
     if cur:
-        paras.append("\n".join(cur).strip())
+        text = "\n".join(cur).strip()
+        paras.append({
+            "line": cur_start,
+            "text": text,
+            "sentences": count_sentences(text),
+        })
 
-    sent_counts = [count_sentences(p) for p in paras]
-    return {
-        "paragraphs": len(paras),
-        "avgSentPerPara": (sum(sent_counts) / len(sent_counts)) if sent_counts else 0,
-        "sentPerPara": sent_counts,
-    }
+    return paras
 
 
 def line_ratios(md: str):
@@ -575,6 +682,277 @@ def prose_shape_stats(md: str):
     return {
         "opening": opening_shape_stats(md),
         "sectionList": section_list_stats(md),
+    }
+
+
+def cohesion_stats(md: str):
+    paragraphs = paragraph_items(md)
+    bridge_count = 0
+    short_runs = []
+    current_run = []
+    bridge_gaps = []
+    bridge_gap_runs = []
+    current_gap_run = []
+
+    for item in paragraphs:
+        text = item["text"]
+        has_bridge = bool(COHESION_BRIDGE_RE.search(text))
+        if has_bridge:
+            bridge_count += 1
+            if current_gap_run:
+                bridge_gap_runs.append(current_gap_run)
+                current_gap_run = []
+        else:
+            current_gap_run.append(item)
+        if item["sentences"] <= 1:
+            current_run.append(item)
+        else:
+            if len(current_run) >= 3:
+                short_runs.append(current_run)
+            current_run = []
+        if not has_bridge:
+            bridge_gaps.append({
+                "line": item["line"],
+                "text": compact_preview(text),
+                "sentences": item["sentences"],
+            })
+    if len(current_run) >= 3:
+        short_runs.append(current_run)
+    if current_gap_run:
+        bridge_gap_runs.append(current_gap_run)
+
+    sent_counts = [item["sentences"] for item in paragraphs]
+
+    return {
+        "paragraphCount": len(paragraphs),
+        "bridgeParagraphCount": bridge_count,
+        "bridgeParagraphRatio": bridge_count / len(paragraphs) if paragraphs else 0,
+        "avgSentencesPerParagraph": (sum(sent_counts) / len(sent_counts)) if sent_counts else 0,
+        "shortParagraphRunCount": len(short_runs),
+        "maxShortParagraphRun": max((len(run) for run in short_runs), default=0),
+        "bridgeGapCount": len(bridge_gaps),
+        "maxBridgeGapRun": max((len(run) for run in bridge_gap_runs), default=0),
+        "bridgeGapSamples": bridge_gaps[:8],
+    }
+
+
+def cue_flatness_stats(md: str):
+    cue_lines = []
+    segment = 0
+    for line_no, line in iter_non_code_lines(md, strip_inline=True):
+        stripped = line.strip()
+        if not stripped:
+            continue
+        kind = ""
+        label = ""
+        if is_list_line(line):
+            kind = "list"
+            label = cue_prefix(line)
+        else:
+            heading = HEADING_LINE_RE.match(stripped)
+            if heading:
+                kind = f"h{len(heading.group(1))}"
+                label = cue_prefix(heading.group(2))
+            elif item := re.match(r"^(?:Step|步骤|阶段|动作|检查|确认|记录|验证)\s*[\w一二三四五六七八九十0-9.-]*", stripped, re.I):
+                kind = "formula"
+                label = cue_prefix(item.group(0))
+        if kind:
+            cue_lines.append({
+                "line": line_no,
+                "kind": kind,
+                "label": label,
+                "segment": segment,
+                "text": compact_preview(stripped),
+            })
+        else:
+            segment += 1
+
+    flat_runs = []
+    current = []
+    for item in cue_lines:
+        if (
+            current
+            and item["kind"] == current[-1]["kind"]
+            and item["segment"] == current[-1]["segment"]
+        ):
+            current.append(item)
+        else:
+            if len(current) >= 5:
+                flat_runs.append(current)
+            current = [item]
+    if len(current) >= 5:
+        flat_runs.append(current)
+
+    prefix_counts: dict[str, int] = {}
+    prefix_samples: dict[str, list[dict]] = {}
+    for item in cue_lines:
+        key = item["label"]
+        if not key:
+            continue
+        prefix_counts[key] = prefix_counts.get(key, 0) + 1
+        prefix_samples.setdefault(key, []).append(item)
+
+    repeated_prefixes = [
+        {
+            "prefix": prefix,
+            "count": count,
+            "samples": prefix_samples[prefix][:4],
+        }
+        for prefix, count in sorted(prefix_counts.items(), key=lambda pair: (-pair[1], pair[0]))
+        if count >= 4
+    ]
+
+    return {
+        "cueLineCount": len(cue_lines),
+        "flatRunCount": len(flat_runs),
+        "maxFlatRun": max((len(run) for run in flat_runs), default=0),
+        "flatRuns": [
+            {
+                "kind": run[0]["kind"],
+                "startLine": run[0]["line"],
+                "endLine": run[-1]["line"],
+                "length": len(run),
+            }
+            for run in flat_runs[:8]
+        ],
+        "repeatedPrefixCount": len(repeated_prefixes),
+        "repeatedPrefixes": repeated_prefixes[:8],
+    }
+
+
+def meta_writing_stats(md: str):
+    hits = []
+    for line_no, line in iter_non_code_lines(md, strip_inline=True):
+        stripped = line.strip()
+        if not stripped or is_list_line(stripped) or HEADING_LINE_RE.match(stripped):
+            continue
+        for match in META_NARRATION_RE.finditer(stripped):
+            hits.append({
+                "line": line_no,
+                "text": compact_preview(stripped),
+                "match": compact_preview(match.group(0), limit=50),
+            })
+            break
+    return {
+        "hitCount": len(hits),
+        "hits": hits[:10],
+    }
+
+
+def reader_movement_stats(md: str):
+    items = []
+    seen_h2 = False
+    for line_no, line in iter_non_code_lines(md, strip_inline=True):
+        stripped = line.strip()
+        heading = HEADING_LINE_RE.match(stripped)
+        if heading and len(heading.group(1)) == 2:
+            seen_h2 = True
+            if items:
+                break
+            continue
+        if seen_h2 and items:
+            break
+        if not stripped or is_list_line(line) or HEADING_LINE_RE.match(stripped):
+            continue
+        items.append({"line": line_no, "text": stripped})
+        if len(items) >= 6:
+            break
+
+    opening_text = "\n".join(item["text"] for item in items)
+    signals = {
+        "object": signal_present(READER_OBJECT_RE, opening_text),
+        "problem": signal_present(READER_PROBLEM_RE, opening_text),
+        "claim": signal_present(READER_CLAIM_RE, opening_text),
+        "action": signal_present(READER_ACTION_RE, opening_text),
+    }
+    missing = [name for name, present in signals.items() if not present]
+
+    return {
+        "openingParagraphCount": len(items),
+        "signals": signals,
+        "missingSignals": missing,
+        "openingSamples": [
+            {"line": item["line"], "text": compact_preview(item["text"])}
+            for item in items[:4]
+        ],
+    }
+
+
+def semantic_repetition_stats(md: str):
+    units = []
+    for line_no, line in iter_non_code_lines(md, strip_inline=True):
+        stripped = line.strip()
+        if not stripped:
+            continue
+        heading = HEADING_LINE_RE.match(stripped)
+        if heading:
+            text = heading.group(2).strip()
+            kind = f"h{len(heading.group(1))}"
+        elif is_list_line(line):
+            text = re.sub(LIST_ITEM_RE, "", stripped, count=1).strip()
+            kind = "list"
+        else:
+            text = stripped
+            kind = "paragraph"
+        key = normalize_sentence_key(text)
+        if len(key) < 8:
+            continue
+        units.append({
+            "line": line_no,
+            "kind": kind,
+            "key": key,
+            "prefix": semantic_repeat_prefix(key),
+            "text": compact_preview(text),
+        })
+
+    exact: dict[str, list[dict]] = {}
+    prefixes: dict[str, list[dict]] = {}
+    for unit in units:
+        exact.setdefault(unit["key"], []).append(unit)
+        prefixes.setdefault(unit["prefix"], []).append(unit)
+
+    def public_sample(unit: dict) -> dict:
+        return {
+            "line": unit["line"],
+            "kind": unit["kind"],
+            "prefix": unit["prefix"],
+            "text": unit["text"],
+        }
+
+    exact_repeats = [
+        {"count": len(items), "samples": [public_sample(item) for item in items[:4]]}
+        for items in exact.values()
+        if len(items) >= 2
+    ]
+    prefix_repeats = [
+        {
+            "prefix": prefix,
+            "count": len(items),
+            "samples": [public_sample(item) for item in items[:4]],
+        }
+        for prefix, items in prefixes.items()
+        if len(items) >= 3 and len({item["key"] for item in items}) >= 2
+    ]
+
+    max_near_repeat_group = max((item["count"] for item in prefix_repeats), default=0)
+
+    return {
+        "unitCount": len(units),
+        "exactRepeatCount": len(exact_repeats),
+        "nearRepeatCount": len(prefix_repeats),
+        "maxNearRepeatGroup": max_near_repeat_group,
+        "exactRepeats": exact_repeats[:8],
+        "nearRepeats": sorted(prefix_repeats, key=lambda item: -item["count"])[:8],
+    }
+
+
+def prose_mechanics_stats(md: str):
+    return {
+        "cohesion": cohesion_stats(md),
+        "cueFlatness": cue_flatness_stats(md),
+        "metaWriting": meta_writing_stats(md),
+        "readerMovement": reader_movement_stats(md),
+        "semanticRepetition": semantic_repetition_stats(md),
     }
 
 
@@ -875,6 +1253,7 @@ def score(md: str):
     ratios = line_ratios(md)
     list_blocks = list_block_stats(md)
     prose_shape = prose_shape_stats(md)
+    prose_mechanics = prose_mechanics_stats(md)
     stats = paragraph_stats(md)
 
     # heuristics
@@ -933,6 +1312,73 @@ def score(md: str):
                 section_list,
             )
         )
+    cohesion = prose_mechanics["cohesion"]
+    if (
+        cohesion["paragraphCount"] >= 6
+        and cohesion["bridgeParagraphRatio"] < 0.25
+        and (
+            cohesion["maxShortParagraphRun"] >= 4
+            or (
+                cohesion["maxBridgeGapRun"] >= 6
+                and cohesion["avgSentencesPerParagraph"] < 1.8
+            )
+        )
+    ):
+        findings.append(
+            Finding(
+                "ADVISORY",
+                "COHESION_DEBT_ADVISORY",
+                "Paragraphs have weak connective movement; review whether causal or contrast links need to be written in",
+                cohesion,
+            )
+        )
+    cue_flatness = prose_mechanics["cueFlatness"]
+    if cue_flatness["maxFlatRun"] >= 7 or cue_flatness["repeatedPrefixCount"] >= 2:
+        findings.append(
+            Finding(
+                "ADVISORY",
+                "CUE_FLATNESS_ADVISORY",
+                "Repeated cue shapes make the surface feel flat; review whether hierarchy or prose movement is missing",
+                cue_flatness,
+            )
+        )
+    meta_writing = prose_mechanics["metaWriting"]
+    if meta_writing["hitCount"] >= 3:
+        findings.append(
+            Finding(
+                "ADVISORY",
+                "META_WRITING_ADVISORY",
+                "Draft narrates its own writing process; review whether those sentences should state the object or claim directly",
+                meta_writing,
+            )
+        )
+    reader_movement = prose_mechanics["readerMovement"]
+    if (
+        reader_movement["openingParagraphCount"] >= 2
+        and len(reader_movement["missingSignals"]) >= 2
+    ):
+        findings.append(
+            Finding(
+                "ADVISORY",
+                "READER_MOVEMENT_ADVISORY",
+                "Opening lacks enough reader movement signals; review whether object, problem, claim, and next action are visible",
+                reader_movement,
+            )
+        )
+    semantic_repetition = prose_mechanics["semanticRepetition"]
+    if (
+        semantic_repetition["exactRepeatCount"] >= 1
+        or semantic_repetition["nearRepeatCount"] >= 2
+        or semantic_repetition["maxNearRepeatGroup"] >= 4
+    ):
+        findings.append(
+            Finding(
+                "ADVISORY",
+                "SEMANTIC_REPETITION_ADVISORY",
+                "Repeated statements or near-repeated starts may be padding; review whether each section adds new information",
+                semantic_repetition,
+            )
+        )
     if stats["avgSentPerPara"] and stats["avgSentPerPara"] < 1.3:
         findings.append(Finding("WARN", "PARA_SHORT", "Paragraphs too short on average; may feel choppy", stats))
 
@@ -940,7 +1386,7 @@ def score(md: str):
     if heading_count and stats["paragraphs"] / heading_count < 1.4:
         findings.append(Finding("WARN", "SECTION_THIN", "Too few paragraphs per heading; avoid one-liner sections", {"paragraphs": stats["paragraphs"], "headings": heading_count}))
 
-    return findings, ratios, list_blocks, prose_shape, stats
+    return findings, ratios, list_blocks, prose_shape, prose_mechanics, stats
 
 
 def parse_args(argv):
@@ -974,12 +1420,13 @@ def blocking_findings(findings: list[Finding]) -> list[Finding]:
 
 def lint_one_file(p: Path) -> tuple[dict, list[Finding]]:
     md = read_text(p)
-    findings, ratios, list_blocks, prose_shape, stats = score(md)
+    findings, ratios, list_blocks, prose_shape, prose_mechanics, stats = score(md)
     report = {
         "file": str(p),
         "ratios": ratios,
         "listBlocks": list_blocks,
         "proseShape": prose_shape,
+        "proseMechanics": prose_mechanics,
         "paragraph": stats,
         "findings": [f.__dict__ for f in findings],
     }

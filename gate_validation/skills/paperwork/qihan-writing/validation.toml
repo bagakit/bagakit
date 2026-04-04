@@ -1,13 +1,13 @@
 version = 2
 
 [[suite]]
-id = "qihan-writing-lint-prose-shape"
+id = "qihan-writing-lint-prose-advisory"
 owner = "skills/paperwork/qihan-writing"
-description = "Validate qihan_write_lint advisory findings for list-driven mechanical prose with synthetic fixture hygiene checks."
+description = "Validate qihan_write_lint advisory findings for list-driven and broader mechanical prose with synthetic fixture hygiene checks."
 default = true
 proof_mode = "runtime"
-proves = ["qihan-writing-lint-prose-shape proves: qihan_write_lint emits non-blocking advisory prose-shape findings and the checked fixtures pass synthetic hygiene checks."]
-does_not_prove = ["qihan-writing-lint-prose-shape does not prove subjective writing quality, external guidebook quality, copied-text absence, or all possible document surfaces."]
+proves = ["qihan-writing-lint-prose-advisory proves: qihan_write_lint emits non-blocking prose-shape and prose-mechanics advisory findings, and the checked fixtures pass synthetic hygiene checks."]
+does_not_prove = ["qihan-writing-lint-prose-advisory does not prove subjective writing quality, external guidebook quality, copied-text absence, semantic correctness, or all possible document surfaces."]
 timeout_seconds = 120
 validation_class = "smoke"
 groups = ["skills", "paperwork", "qihan-writing", "lint", "smoke"]

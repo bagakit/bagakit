@@ -16,6 +16,13 @@ PROSE_SHAPE_CODES = {
     "OPENING_MANUAL_FEEL",
     "SECTION_LIST_DOMINANT",
 }
+PROSE_MECHANICS_CODES = {
+    "COHESION_DEBT_ADVISORY",
+    "CUE_FLATNESS_ADVISORY",
+    "META_WRITING_ADVISORY",
+    "READER_MOVEMENT_ADVISORY",
+    "SEMANTIC_REPETITION_ADVISORY",
+}
 
 ABSOLUTE_ROOT_NAMES = (
     "Users",
@@ -103,6 +110,21 @@ def finding_codes(report: dict) -> set[str]:
     return {str(finding.get("code")) for finding in report.get("findings", [])}
 
 
+def findings_by_code(report: dict, code: str) -> list[dict]:
+    return [
+        finding
+        for finding in report.get("findings", [])
+        if finding.get("code") == code
+    ]
+
+
+def finding_codes_from_directory(report: dict) -> set[str]:
+    codes: set[str] = set()
+    for file_report in report.get("files", []):
+        codes.update(finding_codes(file_report))
+    return codes
+
+
 def assert_metric_shape(report: dict) -> None:
     ratios = report.get("ratios", {})
     list_blocks = report.get("listBlocks", {})
@@ -146,6 +168,44 @@ def assert_metric_shape(report: dict) -> None:
         raise AssertionError("missing section list dominance metrics")
 
 
+def assert_mechanics_shape(report: dict) -> None:
+    mechanics = report.get("proseMechanics", {})
+    required = {
+        "cohesion",
+        "cueFlatness",
+        "metaWriting",
+        "readerMovement",
+        "semanticRepetition",
+    }
+    missing = sorted(required - set(mechanics))
+    if missing:
+        raise AssertionError(f"missing prose mechanics metrics: {missing}")
+
+    if "bridgeParagraphRatio" not in mechanics["cohesion"]:
+        raise AssertionError("missing cohesion bridge ratio")
+    if "flatRuns" not in mechanics["cueFlatness"]:
+        raise AssertionError("missing cue flatness runs")
+    if "hits" not in mechanics["metaWriting"]:
+        raise AssertionError("missing meta-writing hits")
+    if "missingSignals" not in mechanics["readerMovement"]:
+        raise AssertionError("missing reader movement signals")
+    if "nearRepeats" not in mechanics["semanticRepetition"]:
+        raise AssertionError("missing semantic repetition groups")
+
+
+def assert_expected_advisory(report: dict, code: str) -> None:
+    matches = findings_by_code(report, code)
+    if not matches:
+        raise AssertionError(f"report missed {code}")
+    bad_levels = sorted(
+        str(finding.get("level"))
+        for finding in matches
+        if finding.get("level") != "ADVISORY"
+    )
+    if bad_levels:
+        raise AssertionError(f"{code} should stay ADVISORY, got {bad_levels}")
+
+
 def assert_fixture_desensitized(fixture: Path) -> None:
     text = fixture.read_text(encoding="utf-8")
     lower_text = text.lower()
@@ -177,15 +237,30 @@ def main() -> int:
     fixtures_dir = (
         root / "gate_validation/skills/paperwork/qihan-writing/fixtures/prose-shape"
     )
+    mechanics_dir = (
+        root / "gate_validation/skills/paperwork/qihan-writing/fixtures/prose-mechanics"
+    )
     mechanical = fixtures_dir / "mechanical-guide.md"
     balanced = fixtures_dir / "balanced-note.md"
     advisory_only = fixtures_dir / "advisory-only.md"
+    mechanics_cases = {
+        "cohesion-debt.md": "COHESION_DEBT_ADVISORY",
+        "cue-flatness.md": "CUE_FLATNESS_ADVISORY",
+        "meta-writing.md": "META_WRITING_ADVISORY",
+        "reader-movement.md": "READER_MOVEMENT_ADVISORY",
+        "semantic-repetition.md": "SEMANTIC_REPETITION_ADVISORY",
+        "semantic-near-repeat.md": "SEMANTIC_REPETITION_ADVISORY",
+    }
+    mechanics_clean = mechanics_dir / "clean-longform.md"
 
-    for fixture in (mechanical, balanced, advisory_only):
+    for fixture in (mechanical, balanced, advisory_only, *(
+        mechanics_dir / name for name in mechanics_cases
+    ), mechanics_clean):
         assert_fixture_desensitized(fixture)
 
     _, mechanical_report = run_lint(root, mechanical)
     assert_metric_shape(mechanical_report)
+    assert_mechanics_shape(mechanical_report)
     mechanical_codes = finding_codes(mechanical_report)
     missing_codes = sorted(PROSE_SHAPE_CODES - mechanical_codes)
     if missing_codes:
@@ -197,15 +272,22 @@ def main() -> int:
 
     _, balanced_report = run_lint(root, balanced)
     assert_metric_shape(balanced_report)
+    assert_mechanics_shape(balanced_report)
     if balanced_report["ratios"]["listLineCount"] != 2:
         raise AssertionError("balanced fixture should ignore list-like lines inside code fences")
     balanced_codes = finding_codes(balanced_report)
     unexpected_codes = sorted(PROSE_SHAPE_CODES & balanced_codes)
     if unexpected_codes:
         raise AssertionError(f"balanced fixture got prose-shape warnings: {unexpected_codes}")
+    unexpected_mechanics = sorted(PROSE_MECHANICS_CODES & balanced_codes)
+    if unexpected_mechanics:
+        raise AssertionError(
+            f"balanced fixture got prose-mechanics advisories: {unexpected_mechanics}"
+        )
 
     default_exit, advisory_report = run_lint_allow_exit(root, advisory_only)
     assert_metric_shape(advisory_report)
+    assert_mechanics_shape(advisory_report)
     advisory_codes = finding_codes(advisory_report)
     missing_advisory_codes = sorted(PROSE_SHAPE_CODES - advisory_codes)
     if missing_advisory_codes:
@@ -219,6 +301,51 @@ def main() -> int:
         raise AssertionError(f"advisory-only fixture has blocking findings: {blocking_levels}")
     if default_exit != 0:
         raise AssertionError("advisory-only findings should not make default lint fail")
+
+    for file_name, expected_code in mechanics_cases.items():
+        fixture = mechanics_dir / file_name
+        exit_code, report = run_lint_allow_exit(root, fixture)
+        assert_metric_shape(report)
+        assert_mechanics_shape(report)
+        codes = finding_codes(report)
+        if expected_code not in codes:
+            raise AssertionError(f"{file_name} missed {expected_code}")
+        assert_expected_advisory(report, expected_code)
+        if exit_code != 0 and not any(
+            finding.get("level") in {"WARN", "FAIL"}
+            for finding in report.get("findings", [])
+        ):
+            raise AssertionError(
+                f"{file_name} has only advisory findings but default lint failed"
+            )
+
+    _, reader_report = run_lint(root, mechanics_dir / "reader-movement.md")
+    missing_signals = set(
+        reader_report["proseMechanics"]["readerMovement"]["missingSignals"]
+    )
+    if "action" not in missing_signals:
+        raise AssertionError("reader-movement fixture should cover missing action")
+
+    _, near_report = run_lint(root, mechanics_dir / "semantic-near-repeat.md")
+    repetition = near_report["proseMechanics"]["semanticRepetition"]
+    if repetition["exactRepeatCount"] != 0 or repetition["maxNearRepeatGroup"] < 4:
+        raise AssertionError("semantic near-repeat fixture should cover near-only repeats")
+
+    _, clean_report = run_lint(root, mechanics_clean)
+    assert_metric_shape(clean_report)
+    assert_mechanics_shape(clean_report)
+    clean_codes = finding_codes(clean_report)
+    clean_mechanics = sorted(PROSE_MECHANICS_CODES & clean_codes)
+    if clean_mechanics:
+        raise AssertionError(
+            f"clean mechanics fixture got prose-mechanics advisories: {clean_mechanics}"
+        )
+
+    _, mechanics_report = run_lint(root, mechanics_dir)
+    mechanics_codes = finding_codes_from_directory(mechanics_report)
+    missing_mechanics = sorted(PROSE_MECHANICS_CODES - mechanics_codes)
+    if missing_mechanics:
+        raise AssertionError(f"mechanics directory missed codes: {missing_mechanics}")
 
     _, directory_report = run_lint(root, fixtures_dir)
     summary = directory_report.get("summary", {})

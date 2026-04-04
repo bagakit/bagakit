@@ -39,6 +39,18 @@
 
 脱敏回归样本放在 `gate_validation/skills/paperwork/qihan-writing/fixtures/prose-shape/`。这些样本只能是合成文本，不允许复制真实项目文档、机器本地路径或外部 guidebook 的原句。
 
+### 2.2 更广义的机械感 advisory
+
+列表不是唯一的机械感来源。脚本还会输出一组 `proseMechanics` 指标，用来提示 reviewer 关注五类更高层的写作退化：
+
+- `COHESION_DEBT_ADVISORY`：显式承接标记偏少，并伴随短段连发。看到它时，先问哪两个段落之间缺了关系句。
+- `CUE_FLATNESS_ADVISORY`：标题、列表项或固定句式在同一段落块里长时间同构。看到它时，先问这些提示是否应该合并、分组或改成段落。
+- `META_WRITING_ADVISORY`：正文在讲“本文、本节、下面会怎么写”，而不是直接写对象、问题和判断。看到它时，先把一句元叙述改成一句对象判断。
+- `READER_MOVEMENT_ADVISORY`：开篇没有足够快地给出对象、问题、判断和下一步。看到它时，先补读者进入正文前必须知道的一句话。
+- `SEMANTIC_REPETITION_ADVISORY`：相同句子或高度相似的开头重复出现。看到它时，先检查重复处是否真的有新增信息。
+
+这些指标仍然是 `ADVISORY`，不是硬失败。它们只能提示 review 入口，不能替代人工判断。脱敏合成样本放在 `gate_validation/skills/paperwork/qihan-writing/fixtures/prose-mechanics/`。
+
 ## 3. AI 味反模式
 
 - 命中禁词 / 高风险词。
@@ -65,6 +77,7 @@
 - 每个 H2 是否真的带来增量，而不是重复 taxonomy
 - citation / 理论背书是否回答了读者当前真正关心的问题
 - 是否存在值得单独显影的铰链句，却被埋在长段内部
+- 是否存在 cohesion、cue flatness、meta-writing、reader movement、semantic repetition 之外的语义问题；脚本只给入口，reviewer 仍要判断文本是否真的需要改
 - 是否存在无依据的人群泛化或拉踩表达；这类问题默认不交给脚本，由独立 reviewer 或 blind subagent 判定
 - 是否把“这篇文章怎么写”误写成正文内容，而不是写对象、问题和判断
 

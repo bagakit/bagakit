@@ -120,7 +120,7 @@ description: |
 - **Step 4：飞书文档排版**
   按 `references/writing/FEISHU_LAYOUT.md` 执行；控制标题层级、callout、表格、流程图，并避免正文开头重复 title。
 - **Step 4.5：硬性校验**
-  当输出要进入飞书 / 对外分享 / 进入长期沉淀时，先跑 `scripts/qihan_write_lint.py`。它会检查标题括号、结构树 3–7、系列标题概念首现、罗列比例、content line 列表密度、连续中型列表块、section 列表占优、开篇手册感、超长列表块、AI 词命中、`不是…而是…` 口癖与负定义过密、作者自评式元话（如“很硬的”“要回答的问题更具体”“最容易被…”“钉住”）、黑箱吞吐比喻（如“被系统接住”“接得住”）、callout / hr / mermaid 比例等；其中 prose-shape 机械感检查是非阻塞 `ADVISORY`，指标说明见 `references/review/QA_HARD_METRICS.md`。
+  当输出要进入飞书 / 对外分享 / 进入长期沉淀时，先跑 `scripts/qihan_write_lint.py`。它覆盖三类检查：结构硬门禁、AI 味和口癖、prose-shape / prose-mechanics 机械感 advisory。机械感检查只给非阻塞 `ADVISORY`，指标说明见 `references/review/QA_HARD_METRICS.md`。
 - **Step 4.6：长文终稿评审**
   当输出是博客 / 公众号 / 内部专题长文时，再按 `references/review/LONGFORM_RUBRIC.md` 做一轮 review，并用 `references/review/LONGFORM_REVIEW_TEMPLATE.md` 记录 hard gate、weighted review、craft bonus、anti-pattern penalty。涉及“无依据的人群泛化 / 拉踩表达 / 语气过界”的问题，不用脚本裁决；要求独立 reviewer 做静室打分，优先使用 subagent blind review。
 - **Step 4.65：audience panel review**
