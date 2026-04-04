@@ -98,6 +98,8 @@ Do not use this skill when:
 ## Output Discipline
 
 Follow `docs/specs/output-discipline.md` for reviewed shared knowledge.
+Follow `docs/specs/principle-layer-contract.md` for reusable norms, decisions,
+and guidance that should transfer beyond one task.
 
 - publish only reviewed conclusions, stable rules, or normalized reusable
   material
@@ -106,6 +108,8 @@ Follow `docs/specs/output-discipline.md` for reviewed shared knowledge.
   durable identity
 - if an imported page has unresolved evidence gaps, ingest a gap report rather
   than presenting it as shared truth
+- before shared publication, preserve why the norm exists, where it should be
+  reused, where it should not be reused, and which evidence refs justify it
 
 ## Path And Identifier Hygiene
 
@@ -268,3 +272,4 @@ task-reporting, it may use:
 The repository-owned stable contract for this skill lives at:
 
 - `docs/specs/living-knowledge-system.md`
+- `docs/specs/principle-layer-contract.md`

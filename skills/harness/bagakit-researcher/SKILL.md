@@ -67,12 +67,17 @@ This skill does not:
 ## Output Discipline
 
 Follow `docs/specs/output-discipline.md` inside topic workspaces.
+Follow `docs/specs/principle-layer-contract.md` when research evidence is
+synthesized into Bagakit-facing guidance.
 
 - charter the question before broad search
 - keep source summaries source-bound; promote only claim-backed conclusions
 - record counterevidence or confidence limits for recommendations
 - use `doctor --quality --drift` before synthesis or downstream handoff
 - turn recurring research drift into warnings or checks, not hidden heuristics
+- separate observed source claims from Bagakit-facing inferences, and record
+  the inference's `why`, intended generalization, limitations, and transfer
+  checks before handoff
 
 ## Runtime Surface Declaration
 

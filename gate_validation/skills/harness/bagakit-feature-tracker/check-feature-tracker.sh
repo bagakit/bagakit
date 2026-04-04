@@ -131,6 +131,10 @@ assert proposal_path.exists()
 assert "peh-demo-approved" in proposal_text
 assert "The request was clarified upstream and is ready for canonical feature planning." in proposal_text
 assert "planning-entry-brainstorm-to-feature" in proposal_text
+assert "## Principle Layer" in proposal_text
+assert "- What: Turn one approved planning-entry handoff into tracker state without scraping brainstorm prose." in proposal_text
+assert "- Why: The request was clarified upstream and is ready for canonical feature planning." in proposal_text
+assert "## Transfer Checks" in proposal_text
 assert any(item.get("action") == "planning_entry_handoff_applied" for item in state_payload.get("history", []))
 PY
 
@@ -229,5 +233,148 @@ bash "$SKILL_DIR/scripts/feature-tracker.sh" materialize-feature-artifact --root
 test -f "$TMP_DIR/.bagakit/feature-tracker/features/$FEATURE_ID/proposal.md"
 test -f "$TMP_DIR/.bagakit/feature-tracker/features/$FEATURE_ID/spec-delta.md"
 test -f "$TMP_DIR/.bagakit/feature-tracker/features/$FEATURE_ID/verification.md"
+
+mkdir -p "$TMP_DIR/.bagakit/feature-tracker/test-bin"
+printf 'exit 0\n' > "$TMP_DIR/.bagakit/feature-tracker/test-bin/ok.sh"
+python3 - "$TMP_DIR" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+policy_path = Path(sys.argv[1]) / ".bagakit" / "feature-tracker" / "runtime-policy.json"
+policy = json.loads(policy_path.read_text(encoding="utf-8"))
+policy.setdefault("gate", {})["project_type"] = "other"
+policy.setdefault("gate", {})["non_ui_commands"] = ["sh .bagakit/feature-tracker/test-bin/ok.sh"]
+policy_path.write_text(json.dumps(policy, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+PY
+bash "$SKILL_DIR/scripts/feature-tracker.sh" run-task-gate --root "$TMP_DIR" --feature "$FEATURE_ID" --task T-001 >/dev/null
+bash "$SKILL_DIR/scripts/feature-tracker.sh" finish-task --root "$TMP_DIR" --feature "$FEATURE_ID" --task T-001 --result done >/dev/null
+
+python3 - "$TMP_DIR" "$FEATURE_ID" "$SKILL_DIR" <<'PY'
+import json
+import subprocess
+import sys
+from pathlib import Path
+
+root = Path(sys.argv[1])
+feature_id = sys.argv[2]
+script = Path(sys.argv[3]) / "scripts" / "feature-tracker.sh"
+
+def run_json(*args):
+    cp = subprocess.run(["bash", str(script), *args], check=True, text=True, capture_output=True)
+    return json.loads(cp.stdout)
+
+active = run_json("list-features", "--root", str(root))
+assert feature_id in [item["feat_id"] for item in active["features"]]
+assert {item["scope"] for item in active["features"]} == {"active"}
+target = next(item for item in active["features"] if item["feat_id"] == feature_id)
+assert target["status"] == "done"
+
+done_active = run_json("filter-features", "--root", str(root), "--status", "done")
+assert [item["feat_id"] for item in done_active["features"]] == [feature_id]
+
+archived_default = run_json("filter-features", "--root", str(root), "--status", "archived")
+assert archived_default["features"] == []
+PY
+
+bash "$SKILL_DIR/scripts/feature-tracker.sh" diagnose-tracker --root "$TMP_DIR" >"$TMP_DIR/doctor-active-done.out"
+grep -F "$FEATURE_ID: status=done remains active; run archive-feature" "$TMP_DIR/doctor-active-done.out" >/dev/null
+bash "$SKILL_DIR/scripts/feature-tracker.sh" archive-feature --root "$TMP_DIR" --feature "$FEATURE_ID" >/dev/null
+
+DISCARD_FEATURE_ID="$(python3 - "$TMP_DIR" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+index_path = Path(sys.argv[1]) / ".bagakit" / "feature-tracker" / "index" / "features.json"
+features = json.loads(index_path.read_text(encoding="utf-8"))["features"]
+print(next(item["feat_id"] for item in features if item["title"] == "Handoff feature"))
+PY
+)"
+bash "$SKILL_DIR/scripts/feature-tracker.sh" discard-feature --root "$TMP_DIR" --feature "$DISCARD_FEATURE_ID" --reason cancelled >/dev/null
+
+python3 - "$TMP_DIR" "$FEATURE_ID" "$DISCARD_FEATURE_ID" "$SKILL_DIR" <<'PY'
+import json
+import subprocess
+import sys
+from pathlib import Path
+
+root = Path(sys.argv[1])
+archived_feature_id = sys.argv[2]
+discarded_feature_id = sys.argv[3]
+script = Path(sys.argv[4]) / "scripts" / "feature-tracker.sh"
+
+def run_json(*args):
+    cp = subprocess.run(["bash", str(script), *args], check=True, text=True, capture_output=True)
+    return json.loads(cp.stdout)
+
+default_list = run_json("list-features", "--root", str(root))
+assert default_list["features"] == []
+
+archived = run_json("list-features", "--root", str(root), "--scope", "archived")
+assert [item["feat_id"] for item in archived["features"]] == [archived_feature_id]
+assert archived["features"][0]["scope"] == "archived"
+
+discarded = run_json("list-features", "--root", str(root), "--scope", "discarded")
+assert [item["feat_id"] for item in discarded["features"]] == [discarded_feature_id]
+assert discarded["features"][0]["scope"] == "discarded"
+
+combined = run_json("list-features", "--root", str(root), "--scope", "active,archived", "--scope", "discarded")
+assert [item["feat_id"] for item in combined["features"]] == [archived_feature_id, discarded_feature_id]
+
+archived_filter = run_json("filter-features", "--root", str(root), "--scope", "archived", "--status", "archived")
+assert [item["feat_id"] for item in archived_filter["features"]] == [archived_feature_id]
+
+archived_hidden_by_default = run_json("filter-features", "--root", str(root), "--status", "archived")
+assert archived_hidden_by_default["features"] == []
+PY
+
+mkdir -p "$TMP_DIR/.bagakit/planning-entry/handoffs"
+bash "$SKILL_DIR/scripts/feature-tracker.sh" create-feature --root "$TMP_DIR" --title "Closeout feature" --slug "closeout-feature" --goal "Exercise closeout command" --workspace-mode current_tree >/dev/null
+CLOSEOUT_FEATURE_ID="$(python3 - "$TMP_DIR" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+index_path = Path(sys.argv[1]) / ".bagakit" / "feature-tracker" / "index" / "features.json"
+features = json.loads(index_path.read_text(encoding="utf-8"))["features"]
+print(next(item["feat_id"] for item in features if item["title"] == "Closeout feature"))
+PY
+)"
+bash "$SKILL_DIR/scripts/feature-tracker.sh" start-task --root "$TMP_DIR" --feature "$CLOSEOUT_FEATURE_ID" --task T-001 >/dev/null
+bash "$SKILL_DIR/scripts/feature-tracker.sh" run-task-gate --root "$TMP_DIR" --feature "$CLOSEOUT_FEATURE_ID" --task T-001 >/dev/null
+bash "$SKILL_DIR/scripts/feature-tracker.sh" closeout-feature --root "$TMP_DIR" --feature "$CLOSEOUT_FEATURE_ID" --task T-001 >"$TMP_DIR/closeout-plan.out"
+grep -F "plan: feature-tracker.sh finish-task" "$TMP_DIR/closeout-plan.out" >/dev/null
+grep -F "then: feature-tracker.sh archive-feature" "$TMP_DIR/closeout-plan.out" >/dev/null
+bash "$SKILL_DIR/scripts/feature-tracker.sh" diagnose-tracker --root "$TMP_DIR" --closeout-plan >"$TMP_DIR/doctor-closeout-plan.out"
+grep -F "$CLOSEOUT_FEATURE_ID: task T-001 gate passed; close with" "$TMP_DIR/doctor-closeout-plan.out" >/dev/null
+bash "$SKILL_DIR/scripts/feature-tracker.sh" closeout-feature --root "$TMP_DIR" --feature "$CLOSEOUT_FEATURE_ID" --task T-001 --execute >/dev/null
+test -f "$TMP_DIR/.bagakit/feature-tracker/features-archived/$CLOSEOUT_FEATURE_ID/summary.md"
+python3 - "$TMP_DIR" "$CLOSEOUT_FEATURE_ID" "$SKILL_DIR" <<'PY'
+import json
+import subprocess
+import sys
+from pathlib import Path
+
+root = Path(sys.argv[1])
+feature_id = sys.argv[2]
+script = Path(sys.argv[3]) / "scripts" / "feature-tracker.sh"
+
+def run_json(*args):
+    cp = subprocess.run(["bash", str(script), *args], check=True, text=True, capture_output=True)
+    return json.loads(cp.stdout)
+
+active = run_json("list-features", "--root", str(root))
+assert feature_id not in [item["feat_id"] for item in active["features"]]
+archived = run_json("list-features", "--root", str(root), "--scope", "archived")
+assert feature_id in [item["feat_id"] for item in archived["features"]]
+PY
+
+bash "$SKILL_DIR/scripts/feature-tracker.sh" diagnose-tracker --root "$TMP_DIR" >"$TMP_DIR/doctor-closed.out"
+if grep -F "round_count=" "$TMP_DIR/doctor-closed.out" >/dev/null; then
+  echo "doctor reported closed feature threshold noise" >&2
+  cat "$TMP_DIR/doctor-closed.out" >&2
+  exit 1
+fi
 
 echo "ok: bagakit-feature-tracker canonical smoke passed"

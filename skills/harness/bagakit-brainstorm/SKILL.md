@@ -113,12 +113,16 @@ Prefer asking the smallest question that most changes the decision.
 
 Follow `docs/specs/output-discipline.md` when a brainstorm result becomes a
 durable handoff.
+Follow `docs/specs/principle-layer-contract.md` when a brainstorm handoff may
+shape later feature, skill, knowledge, or implementation work.
 
 - keep input facts, open gaps, and derived recommendations separate
 - generate distinct options only when they imply different decisions
 - mark unsupported assumptions instead of smoothing them into the conclusion
 - make the final recommendation traceable to source refs, question ids, or
   expert-forum entries
+- preserve why the option should work, where it should generalize, where it
+  should not, and what check would reveal shallow imitation of the conclusion
 
 ## Output Routes and Default Mode
 
@@ -281,6 +285,8 @@ durable handoff.
 8a. Optional planning-entry export.
 - When downstream planning surfaces need canonical exchange json, export one
   approved brainstorm artifact through `export-planning-entry-handoff`.
+- The exported handoff should include `principle_layer` when the brainstorm
+  outcome will shape feature, knowledge, skill, or implementation work.
 - The export should happen only after the normal brainstorm completion gate
   passes.
 - Route choice remains explicit through `--scene` and `--recipe-id`; brainstorm
@@ -298,7 +304,7 @@ durable handoff.
   - clarification should prefer QA bundles that keep one question, its answer, and the resulting state update in one place
 - `finding_and_analyze.md`: options, matrix, recommendation, open questions.
 - `expert_forum.md`: forum metadata + detailed conclusion + background + discussion rounds.
-- `outcome_and_handoff.md`: outcome, risk controls, explicit handoff destinations.
+- `outcome_and_handoff.md`: outcome, principle layer, risk controls, explicit handoff destinations.
 - Optional:
   - `related_insights.md`: non-blocking but reusable insights.
   - `review_quality.md`: structured quality review packet for one brainstorm run.

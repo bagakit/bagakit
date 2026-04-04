@@ -336,10 +336,23 @@ Migration note:
 
 ## Closeout Rule
 
-`archive-feature` and `discard-feature` are public closeout commands.
+`archive-feature`, `discard-feature`, and `closeout-feature` are public
+closeout commands.
+
+Runtime truth and commit truth are separate surfaces:
+
+- tracker commands may mutate tracker runtime state
+- Git commits should include the implementation and evidence surfaces that the
+  commit command or operator intentionally prepares
+- a code commit is not the tracked feature completion boundary
 
 Stable closeout expectations:
 
+- `closeout-feature` defaults to a dry-run plan and requires `--execute` before
+  it changes tracker state
+- tracked feature completion means the feature reaches `archived` or
+  `discarded`, or the operator leaves an explicit active reason such as
+  `blocked`
 - archived features move into `features-archived/`
 - discarded features move into `features-discarded/`
 - closeout summaries live with the closed feature directory

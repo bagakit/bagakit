@@ -393,11 +393,23 @@ def labeled_scalar_or_nested_bullets(section_text: str, label: str) -> list[str]
     return [value] if value else []
 
 
+def labeled_scalar(section_text: str, label: str) -> str:
+    values = labeled_scalar_or_nested_bullets(section_text, label)
+    return values[0] if values else ""
+
+
 def first_question_card_ref(text: str) -> str:
     match = re.search(r"\bQ-\d{3}\b", text)
     if not match:
         return "input_and_qa.md#Goal-Snapshot"
     return f"input_and_qa.md#{match.group(0)}"
+
+
+def first_nonempty(items: list[str], fallback: str) -> str:
+    for item in items:
+        if item.strip():
+            return item.strip()
+    return fallback
 
 
 def has_relative_optimizations(text: str) -> bool:
@@ -2039,6 +2051,8 @@ def derive_planning_entry_handoff_payload(
     goal_snapshot_bullets = section_bullets(input_text, "Goal Snapshot")
     goal_snapshot = goal_snapshot_bullets[0] if goal_snapshot_bullets else ""
     outcome_summary = heading_section(outcome_text, "Outcome Summary")
+    input_principle = heading_section(input_text, "Principle Layer")
+    outcome_principle = heading_section(outcome_text, "Principle Layer")
     chosen_direction = nested_bullets_after_label(outcome_summary, "Chosen direction")
     expected_outcome = nested_bullets_after_label(outcome_summary, "Expected outcome")
     scope_success_section = heading_section(input_text, "Scope and Success Criteria")
@@ -2069,6 +2083,31 @@ def derive_planning_entry_handoff_payload(
         raise SystemExit("error: could not derive goal; pass --goal")
     if not demand_summary:
         raise SystemExit("error: could not derive demand summary; pass --demand-summary")
+    source_refs = [
+        first_question_card_ref(input_text),
+        "expert_forum.md#Decision-Target-And-Exit",
+        "outcome_and_handoff.md#Outcome-Summary",
+    ]
+    principle_layer = {
+        "what": labeled_scalar(outcome_principle, "What")
+        or labeled_scalar(input_principle, "What")
+        or objective,
+        "why": labeled_scalar(outcome_principle, "Why")
+        or labeled_scalar(input_principle, "Why")
+        or demand_summary,
+        "intended_generalization": labeled_scalar(outcome_principle, "Intended generalization")
+        or labeled_scalar(input_principle, "Intended generalization")
+        or "Apply the clarified planning intent to the downstream route selected by this handoff.",
+        "failure_boundary": labeled_scalar(outcome_principle, "Failure boundary")
+        or labeled_scalar(input_principle, "Failure boundary")
+        or first_nonempty(constraints, "Do not infer scope beyond clarified constraints."),
+        "behavior_examples": labeled_scalar_or_nested_bullets(outcome_principle, "Behavior examples")
+        or [goal],
+        "transfer_checks": labeled_scalar_or_nested_bullets(outcome_principle, "Transfer checks")
+        or ["A similar request without completed clarification and approved review should not be materialized."],
+        "evidence_refs": labeled_scalar_or_nested_bullets(outcome_principle, "Evidence refs")
+        or source_refs,
+    }
 
     return {
         "schema": PLANNING_ENTRY_HANDOFF_SCHEMA,
@@ -2079,6 +2118,7 @@ def derive_planning_entry_handoff_payload(
         "goal": goal,
         "objective": objective,
         "demand_summary": demand_summary,
+        "principle_layer": principle_layer,
         "success_criteria": success_criteria,
         "constraints": constraints,
         "clarification_status": clarification,
@@ -2093,11 +2133,7 @@ def derive_planning_entry_handoff_payload(
             rel(root, artifact_dir / "expert_forum.md"),
             rel(root, artifact_dir / "outcome_and_handoff.md"),
         ],
-        "source_refs": [
-            first_question_card_ref(input_text),
-            "expert_forum.md#Decision-Target-And-Exit",
-            "outcome_and_handoff.md#Outcome-Summary",
-        ],
+        "source_refs": source_refs,
     }
 
 

@@ -80,6 +80,7 @@ Current examples include:
 - `feature-tracker-projection-surfaces.md`
 - `frontdoor-index-contract.md`
 - `planning-entry-handoff-contract.md`
+- `principle-layer-contract.md`
 - `output-discipline.md`
 - `selector-data-model.md`
 - `bagakit-driver-contract.md`

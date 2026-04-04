@@ -99,6 +99,21 @@ Current normalized payload shape:
   "goal": "Turn one approved planning-entry handoff into canonical feature-tracker state.",
   "objective": "Turn one clarified request into canonical planning truth.",
   "demand_summary": "The request still needed structured clarification before feature creation.",
+  "principle_layer": {
+    "what": "Turn one clarified request into canonical planning truth.",
+    "why": "The request still needed structured clarification before feature creation.",
+    "intended_generalization": "Use the clarified intent to create tracker-owned feature tasks.",
+    "failure_boundary": "Do not treat raw brainstorm prose as tracker control-plane truth.",
+    "behavior_examples": [
+      "Materialize one approved planning-entry handoff into feature-tracker state."
+    ],
+    "transfer_checks": [
+      "A similar handoff without approval must not be materialized."
+    ],
+    "evidence_refs": [
+      "input_and_qa.md#Q-001"
+    ]
+  },
   "success_criteria": [
     "Canonical planning truth can be created without scraping brainstorm prose."
   ],
@@ -144,6 +159,13 @@ Required fields:
 - `recommended_route.recipe_id`
 - `source_artifacts[]`
 - `source_refs[]`
+
+Optional fields:
+
+- `principle_layer`
+  - when present, follows `docs/specs/principle-layer-contract.md`
+  - consumers may derive a fallback principle layer from required fields when
+    older `v1` handoffs omit it
 
 Normalized handoffs intentionally omit action-time fields.
 
@@ -244,6 +266,7 @@ Downstream planning surfaces may trust:
 - `goal`
 - `objective`
 - `demand_summary`
+- `principle_layer`
 - `success_criteria`
 - `constraints`
 - `clarification_status`

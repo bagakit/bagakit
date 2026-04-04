@@ -59,12 +59,17 @@ It does not:
 ## Output Discipline
 
 Follow `docs/specs/output-discipline.md` for repository evolution topics.
+Follow `docs/specs/principle-layer-contract.md` when an evolution topic may
+promote a reusable behavior, rule, or skill change.
 
 - add candidates only when there is a real decision fork
 - record what evidence changed the decision, not only the final preference
 - treat scores and reviews as evidence, not promotion authority
 - turn accepted regressions or repeated failures into durable specs, gates,
   evals, or skill changes only after route ownership is clear
+- before promotion, preserve the topic's `what`, `why`,
+  `intended_generalization`, `failure_boundary`, behavior examples, transfer
+  checks, and evidence refs in the candidate or decision rationale
 
 Conceptually, `evolver` contains two planes:
 

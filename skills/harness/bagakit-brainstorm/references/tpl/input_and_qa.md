@@ -14,6 +14,12 @@
 - Success criteria:
 - Out of scope:
 
+## Principle Layer
+- What:
+- Why:
+- Intended generalization:
+- Failure boundary:
+
 ## Assumptions and Constraints
 - Assumptions:
 - Constraints:

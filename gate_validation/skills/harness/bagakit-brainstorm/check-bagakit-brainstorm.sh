@@ -841,6 +841,13 @@ assert payload["recommended_route"]["recipe_id"] == "planning-entry-brainstorm-t
 assert payload["clarification_status"] == "complete"
 assert payload["discussion_clear"] is True
 assert payload["user_review_status"] == "approved"
+assert payload["principle_layer"]["what"]
+assert payload["principle_layer"]["why"]
+assert payload["principle_layer"]["intended_generalization"]
+assert payload["principle_layer"]["failure_boundary"]
+assert payload["principle_layer"]["behavior_examples"]
+assert payload["principle_layer"]["transfer_checks"]
+assert payload["principle_layer"]["evidence_refs"]
 assert payload["source_artifacts"][0].endswith("input_and_qa.md")
 assert payload["source_artifacts"][1].endswith("expert_forum.md")
 assert payload["source_artifacts"][2].endswith("outcome_and_handoff.md")

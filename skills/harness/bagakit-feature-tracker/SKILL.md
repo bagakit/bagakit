@@ -45,12 +45,16 @@ It does not own:
 ## Output Discipline
 
 Follow `docs/specs/output-discipline.md` through tracker-owned artifacts.
+Follow `docs/specs/principle-layer-contract.md` when feature intent will guide
+multiple tasks or later reuse.
 
 - task acceptance depends on task gates, not persuasive prose
 - optional helper artifacts should state what they prove and what remains open
 - repeated tracker failures should become task-gate or validation ratchets only
   when the failure mode is reproducible
 - do not add subjective scores to feature lifecycle transitions
+- non-trivial feature proposals should distinguish rationale, intended
+  generalization, non-goals, acceptance criteria, and verification checks
 
 ## Runtime Surface Declaration
 
@@ -110,6 +114,7 @@ bash "$BAGAKIT_FEATURE_TRACKER_SKILL_DIR/scripts/feature-tracker.sh" materialize
 - `feature-tracker.sh run-task-gate`
 - `feature-tracker.sh prepare-task-commit`
 - `feature-tracker.sh finish-task`
+- `feature-tracker.sh closeout-feature`
 - `feature-tracker.sh archive-feature`
 - `feature-tracker.sh discard-feature`
 - `feature-tracker.sh validate-tracker`
@@ -127,6 +132,7 @@ External bridges are intentionally out of scope for this skill.
 - `docs/specs/feature-tracker-contract.md`
 - `docs/specs/feature-tracker-id-issuance.md`
 - `docs/specs/feature-tracker-projection-surfaces.md`
+- `docs/specs/principle-layer-contract.md`
 
 The runtime payload is intentionally smaller than the canonical repo-spec layer.
 Use the specs above when you need the durable contract rather than the local
@@ -137,6 +143,10 @@ The default feature directory keeps only `state.json` and `tasks.json`.
 `FEATURES_DAG.json` is a generated dependency projection over active feature
 state; it is not the dependency source of truth and it does not carry
 policy-resolved execution planning.
+Runtime truth and commit truth are separate surfaces.
+Tracker commands may advance tracker runtime state; Git commits should include
+only the implementation and evidence surfaces intentionally prepared for that
+commit.
 Workspace assignment determines where task gate and commit commands execute.
 For `worktree` features, `run-task-gate` and `prepare-task-commit --execute`
 must run from the assigned worktree path and feature branch.
@@ -148,8 +158,14 @@ release the global state lock while external commands run and revalidate the
 workspace assignment before recording results.
 Do not reassign a feature workspace while a task is `in_progress`; same-feature
 task execution remains single-active-task by contract.
+For tracked features, code commit is not the feature completion boundary.
+The completion boundary is closed feature state through `archive-feature`,
+`discard-feature`, or `closeout-feature --execute`.
 `create-feature`, `archive-feature`, and `discard-feature` preflight the
 resulting active graph before they commit tracker state or closeout cleanup.
+`closeout-feature` is the single-feature operator path for completing the
+tracker lifecycle after gate or commit work. It defaults to a dry-run plan and
+requires `--execute` before it mutates state.
 For `current_tree` features, `archive-feature` may proceed with unrelated
 non-harness repo changes because it only closes tracker metadata; `discard-feature`
 still requires a clean non-harness tree before closeout.

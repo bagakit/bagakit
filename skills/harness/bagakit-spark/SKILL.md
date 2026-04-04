@@ -79,6 +79,12 @@ discussion, update derived state after each meaningful turn, and let the next
 question grow from that state. Researcher joins when a branch needs evidence or
 frontier grounding.
 
+When a Spark conclusion may later guide implementation, feature planning,
+knowledge, or skill evolution, follow `docs/specs/principle-layer-contract.md`.
+Accepted snapshots should preserve the principle under the decision, the user's
+acceptance reason, intended portability, failure boundaries, and transfer
+checks instead of only the chosen action.
+
 For each meaningful discussion turn, run this loop:
 
 1. Frame

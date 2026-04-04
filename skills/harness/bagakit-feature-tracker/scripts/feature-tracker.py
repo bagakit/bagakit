@@ -42,6 +42,8 @@ TASK_STATUS = {"todo", "in_progress", "done", "blocked"}
 GATE_STATUS = {"pass", "fail"}
 WORKSPACE_MODES = {"worktree", "current_tree", "proposal_only"}
 CLOSED_FEAT_STATUS = {"archived", "discarded"}
+FEATURE_SCOPES = {"active", "archived", "discarded"}
+DEFAULT_FEATURE_SCOPES = frozenset({"active"})
 PLANNING_ENTRY_HANDOFF_SCHEMA = "bagakit/planning-entry-handoff/v1"
 PLANNING_ENTRY_HANDOFF_STATUS = {"draft", "approved", "superseded", "applied", "rejected"}
 PLANNING_ENTRY_HANDOFF_CLARIFICATION_STATUS = {"pending", "in_progress", "complete", "blocked"}
@@ -141,6 +143,36 @@ def require_string_list(value: Any, label: str) -> list[str]:
     for index, item in enumerate(value):
         out.append(require_nonempty_string(item, f"{label}[{index}]"))
     return out
+
+
+def optional_principle_layer(value: Any) -> dict[str, Any] | None:
+    if value is None:
+        return None
+    layer = require_record(value, "planning-entry handoff principle_layer")
+    return {
+        "what": require_nonempty_string(layer.get("what"), "planning-entry handoff principle_layer.what"),
+        "why": require_nonempty_string(layer.get("why"), "planning-entry handoff principle_layer.why"),
+        "intended_generalization": require_nonempty_string(
+            layer.get("intended_generalization"),
+            "planning-entry handoff principle_layer.intended_generalization",
+        ),
+        "failure_boundary": require_nonempty_string(
+            layer.get("failure_boundary"),
+            "planning-entry handoff principle_layer.failure_boundary",
+        ),
+        "behavior_examples": require_string_list(
+            layer.get("behavior_examples"),
+            "planning-entry handoff principle_layer.behavior_examples",
+        ),
+        "transfer_checks": require_string_list(
+            layer.get("transfer_checks"),
+            "planning-entry handoff principle_layer.transfer_checks",
+        ),
+        "evidence_refs": require_string_list(
+            layer.get("evidence_refs"),
+            "planning-entry handoff principle_layer.evidence_refs",
+        ),
+    }
 
 
 def eprint(msg: str) -> None:
@@ -320,6 +352,7 @@ def load_planning_entry_handoff(handoff_path: Path) -> dict[str, Any]:
         route.get("recipe_id"),
         "planning-entry handoff recommended_route.recipe_id",
     )
+    principle_layer = optional_principle_layer(payload.get("principle_layer"))
 
     return {
         "schema": schema,
@@ -336,6 +369,7 @@ def load_planning_entry_handoff(handoff_path: Path) -> dict[str, Any]:
             payload.get("demand_summary"),
             "planning-entry handoff demand_summary",
         ),
+        "principle_layer": principle_layer,
         "success_criteria": require_string_list(
             payload.get("success_criteria"),
             "planning-entry handoff success_criteria",
@@ -361,6 +395,29 @@ def render_planning_entry_proposal(feat_id: str, handoff: dict[str, Any]) -> str
     constraint_lines = [f"- {item}" for item in handoff["constraints"]]
     artifact_lines = [f"- `{item}`" for item in handoff["source_artifacts"]]
     ref_lines = [f"- `{item}`" for item in handoff["source_refs"]]
+    layer = handoff.get("principle_layer")
+    if not isinstance(layer, dict):
+        layer = {
+            "what": handoff["objective"],
+            "why": handoff["demand_summary"],
+            "intended_generalization": (
+                "Apply this clarified planning intent to canonical tracker tasks derived from the approved handoff."
+            ),
+            "failure_boundary": (
+                "Do not treat the handoff artifact as a second planning source of truth, and do not infer scope outside approved success criteria and constraints."
+            ),
+            "behavior_examples": [handoff["goal"]],
+            "transfer_checks": [
+                "A handoff with similar wording but without approved review must not be materialized.",
+                "Raw brainstorm prose outside the normalized handoff must not define tracker scope.",
+                "Tracker tasks should still be validated by task gates rather than proposal prose.",
+            ],
+            "evidence_refs": handoff["source_refs"],
+        }
+    behavior_example_lines = [f"  - {item}" for item in layer["behavior_examples"]]
+    transfer_check_lines = [f"  - {item}" for item in layer["transfer_checks"]]
+    evidence_ref_lines = [f"  - `{item}`" for item in layer["evidence_refs"]]
+    transfer_check_top_lines = [f"- {item}" for item in layer["transfer_checks"]]
     return "\n".join(
         [
             f"# Feature Proposal: {feat_id}",
@@ -371,11 +428,29 @@ def render_planning_entry_proposal(feat_id: str, handoff: dict[str, Any]) -> str
             "## Goal",
             f"- {handoff['goal']}",
             "",
+            "## Principle Layer",
+            f"- What: {layer['what']}",
+            f"- Why: {layer['why']}",
+            f"- Intended generalization: {layer['intended_generalization']}",
+            f"- Failure boundary: {layer['failure_boundary']}",
+            "- Behavior examples:",
+            *behavior_example_lines,
+            "- Transfer checks:",
+            *transfer_check_lines,
+            "- Evidence refs:",
+            *evidence_ref_lines,
+            "",
             "## Scope",
             "- In scope:",
             *success_lines,
             "- Out of scope:",
             "  - Replacing canonical tracker truth with the handoff artifact itself.",
+            "",
+            "## Acceptance Criteria",
+            *success_lines,
+            "",
+            "## Transfer Checks",
+            *transfer_check_top_lines,
             "",
             "## Impact",
             "- Code paths:",
@@ -1326,6 +1401,41 @@ def find_task(tasks: dict[str, Any], task_id: str) -> dict[str, Any]:
 
 def count_tasks(tasks: dict[str, Any], status: str) -> int:
     return sum(1 for t in tasks.get("tasks", []) if t.get("status") == status)
+
+
+def task_count_after_finish(tasks: dict[str, Any], task_id: str, result: str, status: str) -> int:
+    count = 0
+    for task in tasks.get("tasks", []):
+        task_status = result if task.get("id") == task_id else task.get("status")
+        if task_status == status:
+            count += 1
+    return count
+
+
+def feature_scope_for_status(status: str) -> str:
+    if status == "archived":
+        return "archived"
+    if status == "discarded":
+        return "discarded"
+    return "active"
+
+
+def parse_feature_scopes(raw_items: list[str] | None) -> set[str]:
+    if not raw_items:
+        return set(DEFAULT_FEATURE_SCOPES)
+    scopes: set[str] = set()
+    for raw in raw_items:
+        for item in re.split(r"[,|]", raw):
+            scope = item.strip()
+            if not scope:
+                continue
+            if scope not in FEATURE_SCOPES:
+                allowed = ", ".join(sorted(FEATURE_SCOPES))
+                raise SystemExit(f"error: invalid feature scope: {scope}; expected one of: {allowed}")
+            scopes.add(scope)
+    if not scopes:
+        return set(DEFAULT_FEATURE_SCOPES)
+    return scopes
 
 
 def ensure_harness_exists(paths: HarnessPaths) -> None:
@@ -3265,6 +3375,186 @@ def cmd_feat_discard(args: argparse.Namespace) -> int:
     return 0
 
 
+def closeout_plan_lines(root: Path, state: dict[str, Any], tasks: dict[str, Any]) -> list[str]:
+    feat_id = str(state.get("feat_id") or "")
+    status = str(state.get("status") or "")
+    root_q = shlex.quote(str(root))
+    lines: list[str] = []
+
+    if status in CLOSED_FEAT_STATUS:
+        lines.append(f"{feat_id}: already {status}")
+        return lines
+
+    if status == "done":
+        lines.append(
+            f"{feat_id}: active done; archive with "
+            f"feature-tracker.sh archive-feature --root {root_q} --feature {feat_id}"
+        )
+        return lines
+
+    if status == "blocked":
+        lines.append(
+            f"{feat_id}: blocked; choose archive-feature or "
+            "discard-feature --reason stale|superseded|cancelled|invalid"
+        )
+        return lines
+
+    if status == "in_progress":
+        task_id = str(state.get("current_task_id") or "")
+        task = find_task(tasks, task_id) if task_id else None
+        if not task:
+            lines.append(f"{feat_id}: in_progress without current_task_id; inspect tracker state")
+            return lines
+        gate_result = str(task.get("gate_result") or "")
+        if gate_result != "pass":
+            lines.append(
+                f"{feat_id}: task {task_id} needs passing gate before closeout; run "
+                f"feature-tracker.sh run-task-gate --root {root_q} --feature {feat_id} --task {task_id}"
+            )
+            return lines
+        lines.append(
+            f"{feat_id}: task {task_id} gate passed; close with "
+            f"feature-tracker.sh closeout-feature --root {root_q} --feature {feat_id} "
+            f"--task {task_id} --result done --execute"
+        )
+        return lines
+
+    lines.append(f"{feat_id}: status={status}; no automatic closeout plan")
+    return lines
+
+
+def active_closeout_plan_lines(root: Path, paths: HarnessPaths) -> list[str]:
+    index_data = load_index(paths)
+    lines: list[str] = []
+    for item in index_data.get("features", []):
+        feat_id = str(item.get("feat_id", ""))
+        state, tasks = load_feat(paths, feat_id)
+        status = str(state.get("status") or "")
+        if status in CLOSED_FEAT_STATUS:
+            continue
+        if status not in {"done", "blocked", "in_progress"}:
+            continue
+        lines.extend(closeout_plan_lines(root, state, tasks))
+    return lines
+
+
+def cmd_feat_closeout(args: argparse.Namespace) -> int:
+    root = Path(args.root).resolve()
+    paths = HarnessPaths(root)
+    ensure_harness_exists(paths)
+
+    state, tasks = load_feat(paths, args.feat)
+    status = str(state.get("status") or "")
+    feat_id = str(state.get("feat_id") or args.feat)
+
+    if status in CLOSED_FEAT_STATUS:
+        print(f"ok: feat already {status} {args.feat}")
+        return 0
+
+    mode = str(args.mode or "archive")
+    execute = bool(args.execute)
+
+    if mode == "discard":
+        reason = str(args.reason or "").strip()
+        if not reason:
+            eprint("error: --reason is required with --mode discard")
+            return 1
+        if status == "in_progress" and count_tasks(tasks, "in_progress") > 0:
+            eprint("error: cannot discard feat while a task is in_progress")
+            eprint("hint: finish the active task as blocked or done before discard closeout")
+            return 1
+        if not execute:
+            print(
+                "plan: feature-tracker.sh discard-feature "
+                f"--root {shlex.quote(str(root))} --feature {feat_id} --reason {reason}"
+            )
+            print("next: rerun closeout-feature with --execute")
+            return 0
+        return cmd_feat_discard(
+            argparse.Namespace(
+                root=str(root),
+                feat=feat_id,
+                reason=reason,
+                replacement=args.replacement,
+            )
+        )
+
+    if status == "blocked" and not args.archive_blocked:
+        eprint("error: blocked feat closeout requires --archive-blocked or --mode discard --reason <reason>")
+        return 1
+
+    task_id = str(args.task or "").strip()
+    result = str(args.result or "done")
+
+    if status == "in_progress":
+        if not task_id:
+            task_id = str(state.get("current_task_id") or "")
+        if not task_id:
+            eprint("error: --task is required when closing an in_progress feat without current_task_id")
+            return 1
+        task = find_task(tasks, task_id)
+        if task.get("status") != "in_progress":
+            eprint(f"error: task is not in_progress: {task_id}")
+            return 1
+        if state.get("current_task_id") != task_id:
+            eprint("error: state current_task_id mismatch")
+            return 1
+        if result == "done" and task.get("gate_result") != "pass":
+            eprint("error: cannot closeout task as done without gate pass")
+            return 1
+        would_finish_feature = (
+            result == "done"
+            and task_count_after_finish(tasks, task_id, result, "todo") == 0
+            and task_count_after_finish(tasks, task_id, result, "in_progress") == 0
+        )
+        if result == "blocked" or not would_finish_feature:
+            if not execute:
+                print(
+                    "plan: feature-tracker.sh finish-task "
+                    f"--root {shlex.quote(str(root))} --feature {feat_id} --task {task_id} --result {result}"
+                )
+                print("next: rerun closeout-feature with --execute")
+                return 0
+            return cmd_task_finish(
+                argparse.Namespace(root=str(root), feat=feat_id, task=task_id, result=result)
+            )
+
+        if not execute:
+            print(
+                "plan: feature-tracker.sh finish-task "
+                f"--root {shlex.quote(str(root))} --feature {feat_id} --task {task_id} --result done"
+            )
+            print(
+                "then: feature-tracker.sh archive-feature "
+                f"--root {shlex.quote(str(root))} --feature {feat_id}"
+            )
+            print("next: rerun closeout-feature with --execute")
+            return 0
+
+        finish_code = cmd_task_finish(
+            argparse.Namespace(root=str(root), feat=feat_id, task=task_id, result="done")
+        )
+        if finish_code != 0:
+            return finish_code
+        state, tasks = load_feat(paths, feat_id)
+        status = str(state.get("status") or "")
+
+    if status not in {"done", "blocked"}:
+        for line in closeout_plan_lines(root, state, tasks):
+            print(f"plan: {line}")
+        return 1
+
+    if not execute:
+        print(
+            "plan: feature-tracker.sh archive-feature "
+            f"--root {shlex.quote(str(root))} --feature {feat_id}"
+        )
+        print("next: rerun closeout-feature with --execute")
+        return 0
+
+    return cmd_feat_archive(argparse.Namespace(root=str(root), feat=feat_id))
+
+
 def validate_feat(paths: HarnessPaths, root: Path, feat_id: str) -> list[str]:
     errors: list[str] = []
     state, tasks = load_feat(paths, feat_id)
@@ -3641,6 +3931,15 @@ def cmd_doctor(args: argparse.Namespace) -> int:
         rounds = int(counters.get("round_count", 0))
         status = str(state.get("status") or "")
 
+        if status in CLOSED_FEAT_STATUS:
+            summary_file = paths.feat_summary(feat_id, status=status)
+            if not summary_file.exists():
+                warnings.append(f"{feat_id}: {status} feat missing summary.md")
+            continue
+
+        if status == "done":
+            warnings.append(f"{feat_id}: status=done remains active; run archive-feature")
+
         if fail_streak >= gate_fail_limit:
             warnings.append(
                 f"{feat_id}: gate_fail_streak={fail_streak} reached threshold {gate_fail_limit}"
@@ -3657,12 +3956,6 @@ def cmd_doctor(args: argparse.Namespace) -> int:
         if status == "in_progress" and count_tasks(tasks, "in_progress") == 0:
             warnings.append(f"{feat_id}: feature status in_progress but no task in_progress")
 
-        if status in CLOSED_FEAT_STATUS:
-            summary_file = paths.feat_summary(feat_id, status=status)
-            if not summary_file.exists():
-                warnings.append(f"{feat_id}: {status} feat missing summary.md")
-            continue
-
     print("== doctor report ==")
     if warnings:
         for w in warnings:
@@ -3674,6 +3967,14 @@ def cmd_doctor(args: argparse.Namespace) -> int:
     print("1) Address threshold warnings before starting next task.")
     print("2) Run feature-tracker.sh run-task-gate before every task commit.")
     print("3) Close completed or superseded feats explicitly with archive-feature or discard-feature.")
+    if getattr(args, "closeout_plan", False):
+        print("\ncloseout plan:")
+        plan_lines = active_closeout_plan_lines(root, paths)
+        if plan_lines:
+            for line in plan_lines:
+                print(f"- {line}")
+        else:
+            print("- no active closeout candidates")
     return 0
 
 
@@ -4193,7 +4494,8 @@ def cmd_show_feat_dag(args: argparse.Namespace) -> int:
     return 0
 
 
-def query_list(paths: HarnessPaths) -> list[dict[str, Any]]:
+def query_list(paths: HarnessPaths, *, scopes: set[str] | None = None) -> list[dict[str, Any]]:
+    selected_scopes = scopes or set(DEFAULT_FEATURE_SCOPES)
     index_data = load_index(paths)
     out: list[dict[str, Any]] = []
     for item in index_data.get("features", []):
@@ -4202,11 +4504,15 @@ def query_list(paths: HarnessPaths) -> list[dict[str, Any]]:
             state, tasks = load_feat(paths, feat_id)
         except SystemExit:
             continue
+        scope = feature_scope_for_status(str(state.get("status") or ""))
+        if scope not in selected_scopes:
+            continue
         out.append(
             {
                 "feat_id": feat_id,
                 "title": state.get("title", ""),
                 "status": state.get("status", ""),
+                "scope": scope,
                 "workspace_mode": state.get("workspace_mode", ""),
                 "branch": state.get("branch", ""),
                 "worktree": state.get("worktree_path", ""),
@@ -4229,11 +4535,12 @@ def query_one(paths: HarnessPaths, feat_id: str) -> dict[str, Any]:
 def query_filter(
     paths: HarnessPaths,
     *,
+    scopes: set[str],
     feat_status: str | None,
     task_status: str | None,
     contains: str | None,
 ) -> list[dict[str, Any]]:
-    items = query_list(paths)
+    items = query_list(paths, scopes=scopes)
     out: list[dict[str, Any]] = []
     needle = contains.lower() if contains else None
 
@@ -4258,7 +4565,8 @@ def query_filter(
 def cmd_query_list(args: argparse.Namespace) -> int:
     paths = HarnessPaths(Path(args.root).resolve())
     ensure_harness_exists(paths)
-    print(json.dumps({"features": query_list(paths)}, ensure_ascii=False, indent=2))
+    scopes = parse_feature_scopes(args.scope)
+    print(json.dumps({"features": query_list(paths, scopes=scopes)}, ensure_ascii=False, indent=2))
     return 0
 
 
@@ -4272,11 +4580,13 @@ def cmd_query_get(args: argparse.Namespace) -> int:
 def cmd_query_filter(args: argparse.Namespace) -> int:
     paths = HarnessPaths(Path(args.root).resolve())
     ensure_harness_exists(paths)
+    scopes = parse_feature_scopes(args.scope)
     print(
         json.dumps(
             {
                 "features": query_filter(
                     paths,
+                    scopes=scopes,
                     feat_status=args.status,
                     task_status=args.task_status,
                     contains=args.contains,
@@ -4393,6 +4703,18 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--result", choices=["done", "blocked"], required=True)
     sp.set_defaults(func=cmd_task_finish)
 
+    sp = sub.add_parser("closeout-feature", help="plan or execute feature closeout")
+    add_common(sp)
+    sp.add_argument("--feature", dest="feat", required=True)
+    sp.add_argument("--task", default="")
+    sp.add_argument("--result", choices=["done", "blocked"], default="done")
+    sp.add_argument("--mode", choices=["archive", "discard"], default="archive")
+    sp.add_argument("--reason", choices=["stale", "superseded", "cancelled", "invalid"], default="")
+    sp.add_argument("--replacement", default="")
+    sp.add_argument("--archive-blocked", action="store_true")
+    sp.add_argument("--execute", action="store_true")
+    sp.set_defaults(func=cmd_feat_closeout)
+
     sp = sub.add_parser("archive-feature", help="archive feature (move dir + cleanup worktree)")
     add_common(sp)
     sp.add_argument("--feature", dest="feat", required=True)
@@ -4411,6 +4733,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     sp = sub.add_parser("diagnose-tracker", help="run doctor checks")
     add_common(sp)
+    sp.add_argument("--closeout-plan", action="store_true")
     sp.set_defaults(func=cmd_doctor)
 
     sp = sub.add_parser("replan-features", help="recompute feature dependency projection and archive previous DAG")
@@ -4432,6 +4755,12 @@ def build_parser() -> argparse.ArgumentParser:
 
     sp = sub.add_parser("list-features", help="query features list")
     add_common(sp)
+    sp.add_argument(
+        "--scope",
+        action="append",
+        default=None,
+        help="feature lifecycle scope: active, archived, discarded; repeat or comma-separate values; default active",
+    )
     sp.set_defaults(func=cmd_query_list)
 
     sp = sub.add_parser("get-feature", help="query one feature")
@@ -4441,6 +4770,12 @@ def build_parser() -> argparse.ArgumentParser:
 
     sp = sub.add_parser("filter-features", help="query features with filters")
     add_common(sp)
+    sp.add_argument(
+        "--scope",
+        action="append",
+        default=None,
+        help="feature lifecycle scope: active, archived, discarded; repeat or comma-separate values; default active",
+    )
     sp.add_argument("--status", default=None)
     sp.add_argument("--task-status", choices=["todo", "in_progress", "done", "blocked"], default=None)
     sp.add_argument("--contains", default=None)
@@ -4462,6 +4797,7 @@ def command_requires_global_tracker_lock(args: argparse.Namespace) -> bool:
         "assign-feature-workspace",
         "start-task",
         "finish-task",
+        "closeout-feature",
         "archive-feature",
         "discard-feature",
         "replan-features",

@@ -29,12 +29,17 @@ under `recipes/`.
 ## Output Discipline
 
 Follow `docs/specs/output-discipline.md` for task-local skill evidence.
+Follow `docs/specs/principle-layer-contract.md` when a selector episode may
+produce reusable selection guidance.
 
 - distinguish `visible`, `available`, and `selected` candidates
 - compare alternatives only when they change the task route
 - record what each selected skill actually did, with evidence
 - surface repeated task-local failure as an evolver signal instead of silently
   widening selector's role
+- for selected and rejected candidates, preserve the choice reason, intended
+  generalization, and failure boundary when that rationale may affect future
+  tasks
 
 Stable selector-versus-evolver meaning lives in:
 

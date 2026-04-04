@@ -8,6 +8,18 @@
 - Expected outcome:
 - Raw discussion record: `raw_discussion_log.md`
 
+## Principle Layer
+- What:
+- Why:
+- Intended generalization:
+- Failure boundary:
+- Behavior examples:
+  -
+- Transfer checks:
+  -
+- Evidence refs:
+  -
+
 ## Handoff Package
 | Item | Destination Path/ID | Owner | Notes |
 |------|----------------------|-------|-------|
@@ -22,6 +34,7 @@
 - [ ] User review completed and `user_review_status=approved`.
 - [ ] Risks and guardrails listed.
 - [ ] Validation steps and signals defined.
+- [ ] Principle layer records what, why, intended generalization, failure boundary, and transfer checks.
 - [ ] If MVP had multiple versions, each version is under `experimental/<expert>-<experiment>/vN-<semantic-description>/` and has `version_delta.md` with baseline-read and no-regression sections.
 
 ## Risks and Mitigations
