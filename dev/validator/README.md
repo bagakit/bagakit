@@ -54,6 +54,11 @@ Assertion note:
 - owner-local suites should prefer structured state and bounded payload
   assertions over large free-form string matching whenever the owning surface
   already exposes machine-readable truth
+- source grep is a valid proof surface only when the source text is itself the
+  published contract; runtime behavior should be proven through commands, APIs,
+  generated artifacts, fake boundaries, receipts, or resulting state
+- detailed assertion discipline lives in
+  `docs/stewardship/sop/validation-sop.md`
 
 Implementation note:
 

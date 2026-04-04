@@ -1,6 +1,6 @@
 ---
 name: bagakit-skill-selector
-description: Frontdoor meta-skill for non-trivial Bagakit-shaped work: run selector preflight before major implementation, compare visible/available candidates, choose explicit skill or composition routes, record task signals, candidate results, lesson updates, usage evidence, and task-local evaluation. Use when a repo task involves skill choice, multiple tools, composition, retries, eval evidence, gold/silver selector cases, or possible evolver handoff; trivial one-step work may execute directly.
+description: Frontdoor meta-skill for non-trivial Bagakit-shaped work that runs selector preflight before major implementation, compares visible or available candidates, chooses explicit skill or composition routes, records task signals, candidate results, lesson updates, usage evidence, and task-local evaluation. Use when a repo task involves skill choice, multiple tools, composition, retries, eval evidence, gold or silver selector cases, or possible evolver handoff; trivial one-step work may execute directly.
 metadata:
   bagakit:
     harness_layer: l1-execution

@@ -79,6 +79,7 @@ required_files = [
   "gate_validation/backbone/check-frontdoor-contract.sh",
   "gate_validation/backbone/check-runtime-control-chain.py",
   "gate_validation/backbone/check-runtime-surface-contract.py",
+  "gate_validation/backbone/check-validation-proof-discipline.py",
   "gate_validation/backbone/validation.toml",
   "gate_validation/dev/agent_runner/validation.toml",
   "gate_validation/dev/agent_loop/validation.toml",
@@ -246,6 +247,26 @@ groups = ["repo", "backbone", "contract", "runtime-control-chain"]
 [suite.runner]
 kind = "python_script"
 script = "gate_validation/backbone/check-runtime-control-chain.py"
+args = [
+  "--root",
+  "{repo_root}",
+]
+
+[[suite]]
+id = "validation-proof-discipline"
+owner = "gate_validation/backbone"
+description = "Keep validation proof-surface guidance aligned across AGENTS, spec, SOP, and validator docs."
+default = true
+proof_mode = "wording_contract"
+proves = ["validation-proof-discipline proves: validation proof-surface guidance distinguishes public behavior and owned contract text from private implementation shape."]
+does_not_prove = ["validation-proof-discipline does not prove runtime behavior, suite semantic correctness, or that every existing validation assertion follows the guidance."]
+timeout_seconds = 120
+validation_class = "contract"
+groups = ["repo", "backbone", "contract", "validation"]
+
+[suite.runner]
+kind = "python_script"
+script = "gate_validation/backbone/check-validation-proof-discipline.py"
 args = [
   "--root",
   "{repo_root}",

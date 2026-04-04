@@ -109,6 +109,8 @@ Current core references:
   - `docs/specs/frontdoor-index-contract.md`
 - selector entry policy:
   - `docs/specs/selector-selection-model.md`
+- validation assertion discipline:
+  - `docs/stewardship/sop/validation-sop.md`
 
 ## Selector Entry Rule
 
@@ -117,6 +119,12 @@ implementation.
 
 Selector frontdoor and candidate-scope semantics live in
 `docs/specs/selector-selection-model.md`.
+
+## Validation Rule
+
+Validation should prove public behavior or owned contract text, not private
+implementation shape. Detailed assertion-choice rules live in
+`docs/stewardship/sop/validation-sop.md`.
 
 ## Tool Rule
 

@@ -225,6 +225,9 @@ Allowed uses of string matching:
 
 - thin CLI smoke boundaries
 - exact contract token presence where the token itself is the stable output
+- source text checks only when that text is the published contract, such as
+  installed skill instructions, managed frontdoor text, generated prompts, or
+  explicit templates
 - placeholder cleanup checks for completion-critical artifacts
 - bounded human-facing report sections when no structured owner surface exists
 
@@ -233,6 +236,8 @@ Discouraged uses of string matching:
 - proving semantic correctness of a workflow that already has structured state
 - checking many incidental wording details in long markdown or shell output
 - using line-by-line grep as the main proof for owner-owned runtime behavior
+- asserting private source strings, method names, imports, comments, or broad
+  absence regexes as behavior proof
 
 Promotion rule:
 

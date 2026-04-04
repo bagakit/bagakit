@@ -91,6 +91,58 @@ Default stance:
 - move rich semantic checks toward structured owner-owned state whenever
   feasible
 
+## Behavior Proof Rule
+
+Before adding or changing a validation assertion, name three things:
+
+1. the behavior or boundary being protected
+2. the independent oracle that proves it
+3. the public or owned boundary being exercised
+
+Good validation failures should say which behavior contract broke. They should
+not merely say that an implementation string, private method name, import,
+comment, heading, or broad source-code pattern changed.
+
+Prefer proof through:
+
+- public commands, public APIs, or exported helper boundaries
+- generated argv, generated prompts, parsed payloads, receipts, or resulting
+  state
+- fake transports, fake processes, fake stores, and deterministic fixtures
+- structured artifacts owned by the surface under test
+
+Source inspection is valid only when the inspected text is itself the published
+contract. Examples include installable skill instructions, managed frontdoor
+text, generated prompt text, explicit template payloads, or wording that users
+and agents consume directly.
+
+When source text is the contract:
+
+- use `proof_mode = "wording_contract"` when the suite is registered in
+  `gate_validation/validation.toml`, or use explicit text-contract wording in
+  comments and failure messages for local helper assertions
+- keep the match narrow to the contract phrase or generated payload
+- state what runtime behavior the wording assertion does not prove
+
+For tool and runtime behavior, source grep is usually a change-detector test.
+Do not read implementation source and assert private strings, method names,
+headings, imports, comments, or broad absence regexes as runtime proof.
+Patterns such as broad `writeFile|mkdir|rm` absence checks are not safety
+proofs; prove safety through the command boundary, fake filesystem or store
+results, parsed receipts, or denied operation outcomes.
+
+If a private refactor that preserves externally meaningful behavior would fail
+the validation, rewrite the assertion or explicitly classify it as a wording
+contract. This matters especially in Bagakit because skill authoring and tool
+development have different proof surfaces: skill text may be runtime payload,
+while tool source code is usually implementation detail.
+
+Reference anchors:
+
+- Google Testing Blog, "Change-Detector Tests Considered Harmful"
+- Testing Library Guiding Principles
+- Software Engineering at Google, "Unit Testing"
+
 ## Timing Review Rule
 
 Before proposing:
