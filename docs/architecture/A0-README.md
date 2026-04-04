@@ -32,6 +32,8 @@ low-level stable contracts and not for maintainer procedures.
   - `host / upstream / split` and `.mem_inbox`
 - `docs/architecture/C3-outer-driver-stop-and-recovery-model.md`
   - outer-driver stop classification, recovery layering, and host escalation boundaries
+- `docs/architecture/C4-runtime-control-chain.md`
+  - operator, host, protocol, runner, and harness-skill feedback chain
 - `docs/specs/harness-concepts.md`
   - concept registry and stable layer vocabulary
   - supports the architecture document without replacing it
@@ -54,10 +56,11 @@ low-level stable contracts and not for maintainer procedures.
 8. `docs/architecture/C1-evidence-and-promotion-flow.md`
 9. `docs/architecture/C2-routing-model.md`
 10. `docs/architecture/C3-outer-driver-stop-and-recovery-model.md`
-11. `docs/specs/harness-concepts.md`
-12. `docs/specs/evolver-memory.md`
-13. `docs/specs/evolver-evidence-intake.md`
-14. `docs/stewardship/README.md`
+11. `docs/architecture/C4-runtime-control-chain.md`
+12. `docs/specs/harness-concepts.md`
+13. `docs/specs/evolver-memory.md`
+14. `docs/specs/evolver-evidence-intake.md`
+15. `docs/stewardship/README.md`
 
 ## Boundary
 

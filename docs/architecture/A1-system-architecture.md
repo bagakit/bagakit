@@ -261,6 +261,7 @@ The detailed flow design that connects these systems lives in:
 
 - `docs/architecture/C1-evidence-and-promotion-flow.md`
 - `docs/architecture/C2-routing-model.md`
+- `docs/architecture/C4-runtime-control-chain.md`
 
 ### `researcher`
 
@@ -359,6 +360,11 @@ Current maintainer-side host tool:
   - owns repo-local lock, launch config, and host exhaust only
   - does not own item truth or closeout authority
 
+The cross-surface chain from operator presentation through execution host,
+flow protocol, runner substrate, and harness-skill feedback is defined in:
+
+- `docs/architecture/C4-runtime-control-chain.md`
+
 ### framework surfaces
 
 Framework surfaces own:
@@ -378,6 +384,7 @@ Detailed flow design lives in:
 
 - `docs/architecture/C1-evidence-and-promotion-flow.md`
 - `docs/architecture/C2-routing-model.md`
+- `docs/architecture/C4-runtime-control-chain.md`
 
 ### Evidence Intake Flow
 

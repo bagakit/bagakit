@@ -77,6 +77,7 @@ required_files = [
   "gate_validation/backbone/check-canonical-packaging.sh",
   "gate_validation/backbone/check-canonical-skill-layout.sh",
   "gate_validation/backbone/check-frontdoor-contract.sh",
+  "gate_validation/backbone/check-runtime-control-chain.py",
   "gate_validation/backbone/check-runtime-surface-contract.py",
   "gate_validation/backbone/validation.toml",
   "gate_validation/dev/agent_runner/validation.toml",
@@ -225,6 +226,26 @@ groups = ["repo", "backbone", "contract", "runtime-surface"]
 [suite.runner]
 kind = "python_script"
 script = "gate_validation/backbone/check-runtime-surface-contract.py"
+args = [
+  "--root",
+  "{repo_root}",
+]
+
+[[suite]]
+id = "runtime-control-chain-contract"
+owner = "gate_validation/backbone"
+description = "Require the runtime control chain docs and owner-local validation anchors to preserve host, protocol, runner, and receipt boundaries."
+default = true
+proof_mode = "wording_contract"
+proves = ["runtime-control-chain-contract proves: the architecture and specs preserve protocol-kernel, mutation-receipt, host-exhaust, owner-local validation anchors, and the current protocol-kernel import boundary against host and runner modules."]
+does_not_prove = ["runtime-control-chain-contract does not prove runtime behavior, full transitive import graph isolation, owner-local flow-runner or agent-loop smoke coverage, live runner behavior, or stochastic agent quality."]
+timeout_seconds = 120
+validation_class = "contract"
+groups = ["repo", "backbone", "contract", "runtime-control-chain"]
+
+[suite.runner]
+kind = "python_script"
+script = "gate_validation/backbone/check-runtime-control-chain.py"
 args = [
   "--root",
   "{repo_root}",

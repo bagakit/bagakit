@@ -214,6 +214,10 @@ The focused architecture for that split lives in:
 
 - `docs/architecture/C3-outer-driver-stop-and-recovery-model.md`
 
+The broader operator-to-skill control chain lives in:
+
+- `docs/architecture/C4-runtime-control-chain.md`
+
 ## Inputs
 
 L2 may consume:

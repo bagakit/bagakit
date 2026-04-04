@@ -2,6 +2,11 @@
 
 This document defines the stable runtime contract for `bagakit-flow-runner`.
 
+Its place as Bagakit's current flow protocol surface in the broader runtime
+control chain is defined in:
+
+- `docs/architecture/C4-runtime-control-chain.md`
+
 ## Scope
 
 This contract covers:

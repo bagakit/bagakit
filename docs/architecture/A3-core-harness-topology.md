@@ -72,6 +72,28 @@ flowchart LR
     RES <-.standalone-first optional composition.-> LIV
 ```
 
+## Runtime Control Chain
+
+The topology diagram shows how harness roles cooperate.
+
+The live runtime chain is narrower:
+
+- operator surface and connector
+- execution host
+- flow protocol
+- runner substrate
+- harness skills
+- flow protocol feedback
+
+That chain is defined in:
+
+- `docs/architecture/C4-runtime-control-chain.md`
+
+The key rule is that displays and connectors route intent through the host,
+the host routes accepted execution-state changes through the protocol, and
+harness skills return execution-facing effects through the protocol instead of
+creating parallel truth.
+
 ## How To Read The Diagram
 
 The diagram uses paired labels when a runtime unit and its primary working

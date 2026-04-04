@@ -107,6 +107,8 @@ They do not replace the stable concept registry below.
 | `feature_tracker` | the execution-system surface that owns feature or ticket planning truth and lifecycle state |
 | `feature_id_cursor` | the tracked ordered issuance counter that gives feature ids stable lexical order inside one tracker repository |
 | `local_feature_issuer` | the local-only issuer surface that marks one working copy without becoming canonical planning truth |
+| `operator_surface` | a display, notification, or connector surface that presents state and routes operator intent without becoming execution truth |
+| `runner_substrate` | the bounded executor wrapper that launches one runner session and captures session facts without owning work state |
 
 ### L2 Behavior Concepts
 
@@ -123,7 +125,9 @@ They do not replace the stable concept registry below.
 | `split_route` | the route that separates one host-specific adoption lesson from one reusable upstream lesson; the raw routing token is `split` |
 | `mem_inbox` | an optional intake buffer for upstream-worthy memory that is not yet ready to become structured evolver topic state |
 | `outer_driver` | the repeated-run or repeated-round orchestrator around execution |
-| `flow_runner` | the adjustable runtime surface that carries one outer-driver flow over normalized work items |
+| `execution_host` | the host-side orchestration surface that owns live-run focus, continuation, recovery, and operator-attention decisions |
+| `flow_protocol` | the execution-facing mutation and projection protocol that owns accepted state changes, receipts, checkpoints, incidents, and next-action semantics |
+| `flow_runner` | the adjustable runtime surface that carries one outer-driver flow over normalized work items and currently provides Bagakit's main flow protocol surface |
 
 ### Governance Concepts
 

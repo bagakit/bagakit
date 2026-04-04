@@ -2,6 +2,11 @@
 
 This document defines the stable host-side runtime contract for `dev/agent_loop`.
 
+Its place in the operator, execution host, protocol, runner, and harness-skill
+feedback chain is defined in:
+
+- `docs/architecture/C4-runtime-control-chain.md`
+
 ## Scope
 
 This contract covers:
