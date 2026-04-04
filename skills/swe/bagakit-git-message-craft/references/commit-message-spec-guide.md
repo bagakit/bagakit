@@ -77,7 +77,9 @@ If there are no follow-ups, omit the section.
 - dumping one bullet per touched module with no prioritization
 - listing more than 5 facts instead of splitting the commit
 - using `This` / `It` when the subject can be named directly
-- using absolute filesystem paths in refs
+- using absolute filesystem paths anywhere in the durable message
+- recording validation commands that depend on a symlink-source skill path or
+  another checkout instead of the current project root
 - leaving placeholder tokens in the final message
 
 If the current repository defines a higher-level commit wrapper, use that

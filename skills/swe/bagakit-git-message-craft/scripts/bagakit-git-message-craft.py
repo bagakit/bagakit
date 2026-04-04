@@ -31,7 +31,7 @@ SESSION_ARTIFACTS_TRACKED = "tracked"
 ARCHIVE_CLEANUP_SESSION = "session"
 ARCHIVE_CLEANUP_NONE = "none"
 ABSOLUTE_PATH_LITERAL_RE = re.compile(
-    r"""(?:(?<=^)|(?<=[\s"'`(\[]))(?P<path>(?:/(?!/)[^\s"'`)\],;]+|[A-Za-z]:\\[^\s"'`)\],;]+|\\\\[^\s"'`)\],;]+))"""
+    r"""(?:(?<=^)|(?<=[\s"'`(\[=]))(?P<path>(?:/(?!/)[^\s"'`)\],;]+|~[\\/][^\s"'`)\],;]+|[A-Za-z]:\\[^\s"'`)\],;]+|\\\\[^\s"'`)\],;]+))"""
 )
 FACT_PRIORITY_ORDER = {"p0": 0, "p1": 1, "p2": 2}
 SESSION_GITIGNORE_TEXT = (
@@ -102,6 +102,29 @@ def path_within(path: Path, parent: Path) -> bool:
     return True
 
 
+def lexical_path_within(path: Path, parent: Path) -> bool:
+    try:
+        path.expanduser().absolute().relative_to(parent.expanduser().absolute())
+    except ValueError:
+        return False
+    return True
+
+
+def durable_path_within(path: Path, parent: Path) -> bool:
+    return lexical_path_within(path, parent) or path_within(path.expanduser().resolve(), parent)
+
+
+def durable_rel(parent: Path, path: Path) -> str:
+    absolute_path = path.expanduser().absolute()
+    try:
+        return str(absolute_path.relative_to(parent.expanduser().absolute()))
+    except ValueError:
+        resolved_path = absolute_path.resolve()
+        if path_within(resolved_path, parent):
+            return rel(parent, resolved_path)
+        raise
+
+
 def git_dir_path(root: Path) -> Path:
     git_dir = Path(run_git(root, ["rev-parse", "--git-dir"]).strip())
     if not git_dir.is_absolute():
@@ -127,6 +150,10 @@ def discover_git_root(start: Path) -> Path | None:
 
 def is_windows_absolute_path(value: str) -> bool:
     return bool(re.match(r"^[A-Za-z]:[\\/]", value) or value.startswith("\\\\"))
+
+
+def is_home_relative_path(value: str) -> bool:
+    return bool(re.match(r"^~(?:[\\/]|$)", value))
 
 
 def normalize_repo_relative_path(root: Path, value: str) -> str:
@@ -184,37 +211,51 @@ def find_absolute_path_literals(text: str) -> list[str]:
     matches: list[str] = []
     for match in ABSOLUTE_PATH_LITERAL_RE.finditer(text):
         value = match.group("path").rstrip(".")
+        if value in {"/", "~"}:
+            continue
         if value not in seen:
             seen.add(value)
             matches.append(value)
     return matches
 
 
-def normalize_archive_text(root: Path, text: str, field_label: str) -> str:
+def normalize_durable_text(root: Path, text: str, field_label: str, *, allow_git_dir: bool) -> str:
     normalized = text.strip()
     if not normalized:
         raise ValueError(f"{field_label} must not be empty")
 
     git_dir = git_dir_path(root)
     for literal in find_absolute_path_literals(normalized):
+        if is_home_relative_path(literal):
+            raise ValueError(
+                f"{field_label} must not contain home-relative paths in durable output: {literal}"
+            )
         if is_windows_absolute_path(literal):
             raise ValueError(
                 f"{field_label} must not contain Windows absolute paths in durable output: {literal}"
             )
 
-        resolved = Path(literal).expanduser().resolve()
-        if path_within(resolved, root):
-            replacement = rel(root, resolved)
-        elif path_within(resolved, git_dir):
-            replacement = f"git-dir/{rel(git_dir, resolved)}"
+        literal_path = Path(literal).expanduser().absolute()
+        if durable_path_within(literal_path, root):
+            replacement = durable_rel(root, literal_path)
+        elif allow_git_dir and durable_path_within(literal_path, git_dir):
+            replacement = f"git-dir/{durable_rel(git_dir, literal_path)}"
         else:
             raise ValueError(
-                f"{field_label} must not contain absolute paths outside the repo root or git dir: {literal}"
+                f"{field_label} must not contain absolute paths outside the repo root: {literal}"
             )
 
         normalized = normalized.replace(literal, replacement)
 
     return normalized
+
+
+def normalize_git_message_text(root: Path, text: str, field_label: str) -> str:
+    return normalize_durable_text(root, text, field_label, allow_git_dir=False)
+
+
+def normalize_archive_text(root: Path, text: str, field_label: str) -> str:
+    return normalize_durable_text(root, text, field_label, allow_git_dir=True)
 
 
 def prune_local_session_root(session_root: Path) -> None:
@@ -382,7 +423,7 @@ def parse_fact_entry(root: Path, raw: str) -> FactEntry:
     if len(parts) != 3 or not all(parts):
         raise ValueError("--fact must be in format 'p0|self-contained statement|key refs'")
     priority = normalize_fact_priority(parts[0])
-    statement = parts[1]
+    statement = normalize_git_message_text(root, parts[1], "fact")
     refs = normalize_key_refs(root, parts[2])
     if "<" in statement or ">" in statement:
         raise ValueError("fact entries must not contain placeholder tokens")
@@ -755,8 +796,38 @@ def cmd_draft_message(args: argparse.Namespace) -> int:
     why_gain = args.why_gain.strip()
     if not why_before or not why_change or not why_gain:
         raise SystemExit("error: --why-before, --why-change, and --why-gain are required")
+    try:
+        why_before = normalize_git_message_text(root, why_before, "why-before")
+        why_change = normalize_git_message_text(root, why_change, "why-change")
+        why_gain = normalize_git_message_text(root, why_gain, "why-gain")
+        summary = normalize_git_message_text(root, summary, "summary")
+        scope = normalize_git_message_text(root, scope, "scope") if scope else ""
+    except ValueError as exc:
+        raise SystemExit(f"error: {exc}")
 
-    checks = [item.strip() for item in args.check if item.strip()]
+    raw_checks = [item.strip() for item in args.check if item.strip()]
+    try:
+        checks = [
+            normalize_git_message_text(root, item, "check")
+            for item in raw_checks
+        ]
+        follow_ups = [
+            normalize_git_message_text(root, item, "follow-up")
+            for item in args.follow_up
+            if item.strip()
+        ]
+        trailers = [
+            normalize_git_message_text(root, item, "trailer")
+            for item in args.trailer
+            if item.strip()
+        ]
+        refs = [
+            normalize_git_message_text(root, item, "ref")
+            for item in args.ref
+            if item.strip()
+        ]
+    except ValueError as exc:
+        raise SystemExit(f"error: {exc}")
     if not checks:
         raise SystemExit("error: provide at least one --check item with concrete validation evidence")
 
@@ -779,13 +850,12 @@ def cmd_draft_message(args: argparse.Namespace) -> int:
     lines.extend(render_context_section(why_before, why_change, why_gain))
     lines.extend(render_fact_section(facts))
     lines.extend(render_simple_section("Validation", checks, ""))
-    if args.follow_up:
-        lines.extend(render_simple_section("Follow-ups", args.follow_up, "state remaining actions"))
+    if follow_ups:
+        lines.extend(render_simple_section("Follow-ups", follow_ups, "state remaining actions"))
     lines.extend(render_footer())
 
-    trailers = list(args.trailer)
-    if args.ref:
-        for ref in args.ref:
+    if refs:
+        for ref in refs:
             trailers.append(f"Refs: {ref}")
 
     if trailers:

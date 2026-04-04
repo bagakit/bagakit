@@ -96,6 +96,10 @@ These bullets should be self-contained. Do not start them with vague English pro
 ### `## Validation`
 
 - At least one concrete check, command, or review statement.
+- Validation evidence must use repo-relative paths. If a command only works by
+  naming a machine-local or symlink-source absolute path outside the current
+  project, omit that path or rewrite the evidence around the project-local
+  command shape before drafting.
 
 ### MR Surface
 
@@ -191,6 +195,8 @@ Hard gates:
 - facts sorted by `P0 -> P2`
 - repo-relative `path:line` refs only
 - no absolute filesystem paths
+- no machine-local validation commands or references to external skill source
+  paths; Git-facing text must stay meaningful from the current project root
 - no placeholder tokens
 
 Soft guidance:

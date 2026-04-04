@@ -90,11 +90,17 @@ MESSAGE_FILE="$SESSION_DIR/commit-refactor-split-planning-from-message-drafting.
   --why-gain "reviewers can recover intent faster without reading redundant metadata" \
   --fact "p0|draft-message now writes one file per planned commit and normalizes repo-relative refs|$TMP_DIR/app.py:1" \
   --check "git diff --check" \
+  --check "python3 $TMP_DIR/app.py --dry-run" \
   --output "$MESSAGE_FILE"
 
 grep -q -- "Key refs: app.py:1" "$MESSAGE_FILE"
 if grep -q -- "$TMP_DIR/app.py:1" "$MESSAGE_FILE"; then
   echo "draft-message leaked absolute path into Key refs" >&2
+  exit 1
+fi
+grep -q -- "python3 app.py --dry-run" "$MESSAGE_FILE"
+if grep -q -- "$TMP_DIR/app.py" "$MESSAGE_FILE"; then
+  echo "draft-message leaked absolute path into Validation" >&2
   exit 1
 fi
 grep -q -- '^\[\[BAGAKIT\]\]$' "$MESSAGE_FILE"
@@ -119,6 +125,152 @@ if grep -q -- '^## Follow-ups$' "$MESSAGE_FILE"; then
 fi
 
 "$CMD" lint-message --root "$TMP_DIR" --message "$MESSAGE_FILE"
+
+BAD_DRAFT_MESSAGE="$SESSION_DIR/commit-bad-external-validation.txt"
+if "$CMD" draft-message \
+  --root "$TMP_DIR" \
+  --dir "$SESSION_DIR" \
+  --type docs \
+  --scope guidebook \
+  --summary "reject external validation paths" \
+  --why-before "validation evidence could copy machine-local skill paths into durable Git text" \
+  --why-change "draft-message validates Git-facing text before writing output" \
+  --why-gain "commit messages keep only project-relative evidence" \
+  --fact "p0|draft-message rejects validation evidence with external absolute paths|app.py:1" \
+  --check "python3 $SKILL_DIR/scripts/bagakit-git-message-craft.py lint-message --root . --message draft.txt" \
+  --output "$BAD_DRAFT_MESSAGE" >"$TMP_DIR/bad-draft.out" 2>"$TMP_DIR/bad-draft.err"; then
+  echo "draft-message unexpectedly accepted external absolute paths in Validation" >&2
+  exit 1
+fi
+test ! -f "$BAD_DRAFT_MESSAGE"
+grep -q -- "check must not contain absolute paths outside the repo root" "$TMP_DIR/bad-draft.err"
+
+BAD_SUMMARY_MESSAGE="$SESSION_DIR/commit-bad-external-summary.txt"
+if "$CMD" draft-message \
+  --root "$TMP_DIR" \
+  --dir "$SESSION_DIR" \
+  --type docs \
+  --scope guidebook \
+  --summary "mention $SKILL_DIR in subject" \
+  --why-before "subject text could copy a machine-local checkout path" \
+  --why-change "draft-message validates subject text before writing output" \
+  --why-gain "commit subjects stay project-relative" \
+  --fact "p0|draft-message rejects subject paths|app.py:1" \
+  --check "git diff --check" \
+  --output "$BAD_SUMMARY_MESSAGE" >"$TMP_DIR/bad-summary.out" 2>"$TMP_DIR/bad-summary.err"; then
+  echo "draft-message unexpectedly accepted external absolute paths in summary" >&2
+  exit 1
+fi
+test ! -f "$BAD_SUMMARY_MESSAGE"
+grep -q -- "summary must not contain absolute paths outside the repo root" "$TMP_DIR/bad-summary.err"
+
+BAD_FACT_MESSAGE="$SESSION_DIR/commit-bad-external-fact.txt"
+if "$CMD" draft-message \
+  --root "$TMP_DIR" \
+  --dir "$SESSION_DIR" \
+  --type docs \
+  --scope guidebook \
+  --summary "reject external fact paths" \
+  --why-before "fact text could copy a machine-local checkout path" \
+  --why-change "draft-message validates fact statements before writing output" \
+  --why-gain "key facts stay project-relative" \
+  --fact "p0|draft-message rejects fact text mentioning $SKILL_DIR|app.py:1" \
+  --check "git diff --check" \
+  --output "$BAD_FACT_MESSAGE" >"$TMP_DIR/bad-fact.out" 2>"$TMP_DIR/bad-fact.err"; then
+  echo "draft-message unexpectedly accepted external absolute paths in fact text" >&2
+  exit 1
+fi
+test ! -f "$BAD_FACT_MESSAGE"
+grep -q -- "fact must not contain absolute paths outside the repo root" "$TMP_DIR/bad-fact.err"
+
+BAD_ENV_MESSAGE="$TMP_DIR/bad-env-abs-path.txt"
+cp "$MESSAGE_FILE" "$BAD_ENV_MESSAGE"
+python3 - <<'PY' "$BAD_ENV_MESSAGE" "$SKILL_DIR"
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+skill_dir = sys.argv[2]
+text = path.read_text(encoding="utf-8")
+text = text.replace("git diff --check", f"SKILL_DIR={skill_dir} git diff --check", 1)
+path.write_text(text, encoding="utf-8")
+PY
+
+if "$CMD" lint-message --root "$TMP_DIR" --message "$BAD_ENV_MESSAGE" >"$TMP_DIR/bad-env.out" 2>"$TMP_DIR/bad-env.err"; then
+  echo "lint-message unexpectedly accepted env assignment absolute paths" >&2
+  exit 1
+fi
+grep -q -- "absolute filesystem path literals" "$TMP_DIR/bad-env.err"
+
+BAD_ARG_MESSAGE="$TMP_DIR/bad-arg-abs-path.txt"
+cp "$MESSAGE_FILE" "$BAD_ARG_MESSAGE"
+python3 - <<'PY' "$BAD_ARG_MESSAGE" "$SKILL_DIR"
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+skill_dir = sys.argv[2]
+text = path.read_text(encoding="utf-8")
+tool_path = str(Path(skill_dir) / "scripts" / "tool.py")
+text = text.replace("git diff --check", f"git diff --check --tool={tool_path}", 1)
+path.write_text(text, encoding="utf-8")
+PY
+
+if "$CMD" lint-message --root "$TMP_DIR" --message "$BAD_ARG_MESSAGE" >"$TMP_DIR/bad-arg.out" 2>"$TMP_DIR/bad-arg.err"; then
+  echo "lint-message unexpectedly accepted option absolute paths" >&2
+  exit 1
+fi
+grep -q -- "absolute filesystem path literals" "$TMP_DIR/bad-arg.err"
+
+BAD_HOME_MESSAGE="$TMP_DIR/bad-home-path.txt"
+cp "$MESSAGE_FILE" "$BAD_HOME_MESSAGE"
+python3 - <<'PY' "$BAD_HOME_MESSAGE"
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+text = path.read_text(encoding="utf-8")
+text = text.replace("git diff --check", "python3 ~/proj/other/skill.py --dry-run", 1)
+path.write_text(text, encoding="utf-8")
+PY
+
+if "$CMD" lint-message --root "$TMP_DIR" --message "$BAD_HOME_MESSAGE" >"$TMP_DIR/bad-home.out" 2>"$TMP_DIR/bad-home.err"; then
+  echo "lint-message unexpectedly accepted home-relative paths" >&2
+  exit 1
+fi
+grep -q -- "absolute filesystem path literals" "$TMP_DIR/bad-home.err"
+
+SYMLINK_PARENT="$(mktemp -d)"
+trap 'rm -rf "$TMP_DIR" "$SYMLINK_PARENT"' EXIT
+ln -s "$TMP_DIR" "$SYMLINK_PARENT/project-link"
+SYMLINK_ROOT="$SYMLINK_PARENT/project-link"
+SYMLINK_INIT_OUT="$("$CMD" init --root "$SYMLINK_ROOT" --topic "symlink root" --install-hooks no)"
+SYMLINK_SESSION_DIR="$(printf "%s\n" "$SYMLINK_INIT_OUT" | sed -n 's/^initialized: //p')"
+if [[ -z "$SYMLINK_SESSION_DIR" ]]; then
+  echo "failed to capture symlink session dir" >&2
+  exit 1
+fi
+SYMLINK_MESSAGE="$SYMLINK_SESSION_DIR/commit-docs-normalize-symlink-root.txt"
+"$CMD" draft-message \
+  --root "$SYMLINK_ROOT" \
+  --dir "$SYMLINK_SESSION_DIR" \
+  --type docs \
+  --scope guidebook \
+  --summary "normalize symlink root paths" \
+  --why-before "validation evidence could name the symlink project path directly" \
+  --why-change "draft-message treats project-local symlink paths as repo-relative evidence" \
+  --why-gain "durable Git text stays portable from the project root" \
+  --fact "p0|draft-message keeps project-local symlink paths relative|$SYMLINK_ROOT/app.py:1" \
+  --check "python3 $SYMLINK_ROOT/app.py --dry-run" \
+  --output "$SYMLINK_MESSAGE"
+grep -q -- "Key refs: app.py:1" "$SYMLINK_MESSAGE"
+grep -q -- "python3 app.py --dry-run" "$SYMLINK_MESSAGE"
+if grep -q -- "$SYMLINK_ROOT/app.py" "$SYMLINK_MESSAGE"; then
+  echo "draft-message leaked symlink root absolute path" >&2
+  exit 1
+fi
+"$CMD" lint-message --root "$SYMLINK_ROOT" --message "$SYMLINK_MESSAGE"
+rm -rf "$SYMLINK_SESSION_DIR"
 
 BAD_FRONTMATTER_MESSAGE="$TMP_DIR/bad-frontmatter.txt"
 cp "$MESSAGE_FILE" "$BAD_FRONTMATTER_MESSAGE"
