@@ -1,0 +1,5 @@
+version = 1
+skill = "bagakit-spark"
+trigger = "The user wants a thinking partner, deep topic discussion, Socratic exploration, evidence-grounded conceptual exploration, or a discussion that should become an accepted snapshot, MVP eval, or thought experiment."
+do = "Run the spark dialogue loop, ask only decision-changing questions, track research sufficiency, question inventory, feedback signals, and rationale, and use brainstorm or researcher only when their owned artifacts are needed."
+see = "skills/harness/bagakit-spark/SKILL.md"

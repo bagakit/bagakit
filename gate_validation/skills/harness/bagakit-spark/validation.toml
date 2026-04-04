@@ -1,0 +1,59 @@
+version = 2
+
+[[suite]]
+id = "bagakit-spark-layout"
+owner = "skills/harness/bagakit-spark"
+description = "Require the canonical runtime layout for bagakit-spark."
+default = true
+proof_mode = "structural"
+proves = ["bagakit-spark-layout proves: required spark runtime files and references are present."]
+does_not_prove = ["bagakit-spark-layout does not prove agent dialogue quality, runtime behavior, or peer skill execution."]
+validation_class = "structure"
+groups = ["skills", "harness", "spark", "structure"]
+
+[suite.runner]
+kind = "fs"
+required_dirs = [
+  "skills/harness/bagakit-spark",
+  "skills/harness/bagakit-spark/references",
+  "gate_validation/skills/harness/bagakit-spark",
+]
+required_files = [
+  "skills/harness/bagakit-spark/README.md",
+  "skills/harness/bagakit-spark/SKILL.md",
+  "skills/harness/bagakit-spark/references/bagakit-driver.toml",
+  "skills/harness/bagakit-spark/references/frontdoor-rule.toml",
+  "skills/harness/bagakit-spark/references/session-protocol.md",
+  "skills/harness/bagakit-spark/references/question-quality.md",
+  "skills/harness/bagakit-spark/references/question-inventory.md",
+  "skills/harness/bagakit-spark/references/composition-boundary.md",
+  "gate_validation/skills/harness/bagakit-spark/validation.toml",
+  "gate_validation/skills/harness/bagakit-spark/check-spark-contract.py",
+]
+forbidden_paths = [
+  "skills/harness/bagakit-spark/SKILL_PAYLOAD.json",
+  "skills/harness/bagakit-spark/agents",
+  "skills/harness/bagakit-spark/docs",
+  "skills/harness/bagakit-spark/gate",
+  "skills/harness/bagakit-spark/scripts_dev",
+]
+
+[[suite]]
+id = "bagakit-spark-contract"
+owner = "skills/harness/bagakit-spark"
+description = "Require spark dialogue, question-quality, and peer-composition contract anchors."
+default = true
+proof_mode = "wording_contract"
+proves = ["bagakit-spark-contract proves: spark dialogue, question-quality, and peer-composition contract anchors are present in shipped skill text."]
+does_not_prove = ["bagakit-spark-contract does not prove actual agent compliance, live discussion depth, brainstorm execution, researcher execution, or stochastic output quality."]
+timeout_seconds = 120
+validation_class = "contract"
+groups = ["skills", "harness", "spark", "contract"]
+
+[suite.runner]
+kind = "python_script"
+script = "gate_validation/skills/harness/bagakit-spark/check-spark-contract.py"
+args = [
+  "--root",
+  "{repo_root}",
+]

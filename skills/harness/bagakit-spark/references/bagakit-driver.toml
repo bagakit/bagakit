@@ -1,0 +1,8 @@
+version = 1
+insert_target = "bagakit_footer"
+summary_line = "- Spark: Frame=<current frame>; Snapshot=<accepted consensus snapshot ref or none>; Research=<research_now|research_later|research_not_needed or none>; Inventory=<question inventory status or none>; Eval=<MVP/thought-experiment envelope ref or none>; Feedback=<signal summary or none>; Evidence=<brainstorm/researcher refs or none>; Next=<one deterministic next action>"
+
+[[directive]]
+id = "SPARK"
+when = "spark materially shaped the discussion route, eval meaning, accepted snapshot, or final synthesis"
+instruction = "cite the current frame, accepted consensus snapshot when present, research sufficiency judgment, question inventory status, MVP or thought-experiment eval envelope, feedback signal summary, and any brainstorm or researcher evidence that shaped the result"
