@@ -65,12 +65,12 @@ id = "bagakit-skill-selector-policy-alignment"
 owner = "skills/harness/bagakit-skill-selector"
 description = "Keep mandatory selector-preflight policy aligned across specs, runtime docs, and bootstrap."
 default = true
-proof_mode = "runtime"
-proves = ["bagakit-skill-selector-policy-alignment proves: Keep mandatory selector-preflight policy aligned across specs, runtime docs, and bootstrap."]
-does_not_prove = ["bagakit-skill-selector-policy-alignment does not prove live service behavior, stochastic agent quality, or unrelated repository surfaces."]
+proof_mode = "wording_contract"
+proves = ["bagakit-skill-selector-policy-alignment proves: mandatory selector-preflight policy wording is aligned across specs, runtime docs, and bootstrap."]
+does_not_prove = ["bagakit-skill-selector-policy-alignment does not prove selector CLI behavior, actual preflight execution, stochastic agent behavior, or unrelated repository surfaces."]
 timeout_seconds = 120
-validation_class = "quality"
-groups = ["skills", "harness", "usage-loop", "policy", "quality"]
+validation_class = "contract"
+groups = ["skills", "harness", "usage-loop", "policy", "contract"]
 
 [suite.runner]
 kind = "python_script"

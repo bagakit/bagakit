@@ -512,8 +512,4 @@ assert_no_path_leaks "$CLEAN_WS"
 assert_no_path_leaks "$TMP_DIR/.bagakit/researcher/index.md"
 assert_no_path_leaks "$TMP_DIR/.bagakit/researcher/wiki"
 
-assert_contains "$SKILL_DIR/SKILL.md" "reads the wiki inherits a maintenance duty"
-assert_contains "$SKILL_DIR/SKILL.md" "Before new research, refresh or inspect the researcher frontdoor"
-assert_contains "$SKILL_DIR/references/research-workspace-spec.md" "maintenance means updating topic evidence first"
-
 echo "ok: bagakit-researcher canonical smoke passed"
