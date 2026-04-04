@@ -25,6 +25,20 @@
 - 列表行占比：过高通常意味着“PPT 腔”。
 - 单个连续列表块长度：超过 7 说明这一层可能还没拆开；超过 10 通常值得直接报警。
 
+### 2.1 列表机械感 advisory
+
+`qihan_write_lint.py` 还会输出一组 `ADVISORY` 级别的 prose-shape 指标。它们不直接判定文章失败，只提示 reviewer：这篇可能已经从“有人带你理解问题”滑向“连续操作说明”。默认 CLI 会把 `ADVISORY` 写进 JSON，但不会因为只有 advisory 而返回非零；`WARN` 和 `FAIL` 仍然按 `--fail-on` 策略处理。
+
+脚本会统计 content line 中的列表占比、列表绝对行数、中型列表块数量、同一标题区段内的相邻列表块数量、开篇窗口里的列表密度，以及 H2/H3 section 内部是否由列表行主导。典型触发码包括 `LIST_DENSITY_ADVISORY`、`LIST_BLOCK_CLUSTER`、`OPENING_MANUAL_FEEL` 和 `SECTION_LIST_DOMINANT`。
+
+这些指标的解释顺序是：
+
+- 命令步骤、协议字段、验收 checklist、状态分类和对照表可以保留更高列表密度。
+- 开篇场景、机制解释、为什么需要某个设计、读者如何理解当前状态，更应该用段落承接。
+- 如果一篇主线文章反复出现 4 到 7 行的中型列表，即使没有任何超长列表，也要检查它是不是在用列表替代因果句和铰链句。
+
+脱敏回归样本放在 `gate_validation/skills/paperwork/qihan-writing/fixtures/prose-shape/`。这些样本只能是合成文本，不允许复制真实项目文档、机器本地路径或外部 guidebook 的原句。
+
 ## 3. AI 味反模式
 
 - 命中禁词 / 高风险词。

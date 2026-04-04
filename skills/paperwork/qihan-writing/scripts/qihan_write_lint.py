@@ -8,7 +8,9 @@ Usage:
 
 Exit codes:
   0: pass
-  2: warnings/failures found
+  2: blocking warnings/failures found
+
+ADVISORY findings are reported in JSON but do not affect the default exit code.
 
 No external deps.
 """
@@ -105,6 +107,9 @@ PORTABILITY_PATTERNS = [
 ]
 
 INLINE_CODE_RE = re.compile(r"`([^`\n]+)`")
+LIST_ITEM_RE = re.compile(r"^\s*([-*+]\s+|\d+\.\s+)")
+ORDERED_LIST_ITEM_RE = re.compile(r"^\s*\d+\.\s+")
+HEADING_LINE_RE = re.compile(r"^(#{1,6})\s+(.*)$")
 CODE_CONTEXT_HINTS = (
     "| Field |",
     "| Command |",
@@ -141,7 +146,7 @@ COMMON_HEADING_WORDS = {
 
 @dataclass
 class Finding:
-    level: str  # INFO/WARN/FAIL
+    level: str  # ADVISORY/WARN/FAIL
     code: str
     msg: str
     meta: dict
@@ -166,6 +171,27 @@ def strip_fenced_code(text: str, *, strip_inline: bool = False) -> str:
             continue
         cleaned.append(strip_code_spans(line) if strip_inline else line)
     return "\n".join(cleaned)
+
+
+def is_list_line(line: str) -> bool:
+    return bool(LIST_ITEM_RE.match(line))
+
+
+def is_content_line(line: str) -> bool:
+    stripped = line.strip()
+    if not stripped:
+        return False
+    if is_list_line(line):
+        return True
+    if HEADING_LINE_RE.match(stripped):
+        return False
+    if stripped == "---":
+        return False
+    if stripped.startswith("<callout") or stripped.startswith("</callout"):
+        return False
+    if stripped.startswith("|") and stripped.endswith("|"):
+        return False
+    return True
 
 
 def iter_non_code_lines(md: str, *, strip_inline: bool = False):
@@ -280,14 +306,53 @@ def paragraph_stats(md: str):
 def line_ratios(md: str):
     lines = md.splitlines()
     total = len(lines)
-    list_lines = sum(1 for l in lines if re.match(r"^\s*([-*+]\s+|\d+\.\s+)", l))
+    list_lines = sum(1 for l in lines if is_list_line(l))
     hr = sum(1 for l in lines if l.strip() == "---")
     callout_open = sum(1 for l in lines if "<callout" in l)
     mermaid = sum(1 for l in lines if l.strip().startswith("```mermaid"))
     bold = sum(1 for l in lines if "**" in l)
+
+    nonblank_lines = 0
+    non_code_list_lines = 0
+    bullet_list_lines = 0
+    ordered_list_lines = 0
+    content_lines = 0
+    prose_lines = 0
+    structural_lines = 0
+    for _, line in iter_non_code_lines(md):
+        if not line.strip():
+            continue
+        nonblank_lines += 1
+        if is_list_line(line):
+            content_lines += 1
+            non_code_list_lines += 1
+            if ORDERED_LIST_ITEM_RE.match(line):
+                ordered_list_lines += 1
+            else:
+                bullet_list_lines += 1
+            continue
+        if is_content_line(line):
+            content_lines += 1
+            prose_lines += 1
+        else:
+            structural_lines += 1
+
     return {
         "lines": total,
         "listLineRatio": (list_lines / total) if total else 0,
+        "nonblankLines": nonblank_lines,
+        "contentLineCount": content_lines,
+        "proseLineCount": prose_lines,
+        "structuralLineCount": structural_lines,
+        "listLineCount": non_code_list_lines,
+        "bulletLineCount": bullet_list_lines,
+        "orderedListLineCount": ordered_list_lines,
+        "listLineRatioNonblank": (
+            non_code_list_lines / nonblank_lines
+        ) if nonblank_lines else 0,
+        "listLineRatioContent": (
+            non_code_list_lines / content_lines
+        ) if content_lines else 0,
         "hrCount": hr,
         "calloutCount": callout_open,
         "mermaidCount": mermaid,
@@ -298,32 +363,218 @@ def line_ratios(md: str):
 def list_block_stats(md: str):
     blocks = []
     cur = 0
+    cur_start = 0
+    cur_end = 0
     in_code = False
+    section_index = 0
 
-    for line in md.splitlines():
-        if line.strip().startswith("```"):
+    def flush_block():
+        nonlocal cur, cur_start, cur_end
+        if cur:
+            blocks.append({
+                "length": cur,
+                "startLine": cur_start,
+                "endLine": cur_end,
+                "sectionIndex": section_index,
+            })
+            cur = 0
+            cur_start = 0
+            cur_end = 0
+
+    for line_no, line in enumerate(md.splitlines(), start=1):
+        stripped = line.strip()
+        if stripped.startswith("```"):
+            flush_block()
             in_code = not in_code
-            if not in_code and cur:
-                blocks.append(cur)
-                cur = 0
             continue
         if in_code:
             continue
-        if re.match(r"^\s*([-*+]\s+|\d+\.\s+)", line):
-            cur += 1
+        if HEADING_LINE_RE.match(stripped):
+            flush_block()
+            section_index += 1
             continue
-        if cur:
-            blocks.append(cur)
-            cur = 0
+        if is_list_line(line):
+            if not cur:
+                cur_start = line_no
+            cur += 1
+            cur_end = line_no
+            continue
+        flush_block()
 
-    if cur:
-        blocks.append(cur)
+    flush_block()
+
+    lengths = [block["length"] for block in blocks]
+    adjacent_pairs = 0
+    max_adjacent_run = 0
+    current_run = 0
+    previous = None
+    for block in blocks:
+        if (
+            previous
+            and block["sectionIndex"] == previous["sectionIndex"]
+            and block["startLine"] - previous["endLine"] <= 6
+        ):
+            adjacent_pairs += 1
+            current_run = max(2, current_run + 1)
+        else:
+            current_run = 1 if blocks else 0
+        max_adjacent_run = max(max_adjacent_run, current_run)
+        previous = block
 
     return {
-        "listBlockCount": len(blocks),
-        "maxListBlock": max(blocks) if blocks else 0,
-        "listBlocksOver7": sum(1 for b in blocks if b > 7),
-        "listBlocksOver10": sum(1 for b in blocks if b > 10),
+        "listBlockCount": len(lengths),
+        "listBlockLengths": lengths,
+        "maxListBlock": max(lengths) if lengths else 0,
+        "mediumListBlocks": sum(1 for b in lengths if 4 <= b <= 7),
+        "listBlocksOver3": sum(1 for b in lengths if b > 3),
+        "listBlocksOver7": sum(1 for b in lengths if b > 7),
+        "listBlocksOver10": sum(1 for b in lengths if b > 10),
+        "adjacentListBlockPairs": adjacent_pairs,
+        "maxAdjacentListBlockRun": max_adjacent_run,
+    }
+
+
+def opening_shape_stats(md: str):
+    lines = md.splitlines()
+    if not lines:
+        return {
+            "windowEndLine": 0,
+            "nonblankLines": 0,
+            "contentLineCount": 0,
+            "listLineCount": 0,
+            "listLineRatioNonblank": 0,
+            "listLineRatioContent": 0,
+        }
+
+    raw_window_end = min(len(lines), max(20, min(60, int(len(lines) * 0.30))))
+    max_window_end = min(len(lines), 60)
+    window_end = raw_window_end
+    nonblank_lines = 0
+    content_lines = 0
+    list_lines = 0
+    in_code = False
+    for line_no, line in enumerate(lines, start=1):
+        if line_no > raw_window_end and content_lines >= 12:
+            break
+        if line_no > max_window_end:
+            break
+        window_end = line_no
+        if line.strip().startswith("```"):
+            in_code = not in_code
+            continue
+        if in_code or not line.strip():
+            continue
+        nonblank_lines += 1
+        if is_list_line(line):
+            list_lines += 1
+        if is_content_line(line):
+            content_lines += 1
+
+    return {
+        "windowEndLine": window_end,
+        "nonblankLines": nonblank_lines,
+        "contentLineCount": content_lines,
+        "listLineCount": list_lines,
+        "listLineRatioNonblank": (list_lines / nonblank_lines) if nonblank_lines else 0,
+        "listLineRatioContent": (list_lines / content_lines) if content_lines else 0,
+    }
+
+
+def section_list_stats(md: str):
+    sections = []
+    current = {
+        "title": "(preamble)",
+        "headingLevel": 0,
+        "line": 1,
+        "nonblankLines": 0,
+        "contentLineCount": 0,
+        "listLineCount": 0,
+        "proseLineCount": 0,
+        "tableLineCount": 0,
+    }
+    in_code = False
+
+    def flush_section():
+        if current["nonblankLines"]:
+            nonblank_ratio = current["listLineCount"] / current["nonblankLines"]
+            content_ratio = (
+                current["listLineCount"] / current["contentLineCount"]
+                if current["contentLineCount"]
+                else 0
+            )
+            sections.append({
+                **current,
+                "listLineRatioNonblank": nonblank_ratio,
+                "listLineRatioContent": content_ratio,
+            })
+
+    for line_no, line in enumerate(md.splitlines(), start=1):
+        stripped = line.strip()
+        if stripped.startswith("```"):
+            in_code = not in_code
+            continue
+        if in_code:
+            continue
+
+        heading = HEADING_LINE_RE.match(stripped)
+        heading_level = len(heading.group(1)) if heading else 0
+        if heading and 2 <= heading_level <= 3:
+            flush_section()
+            current = {
+                "title": heading.group(2).strip(),
+                "headingLevel": heading_level,
+                "line": line_no,
+                "nonblankLines": 0,
+                "contentLineCount": 0,
+                "listLineCount": 0,
+                "proseLineCount": 0,
+                "tableLineCount": 0,
+            }
+            continue
+
+        if not stripped or heading or stripped == "---":
+            continue
+
+        current["nonblankLines"] += 1
+        if is_list_line(line):
+            current["contentLineCount"] += 1
+            current["listLineCount"] += 1
+        elif stripped.startswith("|") and stripped.endswith("|"):
+            current["tableLineCount"] += 1
+        else:
+            current["contentLineCount"] += 1
+            current["proseLineCount"] += 1
+
+    flush_section()
+
+    dominant_sections = [
+        section
+        for section in sections
+        if section["contentLineCount"] >= 8
+        and section["listLineCount"] >= 6
+        and section["listLineRatioContent"] >= 0.35
+        and section["listLineCount"] > section["proseLineCount"]
+    ]
+
+    return {
+        "sectionCount": len(sections),
+        "dominantSectionCount": len(dominant_sections),
+        "maxSectionListLineRatioNonblank": max(
+            (section["listLineRatioNonblank"] for section in sections),
+            default=0,
+        ),
+        "maxSectionListLineRatioContent": max(
+            (section["listLineRatioContent"] for section in sections),
+            default=0,
+        ),
+        "dominantSections": dominant_sections[:10],
+    }
+
+
+def prose_shape_stats(md: str):
+    return {
+        "opening": opening_shape_stats(md),
+        "sectionList": section_list_stats(md),
     }
 
 
@@ -623,6 +874,7 @@ def score(md: str):
 
     ratios = line_ratios(md)
     list_blocks = list_block_stats(md)
+    prose_shape = prose_shape_stats(md)
     stats = paragraph_stats(md)
 
     # heuristics
@@ -632,8 +884,55 @@ def score(md: str):
         findings.append(Finding("WARN", "CALLOUT_MANY", "Too many callouts", {"calloutCount": ratios["calloutCount"]}))
     if ratios["listLineRatio"] > 0.30:
         findings.append(Finding("WARN", "LIST_HEAVY", "List lines ratio high; may feel like enumerations", {"listLineRatio": ratios["listLineRatio"]}))
+    if ratios["listLineCount"] >= 12 and ratios["listLineRatioContent"] > 0.25:
+        findings.append(
+            Finding(
+                "ADVISORY",
+                "LIST_DENSITY_ADVISORY",
+                "List density is high among content lines; review whether lists are replacing connective explanation",
+                {
+                    "listLineCount": ratios["listLineCount"],
+                    "contentLineCount": ratios["contentLineCount"],
+                    "listLineRatioContent": ratios["listLineRatioContent"],
+                },
+            )
+        )
     if list_blocks["maxListBlock"] > 10:
         findings.append(Finding("WARN", "LIST_BLOCK_LONG", "A list block is too long; split, group, or convert to table/heading", list_blocks))
+    if list_blocks["mediumListBlocks"] >= 4 or list_blocks["adjacentListBlockPairs"] >= 3:
+        findings.append(
+            Finding(
+                "ADVISORY",
+                "LIST_BLOCK_CLUSTER",
+                "Multiple medium list blocks appear close together; review whether the section reads like repeated checklists",
+                {
+                    "listBlockCount": list_blocks["listBlockCount"],
+                    "mediumListBlocks": list_blocks["mediumListBlocks"],
+                    "adjacentListBlockPairs": list_blocks["adjacentListBlockPairs"],
+                    "maxAdjacentListBlockRun": list_blocks["maxAdjacentListBlockRun"],
+                },
+            )
+        )
+    opening = prose_shape["opening"]
+    if opening["contentLineCount"] >= 12 and opening["listLineCount"] >= 6 and opening["listLineRatioContent"] > 0.30:
+        findings.append(
+            Finding(
+                "ADVISORY",
+                "OPENING_MANUAL_FEEL",
+                "Opening section leans on list lines; review whether the reader gets a narrative entry before checklist mode",
+                opening,
+            )
+        )
+    section_list = prose_shape["sectionList"]
+    if section_list["dominantSectionCount"]:
+        findings.append(
+            Finding(
+                "ADVISORY",
+                "SECTION_LIST_DOMINANT",
+                "At least one section is dominated by list lines; review whether it needs connective prose or a table",
+                section_list,
+            )
+        )
     if stats["avgSentPerPara"] and stats["avgSentPerPara"] < 1.3:
         findings.append(Finding("WARN", "PARA_SHORT", "Paragraphs too short on average; may feel choppy", stats))
 
@@ -641,7 +940,7 @@ def score(md: str):
     if heading_count and stats["paragraphs"] / heading_count < 1.4:
         findings.append(Finding("WARN", "SECTION_THIN", "Too few paragraphs per heading; avoid one-liner sections", {"paragraphs": stats["paragraphs"], "headings": heading_count}))
 
-    return findings, ratios, list_blocks, stats
+    return findings, ratios, list_blocks, prose_shape, stats
 
 
 def parse_args(argv):
@@ -669,13 +968,18 @@ def summarize_findings(findings: list[Finding]) -> dict:
     }
 
 
+def blocking_findings(findings: list[Finding]) -> list[Finding]:
+    return [finding for finding in findings if finding.level in {"WARN", "FAIL"}]
+
+
 def lint_one_file(p: Path) -> tuple[dict, list[Finding]]:
     md = read_text(p)
-    findings, ratios, list_blocks, stats = score(md)
+    findings, ratios, list_blocks, prose_shape, stats = score(md)
     report = {
         "file": str(p),
         "ratios": ratios,
         "listBlocks": list_blocks,
+        "proseShape": prose_shape,
         "paragraph": stats,
         "findings": [f.__dict__ for f in findings],
     }
@@ -689,18 +993,30 @@ def lint_directory(p: Path) -> tuple[dict, list[Finding]]:
     )
     reports = []
     all_findings: list[Finding] = []
+    all_blocking_findings: list[Finding] = []
     files_with_findings = 0
+    files_with_blocking_findings = 0
+    files_with_advisory_only_findings = 0
     for file_path in files:
         report, findings = lint_one_file(file_path)
+        blocking = blocking_findings(findings)
         reports.append(report)
         all_findings.extend(findings)
+        all_blocking_findings.extend(blocking)
         if findings:
             files_with_findings += 1
+        if blocking:
+            files_with_blocking_findings += 1
+        elif findings:
+            files_with_advisory_only_findings += 1
     summary = {
         "path": str(p),
         "filesScanned": len(files),
         "filesWithFindings": files_with_findings,
+        "filesWithBlockingFindings": files_with_blocking_findings,
+        "filesWithAdvisoryOnlyFindings": files_with_advisory_only_findings,
         "findings": summarize_findings(all_findings),
+        "blockingFindings": summarize_findings(all_blocking_findings),
     }
     return {"path": str(p), "summary": summary, "files": reports}, all_findings
 
@@ -720,11 +1036,12 @@ def main(argv):
     print(json.dumps(report, ensure_ascii=False, indent=2))
 
     has_fail = any(f.level == "FAIL" for f in findings)
+    has_blocking_warn = any(f.level == "WARN" for f in findings)
     if args.fail_on == "none":
         return 0
     if args.fail_on == "fail":
         return 2 if has_fail else 0
-    return 2 if findings else 0
+    return 2 if has_fail or has_blocking_warn else 0
 
 
 if __name__ == "__main__":
