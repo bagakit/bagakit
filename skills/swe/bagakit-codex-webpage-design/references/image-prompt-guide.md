@@ -1,0 +1,109 @@
+# Image Prompt Guide
+
+Use this when creating or revising the design reference image.
+
+Image2 is the default reference generator when the user has no stronger visual
+or design context. Do not implement directly from text requirements with no
+design reference. If a stronger Figma frame, screenshot, approved mockup, real
+asset set, design system, or structured content context exists, record why that
+reference replaces or constrains image2.
+
+If a stronger reference exists, every later image2 prompt must use that
+reference as the anchor. Do not use screenshots of a failed or under-review
+implementation as the visual source for new state boards. A failed screenshot
+may be attached as bug evidence only if the prompt explicitly says not to copy
+its drift.
+
+## Prompt Shape
+
+```text
+Create a high-fidelity webpage design mockup or coherent design set.
+
+Purpose:
+- <what the page must accomplish>
+
+Audience:
+- <who it is for and what they need to feel/do>
+
+Viewport:
+- <desktop/mobile/landing hero/full page>
+
+Content:
+- <real copy, sections, data, product facts>
+
+Visual direction:
+- <style, era, mood, density, material, lighting, texture>
+
+Layout:
+- <grid, hero, navigation, content order, focal hierarchy>
+
+Typography:
+- <display/body/mono direction, scale, contrast>
+
+Color and imagery:
+- <palette, image subjects, asset refs, background treatment>
+
+Signature details:
+- <2-4 details that make the design memorable>
+
+State set:
+- <default or happy path>
+- <selected/focused object>
+- <search/filter results>
+- <empty/loading/error when relevant>
+- <modal, drawer, expanded panel, or review queue when relevant>
+- <hover/focus-visible/disabled treatment for primary controls>
+- <mobile responsive frame>
+
+Implementation constraints:
+- browser-renderable shapes, responsive-safe spacing, readable text, no
+  impossible micro-detail
+
+Negative constraints:
+- no generic gradient blobs, bland SaaS cards, stock-photo mood boards,
+  unreadable text, irrelevant decoration, crowded layout, or fake UI chrome
+```
+
+## Prompt Rules
+
+- Use real copy and real assets when available.
+- State whether the prompt is creating the primary design reference or only a
+  style/exploration variant.
+- Specify the page as a webpage mockup, not an abstract poster.
+- Name the target viewport and whether the image should show the full page or a
+  first viewport.
+- Include constraints that make the design implementable in HTML/CSS.
+- Ask for one strong direction at a time; variants belong in separate prompts.
+- If text fidelity matters, keep text short and expect to implement exact text
+  in code rather than trusting generated image text.
+- If the interface has meaningful states, ask image2 for a coherent set of
+  frames with the same grid, typography, art direction, components, and spacing.
+  Do not let each state become a separate redesign.
+- For state boards derived from a strong reference, say explicitly that the new
+  states must preserve the strong reference's layout, proportions, material,
+  component density, typography, and signature details.
+- When image2 cannot produce every state, preserve the missing state prompt and
+  mark that state as a blocking or accepted gap before implementation.
+
+## Critique After Generation
+
+Before coding, answer:
+
+- What is the visual point of view?
+- Which details must be preserved exactly?
+- Which generated details are not web-feasible or not worth matching?
+- What assets are missing?
+- What responsive behavior is implied?
+- Does the design set cover all meaningful branch states?
+- Do branch-state frames stay visually coherent with the primary frame?
+- Did the generated board drift toward a failed implementation instead of the
+  strong reference?
+- Which states are missing and should block implementation or be governed by a
+  reusable component-state rule?
+- Would the page still work if the hero image or decoration failed to load?
+
+## Current Docs Rule
+
+When building API-backed image tooling, verify current OpenAI image generation
+model and API details through official docs first. Do not bake current model
+names or parameters into this reference.

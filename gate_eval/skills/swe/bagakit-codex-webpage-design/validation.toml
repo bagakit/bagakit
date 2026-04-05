@@ -1,0 +1,23 @@
+version = 2
+
+[[suite]]
+id = "bagakit-codex-webpage-design-historical-failures"
+owner = "gate_eval/skills/swe/bagakit-codex-webpage-design"
+description = "Run non-gating historical failure bench for webpage design skill quality."
+default = true
+timeout_seconds = 180
+validation_class = "quality"
+groups = ["skills", "swe", "webpage-design", "eval", "quality"]
+
+[suite.runner]
+kind = "executable"
+command = "{node}"
+args = [
+  "--experimental-strip-types",
+  "dev/eval/src/cli.ts",
+  "run",
+  "--root",
+  "{repo_root}",
+  "--suite",
+  "gate_eval/skills/swe/bagakit-codex-webpage-design/suite.ts",
+]

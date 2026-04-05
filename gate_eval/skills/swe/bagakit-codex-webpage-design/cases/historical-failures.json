@@ -1,0 +1,204 @@
+{
+  "schema": "bagakit.codex-webpage-design.historical-failures/v1",
+  "summary": "Historical failure bench for bagakit-codex-webpage-design. Cases preserve user-observed failures that should be blocked by the skill protocol or references.",
+  "cases": [
+    {
+      "id": "no-reference-direct-code",
+      "source_refs": [
+        ".bagakit/spark/sessions/codex-webpage-design-skill/publish/consensus-snapshot.md"
+      ],
+      "failure": "The agent implements from text requirements without first creating or accepting a design reference.",
+      "expected_blockers": [
+        "Do not start implementation with no design reference",
+        "Image2 design generation is mandatory before coding"
+      ],
+      "must_find": [
+        "reference-context-first webpage design engineering workflow",
+        "Do not start implementation with no design reference",
+        "Image2 design generation is mandatory before coding"
+      ]
+    },
+    {
+      "id": "state-board-copies-failed-implementation",
+      "source_refs": [
+        ".bagakit/skill-selector/tasks/webpage-design-full-state-parity/skill-usage.toml"
+      ],
+      "failure": "Image generation for later states follows the flawed implementation screenshot instead of the original design authority.",
+      "expected_blockers": [
+        "failed or under-review implementation screenshot must not become",
+        "Do not use screenshots of a failed or under-review implementation",
+        "Reject state boards that copy visual drift"
+      ],
+      "must_find": [
+        "failed or under-review implementation screenshot must not become",
+        "Do not use screenshots of a failed or under-review implementation",
+        "Reject state boards that copy visual drift"
+      ]
+    },
+    {
+      "id": "fake-visible-controls-pass-happy-path",
+      "source_refs": [
+        ".bagakit/skill-selector/tasks/webpage-design-full-state-parity/skill-usage.toml",
+        ".bagakit/skill-selector/tasks/webpage-design-affordance-stability-hardening/skill-usage.toml"
+      ],
+      "failure": "A page presents first-viewport controls as live while only a small happy path is implemented.",
+      "expected_blockers": [
+        "every visible live-looking affordance is classified",
+        "every `working` affordance has behavior evidence",
+        "fake or unverified visible controls"
+      ],
+      "must_find": [
+        "every visible live-looking affordance is classified",
+        "every `working` affordance has behavior evidence",
+        "fake or unverified visible controls"
+      ]
+    },
+    {
+      "id": "reference-controls-missing-from-implementation",
+      "source_refs": [
+        ".bagakit/skill-selector/tasks/webpage-design-ia-mvp-test/skill-usage.toml"
+      ],
+      "failure": "The implementation inventories only its own visible controls while missing controls, states, and details that are visible in the design reference.",
+      "expected_blockers": [
+        "reference-coverage-matrix",
+        "reference-visible affordance",
+        "Missing reference controls are blockers"
+      ],
+      "must_find": [
+        "reference-coverage-matrix",
+        "reference-visible affordance",
+        "Missing reference controls are blockers"
+      ]
+    },
+    {
+      "id": "missing-information-architecture-map",
+      "source_refs": [
+        ".bagakit/skill-selector/tasks/webpage-design-ambition-motion-experiment/skill-usage.toml"
+      ],
+      "failure": "A complex product screen is visually polished, but object types, navigation hierarchy, region responsibilities, and progressive disclosure are not modeled before implementation.",
+      "expected_blockers": [
+        "information-architecture-map",
+        "object taxonomy",
+        "page region responsibilities",
+        "progressive disclosure",
+        "information scent"
+      ],
+      "must_find": [
+        "`information-architecture-map`",
+        "object taxonomy",
+        "page region responsibilities",
+        "progressive disclosure",
+        "information scent"
+      ]
+    },
+    {
+      "id": "weak-information-scent-polished-panels",
+      "source_refs": [
+        ".bagakit/researcher/topics/frontier/codex-webpage-design-skill/insights/i007.md"
+      ],
+      "failure": "A product MVP looks polished, but labels, counts, status, grouping, and next-action cues do not tell the user what object or path matters next.",
+      "expected_blockers": [
+        "information scent",
+        "next-action cues",
+        "not ready for visual judging"
+      ],
+      "must_find": [
+        "information scent",
+        "next-action cues",
+        "not ready for visual judging"
+      ]
+    },
+    {
+      "id": "drag-final-position-hides-flicker",
+      "source_refs": [
+        ".bagakit/skill-selector/tasks/webpage-design-affordance-stability-hardening/skill-usage.toml",
+        ".bagakit/skill-selector/tasks/webpage-design-ambition-motion-experiment/skill-usage.toml"
+      ],
+      "failure": "A drag test proves final position after mouseup but misses mid-drag flicker, redraw, z-order jumps, or scene rebuilds.",
+      "expected_blockers": [
+        "before, mid-drag, and after-drag motion-frame evidence",
+        "final-position assertion after mouseup is not enough",
+        "motion-frame stability"
+      ],
+      "must_find": [
+        "before, mid-drag, and after-drag motion-frame evidence",
+        "final-position assertion after mouseup is not enough",
+        "Motion-Frame Stability"
+      ]
+    },
+    {
+      "id": "automation-passes-visual-blockers-remain",
+      "source_refs": [
+        ".bagakit/skill-selector/tasks/webpage-design-visual-gate-rerun/skill-usage.toml",
+        ".bagakit/skill-selector/tasks/webpage-design-ambition-motion-experiment/skill-usage.toml"
+      ],
+      "failure": "Build, lint, Playwright, console, and overflow checks pass while screenshots still show visible blockers.",
+      "expected_blockers": [
+        "Automation is execution evidence, not visual parity proof",
+        "Do not treat automated validation as a substitute for visual review",
+        "visual-bug-ledger` has zero blockers"
+      ],
+      "must_find": [
+        "Automation is execution evidence, not visual parity proof",
+        "Do not treat automated validation as a substitute for visual review",
+        "visual-bug-ledger` has zero blockers"
+      ]
+    },
+    {
+      "id": "nice-clean-but-not-surprising",
+      "source_refs": [
+        ".bagakit/skill-selector/tasks/webpage-design-ambition-motion-experiment/skill-usage.toml"
+      ],
+      "failure": "The output is visually clean but lacks the product-specific delight and ambition expected for a high-craft request.",
+      "expected_blockers": [
+        "ambition-bar",
+        "product-specific delight",
+        "nice but not surprising"
+      ],
+      "must_find": [
+        "`ambition-bar`",
+        "product-specific delight",
+        "nice but not surprising"
+      ]
+    },
+    {
+      "id": "duplicated-mode-controls-unclear-flow",
+      "source_refs": [
+        ".bagakit/skill-selector/tasks/webpage-design-ambition-motion-experiment/skill-usage.toml"
+      ],
+      "failure": "The same Relations/Questions/Evidence mode controls appear in multiple regions with unclear scope, and the business flow is not understandable from the UI.",
+      "expected_blockers": [
+        "workflow-model",
+        "control-surface-map",
+        "Unexplained duplicate controls block acceptance",
+        "duplicated or conflicting mode controls that make the business flow unclear"
+      ],
+      "must_find": [
+        "`workflow-model`, `control-surface-map`, and `interaction-model`",
+        "Unexplained duplicate controls block acceptance",
+        "duplicated or conflicting mode controls that make the business flow unclear"
+      ]
+    },
+    {
+      "id": "toy-single-page-false-mvp-proof",
+      "source_refs": [
+        ".bagakit/skill-selector/tasks/webpage-design-ambition-motion-experiment/skill-usage.toml"
+      ],
+      "failure": "A simple single-page prototype is treated as proof that the skill can produce a sellable, eye-opening product MVP.",
+      "expected_blockers": [
+        "MVP Experiment Gate",
+        "sellable product MVP",
+        "single static page can be a smoke test",
+        "must not be used as proof",
+        "can falsify the skill"
+      ],
+      "must_find": [
+        "MVP Experiment Gate",
+        "sellable product MVP",
+        "single static page can be a smoke test",
+        "must not be used as proof",
+        "can falsify the skill"
+      ]
+    }
+  ]
+}

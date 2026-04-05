@@ -1,0 +1,59 @@
+version = 2
+
+[[suite]]
+id = "bagakit-codex-webpage-design-layout"
+owner = "skills/swe/bagakit-codex-webpage-design"
+description = "Require the canonical runtime layout for bagakit-codex-webpage-design."
+default = true
+proof_mode = "structural"
+proves = ["bagakit-codex-webpage-design-layout proves: required skill files and references are present."]
+does_not_prove = ["bagakit-codex-webpage-design-layout does not prove design quality, image generation quality, runtime visual parity, or browser behavior."]
+validation_class = "structure"
+groups = ["skills", "swe", "webpage-design", "structure"]
+
+[suite.runner]
+kind = "fs"
+required_dirs = [
+  "skills/swe/bagakit-codex-webpage-design",
+  "skills/swe/bagakit-codex-webpage-design/references",
+  "gate_validation/skills/swe/bagakit-codex-webpage-design",
+]
+required_files = [
+  "skills/swe/bagakit-codex-webpage-design/README.md",
+  "skills/swe/bagakit-codex-webpage-design/SKILL.md",
+  "skills/swe/bagakit-codex-webpage-design/references/image-prompt-guide.md",
+  "skills/swe/bagakit-codex-webpage-design/references/implementation-loop.md",
+  "skills/swe/bagakit-codex-webpage-design/references/visual-quality-rubric.md",
+  "skills/swe/bagakit-codex-webpage-design/references/artifact-contract.md",
+  "skills/swe/bagakit-codex-webpage-design/references/frontdoor-rule.toml",
+  "skills/swe/bagakit-codex-webpage-design/references/bagakit-driver.toml",
+  "gate_validation/skills/swe/bagakit-codex-webpage-design/validation.toml",
+  "gate_validation/skills/swe/bagakit-codex-webpage-design/check-webpage-design-contract.py",
+]
+forbidden_paths = [
+  "skills/swe/bagakit-codex-webpage-design/SKILL_PAYLOAD.json",
+  "skills/swe/bagakit-codex-webpage-design/agents",
+  "skills/swe/bagakit-codex-webpage-design/docs",
+  "skills/swe/bagakit-codex-webpage-design/gate",
+  "skills/swe/bagakit-codex-webpage-design/scripts_dev",
+]
+
+[[suite]]
+id = "bagakit-codex-webpage-design-contract"
+owner = "skills/swe/bagakit-codex-webpage-design"
+description = "Require image-generation-led webpage design, implementation, and visual parity contract anchors."
+default = true
+proof_mode = "wording_contract"
+proves = ["bagakit-codex-webpage-design-contract proves: shipped skill text contains the core design-to-browser-parity workflow anchors."]
+does_not_prove = ["bagakit-codex-webpage-design-contract does not prove actual image generation quality, aesthetic judgment, browser rendering, or stochastic agent compliance."]
+timeout_seconds = 120
+validation_class = "contract"
+groups = ["skills", "swe", "webpage-design", "contract"]
+
+[suite.runner]
+kind = "python_script"
+script = "gate_validation/skills/swe/bagakit-codex-webpage-design/check-webpage-design-contract.py"
+args = [
+  "--root",
+  "{repo_root}",
+]
