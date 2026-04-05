@@ -272,6 +272,12 @@ reporting, the response footer may use:
 - See: `skills/harness/bagakit-brainstorm/SKILL.md`
 </bagakit-rule>
 
+<bagakit-rule skill="bagakit-codex-webpage-design">
+- Trigger: Codex should create a high-craft webpage or landing page from visual direction through image-generation design reference, frontend implementation, browser debugging, and visual parity iteration.
+- Do: Clarify the design brief, record reference intent, create an image-generation design reference when no stronger reference exists, implement in the host or light mainstream frontend stack, and verify with browser screenshots and visual parity review.
+- See: `skills/swe/bagakit-codex-webpage-design/SKILL.md`
+</bagakit-rule>
+
 <bagakit-rule skill="bagakit-feature-tracker">
 - Trigger: A repository needs durable feature or task planning truth before implementation or repeated flow execution.
 - Do: Create or update tracker state with explicit workspace mode, task gates, and lifecycle status.
@@ -312,6 +318,12 @@ reporting, the response footer may use:
 - Trigger: A long-lived repository evolution topic spans multiple candidates, decisions, or promotion paths.
 - Do: Open or update evolver topic state before the decision history becomes too large for the current task.
 - See: `skills/harness/bagakit-skill-evolver/SKILL.md`
+</bagakit-rule>
+
+<bagakit-rule skill="bagakit-spark">
+- Trigger: The user wants a thinking partner, deep topic discussion, Socratic exploration, evidence-grounded conceptual exploration, or a discussion that should become an accepted snapshot, MVP eval, or thought experiment.
+- Do: Run the spark dialogue loop, ask only decision-changing questions, track research sufficiency, question inventory, feedback signals, and rationale, and use brainstorm or researcher only when their owned artifacts are needed.
+- See: `skills/harness/bagakit-spark/SKILL.md`
 </bagakit-rule>
 
 <bagakit-rule skill="qihan-writing">
