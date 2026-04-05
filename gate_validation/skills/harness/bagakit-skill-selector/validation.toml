@@ -6,6 +6,9 @@ owner = "skills/harness/bagakit-skill-selector"
 description = "Require selector runtime files, recipes, and references that define explicit task-level composition behavior."
 default = true
 proof_mode = "structural"
+protects = ["bagakit-skill-selector runtime files, recipes, references, assets, scripts, and validation/eval registration for explicit task-level composition"]
+oracle = ["fs runner checks required selector directories and files that define the installed skill, recipe set, policy references, and gate registration"]
+exercised_surface = ["skills/harness/bagakit-skill-selector runtime directory", "selector recipes and references", "gate_validation/skills/harness/bagakit-skill-selector registration"]
 proves = ["bagakit-skill-selector-structure proves: Require selector runtime files, recipes, and references that define explicit task-level composition behavior."]
 does_not_prove = ["bagakit-skill-selector-structure does not prove runtime behavior, semantic correctness, or eval quality."]
 validation_class = "structure"
@@ -41,6 +44,7 @@ required_files = [
   "skills/harness/bagakit-skill-selector/references/project-preferences-file-spec.md",
   "skills/harness/bagakit-skill-selector/references/bagakit-driver.toml",
   "skills/harness/bagakit-skill-selector/references/skill-usage-file-spec.md",
+  "skills/harness/bagakit-skill-selector/references/policy-contract.toml",
   "skills/harness/bagakit-skill-selector/scripts/skill_selector.ts",
   "skills/harness/bagakit-skill-selector/scripts/lib/daily.ts",
   "skills/harness/bagakit-skill-selector/scripts/lib/candidate_survey.ts",
@@ -63,10 +67,13 @@ required_files = [
 [[suite]]
 id = "bagakit-skill-selector-policy-alignment"
 owner = "skills/harness/bagakit-skill-selector"
-description = "Keep mandatory selector-preflight policy aligned across specs, runtime docs, and bootstrap."
+description = "Keep mandatory selector-preflight policy aligned through the structured policy contract."
 default = true
-proof_mode = "wording_contract"
-proves = ["bagakit-skill-selector-policy-alignment proves: mandatory selector-preflight policy wording is aligned across specs, runtime docs, and bootstrap."]
+proof_mode = "structural"
+protects = ["selector preflight policy, candidate-state vocabulary, authority paths, and legacy wording exclusions"]
+oracle = ["parsed policy-contract.toml plus alignment checks against selector specs, skill docs, and bootstrap references"]
+exercised_surface = ["skills/harness/bagakit-skill-selector/references/policy-contract.toml", "selector specs", "selector SKILL.md"]
+proves = ["bagakit-skill-selector-policy-alignment proves: structured selector policy rules, candidate states, authority paths, and forbidden legacy wording are aligned."]
 does_not_prove = ["bagakit-skill-selector-policy-alignment does not prove selector CLI behavior, actual preflight execution, stochastic agent behavior, or unrelated repository surfaces."]
 timeout_seconds = 120
 validation_class = "contract"
@@ -86,6 +93,9 @@ owner = "skills/harness/bagakit-skill-selector"
 description = "Validate canonical planning-entry route semantics, including participant sets and rejection of generic root planning artifacts."
 default = true
 proof_mode = "runtime"
+protects = ["selector planning-entry route semantics for participant sets and rejection of generic root planning artifacts"]
+oracle = ["planning-entry script checks recipe contracts and generated selector task artifacts for the canonical planning-entry routes"]
+exercised_surface = ["selector planning-entry recipe markdown", ".bagakit/skill-selector task artifacts", "gate_validation/skills/harness/bagakit-skill-selector/check-selector-planning-entry.sh"]
 proves = ["bagakit-skill-selector-planning-entry proves: Validate canonical planning-entry route semantics, including participant sets and rejection of generic root planning artifacts."]
 does_not_prove = ["bagakit-skill-selector-planning-entry does not prove live service behavior, stochastic agent quality, or unrelated repository surfaces."]
 timeout_seconds = 120
@@ -106,6 +116,9 @@ owner = "skills/harness/bagakit-skill-selector"
 description = "Run a minimal task-level skill-selector lifecycle with explicit composition and strict validation."
 default = true
 proof_mode = "runtime"
+protects = ["selector public CLI lifecycle for preflight, recipe selection, project preferences, daily sidecar isolation, skill planning, ranking, and evolver handoff"]
+oracle = ["smoke script runs selector CLI commands in a temporary repo and checks generated TOML, reports, git-ignore behavior, ranking output, and strict validation"]
+exercised_surface = ["skill_selector.ts CLI", "selector task usage TOML records", "candidate survey and ranking reports", "selector daily sidecar files"]
 proves = ["bagakit-skill-selector-smoke proves: Run a minimal task-level skill-selector lifecycle with explicit composition and strict validation."]
 does_not_prove = ["bagakit-skill-selector-smoke does not prove live service behavior, stochastic agent quality, or unrelated repository surfaces."]
 timeout_seconds = 120
@@ -126,6 +139,9 @@ owner = "skills/harness/bagakit-skill-selector"
 description = "Require selector recipes to carry the stable contract sections for fit, order, synthesis, and fallback."
 default = true
 proof_mode = "wording_contract"
+protects = ["selector recipe contract sections that make multi-skill composition explicit and auditable"]
+oracle = ["recipe contract script checks owned recipe markdown for stable fit, order, synthesis, fallback, and boundary sections"]
+exercised_surface = ["skills/harness/bagakit-skill-selector/recipes/*.md"]
 proves = ["bagakit-skill-selector-recipe-contract proves: Require selector recipes to carry the stable contract sections for fit, order, synthesis, and fallback."]
 does_not_prove = ["bagakit-skill-selector-recipe-contract does not prove behavior outside its documented contract anchors."]
 timeout_seconds = 120

@@ -1,0 +1,69 @@
+version = 1
+skill_id = "bagakit-skill-selector"
+contract_kind = "selector_policy_contract"
+owner = "skills/harness/bagakit-skill-selector"
+
+[authority]
+selection_policy = "docs/specs/selector-selection-model.md"
+planning_entry_routes = "docs/specs/selector-planning-entry-routes.md"
+driver_contract = "docs/specs/bagakit-driver-contract.md"
+usage_guidance = "docs/stewardship/selector-usage-guidance.md"
+runtime_skill = "skills/harness/bagakit-skill-selector/SKILL.md"
+runtime_readme = "skills/harness/bagakit-skill-selector/README.md"
+usage_file_spec = "skills/harness/bagakit-skill-selector/references/skill-usage-file-spec.md"
+usage_template = "skills/harness/bagakit-skill-selector/assets/skill-usage.template.toml"
+bootstrap = "AGENTS.md"
+
+[[policy_rule]]
+id = "mandatory-preflight"
+applies_to = "non-trivial Bagakit-shaped work"
+required_boundary = "before major implementation starts"
+allowed_outcomes = [
+  "direct_execute",
+  "use_selected_skill",
+  "compose_skills",
+  "research_or_discovery_first",
+]
+
+[[policy_rule]]
+id = "trivial-work-bypass"
+applies_to = "trivial one-step work"
+allowed_boundary = "execute directly without selector ceremony"
+
+[[policy_rule]]
+id = "frontmatter-is-declarative"
+applies_to = "skill frontmatter and driver files"
+forbidden_boundary = "hidden control plane for mandatory selector invocation"
+
+[[task_record]]
+id = "skill-usage"
+path_pattern = ".bagakit/skill-selector/tasks/<task-slug>/skill-usage.toml"
+required_for = "tasks that enter through selector preflight"
+
+[[candidate_state]]
+id = "visible"
+meaning = "selector knows the candidate exists and is relevant enough to compare"
+
+[[candidate_state]]
+id = "available"
+meaning = "selector has enough evidence that the candidate is usable in the current host, session, or workspace"
+
+[[candidate_state]]
+id = "selected"
+meaning = "selector chose the candidate as part of this task's explicit plan"
+
+[[candidate_state]]
+id = "used"
+meaning = "candidate was actually invoked for a concrete task step"
+
+[[forbidden_legacy_wording]]
+id = "soft-consideration-policy"
+phrase = "For substantial tasks, default to considering selector preflight first."
+
+[[forbidden_legacy_wording]]
+id = "invocation-is-task-local-only"
+phrase = "Invocation remains a task-level decision."
+
+[[forbidden_legacy_wording]]
+id = "if-yes-use-selector"
+phrase = "If yes, use selector."

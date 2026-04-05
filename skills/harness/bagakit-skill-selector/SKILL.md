@@ -47,6 +47,7 @@ Stable selector-versus-evolver meaning lives in:
 - `docs/specs/selector-evolver-boundary.md`
 - `docs/specs/selector-selection-model.md`
 - `docs/specs/selector-planning-entry-routes.md`
+- `references/policy-contract.toml`
 
 Default stance:
 
