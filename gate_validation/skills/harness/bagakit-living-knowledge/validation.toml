@@ -6,6 +6,9 @@ owner = "skills/harness/bagakit-living-knowledge"
 description = "Require the canonical runtime layout, keep maintainer-only design material out of bagakit-living-knowledge, and preserve repo-relative low-leakage shared-surface hygiene."
 default = true
 proof_mode = "structural"
+protects = ["bagakit-living-knowledge installable runtime layout, managed substrate templates, and exclusion of maintainer-only design material"]
+oracle = ["fs runner checks required skill files, contract files, templates, validation scripts, and forbidden design or generated-cache paths"]
+exercised_surface = ["skills/harness/bagakit-living-knowledge runtime directory", "docs/specs/living-knowledge-system.md", "gate_validation/skills/harness/bagakit-living-knowledge registration"]
 proves = ["bagakit-living-knowledge-layout proves: Require the canonical runtime layout, keep maintainer-only design material out of bagakit-living-knowledge, and preserve repo-relative low-leakage shared-surface hygiene."]
 does_not_prove = ["bagakit-living-knowledge-layout does not prove runtime behavior, semantic correctness, or eval quality."]
 validation_class = "structure"
@@ -24,6 +27,7 @@ required_files = [
   "skills/harness/bagakit-living-knowledge/README.md",
   "skills/harness/bagakit-living-knowledge/SKILL.md",
   "skills/harness/bagakit-living-knowledge/references/bagakit-driver.toml",
+  "skills/harness/bagakit-living-knowledge/references/substrate-contract.toml",
   "skills/harness/bagakit-living-knowledge/scripts/bagakit-living-knowledge.sh",
   "skills/harness/bagakit-living-knowledge/scripts/bagakit-living-knowledge.py",
   "skills/harness/bagakit-living-knowledge/playbook/tpl/agents-block-template.md",
@@ -63,6 +67,9 @@ owner = "skills/harness/bagakit-living-knowledge"
 description = "Run the canonical bagakit-living-knowledge substrate smoke checks, including repo-relative path and low-leakage ingestion hygiene."
 default = true
 proof_mode = "runtime"
+protects = ["living-knowledge public operator behavior for apply, paths, recall, ingest, doctor, generated guides, and leakage rejection"]
+oracle = ["smoke script runs the living-knowledge CLI in a temporary repo and checks generated files, command outputs, rejected bad inputs, and absence of absolute path leaks"]
+exercised_surface = ["bagakit-living-knowledge.sh CLI", "AGENTS managed block", ".bagakit/knowledge_conf.toml", "generated docs/must-* pages", "ingested shared markdown files"]
 proves = ["bagakit-living-knowledge-smoke proves: Run the canonical bagakit-living-knowledge substrate smoke checks, including repo-relative path and low-leakage ingestion hygiene."]
 does_not_prove = ["bagakit-living-knowledge-smoke does not prove live service behavior, stochastic agent quality, or unrelated repository surfaces."]
 timeout_seconds = 300
@@ -80,10 +87,13 @@ args = [
 [[suite]]
 id = "bagakit-living-knowledge-spec-alignment"
 owner = "skills/harness/bagakit-living-knowledge"
-description = "Keep the repository-owned living-knowledge spec aligned with the runtime docs, managed bootstrap template, and repo-relative low-leakage hygiene contract."
+description = "Keep the repository-owned living-knowledge substrate aligned through the structured substrate contract."
 default = true
-proof_mode = "wording_contract"
-proves = ["bagakit-living-knowledge-spec-alignment proves: Keep the repository-owned living-knowledge spec aligned with the runtime docs, managed bootstrap template, and repo-relative low-leakage hygiene contract."]
+proof_mode = "structural"
+protects = ["living-knowledge substrate path protocol, system-page contract, ownership boundaries, and low-leakage rules"]
+oracle = ["parsed substrate-contract.toml checked against docs, skill runtime instructions, template surfaces, and validation registration"]
+exercised_surface = ["skills/harness/bagakit-living-knowledge/references/substrate-contract.toml", "living-knowledge SKILL.md and README", "managed system-page templates"]
+proves = ["bagakit-living-knowledge-spec-alignment proves: structured path protocol, system pages, ownership boundaries, and low-leakage rules are schema-valid and linked from runtime docs."]
 does_not_prove = ["bagakit-living-knowledge-spec-alignment does not prove behavior outside its documented contract anchors."]
 timeout_seconds = 300
 validation_class = "contract"

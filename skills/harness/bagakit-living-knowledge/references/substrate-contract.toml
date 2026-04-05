@@ -1,0 +1,70 @@
+version = 1
+skill_id = "bagakit-living-knowledge"
+contract_kind = "living_knowledge_substrate_contract"
+owner = "skills/harness/bagakit-living-knowledge"
+
+[authority]
+system_spec = "docs/specs/living-knowledge-system.md"
+runtime_skill = "skills/harness/bagakit-living-knowledge/SKILL.md"
+runtime_readme = "skills/harness/bagakit-living-knowledge/README.md"
+agents_template = "skills/harness/bagakit-living-knowledge/playbook/tpl/agents-block-template.md"
+authority_template = "skills/harness/bagakit-living-knowledge/playbook/tpl/must-authority-template.md"
+shared_page_template = "skills/harness/bagakit-living-knowledge/playbook/tpl/shared-page-template.md"
+
+[path_protocol]
+config = ".bagakit/knowledge_conf.toml"
+default_shared_root = "docs"
+default_system_root = "docs"
+runtime_root = ".bagakit/living-knowledge"
+generated_root = ".bagakit/living-knowledge/.generated"
+
+[[system_page]]
+id = "must-guidebook"
+path = "must-guidebook.md"
+
+[[system_page]]
+id = "must-authority"
+path = "must-authority.md"
+
+[[system_page]]
+id = "must-sop"
+path = "must-sop.md"
+
+[[system_page]]
+id = "must-recall"
+path = "must-recall.md"
+
+[[reusable_surface]]
+id = "reusable-items-governance"
+path = "norms-maintaining-reusable-items.md"
+
+[[boundary]]
+id = "researcher-runtime"
+owned_by = "bagakit-researcher"
+runtime_root = ".bagakit/researcher"
+
+[[boundary]]
+id = "selector-runtime"
+owned_by = "bagakit-skill-selector"
+runtime_root = ".bagakit/skill-selector"
+
+[[boundary]]
+id = "evolver-memory"
+owned_by = "bagakit-skill-evolver"
+runtime_root = ".bagakit/evolver"
+
+[[hygiene_rule]]
+id = "repo-relative-paths"
+protects = "shared pages, managed bootstrap text, and durable examples use repo-relative paths"
+
+[[hygiene_rule]]
+id = "no-absolute-paths"
+forbids = "absolute filesystem paths"
+
+[[hygiene_rule]]
+id = "opaque-durable-ids"
+protects = "durable handles use short opaque repo-local ids instead of timestamp-derived names"
+
+[[hygiene_rule]]
+id = "no-raw-source-metadata"
+forbids = "raw source-path or action-time metadata in shared knowledge"

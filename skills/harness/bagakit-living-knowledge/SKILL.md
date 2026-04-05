@@ -48,6 +48,8 @@ Those are separate systems.
   - `docs/`
 - stable contract:
   - `docs/specs/runtime-surface-contract.md`
+- substrate contract:
+  - `references/substrate-contract.toml`
 - if the top-level root exists in a host repo, it should carry `surface.toml`
 
 ## Successor Boundary
