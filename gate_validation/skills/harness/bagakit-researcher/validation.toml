@@ -6,6 +6,9 @@ owner = "skills/harness/bagakit-researcher"
 description = "Require the canonical runtime layout and keep non-runtime repo artifacts out of bagakit-researcher."
 default = true
 proof_mode = "structural"
+protects = ["bagakit-researcher installable runtime layout, research workspace contract files, and exclusion of non-runtime artifacts"]
+oracle = ["fs runner checks required skill files, research references, scripts, eval registration, validation scripts, and forbidden non-runtime paths"]
+exercised_surface = ["skills/harness/bagakit-researcher runtime directory", "researcher workspace/wiki contract references", "gate_validation/skills/harness/bagakit-researcher registration"]
 proves = ["bagakit-researcher-layout proves: Require the canonical runtime layout and keep non-runtime repo artifacts out of bagakit-researcher."]
 does_not_prove = ["bagakit-researcher-layout does not prove runtime behavior, semantic correctness, or eval quality."]
 validation_class = "structure"
@@ -27,6 +30,7 @@ required_files = [
   "skills/harness/bagakit-researcher/SKILL.md",
   "skills/harness/bagakit-researcher/references/bagakit-driver.toml",
   "skills/harness/bagakit-researcher/references/research-workspace-spec.md",
+  "skills/harness/bagakit-researcher/references/wiki-contract.toml",
   "skills/harness/bagakit-researcher/scripts/bagakit-researcher.sh",
   "skills/harness/bagakit-researcher/scripts/bagakit-researcher.py",
   "gate_eval/skills/harness/bagakit-researcher/README.md",
@@ -53,6 +57,9 @@ owner = "skills/harness/bagakit-researcher"
 description = "Run a minimal researcher lifecycle: initialize a topic, list it, and validate workspace shape."
 default = true
 proof_mode = "runtime"
+protects = ["researcher public operator lifecycle for topic creation, source cards, summaries, passes, tracks, claims, insights, leads, synthesis, wiki refresh, and leak hygiene"]
+oracle = ["smoke script drives the researcher CLI in temporary workspaces and checks generated topic files, doctor warnings, wiki indexes, and absence of local path leaks"]
+exercised_surface = ["bagakit-researcher.sh CLI", ".bagakit/researcher topic workspaces", "topic index/wiki files", "doctor output"]
 proves = ["bagakit-researcher-smoke proves: Run a minimal researcher lifecycle: initialize a topic, list it, and validate workspace shape."]
 does_not_prove = ["bagakit-researcher-smoke does not prove live service behavior, stochastic agent quality, or unrelated repository surfaces."]
 timeout_seconds = 300
@@ -70,10 +77,13 @@ args = [
 [[suite]]
 id = "bagakit-researcher-wiki-contract"
 owner = "skills/harness/bagakit-researcher"
-description = "Require researcher wiki maintenance duty anchors in shipped skill and workspace contract text."
+description = "Require the structured researcher wiki frontdoor and maintenance-duty contract."
 default = true
-proof_mode = "wording_contract"
-proves = ["bagakit-researcher-wiki-contract proves: researcher wiki maintenance duty wording is present in shipped skill and workspace contract text."]
+proof_mode = "structural"
+protects = ["researcher wiki frontdoor boundary, topic-evidence source of truth, and read-before-maintain duty"]
+oracle = ["parsed wiki-contract.toml checked against researcher skill docs, workspace spec, and generated wiki contract expectations"]
+exercised_surface = ["skills/harness/bagakit-researcher/references/wiki-contract.toml", "researcher SKILL.md", "research workspace spec"]
+proves = ["bagakit-researcher-wiki-contract proves: wiki frontdoor surfaces, maintenance duties, and topic-evidence boundaries are schema-valid and linked from the shipped skill."]
 does_not_prove = ["bagakit-researcher-wiki-contract does not prove researcher runtime behavior, actual agent compliance, stochastic research quality, or unrelated repository surfaces."]
 timeout_seconds = 120
 validation_class = "contract"

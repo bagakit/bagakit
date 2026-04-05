@@ -421,3 +421,4 @@ When the surrounding workflow explicitly asks for research-task reporting, it ma
 ## References
 
 - `references/research-workspace-spec.md`
+- `references/wiki-contract.toml`

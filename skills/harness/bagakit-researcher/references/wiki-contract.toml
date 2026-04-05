@@ -1,0 +1,54 @@
+version = 1
+skill_id = "bagakit-researcher"
+contract_kind = "researcher_wiki_contract"
+owner = "skills/harness/bagakit-researcher"
+
+[entry]
+skill = "SKILL.md"
+required_reference_links = [
+  "references/research-workspace-spec.md",
+  "references/wiki-contract.toml",
+]
+
+[frontdoor]
+root = ".bagakit/researcher"
+source_of_truth = "topics/"
+derived_surfaces = [
+  "index.md",
+  "wiki/README.md",
+  "wiki/concepts/",
+  "wiki/questions/",
+  "wiki/claims/",
+]
+
+[[duty]]
+id = "inspect-before-new-search"
+trigger = "before opening a new topic, pass, or broad search"
+required_actions = [
+  "refresh-or-inspect-frontdoor",
+  "read-relevant-topic-question-or-claim-links",
+]
+
+[[duty]]
+id = "maintain-after-reading-wiki"
+trigger = "the loop read the wiki and changed topic evidence"
+required_actions = [
+  "update-topic-evidence-first",
+  "refresh-topic-index",
+  "refresh-wiki",
+  "doctor-wiki",
+]
+
+[[boundary]]
+id = "wiki-is-derived-frontdoor"
+protects = "wiki must remain a navigation and synthesis layer over topic evidence"
+forbidden_roles = [
+  "source-of-truth evidence store",
+  "shared checked-in knowledge root",
+  "repository evolution memory",
+]
+
+[[boundary]]
+id = "topic-evidence-first"
+protects = "wiki maintenance regenerates from topic artifacts instead of hand-editing wiki pages as the source of truth"
+required_source = "topics/<topic-class>/<topic>/"
