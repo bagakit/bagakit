@@ -67,10 +67,11 @@ description: |
 5) **用户改写是高信号监督**：当用户直接给出句子级改写时，必须抽象成通用规则，再回扫全文同类问题。
 6) **最小闭环**：任何建议必须落到“下一步动作 + 触发条件 + 验收指标”。
 7) **核心概念要早出场**：如果一个概念解释了全文世界观和结构，就要尽早出现。
-8) **标题要是命题，不是描述**：标题要覆盖文章的核心判断，不只标记主题。
+8) **标题要像刊物标题，不像草稿标签**：标题要覆盖文章的核心判断，读起来像技术刊物、研究短文或公众号头条的正式标题；不要只标记主题，也不要写成“某某介绍 / 某某说明 / 某某命令形状”。
 9) **把判断写在对象上，不写在作者姿态上**：少写作者自评式元话，也少拿模糊群体当论证替身。
 10) **优先具体机制，少用黑箱比喻**：像“接住”“接得住”这类词不算机制，机制要写成动作和落点。
-11) **AI smell 词表走 SSOT**：新增或调整词时，先问语境和正常说法建议；词表、lint 开关和 advisory suggestions 只维护在 `references/writing/ai-smell-lexicon.json`。
+11) **结构要有层次美感**：长文正文不能只有一排同级标题。默认至少形成 H2 主梁 + H3 子结构；H2 负责文章骨架，H3 负责拆动作、证据、反例或边界。短概念页可以更克制，但只要已经形成多段论述，就不要让读者只看到单层目录。
+12) **AI smell 词表走 SSOT**：新增或调整词时，先问语境和正常说法建议；词表、lint 开关和 advisory suggestions 只维护在 `references/writing/ai-smell-lexicon.json`。
 
 ## 输出纪律
 
@@ -100,7 +101,7 @@ description: |
 - **Step 1.2：先选主叙事视角**
   只有基础稳定后，才按 `references/writing/NARRATIVE_ANGLE_SELECTION.md` 先选一个主叙事视角，再加载对应卡片。至少要明确：这篇文章先立什么主张、先回答哪个问题、按什么 H2 骨架推进。
 - **Step 1.25：跑一轮视角复核**
-  按 `references/writing/NARRATIVE_ANGLE_REVIEW_HEURISTIC.md` 做一轮写前复核。至少要回答：这篇文章的标题承诺是什么、第一问题是什么、证据如何移动、章节如何推进、为什么不是 runner-up 卡。
+  按 `references/writing/NARRATIVE_ANGLE_REVIEW_HEURISTIC.md` 做一轮写前复核。至少要回答：这篇文章的标题承诺是什么、标题是否有刊物感、第一问题是什么、证据如何移动、H2/H3 结构如何推进、为什么不是 runner-up 卡。
 - **Step 1.3：必要时确认视角**
   如果两个以上视角都说得通，但它们会改写标题承诺、首屏主张、章节顺序、第一人称力度或证据负担，就先和用户确认。不要把“必须选视角”误写成“每次都必须打断用户提问”。
 - **Step 1.5：必要时进入洞察问答环**
@@ -118,9 +119,9 @@ description: |
 
 ### C. 排版与评审
 - **Step 4：飞书文档排版**
-  按 `references/writing/FEISHU_LAYOUT.md` 执行；控制标题层级、callout、表格、流程图，并避免正文开头重复 title。
+  按 `references/writing/FEISHU_LAYOUT.md` 执行；控制标题层级、callout、表格、流程图，并避免正文开头重复 title。长文在飞书里必须有可展开的层级感，默认至少有 H2 主梁和 H3 子标题。
 - **Step 4.5：硬性校验**
-  当输出要进入飞书 / 对外分享 / 进入长期沉淀时，先跑 `scripts/qihan_write_lint.py`。它覆盖三类检查：结构硬门禁、AI 味和口癖、prose-shape / prose-mechanics 机械感 advisory。机械感检查只给非阻塞 `ADVISORY`，指标说明见 `references/review/QA_HARD_METRICS.md`。
+  当输出要进入飞书 / 对外分享 / 进入长期沉淀时，先跑 `scripts/qihan_write_lint.py`。它覆盖四类检查：标题与层级、AI 味和口癖、结构硬门禁、prose-shape / prose-mechanics 机械感 advisory。机械感检查只给非阻塞 `ADVISORY`，指标说明见 `references/review/QA_HARD_METRICS.md`。
 - **Step 4.6：长文终稿评审**
   当输出是博客 / 公众号 / 内部专题长文时，再按 `references/review/LONGFORM_RUBRIC.md` 做一轮 review，并用 `references/review/LONGFORM_REVIEW_TEMPLATE.md` 记录 hard gate、weighted review、craft bonus、anti-pattern penalty。涉及“无依据的人群泛化 / 拉踩表达 / 语气过界”的问题，不用脚本裁决；要求独立 reviewer 做静室打分，优先使用 subagent blind review。
 - **Step 4.65：audience panel review**

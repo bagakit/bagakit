@@ -102,7 +102,7 @@ AI_PATTERNS = [
 NEGATION_PAIR_RE = re.compile(r"不是[^\n。！？!?；;]{0,80}而是")
 
 PORTABILITY_PATTERNS = [
-    r"/(?:[^/\s)]+/){2,}[^/\s)]+",
+    r"(?<![\w./-])/(Users|home|private|tmp|var|mnt|Volumes)/[^\s)]+",
     r"file://",
 ]
 
@@ -142,6 +142,11 @@ COMMON_HEADING_WORDS = {
     "api", "cli", "css", "csv", "docx", "html", "http", "https", "json",
     "llm", "markdown", "md", "pdf", "sdk", "sql", "toml", "yaml", "yml",
 }
+
+LABEL_LIKE_TITLE_RE = re.compile(
+    r"(介绍|说明|概览|指南|教程|手册|命令形状|使用方法|使用说明|附录|README|Overview|Guide|Intro|Introduction)$",
+    re.IGNORECASE,
+)
 
 COHESION_BRIDGE_RE = re.compile(
     r"(因为|所以|因此|但是|但|然而|否则|同时|接着|于是|这意味着|换句话|例如|比如|具体来说|为了|从而|"
@@ -1001,6 +1006,7 @@ def line_introduces_concept(line: str, term: str) -> bool:
     escaped = re.escape(term)
     patterns = [
         rf"`?{escaped}`?\s*(是|指|表示|意味着|称为)",
+        rf"`?{escaped}`?\s*(叫|用于|负责|面向|只管|只负责)",
         rf"`?{escaped}`?\s*(在这里|这里|本文中)?\s*指",
         rf"(这里的|本文中的|所谓)\s*`?{escaped}`?",
         rf"`?{escaped}`?\s*[：:]\s*\S+",
@@ -1019,6 +1025,8 @@ def series_concept_checks(md: str):
         for match in SERIES_CONCEPT_RE.finditer(stripped_title):
             term = match.group(0)
             normalized = term.lower()
+            if re.fullmatch(r"[a-z]\d+", normalized):
+                continue
             if normalized in COMMON_HEADING_WORDS or normalized.isdigit():
                 continue
             if len(normalized) <= 2 or normalized in seen:
@@ -1199,7 +1207,29 @@ def inline_code_checks(md: str):
 def heading_rules(md: str):
     findings = []
     headings = list(iter_headings(md))
+    all_headings = list(iter_title_and_headings(md))
     nodes = build_heading_tree(headings)
+    ratios = line_ratios(md)
+
+    h1 = [item for item in all_headings if item[1] == 1]
+    if len(h1) != 1:
+        findings.append(
+            Finding(
+                "WARN",
+                "H1_COUNT",
+                "Document should have exactly one H1 title",
+                {"h1Count": len(h1)},
+            )
+        )
+    elif LABEL_LIKE_TITLE_RE.search(h1[0][2].strip()):
+        findings.append(
+            Finding(
+                "WARN",
+                "TITLE_LABEL_LIKE",
+                "H1 reads like a draft label; prefer a publication-style proposition title",
+                {"line": h1[0][0], "title": h1[0][2]},
+            )
+        )
 
     # no parentheses in headings
     bad = []
@@ -1213,6 +1243,21 @@ def heading_rules(md: str):
     h2 = [n for n in nodes if n["level"] == 2]
     if len(h2) and (len(h2) < 3 or len(h2) > 7):
         findings.append(Finding("WARN", "H2_COUNT", "H2 count should usually be 3–7", {"h2Count": len(h2)}))
+
+    h3 = [n for n in nodes if n["level"] == 3]
+    if ratios["contentLineCount"] >= 25 and len(h2) >= 3 and not h3:
+        findings.append(
+            Finding(
+                "WARN",
+                "HEADING_DEPTH",
+                "Long-form docs should usually have H2 main beams plus at least one H3 layer; avoid flat one-level outlines",
+                {
+                    "contentLineCount": ratios["contentLineCount"],
+                    "h2Count": len(h2),
+                    "h3Count": 0,
+                },
+            )
+        )
 
     # pyramid 3-7 for each parent (only enforced when a parent actually uses sub-headings)
     viol = []
