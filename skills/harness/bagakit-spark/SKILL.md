@@ -206,6 +206,36 @@ experiment when a material MVP is not appropriate. Reaching this eval proposal
 is a process endpoint, so it must trigger the consensus snapshot and user
 confirmation flow before the session claims completion.
 
+MVP and thought-experiment evals require quiet-room separation before Spark can
+claim acceptance. The main Spark context may design the eval envelope and
+interpret the result, but it must not be the only actor that executes and
+judges its own experiment. When subagents are available and authorized, run the
+MVP trial, thought experiment, or independent review through a quiet-room
+subagent that loads the relevant skill instructions and works from a bounded
+brief, success criteria, and evidence packet. For implementation, design, or
+build evals, prefer an executor subagent in an isolated workspace plus an
+independent reviewer when the output is visual, subjective, or quality
+sensitive.
+
+If quiet-room execution is unavailable or not authorized, do not mark the MVP
+eval as accepted or passed from same-context self-review. Mark it
+`quiet_room_blocked` or `provisional_no_quiet_room`, state the limitation, and
+ask for user authorization, human review, or a reduced-confidence continuation.
+
+Every quiet-room subagent completion is only a candidate handoff. After each
+executor or reviewer exits, Spark must run a satisfaction audit before closing
+or accepting the eval. If any material defect remains, continue the loop until
+the main Spark context is satisfied and the required independent review passes,
+or until the user explicitly stops or lowers the target. Do not treat
+subagent-reported `done`, `pass`, or `provisional pass` as completion.
+
+When dissatisfaction exposes a transferable skill gap rather than a one-off
+implementation bug, update the relevant skill rule, reference, bench, or
+evolver record before rerunning. Then design a fresh test prompt or new
+equivalent task and launch a new quiet-room subagent that loads the updated
+skill. Do not keep retrying the same failed prompt with the same stale skill
+instructions when the failure should teach the skill.
+
 Spark owns the MVP eval envelope, shared user-facing mental model, and
 post-processing semantics even when the concrete evidence comes from a peer
 tool. Researcher may supply evidence-backed scenarios, background disciplines,
@@ -266,6 +296,7 @@ Question guidance details live in:
 - `references/session-protocol.md`
 - `references/question-quality.md`
 - `references/question-inventory.md`
+- `references/workflow-contract.toml`
 
 ## Brainstorm Integration
 
@@ -348,6 +379,7 @@ Research judgment: <research_now|research_later|research_not_needed plus rationa
 Question inventory: <answered/pending/deferred/lead status for high-impact questions>
 Feedback signals: <positive/negative/mixed/neutral process signals when relevant>
 MVP eval: <hypothesis/trial/evidence packet/interpretation/snapshot impact when relevant>
+Quiet-room eval: <not_needed|planned|running|passed|failed|quiet_room_blocked|provisional_no_quiet_room plus executor/reviewer refs>
 Eval acceptance: <accepted/corrected/rejected/incomplete plus acceptance activity when endpoint>
 Rationale: <principle/criteria/rejected alternative/portability boundary when relevant>
 Accepted snapshot: <accepted snapshot ref, candidate status, or none>
@@ -379,3 +411,4 @@ footer may use:
 - `references/question-quality.md`
 - `references/question-inventory.md`
 - `references/composition-boundary.md`
+- `references/workflow-contract.toml`

@@ -1,0 +1,164 @@
+version = 1
+skill_id = "bagakit-spark"
+contract_kind = "skill_workflow_contract"
+owner = "skills/harness/bagakit-spark"
+
+[entry]
+skill = "SKILL.md"
+required_reference_links = [
+  "references/session-protocol.md",
+  "references/question-quality.md",
+  "references/question-inventory.md",
+  "references/composition-boundary.md",
+  "references/workflow-contract.toml",
+]
+
+[[loop_rule]]
+id = "mandatory-question-until-explicit-completion"
+protects = "an open Spark session cannot silently end without a user-facing question or an execution window"
+proof_surface = "session response shape plus accepted snapshot record"
+
+[[loop_rule]]
+id = "end-check-needs-summary-and-snapshot"
+protects = "asking to finish must carry the confirmed key summary and current snapshot candidate"
+proof_surface = "consensus snapshot candidate"
+
+[[loop_rule]]
+id = "execution-window-reopens-loop"
+protects = "post-snapshot implementation, validation, or commit action does not permanently close the Spark discussion"
+proof_surface = "next question, end-check question, or accepted snapshot ref after execution"
+
+[[loop_rule]]
+id = "mvp-eval-needs-quiet-room-separation"
+protects = "Spark cannot self-design, self-execute, self-review, and self-accept an MVP or thought-experiment eval"
+proof_surface = "mvp eval envelope with quiet-room route, actor refs, evidence packet, or explicit blocked/provisional status"
+
+[[loop_rule]]
+id = "subagent-completion-needs-satisfaction-audit"
+protects = "a subagent saying done/pass cannot close Spark eval without main-context satisfaction and required independent review"
+proof_surface = "satisfaction audit record with defects, repair route, reviewer verdict, and acceptance decision"
+
+[[loop_rule]]
+id = "skill-gap-before-rerun"
+protects = "transferable failures improve the skill or bench before another quiet-room test claims generalization"
+proof_surface = "updated skill/reference/bench/evolver record plus fresh or equivalent quiet-room test prompt"
+
+[[artifact]]
+id = "raw-discussion-log"
+owner = "bagakit-brainstorm"
+required_when = "discussion becomes durable planning"
+
+[[artifact]]
+id = "question-inventory"
+owner = "bagakit-spark"
+required_when = "high-impact questions or follow-ups exist"
+
+[[artifact]]
+id = "research-sufficiency-judgment"
+owner = "bagakit-spark"
+required_when = "discussion opens a research-relevant branch"
+
+[[artifact]]
+id = "consensus-snapshot"
+owner = "bagakit-spark"
+required_when = "discussion result will guide later action"
+
+[[artifact]]
+id = "mvp-eval-envelope"
+owner = "bagakit-spark"
+required_when = "Spark task is meant to realize or test something"
+
+[[artifact]]
+id = "quiet-room-eval-record"
+owner = "bagakit-spark"
+required_when = "MVP or thought-experiment eval is used for acceptance"
+
+[[artifact]]
+id = "satisfaction-audit-record"
+owner = "bagakit-spark"
+required_when = "quiet-room executor or reviewer returns a candidate result"
+
+[[artifact]]
+id = "feedback-signal-ledger"
+owner = "bagakit-spark"
+required_when = "user replies change or critique Spark's process"
+
+[[artifact]]
+id = "rationale-ledger"
+owner = "bagakit-spark"
+required_when = "a user answer encodes a transferable principle, criterion, or rejected alternative"
+
+[[research_gate]]
+id = "research-now"
+decision = "research_now"
+use_when = "external evidence can change the immediate question, options, failure modes, or acceptance criteria"
+
+[[research_gate]]
+id = "research-later"
+decision = "research_later"
+use_when = "the branch is important but not blocking the current answer"
+
+[[research_gate]]
+id = "research-not-needed"
+decision = "research_not_needed"
+use_when = "the issue is local preference, already evidenced context, or not decision-changing"
+
+[[composition_boundary]]
+id = "brainstorm-state-substrate"
+peer = "bagakit-brainstorm"
+spark_owns = "discussion loop, question inventory, snapshot meaning, and acceptance"
+peer_owns = "raw durable discussion records and brainstorm artifacts"
+
+[[composition_boundary]]
+id = "researcher-evidence-producer"
+peer = "bagakit-researcher"
+spark_owns = "when evidence should affect the discussion and which questions it opens"
+peer_owns = "source-bound evidence, source cards, summaries, claims, and research checks"
+
+[[composition_boundary]]
+id = "portable-eval-meaning"
+peer = "implementation, validation, or project tools"
+spark_owns = "eval meaning, acceptance criteria, interpretation, and user-facing acceptance"
+peer_owns = "concrete observations or execution evidence"
+
+[[composition_boundary]]
+id = "quiet-room-evidence-producer"
+peer = "subagent or independent reviewer"
+spark_owns = "bounded brief, acceptance criteria, interpretation, blocked/provisional status, and snapshot impact"
+peer_owns = "independent execution, review observations, produced artifacts, and failure findings"
+
+[[output_field]]
+id = "current-frame"
+required_when = "open Spark session"
+
+[[output_field]]
+id = "research-judgment"
+required_when = "research-relevant branch exists"
+
+[[output_field]]
+id = "question-inventory"
+required_when = "high-impact questions exist"
+
+[[output_field]]
+id = "feedback-signals"
+required_when = "user reply critiques, confirms, redirects, or exposes process signal"
+
+[[output_field]]
+id = "mvp-eval"
+required_when = "MVP or thought experiment is in scope"
+
+[[output_field]]
+id = "quiet-room-eval"
+required_when = "MVP or thought experiment can affect acceptance"
+
+[[output_field]]
+id = "satisfaction-audit"
+required_when = "quiet-room actor has returned a candidate result"
+
+[[output_field]]
+id = "accepted-snapshot"
+required_when = "later execution should reenter this discussion"
+
+[[output_field]]
+id = "next-question-or-action"
+required_when = "open Spark session"

@@ -20,7 +20,8 @@ Spark records:
 - question inventory status
 - feedback signals from user replies
 - accepted consensus snapshots
-- MVP or thought-experiment eval envelopes
+- MVP or thought-experiment eval envelopes with quiet-room execution or
+  explicit blocked/provisional status
 - rationale behind important user answers and design decisions
 
 ## Peer Boundary
@@ -28,5 +29,17 @@ Spark records:
 Spark owns the user-facing meaning, eval envelope, acceptance, and
 post-processing semantics. Brainstorm owns raw discussion and planning
 artifacts. Researcher owns source-bound evidence. Validation, implementation,
-and project tools may produce observations, but Spark keeps the portable eval
-meaning and acceptance record.
+subagents, reviewers, and project tools may produce observations, but Spark
+keeps the portable eval meaning and acceptance record.
+
+Spark must not self-design, self-execute, self-review, and self-accept an MVP
+or thought-experiment eval. When subagents are available and authorized, use a
+quiet-room executor or reviewer. Without independent execution or review, mark
+the eval as provisional or blocked rather than accepted.
+
+Subagent completion is not acceptance. Spark must audit whether the candidate
+result is genuinely satisfactory. If a material defect remains, keep iterating
+until the result satisfies the eval and required review passes, or until the
+user stops or lowers the target. When the defect reveals a transferable skill
+gap, update the relevant skill, reference, bench, or evolver record before
+rerunning a new quiet-room test.

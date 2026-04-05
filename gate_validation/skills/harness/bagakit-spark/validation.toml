@@ -6,6 +6,9 @@ owner = "skills/harness/bagakit-spark"
 description = "Require the canonical runtime layout for bagakit-spark."
 default = true
 proof_mode = "structural"
+protects = ["bagakit-spark installable runtime layout and dialogue workflow reference set"]
+oracle = ["fs runner checks required skill files, contract references, question guidance, and validation script while rejecting non-runtime payload paths"]
+exercised_surface = ["skills/harness/bagakit-spark runtime directory", "spark workflow references", "gate_validation/skills/harness/bagakit-spark registration"]
 proves = ["bagakit-spark-layout proves: required spark runtime files and references are present."]
 does_not_prove = ["bagakit-spark-layout does not prove agent dialogue quality, runtime behavior, or peer skill execution."]
 validation_class = "structure"
@@ -27,6 +30,7 @@ required_files = [
   "skills/harness/bagakit-spark/references/question-quality.md",
   "skills/harness/bagakit-spark/references/question-inventory.md",
   "skills/harness/bagakit-spark/references/composition-boundary.md",
+  "skills/harness/bagakit-spark/references/workflow-contract.toml",
   "gate_validation/skills/harness/bagakit-spark/validation.toml",
   "gate_validation/skills/harness/bagakit-spark/check-spark-contract.py",
 ]
@@ -41,10 +45,13 @@ forbidden_paths = [
 [[suite]]
 id = "bagakit-spark-contract"
 owner = "skills/harness/bagakit-spark"
-description = "Require spark dialogue, question-quality, and peer-composition contract anchors."
+description = "Require the structured spark dialogue, research, eval, and composition workflow contract."
 default = true
-proof_mode = "wording_contract"
-proves = ["bagakit-spark-contract proves: spark dialogue, question-quality, and peer-composition contract anchors are present in shipped skill text."]
+proof_mode = "structural"
+protects = ["spark structured dialogue loop, research decision SOP, MVP eval endpoint, composition boundaries, and required output fields"]
+oracle = ["contract checker parses workflow-contract.toml and verifies linked spark references and shipped skill instructions"]
+exercised_surface = ["skills/harness/bagakit-spark/references/workflow-contract.toml", "spark session protocol references", "bagakit-spark SKILL.md"]
+proves = ["bagakit-spark-contract proves: structured loop rules, artifacts, research decisions, composition boundaries, and output fields are schema-valid and linked from the shipped skill."]
 does_not_prove = ["bagakit-spark-contract does not prove actual agent compliance, live discussion depth, brainstorm execution, researcher execution, or stochastic output quality."]
 timeout_seconds = 120
 validation_class = "contract"

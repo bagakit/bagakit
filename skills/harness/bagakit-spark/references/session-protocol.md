@@ -349,6 +349,10 @@ The eval should name:
 - hypothesis
 - smallest trial or scenario
 - evidence producer, if any
+- quiet-room route
+  - executor subagent, reviewer subagent, human reviewer, or blocked
+  - what instructions, refs, and acceptance criteria the quiet-room actor saw
+  - what the quiet-room actor did not see to avoid answer leakage
 - evidence packet
   - refs to peer-owned artifacts
   - short evidence summaries needed to judge meaning
@@ -365,6 +369,92 @@ The eval should name:
 Do not treat the MVP eval as casual follow-up. Proposing or completing it is a
 process endpoint and must trigger the consensus snapshot and user confirmation
 flow before the session claims completion.
+
+MVP and thought-experiment evals need quiet-room separation before acceptance.
+The Spark context that proposed the hypothesis may not also be the only context
+that executes the trial and declares it successful. This avoids designing the
+test around the expected answer, rationalizing failures, or turning self-review
+into a gate.
+
+Default quiet-room protocol:
+
+1. Spark writes the eval envelope:
+   - hypothesis
+   - trial or scenario
+   - success and failure signals
+   - constraints
+   - evidence packet requirements
+   - relevant skill refs the executor must load
+2. A quiet-room actor performs the trial or review from that bounded brief:
+   - for implementation, design, build, workflow, or artifact MVPs, use an
+     executor subagent in an isolated workspace when subagents are available
+     and authorized
+   - for subjective, visual, writing, reasoning, or quality-sensitive evals,
+     add an independent reviewer subagent when feasible
+   - for abstract topics, use a quiet-room challenger or scenario-runner rather
+     than a same-context thought experiment when the result will decide
+     acceptance
+3. Spark receives the quiet-room evidence and records:
+   - actor type and scope
+   - input brief
+   - produced artifacts or observations
+   - failure signals
+   - disagreements
+   - interpretation and snapshot impact
+
+Every quiet-room completion then enters a satisfaction audit. A subagent's
+`done`, `pass`, or `provisional pass` is not acceptance. Spark must inspect the
+artifact, evidence packet, screenshots, reviewer findings, or scenario output
+and decide whether the result is genuinely satisfactory for the eval envelope.
+
+Satisfaction audit questions:
+
+- Does the result satisfy the accepted goal, success bar, and non-goals?
+- Would the user-visible artifact or conclusion still bother a careful reviewer
+  after the subagent says it is done?
+- Are any visible, behavioral, evidential, conceptual, or workflow defects
+  still material to the outcome?
+- Did the subagent skip or weaken the requested skill protocol?
+- Is the remaining defect a one-off execution bug, a prompt/spec gap, or a
+  transferable skill/rule gap?
+- Has independent review passed when the output is subjective, visual,
+  high-stakes, or quality-sensitive?
+
+If the answer is not satisfactory, do not close. Choose the next repair route:
+
+- one-off defect: issue a bounded fix brief to a quiet-room executor and review
+  again
+- prompt/spec gap: update the eval envelope or task brief, then run a new
+  quiet-room executor
+- transferable skill gap: update the relevant skill rule, reference, bench, or
+  evolver record first, then design a fresh equivalent test prompt and run a
+  new quiet-room executor loading the updated skill
+
+Prefer a fresh task prompt after skill updates. Repeating the same failed task
+can prove a local patch, but a new equivalent task is needed to test whether
+the updated skill generalizes instead of only overfitting to one artifact.
+
+Quiet-room input discipline:
+
+- give the actor the accepted snapshot candidate, task brief, constraints,
+  relevant skill path, success/failure criteria, and required evidence format
+- do not include the proposing context's desired pass verdict, self-score, or
+  hidden rationale that would coach the actor toward acceptance
+- do not let an implementation screenshot, failed prototype, or same-context
+  workaround become the reference baseline unless the user explicitly approves
+  it
+- do not let the main Spark context edit the quiet-room result and then treat
+  it as independent evidence; if integration edits are needed, run another
+  review pass or mark the evidence as integrated-not-independent
+
+If subagents or independent reviewers are unavailable or not authorized:
+
+- mark the route `quiet_room_blocked` or `provisional_no_quiet_room`
+- state that same-context execution can be used only as a dry run or debugging
+  aid
+- do not mark the eval `accepted`, `passed`, or `complete` unless the user
+  explicitly accepts the limitation or supplies independent human review
+- include the limitation in the evidence packet and snapshot impact
 
 Spark owns the eval envelope and post-processing semantics. Keep the hypothesis,
 scenario or trial, observation, interpretation, failure signal, and snapshot
