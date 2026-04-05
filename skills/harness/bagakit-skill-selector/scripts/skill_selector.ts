@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import type { Dirent } from "node:fs";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
@@ -66,6 +67,7 @@ import {
   USAGE_PHASES,
   USAGE_RESULTS,
   normalizePreflightDecisionToken,
+  type SkillUsageDoc,
 } from "./lib/model.ts";
 
 const scriptRoot = path.dirname(fileURLToPath(import.meta.url));
@@ -100,6 +102,7 @@ Commands:
   evaluate --file <path> --quality-score <n> --evidence-score <n> --feedback-score <n> --overall <pass|conditional_pass|fail|pending> --summary <text> [--status <task-status>] [--needs-feedback-confirmation <true|false>] [--needs-new-search <true|false>] [--next-search-query <text>] [--notes <text>]
   validate --file <path> [--strict]
   drivers --file <path> [--root <repo-root>] [--output <path>] [--include-unselected]
+  doctor --root <repo-root> [--tasks-dir <path>] [--json] [--strict]
 `);
 }
 
@@ -141,6 +144,281 @@ function normalizeTaskArtifactRef(filePath: string, rawPath: string): string {
     return relative.split(path.sep).join("/");
   }
   throw new Error(`evidence ref escapes selector repo root: ${rawPath}`);
+}
+
+type DoctorSeverity = "warning" | "error";
+
+interface DoctorFinding {
+  severity: DoctorSeverity;
+  code: string;
+  task_id: string;
+  file: string;
+  message: string;
+}
+
+interface DoctorReport {
+  schema: "bagakit.selector.doctor.v1";
+  tasks_dir: string;
+  total_tasks: number;
+  status_counts: Record<string, number>;
+  selected_skill_counts: Record<string, number>;
+  usage_skill_counts: Record<string, number>;
+  evidence_task_counts: {
+    candidate_result: number;
+    evolver_signal: number;
+  };
+  finding_counts: Record<DoctorSeverity, number>;
+  findings: DoctorFinding[];
+}
+
+const selectorTaskLogFile = "skill-usage.toml";
+
+function repoRelativePath(repoRoot: string, filePath: string): string {
+  const relative = path.relative(repoRoot, filePath);
+  if (relative === "") {
+    return ".";
+  }
+  if (relative.startsWith("..") || path.isAbsolute(relative)) {
+    return `outside-root/${path.basename(filePath)}`;
+  }
+  return relative.split(path.sep).join("/");
+}
+
+function resolveFromRepoRoot(repoRoot: string, rawPath: string): string {
+  if (path.isAbsolute(rawPath)) {
+    return rawPath;
+  }
+  return path.resolve(repoRoot, rawPath);
+}
+
+function incrementCount(counts: Record<string, number>, key: string): void {
+  counts[key] = (counts[key] ?? 0) + 1;
+}
+
+function sortedCounts(counts: Record<string, number>): Record<string, number> {
+  return Object.fromEntries(
+    Object.entries(counts).sort(([leftKey, leftValue], [rightKey, rightValue]) => {
+      if (rightValue !== leftValue) {
+        return rightValue - leftValue;
+      }
+      return leftKey.localeCompare(rightKey);
+    }),
+  );
+}
+
+function findSelectorTaskLogs(tasksDir: string): string[] {
+  if (!fs.existsSync(tasksDir)) {
+    return [];
+  }
+
+  const files: string[] = [];
+  const stack = [tasksDir];
+  while (stack.length > 0) {
+    const current = stack.pop()!;
+    let entries: Dirent[];
+    try {
+      entries = fs.readdirSync(current, { withFileTypes: true });
+    } catch {
+      continue;
+    }
+
+    for (const entry of entries) {
+      const nextPath = path.join(current, entry.name);
+      if (entry.isDirectory()) {
+        if (entry.name === ".git" || entry.name === "node_modules") {
+          continue;
+        }
+        stack.push(nextPath);
+        continue;
+      }
+      if (entry.isFile() && entry.name === selectorTaskLogFile) {
+        files.push(nextPath);
+      }
+    }
+  }
+  return files.sort((left, right) => left.localeCompare(right));
+}
+
+function addDoctorFinding(
+  findings: DoctorFinding[],
+  severity: DoctorSeverity,
+  code: string,
+  taskId: string,
+  file: string,
+  message: string,
+): void {
+  findings.push({ severity, code, task_id: taskId, file, message });
+}
+
+function inspectSelectorTaskDoc(doc: SkillUsageDoc, file: string, findings: DoctorFinding[]): void {
+  const selectedSkillIds = new Set(doc.skill_plan.filter((plan) => plan.selected).map((plan) => plan.skill_id));
+  const usedSkillIds = new Set(doc.usage_log.map((usage) => usage.skill_id));
+
+  if (doc.status !== "completed") {
+    addDoctorFinding(findings, "warning", "open-task", doc.task_id, file, `status is ${doc.status}`);
+  }
+  if (doc.preflight.answer === "pending" || doc.preflight.decision === "pending") {
+    addDoctorFinding(findings, "warning", "pending-preflight", doc.task_id, file, "preflight is still pending");
+  }
+  if (doc.evaluation.overall === "pending") {
+    addDoctorFinding(findings, "warning", "pending-evaluation", doc.task_id, file, "evaluation is still pending");
+  }
+  if (
+    doc.evaluation.quality_score === 0 &&
+    doc.evaluation.evidence_score === 0 &&
+    doc.evaluation.feedback_score === 0
+  ) {
+    addDoctorFinding(findings, "warning", "zero-evaluation", doc.task_id, file, "evaluation scores are all zero");
+  }
+  if (doc.skill_plan.length > 0 && doc.usage_log.length === 0) {
+    addDoctorFinding(findings, "warning", "missing-usage", doc.task_id, file, "planned skills have no usage log");
+  }
+  if (doc.status === "completed") {
+    for (const skillId of selectedSkillIds) {
+      if (!usedSkillIds.has(skillId)) {
+        addDoctorFinding(
+          findings,
+          "warning",
+          "selected-without-usage",
+          doc.task_id,
+          file,
+          `selected skill has no usage log: ${skillId}`,
+        );
+      }
+    }
+  }
+  if (doc.usage_log.length > 0 && doc.candidate_result_log.length === 0) {
+    addDoctorFinding(
+      findings,
+      "warning",
+      "missing-candidate-result",
+      doc.task_id,
+      file,
+      "usage exists but no candidate result was recorded",
+    );
+  }
+
+  const hasEvolverReviewTrigger =
+    doc.usage_log.some((usage) => usage.backoff_required) ||
+    doc.feedback_log.some((feedback) => feedback.signal === "negative") ||
+    doc.benchmark_log.some((benchmark) => !benchmark.passed) ||
+    doc.error_pattern_log.length > 0;
+  if (doc.evolver_handoff_policy.enabled && hasEvolverReviewTrigger && doc.evolver_signal_log.length === 0) {
+    addDoctorFinding(
+      findings,
+      "warning",
+      "missing-evolver-signal",
+      doc.task_id,
+      file,
+      "review trigger exists but no evolver signal was recorded",
+    );
+  }
+}
+
+function sanitizeDoctorError(repoRoot: string, error: unknown): string {
+  const message = error instanceof Error ? error.message : String(error);
+  return message.split(repoRoot).join(".");
+}
+
+function buildDoctorReport(repoRoot: string, tasksDir: string, strict: boolean): DoctorReport {
+  const findings: DoctorFinding[] = [];
+  const statusCounts: Record<string, number> = {};
+  const selectedSkillCounts: Record<string, number> = {};
+  const usageSkillCounts: Record<string, number> = {};
+  let candidateResultTaskCount = 0;
+  let evolverSignalTaskCount = 0;
+
+  const taskFiles = findSelectorTaskLogs(tasksDir);
+  for (const taskFile of taskFiles) {
+    const file = repoRelativePath(repoRoot, taskFile);
+    let doc: SkillUsageDoc;
+    try {
+      doc = readSkillUsageDoc(taskFile);
+    } catch (error) {
+      addDoctorFinding(
+        findings,
+        "error",
+        "unreadable-task-log",
+        path.basename(path.dirname(taskFile)),
+        file,
+        sanitizeDoctorError(repoRoot, error),
+      );
+      continue;
+    }
+
+    incrementCount(statusCounts, doc.status);
+    for (const plan of doc.skill_plan) {
+      if (plan.selected) {
+        incrementCount(selectedSkillCounts, plan.skill_id);
+      }
+    }
+    for (const usage of doc.usage_log) {
+      incrementCount(usageSkillCounts, usage.skill_id);
+    }
+    if (doc.candidate_result_log.length > 0) {
+      candidateResultTaskCount += 1;
+    }
+    if (doc.evolver_signal_log.length > 0) {
+      evolverSignalTaskCount += 1;
+    }
+
+    inspectSelectorTaskDoc(doc, file, findings);
+    if (strict) {
+      for (const issue of validateSkillUsage(doc, true)) {
+        addDoctorFinding(findings, "error", "strict-validation", doc.task_id, file, issue);
+      }
+    }
+  }
+
+  const findingCounts = { warning: 0, error: 0 };
+  for (const finding of findings) {
+    findingCounts[finding.severity] += 1;
+  }
+
+  return {
+    schema: "bagakit.selector.doctor.v1",
+    tasks_dir: repoRelativePath(repoRoot, tasksDir),
+    total_tasks: taskFiles.length,
+    status_counts: sortedCounts(statusCounts),
+    selected_skill_counts: sortedCounts(selectedSkillCounts),
+    usage_skill_counts: sortedCounts(usageSkillCounts),
+    evidence_task_counts: {
+      candidate_result: candidateResultTaskCount,
+      evolver_signal: evolverSignalTaskCount,
+    },
+    finding_counts: findingCounts,
+    findings,
+  };
+}
+
+function renderCounts(counts: Record<string, number>): string {
+  const entries = Object.entries(counts);
+  if (entries.length === 0) {
+    return "none";
+  }
+  return entries.map(([key, count]) => `${key}=${count}`).join(", ");
+}
+
+function renderDoctorReport(report: DoctorReport): string {
+  const lines = [
+    "Selector Doctor",
+    `tasks_dir: ${report.tasks_dir}`,
+    `total_tasks: ${report.total_tasks}`,
+    `statuses: ${renderCounts(report.status_counts)}`,
+    `selected_skills: ${renderCounts(report.selected_skill_counts)}`,
+    `usage_skills: ${renderCounts(report.usage_skill_counts)}`,
+    `evidence_tasks: candidate_result=${report.evidence_task_counts.candidate_result}, evolver_signal=${report.evidence_task_counts.evolver_signal}`,
+    `findings: warning=${report.finding_counts.warning}, error=${report.finding_counts.error}`,
+  ];
+  if (report.findings.length === 0) {
+    lines.push("ok: no selector doctor findings");
+    return lines.join("\n");
+  }
+
+  for (const finding of report.findings) {
+    lines.push(`- ${finding.severity} ${finding.code} ${finding.file}: ${finding.message}`);
+  }
+  return lines.join("\n");
 }
 
 function requiredString(flags: Map<string, string | boolean>, key: string): string {
@@ -686,6 +964,25 @@ function cmdValidate(flags: Map<string, string | boolean>): number {
   return 0;
 }
 
+function cmdDoctor(flags: Map<string, string | boolean>): number {
+  const repoRoot = resolvePathFromCwd(requiredString(flags, "root"));
+  const tasksDir = resolveFromRepoRoot(
+    repoRoot,
+    readStringFlag(flags, "tasks-dir") ?? ".bagakit/skill-selector/tasks",
+  );
+  const strict = readBooleanFlag(flags, "strict", false);
+  const report = buildDoctorReport(repoRoot, tasksDir, strict);
+  if (readBooleanFlag(flags, "json", false)) {
+    console.log(JSON.stringify(report, null, 2));
+  } else {
+    console.log(renderDoctorReport(report));
+  }
+  if (report.finding_counts.error > 0 || (strict && report.findings.length > 0)) {
+    return 1;
+  }
+  return 0;
+}
+
 function cmdDrivers(flags: Map<string, string | boolean>): number {
   const filePath = resolvePathFromCwd(requiredString(flags, "file"));
   const repoRoot = resolvePathFromCwd(readStringFlag(flags, "root") ?? ".");
@@ -762,6 +1059,8 @@ function main(argv: string[]): number {
       return cmdValidate(flags);
     case "drivers":
       return cmdDrivers(flags);
+    case "doctor":
+      return cmdDoctor(flags);
     default:
       throw new Error(`unknown command: ${command}`);
   }

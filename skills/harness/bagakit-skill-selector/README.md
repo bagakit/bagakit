@@ -203,6 +203,9 @@ Current operator status:
 - it can derive a task-local `skill-ranking.md` report
 - it can emit structured json for `candidate-survey` and `skill-ranking` when
   eval or validation wants semantic assertions without scraping markdown
+- it can run a read-only `doctor` report across selector task logs to find
+  open tasks, pending evaluation, missing usage, missing candidate results, and
+  missing evolver signals before those gaps become hidden learning debt
 - it can export or bridge those review suggestions into evolver intake without
   turning selector into a repository-level control plane
 - it renders task-local driver packs for Bagakit skills that expose the

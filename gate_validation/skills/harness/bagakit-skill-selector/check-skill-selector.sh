@@ -379,6 +379,28 @@ grep -q 'overall = "pending"' "$INVALID_SCORE_TARGET"
   --file "$TARGET" \
   --strict
 
+DOCTOR_JSON="$TMP_DIR/selector-doctor.json"
+"${SELECTOR_BIN[@]}" doctor \
+  --root "$TMP_DIR" \
+  --json \
+  > "$DOCTOR_JSON"
+
+python3 - "$DOCTOR_JSON" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+payload = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+assert payload["schema"] == "bagakit.selector.doctor.v1"
+assert payload["tasks_dir"] == ".bagakit/skill-selector/tasks"
+assert payload["total_tasks"] == 2
+assert payload["status_counts"]["completed"] == 1
+assert payload["status_counts"]["planning"] == 1
+assert payload["evidence_task_counts"]["evolver_signal"] == 1
+assert not any("/" == finding["file"][0] for finding in payload["findings"])
+assert any(finding["code"] == "pending-evaluation" for finding in payload["findings"])
+PY
+
 grep -q 'bagakit-researcher' "$TARGET"
 grep -q 'recipe_id = "research-to-knowledge"' "$TARGET"
 grep -q 'synthesis_artifact = ".bagakit/living-knowledge/notes/research-to-knowledge.md"' "$TARGET"
@@ -477,6 +499,22 @@ if grep -q 'evolver review signal suggested' "$DISABLED_LOG"; then
 fi
 if grep -q '^\[\[evolver_signal_log\]\]$' "$TARGET_DISABLED"; then
   echo "error: disabled evolver handoff unexpectedly wrote evolver_signal_log entries" >&2
+  exit 1
+fi
+
+DOCTOR_STRICT_ERR="$TMP_DIR/selector-doctor-strict.err"
+if "${SELECTOR_BIN[@]}" doctor \
+  --root "$TMP_DIR" \
+  --strict \
+  > "$TMP_DIR/selector-doctor-strict.out" \
+  2>"$DOCTOR_STRICT_ERR"; then
+  echo "error: selector doctor strict accepted unfinished task evidence" >&2
+  exit 1
+fi
+grep -q 'pending-evaluation' "$TMP_DIR/selector-doctor-strict.out"
+grep -q 'strict-validation' "$TMP_DIR/selector-doctor-strict.out"
+if grep -q "$TMP_DIR" "$TMP_DIR/selector-doctor-strict.out"; then
+  echo "error: selector doctor leaked an absolute temp path" >&2
   exit 1
 fi
 
