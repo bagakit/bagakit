@@ -1,225 +1,268 @@
-"""Check bagakit-codex-webpage-design wording contract anchors."""
+"""Validate bagakit-codex-webpage-design structured workflow contract."""
 
 from __future__ import annotations
 
 import argparse
+import json
 from pathlib import Path
 
+try:
+    import tomllib
+except ModuleNotFoundError:  # pragma: no cover
+    tomllib = None
 
-REQUIRED_PHRASES = {
-    "skills/swe/bagakit-codex-webpage-design/SKILL.md": [
-        "reference-context-first webpage design engineering workflow",
-        "Do not start implementation with no design reference",
-        "thin operating protocol",
-        "historical failures live in `gate_eval/`",
-        "prefer adding or updating a bench case",
-        "`design-brief`",
-        "`reference-intent`",
-        "`image-prompt` and `design-reference`",
-        "`state-reference-set`",
-        "`visual-decomposition`",
-        "`ambition-bar`",
-        "`information-architecture-map`, `workflow-model`",
-        "`workflow-model`, `control-surface-map`, and `interaction-model`",
-        "`capability-route`",
-        "`affordance-inventory`, `behavior-matrix`, `visual-bug-ledger`",
-        "`canvas-stability-report`, `visual-parity-ledger`",
-        "`visual-judge-scorecards`",
-        "`judge-aggregation`",
-        "`code-quality-review`, and `handoff`",
-        "Image2 design generation is mandatory before coding",
-        "failed or under-review implementation screenshot must not become",
-        "Product Model Before Pixels",
-        "Unexplained duplicate controls block acceptance",
-        "Automation is execution evidence, not visual parity proof",
-        "before, mid-drag, and after-drag motion-frame evidence",
-        "safe zones and meet mobile touch expectations",
-        "visual-bug-ledger` has zero blockers",
-        "nice but not surprising",
-        "Failure Learning",
-        "fake or unverified visible controls",
-        "missing information architecture",
-        "duplicated or conflicting mode controls that make the business flow unclear",
-        "sellable product MVP",
-        "toy single-page experiments",
-        "references/implementation-loop.md",
-        "references/visual-quality-rubric.md",
-        "references/artifact-contract.md",
-    ],
-    "skills/swe/bagakit-codex-webpage-design/README.md": [
-        "reference-context-first",
-        "image2 is the default reference",
-        "Do not implement from text requirements with no design reference",
-        "machine validation is not enough",
-        "canvas safe zones",
-        "artifact freshness",
-    ],
-    "skills/swe/bagakit-codex-webpage-design/references/image-prompt-guide.md": [
-        "Image2 is the default reference generator",
-        "Do not implement directly from text requirements with no design reference",
-        "Do not use screenshots of a failed or under-review implementation",
-        "State set:",
-        "Negative constraints:",
-        "coherent set of frames",
-        "Did the generated board drift toward a failed implementation",
-        "verify current OpenAI image generation",
-    ],
-    "skills/swe/bagakit-codex-webpage-design/references/implementation-loop.md": [
-        "Do not enter this loop until `reference-intent.md` exists",
-        "Do not enter this loop until `visual-decomposition.md` exists",
-        "Do not implement meaningful branch states until `state-reference-set.md` exists",
-        "Product Workflow Gate",
-        "Control Surface Gate",
-        "Information Architecture Gate",
-        "information-architecture-map.md",
-        "object taxonomy",
-        "page region responsibilities",
-        "progressive disclosure",
-        "information scent",
-        "can falsify the skill",
-        "MVP Experiment Gate",
-        "sellable product MVP",
-        "single static page can be a smoke test",
-        "workflow-model.md",
-        "control-surface-map.md",
-        "one canonical owner region",
-        "mirrored shortcut",
-        "Interaction Model Gate",
-        "Affordance Inventory Gate",
-        "reference-coverage-matrix",
-        "reference-visible affordance",
-        "Missing reference controls are blockers",
-        "Capability Route Gate",
-        "prefer a proven library or host component",
-        "canvas-stability-report.md",
-        "before, mid-drag, and after-drag frame evidence",
-        "final-position assertion after mouseup is not enough",
-        "Library defaults are suspect until proven in screenshots",
-        "pre-judge interaction-logic sanity check",
-        "duplicate control is redundant or conflicting",
-        "Do not treat automated validation as a substitute for visual review",
-        "Refresh artifacts after each iteration",
-    ],
-    "skills/swe/bagakit-codex-webpage-design/references/visual-quality-rubric.md": [
-        "Start by checking reference intent",
-        "Reject state boards that copy visual drift",
-        "Cannot pixel-align",
-        "Interaction Fit",
-        "Workflow Legibility",
-        "Control Architecture",
-        "Information Architecture",
-        "information scent",
-        "mvp complexity",
-        "State Parity",
-        "Code Craft",
-        "Behavior Proof",
-        "Affordance Honesty",
-        "Reference Coverage",
-        "reference coverage matrix",
-        "Canvas Stability",
-        "Motion-Frame Stability",
-        "duplicate mode controls",
-        "business workflow",
-        "Visual Gate Protocol",
-        "quiet-room judges",
-        "visual-judge-scorecard",
-        "judge-aggregation",
-        "craft median >= 4.2",
-        "nice but not surprising",
-        "Do not average away blockers",
-        "workflow legibility",
-        "information architecture",
-        "control architecture and duplicate controls",
-        "toy single-page prototype",
-        "polished static composition",
-    ],
-    "skills/swe/bagakit-codex-webpage-design/references/artifact-contract.md": [
-        ".bagakit/codex-webpage-design/<task-slug>/",
-        "information-architecture-map.md",
-        "mvp-experiment-plan.md",
-        "reference-coverage-matrix.md",
-        "workflow-model.md",
-        "control-surface-map.md",
-        "blocking artifacts",
-        "Unexplained duplicate controls are blockers",
-        "Drag and pan stability require motion-frame evidence",
-        "execution evidence, not visual parity evidence",
-        "Artifact freshness is required for completion",
-        "User-reported visible errors invalidate the prior visual gate decision",
-        "Workflow model: <ref or not_needed_static_page>",
-        "Control surface map: <ref or not_needed_static_page>",
-        "Information architecture map: <ref or not_needed_simple_page>",
-        "MVP experiment plan: <ref or not_needed_not_skill_experiment>",
-        "information architecture review: <passed|partial|blocked|not_applicable with evidence ref>",
-        "MVP complexity gate: <passed|partial|blocked|not_applicable with evidence ref>",
-        "can falsify the skill",
-        "Information scent must be checked in the rendered screenshots",
-        "A page that only inventories what it happened to implement has not proven reference coverage.",
-        "workflow legibility: <passed|partial|blocked|not_applicable with evidence ref>",
-        "control surface review: <passed|partial|blocked|not_applicable with evidence ref>",
-    ],
-    "skills/swe/bagakit-codex-webpage-design/references/bagakit-driver.toml": [
-        "WebpageDesign",
-        "InformationArchitecture=<information-architecture-map ref or none>",
-        "Workflow=<workflow-model ref or none>",
-        "ControlSurface=<control-surface-map ref or none>",
-        "MVPExperiment=<mvp-experiment-plan ref or not_applicable>",
-        "VisualJudges=<visual-judge-scorecards ref or not_needed>",
-        "JudgeAggregation=<pass|needs_iteration|blocked|not_needed and ref>",
-        "Parity=<match|acceptable_delta|needs_iteration>",
-    ],
-    "gate_eval/skills/swe/bagakit-codex-webpage-design/suite.ts": [
-        "historical failure bench",
-        "historical-failures.json",
-        "must_find",
-        "expected_blockers",
-    ],
-    "gate_eval/skills/swe/bagakit-codex-webpage-design/cases/historical-failures.json": [
-        "no-reference-direct-code",
-        "state-board-copies-failed-implementation",
-        "fake-visible-controls-pass-happy-path",
-        "reference-controls-missing-from-implementation",
-        "drag-final-position-hides-flicker",
-        "automation-passes-visual-blockers-remain",
-        "nice-clean-but-not-surprising",
-        "duplicated-mode-controls-unclear-flow",
-        "missing-information-architecture-map",
-        "weak-information-scent-polished-panels",
-        "toy-single-page-false-mvp-proof",
-    ],
+
+CONTRACT_PATH = "skills/swe/bagakit-codex-webpage-design/references/workflow-contract.toml"
+BENCH_PATH = "gate_eval/skills/swe/bagakit-codex-webpage-design/cases/historical-failures.json"
+
+REQUIRED_STAGE_IDS = {
+    "design-brief",
+    "reference-intent",
+    "design-reference",
+    "state-reference-set",
+    "visual-decomposition",
+    "design-spec-ledger",
+    "ambition-bar",
+    "information-architecture-map",
+    "workflow-model",
+    "control-surface-map",
+    "interaction-model",
+    "capability-route",
+    "browser-evidence",
+}
+
+REQUIRED_COMPLETION_ARTIFACT_IDS = {
+    "affordance-inventory",
+    "behavior-matrix",
+    "visual-bug-ledger",
+    "full-page-structural-parity-ledger",
+    "micro-parity-checklist",
+    "canvas-stability-report",
+    "frame-specimen-sheet",
+    "visual-parity-ledger",
+    "interaction-parity-ledger",
+    "visual-judge-scorecards",
+    "judge-aggregation",
+    "code-quality-review",
+    "handoff",
+}
+
+REQUIRED_GUARD_IDS = {
+    "reference-first",
+    "state-reference-authority",
+    "affordance-honesty",
+    "reference-coverage",
+    "information-architecture",
+    "motion-frame-stability",
+    "spatial-label-legibility",
+    "visual-parity-is-not-automation",
+    "screenshot-review-integrity",
+    "ambition-bar",
+    "design-spec-fidelity",
+    "material-asset-parity",
+    "asset-pipeline-integrity",
+    "reference-specific-sprite-retention",
+    "nine-slice-renderer-integrity",
+    "frame-specimen-readability",
+    "alpha-mask-integrity",
+    "responsive-asset-parity",
+    "mobile-spatial-adaptation",
+    "implementation-checkpoint",
+    "full-page-structural-parity",
+    "control-surface-clarity",
+    "mvp-complexity",
 }
 
 
-def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--root", default=".", help="repository root")
-    return parser.parse_args()
+def load_toml(path: Path) -> dict:
+    if tomllib is None:
+        raise RuntimeError("tomllib is required for this validation")
+    with path.open("rb") as handle:
+        data = tomllib.load(handle)
+    if not isinstance(data, dict):
+        raise ValueError("contract root must be a TOML table")
+    return data
+
+
+def ids(items: object, label: str) -> set[str]:
+    if not isinstance(items, list):
+        raise ValueError(f"{label} must be an array of tables")
+    result: set[str] = set()
+    for item in items:
+        if not isinstance(item, dict):
+            raise ValueError(f"{label} entries must be tables")
+        item_id = item.get("id")
+        if not isinstance(item_id, str) or not item_id.strip():
+            raise ValueError(f"{label} entry missing non-empty id")
+        if item_id in result:
+            raise ValueError(f"{label} duplicate id: {item_id}")
+        result.add(item_id)
+    return result
+
+
+def require_superset(actual: set[str], expected: set[str], label: str) -> list[str]:
+    missing = sorted(expected - actual)
+    return [f"{label} missing ids: {missing}"] if missing else []
 
 
 def main() -> int:
-    args = parse_args()
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--root", default=".", help="repository root")
+    args = parser.parse_args()
+
     root = Path(args.root).resolve()
-    missing: list[str] = []
+    failures: list[str] = []
 
-    for rel_path, phrases in REQUIRED_PHRASES.items():
-        path = root / rel_path
-        if not path.is_file():
-            missing.append(f"{rel_path}: missing file")
-            continue
-        text = path.read_text(encoding="utf-8")
-        normalized_text = " ".join(text.split())
-        for phrase in phrases:
-            normalized_phrase = " ".join(phrase.split())
-            if normalized_phrase not in normalized_text:
-                missing.append(f"{rel_path}: missing phrase: {phrase}")
+    contract_path = root / CONTRACT_PATH
+    bench_path = root / BENCH_PATH
 
-    if missing:
-        print("webpage design contract check failed:")
-        for item in missing:
-            print(f"- {item}")
+    if not contract_path.is_file():
+        failures.append(f"missing contract: {CONTRACT_PATH}")
+    if not bench_path.is_file():
+        failures.append(f"missing historical failure bench: {BENCH_PATH}")
+    if failures:
+        for failure in failures:
+            print(f"error: {failure}")
         return 1
 
-    print("ok: webpage design wording contract anchors present")
+    try:
+        contract = load_toml(contract_path)
+    except Exception as exc:  # noqa: BLE001
+        print(f"error: failed to parse {CONTRACT_PATH}: {exc}")
+        return 1
+
+    if contract.get("version") != 1:
+        failures.append("contract version must be 1")
+    if contract.get("skill_id") != "bagakit-codex-webpage-design":
+        failures.append("contract skill_id mismatch")
+    if contract.get("contract_kind") != "skill_workflow_contract":
+        failures.append("contract_kind must be skill_workflow_contract")
+
+    try:
+        stage_ids = ids(contract.get("stage"), "stage")
+        artifact_ids = ids(contract.get("completion_artifact"), "completion_artifact")
+        guard_ids = ids(contract.get("guard"), "guard")
+    except ValueError as exc:
+        failures.append(str(exc))
+        stage_ids = set()
+        artifact_ids = set()
+        guard_ids = set()
+
+    failures.extend(require_superset(stage_ids, REQUIRED_STAGE_IDS, "stage"))
+    failures.extend(
+        require_superset(
+            artifact_ids,
+            REQUIRED_COMPLETION_ARTIFACT_IDS,
+            "completion_artifact",
+        )
+    )
+    failures.extend(require_superset(guard_ids, REQUIRED_GUARD_IDS, "guard"))
+
+    entry = contract.get("entry")
+    if not isinstance(entry, dict):
+        failures.append("missing [entry] table")
+    else:
+        for rel_link in entry.get("required_reference_links", []):
+            if not isinstance(rel_link, str):
+                failures.append("entry.required_reference_links must contain strings")
+                continue
+            if not (root / "skills/swe/bagakit-codex-webpage-design" / rel_link).is_file():
+                failures.append(f"entry required reference missing: {rel_link}")
+
+        skill_path = root / "skills/swe/bagakit-codex-webpage-design/SKILL.md"
+        skill_text = skill_path.read_text(encoding="utf-8")
+        if "references/workflow-contract.toml" not in skill_text:
+            failures.append("SKILL.md must link references/workflow-contract.toml")
+
+    try:
+        bench = json.loads(bench_path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        failures.append(f"historical failure bench is invalid JSON: {exc}")
+        bench = {}
+
+    if bench.get("schema") != "bagakit.codex-webpage-design.historical-failures/v2":
+        failures.append("historical failure bench schema must be v2")
+
+    cases = bench.get("cases")
+    if not isinstance(cases, list) or not cases:
+        failures.append("historical failure bench must contain cases")
+        cases = []
+
+    bench_case_ids: set[str] = set()
+    for case in cases:
+        if not isinstance(case, dict):
+            failures.append("historical failure cases must be objects")
+            continue
+        case_id = case.get("id")
+        if not isinstance(case_id, str) or not case_id.strip():
+            failures.append("historical failure case missing id")
+            continue
+        if case_id in bench_case_ids:
+            failures.append(f"duplicate historical failure case id: {case_id}")
+        bench_case_ids.add(case_id)
+
+        guard_refs = case.get("contract_guard_ids")
+        if not isinstance(guard_refs, list) or not guard_refs:
+            failures.append(f"case {case_id} must declare contract_guard_ids")
+        else:
+            missing_guard_refs = sorted(str(ref) for ref in guard_refs if ref not in guard_ids)
+            if missing_guard_refs:
+                failures.append(
+                    f"case {case_id} references unknown guards: {missing_guard_refs}"
+                )
+
+        source_refs = case.get("source_refs")
+        if not isinstance(source_refs, list) or not source_refs:
+            failures.append(f"case {case_id} must declare source_refs")
+        else:
+            for source_ref in source_refs:
+                if not isinstance(source_ref, str):
+                    failures.append(f"case {case_id} has non-string source ref")
+                    continue
+                if not (root / source_ref).exists():
+                    failures.append(f"case {case_id} source ref missing: {source_ref}")
+
+        if "must_find" in case:
+            failures.append(f"case {case_id} must not use must_find phrase anchors")
+
+    mappings = contract.get("historical_failure_guard")
+    if not isinstance(mappings, list):
+        failures.append("contract must declare historical_failure_guard mappings")
+        mappings = []
+
+    mapped_case_ids: set[str] = set()
+    for mapping in mappings:
+        if not isinstance(mapping, dict):
+            failures.append("historical_failure_guard entries must be tables")
+            continue
+        case_id = mapping.get("case_id")
+        guard_refs = mapping.get("guard_ids")
+        if not isinstance(case_id, str) or not case_id:
+            failures.append("historical_failure_guard missing case_id")
+            continue
+        mapped_case_ids.add(case_id)
+        if not isinstance(guard_refs, list) or not guard_refs:
+            failures.append(f"historical_failure_guard {case_id} missing guard_ids")
+            continue
+        unknown = sorted(str(ref) for ref in guard_refs if ref not in guard_ids)
+        if unknown:
+            failures.append(f"historical_failure_guard {case_id} unknown guards: {unknown}")
+
+    if bench_case_ids:
+        unmapped = sorted(bench_case_ids - mapped_case_ids)
+        extra = sorted(mapped_case_ids - bench_case_ids)
+        if unmapped:
+            failures.append(f"bench cases missing contract mappings: {unmapped}")
+        if extra:
+            failures.append(f"contract mappings without bench cases: {extra}")
+
+    if failures:
+        print("webpage design workflow contract check failed:")
+        for failure in failures:
+            print(f"- {failure}")
+        return 1
+
+    print("ok: webpage design workflow contract structure and historical guards are aligned")
     return 0
 
 

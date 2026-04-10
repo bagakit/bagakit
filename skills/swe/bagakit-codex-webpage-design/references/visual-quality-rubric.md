@@ -8,6 +8,12 @@ more tightly than a `style_reference`, while `asset`, `content_context`, and
 `data_context` references should be judged by whether the implementation uses
 the input faithfully and communicates the page goal.
 
+Then check reference provenance. A browser-rendered reference created by the
+agent is not equivalent to Image2 or an external design source. Treat
+agent-authored HTML/CSS as exploration only. It may help shape an Image2
+prompt, design brief, or feasibility prototype, but it cannot clear visual
+parity, generated-reference, or state-reference gates.
+
 If a strong original reference exists, it stays authoritative. Later generated
 state boards must be judged against that original reference before they can
 guide implementation. Reject state boards that copy visual drift from a failed
@@ -63,32 +69,70 @@ For interactive pages, add a sixth check:
      control, and floating control have clear ownership and scope without
      unexplained duplication?
 
-Then add two implementation checks:
+Then add implementation checks:
 
 11. State Parity
    - Are the important branch states based on a state reference frame or
      reusable rule from the reference set rather than local improvisation?
-12. Code Craft
+12. Full-Page Structural Parity
+   - Do whole-page and first-viewport screenshots preserve the reference's
+     page frame, section order, region proportions, control placement, primary
+     object layout, and mobile hierarchy?
+13. Design Spec Fidelity
+   - Did the implementation derive and use a design spec ledger for grid,
+     spacing, typography, control geometry, material tokens, and state
+     treatment rather than ad hoc CSS guesses?
+14. Micro-Parity
+   - Do cropped details such as button spacing, icon alignment, row density,
+     borders, shadows, text leading, dividers, and selected/hover states match
+     the reference or have accepted reasons?
+15. Material Parity
+   - When the reference depends on texture, torn edges, illustrated glyphs,
+     custom icon language, glow/noise overlays, or other material craft, did
+     the implementation use an asset kit rather than flattening the design
+     into clean CSS boxes?
+   - Are generated or provided assets reusable, responsive-safe, readable, and
+     proven against the reference?
+   - If custom glyphs or icons worked, were they preserved as fixed-size
+     reference-specific sprites instead of replaced by generic icons?
+   - If panel or card frames scale, does a nine-slice renderer keep corners,
+     edges, center fill, padding, and min size stable across specimen sizes?
+16. Code Craft
    - Are repeated UI structures data-driven and componentized with shared
      tokens, or did visual iteration leave a large brittle one-off component?
-13. Behavior Proof
+17. Behavior Proof
    - Do visible interactive affordances actually work in the browser, including
      click selection, search/filter, reset, capture editing, keyboard
      activation, and drag/pan/zoom when implied?
-14. Affordance Honesty
+16. Affordance Honesty
    - Has every visible live-looking control been inventoried and classified as
      working, disabled, hidden, or explicitly out of scope?
-15. Reference Coverage
+17. Reference Coverage
    - Has every reference-visible control, state, and signature detail been
      implemented or explicitly accounted for before judging parity?
-16. Canvas Stability
+18. State Coherence
+   - When the app enters blocked, empty, missing-input, failed, disconnected,
+     permission-denied, or low-confidence states, do primary surfaces clearly
+     become unavailable, stale, recoverable, or scoped instead of looking live?
+19. Canvas Stability
    - If the page presents a graph, map, canvas, whiteboard, or spatial surface,
      does manipulation feel smooth without flicker, object reset, pan/drag
      conflict, or layout jumps?
-17. Motion-Frame Stability
+20. Motion-Frame Stability
    - Do before, mid-drag, and after-drag frames show continuous movement without
      flashing, disappearing content, z-order jumps, unwanted transitions, or
      relation-line redraw artifacts?
+21. Mobile State Honesty
+   - Do mobile tabs, drawers, bottom sheets, and segmented controls visually
+     match the content being shown?
+   - Do core mobile visualizations such as waveforms, charts, maps, timelines,
+     and media scrubbers remain visible and operable instead of collapsing into
+     blank or clipped blocks?
+22. Spatial Label Legibility
+   - Do graph, map, timeline, and spatial labels avoid overlap, collision,
+     unreadable clustering, or ambiguous ownership?
+   - Are label placement and truncation reviewed in screenshots, not only by
+     DOM existence or final selected state?
 
 For high-craft requests, also ask:
 
@@ -122,8 +166,50 @@ Watch for:
   unrelated to the reference frame
 - generated state boards that look like the failed implementation rather than
   the strong original reference
+- browser-rendered design references that are really implementation sketches,
+  lack provenance, or share source files and design decisions with the app
+  being judged
+- browser-rendered references whose frozen screenshots or receipt appear after
+  app implementation files already exist
+- whole-page layout drift hidden by local crop checks or style-language
+  similarity
+- image2-generated `style_reference` being treated as a loose moodboard when
+  the user expected the reference structure to guide implementation
+- moving topbar controls into a hero panel, changing a compact product
+  workspace into a loose landing page, or replacing the generated mobile frame
+  with an unrelated responsive layout without explicit acceptance
+- missing design spec ledger, scattered one-off CSS values, or detail fixes
+  that change the implementation without updating the visual SSOT
+- material-heavy references rendered only with clean CSS boxes, simple
+  gradients, generic noise, or plain borders when the reference's craft depends
+  on texture, masks, glyphs, handmade edges, illustrated marks, or overlays
+- generated full-page images used as fake backgrounds instead of an actual UI
+  plus reusable material assets
+- asset kits with no provenance, no usage map, no fallback, unreadable
+  overlays, obvious tiling seams, or inconsistent material treatment across
+  states
+- accepted reference-specific glyphs or icon sprites replaced by generic icon
+  libraries, font symbols, or visibly rescaled sheet crops
+- parchment, card, inspector, modal, or frame backgrounds stretched as one
+  bitmap so corners deform, edge texture warps, center fill muddies text, or
+  min-size constraints are violated
+- missing `frame-specimen-sheet.md` or specimen screenshots for scalable
+  textured frames
+- specimen screenshots whose labels, helper text, disabled captions, focus
+  rings, or dense sample content are hard to read on the rendered material
+- visual bug ledgers that equate "no browser-detected overflow" with "no
+  visual bugs" without an explicit screenshot review by the executor, parent,
+  or visual judges
+- graph, map, or spatial labels that visibly overlap, collide, clip, or cluster
+  into unreadable text while automated browser checks still pass
+- button spacing, icon alignment, typography leading, row density, border
+  weight, surface shadow, or selected-state treatment that visibly drifts from
+  the reference after the broad layout has matched
 - static screenshots accepted despite non-working visible controls
 - visible primary controls treated as harmless prototype decoration
+- blocked, empty, missing-source, permission-denied, or failed states that
+  leave a previous player, transcript, citation set, cart, queue, editor,
+  graph, or inspector looking live without stale or disabled treatment
 - reference-visible controls, state frames, or signature details missing from
   the implementation because the inventory only counted implemented controls
 - object types, navigation levels, or page regions that are visually present
@@ -146,6 +232,14 @@ Watch for:
   selection and panning
 - drag or pan that only passes final-position assertions while visibly flashing
   during movement
+- mobile tabs, drawers, or segmented controls whose highlighted state does not
+  match the visible panel, or whose labels disappear because active and inactive
+  styling was only tested through DOM state
+- mobile tabs or segmented modes that render the same panel under different
+  labels instead of owning distinct content, scope, or workflow value
+- mobile waveform, chart, timeline, map, or media visualization that appears as
+  a blank block, clipped rectangle, missing markers, or unreadable graphic while
+  desktop appears correct
 - competent but unsurprising design when the task asks for high-craft,
   frontier, premium, or delightful work
 - a toy single-page prototype used as evidence for sellable product-MVP
@@ -177,20 +271,128 @@ Use:
 Never mark `match` without browser screenshot evidence and a recorded
 reference intent.
 
+Never mark `match` or `acceptable_delta` when the required
+`reference-provenance-ledger.md` is missing, the reference source is
+`blocked_no_reference`, or the reference source is `browser_exploration_only`.
+An agent-authored HTML/CSS page cannot become visual authority through
+freeze-order evidence, screenshot polish, or independent review.
+
 Never mark `acceptable_delta` when the implementation looks like a different
 page from the design reference. A pleasant page, good interaction model,
 appropriate library choice, and clean console do not prove visual parity.
+
+Never mark `acceptable_delta` when `full-page-structural-parity-ledger.md` is
+missing for an exact, image2-generated, or state-board implementation. Local
+crops, micro-parity checks, component token matching, and style-language notes
+cannot prove that the overall page structure matches.
+
+Never mark `acceptable_delta` while the full-page ledger has high-severity
+drift in first viewport composition, section order, region proportions, control
+placement, primary object layout, scroll density, or mobile hierarchy.
 
 Never mark `acceptable_delta` when visible bugs remain, including overlap,
 clipping, unreadable text, malformed icons, broken assets, accidental
 scrollbars, layout jumps, inconsistent state styling, or branch states that
 were implemented without a reference frame or reusable state rule.
 
+Never mark `acceptable_delta` when `design-spec-ledger.md` or
+`micro-parity-checklist.md` is missing for an exact, image2-generated, or
+state-board implementation. A whole-page screenshot that "basically feels
+right" does not prove button spacing, control geometry, typography rhythm,
+border/shadow treatment, or repeated-component density.
+
+Never mark `acceptable_delta` when `material-parity-checklist.md` is missing
+for a high-craft reference whose signature quality depends on generated or
+provided material assets rather than CSS-only primitives.
+
+Never mark `acceptable_delta` when the page structure matches but the material
+system loses the reference's signature craft: paper grain becomes flat beige,
+torn edges become clean rectangles, handmade glyphs become generic text,
+custom icons become library defaults, glow/noise is absent, or overlays make
+content unreadable.
+
+Never mark `acceptable_delta` when assets are generated but not integrated as
+real UI support. Full-page bitmap backdrops, screenshots used as surfaces, and
+unresponsive image-only panels do not count as material parity.
+
+Never mark `acceptable_delta` when generated assets lack a role-specific
+pipeline: crop manifests, alpha or mask semantics, nine-slice or patch
+metadata, density or responsive behavior, selector usage, and fallback
+behavior must be recorded for assets that affect visible craft.
+
+Never mark material parity as pass when `frame-specimen-sheet.md` only proves
+that specimen nodes exist. The specimen screenshot must show readable labels,
+body text, helper text, focus rings, and dense sample content on the actual
+rendered material.
+
+Never mark `acceptable_delta` when black-background or RGB sheet crops create
+halos, dirty torn edges, opaque boxes, unreadable overlays, or seams around
+transparent-looking UI. Retry the asset, create a clean alpha or mask
+extraction, or mark the asset gap as blocking.
+
+Never mark `acceptable_delta` when desktop material parity looks acceptable
+but mobile screenshots show asset-caused clipping, cropped controls, broken
+hit targets, unreadable texture overlays, accidental horizontal scroll, or
+density that compresses the product into an unusable desktop miniature.
+
+Never mark `acceptable_delta` while first-viewport controls or primary repeated
+components have unresolved high-severity micro mismatches, including wrong
+button padding, inconsistent group gaps, off-center icons, mismatched input
+height, uneven card internals, heavy dividers, or state treatments that do not
+belong to the reference system.
+
 Never mark `acceptable_delta` when required interactions are fake or
 unverified. If a visible control is intentionally non-functional in a
 prototype, document it as out of scope and ensure it is visually non-primary,
 disabled, hidden, or otherwise not presented as a live first-viewport or
 primary-flow control.
+
+Never mark `match` or `acceptable_delta` when affordance classifications are
+not mutually exclusive, or when an enabled live-looking control is described as
+out of scope without being disabled, hidden, removed, or made visibly
+non-primary.
+
+Never mark interaction proof complete when the latest browser check results are
+only described in a ledger. Preserve the structured run output, including
+interaction results, console results, and overflow results, as a named artifact
+or mark the evidence incomplete. Every `working` affordance should map to that
+structured evidence, not only to a sampled primary workflow.
+
+Never treat wildcard inventory entries as exact affordance coverage. Repeated
+or data-driven controls may have a summary, but each visible live instance must
+be classified and mapped to structured evidence.
+
+Never mark `acceptable_delta` when a non-happy state contradicts the product
+model by leaving unavailable primary surfaces looking live. Missing-source,
+blocked-generation, empty-cart, permission-denied, disconnected, or failed
+states must disable, hide, empty, or explicitly mark stale any dependent
+player, transcript, citation, checkout, editor, queue, graph, or inspector
+surface.
+
+Never mark `acceptable_delta` when mobile screenshots show selected tabs,
+drawers, bottom sheets, or segmented controls out of sync with the visible
+content.
+
+Never mark `acceptable_delta` when two visible mobile tabs or segmented modes
+show the same content with only the selected label changed. Merge duplicate
+modes or give each selected state distinct content and evidence.
+
+Never mark full-page structural parity as `match` when a reference-visible
+primary action changes owner region, scope, or label. Record an accepted delta
+or mismatch and judge whether the workflow remains clear.
+
+Never mark `acceptable_delta` when a core mobile visualization is blank,
+clipped, unreadable, or missing the markers that make it useful, even if
+desktop and DOM checks pass.
+
+Never mark visual bug review complete when the ledger only reports automated
+console, overflow, and interaction status. It must include screenshot-review
+findings for visible overlap, label collisions, contrast, clipped content,
+material readability, malformed controls, and mobile first-viewport defects.
+
+Never mark graph, map, timeline, or spatial visualization quality as pass when
+labels overlap, collide, or become unreadable in screenshots, even if the
+underlying node selection and view state are correct.
 
 Never mark `acceptable_delta` when the affordance inventory is missing or when
 `working` controls lack behavior-matrix evidence.
@@ -258,6 +460,11 @@ screenshot-region evidence for these dimensions:
 | workflow legibility | What does the user do first, what changes next, and how is completion or progress visible? |
 | control architecture | Does each control group have one clear owner, scope, and non-duplicated purpose? |
 | state quality | Do selected, empty, responsive, disabled, and branch states belong to the same system? |
+| full-page structural parity | Do whole-page screenshots preserve first viewport, section order, region proportions, control placement, primary object layout, and mobile hierarchy? |
+| design spec fidelity | Were grid, spacing, type, color, material, control, and state tokens inferred and used consistently? |
+| micro-parity | Do cropped details match the reference in controls, typography, borders, shadows, density, and icon alignment? |
+| spatial label legibility | Are graph, map, timeline, and spatial labels readable without overlap or ambiguous ownership? |
+| material readability | Are frame specimens and material-backed panels readable in real screenshots, including helper and disabled text? |
 | interaction honesty | Do visible controls work, disable honestly, hide, or become non-primary? |
 | accessibility/actionability | Are labels, focus behavior, keyboard paths, and dragging alternatives acceptable? |
 | ambition/delight | Does the result contain a product-specific high-craft moment that is useful, memorable, and non-generic? |
@@ -268,8 +475,10 @@ Each judge must also list blockers. A blocker is any visible defect that should
 prevent ship or handoff: major layout mismatch, incoherent product identity,
 clipped primary content, unclear information architecture, unclear primary
 workflow, duplicated or conflicting control groups, fake primary control,
-unreadable or inaccessible primary action, unstable canvas manipulation, or
-branch state that looks unrelated to the system.
+unreadable or inaccessible primary action, missing full-page structural
+parity, missing design-spec evidence, unresolved high-severity micro-parity
+drift, unstable canvas manipulation, or branch state that looks unrelated to
+the system.
 
 Judges should treat screenshots as higher authority than automation summaries.
 If automation says the interaction passes but the screenshot shows overlap,
@@ -322,7 +531,10 @@ Before implementation and after each screenshot pass, review:
 | workflow legibility | <clear/partial/unclear> | <high/medium/low> | <fix/defer> |
 | control architecture and duplicate controls | <clear/partial/conflicting> | <high/medium/low> | <fix/defer> |
 | focal object and center composition | <match/partial/miss> | <high/medium/low> | <fix/defer> |
+| full-page structure and section order | <match/partial/miss> | <high/medium/low> | <fix/defer> |
 | typography hierarchy | <match/partial/miss> | <high/medium/low> | <fix/defer> |
+| design spec and token conformance | <match/partial/miss> | <high/medium/low> | <fix/defer> |
+| micro-parity details | <match/partial/miss> | <high/medium/low> | <fix/defer> |
 | palette, material, and background | <match/partial/miss> | <high/medium/low> | <fix/defer> |
 | component shape and line treatment | <match/partial/miss> | <high/medium/low> | <fix/defer> |
 | signature details | <match/partial/miss> | <high/medium/low> | <fix/defer> |

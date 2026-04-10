@@ -8,8 +8,7 @@ interface HistoricalFailureCase {
   id: string;
   source_refs: string[];
   failure: string;
-  expected_blockers: string[];
-  must_find: string[];
+  contract_guard_ids: string[];
 }
 
 interface HistoricalFailureBench {
@@ -19,6 +18,7 @@ interface HistoricalFailureBench {
 }
 
 const CASES_PATH = "gate_eval/skills/swe/bagakit-codex-webpage-design/cases/historical-failures.json";
+const CONTRACT_PATH = "skills/swe/bagakit-codex-webpage-design/references/workflow-contract.toml";
 
 function readText(repoRoot: string, relativePath: string): string {
   return fs.readFileSync(path.join(repoRoot, relativePath), "utf8");
@@ -28,26 +28,13 @@ function readBench(repoRoot: string): HistoricalFailureBench {
   return JSON.parse(readText(repoRoot, CASES_PATH)) as HistoricalFailureBench;
 }
 
-function skillSurfaceText(repoRoot: string): string {
-  const parts = [
-    "skills/swe/bagakit-codex-webpage-design/SKILL.md",
-    "skills/swe/bagakit-codex-webpage-design/references/image-prompt-guide.md",
-    "skills/swe/bagakit-codex-webpage-design/references/implementation-loop.md",
-    "skills/swe/bagakit-codex-webpage-design/references/visual-quality-rubric.md",
-    "skills/swe/bagakit-codex-webpage-design/references/artifact-contract.md",
-  ];
-  return parts.map((relativePath) => readText(repoRoot, relativePath)).join("\n\n");
+function contractIds(contractText: string, key = "id"): Set<string> {
+  const pattern = new RegExp(`^${key} = "([^"]+)"`, "gm");
+  return new Set(Array.from(contractText.matchAll(pattern), (match) => String(match[1])));
 }
 
-function normalize(text: string): string {
-  return text.split(/\s+/).filter(Boolean).join(" ");
-}
-
-function assertIncludes(haystack: string, needle: string, label: string): void {
-  assert.ok(
-    normalize(haystack).includes(normalize(needle)),
-    `missing ${label}: ${needle}`,
-  );
+function contractCaseIds(contractText: string): Set<string> {
+  return contractIds(contractText, "case_id");
 }
 
 export const SUITE: EvalSuiteDefinition = {
@@ -60,15 +47,17 @@ export const SUITE: EvalSuiteDefinition = {
     {
       id: "historical-failures-are-covered-by-skill-contract",
       title: "Historical Failures Are Covered By Skill Contract",
-      summary: "Every recorded historical failure should have explicit blocker phrases in the skill surface.",
+      summary: "Every recorded historical failure should map to structured workflow guard IDs instead of prose phrase anchors.",
       focus: ["historical failure bench", "visual-parity", "workflow-control", "canvas-stability"],
       run: (context) => {
         const bench = readBench(context.repoRoot);
-        const surface = skillSurfaceText(context.repoRoot);
+        const contractText = readText(context.repoRoot, CONTRACT_PATH);
+        const guardIds = contractIds(contractText);
+        const mappedCaseIds = contractCaseIds(contractText);
 
         assert.equal(
           bench.schema,
-          "bagakit.codex-webpage-design.historical-failures/v1",
+          "bagakit.codex-webpage-design.historical-failures/v2",
           "unexpected historical failure bench schema",
         );
         assert.ok(bench.cases.length >= 7, "historical failure bench should preserve the current failure set");
@@ -77,27 +66,33 @@ export const SUITE: EvalSuiteDefinition = {
           assert.ok(item.id.trim(), "case id is required");
           assert.ok(item.failure.trim(), `case ${item.id} needs failure text`);
           assert.ok(item.source_refs.length > 0, `case ${item.id} needs source refs`);
-          assert.ok(item.expected_blockers.length > 0, `case ${item.id} needs expected blockers`);
-          assert.ok(item.must_find.length > 0, `case ${item.id} needs must_find anchors`);
+          assert.ok(item.contract_guard_ids.length > 0, `case ${item.id} needs contract guard ids`);
+          assert.ok(mappedCaseIds.has(item.id), `case ${item.id} needs a contract mapping`);
           for (const sourceRef of item.source_refs) {
             assert.ok(
               fs.existsSync(path.join(context.repoRoot, sourceRef)),
               `case ${item.id} source ref missing: ${sourceRef}`,
             );
           }
-          for (const phrase of item.must_find) {
-            assertIncludes(surface, phrase, `${item.id} must_find`);
+          for (const guardId of item.contract_guard_ids) {
+            assert.ok(guardIds.has(guardId), `case ${item.id} references unknown guard: ${guardId}`);
           }
+          assert.equal(
+            Object.hasOwn(item, "must_find"),
+            false,
+            `case ${item.id} should not use must_find phrase anchors`,
+          );
         }
 
         return {
           assertions: [
             "historical failure bench data is present and schema-valid",
             "each bench case points to existing selector, Spark, or evolver evidence",
-            "each bench case has blocker phrases covered by the skill surface",
+            "each bench case maps to structured workflow guards",
           ],
           artifacts: [
             { label: "historical-failures", path: CASES_PATH },
+            { label: "workflow-contract", path: CONTRACT_PATH },
           ],
           outputs: {
             cases: bench.cases.map((item) => item.id),
@@ -116,16 +111,14 @@ export const SUITE: EvalSuiteDefinition = {
         const lineCount = skillText.split(/\r?\n/).length;
 
         assert.ok(lineCount <= 260, `SKILL.md should stay thin; found ${lineCount} lines`);
-        assertIncludes(skillText, "thin operating protocol", "thin protocol");
-        assertIncludes(skillText, "Load only the relevant reference", "progressive disclosure");
-        assertIncludes(skillText, "historical failures live in `gate_eval/`", "bench delegation");
-        assertIncludes(skillText, "prefer adding or updating a bench case", "failure learning");
+        assert.ok(skillText.includes("references/workflow-contract.toml"), "SKILL.md should link the structured contract");
+        assert.ok(skillText.includes("gate_eval/"), "SKILL.md should point failures to the bench surface");
 
         return {
           assertions: [
             "main skill file remains below the thin-entry line budget",
-            "main skill explicitly delegates details to references",
-            "main skill explicitly routes repeated failures to gate_eval bench cases",
+            "main skill links the structured workflow contract",
+            "main skill routes repeated failures to gate_eval bench cases",
           ],
           artifacts: [
             { label: "skill-entry", path: skillPath },

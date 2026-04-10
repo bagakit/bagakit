@@ -18,10 +18,20 @@ reference. Stronger references include Figma frames, approved screenshots,
 brand mockups, real assets, design systems, structured content, or data
 examples. Do not start implementation with no design reference.
 
+The reference source must be auditable. A browser-rendered page created by the
+agent is not a substitute for Image2 or an external reference. It may be an
+exploration sketch or implementation artifact, but it cannot satisfy the
+reference-first, design-reference, state-reference, or parity gates. If Image2
+cannot produce a usable saved reference, retry or stop with a blocker handoff
+instead of coding from agent-authored HTML.
+
 The `SKILL.md` file is intentionally a thin operating protocol. Detailed
 checks live in `references/` and historical failures live in `gate_eval/`.
 When a new failure appears, prefer adding or updating a bench case, validation
 anchor, or reference rule over adding another paragraph to this file.
+The structured gate contract lives in `references/workflow-contract.toml`;
+validation should check that contract and its case mappings before resorting
+to wording anchors.
 
 ## When To Use
 
@@ -48,31 +58,35 @@ adapt to the project:
 2. `reference-intent`
    - strongest reference source and intent class:
      `exact`, `style_reference`, `asset`, `content_context`, or `data_context`
-3. `image-prompt` and `design-reference`
+3. `reference-provenance-ledger`
+   - source class, produced artifact, and non-substitution constraints
+4. `image-prompt` and `design-reference`
    - required when no stronger reference exists; Image2 design generation is
      mandatory before coding unless unavailable, in which case the missing
      image is a blocker handoff
-4. `state-reference-set`
-   - default, selected, search/filter, empty/loading/error, modal/drawer,
-     hover/focus, disabled, and responsive states when they materially define
-     the product
-5. `visual-decomposition`
+5. `state-reference-set`
+   - default, selected, search/filter, empty/error, modal, disabled, responsive
+6. `visual-decomposition`
    - page frame, regions, typography, palette, material, component treatment,
      spacing, hierarchy, and signature details
-6. `ambition-bar`
+7. `design-spec-ledger`
+   - concrete grid, spacing, type, control, material, and state tokens
+8. `asset-requirement-pass` and `asset-generation-ledger`
+   - required when CSS alone cannot carry texture, masks, glyphs, or craft
+9. `ambition-bar`
    - required for high-craft work; names the reference tier,
      product-specific delight moment, signature detail, and anti-generic risks
-7. `information-architecture-map`, `workflow-model`,
-   `control-surface-map`, and `interaction-model`
+10. `information-architecture-map`, `workflow-model`,
+    `control-surface-map`, and `interaction-model`
    - required for interactive pages before implementation
-8. `capability-route`
-   - stack and libraries matched to core effects such as graph, search, rich
-     editing, animation, canvas, WebGL, or data visualization
-9. implementation and browser loop
-   - run the page, capture screenshots, exercise interactions, and iterate
-10. completion ledgers
+11. `capability-route`
+   - stack and libraries matched to graph, search, editing, canvas, or 3D
+12. implementation and browser loop
+   - run, capture screenshots, exercise interactions, and iterate
+13. completion ledgers
    - `affordance-inventory`, `behavior-matrix`, `visual-bug-ledger`,
-     `canvas-stability-report`, `visual-parity-ledger`,
+     `full-page-structural-parity-ledger`, `micro-parity-checklist`,
+     `material-parity-checklist`, `canvas-stability-report`, `visual-parity-ledger`,
      `interaction-parity-ledger`, `visual-judge-scorecards`,
      `judge-aggregation`, `code-quality-review`, and `handoff`
 
@@ -84,6 +98,11 @@ Classify the reference route before coding. If no stronger reference exists,
 generate an image2 design reference or preserve the image prompt as a blocking
 handoff. A failed or under-review implementation screenshot must not become
 the new design source unless the user explicitly approves it as the baseline.
+
+Use `reference-provenance-ledger` before coding. If an agent-authored browser
+page is proposed as the reference, treat it as exploration only and apply the
+non-substitution rule in `references/implementation-loop.md`; otherwise the
+task remains blocked even if the page later looks good.
 
 When meaningful states or breakpoints exist, design references must form a
 coherent set. Do not DIY important state visuals during implementation unless
@@ -144,23 +163,47 @@ Before final handoff, verify:
 
 - `reference-intent`, `visual-decomposition`, and required state references
   exist
-- no implementation began from text alone when image2 or a stronger reference
-  was needed
+- `reference-provenance-ledger` passes the reference-source gate
+- the reference source is `external_strong` or `image2_filesystem`; an
+  agent-authored browser page is not reference authority
+- `design-spec-ledger` exists and the implementation uses its token and
+  geometry standards instead of ad hoc visual guesses
+- required material assets exist and `material-parity-checklist` has no
+  unresolved blocker when CSS-only rendering cannot carry the reference craft
+- no implementation began from text alone or from an agent-authored HTML
+  reference when image2 or a stronger reference was needed
 - workflow and control ownership are legible for interactive pages
 - every visible live-looking affordance is classified and every `working`
   affordance has behavior evidence
 - non-working controls are disabled, hidden, or explicitly out of scope with
   non-primary treatment
+- non-happy states do not leave stale primary surfaces looking live; dependent
+  player, editor, timeline, transcript, citation, cart, queue, or inspector
+  surfaces must be disabled, emptied, hidden, or explicitly marked stale when
+  the backing object is unavailable
 - graph, map, canvas, whiteboard, timeline, or spatial manipulation has
   before, mid-drag, and after-drag motion-frame evidence
 - canvas controls, overlays, minimaps, legends, and floating UI stay in safe
   zones and meet mobile touch expectations
 - `visual-bug-ledger` has zero blockers
+- `full-page-structural-parity-ledger` proves the whole reference page was
+  compared against whole-page and first-viewport screenshots before any local
+  crop or micro-parity pass can claim alignment
+- `micro-parity-checklist` has no unresolved blocker or high-severity detail
+  mismatches in controls, spacing, typography, borders, shadows, icon
+  alignment, density, or state styling
+- `material-parity-checklist` passes when generated or provided assets are
+  needed for texture, masks, glyphs, icons, overlays, or craft
 - important UX work, generated design references, and exact-reference
   implementations pass `visual-judge-scorecards` and `judge-aggregation`
+- mobile screenshots prove core mobile visualizations, selected tab or drawer
+  states, and evidence surfaces in the actual selected states; desktop
+  screenshots or DOM assertions alone cannot clear mobile interaction bugs
 - high-craft work meets the ambition bar; "nice but not surprising" is still
   `needs_iteration` unless the user lowers the target
 - latest artifacts correspond to the latest screenshots and validation run
+- browser interaction results are preserved as named artifacts, and stale or
+  contradictory console logs are resolved or recorded as evidence conflicts
 - code structure was reviewed after visual iteration for component boundaries,
   shared tokens, data-driven repeated UI, and justified duplication
 
@@ -181,28 +224,36 @@ When a task exposes a repeated or decision-changing failure:
 
 Use bench cases for failures such as:
 
-- coding from text without a design reference
+- coding from text or agent-authored HTML without an Image2 or external design
+  reference
 - state frames drifting from the original reference
 - missing information architecture that makes a complex product feel like a
   pile of panels
 - fake or unverified visible controls
 - graph/canvas drag that passes final-position tests but flickers in motion
 - screenshots passing automation while visual blockers remain
+- full-page structure drifting from the design reference while local crops and
+  style-language notes are used to justify an `acceptable_delta`
+- button spacing, control geometry, or other small craft details drifting
+  because the reference was not converted into design tokens and checked
+  through a micro-parity pass
 - clean but unsurprising output for a high-craft request
 - duplicated or conflicting mode controls that make the business flow unclear
 - toy single-page experiments used as false proof that the skill can build a
   sellable product MVP
 
 ## References
-
-Load only the relevant reference:
+Load the relevant reference:
 
 - `references/image-prompt-guide.md`
   - image2 prompt structure, state board generation, reference-drift checks
 - `references/implementation-loop.md`
   - frontend stack choice, product workflow gate, control surface gate,
     interaction model, affordance evidence, canvas stability, browser loop
+- `references/asset-pipeline.md` - generated asset roles and slice/mask/crop
 - `references/visual-quality-rubric.md`
   - aesthetic review, parity rating, quiet-room judge scoring, blockers
 - `references/artifact-contract.md`
   - artifact names, blocking artifacts, and final handoff format
+- `references/workflow-contract.toml`
+  - structured stages, completion artifacts, guards, and failure coverage

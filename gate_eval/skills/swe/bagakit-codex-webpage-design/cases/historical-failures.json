@@ -1,5 +1,5 @@
 {
-  "schema": "bagakit.codex-webpage-design.historical-failures/v1",
+  "schema": "bagakit.codex-webpage-design.historical-failures/v2",
   "summary": "Historical failure bench for bagakit-codex-webpage-design. Cases preserve user-observed failures that should be blocked by the skill protocol or references.",
   "cases": [
     {
@@ -8,14 +8,75 @@
         ".bagakit/spark/sessions/codex-webpage-design-skill/publish/consensus-snapshot.md"
       ],
       "failure": "The agent implements from text requirements without first creating or accepting a design reference.",
-      "expected_blockers": [
-        "Do not start implementation with no design reference",
-        "Image2 design generation is mandatory before coding"
+      "contract_guard_ids": [
+        "reference-first"
+      ]
+    },
+    {
+      "id": "browser-reference-self-provenance-gap",
+      "source_refs": [
+        ".bagakit/spark/experiments/secure-data-room/quiet-room-result.md"
       ],
-      "must_find": [
-        "reference-context-first webpage design engineering workflow",
-        "Do not start implementation with no design reference",
-        "Image2 design generation is mandatory before coding"
+      "failure": "A browser-rendered design reference is accepted as a substitute for Image2 even though agent-authored HTML/CSS is the implementation medium, not an independent design authority.",
+      "contract_guard_ids": [
+        "reference-provenance",
+        "reference-first",
+        "image2-reference-authority"
+      ]
+    },
+    {
+      "id": "browser-reference-freeze-order-gap",
+      "source_refs": [
+        ".bagakit/spark/experiments/model-incident-war-room/quiet-room-result.md"
+      ],
+      "failure": "A browser-rendered reference is claimed as design-first because it was frozen before implementation, but freeze order does not make agent-authored HTML an acceptable substitute for Image2 or an external reference.",
+      "contract_guard_ids": [
+        "reference-provenance",
+        "image2-reference-authority"
+      ]
+    },
+    {
+      "id": "browser-html-reference-cheats-image2",
+      "source_refs": [
+        ".bagakit/spark/experiments/vendor-risk-launchpad/quiet-room-result.md"
+      ],
+      "failure": "A skill-quality experiment is accepted after using an agent-authored browser HTML reference because Image2 did not produce a saved artifact; this preserves procedure while bypassing the skill's goal of creating and implementing from an independent high-craft design reference.",
+      "contract_guard_ids": [
+        "reference-provenance",
+        "image2-reference-authority"
+      ]
+    },
+    {
+      "id": "browser-check-output-not-preserved",
+      "source_refs": [
+        ".bagakit/spark/experiments/model-incident-war-room/quiet-room-result.md"
+      ],
+      "failure": "Browser interaction checks are summarized in prose or ledgers without preserving the structured run output that proves interaction, console, and overflow results.",
+      "contract_guard_ids": [
+        "browser-evidence-preservation",
+        "visual-parity-is-not-automation"
+      ]
+    },
+    {
+      "id": "browser-check-true-with-wrong-state",
+      "source_refs": [
+        ".bagakit/spark/experiments/frontier-policy-room/quiet-room-result.md"
+      ],
+      "failure": "A browser interaction result is marked `ok: true` even though the same structured record shows the actual active mode or visible view did not match the expected state.",
+      "contract_guard_ids": [
+        "browser-evidence-assertion-integrity",
+        "working-affordance-evidence-coverage"
+      ]
+    },
+    {
+      "id": "blocked-primary-action-only-tested-after-recovery",
+      "source_refs": [
+        ".bagakit/spark/experiments/audio-briefing-studio/quiet-room-result.md"
+      ],
+      "failure": "A non-happy screenshot shows an enabled primary Stage action while blockers remain, but browser evidence tests the action only after retry/recovery, so it misses that the blocked state can still create a queue receipt.",
+      "contract_guard_ids": [
+        "nonhappy-primary-action-safety",
+        "working-affordance-evidence-coverage"
       ]
     },
     {
@@ -24,15 +85,9 @@
         ".bagakit/skill-selector/tasks/webpage-design-full-state-parity/skill-usage.toml"
       ],
       "failure": "Image generation for later states follows the flawed implementation screenshot instead of the original design authority.",
-      "expected_blockers": [
-        "failed or under-review implementation screenshot must not become",
-        "Do not use screenshots of a failed or under-review implementation",
-        "Reject state boards that copy visual drift"
-      ],
-      "must_find": [
-        "failed or under-review implementation screenshot must not become",
-        "Do not use screenshots of a failed or under-review implementation",
-        "Reject state boards that copy visual drift"
+      "contract_guard_ids": [
+        "state-reference-authority",
+        "reference-first"
       ]
     },
     {
@@ -42,15 +97,63 @@
         ".bagakit/skill-selector/tasks/webpage-design-affordance-stability-hardening/skill-usage.toml"
       ],
       "failure": "A page presents first-viewport controls as live while only a small happy path is implemented.",
-      "expected_blockers": [
-        "every visible live-looking affordance is classified",
-        "every `working` affordance has behavior evidence",
-        "fake or unverified visible controls"
+      "contract_guard_ids": [
+        "affordance-honesty"
+      ]
+    },
+    {
+      "id": "enabled-noop-control-classified-working-and-out-of-scope",
+      "source_refs": [
+        ".bagakit/spark/experiments/autonomous-lab-notebook/quiet-room-result.md"
       ],
-      "must_find": [
-        "every visible live-looking affordance is classified",
-        "every `working` affordance has behavior evidence",
-        "fake or unverified visible controls"
+      "failure": "An enabled live-looking control has no behavior evidence and is inconsistently classified as both working and out of scope.",
+      "contract_guard_ids": [
+        "affordance-honesty",
+        "affordance-classification-integrity"
+      ]
+    },
+    {
+      "id": "working-affordance-evidence-sampled-only",
+      "source_refs": [
+        ".bagakit/spark/experiments/autonomous-lab-notebook/quiet-room-result.md"
+      ],
+      "failure": "The browser check proves the primary workflow but does not preserve structured evidence for every affordance listed as working.",
+      "contract_guard_ids": [
+        "working-affordance-evidence-coverage",
+        "browser-evidence-preservation"
+      ]
+    },
+    {
+      "id": "dynamic-affordance-wildcard-inventory",
+      "source_refs": [
+        ".bagakit/spark/experiments/ai-investment-atlas/quiet-room-result.md"
+      ],
+      "failure": "Dynamic controls are inventoried only as wildcard groups even though the DOM exposes concrete visible controls that each need classification and browser evidence.",
+      "contract_guard_ids": [
+        "dynamic-affordance-granularity",
+        "working-affordance-evidence-coverage"
+      ]
+    },
+    {
+      "id": "mobile-tabs-share-same-panel",
+      "source_refs": [
+        ".bagakit/spark/experiments/ai-investment-atlas/quiet-room-result.md"
+      ],
+      "failure": "Two mobile tabs present different labels but show the same panel and nearly identical evidence, so selected-state honesty is not proven.",
+      "contract_guard_ids": [
+        "mobile-mode-distinctness",
+        "control-surface-clarity"
+      ]
+    },
+    {
+      "id": "reference-primary-action-owner-drift-called-match",
+      "source_refs": [
+        ".bagakit/spark/experiments/ai-investment-atlas/quiet-room-result.md"
+      ],
+      "failure": "A reference-visible topbar primary action is replaced or moved to another owner region while the parity ledger still records control placement as a match.",
+      "contract_guard_ids": [
+        "primary-action-ownership-parity",
+        "full-page-structural-parity"
       ]
     },
     {
@@ -59,15 +162,9 @@
         ".bagakit/skill-selector/tasks/webpage-design-ia-mvp-test/skill-usage.toml"
       ],
       "failure": "The implementation inventories only its own visible controls while missing controls, states, and details that are visible in the design reference.",
-      "expected_blockers": [
-        "reference-coverage-matrix",
-        "reference-visible affordance",
-        "Missing reference controls are blockers"
-      ],
-      "must_find": [
-        "reference-coverage-matrix",
-        "reference-visible affordance",
-        "Missing reference controls are blockers"
+      "contract_guard_ids": [
+        "reference-coverage",
+        "affordance-honesty"
       ]
     },
     {
@@ -76,19 +173,8 @@
         ".bagakit/skill-selector/tasks/webpage-design-ambition-motion-experiment/skill-usage.toml"
       ],
       "failure": "A complex product screen is visually polished, but object types, navigation hierarchy, region responsibilities, and progressive disclosure are not modeled before implementation.",
-      "expected_blockers": [
-        "information-architecture-map",
-        "object taxonomy",
-        "page region responsibilities",
-        "progressive disclosure",
-        "information scent"
-      ],
-      "must_find": [
-        "`information-architecture-map`",
-        "object taxonomy",
-        "page region responsibilities",
-        "progressive disclosure",
-        "information scent"
+      "contract_guard_ids": [
+        "information-architecture"
       ]
     },
     {
@@ -97,15 +183,8 @@
         ".bagakit/researcher/topics/frontier/codex-webpage-design-skill/insights/i007.md"
       ],
       "failure": "A product MVP looks polished, but labels, counts, status, grouping, and next-action cues do not tell the user what object or path matters next.",
-      "expected_blockers": [
-        "information scent",
-        "next-action cues",
-        "not ready for visual judging"
-      ],
-      "must_find": [
-        "information scent",
-        "next-action cues",
-        "not ready for visual judging"
+      "contract_guard_ids": [
+        "information-architecture"
       ]
     },
     {
@@ -115,15 +194,8 @@
         ".bagakit/skill-selector/tasks/webpage-design-ambition-motion-experiment/skill-usage.toml"
       ],
       "failure": "A drag test proves final position after mouseup but misses mid-drag flicker, redraw, z-order jumps, or scene rebuilds.",
-      "expected_blockers": [
-        "before, mid-drag, and after-drag motion-frame evidence",
-        "final-position assertion after mouseup is not enough",
-        "motion-frame stability"
-      ],
-      "must_find": [
-        "before, mid-drag, and after-drag motion-frame evidence",
-        "final-position assertion after mouseup is not enough",
-        "Motion-Frame Stability"
+      "contract_guard_ids": [
+        "motion-frame-stability"
       ]
     },
     {
@@ -133,15 +205,30 @@
         ".bagakit/skill-selector/tasks/webpage-design-ambition-motion-experiment/skill-usage.toml"
       ],
       "failure": "Build, lint, Playwright, console, and overflow checks pass while screenshots still show visible blockers.",
-      "expected_blockers": [
-        "Automation is execution evidence, not visual parity proof",
-        "Do not treat automated validation as a substitute for visual review",
-        "visual-bug-ledger` has zero blockers"
+      "contract_guard_ids": [
+        "visual-parity-is-not-automation"
+      ]
+    },
+    {
+      "id": "clean-automation-visual-ledger-misses-screenshot-bugs",
+      "source_refs": [
+        "gate_eval/skills/swe/bagakit-codex-webpage-design/cases/evidence/riftboard-material-asset-retry.md"
       ],
-      "must_find": [
-        "Automation is execution evidence, not visual parity proof",
-        "Do not treat automated validation as a substitute for visual review",
-        "visual-bug-ledger` has zero blockers"
+      "failure": "The visual bug ledger claims no open visual bugs because console, overflow, and interaction checks are clean, while parent screenshot review still finds visible defects.",
+      "contract_guard_ids": [
+        "screenshot-review-integrity",
+        "visual-parity-is-not-automation"
+      ]
+    },
+    {
+      "id": "map-label-overlap-hidden-by-state-checks",
+      "source_refs": [
+        "gate_eval/skills/swe/bagakit-codex-webpage-design/cases/evidence/riftboard-material-asset-retry.md"
+      ],
+      "failure": "A graph or map passes selected-state and node-count checks, but screenshot review shows labels overlapping or clustering into unreadable text.",
+      "contract_guard_ids": [
+        "spatial-label-legibility",
+        "visual-parity-is-not-automation"
       ]
     },
     {
@@ -150,15 +237,121 @@
         ".bagakit/skill-selector/tasks/webpage-design-ambition-motion-experiment/skill-usage.toml"
       ],
       "failure": "The output is visually clean but lacks the product-specific delight and ambition expected for a high-craft request.",
-      "expected_blockers": [
-        "ambition-bar",
-        "product-specific delight",
-        "nice but not surprising"
+      "contract_guard_ids": [
+        "ambition-bar"
+      ]
+    },
+    {
+      "id": "micro-detail-drift-without-design-spec",
+      "source_refs": [
+        ".bagakit/skill-selector/tasks/webpage-design-ambition-motion-experiment/skill-usage.toml"
       ],
-      "must_find": [
-        "`ambition-bar`",
-        "product-specific delight",
-        "nice but not surprising"
+      "failure": "The broad screenshot looks close, but button spacing, control geometry, typography rhythm, icon alignment, borders, shadows, or repeated component density drift because the reference was not converted into concrete design tokens and the final review lacked a picky micro-parity pass.",
+      "contract_guard_ids": [
+        "design-spec-fidelity"
+      ]
+    },
+    {
+      "id": "material-craft-flattened-by-css-only",
+      "source_refs": [
+        ".bagakit/spark/experiments/styled-roguelike-forum/quiet-room-result.md"
+      ],
+      "failure": "A high-craft image reference preserves layout and workflow but loses material quality because paper grain, torn edges, glyph marks, glow/noise overlays, and illustrated texture are approximated with clean CSS boxes instead of a generated or provided asset kit.",
+      "contract_guard_ids": [
+        "material-asset-parity"
+      ]
+    },
+    {
+      "id": "asset-kit-without-pipeline-creates-halos-and-seams",
+      "source_refs": [
+        "gate_eval/skills/swe/bagakit-codex-webpage-design/cases/evidence/riftboard-material-asset-retry.md"
+      ],
+      "failure": "A generated asset kit is integrated, but black-background sheet crops, missing alpha or mask semantics, missing crop manifests, and unverified slice behavior leave halos, seams, or dirty UI edges while the run still claims material parity.",
+      "contract_guard_ids": [
+        "asset-pipeline-integrity",
+        "alpha-mask-integrity",
+        "material-asset-parity"
+      ]
+    },
+    {
+      "id": "reference-glyph-sprites-regressed-to-generic-icons",
+      "source_refs": [
+        "gate_eval/skills/swe/bagakit-codex-webpage-design/cases/evidence/riftboard-material-asset-retry.md"
+      ],
+      "failure": "A later iteration replaces accepted reference-specific glyph icons that already matched the visual language with generic library icons, font symbols, or visibly rescaled sheet crops, losing the custom asset success.",
+      "contract_guard_ids": [
+        "reference-specific-sprite-retention",
+        "asset-pipeline-integrity",
+        "design-spec-fidelity"
+      ]
+    },
+    {
+      "id": "panel-frame-background-stretch-without-nine-slice-renderer",
+      "source_refs": [
+        "gate_eval/skills/swe/bagakit-codex-webpage-design/cases/evidence/riftboard-material-asset-retry.md"
+      ],
+      "failure": "A generated parchment, card, inspector, or frame asset is applied as a normal stretched background, so corners deform, edge texture warps, center fill muddies text, or component sizes violate the frame's slice-safe minimum while material parity still passes.",
+      "contract_guard_ids": [
+        "nine-slice-renderer-integrity",
+        "asset-pipeline-integrity",
+        "material-asset-parity"
+      ]
+    },
+    {
+      "id": "frame-specimen-existence-hides-low-contrast-content",
+      "source_refs": [
+        "gate_eval/skills/swe/bagakit-codex-webpage-design/cases/evidence/riftboard-material-asset-retry.md"
+      ],
+      "failure": "A frame specimen sheet passes because each specimen exists and has a minimum size, but the screenshot shows low-contrast foreground text, helper labels, or dense content on the rendered material.",
+      "contract_guard_ids": [
+        "frame-specimen-readability",
+        "nine-slice-renderer-integrity",
+        "material-asset-parity"
+      ]
+    },
+    {
+      "id": "asset-rich-desktop-pass-mobile-clips-ui",
+      "source_refs": [
+        "gate_eval/skills/swe/bagakit-codex-webpage-design/cases/evidence/riftboard-material-asset-retry.md"
+      ],
+      "failure": "Desktop material richness improves, but mobile screenshots show clipped board content, over-dense desktop compression, or asset overlays that break controls; structured browser checks still pass because they do not judge responsive asset parity.",
+      "contract_guard_ids": [
+        "responsive-asset-parity",
+        "asset-pipeline-integrity",
+        "visual-parity-is-not-automation"
+      ]
+    },
+    {
+      "id": "mobile-board-miniaturized-desktop-density",
+      "source_refs": [
+        "gate_eval/skills/swe/bagakit-codex-webpage-design/cases/evidence/riftboard-material-asset-retry.md"
+      ],
+      "failure": "A dense board or pin-wall has no horizontal overflow on mobile, but it is still a shrunken desktop layout: cards, labels, and controls become too small or fragmented to operate as a deliberate mobile product state.",
+      "contract_guard_ids": [
+        "mobile-spatial-adaptation",
+        "full-page-structural-parity",
+        "responsive-asset-parity"
+      ]
+    },
+    {
+      "id": "quiet-room-stalls-after-reference-and-assets",
+      "source_refs": [
+        "gate_eval/skills/swe/bagakit-codex-webpage-design/cases/evidence/riftboard-material-asset-retry.md"
+      ],
+      "failure": "A quiet-room executor completes design references, asset references, and crop manifests, but stalls before producing a working URL, screenshots, browser checks, and handoff, leaving the parent to infer state from partial files.",
+      "contract_guard_ids": [
+        "implementation-checkpoint",
+        "browser-evidence-preservation"
+      ]
+    },
+    {
+      "id": "full-page-drift-hidden-by-style-reference",
+      "source_refs": [
+        ".bagakit/skill-selector/tasks/webpage-design-micro-parity-ai-share-test/skill-usage.toml"
+      ],
+      "failure": "The implementation is accepted as a style match even though the whole-page structure differs substantially from the generated reference: topbar controls move, hero/workspace proportions change, the compact product matrix becomes a loose landing layout, and the generated mobile frame is replaced by a different responsive page.",
+      "contract_guard_ids": [
+        "full-page-structural-parity"
       ]
     },
     {
@@ -167,16 +360,8 @@
         ".bagakit/skill-selector/tasks/webpage-design-ambition-motion-experiment/skill-usage.toml"
       ],
       "failure": "The same Relations/Questions/Evidence mode controls appear in multiple regions with unclear scope, and the business flow is not understandable from the UI.",
-      "expected_blockers": [
-        "workflow-model",
-        "control-surface-map",
-        "Unexplained duplicate controls block acceptance",
-        "duplicated or conflicting mode controls that make the business flow unclear"
-      ],
-      "must_find": [
-        "`workflow-model`, `control-surface-map`, and `interaction-model`",
-        "Unexplained duplicate controls block acceptance",
-        "duplicated or conflicting mode controls that make the business flow unclear"
+      "contract_guard_ids": [
+        "control-surface-clarity"
       ]
     },
     {
@@ -185,19 +370,8 @@
         ".bagakit/skill-selector/tasks/webpage-design-ambition-motion-experiment/skill-usage.toml"
       ],
       "failure": "A simple single-page prototype is treated as proof that the skill can produce a sellable, eye-opening product MVP.",
-      "expected_blockers": [
-        "MVP Experiment Gate",
-        "sellable product MVP",
-        "single static page can be a smoke test",
-        "must not be used as proof",
-        "can falsify the skill"
-      ],
-      "must_find": [
-        "MVP Experiment Gate",
-        "sellable product MVP",
-        "single static page can be a smoke test",
-        "must not be used as proof",
-        "can falsify the skill"
+      "contract_guard_ids": [
+        "mvp-complexity"
       ]
     }
   ]

@@ -13,10 +13,30 @@ Files:
 - `reference-intent.md`
   - strongest available reference context, intent class, why image2 is needed
     or why a provided reference is stronger
+- `reference-provenance-ledger.md`
+  - source class, produced artifact, non-substitution constraints, and
+    reference review status
 - `visual-decomposition.md`
   - reference image reading: page frame, region proportions, toolbar,
     navigation, focal object, typography, palette, materials, component shapes,
     spacing rhythm, and signature details
+- `design-spec-ledger.md`
+  - implementable tokens and geometry inferred from the reference: page grid,
+    spacing scale, typography scale, color/material tokens, control sizes,
+    component density, state treatments, and accepted uncertainty
+- `asset-requirement-pass.md`
+  - determines whether reference craft needs generated or provided material
+    assets rather than CSS approximation; lists required textures, masks,
+    sprites, icon sheets, overlays, provenance, formats, and fallback behavior
+- `asset-generation-ledger.md`
+  - generated or provided asset refs, prompts, accepted/rejected variants,
+    asset roles, crop manifest, alpha/mask or slice metadata, responsive
+    behavior, usage map, optimization notes, provenance, and integration status
+- `frame-specimen-sheet.md`
+  - required when accepted assets include scalable UI frames; shows the
+    nine-slice renderer at minimum, normal, wide, tall, dense-content, and
+    mobile sizes with edge, corner, center-fill, padding, min-size, and
+    clipping findings
 - `ambition-bar.md`
   - high-craft target, comparison tier, product-specific delight moment,
     signature detail, anti-generic risks, and judge score target
@@ -47,8 +67,8 @@ Files:
   - stack and library choices mapped to required effects such as graph,
     search, charting, rich text, animation, canvas, or 3D
 - `affordance-inventory.md`
-  - every visible interactive affordance classified as `working`, `disabled`,
-    `hidden`, or `explicitly_out_of_scope`
+  - every visible interactive affordance classified exactly once as `working`,
+    `disabled`, `hidden`, or `explicitly_out_of_scope`
 - `reference-coverage-matrix.md`
   - every reference-visible control, state, and important detail mapped to
     implemented, disabled, hidden, merged, renamed, or explicitly out of scope
@@ -57,8 +77,21 @@ Files:
     evidence for every `working` affordance
 - `visual-bug-ledger.md`
   - overlap, clipping, malformed controls, accidental scrollbars, layout jumps,
-    unreadable text, state inconsistencies, mobile first-viewport defects, and
-    blocker status
+    unreadable text, state inconsistencies, spatial label collisions, material
+    readability defects, mobile first-viewport defects, screenshot-review
+    findings, and blocker status
+- `full-page-structural-parity-ledger.md`
+  - whole-page and first-viewport comparison of reference versus
+    implementation for page frame, section order, region proportions, control
+    placement, primary object layout, scroll density, and mobile hierarchy
+- `micro-parity-checklist.md`
+  - cropped detail-level comparison for page shell, controls, typography,
+    icons, card/list density, borders, shadows, dividers, material, and state
+    styling
+- `material-parity-checklist.md`
+  - asset-backed comparison for texture density, surface grain, torn/masked
+    edges, ink bleed, glyph/icon character, image overlays, tiling seams,
+    loading fallback, and whether generated assets preserve signature craft
 - `canvas-stability-report.md`
   - graph, map, canvas, whiteboard, timeline, or spatial-surface state model,
     library settings, manipulation quality, drag/pan/zoom evidence, safe-zone
@@ -92,13 +125,70 @@ Files:
 Do not store absolute filesystem paths in these files. Use repo-relative paths
 or logical artifact names.
 
-`reference-intent.md`, `visual-decomposition.md`, and state coverage are
-blocking artifacts for implementation. For high-craft work, `ambition-bar.md`
-is also blocking before implementation. If no stronger reference exists,
-`design-reference.md` must point to an image2-generated reference before
-implementation can claim visual completion. If image generation is unavailable,
-preserve `image-prompt.md` and hand off the blocker instead of coding directly
-from text requirements.
+`reference-intent.md`, `visual-decomposition.md`, `design-spec-ledger.md`, and
+state coverage are blocking artifacts for implementation. For high-craft work,
+`ambition-bar.md` is also blocking before implementation. If no stronger
+reference exists, `design-reference.md` must point to an image2-generated
+reference before implementation can claim visual completion. If image
+generation is unavailable, preserve `image-prompt.md` and hand off the blocker
+instead of coding directly from text requirements.
+
+`reference-provenance-ledger.md` is blocking whenever a generated or provided
+reference will guide implementation. It must classify the source as
+`external_strong`, `image2_filesystem`, `browser_exploration_only`, or
+`blocked_no_reference`. Only `external_strong` and `image2_filesystem` can pass
+the reference gate for visual implementation completion. A browser-rendered
+HTML/CSS page authored by the agent is `browser_exploration_only`: it may help
+shape an Image2 prompt, design brief, or feasibility prototype, but it cannot
+become the design source of truth, even if it was created first and frozen as a
+screenshot. If Image2 cannot produce a saved artifact and no stronger reference
+exists, mark `reference_blocked` and preserve the retry evidence instead of
+coding directly from text or HTML.
+
+For skill-quality experiments, `blocked_no_reference` means the experiment is
+`invalid_no_reference`, not a partial implementation score. Stop before app
+implementation and preserve the prompt, retry evidence, and blocker handoff.
+
+`design-spec-ledger.md` must be concrete enough to implement from: page grid,
+spacing scale, typography scale, color/material tokens, control geometry,
+component density, and state treatment. If the implementation uses scattered
+one-off CSS values instead of the ledger's tokens or constants, code quality
+and visual parity remain incomplete. When review changes a standard, update
+the ledger first so the design source of truth does not drift.
+
+`asset-requirement-pass.md` is blocking for high-craft references whose visual
+quality depends on non-geometric material details: grain, worn paper, fabric,
+metal, glass, ink, paint, hand-cut edges, glyph stamps, illustrated icons,
+noise fields, glow overlays, custom frames, or other details that ordinary
+CSS borders, shadows, and gradients would flatten. If the pass says assets are
+needed, implementation must not claim visual completion until
+`asset-generation-ledger.md` maps each required asset to a generated, provided,
+or deliberately rejected artifact.
+
+Generated asset kits should be specific and reusable rather than another full
+page mockup. Prefer transparent PNG/SVG sprites, repeatable texture tiles,
+edge masks, overlay images, custom icon or glyph sheets, frame slices, and
+state-specific material treatments. Record how each asset is applied in CSS or
+components, how it behaves responsively, and what readable fallback appears if
+the asset fails to load.
+
+For every accepted asset, record the role from `asset-pipeline.md`:
+`texture_tile`, `alpha_mask`, `nine_slice_frame`, `sprite_or_glyph_sheet`,
+`responsive_art`, or `overlay`. If the asset was cut from a generated sheet,
+record the crop rectangle, output dimensions, trim threshold if used, and
+extraction command or tool. If the asset needs transparent edges, record alpha
+or mask semantics and reject black-background crops that leave halos or seams.
+If the asset is a scalable frame, record slice margins, border widths, fill
+behavior, renderer strategy, edge stretch or tile, content padding, and
+minimum size. The renderer strategy must be `css_border_image`,
+`dom_patch_component`, or `canvas_nine_slice`; otherwise the asset is not ready
+for live UI. If the asset changes across viewports or densities, record the
+selected desktop and mobile behavior.
+
+If the accepted asset is a reference-specific icon, glyph, stamp, or small
+mark, record target size, alpha semantics, component owner, fallback, and
+reference comparison. A successful custom glyph should not be replaced by a
+generic library icon or sheet crop unless the reference intent changes.
 
 `ambition-bar.md` must name the useful surprise or signature craft moment. If
 the target is only "clean" or "nice", the task is under-specified for
@@ -163,12 +253,47 @@ shares state and terminology with the canonical owner, and has a documented
 workflow reason. Otherwise remove, merge, disable, or restyle the duplicate
 before completion.
 
+For responsive tabs, drawers, sheets, and segmented controls, each selected
+state must expose distinct owner content or a distinct workflow scope. If two
+tabs render the same panel, they are duplicate controls and must be merged,
+removed, or re-scoped before completion.
+
+For graph, map, timeline, and other spatial views, screenshot review must
+inspect labels and ownership cues. Passing node selection or final-state
+assertions does not clear visual quality when labels overlap, collide, truncate
+badly, or make node ownership ambiguous.
+
 For non-static pages, `affordance-inventory.md` and `behavior-matrix.md` are
 blocking completion artifacts. Do not claim completion from a few sampled
 interactions. Every visible live-looking control must be inventoried; every
 `working` control must have browser behavior evidence; every non-working
 control must be disabled, hidden, or explicitly out of scope with non-primary
 treatment.
+
+Primary commit actions need negative-path evidence. If the page has a
+non-happy state, the behavior matrix must include the attempt before recovery
+for publish, stage, approve, queue, checkout, sign off, send, export, or other
+finalizing controls. The expected result must be disabled, refused, converted
+to a clearly labeled review packet, or otherwise proven not to create a final
+completion receipt while blockers remain.
+
+Affordance classification must be mutually exclusive. If the same visible
+control is listed as `working` and also out of scope, disabled, hidden, or
+unverified, the inventory is invalid. Every `working` row must map to a saved
+structured browser-check result, not only a prose ledger statement.
+
+Browser-check results must include assertion integrity, not only execution
+logs. For every `ok: true` interaction, save expected and actual values for the
+meaningful state change. Mode, tab, drawer, and shortcut checks must record the
+control owner, expected active key, actual active key, expected visible region,
+actual visible region, and selected-state screenshot when relevant. If the
+actual value is wrong, unchanged, stale, or ambiguous, the entry is a failed
+check even if the click did not throw.
+
+Data-driven affordances must still be concrete in the inventory. Wildcard
+groups may summarize repeated controls, but each visible generated thesis row,
+node, card, heatmap cell, tab, or path that is styled as live must have its own
+classification and browser evidence key.
 
 For exact-reference, image2-generated, or state-board implementations,
 `reference-coverage-matrix.md` is also a blocking completion artifact. It must
@@ -194,6 +319,15 @@ floating panels. These controls must not cover important content in default
 desktop or mobile screenshots. Mobile canvas controls and mode switches must be
 fully visible and practically touchable.
 
+For spatial, board, graph, canvas, pin-wall, map, timeline, or other dense
+object-layout pages, mobile must be an intentional adaptation. Do not shrink a
+desktop board into a miniature if cards, nodes, labels, or controls become
+hard to read or operate. Use a deliberate mobile list, carousel, focus path,
+selected-object sheet, grouped lanes, or drilldown pattern, and record the
+chosen pattern in `state-reference-set.md` and
+`full-page-structural-parity-ledger.md`. Browser `overflow-x: false` is not
+enough if the screenshot still shows unreadable density.
+
 If a meaningful mobile state exists, `state-reference-set.md` must include a
 mobile reference frame, a mobile-specific state rule, or an explicit blocking
 gap. A desktop design squeezed into mobile is not enough for completion.
@@ -203,6 +337,37 @@ items. Visible clipping, overlap, malformed controls, accidental scrollbars,
 dead primary affordances, or unstable canvas manipulation cannot be accepted as
 `acceptable_delta`.
 
+`visual-bug-ledger.md` must use screenshots as evidence, not only automation
+summaries. Console, DOM, overflow, and interaction checks can say the page is
+executable, but they do not prove that text, labels, frames, maps, controls,
+and materials are visually correct. The ledger must record a screenshot-review
+row from the executor, parent, or judge set before it can claim zero blockers.
+
+For visual parity completion, `full-page-structural-parity-ledger.md` is
+blocking for exact, image2-generated, and state-board implementations. It must
+compare the reference and implementation as whole pages and first viewports
+before local crops or micro-parity can pass. High-severity mismatch in first
+viewport composition, section order, region proportions, control placement,
+primary object layout, scroll density, or mobile hierarchy keeps parity at
+`needs_iteration`.
+
+If the reference is generated by image2, `style_reference` means style plus
+structural guidance unless the user explicitly says the image is only a mood
+reference. Do not use `style_reference` to justify large structural rewrites.
+
+Reference-visible primary actions and control ownership are part of structural
+parity. If a reference topbar action is moved into an inspector, replaced by a
+different command, or changed from global to local scope, record that as a
+delta with rationale. Do not mark it `match`.
+
+For visual parity completion, `micro-parity-checklist.md` must also have no
+unresolved high-severity mismatches. It should compare cropped regions against
+the reference for button spacing, group gaps, input height, icon size and
+centering, typography leading, card/list density, border weight, divider
+strength, shadow/blur/material treatment, and selected/hover/focus states.
+Whole-page screenshots are not enough when small craft details are the
+remaining source of drift.
+
 Build, lint, console, overflow, and interaction checks are execution evidence,
 not visual parity evidence. If screenshots still show visible blocker defects,
 `visual-bug-ledger.md` remains open even when automation passes.
@@ -210,6 +375,21 @@ not visual parity evidence. If screenshots still show visible blocker defects,
 Artifact freshness is required for completion. When layout, interaction,
 screenshots, or validation scripts change, refresh the affected ledgers before
 judge review or final handoff.
+
+Browser evidence freshness is part of artifact freshness. Save the latest
+interaction, console, overflow, and screenshot-capture results as named
+artifacts. If old logs remain in the evidence bundle and contradict the latest
+claim, either mark them superseded or record the conflict.
+
+Browser evidence conflicts block completion. If structured results mark an
+interaction as passing while the recorded actual state does not equal the
+expected state, reopen `visual-bug-ledger.md` or `interaction-parity-ledger.md`
+and downgrade parity to `needs_iteration`.
+
+Missing blocked-action evidence is also a conflict. If a non-happy screenshot
+shows an enabled primary commit action but the latest browser results only test
+that action after recovery, reopen the interaction ledger and downgrade parity
+to `needs_iteration`.
 
 For important UX work, generated design references, and exact-reference
 implementations, `visual-judge-scorecards.md` and `judge-aggregation.md` are
@@ -235,7 +415,9 @@ explicitly accepted as a trade-off.
 - Page: <repo-relative route or file>
 - Design reference: <repo-relative artifact ref>
 - Reference intent: <exact|style_reference|asset|content_context|data_context>
+- Reference provenance: <external_strong|image2_filesystem|browser_exploration_only|blocked_no_reference and ref>
 - Visual decomposition: <ref>
+- Design spec ledger: <ref>
 - Ambition bar: <ref or not_needed_low_craft>
 - MVP experiment plan: <ref or not_needed_not_skill_experiment>
 - State reference set: <ref or not_needed_static_page>
@@ -247,11 +429,17 @@ explicitly accepted as a trade-off.
 - Affordance inventory: <ref or not_needed_static_page>
 - Behavior matrix: <ref or not_needed_static_page>
 - Visual bug ledger: <ref and blocker count>
+- Full-page structural parity ledger: <ref and high-mismatch count>
+- Micro parity checklist: <ref and high-mismatch count>
+- Asset requirement pass: <ref or not_needed_css_sufficient>
+- Asset generation ledger: <ref or not_needed_no_assets>
+- Material parity checklist: <ref and high-mismatch count or not_needed_no_assets>
 - Canvas stability: <ref or not_needed_non_spatial_page>
 - Canvas safe zones: <passed|partial|blocked|not_needed and ref>
 - Visual judge scorecards: <ref or not_needed_low_risk>
 - Judge aggregation: <pass|needs_iteration|blocked|not_needed_low_risk and ref>
 - Image2 status: <generated|not_needed_stronger_reference|blocked_unavailable>
+- Reference provenance gate: <passed|blocked with evidence ref>
 - Stack: <framework or static>
 
 ## Validation
@@ -260,6 +448,7 @@ explicitly accepted as a trade-off.
 - mobile screenshot: <ref>
 - console/runtime: <result>
 - interaction/state parity: <ref or not_needed_static_page>
+- browser check results: <ref with interaction/console/overflow result>
 - information architecture review: <passed|partial|blocked|not_applicable with evidence ref>
 - workflow legibility: <passed|partial|blocked|not_applicable with evidence ref>
 - control surface review: <passed|partial|blocked|not_applicable with evidence ref>
@@ -271,6 +460,10 @@ explicitly accepted as a trade-off.
 - visual judge gate: <passed|needs_iteration|blocked|not_needed with evidence ref>
 - MVP complexity gate: <passed|partial|blocked|not_applicable with evidence ref>
 - visible bug scan: <result>
+- full-page structural parity scan: <passed|partial|blocked with evidence ref>
+- micro-parity scan: <passed|partial|blocked with evidence ref>
+- material parity scan: <passed|partial|blocked|not_needed with evidence ref>
+- asset pipeline integrity: <passed|partial|blocked|not_needed with role/crop/alpha/slice/responsive refs>
 - code quality review: <ref>
 - parity rating: <match|acceptable_delta|needs_iteration>
 - side-by-side ledger: <ref>

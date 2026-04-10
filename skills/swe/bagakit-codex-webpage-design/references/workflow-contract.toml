@@ -1,0 +1,496 @@
+version = 1
+skill_id = "bagakit-codex-webpage-design"
+contract_kind = "skill_workflow_contract"
+owner = "skills/swe/bagakit-codex-webpage-design"
+
+[entry]
+skill = "SKILL.md"
+required_reference_links = [
+  "references/image-prompt-guide.md",
+  "references/implementation-loop.md",
+  "references/asset-pipeline.md",
+  "references/visual-quality-rubric.md",
+  "references/artifact-contract.md",
+  "references/workflow-contract.toml",
+]
+
+[[stage]]
+id = "design-brief"
+phase = "before_implementation"
+artifact = "design-brief.md"
+blocks_completion = true
+
+[[stage]]
+id = "reference-intent"
+phase = "before_implementation"
+artifact = "reference-intent.md"
+blocks_completion = true
+
+[[stage]]
+id = "reference-provenance-ledger"
+phase = "before_implementation"
+artifact = "reference-provenance-ledger.md"
+blocks_completion = true
+
+[[stage]]
+id = "design-reference"
+phase = "before_implementation"
+artifact = "design-reference.*"
+blocks_completion = true
+
+[[stage]]
+id = "state-reference-set"
+phase = "before_implementation"
+artifact = "state-reference-set.md"
+required_when = "material states or breakpoints define the product"
+
+[[stage]]
+id = "visual-decomposition"
+phase = "before_implementation"
+artifact = "visual-decomposition.md"
+blocks_completion = true
+
+[[stage]]
+id = "design-spec-ledger"
+phase = "before_implementation"
+artifact = "design-spec-ledger.md"
+blocks_completion = true
+
+[[stage]]
+id = "asset-requirement-pass"
+phase = "before_implementation"
+artifact = "asset-requirement-pass.md"
+required_when = "high-craft reference depends on texture, masks, illustration, glyphs, icons, overlays, or material craft"
+
+[[stage]]
+id = "asset-generation-ledger"
+phase = "before_implementation"
+artifact = "asset-generation-ledger.md"
+required_when = "asset-requirement-pass classifies asset_required"
+
+[[stage]]
+id = "ambition-bar"
+phase = "before_implementation"
+artifact = "ambition-bar.md"
+required_when = "high-craft work"
+
+[[stage]]
+id = "information-architecture-map"
+phase = "before_implementation"
+artifact = "information-architecture-map.md"
+required_when = "interactive or product-like page"
+
+[[stage]]
+id = "workflow-model"
+phase = "before_implementation"
+artifact = "workflow-model.md"
+required_when = "interactive or product-like page"
+
+[[stage]]
+id = "control-surface-map"
+phase = "before_implementation"
+artifact = "control-surface-map.md"
+required_when = "interactive or product-like page"
+
+[[stage]]
+id = "interaction-model"
+phase = "before_implementation"
+artifact = "interaction-model.md"
+required_when = "interactive page"
+
+[[stage]]
+id = "capability-route"
+phase = "before_implementation"
+artifact = "capability-route.md"
+blocks_completion = true
+
+[[stage]]
+id = "browser-evidence"
+phase = "implementation_loop"
+artifact = "browser-evidence.md"
+blocks_completion = true
+
+[[completion_artifact]]
+id = "browser-check-results"
+artifact = "browser-check-results.*"
+blocks_completion = true
+
+[[completion_artifact]]
+id = "affordance-inventory"
+artifact = "affordance-inventory.md"
+blocks_completion = true
+
+[[completion_artifact]]
+id = "behavior-matrix"
+artifact = "behavior-matrix.md"
+blocks_completion = true
+
+[[completion_artifact]]
+id = "visual-bug-ledger"
+artifact = "visual-bug-ledger.md"
+blocks_completion = true
+
+[[completion_artifact]]
+id = "full-page-structural-parity-ledger"
+artifact = "full-page-structural-parity-ledger.md"
+blocks_completion = true
+
+[[completion_artifact]]
+id = "micro-parity-checklist"
+artifact = "micro-parity-checklist.md"
+blocks_completion = true
+
+[[completion_artifact]]
+id = "material-parity-checklist"
+artifact = "material-parity-checklist.md"
+required_when = "asset-requirement-pass classifies asset_required"
+
+[[completion_artifact]]
+id = "frame-specimen-sheet"
+artifact = "frame-specimen-sheet.md"
+required_when = "accepted assets include scalable UI frames"
+
+[[completion_artifact]]
+id = "canvas-stability-report"
+artifact = "canvas-stability-report.md"
+required_when = "canvas, graph, map, whiteboard, timeline, or spatial manipulation exists"
+
+[[completion_artifact]]
+id = "visual-parity-ledger"
+artifact = "visual-parity-ledger.md"
+blocks_completion = true
+
+[[completion_artifact]]
+id = "interaction-parity-ledger"
+artifact = "interaction-parity-ledger.md"
+required_when = "interactive page"
+
+[[completion_artifact]]
+id = "visual-judge-scorecards"
+artifact = "visual-judge-scorecards.md"
+required_when = "important UX, generated references, or exact-reference implementation"
+
+[[completion_artifact]]
+id = "judge-aggregation"
+artifact = "judge-aggregation.md"
+required_when = "visual judge scorecards are used"
+
+[[completion_artifact]]
+id = "code-quality-review"
+artifact = "code-quality-review.md"
+blocks_completion = true
+
+[[completion_artifact]]
+id = "handoff"
+artifact = "handoff.md"
+blocks_completion = true
+
+[[guard]]
+id = "reference-first"
+protects = "implementation must not begin from text alone when a stronger or generated design reference is required"
+proof_surface = "reference-intent plus design-reference artifact"
+
+[[guard]]
+id = "reference-provenance"
+protects = "generated or provided references must have auditable source class and must not be replaced by agent-authored browser HTML"
+proof_surface = "reference-provenance-ledger plus design-reference artifact"
+
+[[guard]]
+id = "image2-reference-authority"
+protects = "when no stronger external reference exists, visual completion requires a saved Image2 design artifact instead of a coded HTML design source"
+proof_surface = "reference-provenance-ledger plus design-reference artifact plus image-prompt retry evidence when blocked"
+
+[[guard]]
+id = "skill-quality-no-reference-invalid"
+protects = "skill-quality validation experiments must stop as invalid when neither external_strong nor image2_filesystem reference exists"
+proof_surface = "reference-provenance-ledger plus design-reference artifact"
+
+[[guard]]
+id = "browser-evidence-preservation"
+protects = "browser interaction, console, and overflow checks must be preserved as concrete evidence"
+proof_surface = "browser-check-results artifact plus interaction-parity-ledger"
+
+[[guard]]
+id = "browser-evidence-assertion-integrity"
+protects = "browser checks marked ok must prove expected state equals actual observed state"
+proof_surface = "browser-check-results artifact with expected and actual values plus interaction-parity-ledger"
+
+[[guard]]
+id = "state-reference-authority"
+protects = "state boards must extend the accepted reference instead of copying an under-review implementation"
+proof_surface = "reference-intent plus state-reference-set"
+
+[[guard]]
+id = "affordance-honesty"
+protects = "visible live-looking controls must be implemented, disabled, hidden, or explicitly out of scope"
+proof_surface = "affordance-inventory plus behavior-matrix"
+
+[[guard]]
+id = "nonhappy-primary-action-safety"
+protects = "primary commit actions in blocked states must not create final completion or queue receipts without recovery"
+proof_surface = "behavior-matrix plus browser-check-results blocked-state interaction evidence"
+
+[[guard]]
+id = "affordance-classification-integrity"
+protects = "each affordance must have one mutually exclusive classification"
+proof_surface = "affordance-inventory"
+
+[[guard]]
+id = "working-affordance-evidence-coverage"
+protects = "every working affordance must map to saved structured browser-check evidence"
+proof_surface = "affordance-inventory plus behavior-matrix plus browser-check-results"
+
+[[guard]]
+id = "dynamic-affordance-granularity"
+protects = "generated or repeated controls must be inventoried as concrete visible instances, not only wildcard groups"
+proof_surface = "affordance-inventory plus browser-check-results"
+
+[[guard]]
+id = "mobile-mode-distinctness"
+protects = "mobile tabs and segmented modes must expose distinct content or workflow scope"
+proof_surface = "mobile screenshots plus interaction-parity-ledger"
+
+[[guard]]
+id = "reference-coverage"
+protects = "implementation coverage must be judged against the reference, not only the built page"
+proof_surface = "reference-coverage-matrix plus visual-parity-ledger"
+
+[[guard]]
+id = "information-architecture"
+protects = "complex product screens must expose object taxonomy, region ownership, and information scent"
+proof_surface = "information-architecture-map"
+
+[[guard]]
+id = "motion-frame-stability"
+protects = "spatial manipulation must be stable during motion, not only after mouseup"
+proof_surface = "canvas-stability-report with before, mid-drag, and after-drag evidence"
+
+[[guard]]
+id = "spatial-label-legibility"
+protects = "graph, map, timeline, and spatial labels must not overlap, collide, clip, or become unreadable in screenshots"
+proof_surface = "screenshots plus visual-bug-ledger plus full-page-structural-parity-ledger"
+
+[[guard]]
+id = "visual-parity-is-not-automation"
+protects = "automated checks must not substitute for visual bug and parity review"
+proof_surface = "screenshots plus visual-bug-ledger and visual-parity-ledger"
+
+[[guard]]
+id = "screenshot-review-integrity"
+protects = "visual-bug-ledger must include screenshot-review findings instead of treating clean automation as zero visual bugs"
+proof_surface = "visual-bug-ledger plus screenshots plus judge-aggregation"
+
+[[guard]]
+id = "ambition-bar"
+protects = "high-craft requests must not stop at clean but generic output"
+proof_surface = "ambition-bar plus judge-aggregation"
+
+[[guard]]
+id = "design-spec-fidelity"
+protects = "micro details must be derived from concrete tokens and geometry, not ad hoc guesses"
+proof_surface = "design-spec-ledger plus micro-parity-checklist"
+
+[[guard]]
+id = "material-asset-parity"
+protects = "high-craft material references must not be flattened into CSS-only approximations when reusable generated or provided assets are needed"
+proof_surface = "asset-requirement-pass plus asset-generation-ledger plus material-parity-checklist"
+
+[[guard]]
+id = "asset-pipeline-integrity"
+protects = "generated assets must have explicit role, format, crop, alpha/mask, slice, responsive, selector, and fallback semantics before they can clear material parity"
+proof_surface = "asset-generation-ledger plus material-parity-checklist"
+
+[[guard]]
+id = "reference-specific-sprite-retention"
+protects = "accepted custom glyph and icon sprite assets must not regress into generic icons, font symbols, or visibly rescaled sheet crops"
+proof_surface = "asset-generation-ledger plus material-parity-checklist plus micro-parity-checklist"
+
+[[guard]]
+id = "nine-slice-renderer-integrity"
+protects = "scalable panel, card, inspector, and frame assets must use an explicit nine-slice renderer strategy instead of a stretched full bitmap"
+proof_surface = "asset-generation-ledger plus frame-specimen-sheet plus material-parity-checklist"
+
+[[guard]]
+id = "frame-specimen-readability"
+protects = "frame specimen screenshots must prove readable foreground content, helper text, and focus treatment on rendered material, not only specimen existence"
+proof_surface = "frame-specimen-sheet plus material-parity-checklist plus screenshot review"
+
+[[guard]]
+id = "alpha-mask-integrity"
+protects = "transparent edges, torn masks, glows, and cutouts must not be accepted from RGB crops that create halos, seams, or dirty borders"
+proof_surface = "asset-generation-ledger crop manifest plus material-parity-checklist screenshots"
+
+[[guard]]
+id = "responsive-asset-parity"
+protects = "asset-backed material and artwork must preserve fidelity and not clip or obscure controls across desktop and mobile states"
+proof_surface = "state-reference-set plus material-parity-checklist plus desktop and mobile screenshots"
+
+[[guard]]
+id = "mobile-spatial-adaptation"
+protects = "dense board, graph, pin-wall, map, and timeline surfaces must use an intentional mobile adaptation rather than a shrunken unreadable desktop layout"
+proof_surface = "state-reference-set plus full-page-structural-parity-ledger plus mobile screenshots"
+
+[[guard]]
+id = "implementation-checkpoint"
+protects = "long design-reference or asset-heavy runs must not stall after setup without a working URL, screenshots, blocker count, and next action"
+proof_surface = "implementation checkpoint plus handoff or visual-bug-ledger"
+
+[[guard]]
+id = "full-page-structural-parity"
+protects = "whole-page structure must match exact or generated references before local crop parity claims"
+proof_surface = "full-page-structural-parity-ledger"
+
+[[guard]]
+id = "control-surface-clarity"
+protects = "duplicate or mirrored controls must have clear scope, shared state, and workflow value"
+proof_surface = "control-surface-map plus workflow-model"
+
+[[guard]]
+id = "primary-action-ownership-parity"
+protects = "reference-visible primary actions must not move owner region or scope without recorded delta"
+proof_surface = "full-page-structural-parity-ledger plus control-surface-map"
+
+[[guard]]
+id = "mvp-complexity"
+protects = "skill experiments must be hard enough to falsify high-craft product capability claims"
+proof_surface = "mvp-experiment-plan"
+
+[[historical_failure_guard]]
+case_id = "no-reference-direct-code"
+guard_ids = ["reference-first"]
+
+[[historical_failure_guard]]
+case_id = "browser-reference-self-provenance-gap"
+guard_ids = ["reference-provenance", "reference-first", "image2-reference-authority"]
+
+[[historical_failure_guard]]
+case_id = "browser-reference-freeze-order-gap"
+guard_ids = ["reference-provenance", "image2-reference-authority"]
+
+[[historical_failure_guard]]
+case_id = "browser-html-reference-cheats-image2"
+guard_ids = ["reference-provenance", "image2-reference-authority"]
+
+[[historical_failure_guard]]
+case_id = "skill-quality-fallback-implementation-without-reference"
+guard_ids = ["skill-quality-no-reference-invalid", "reference-provenance", "image2-reference-authority"]
+
+[[historical_failure_guard]]
+case_id = "browser-check-output-not-preserved"
+guard_ids = ["browser-evidence-preservation", "visual-parity-is-not-automation"]
+
+[[historical_failure_guard]]
+case_id = "browser-check-true-with-wrong-state"
+guard_ids = ["browser-evidence-assertion-integrity", "working-affordance-evidence-coverage"]
+
+[[historical_failure_guard]]
+case_id = "blocked-primary-action-only-tested-after-recovery"
+guard_ids = ["nonhappy-primary-action-safety", "working-affordance-evidence-coverage"]
+
+[[historical_failure_guard]]
+case_id = "state-board-copies-failed-implementation"
+guard_ids = ["state-reference-authority", "reference-first"]
+
+[[historical_failure_guard]]
+case_id = "fake-visible-controls-pass-happy-path"
+guard_ids = ["affordance-honesty"]
+
+[[historical_failure_guard]]
+case_id = "enabled-noop-control-classified-working-and-out-of-scope"
+guard_ids = ["affordance-honesty", "affordance-classification-integrity"]
+
+[[historical_failure_guard]]
+case_id = "working-affordance-evidence-sampled-only"
+guard_ids = ["working-affordance-evidence-coverage", "browser-evidence-preservation"]
+
+[[historical_failure_guard]]
+case_id = "dynamic-affordance-wildcard-inventory"
+guard_ids = ["dynamic-affordance-granularity", "working-affordance-evidence-coverage"]
+
+[[historical_failure_guard]]
+case_id = "mobile-tabs-share-same-panel"
+guard_ids = ["mobile-mode-distinctness", "control-surface-clarity"]
+
+[[historical_failure_guard]]
+case_id = "reference-primary-action-owner-drift-called-match"
+guard_ids = ["primary-action-ownership-parity", "full-page-structural-parity"]
+
+[[historical_failure_guard]]
+case_id = "reference-controls-missing-from-implementation"
+guard_ids = ["reference-coverage", "affordance-honesty"]
+
+[[historical_failure_guard]]
+case_id = "missing-information-architecture-map"
+guard_ids = ["information-architecture"]
+
+[[historical_failure_guard]]
+case_id = "weak-information-scent-polished-panels"
+guard_ids = ["information-architecture"]
+
+[[historical_failure_guard]]
+case_id = "drag-final-position-hides-flicker"
+guard_ids = ["motion-frame-stability"]
+
+[[historical_failure_guard]]
+case_id = "automation-passes-visual-blockers-remain"
+guard_ids = ["visual-parity-is-not-automation"]
+
+[[historical_failure_guard]]
+case_id = "clean-automation-visual-ledger-misses-screenshot-bugs"
+guard_ids = ["screenshot-review-integrity", "visual-parity-is-not-automation"]
+
+[[historical_failure_guard]]
+case_id = "map-label-overlap-hidden-by-state-checks"
+guard_ids = ["spatial-label-legibility", "visual-parity-is-not-automation"]
+
+[[historical_failure_guard]]
+case_id = "nice-clean-but-not-surprising"
+guard_ids = ["ambition-bar"]
+
+[[historical_failure_guard]]
+case_id = "micro-detail-drift-without-design-spec"
+guard_ids = ["design-spec-fidelity"]
+
+[[historical_failure_guard]]
+case_id = "material-craft-flattened-by-css-only"
+guard_ids = ["material-asset-parity"]
+
+[[historical_failure_guard]]
+case_id = "asset-kit-without-pipeline-creates-halos-and-seams"
+guard_ids = ["asset-pipeline-integrity", "alpha-mask-integrity", "material-asset-parity"]
+
+[[historical_failure_guard]]
+case_id = "reference-glyph-sprites-regressed-to-generic-icons"
+guard_ids = ["reference-specific-sprite-retention", "asset-pipeline-integrity", "design-spec-fidelity"]
+
+[[historical_failure_guard]]
+case_id = "panel-frame-background-stretch-without-nine-slice-renderer"
+guard_ids = ["nine-slice-renderer-integrity", "asset-pipeline-integrity", "material-asset-parity"]
+
+[[historical_failure_guard]]
+case_id = "frame-specimen-existence-hides-low-contrast-content"
+guard_ids = ["frame-specimen-readability", "nine-slice-renderer-integrity", "material-asset-parity"]
+
+[[historical_failure_guard]]
+case_id = "asset-rich-desktop-pass-mobile-clips-ui"
+guard_ids = ["responsive-asset-parity", "asset-pipeline-integrity", "visual-parity-is-not-automation"]
+
+[[historical_failure_guard]]
+case_id = "mobile-board-miniaturized-desktop-density"
+guard_ids = ["mobile-spatial-adaptation", "full-page-structural-parity", "responsive-asset-parity"]
+
+[[historical_failure_guard]]
+case_id = "quiet-room-stalls-after-reference-and-assets"
+guard_ids = ["implementation-checkpoint", "browser-evidence-preservation"]
+
+[[historical_failure_guard]]
+case_id = "full-page-drift-hidden-by-style-reference"
+guard_ids = ["full-page-structural-parity"]
+
+[[historical_failure_guard]]
+case_id = "duplicated-mode-controls-unclear-flow"
+guard_ids = ["control-surface-clarity"]
+
+[[historical_failure_guard]]
+case_id = "toy-single-page-false-mvp-proof"
+guard_ids = ["mvp-complexity"]
