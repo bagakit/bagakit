@@ -50,6 +50,12 @@ Design rule:
 Assertion note:
 
 - the validator framework is neutral about what one suite checks
+- suites may declare the proof triple as `protects`, `oracle`, and
+  `exercised_surface`
+- default `gate_validation/` suites must declare this proof triple, and generic
+  boilerplate is rejected during config loading
+- audit reports missing proof triples as review prompts for non-gating or draft
+  suites; do not add generic boilerplate just to reduce the count
 - repository quality still depends on owner-local assertion discipline
 - owner-local suites should prefer structured state and bounded payload
   assertions over large free-form string matching whenever the owning surface
@@ -57,6 +63,10 @@ Assertion note:
 - source grep is a valid proof surface only when the source text is itself the
   published contract; runtime behavior should be proven through commands, APIs,
   generated artifacts, fake boundaries, receipts, or resulting state
+- skill validation should first look for structured contracts, case ids, guard
+  ids, generated artifacts, receipts, or smoke-run outputs; long required
+  phrase lists are evidence that the skill should expose a smaller contract
+  surface
 - detailed assertion discipline lives in
   `docs/stewardship/sop/validation-sop.md`
 

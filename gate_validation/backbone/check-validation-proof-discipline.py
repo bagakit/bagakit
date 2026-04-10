@@ -6,26 +6,101 @@ import argparse
 from pathlib import Path
 
 
-REQUIRED_PHRASES = {
+REQUIRED_ANCHOR_GROUPS = {
     "AGENTS.md": [
-        "Validation should prove public behavior or owned contract text",
-        "docs/stewardship/sop/validation-sop.md",
+        (
+            "validation rule points to the SOP",
+            [
+                "Validation should prove public behavior or owned contract text",
+                "docs/stewardship/sop/validation-sop.md",
+            ],
+        ),
     ],
     "docs/specs/validation-system.md": [
-        "source text checks only when that text is the published contract",
-        "asserting private source strings, method names, imports, comments",
+        (
+            "suite proof triple vocabulary",
+            ["`protects`", "`oracle`", "`exercised_surface`", "suite-level proof triple"],
+        ),
+        (
+            "proof triple must not become boilerplate",
+            ["generic text", "A missing or weak proof", "default `gate_validation/` suites"],
+        ),
+        (
+            "source text is only a contract proof surface",
+            ["source text checks", "published contract"],
+        ),
+        (
+            "private implementation shape is not behavior proof",
+            ["private source strings", "method names", "imports", "comments"],
+        ),
+        (
+            "historical failures map to guard ids",
+            ["historical failure cases", "contract guard ids"],
+        ),
     ],
     "docs/stewardship/sop/validation-sop.md": [
-        "the behavior or boundary being protected",
-        "the independent oracle that proves it",
-        "Source inspection is valid only when the inspected text is itself the published",
-        'proof_mode = "wording_contract"',
-        "source grep is usually a change-detector test",
-        "skill text may be runtime payload",
+        (
+            "proof triple questions",
+            [
+                "the behavior or boundary being protected",
+                "the independent oracle that proves it",
+                "the public or owned boundary being exercised",
+            ],
+        ),
+        (
+            "suite registration fields",
+            ["`protects`", "`oracle`", "`exercised_surface`"],
+        ),
+        (
+            "proof triple fields are not boilerplate",
+            ["generic boilerplate", "hard-gated", "review prompts"],
+        ),
+        (
+            "source inspection boundary",
+            ["Source inspection is valid only", "published", "contract"],
+        ),
+        (
+            "wording contract classification",
+            ['proof_mode = "wording_contract"', "generated payload"],
+        ),
+        (
+            "source grep anti-pattern",
+            ["source grep", "change-detector test"],
+        ),
+        (
+            "skill text and tool source have different proof surfaces",
+            ["skill text may be runtime payload", "tool source code is usually implementation detail"],
+        ),
+        (
+            "skill structured contracts before prose",
+            ["structured skill-owned contract files", "`references/`"],
+        ),
+        (
+            "historical failures should not be phrase requirements",
+            ["Do not use case fields", "`must_find`"],
+        ),
     ],
     "dev/validator/README.md": [
-        "source grep is a valid proof surface only when the source text is itself",
-        "docs/stewardship/sop/validation-sop.md",
+        (
+            "validator exposes proof triple metadata",
+            ["proof triple", "`protects`", "`oracle`", "`exercised_surface`"],
+        ),
+        (
+            "audit prompts do not invite boilerplate",
+            ["missing proof triples", "generic boilerplate", "config loading"],
+        ),
+        (
+            "source grep boundary",
+            ["source grep", "published contract"],
+        ),
+        (
+            "skill validation structured-first guidance",
+            ["structured contracts", "guard", "generated artifacts"],
+        ),
+        (
+            "detailed SOP link",
+            ["docs/stewardship/sop/validation-sop.md"],
+        ),
     ],
 }
 
@@ -40,15 +115,15 @@ def main() -> int:
     args = parse_args()
     root = Path(args.root).resolve()
     missing: list[str] = []
-    for rel_path, phrases in REQUIRED_PHRASES.items():
+    for rel_path, groups in REQUIRED_ANCHOR_GROUPS.items():
         path = root / rel_path
         if not path.is_file():
             missing.append(f"{rel_path}: missing file")
             continue
         text = path.read_text(encoding="utf-8")
-        for phrase in phrases:
-            if phrase not in text:
-                missing.append(f"{rel_path}: missing phrase: {phrase}")
+        for group_name, anchors in groups:
+            if not all(anchor in text for anchor in anchors):
+                missing.append(f"{rel_path}: missing anchor group: {group_name}")
     if missing:
         print("validation proof discipline check failed:")
         for item in missing:

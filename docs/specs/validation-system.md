@@ -117,6 +117,12 @@ Current suite contract supports:
     - `live`
     - `manual`
     - `stochastic_judge`
+- `protects`
+  - the behavior, boundary, or contract the suite is meant to protect
+- `oracle`
+  - the independent observation that proves the protected boundary
+- `exercised_surface`
+  - the public or owner-defined surface the suite exercises
 - `proves`
   - concise claims this suite actually proves
 - `does_not_prove`
@@ -128,6 +134,10 @@ Default `gate_validation/` suite eligibility is fail-closed:
 
 - every default suite must declare non-empty `proof_mode`, `proves`, and
   `does_not_prove`
+- every default suite must declare non-empty `protects`, `oracle`, and
+  `exercised_surface`
+- generic proof-triple boilerplate is rejected; the fields must name the real
+  boundary, independent oracle, and exercised surface for that suite
 - every default process-runner suite must declare `timeout_seconds`
 - `fs` suites must not declare `timeout_seconds` because they execute inside the
   validator process
@@ -137,6 +147,13 @@ Default `gate_validation/` suite eligibility is fail-closed:
 This proof contract is intentionally small. It is not a full suite ontology.
 Do not add new fields such as risk class, hermeticity, or parallel safety until
 the validator has a real consumer for them.
+
+`protects`, `oracle`, and `exercised_surface` are the suite-level proof triple.
+They are used by validator plan and audit output, and they are required for
+default `gate_validation/` suites. Do not fill them with generic text only to
+silence a gate. A missing or weak proof triple is preferable to a false one
+until the suite owner can name the actual boundary, oracle, and exercised
+surface.
 
 Default `gate_eval/` process suites must also declare `timeout_seconds`.
 This is an execution-safety requirement, not a claim that eval is release
@@ -244,6 +261,11 @@ Promotion rule:
 - if one validation needs repeated brittle string matching, that is evidence
   that the owning surface should expose a smaller structured proof artifact
   instead of expanding the matcher
+- skill validation should prefer structured contracts under `references/`,
+  eval case ids, guard ids, generated artifacts, receipts, or smoke-run output
+  before checking prose anchors
+- historical failure cases should map to contract guard ids rather than
+  `must_find` phrase lists
 
 ## Timing Summary Rule
 

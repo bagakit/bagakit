@@ -47,6 +47,9 @@ function runCli(repoRoot: string, args: string[], env: NodeJS.ProcessEnv = proce
 function proofLines(proofMode = "runtime", timeoutSeconds = 5): string[] {
   const lines = [
     `proof_mode = "${proofMode}"`,
+    'protects = ["the validator test fixture behavior boundary"]',
+    'oracle = ["fixture command output or filesystem result"]',
+    'exercised_surface = ["temporary validation.toml plus configured runner"]',
     'proves = ["validator test fixture proves its declared behavior"]',
     'does_not_prove = ["validator test fixture does not prove unrelated repository behavior"]',
   ];
@@ -203,6 +206,9 @@ test("loadProject supports v2 runner tables, groups, params, default_params, and
     assert.equal(suite.validationClass, "tooling");
     assert.equal(suite.proofMode, "runtime");
     assert.equal(suite.timeoutSeconds, 5);
+    assert.deepEqual(suite.protects, ["the validator test fixture behavior boundary"]);
+    assert.deepEqual(suite.oracle, ["fixture command output or filesystem result"]);
+    assert.deepEqual(suite.exercisedSurface, ["temporary validation.toml plus configured runner"]);
     assert.deepEqual(suite.proves, ["validator test fixture proves its declared behavior"]);
     assert.deepEqual(suite.groups, ["smoke", "slow"]);
     assert.deepEqual(suite.defaultParams, ["baseline"]);
@@ -898,6 +904,8 @@ test("cli audit reports default gate imbalance signals without failing", () => {
     assert.ok(result.stdout.includes("Default proof modes:"));
     assert.ok(result.stdout.includes("- runtime: 1"));
     assert.ok(result.stdout.includes("Default timeout signal:"));
+    assert.ok(result.stdout.includes("Proof-triple signal:"));
+    assert.ok(result.stdout.includes("- missing proof triple on default suites: 0"));
     assert.ok(result.stdout.includes("Largest validation/eval files:"));
     assert.ok(result.stdout.includes("String-match signal:"));
     assert.ok(result.stdout.includes("gate_validation/dev/example/string-check.ts"));
@@ -956,6 +964,7 @@ test("gate_eval default process suites require timeout but not proof metadata", 
     assert.ok(result.stdout.includes("Validation audit (report-only)"));
     assert.ok(result.stdout.includes("- config: gate_eval/validation.toml"));
     assert.ok(result.stdout.includes("- unspecified: 1"));
+    assert.ok(result.stdout.includes("- missing proof triple on default suites: 1"));
 
     writeFile(
       repoRoot,
@@ -1071,11 +1080,81 @@ test("gate_validation default suites require executable proof metadata", () => {
         "version = 2",
         "",
         "[[suite]]",
+        'id = "missing-proof-triple"',
+        'owner = "gate_validation/dev/example"',
+        'description = "default gate must name its proof triple"',
+        "default = true",
+        'proof_mode = "runtime"',
+        'proves = ["bounded runtime behavior"]',
+        'does_not_prove = ["unrelated repository behavior"]',
+        "timeout_seconds = 5",
+        'validation_class = "smoke"',
+        "",
+        "[suite.runner]",
+        'kind = "executable"',
+        'command = "{node}"',
+        'args = ["scripts/noop.cjs"]',
+        "",
+      ].join("\n"),
+    );
+    assert.throws(
+      () => loadProject(repoRoot, "gate_validation/validation.toml"),
+      (error) => {
+        assert.ok(String(error).includes("must declare non-empty protects, oracle, and exercised_surface"));
+        return true;
+      },
+    );
+
+    writeFile(
+      repoRoot,
+      "gate_validation/dev/example/validation.toml",
+      [
+        "version = 2",
+        "",
+        "[[suite]]",
+        'id = "generic-proof-triple"',
+        'owner = "gate_validation/dev/example"',
+        'description = "default gate must not use proof triple boilerplate"',
+        "default = true",
+        'proof_mode = "runtime"',
+        'protects = ["protected boundary: default smoke"]',
+        'oracle = ["configured runner exit status plus suite-owned assertions"]',
+        'exercised_surface = ["registered validation suite and its runner inputs"]',
+        'proves = ["bounded runtime behavior"]',
+        'does_not_prove = ["unrelated repository behavior"]',
+        "timeout_seconds = 5",
+        'validation_class = "smoke"',
+        "",
+        "[suite.runner]",
+        'kind = "executable"',
+        'command = "{node}"',
+        'args = ["scripts/noop.cjs"]',
+        "",
+      ].join("\n"),
+    );
+    assert.throws(
+      () => loadProject(repoRoot, "gate_validation/validation.toml"),
+      (error) => {
+        assert.ok(String(error).includes("must not use generic proof-triple boilerplate"));
+        return true;
+      },
+    );
+
+    writeFile(
+      repoRoot,
+      "gate_validation/dev/example/validation.toml",
+      [
+        "version = 2",
+        "",
+        "[[suite]]",
         'id = "missing-timeout"',
         'owner = "gate_validation/dev/example"',
         'description = "process suite missing timeout"',
         "default = true",
         'proof_mode = "runtime"',
+        'protects = ["timeout metadata on default process suites"]',
+        'oracle = ["loader rejects process suites without timeout_seconds after proof metadata is present"]',
+        'exercised_surface = ["temporary validation.toml executable runner registration"]',
         'proves = ["bounded runtime behavior"]',
         'does_not_prove = ["unbounded execution safety"]',
         'validation_class = "smoke"',
@@ -1107,6 +1186,9 @@ test("gate_validation default suites require executable proof metadata", () => {
         'description = "filesystem proof cannot claim runtime behavior"',
         "default = true",
         'proof_mode = "runtime"',
+        'protects = ["filesystem proof mode validation fixture"]',
+        'oracle = ["loader rejects incompatible fs proof mode before execution"]',
+        'exercised_surface = ["temporary validation.toml fs runner registration"]',
         'proves = ["runtime behavior"]',
         'does_not_prove = ["semantic behavior"]',
         'validation_class = "structure"',
@@ -1248,6 +1330,9 @@ test("runProcessSuite terminates process suites that exceed timeout_seconds", ()
       'description = "suite that exceeds timeout"',
       "default = true",
       'proof_mode = "runtime"',
+      'protects = ["timeout enforcement around default process suites"]',
+      'oracle = ["runner terminates the fixture process and reports a timeout failure"]',
+      'exercised_surface = ["temporary validation.toml executable runner and sleep fixture"]',
       'proves = ["timeout enforcement catches hanging process suites"]',
       'does_not_prove = ["long-running release readiness"]',
       "timeout_seconds = 1",

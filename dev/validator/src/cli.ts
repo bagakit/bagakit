@@ -45,6 +45,26 @@ interface AuditFileSignal {
   scenarioTerms: number;
 }
 
+interface SuiteAuditSignal {
+  suite: SuiteConfig;
+  files: AuditFileSignal[];
+  stringMatches: number;
+  scenarioTerms: number;
+}
+
+function hasProofTriple(suite: SuiteConfig): boolean {
+  return suite.protects.length > 0 && suite.oracle.length > 0 && suite.exercisedSurface.length > 0;
+}
+
+function hasGenericProofTriple(suite: SuiteConfig): boolean {
+  const joined = [...suite.protects, ...suite.oracle, ...suite.exercisedSurface].join("\n").toLowerCase();
+  return (
+    joined.includes("configured runner exit status plus suite-owned assertions") ||
+    joined.includes("registered validation suite and its runner inputs") ||
+    joined.includes("protected boundary:")
+  );
+}
+
 function printHelp(): void {
   console.log(`bagakit validator
 
@@ -187,6 +207,59 @@ function auditFileSignals(project: LoadedProject): AuditFileSignal[] {
   });
 }
 
+function suiteRunnerTokens(suite: SuiteConfig): string[] {
+  const paramTokens = Object.values(suite.params).flat();
+  if (suite.runner.kind === "fs") {
+    return [];
+  }
+  if (suite.runner.kind === "argv") {
+    return [...suite.runner.command, ...suite.runner.defaultArgs, ...paramTokens];
+  }
+  if (suite.runner.kind === "python_script" || suite.runner.kind === "bash_script") {
+    return [suite.runner.script, ...suite.runner.args, ...paramTokens];
+  }
+  return [suite.runner.command, ...suite.runner.args, ...paramTokens];
+}
+
+function tokenToRepoFile(project: LoadedProject, rawToken: string): string | undefined {
+  const token = rawToken.replaceAll("{repo_root}", project.repoRoot).trim();
+  if (!token || token.startsWith("-") || token.includes("{")) {
+    return undefined;
+  }
+  const absolutePath = path.isAbsolute(token) ? token : path.resolve(project.repoRoot, token);
+  const relative = path.relative(project.repoRoot, absolutePath);
+  if (relative.startsWith("..") || path.isAbsolute(relative)) {
+    return undefined;
+  }
+  if (!auditFileExtensions.has(path.extname(absolutePath))) {
+    return undefined;
+  }
+  if (!fs.existsSync(absolutePath) || !fs.statSync(absolutePath).isFile()) {
+    return undefined;
+  }
+  return repoRelative(project, absolutePath);
+}
+
+function suiteAuditSignals(
+  project: LoadedProject,
+  suites: SuiteConfig[],
+  filesByPath: Map<string, AuditFileSignal>,
+): SuiteAuditSignal[] {
+  return suites.map((suite) => {
+    const referencedFiles = [
+      ...new Set(suiteRunnerTokens(suite).flatMap((token) => tokenToRepoFile(project, token) ?? [])),
+    ]
+      .map((relativePath) => filesByPath.get(relativePath))
+      .filter((file): file is AuditFileSignal => file !== undefined);
+    return {
+      suite,
+      files: referencedFiles,
+      stringMatches: referencedFiles.reduce((sum, file) => sum + file.stringMatches, 0),
+      scenarioTerms: referencedFiles.reduce((sum, file) => sum + file.scenarioTerms, 0),
+    };
+  });
+}
+
 function renderAuditTopFiles(label: string, files: AuditFileSignal[], selector: (file: AuditFileSignal) => number): void {
   const ranked = files
     .filter((file) => selector(file) > 0)
@@ -319,6 +392,11 @@ function cmdPlan(argv: string[]): number {
     if (suite.proves.length > 0) {
       console.log(`  proves: ${suite.proves.join("; ")}`);
     }
+    if (hasProofTriple(suite)) {
+      console.log(`  protects: ${suite.protects.join("; ")}`);
+      console.log(`  oracle: ${suite.oracle.join("; ")}`);
+      console.log(`  exercised surface: ${suite.exercisedSurface.join("; ")}`);
+    }
     if (suite.doesNotProve.length > 0) {
       console.log(`  does not prove: ${suite.doesNotProve.join("; ")}`);
     }
@@ -362,11 +440,25 @@ function cmdAudit(argv: string[]): number {
   }
 
   const defaultProcessSuitesWithoutTimeout = defaultProcessSuites.filter((suite) => suite.timeoutSeconds === undefined);
+  const defaultSuitesWithoutProofTriple = defaultSuites.filter((suite) => !hasProofTriple(suite));
+  const defaultSuitesWithGenericProofTriple = defaultSuites.filter(
+    (suite) => hasProofTriple(suite) && hasGenericProofTriple(suite),
+  );
+  const wordingSuitesWithoutContractOracle = defaultSuites.filter(
+    (suite) =>
+      suite.proofMode === "wording_contract" &&
+      ![...suite.oracle, ...suite.exercisedSurface].some((item) => /\b(contract|generated|template|skill|frontdoor|published)\b/i.test(item)),
+  );
   const defaultProcessTimeouts = defaultProcessSuites
     .filter((suite) => suite.timeoutSeconds !== undefined)
     .sort((left, right) => (right.timeoutSeconds ?? 0) - (left.timeoutSeconds ?? 0) || left.id.localeCompare(right.id))
     .slice(0, 10);
   const fileSignals = auditFileSignals(project);
+  const fileSignalsByPath = new Map(fileSignals.map((file) => [file.relativePath, file]));
+  const suiteSignals = suiteAuditSignals(project, defaultSuites, fileSignalsByPath);
+  const stringHeavySuitesWithoutProofTriple = suiteSignals
+    .filter((entry) => entry.stringMatches > 0 && !hasProofTriple(entry.suite))
+    .sort((left, right) => right.stringMatches - left.stringMatches || left.suite.id.localeCompare(right.suite.id));
   const totalStringMatches = fileSignals.reduce((sum, file) => sum + file.stringMatches, 0);
   const totalScenarioTerms = fileSignals.reduce((sum, file) => sum + file.scenarioTerms, 0);
 
@@ -406,6 +498,30 @@ function cmdAudit(argv: string[]): number {
     for (const suite of defaultProcessTimeouts) {
       console.log(`- ${suite.id}: ${suite.timeoutSeconds}s`);
     }
+  }
+  console.log("");
+
+  console.log("Proof-triple signal:");
+  console.log(`- missing proof triple on default suites: ${defaultSuitesWithoutProofTriple.length}`);
+  for (const suite of defaultSuitesWithoutProofTriple.slice(0, 10)) {
+    console.log(`- missing: ${suite.id}`);
+  }
+  console.log(`- weak or generic proof triple on default suites: ${defaultSuitesWithGenericProofTriple.length}`);
+  for (const suite of defaultSuitesWithGenericProofTriple.slice(0, 10)) {
+    console.log(`- weak: ${suite.id}`);
+  }
+  console.log(`- wording-contract suites without explicit contract oracle/surface: ${wordingSuitesWithoutContractOracle.length}`);
+  for (const suite of wordingSuitesWithoutContractOracle.slice(0, 10)) {
+    console.log(`- review: ${suite.id}`);
+  }
+  console.log("- interpretation: gate_validation defaults fail closed; other gaps are review prompts until promoted");
+  console.log("");
+
+  console.log("String-heavy suite proof signal:");
+  console.log(`- string-match runner suites missing proof triple: ${stringHeavySuitesWithoutProofTriple.length}`);
+  for (const entry of stringHeavySuitesWithoutProofTriple.slice(0, 10)) {
+    const files = entry.files.map((file) => file.relativePath).join(", ");
+    console.log(`- missing: ${entry.suite.id} string_match=${entry.stringMatches} files=${files}`);
   }
   console.log("");
 

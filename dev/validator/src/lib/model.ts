@@ -57,6 +57,9 @@ interface SuiteBase {
   defaultInGate: boolean;
   validationClass: ValidationClass;
   proofMode?: ProofMode;
+  protects: string[];
+  oracle: string[];
+  exercisedSurface: string[];
   proves: string[];
   doesNotProve: string[];
   timeoutSeconds?: number;

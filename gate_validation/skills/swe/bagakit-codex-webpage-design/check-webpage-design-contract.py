@@ -49,6 +49,7 @@ REQUIRED_COMPLETION_ARTIFACT_IDS = {
 
 REQUIRED_GUARD_IDS = {
     "reference-first",
+    "skill-quality-no-reference-invalid",
     "state-reference-authority",
     "affordance-honesty",
     "reference-coverage",

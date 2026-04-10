@@ -99,6 +99,14 @@ Before adding or changing a validation assertion, name three things:
 2. the independent oracle that proves it
 3. the public or owned boundary being exercised
 
+When registering a suite, record these as `protects`, `oracle`, and
+`exercised_surface` when the suite owner can state them precisely. Default
+`gate_validation/` suites are hard-gated on these fields and must not use
+generic boilerplate. For non-gating or draft suites, leave the fields absent
+rather than filling generic boilerplate; the validator audit will surface
+missing proof triples as review prompts until a suite-specific proof triple is
+ready to become a hard gate.
+
 Good validation failures should say which behavior contract broke. They should
 not merely say that an implementation string, private method name, import,
 comment, heading, or broad source-code pattern changed.
@@ -136,6 +144,32 @@ the validation, rewrite the assertion or explicitly classify it as a wording
 contract. This matters especially in Bagakit because skill authoring and tool
 development have different proof surfaces: skill text may be runtime payload,
 while tool source code is usually implementation detail.
+
+## Skill Contract Rule
+
+Skill validation must not turn into a checklist of incidental wording.
+
+For installable skills, use this proof order:
+
+1. structured skill-owned contract files under `references/`
+2. eval or historical-failure case ids that map to contract guard ids
+3. generated artifacts, receipts, state files, or smoke-run outputs
+4. narrow entrypoint anchors, such as a skill linking the contract file
+5. exact prose only when that prose is the user- or agent-facing contract
+
+Long arrays of required phrases in skill validation are a design smell. When a
+workflow needs many anchors, expose a smaller structured contract with named
+stages, artifacts, guards, ownership boundaries, cases, and known non-proofs.
+
+Historical failures should be represented as cases with:
+
+- the failure being guarded
+- the evidence refs that show the failure happened or matters
+- the contract guard ids that should block recurrence
+
+Do not use case fields such as `must_find` to require arbitrary text in the
+skill surface. If a case needs exact wording, classify that case as a wording
+contract and state what behavior it does not prove.
 
 Reference anchors:
 

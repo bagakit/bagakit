@@ -139,6 +139,19 @@ function usesNpxPackageInstall(suite: SuiteConfig): boolean {
   return suite.runner.args.some((arg) => arg === "-p" || arg === "--package" || arg.startsWith("--package="));
 }
 
+function hasProofTriple(suite: SuiteConfig): boolean {
+  return suite.protects.length > 0 && suite.oracle.length > 0 && suite.exercisedSurface.length > 0;
+}
+
+function usesGenericProofTriple(suite: SuiteConfig): boolean {
+  const joined = [...suite.protects, ...suite.oracle, ...suite.exercisedSurface].join("\n").toLowerCase();
+  return (
+    joined.includes("configured runner exit status plus suite-owned assertions") ||
+    joined.includes("registered validation suite and its runner inputs") ||
+    joined.includes("protected boundary:")
+  );
+}
+
 function loadRootSkipAliases(rawPayload: Record<string, unknown>, configPath: string): SkipAlias[] {
   const rawAliases = rawPayload.skip_alias ?? [];
   if (!Array.isArray(rawAliases)) {
@@ -337,6 +350,18 @@ function loadSuiteMetadata(
       rawRunnerKind,
     ),
     proofMode: readProofMode(rawSuite.proof_mode, `${configPath} suite.proof_mode`),
+    protects: uniqueStrings(
+      readStringArray(rawSuite.protects, `${configPath} suite.protects`),
+      `${configPath} suite.protects`,
+    ),
+    oracle: uniqueStrings(
+      readStringArray(rawSuite.oracle, `${configPath} suite.oracle`),
+      `${configPath} suite.oracle`,
+    ),
+    exercisedSurface: uniqueStrings(
+      readStringArray(rawSuite.exercised_surface, `${configPath} suite.exercised_surface`),
+      `${configPath} suite.exercised_surface`,
+    ),
     proves: uniqueStrings(
       readStringArray(rawSuite.proves, `${configPath} suite.proves`),
       `${configPath} suite.proves`,
@@ -374,6 +399,12 @@ function validateSuiteShape(suite: SuiteConfig, policy: SuiteShapePolicy): void 
   if (policy.requireDefaultProofContract) {
     if (suite.proves.length === 0 || suite.doesNotProve.length === 0) {
       throw new Error(`default suite ${suite.id} must declare non-empty proves and does_not_prove`);
+    }
+    if (!hasProofTriple(suite)) {
+      throw new Error(`default suite ${suite.id} must declare non-empty protects, oracle, and exercised_surface`);
+    }
+    if (usesGenericProofTriple(suite)) {
+      throw new Error(`default suite ${suite.id} must not use generic proof-triple boilerplate`);
     }
     if (!suite.proofMode) {
       throw new Error(`default suite ${suite.id} must declare proof_mode`);

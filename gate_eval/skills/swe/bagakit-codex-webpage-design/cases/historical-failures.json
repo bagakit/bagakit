@@ -47,6 +47,18 @@
       ]
     },
     {
+      "id": "skill-quality-fallback-implementation-without-reference",
+      "source_refs": [
+        "gate_eval/skills/swe/bagakit-codex-webpage-design/cases/evidence/riftboard-material-asset-retry.md"
+      ],
+      "failure": "A skill-quality validation experiment has no Image2 filesystem artifact or external strong reference, but the executor continues into implementation and reports partial or conditional success from fallback browser exploration.",
+      "contract_guard_ids": [
+        "skill-quality-no-reference-invalid",
+        "reference-provenance",
+        "image2-reference-authority"
+      ]
+    },
+    {
       "id": "browser-check-output-not-preserved",
       "source_refs": [
         ".bagakit/spark/experiments/model-incident-war-room/quiet-room-result.md"
