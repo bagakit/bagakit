@@ -407,6 +407,13 @@ User-reported visible errors invalidate the prior visual gate decision. Reopen
 aggregation after fixes, and record whether the report was resolved or
 explicitly accepted as a trade-off.
 
+The same override applies when the executor, parent agent, or an independent
+visual judge finds concrete screenshot blockers after an artifact claims
+`strictPass`. Record the blocker with a screenshot-region reference, downgrade
+`judge-aggregation` and `browser-check-results` to `needs_iteration` or
+conflicted evidence, fix the page, then recapture screenshots before restoring
+pass status.
+
 ## Handoff Shape
 
 ```markdown

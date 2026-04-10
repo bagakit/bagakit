@@ -485,6 +485,14 @@ If automation says the interaction passes but the screenshot shows overlap,
 clipping, undersized controls, library artifacts, or an unframed mobile state,
 the blocker stands.
 
+Executor self-review, browser automation, and judge medians can be overridden
+by a later parent, user, or independent reviewer screenshot review when that
+review names concrete visible blockers. Treat visible first-viewport crowding,
+clipped labels, overlapped action stacks, unreadable dense text, malformed
+frames, or mobile cutoffs as `needs_iteration` until the screenshots and
+ledgers are refreshed. Do not preserve `strictPass: true` beside unresolved
+reviewer-visible blockers.
+
 Aggregate into `judge-aggregation`:
 
 - per-dimension median

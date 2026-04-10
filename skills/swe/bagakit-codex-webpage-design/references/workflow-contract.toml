@@ -281,6 +281,11 @@ protects = "visual-bug-ledger must include screenshot-review findings instead of
 proof_surface = "visual-bug-ledger plus screenshots plus judge-aggregation"
 
 [[guard]]
+id = "reviewer-screenshot-override"
+protects = "executor, parent, or judge screenshot review with named visible blockers must override self-reported strict passes"
+proof_surface = "visual-bug-ledger plus judge-aggregation plus full-page screenshots"
+
+[[guard]]
 id = "ambition-bar"
 protects = "high-craft requests must not stop at clean but generic output"
 proof_surface = "ambition-bar plus judge-aggregation"
@@ -438,6 +443,10 @@ guard_ids = ["visual-parity-is-not-automation"]
 [[historical_failure_guard]]
 case_id = "clean-automation-visual-ledger-misses-screenshot-bugs"
 guard_ids = ["screenshot-review-integrity", "visual-parity-is-not-automation"]
+
+[[historical_failure_guard]]
+case_id = "self-reported-strict-pass-with-parent-visible-blockers"
+guard_ids = ["reviewer-screenshot-override", "screenshot-review-integrity", "visual-parity-is-not-automation"]
 
 [[historical_failure_guard]]
 case_id = "map-label-overlap-hidden-by-state-checks"

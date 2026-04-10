@@ -58,6 +58,7 @@ REQUIRED_GUARD_IDS = {
     "spatial-label-legibility",
     "visual-parity-is-not-automation",
     "screenshot-review-integrity",
+    "reviewer-screenshot-override",
     "ambition-bar",
     "design-spec-fidelity",
     "material-asset-parity",
