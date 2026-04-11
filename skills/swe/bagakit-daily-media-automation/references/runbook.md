@@ -215,6 +215,20 @@ Notification status values:
 Use `references/run-artifacts.md` for compact ledger templates and gate result
 shape.
 
+Then validate the run:
+
+```bash
+bash skills/swe/bagakit-daily-media-automation/scripts/bagakit-daily-media-automation-cli.sh validate-run \
+  --run-id <domain-pack-yyyymmdd-slug> \
+  --intent publish
+```
+
+Use `--intent audit` for a draft-only or blocked run. Audit mode still reports
+publish blockers, but exits successfully when the ledgers are structurally
+valid and the archive records a real next action.
+
+Do not send a success notification until `validate-run --intent publish` passes.
+
 ## Scheduling Notes
 
 Use exact production scheduling only after a manual dry-run.

@@ -245,7 +245,7 @@ Create the surface only when the host needs persistent run state. For one-off
 planning, a local handoff document is enough.
 
 Use `references/run-artifacts.md` for `surface.toml`, run id, status, gate
-result, and ledger templates.
+result, ledger templates, and `validate-run` checks.
 
 ## Completion Gate
 
@@ -261,6 +261,8 @@ Before calling the workflow complete, verify:
 - notification result is recorded when notification is in scope
 - no-publish gates are all passed or the run is archived as blocked
 - secrets are not written to checked-in files
+- `validate-run` passes for publish intent, or passes audit intent with a
+  blocked/draft result explicitly recorded
 - the final answer includes the deploy URL or blocked-stage report
 
 Use `references/runbook.md` for the operator runbook and

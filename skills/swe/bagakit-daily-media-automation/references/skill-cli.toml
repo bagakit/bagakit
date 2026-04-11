@@ -24,3 +24,7 @@ summary = "Check local commands and optional adapters for a daily media automati
 [[command]]
 name = "init-run"
 summary = "Create a repo-local daily media automation run ledger skeleton."
+
+[[command]]
+name = "validate-run"
+summary = "Validate run ledgers, status separation, no-publish gates, and leak guards."

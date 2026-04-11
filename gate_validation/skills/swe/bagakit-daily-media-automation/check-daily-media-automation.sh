@@ -45,6 +45,130 @@ assert_contains() {
   fi
 }
 
+write_publishable_run() {
+  local run_root="$1"
+  local run_id="$2"
+  local run_dir="$run_root/.bagakit/daily-media-automation/runs/$run_id"
+  mkdir -p "$run_dir"
+
+  cat >"$run_dir/brief.md" <<EOF
+# Brief
+
+- run_id: $run_id
+- domain_pack: release-radar
+- audience: engineering
+- cadence: manual
+- timezone: UTC
+- source_window: configured
+- source_minimum: 1
+- recency_window: configured
+- confidence_bar: source-backed
+- output_pack: web-brief
+- deploy_adapter: static
+- notify_adapter: none
+- scheduler_adapter: manual
+- review_mode: draft-reviewed
+- no_publish_policy: stop on blocker
+
+## Domain Pack Requirements
+- source minimum: 1
+- recency window: configured
+- credibility rubric: official source preferred
+- confidence bar: source-backed
+- fallback behavior: draft only
+EOF
+
+  cat >"$run_dir/collection-ledger.md" <<'EOF'
+# Collection Ledger
+
+| source_id | channel | url_or_ref | observed_at | author_or_source | story_candidate | inclusion_reason |
+|-----------|---------|------------|-------------|------------------|-----------------|------------------|
+| src-1 | official | https://example.invalid/source | configured | example | story-1 | source-backed update |
+EOF
+
+  cat >"$run_dir/evidence-review.md" <<'EOF'
+# Evidence Review
+
+| story_id | source_ids | novelty | credibility | audience_impact | counterevidence | confidence | decision |
+|----------|------------|---------|-------------|-----------------|-----------------|------------|----------|
+| story-1 | src-1 | clear | high | useful | none found | source-backed | include |
+
+## Gate Results
+| gate | status | evidence_ref | note |
+|------|--------|--------------|------|
+| source-minimum | pass | collection-ledger.md | threshold met |
+| recency-window | pass | collection-ledger.md | window checked |
+| confidence-bar | pass | evidence-review.md | source-backed |
+| counterevidence | pass | evidence-review.md | none found |
+EOF
+
+  cat >"$run_dir/asset-ledger.md" <<'EOF'
+# Asset Ledger
+
+| asset_id | purpose | format | source_refs | prompt_ref | final_path | validation_status | note |
+|----------|---------|--------|-------------|------------|------------|-------------------|------|
+| asset-1 | cover | png | src-1 | prompt-1 | artifacts/cover.png | pass | project-local path |
+EOF
+
+  cat >"$run_dir/deployment-ledger.md" <<'EOF'
+# Deployment Ledger
+
+- deploy_adapter: static
+- deployment_status: published
+- command_ref: static export
+- environment: local fixture
+- deploy_url: https://example.invalid/daily-media
+- rollback_note: replace artifact
+
+## Gate Results
+| gate | status | evidence_ref | note |
+|------|--------|--------------|------|
+| webpage-evidence | pass | browser-check | checked |
+| deployment-url | pass | deployment-ledger.md | URL recorded |
+EOF
+
+  cat >"$run_dir/notification-ledger.md" <<'EOF'
+# Notification Ledger
+
+- notify_adapter: none
+- notification_status: not_in_scope
+- recipient_class: not_applicable
+- payload_ref: not_applicable
+- delivery_ref: not_applicable
+- redaction_note: no notification
+EOF
+
+  cat >"$run_dir/archive.md" <<EOF
+# Run Archive
+
+- run_id: $run_id
+- publication_status: published
+- notification_status: not_in_scope
+- final_url_or_artifact: https://example.invalid/daily-media
+- blocked_stage: not_applicable
+- next_action: monitor next run
+
+## Ledgers
+- brief: .bagakit/daily-media-automation/runs/$run_id/brief.md
+- collection: .bagakit/daily-media-automation/runs/$run_id/collection-ledger.md
+- evidence_review: .bagakit/daily-media-automation/runs/$run_id/evidence-review.md
+- asset: .bagakit/daily-media-automation/runs/$run_id/asset-ledger.md
+- webpage: browser-check
+- deployment: .bagakit/daily-media-automation/runs/$run_id/deployment-ledger.md
+- notification: .bagakit/daily-media-automation/runs/$run_id/notification-ledger.md
+
+## Gate Summary
+| gate | status | evidence_ref | note |
+|------|--------|--------------|------|
+| source-minimum | pass | evidence-review.md | pass |
+| recency-window | pass | evidence-review.md | pass |
+| confidence-bar | pass | evidence-review.md | pass |
+| counterevidence | pass | evidence-review.md | pass |
+| webpage-evidence | pass | deployment-ledger.md | pass |
+| deployment-url | pass | deployment-ledger.md | pass |
+EOF
+}
+
 run_ok() {
   local output="$TMP_DIR/out"
   if ! "$@" >"$output" 2>"$TMP_DIR/err"; then
@@ -190,12 +314,53 @@ grep -Fq "run_id: $RUN_ID" "$RUN_DIR/brief.md"
 grep -Fq "domain_pack: ai-news" "$RUN_DIR/brief.md"
 grep -Fq "deploy_adapter: static" "$RUN_DIR/deployment-ledger.md"
 grep -Fq "notify_adapter: none" "$RUN_DIR/notification-ledger.md"
+grep -Fq "notification_status: not_in_scope" "$RUN_DIR/notification-ledger.md"
 grep -Fq "publication_status: drafted" "$RUN_DIR/archive.md"
+grep -Fq "notification_status: not_in_scope" "$RUN_DIR/archive.md"
 
 if grep -R -F "$RUN_ROOT" "$RUN_DIR" "$SURFACE" >/dev/null; then
   echo "init-run leaked a machine-local root" >&2
   exit 1
 fi
+
+run_fail 2 bash "$CMD" validate-run --run-id
+grep -Fq "missing value for --run-id" "$TMP_DIR/err"
+
+run_fail 2 bash "$CMD" validate-run --run-id "Bad_Run"
+grep -Fq "invalid run id: Bad_Run" "$TMP_DIR/err"
+
+run_ok bash "$CMD" validate-run \
+  --root "$RUN_ROOT" \
+  --run-id "$RUN_ID" \
+  --intent audit
+grep -Fq "run validation result: not publishable" "$TMP_DIR/out"
+grep -Fq "publish gate         blocked   archive publication_status is drafted" "$TMP_DIR/out"
+grep -Fq "publish gate         blocked   asset ledger has no asset rows" "$TMP_DIR/out"
+
+run_fail 1 bash "$CMD" validate-run \
+  --root "$RUN_ROOT" \
+  --run-id "$RUN_ID"
+grep -Fq "run validation result: not publishable" "$TMP_DIR/out"
+
+PUBLISH_ROOT="$TMP_DIR/publish-root"
+PUBLISH_ID="release-radar-$(printf '%08d' 0)-ship"
+write_publishable_run "$PUBLISH_ROOT" "$PUBLISH_ID"
+run_ok bash "$CMD" validate-run \
+  --root "$PUBLISH_ROOT" \
+  --run-id "$PUBLISH_ID"
+grep -Fq "run validation result: publishable" "$TMP_DIR/out"
+grep -Fq "publication          ok        published" "$TMP_DIR/out"
+grep -Fq "asset rows           ok        1 recorded" "$TMP_DIR/out"
+
+LEAK_ROOT="$TMP_DIR/leak-root"
+LEAK_ID="market-watch-$(printf '%08d' 0)-leak"
+write_publishable_run "$LEAK_ROOT" "$LEAK_ID"
+printf 'local path: %s%s/example/run\n' "/" "Users" >>"$LEAK_ROOT/.bagakit/daily-media-automation/runs/$LEAK_ID/archive.md"
+run_fail 2 bash "$CMD" validate-run \
+  --root "$LEAK_ROOT" \
+  --run-id "$LEAK_ID" \
+  --intent audit
+grep -Fq "run artifacts contain a machine-local absolute path" "$TMP_DIR/out"
 
 run_fail 1 bash "$CMD" init-run \
   --root "$RUN_ROOT" \
@@ -212,12 +377,14 @@ assert_contains "$SKILL_MD" "If these are omitted, collect and synthesize only a
 assert_contains "$RUNBOOK" "If the brief is missing source thresholds, collect and synthesize only as a"
 assert_contains "$RUNBOOK" "Track deployment status separately from notification status."
 assert_contains "$RUNBOOK" "Publication status values:"
+assert_contains "$RUNBOOK" "validate-run"
 assert_contains "$RUNBOOK" 'Use `references/run-artifacts.md` for compact ledger templates'
 
 assert_contains "$RUN_ARTIFACTS" "Surface Marker"
 assert_contains "$RUN_ARTIFACTS" "Publication status:"
 assert_contains "$RUN_ARTIFACTS" "Notification status:"
 assert_contains "$RUN_ARTIFACTS" "Gate status:"
+assert_contains "$RUN_ARTIFACTS" "Run Validation"
 assert_contains "$RUN_ARTIFACTS" "source-minimum"
 assert_contains "$RUN_ARTIFACTS" "deployment-url"
 assert_contains "$RUN_ARTIFACTS" "notification_status"

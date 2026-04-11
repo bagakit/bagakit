@@ -28,6 +28,7 @@ Commands:
   list-references   List reference files shipped by this skill.
   doctor            Check local commands and optional adapters for a daily media automation run.
   init-run          Create a repo-local run ledger skeleton.
+  validate-run      Validate run ledgers and no-publish gates.
 EOF
 }
 
@@ -153,6 +154,495 @@ write_file_once() {
   printf '%s\n' "$content" >"$path_value"
 }
 
+trim() {
+  local value="$1"
+  value="${value#"${value%%[![:space:]]*}"}"
+  value="${value%"${value##*[![:space:]]}"}"
+  printf '%s\n' "$value"
+}
+
+field_value() {
+  local file="$1"
+  local key="$2"
+  awk -v key="$key" '
+    BEGIN { prefix = "- " key ":" }
+    index($0, prefix) == 1 {
+      value = substr($0, length(prefix) + 1)
+      sub("^[ \t]*", "", value)
+      sub("[ \t\r]*$", "", value)
+      print value
+      exit
+    }
+  ' "$file"
+}
+
+first_field_value() {
+  local file="$1"
+  shift
+  local key
+  local value
+  for key in "$@"; do
+    value="$(field_value "$file" "$key")"
+    if [[ -n "$value" ]]; then
+      printf '%s\n' "$value"
+      return 0
+    fi
+  done
+  return 0
+}
+
+value_present() {
+  local value
+  local lower_value
+  value="$(trim "$1")"
+  lower_value="$(printf '%s' "$value" | tr '[:upper:]' '[:lower:]')"
+  case "$lower_value" in
+    ""|todo|tbd|pending|unset)
+      return 1
+      ;;
+    *)
+      return 0
+      ;;
+  esac
+}
+
+table_data_count() {
+  local file="$1"
+  local header_token="$2"
+  awk -v header_token="$header_token" '
+    substr($0, 1, 1) == "|" {
+      compact = tolower($0)
+      gsub("[ \t]", "", compact)
+      if (compact ~ "^\\|[-:]+\\|") next
+      if (index(compact, "|" header_token "|") == 1) next
+      count += 1
+    }
+    END { print count + 0 }
+  ' "$file"
+}
+
+is_allowed_gate_status() {
+  case "$1" in
+    pass|blocked|not_applicable|waived)
+      return 0
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
+is_publish_pass_gate_status() {
+  case "$1" in
+    pass|not_applicable|waived)
+      return 0
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
+is_allowed_publication_status() {
+  case "$1" in
+    drafted|published|published_with_notification_failure|blocked|failed)
+      return 0
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
+is_allowed_notification_status() {
+  case "$1" in
+    not_in_scope|pending|sent|failed|skipped_for_blocked_publish)
+      return 0
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
+is_allowed_deployment_status() {
+  case "$1" in
+    not_in_scope|drafted|published|blocked|failed)
+      return 0
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
+run_validate_run() {
+  local run_id=""
+  local root="."
+  local run_dir=""
+  local intent="publish"
+  local display_run_dir=""
+  local structural_failures=0
+  local publish_blockers=0
+
+  require_value() {
+    local option="$1"
+    local value="${2:-}"
+    if [[ -z "$value" || "$value" == --* ]]; then
+      printf 'missing value for %s\n' "$option" >&2
+      return 1
+    fi
+    printf '%s\n' "$value"
+  }
+
+  structural_issue() {
+    status_line "artifact issue" "invalid" "$1"
+    structural_failures=1
+  }
+
+  publish_blocker() {
+    status_line "publish gate" "blocked" "$1"
+    publish_blockers=1
+  }
+
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --run-id)
+        run_id="$(require_value "$1" "${2:-}")" || return 2
+        shift 2
+        ;;
+      --root)
+        root="$(require_value "$1" "${2:-}")" || return 2
+        shift 2
+        ;;
+      --run-dir)
+        run_dir="$(require_value "$1" "${2:-}")" || return 2
+        shift 2
+        ;;
+      --intent)
+        intent="$(require_value "$1" "${2:-}")" || return 2
+        shift 2
+        ;;
+      -h|--help)
+        cat <<'EOF'
+usage: bagakit-daily-media-automation-cli validate-run --run-id <domain-YYYYMMDD-slug> [options]
+
+Options:
+  --root <path>          Repository or host root that owns the runtime surface.
+  --run-dir <path>       Validate an explicit run directory instead of --run-id.
+  --intent <publish|audit>
+
+Validates required ledgers, allowed status values, no-publish gates, deployment
+and notification status separation, and obvious path or secret leakage. With
+--intent publish, exits 0 only when the run is publishable. With --intent audit,
+structurally valid drafted or blocked runs may exit 0 while still reporting
+publish blockers.
+EOF
+        return 0
+        ;;
+      *)
+        printf 'unknown validate-run argument: %s\n' "$1" >&2
+        return 2
+        ;;
+    esac
+  done
+
+  case "$intent" in
+    publish|audit)
+      ;;
+    *)
+      printf 'invalid validate-run intent: %s\n' "$intent" >&2
+      return 2
+      ;;
+  esac
+
+  if [[ -n "$run_id" && -n "$run_dir" ]]; then
+    printf 'use either --run-id or --run-dir, not both\n' >&2
+    return 2
+  fi
+  if [[ -z "$run_id" && -z "$run_dir" ]]; then
+    printf 'missing required --run-id or --run-dir\n' >&2
+    return 2
+  fi
+  if [[ -n "$run_id" ]] && ! validate_run_id "$run_id"; then
+    printf 'invalid run id: %s\n' "$run_id" >&2
+    return 2
+  fi
+
+  if [[ -n "$run_id" ]]; then
+    run_dir="$(join_path "$root" ".bagakit" "daily-media-automation" "runs" "$run_id")"
+    display_run_dir=".bagakit/daily-media-automation/runs/$run_id"
+  else
+    run_id="$(basename "$run_dir")"
+    display_run_dir="explicit-run-dir:$run_id"
+  fi
+
+  printf '%s\n' "Daily media automation run validation"
+  printf '%s\n' "-------------------------------------"
+
+  if [[ ! -d "$run_dir" ]]; then
+    status_line "run" "missing" "$display_run_dir"
+    printf '\n%s\n' "run validation result: invalid run artifact"
+    return 2
+  fi
+  status_line "run" "ok" "$display_run_dir"
+
+  local brief="$run_dir/brief.md"
+  local collection="$run_dir/collection-ledger.md"
+  local evidence="$run_dir/evidence-review.md"
+  local asset="$run_dir/asset-ledger.md"
+  local deployment="$run_dir/deployment-ledger.md"
+  local notification="$run_dir/notification-ledger.md"
+  local archive="$run_dir/archive.md"
+  local required_file
+
+  for required_file in \
+    "$brief" \
+    "$collection" \
+    "$evidence" \
+    "$asset" \
+    "$deployment" \
+    "$notification" \
+    "$archive"; do
+    if [[ -f "$required_file" ]]; then
+      status_line "$(basename "$required_file")" "ok" "present"
+    else
+      structural_issue "missing $(basename "$required_file")"
+    fi
+  done
+
+  if [[ "$structural_failures" -ne 0 ]]; then
+    printf '\n%s\n' "run validation result: invalid run artifact"
+    return 2
+  fi
+
+  local brief_run_id
+  local archive_run_id
+  brief_run_id="$(field_value "$brief" "run_id")"
+  archive_run_id="$(field_value "$archive" "run_id")"
+  if [[ "$brief_run_id" != "$run_id" ]]; then
+    structural_issue "brief run_id does not match selected run"
+  fi
+  if [[ "$archive_run_id" != "$run_id" ]]; then
+    structural_issue "archive run_id does not match selected run"
+  fi
+
+  local requirement
+  local requirement_value
+  for requirement in \
+    "source_minimum|source minimum" \
+    "recency_window|recency window" \
+    "credibility rubric|credibility rubric" \
+    "confidence_bar|confidence bar" \
+    "fallback behavior|fallback behavior"; do
+    IFS='|' read -r primary_key fallback_key <<<"$requirement"
+    requirement_value="$(first_field_value "$brief" "$primary_key" "$fallback_key")"
+    if value_present "$requirement_value"; then
+      status_line "$primary_key" "ok" "declared"
+    else
+      publish_blocker "domain requirement missing: $primary_key"
+    fi
+  done
+
+  local source_minimum
+  local source_count
+  local asset_count
+  source_minimum="$(first_field_value "$brief" "source_minimum" "source minimum")"
+  source_count="$(table_data_count "$collection" "source_id")"
+  if [[ "$source_count" -gt 0 ]]; then
+    status_line "source rows" "ok" "$source_count recorded"
+  else
+    publish_blocker "collection ledger has no source rows"
+  fi
+  if [[ "$source_minimum" =~ ^([0-9]+) ]] && [[ "$source_count" -lt "${BASH_REMATCH[1]}" ]]; then
+    publish_blocker "collection source count is below declared source_minimum"
+  fi
+  asset_count="$(table_data_count "$asset" "asset_id")"
+  if [[ "$asset_count" -gt 0 ]]; then
+    status_line "asset rows" "ok" "$asset_count recorded"
+  else
+    publish_blocker "asset ledger has no asset rows"
+  fi
+
+  local gate_file
+  local gate_line
+  local gate
+  local gate_status
+  local gate_note
+  local any_gate=0
+  local in_gate_table
+  for gate_file in "$evidence" "$deployment" "$archive"; do
+    in_gate_table=0
+    while IFS= read -r gate_line; do
+      if [[ "$gate_line" == "## Gate Results" || "$gate_line" == "## Gate Summary" ]]; then
+        in_gate_table=1
+        continue
+      fi
+      if [[ "$in_gate_table" -eq 0 ]]; then
+        continue
+      fi
+      if [[ "$gate_line" == \#\#* ]]; then
+        in_gate_table=0
+        continue
+      fi
+      [[ "$gate_line" == \|* ]] || continue
+      gate="$(trim "$(printf '%s\n' "$gate_line" | cut -d '|' -f 2)")"
+      gate_status="$(trim "$(printf '%s\n' "$gate_line" | cut -d '|' -f 3)")"
+      gate_note="$(trim "$(printf '%s\n' "$gate_line" | cut -d '|' -f 5)")"
+      [[ -n "$gate" ]] || continue
+      [[ "$gate" == "gate" ]] && continue
+      [[ "$gate" =~ ^-+$ ]] && continue
+      any_gate=1
+      if ! is_allowed_gate_status "$gate_status"; then
+        structural_issue "$(basename "$gate_file") gate '$gate' has invalid or empty status"
+        continue
+      fi
+      if [[ "$gate_status" == "waived" ]] && ! value_present "$gate_note"; then
+        structural_issue "$(basename "$gate_file") gate '$gate' is waived without a note"
+      fi
+      if ! is_publish_pass_gate_status "$gate_status"; then
+        publish_blocker "$(basename "$gate_file") gate '$gate' is $gate_status"
+      fi
+    done <"$gate_file"
+  done
+  if [[ "$any_gate" -eq 0 ]]; then
+    publish_blocker "no gate rows were recorded"
+  fi
+
+  local publication_status
+  local archive_notification_status
+  local ledger_notification_status
+  local deploy_adapter
+  local deployment_status
+  local notify_adapter
+  local final_url
+  local deploy_url
+  local blocked_stage
+  local next_action
+
+  publication_status="$(field_value "$archive" "publication_status")"
+  archive_notification_status="$(field_value "$archive" "notification_status")"
+  ledger_notification_status="$(field_value "$notification" "notification_status")"
+  deploy_adapter="$(first_field_value "$deployment" "deploy_adapter")"
+  [[ -n "$deploy_adapter" ]] || deploy_adapter="$(first_field_value "$brief" "deploy_adapter")"
+  deployment_status="$(field_value "$deployment" "deployment_status")"
+  notify_adapter="$(first_field_value "$notification" "notify_adapter")"
+  [[ -n "$notify_adapter" ]] || notify_adapter="$(first_field_value "$brief" "notify_adapter")"
+  final_url="$(field_value "$archive" "final_url_or_artifact")"
+  deploy_url="$(field_value "$deployment" "deploy_url")"
+  blocked_stage="$(field_value "$archive" "blocked_stage")"
+  next_action="$(field_value "$archive" "next_action")"
+
+  if is_allowed_publication_status "$publication_status"; then
+    status_line "publication" "ok" "$publication_status"
+  else
+    structural_issue "archive publication_status is invalid or empty"
+  fi
+
+  if is_allowed_notification_status "$archive_notification_status"; then
+    status_line "notification" "ok" "$archive_notification_status"
+  else
+    structural_issue "archive notification_status is invalid or empty"
+  fi
+
+  if [[ "$ledger_notification_status" != "$archive_notification_status" ]]; then
+    structural_issue "notification ledger status does not match archive"
+  fi
+
+  if ! is_allowed_deployment_status "$deployment_status"; then
+    structural_issue "deployment_status is invalid or empty"
+  fi
+
+  case "$deploy_adapter" in
+    none)
+      if [[ "$deployment_status" != "not_in_scope" && "$deployment_status" != "drafted" ]]; then
+        structural_issue "deploy_adapter none must use deployment_status not_in_scope or drafted"
+      fi
+      ;;
+    "")
+      publish_blocker "deployment adapter is missing"
+      ;;
+    *)
+      if [[ "$deployment_status" != "published" ]]; then
+        publish_blocker "deployment_status is not published"
+      fi
+      if ! value_present "$deploy_url" && ! value_present "$final_url"; then
+        publish_blocker "deployment is in scope but no deploy URL or artifact is recorded"
+      fi
+      ;;
+  esac
+
+  case "$notify_adapter" in
+    none)
+      if [[ "$archive_notification_status" != "not_in_scope" ]]; then
+        structural_issue "notify_adapter none must use notification_status not_in_scope"
+      fi
+      ;;
+    "")
+      publish_blocker "notification adapter is missing"
+      ;;
+    *)
+      case "$archive_notification_status" in
+        sent)
+          ;;
+        failed)
+          if [[ "$publication_status" != "published_with_notification_failure" ]]; then
+            structural_issue "failed notification must archive publication_status published_with_notification_failure"
+          fi
+          ;;
+        *)
+          publish_blocker "notification_status is not sent or failed"
+          ;;
+      esac
+      ;;
+  esac
+
+  case "$publication_status" in
+    published)
+      [[ "$deployment_status" == "published" || "$deploy_adapter" == "none" ]] || publish_blocker "published archive lacks published deployment status"
+      [[ "$archive_notification_status" != "failed" ]] || structural_issue "published archive cannot also have failed notification"
+      value_present "$final_url" || publish_blocker "published archive needs final_url_or_artifact"
+      ;;
+    published_with_notification_failure)
+      [[ "$deployment_status" == "published" ]] || publish_blocker "notification-failure publication lacks published deployment status"
+      [[ "$archive_notification_status" == "failed" ]] || structural_issue "published_with_notification_failure requires failed notification status"
+      value_present "$final_url" || publish_blocker "notification-failure publication needs final_url_or_artifact"
+      ;;
+    drafted|blocked|failed)
+      publish_blocker "archive publication_status is $publication_status"
+      if ! value_present "$next_action"; then
+        publish_blocker "drafted, blocked, or failed archive needs next_action"
+      fi
+      if [[ "$publication_status" != "drafted" ]] && ! value_present "$blocked_stage"; then
+        publish_blocker "blocked or failed archive needs blocked_stage"
+      fi
+      ;;
+  esac
+
+  if grep -RIEq '(^|[[:space:]("'\'':=])/(Users|home|private|var/folders)/' "$run_dir"; then
+    structural_issue "run artifacts contain a machine-local absolute path"
+  fi
+  if grep -RIEq 'file:///' "$run_dir"; then
+    structural_issue "run artifacts contain file URI paths"
+  fi
+  if grep -RIEq '(sk-[A-Za-z0-9_-]{20,}|xox[baprs]-[A-Za-z0-9-]{20,}|gh[pousr]_[A-Za-z0-9_]{20,}|https://hooks\.slack\.com/services/|discord(app)?\.com/api/webhooks/[0-9]+/[A-Za-z0-9_-]+|[0-9]{8,10}:[A-Za-z0-9_-]{25,})' "$run_dir"; then
+    structural_issue "run artifacts contain a token, webhook, or bot credential pattern"
+  fi
+
+  if [[ "$structural_failures" -ne 0 ]]; then
+    printf '\n%s\n' "run validation result: invalid run artifact"
+    return 2
+  fi
+  if [[ "$publish_blockers" -ne 0 ]]; then
+    printf '\n%s\n' "run validation result: not publishable"
+    if [[ "$intent" == "audit" ]]; then
+      return 0
+    fi
+    return 1
+  fi
+  printf '\n%s\n' "run validation result: publishable"
+}
+
 run_init_run() {
   local run_id=""
   local root="."
@@ -259,6 +749,20 @@ reviewable_outputs = [
 ]' || return 1
   fi
 
+  local initial_deployment_status="drafted"
+  local initial_deployment_gate_status="blocked"
+  local initial_deployment_gate_note="not deployed"
+  if [[ "$deploy_adapter" == "none" ]]; then
+    initial_deployment_status="not_in_scope"
+    initial_deployment_gate_status="not_applicable"
+    initial_deployment_gate_note="deployment not in scope"
+  fi
+
+  local initial_notification_status="pending"
+  if [[ "$notify_adapter" == "none" ]]; then
+    initial_notification_status="not_in_scope"
+  fi
+
   write_file_once "$run_dir/brief.md" "# Brief
 
 - run_id: $run_id
@@ -297,10 +801,10 @@ reviewable_outputs = [
 ## Gate Results
 | gate | status | evidence_ref | note |
 |------|--------|--------------|------|
-| source-minimum | | | |
-| recency-window | | | |
-| confidence-bar | | | |
-| counterevidence | | | |' || return 1
+| source-minimum | blocked | | not reviewed |
+| recency-window | blocked | | not reviewed |
+| confidence-bar | blocked | | not reviewed |
+| counterevidence | blocked | | not reviewed |' || return 1
 
   write_file_once "$run_dir/asset-ledger.md" '# Asset Ledger
 
@@ -310,7 +814,7 @@ reviewable_outputs = [
   write_file_once "$run_dir/deployment-ledger.md" "# Deployment Ledger
 
 - deploy_adapter: $deploy_adapter
-- deployment_status:
+- deployment_status: $initial_deployment_status
 - command_ref:
 - environment:
 - deploy_url:
@@ -319,13 +823,13 @@ reviewable_outputs = [
 ## Gate Results
 | gate | status | evidence_ref | note |
 |------|--------|--------------|------|
-| webpage-evidence | | | |
-| deployment-url | | | |" || return 1
+| webpage-evidence | $initial_deployment_gate_status | | $initial_deployment_gate_note |
+| deployment-url | $initial_deployment_gate_status | | $initial_deployment_gate_note |" || return 1
 
   write_file_once "$run_dir/notification-ledger.md" "# Notification Ledger
 
 - notify_adapter: $notify_adapter
-- notification_status:
+- notification_status: $initial_notification_status
 - recipient_class:
 - payload_ref:
 - delivery_ref:
@@ -335,10 +839,10 @@ reviewable_outputs = [
 
 - run_id: $run_id
 - publication_status: drafted
-- notification_status: pending
+- notification_status: $initial_notification_status
 - final_url_or_artifact:
 - blocked_stage:
-- next_action:
+- next_action: fill run ledgers and resolve blocked gates
 
 ## Ledgers
 - brief: .bagakit/daily-media-automation/runs/$run_id/brief.md
@@ -631,6 +1135,10 @@ case "${1:-}" in
   init-run)
     shift
     run_init_run "$@"
+    ;;
+  validate-run)
+    shift
+    run_validate_run "$@"
     ;;
   ""|-h|--help|help)
     usage

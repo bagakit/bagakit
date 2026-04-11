@@ -221,3 +221,41 @@ If `notify_adapter` is `none`, set `notification_status` to `not_in_scope`.
 
 The archive is the final handoff. If a stage is out of scope, mark it
 `not_applicable` rather than omitting it.
+
+## Run Validation
+
+Use the skill CLI to validate a materialized run before publication or handoff:
+
+```bash
+bash skills/swe/bagakit-daily-media-automation/scripts/bagakit-daily-media-automation-cli.sh validate-run \
+  --run-id <domain-pack-yyyymmdd-slug> \
+  --intent publish
+```
+
+Validation checks:
+
+- required ledger files exist
+- brief and archive `run_id` match the selected run
+- domain requirements are declared
+- collection ledger has source rows and meets numeric `source_minimum` when
+  present
+- asset ledger has asset rows
+- gate table statuses use allowed values
+- waived gates include a note
+- deployment status and URL are consistent with deployment scope
+- notification status stays separate from deployment status
+- published archives record a final URL or artifact
+- draft, blocked, and failed archives include a next action
+- obvious local path, file URI, token, bot credential, and webhook patterns are
+  not present in the run artifacts
+
+Exit codes:
+
+- `0`: publishable for `--intent publish`, or structurally valid for
+  `--intent audit`
+- `1`: structurally valid but not publishable
+- `2`: invalid run artifact or CLI usage error
+
+`validate-run` is deterministic local validation. It does not prove live social
+acquisition, image generation quality, browser visual parity, deployment
+provider availability, notification delivery, or scheduler reliability.
