@@ -22,6 +22,7 @@ Use this after scripts pass.
 - required reports and preview exist
 - visual metrics report exists at `visual-metrics-report.json`
 - visual metrics warnings are either fixed by regeneration or explicitly accepted with a reviewer note
+- `review-disposition.md` exists and records `verdict: pass|conditional|fail`
 
 ## Visual Review
 
@@ -40,3 +41,20 @@ Pass for prototype only if:
 - `pass`: usable for prototype integration
 - `conditional`: technically usable but needs targeted regeneration before runtime integration
 - `fail`: source provenance, frame semantics, or final runtime contract is broken
+
+## Review Packet
+
+The reviewer should receive only the isolated package workspace and verify:
+
+- source strips and rejected attempts under `source/`
+- final sheets under `final/`
+- `preview-contact-sheet.png`
+- `validation-report.json`
+- `independent-image2-validation-report.json`
+- `visual-metrics-report.json`
+- `review-disposition.md`
+
+If two reviewers are available, split the review:
+
+- provenance reviewer: source lineage, generation log, script scope, report consistency
+- visual reviewer: silhouette, gait, action identity, top-down readability, runtime fit

@@ -1,0 +1,5 @@
+version = 1
+skill = "topdown-image2-sprite-pipeline"
+trigger = "Game asset work needs image2-derived top-down sprite source strips, chroma-key-to-alpha runtime sheets, visual-semantic sprite validation, or provenance review."
+do = "Use an isolated package workspace, run process, independent validation, motion analysis, and reviewer disposition before game integration."
+see = "skills/gamemaker/topdown-image2-sprite-pipeline/SKILL.md"

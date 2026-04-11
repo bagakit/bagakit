@@ -62,8 +62,28 @@ Also deliver:
 - `preview-contact-sheet.png`
 - `validation-report.json`
 - `independent-image2-validation-report.json`
+- `visual-metrics-report.json`
+- `review-disposition.md`
 - `generation-log.md`
 - `README.md`
+
+## Review Disposition
+
+Create `review-disposition.md` after technical validation and visual review.
+Use this compact shape:
+
+```markdown
+verdict: pass
+reviewer: <role-or-name>
+accepted_warnings: none
+rejected_warnings: none
+runtime_contract_deviations: none
+notes: <short evidence-bound rationale>
+```
+
+Use `verdict: conditional` only when the consuming runtime owner accepts the
+remaining issue. Use `verdict: fail` when regeneration is required before
+integration.
 
 ## Hard Failure Conditions
 

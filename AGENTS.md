@@ -331,4 +331,10 @@ reporting, the response footer may use:
 - Do: Route through the operating surface matrix before drafting, then apply the writing and review references.
 - See: `skills/paperwork/qihan-writing/references/workflow/OPERATING_SURFACE_MATRIX.md`
 </bagakit-rule>
+
+<bagakit-rule skill="topdown-image2-sprite-pipeline">
+- Trigger: Game asset work needs image2-derived top-down sprite source strips, chroma-key-to-alpha runtime sheets, visual-semantic sprite validation, or provenance review.
+- Do: Use an isolated package workspace, run process, independent validation, motion analysis, and reviewer disposition before game integration.
+- See: `skills/gamemaker/topdown-image2-sprite-pipeline/SKILL.md`
+</bagakit-rule>
 <!-- BAGAKIT:FRONTDOOR:END -->

@@ -3,8 +3,8 @@ skill = "topdown-image2-sprite-pipeline"
 cli_id = "topdown-image2-sprite-pipeline"
 entrypoint = "scripts/topdown-image2-sprite-pipeline-cli.sh"
 runner = "shell"
-usage = "sh scripts/topdown-image2-sprite-pipeline-cli.sh <command>"
-summary = "Inspect and validate the top-down image2 sprite pipeline skill assets."
+usage = "sh scripts/topdown-image2-sprite-pipeline-cli.sh <command> [args...]"
+summary = "Process, validate, analyze, and hand off image2-derived top-down sprite packages."
 surface_refs = []
 
 [[command]]
@@ -17,4 +17,24 @@ summary = "List files shipped by this skill."
 
 [[command]]
 name = "validate"
-summary = "Check that required skill files exist."
+summary = "Check required skill files and report dependency status."
+
+[[command]]
+name = "check-dependencies"
+summary = "Check runtime dependencies needed by package commands."
+
+[[command]]
+name = "process"
+summary = "Process source strips into runtime sheets."
+
+[[command]]
+name = "validate-package"
+summary = "Run independent package validation."
+
+[[command]]
+name = "analyze-motion"
+summary = "Run visual-semantic motion analysis."
+
+[[command]]
+name = "check-handoff"
+summary = "Check package handoff artifacts after review."

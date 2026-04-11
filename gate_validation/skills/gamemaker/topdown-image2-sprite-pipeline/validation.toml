@@ -1,0 +1,24 @@
+version = 2
+
+[[suite]]
+id = "topdown-image2-sprite-pipeline-contract"
+owner = "skills/gamemaker/topdown-image2-sprite-pipeline"
+description = "Validate the topdown-image2 sprite skill CLI surface, runtime boundary text, frontdoor declaration, and handoff packet checks."
+default = true
+proof_mode = "runtime"
+protects = ["topdown-image2-sprite-pipeline public CLI and review handoff contract"]
+oracle = ["gate script checks required skill files, manifest commands, runtime-surface declaration text, frontdoor declaration, and check-handoff behavior over temporary workspaces"]
+exercised_surface = ["topdown-image2-sprite-pipeline SKILL.md", "topdown-image2-sprite-pipeline skill CLI", "review-disposition handoff packet contract"]
+proves = ["topdown-image2-sprite-pipeline-contract proves the skill exposes its real CLI commands and rejects incomplete or invalid review handoff packets."]
+does_not_prove = ["topdown-image2-sprite-pipeline-contract does not prove image generation quality, Pillow image processing behavior, visual aesthetics, or game runtime integration."]
+timeout_seconds = 120
+validation_class = "contract"
+groups = ["skills", "gamemaker", "topdown-image2-sprite-pipeline", "contract"]
+
+[suite.runner]
+kind = "bash_script"
+script = "gate_validation/skills/gamemaker/topdown-image2-sprite-pipeline/check-topdown-image2-sprite-pipeline.sh"
+args = [
+  "--root",
+  "{repo_root}",
+]

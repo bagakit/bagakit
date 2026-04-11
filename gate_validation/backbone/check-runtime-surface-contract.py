@@ -232,6 +232,12 @@ EXPECTED_TEXT_TOKENS = {
         "none by default",
         "docs/specs/runtime-surface-contract.md",
     ],
+    "skills/gamemaker/topdown-image2-sprite-pipeline/SKILL.md": [
+        "## Runtime Surface Declaration",
+        "no persistent Bagakit runtime surface by default",
+        "docs/specs/runtime-surface-contract.md",
+        "review-disposition.md",
+    ],
 }
 
 

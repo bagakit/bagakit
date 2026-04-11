@@ -9,6 +9,18 @@ Use this skill to run an image2-only asset experiment from a blank directory to 
 
 The key rule: image generation owns the visual character pixels. Scripts may remove chroma, slice strips, crop, normalize, assemble, preview, and validate. Scripts must not draw or fabricate character frames.
 
+## Runtime Surface Declaration
+
+This skill has no persistent Bagakit runtime surface by default.
+
+The sprite workspace created for a run is user-chosen output, not skill-owned
+durable state. Keep it outside the consuming game project until technical
+validation, visual metrics, and reviewer disposition are complete.
+
+Related contract:
+
+- `docs/specs/runtime-surface-contract.md`
+
 ## Workflow
 
 1. Create an isolated workspace outside the game project.
@@ -44,7 +56,14 @@ python scripts/analyze_sprite_motion.py --root <workspace>
 ```
 
 9. Inspect `preview-contact-sheet.png` manually or with an independent reviewer using `references/review-checklist.md`.
-10. Only call the package usable after technical validation, visual metrics, and visual review pass.
+10. Write `review-disposition.md` with the verdict and accepted warnings.
+11. Run handoff validation:
+
+```bash
+sh scripts/topdown-image2-sprite-pipeline-cli.sh check-handoff --root <workspace>
+```
+
+12. Only call the package usable after technical validation, visual metrics, and visual review pass.
 
 ## Source Generation Rules
 
@@ -92,10 +111,38 @@ Reject or regenerate source art when:
 
 See `references/failure-modes.md` for examples and mitigation.
 
+## Paired Review Packet
+
+For prototype or production-candidate assets, hand off a compact review packet
+instead of just the final PNGs:
+
+- `asset-contract.md`
+- `generation-log.md`
+- `validation-report.json`
+- `independent-image2-validation-report.json`
+- `visual-metrics-report.json`
+- `preview-contact-sheet.png`
+- `review-disposition.md`
+
+`review-disposition.md` must include:
+
+- `verdict: pass`, `verdict: conditional`, or `verdict: fail`
+- reviewer identity or role
+- accepted warnings with rationale, or `none`
+- rejected warnings with regeneration notes, or `none`
+- any runtime-contract deviations and who accepted them
+
+Use two reviewers when the package will be integrated into a game branch or
+used as a benchmark fixture. One reviewer should inspect source provenance and
+script outputs; the other should inspect visual semantics and runtime
+readability. Do not let the same agent both create and approve a conditional
+package without explicit user acceptance.
+
 ## Bundled Scripts
 
 - `scripts/process_image2_sprite_package.py`: process accepted image2 source strips into runtime sheets, contact sheet, README, and validation report.
 - `scripts/validate_image2_sprite_package.py`: independent validator for source presence, final dimensions, RGBA alpha, green leakage, bbox drift, and required artifacts.
 - `scripts/analyze_sprite_motion.py`: visual-semantic analyzer for gait motion, standing shoot lower-body stability, detached components, and front/back silhouette differences.
+- `scripts/topdown-image2-sprite-pipeline-cli.sh`: skill-owned CLI entrypoint for package processing, validation, motion analysis, and handoff checks.
 
-Both scripts require Pillow.
+Image-processing commands require Pillow.
