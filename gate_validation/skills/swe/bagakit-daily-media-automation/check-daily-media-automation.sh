@@ -157,6 +157,52 @@ fi
 grep -Fq "agent-reach route" "$TMP_DIR/out"
 grep -Fq "selected route needs Agent Reach skill or at least one supported channel command" "$TMP_DIR/out"
 
+run_fail 2 bash "$CMD" init-run --run-id
+grep -Fq "missing value for --run-id" "$TMP_DIR/err"
+
+run_fail 2 bash "$CMD" init-run --run-id "Bad_Run"
+grep -Fq "invalid run id: Bad_Run" "$TMP_DIR/err"
+
+RUN_ROOT="$TMP_DIR/run-root"
+RUN_ID="ai-news-$(printf '%08d' 0)-main"
+mkdir -p "$RUN_ROOT"
+run_ok bash "$CMD" init-run \
+  --root "$RUN_ROOT" \
+  --run-id "$RUN_ID" \
+  --domain-pack ai-news \
+  --deploy static \
+  --notify none \
+  --scheduler manual
+grep -Fq "initialized run: .bagakit/daily-media-automation/runs/$RUN_ID" "$TMP_DIR/out"
+
+SURFACE="$RUN_ROOT/.bagakit/daily-media-automation/surface.toml"
+RUN_DIR="$RUN_ROOT/.bagakit/daily-media-automation/runs/$RUN_ID"
+test -f "$SURFACE"
+test -f "$RUN_DIR/brief.md"
+test -f "$RUN_DIR/collection-ledger.md"
+test -f "$RUN_DIR/evidence-review.md"
+test -f "$RUN_DIR/asset-ledger.md"
+test -f "$RUN_DIR/deployment-ledger.md"
+test -f "$RUN_DIR/notification-ledger.md"
+test -f "$RUN_DIR/archive.md"
+grep -Fq 'surface_root = ".bagakit/daily-media-automation"' "$SURFACE"
+grep -Fq "run_id: $RUN_ID" "$RUN_DIR/brief.md"
+grep -Fq "domain_pack: ai-news" "$RUN_DIR/brief.md"
+grep -Fq "deploy_adapter: static" "$RUN_DIR/deployment-ledger.md"
+grep -Fq "notify_adapter: none" "$RUN_DIR/notification-ledger.md"
+grep -Fq "publication_status: drafted" "$RUN_DIR/archive.md"
+
+if grep -R -F "$RUN_ROOT" "$RUN_DIR" "$SURFACE" >/dev/null; then
+  echo "init-run leaked a machine-local root" >&2
+  exit 1
+fi
+
+run_fail 1 bash "$CMD" init-run \
+  --root "$RUN_ROOT" \
+  --run-id "$RUN_ID" \
+  --domain-pack ai-news
+grep -Fq "refusing to overwrite existing file" "$TMP_DIR/err"
+
 assert_contains "$SKILL_MD" "Do not deploy or notify as a successful publication when any blocker remains"
 assert_contains "$SKILL_MD" "published_with_notification_failure"
 assert_contains "$SKILL_MD" "Deployment and notification are separate statuses"

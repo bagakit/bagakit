@@ -27,6 +27,7 @@ Commands:
   describe          Print a short skill description.
   list-references   List reference files shipped by this skill.
   doctor            Check local commands and optional adapters for a daily media automation run.
+  init-run          Create a repo-local run ledger skeleton.
 EOF
 }
 
@@ -135,6 +136,224 @@ required_env_status() {
   fi
   status_line "$label" "unset" "\$$env_name is required for selected route"
   return 1
+}
+
+validate_run_id() {
+  local run_id="$1"
+  [[ "$run_id" =~ ^[a-z0-9][a-z0-9-]*-[0-9]{8}-[a-z0-9][a-z0-9-]*$ ]]
+}
+
+write_file_once() {
+  local path_value="$1"
+  local content="$2"
+  if [[ -e "$path_value" ]]; then
+    printf 'refusing to overwrite existing file: %s\n' "$path_value" >&2
+    return 1
+  fi
+  printf '%s\n' "$content" >"$path_value"
+}
+
+run_init_run() {
+  local run_id=""
+  local root="."
+  local domain_pack=""
+  local deploy_adapter="none"
+  local notify_adapter="none"
+  local scheduler_adapter="manual"
+
+  require_value() {
+    local option="$1"
+    local value="${2:-}"
+    if [[ -z "$value" || "$value" == --* ]]; then
+      printf 'missing value for %s\n' "$option" >&2
+      return 1
+    fi
+    printf '%s\n' "$value"
+  }
+
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --run-id)
+        run_id="$(require_value "$1" "${2:-}")" || return 2
+        shift 2
+        ;;
+      --root)
+        root="$(require_value "$1" "${2:-}")" || return 2
+        shift 2
+        ;;
+      --domain-pack)
+        domain_pack="$(require_value "$1" "${2:-}")" || return 2
+        shift 2
+        ;;
+      --deploy)
+        deploy_adapter="$(require_value "$1" "${2:-}")" || return 2
+        shift 2
+        ;;
+      --notify)
+        notify_adapter="$(require_value "$1" "${2:-}")" || return 2
+        shift 2
+        ;;
+      --scheduler)
+        scheduler_adapter="$(require_value "$1" "${2:-}")" || return 2
+        shift 2
+        ;;
+      -h|--help)
+        cat <<'EOF'
+usage: bagakit-daily-media-automation-cli init-run --run-id <domain-YYYYMMDD-slug> [options]
+
+Options:
+  --root <path>            Repository or host root to write into.
+  --domain-pack <name>     Domain pack label for the brief.
+  --deploy <adapter>       Deployment adapter to record in the brief.
+  --notify <adapter>       Notification adapter to record in the brief.
+  --scheduler <adapter>    Scheduler adapter to record in the brief.
+
+Creates .bagakit/daily-media-automation/surface.toml and
+.bagakit/daily-media-automation/runs/<run-id>/ ledger templates. Existing run
+files are never overwritten.
+EOF
+        return 0
+        ;;
+      *)
+        printf 'unknown init-run argument: %s\n' "$1" >&2
+        return 2
+        ;;
+    esac
+  done
+
+  if [[ -z "$run_id" ]]; then
+    printf 'missing required --run-id\n' >&2
+    return 2
+  fi
+  if ! validate_run_id "$run_id"; then
+    printf 'invalid run id: %s\n' "$run_id" >&2
+    return 2
+  fi
+  if [[ ! -d "$root" || ! -w "$root" ]]; then
+    printf 'root must exist and be writable: %s\n' "$root" >&2
+    return 1
+  fi
+
+  local surface_dir="$root/.bagakit/daily-media-automation"
+  local run_dir="$surface_dir/runs/$run_id"
+  local surface_file="$surface_dir/surface.toml"
+  mkdir -p "$run_dir"
+
+  if [[ ! -e "$surface_file" ]]; then
+    write_file_once "$surface_file" 'schema_version = 1
+surface_id = "daily-media-automation-runtime"
+surface_root = ".bagakit/daily-media-automation"
+owner_kind = "skill"
+owner_id = "bagakit-daily-media-automation"
+lifecycle_class = "durable_state"
+edit_policy = "mixed"
+cleanup_safe = false
+source_of_truth = [
+  "docs/specs/runtime-surface-contract.md",
+  "skills/swe/bagakit-daily-media-automation/SKILL.md",
+  "skills/swe/bagakit-daily-media-automation/references/run-artifacts.md",
+]
+reviewable_outputs = [
+  "runs/<run-id>/archive.md",
+  "runs/<run-id>/*-ledger.md",
+]' || return 1
+  fi
+
+  write_file_once "$run_dir/brief.md" "# Brief
+
+- run_id: $run_id
+- domain_pack: $domain_pack
+- audience:
+- cadence:
+- timezone:
+- source_window:
+- source_minimum:
+- recency_window:
+- confidence_bar:
+- output_pack:
+- deploy_adapter: $deploy_adapter
+- notify_adapter: $notify_adapter
+- scheduler_adapter: $scheduler_adapter
+- review_mode:
+- no_publish_policy:
+
+## Domain Pack Requirements
+- source minimum:
+- recency window:
+- credibility rubric:
+- confidence bar:
+- fallback behavior:" || return 1
+
+  write_file_once "$run_dir/collection-ledger.md" '# Collection Ledger
+
+| source_id | channel | url_or_ref | observed_at | author_or_source | story_candidate | inclusion_reason |
+|-----------|---------|------------|-------------|------------------|-----------------|------------------|' || return 1
+
+  write_file_once "$run_dir/evidence-review.md" '# Evidence Review
+
+| story_id | source_ids | novelty | credibility | audience_impact | counterevidence | confidence | decision |
+|----------|------------|---------|-------------|-----------------|-----------------|------------|----------|
+
+## Gate Results
+| gate | status | evidence_ref | note |
+|------|--------|--------------|------|
+| source-minimum | | | |
+| recency-window | | | |
+| confidence-bar | | | |
+| counterevidence | | | |' || return 1
+
+  write_file_once "$run_dir/asset-ledger.md" '# Asset Ledger
+
+| asset_id | purpose | format | source_refs | prompt_ref | final_path | validation_status | note |
+|----------|---------|--------|-------------|------------|------------|-------------------|------|' || return 1
+
+  write_file_once "$run_dir/deployment-ledger.md" "# Deployment Ledger
+
+- deploy_adapter: $deploy_adapter
+- deployment_status:
+- command_ref:
+- environment:
+- deploy_url:
+- rollback_note:
+
+## Gate Results
+| gate | status | evidence_ref | note |
+|------|--------|--------------|------|
+| webpage-evidence | | | |
+| deployment-url | | | |" || return 1
+
+  write_file_once "$run_dir/notification-ledger.md" "# Notification Ledger
+
+- notify_adapter: $notify_adapter
+- notification_status:
+- recipient_class:
+- payload_ref:
+- delivery_ref:
+- redaction_note:" || return 1
+
+  write_file_once "$run_dir/archive.md" "# Run Archive
+
+- run_id: $run_id
+- publication_status: drafted
+- notification_status: pending
+- final_url_or_artifact:
+- blocked_stage:
+- next_action:
+
+## Ledgers
+- brief: .bagakit/daily-media-automation/runs/$run_id/brief.md
+- collection: .bagakit/daily-media-automation/runs/$run_id/collection-ledger.md
+- evidence_review: .bagakit/daily-media-automation/runs/$run_id/evidence-review.md
+- asset: .bagakit/daily-media-automation/runs/$run_id/asset-ledger.md
+- webpage:
+- deployment: .bagakit/daily-media-automation/runs/$run_id/deployment-ledger.md
+- notification: .bagakit/daily-media-automation/runs/$run_id/notification-ledger.md
+
+## Gate Summary
+| gate | status | evidence_ref | note |
+|------|--------|--------------|------|" || return 1
+
+  printf 'initialized run: %s\n' ".bagakit/daily-media-automation/runs/$run_id"
 }
 
 run_doctor() {
@@ -408,6 +627,10 @@ case "${1:-}" in
   doctor)
     shift
     run_doctor "$@"
+    ;;
+  init-run)
+    shift
+    run_init_run "$@"
     ;;
   ""|-h|--help|help)
     usage

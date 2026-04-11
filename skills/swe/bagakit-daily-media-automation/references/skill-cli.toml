@@ -20,3 +20,7 @@ summary = "List reference files shipped by this skill."
 [[command]]
 name = "doctor"
 summary = "Check local commands and optional adapters for a daily media automation run."
+
+[[command]]
+name = "init-run"
+summary = "Create a repo-local daily media automation run ledger skeleton."
