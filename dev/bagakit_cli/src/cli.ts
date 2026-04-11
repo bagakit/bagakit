@@ -2,9 +2,10 @@ import { spawnSync } from "node:child_process";
 import path from "node:path";
 import { parseArgs } from "node:util";
 
+import { linkSkills, listInstallStatus, unlinkSkills } from "./lib/install.ts";
 import { listRuntimeSurfaces } from "./lib/surfaces.ts";
 import { loadSkillCliRecords, selectSkillCli } from "./lib/skills.ts";
-import type { SkillCliRecord } from "./lib/model.ts";
+import type { SkillCliRecord, SkillInstallRecord, SkillInstallResult } from "./lib/model.ts";
 import { repoRelative, resolveRoot } from "./lib/paths.ts";
 
 function printHelp(): void {
@@ -16,6 +17,9 @@ Commands:
   surfaces [--root <repo-root>] [--json]
   status [--root <repo-root>] [--json]
   run <selector> [--root <repo-root>] -- <args...>
+  install status [selector|all] --target <skills-root> [--root <repo-root>] [--json]
+  install link [selector|all] --target <skills-root> [--root <repo-root>] [--dry-run] [--replace] [--json]
+  install unlink <selector|all> --target <skills-root> [--root <repo-root>] [--dry-run] [--json]
   check [--root <repo-root>]
 `);
 }
@@ -57,6 +61,31 @@ function recordJson(record: SkillCliRecord) {
         }
       : null,
     issues: record.issues,
+  };
+}
+
+function installRecordJson(record: SkillInstallRecord) {
+  return {
+    family: record.skill.family,
+    skill_id: record.skill.skillId,
+    selector: record.skill.selector,
+    source: record.skill.relativeDir,
+    target: record.targetRelativePath,
+    state: record.state,
+    issue: record.issue ?? null,
+  };
+}
+
+function installResultJson(record: SkillInstallResult) {
+  return {
+    family: record.skill.family,
+    skill_id: record.skill.skillId,
+    selector: record.skill.selector,
+    source: record.skill.relativeDir,
+    target: record.targetRelativePath,
+    action: record.action,
+    changed: record.changed,
+    issue: record.issue ?? null,
   };
 }
 
@@ -214,6 +243,104 @@ function cmdRun(argv: string[]): number {
   return result.status;
 }
 
+function installOptions() {
+  return {
+    root: { type: "string" as const, default: "." },
+    target: { type: "string" as const },
+    json: { type: "boolean" as const, default: false },
+    "dry-run": { type: "boolean" as const, default: false },
+    replace: { type: "boolean" as const, default: false },
+  };
+}
+
+function requireTarget(value: string | undefined): string {
+  if (!value) {
+    throw new Error("install commands require --target <skills-root>");
+  }
+  return value;
+}
+
+function printInstallStatus(records: SkillInstallRecord[]): void {
+  for (const record of records) {
+    const issue = record.issue ? `\t${record.issue}` : "";
+    console.log(`${record.skill.selector}\t${record.state}\t${record.targetRelativePath}${issue}`);
+  }
+}
+
+function printInstallResults(records: SkillInstallResult[]): void {
+  for (const record of records) {
+    const issue = record.issue ? `\t${record.issue}` : "";
+    console.log(`${record.skill.selector}\t${record.action}\t${record.targetRelativePath}${issue}`);
+  }
+}
+
+function cmdInstall(argv: string[]): number {
+  const [subcommand, ...rest] = argv;
+  if (!subcommand || subcommand === "-h" || subcommand === "--help") {
+    console.log(`bagakit-cli install
+
+Commands:
+  install status [selector|all] --target <skills-root> [--root <repo-root>] [--json]
+  install link [selector|all] --target <skills-root> [--root <repo-root>] [--dry-run] [--replace] [--json]
+  install unlink <selector|all> --target <skills-root> [--root <repo-root>] [--dry-run] [--json]
+`);
+    return 0;
+  }
+
+  const { values, positionals } = parseArgs({
+    args: rest,
+    options: installOptions(),
+    strict: true,
+    allowPositionals: true,
+  });
+  const repoRoot = resolveRoot(values.root);
+  const targetRoot = requireTarget(values.target);
+  const selector = positionals[0] ?? "all";
+  if (positionals.length > 1) {
+    throw new Error(`install ${subcommand} accepts at most one selector`);
+  }
+
+  if (subcommand === "status") {
+    const records = listInstallStatus(repoRoot, targetRoot, selector);
+    if (values.json) {
+      console.log(JSON.stringify(records.map(installRecordJson), null, 2));
+    } else {
+      printInstallStatus(records);
+    }
+    return records.some((record) => record.state === "conflict" || record.state === "wrong-link") ? 1 : 0;
+  }
+
+  if (subcommand === "link") {
+    const records = linkSkills(repoRoot, targetRoot, selector, {
+      dryRun: values["dry-run"],
+      replace: values.replace,
+    });
+    if (values.json) {
+      console.log(JSON.stringify(records.map(installResultJson), null, 2));
+    } else {
+      printInstallResults(records);
+    }
+    return records.some((record) => record.action === "skip-conflict") ? 1 : 0;
+  }
+
+  if (subcommand === "unlink") {
+    if (positionals.length === 0) {
+      throw new Error("install unlink requires <selector|all>");
+    }
+    const records = unlinkSkills(repoRoot, targetRoot, selector, {
+      dryRun: values["dry-run"],
+    });
+    if (values.json) {
+      console.log(JSON.stringify(records.map(installResultJson), null, 2));
+    } else {
+      printInstallResults(records);
+    }
+    return records.some((record) => record.action === "skip-conflict") ? 1 : 0;
+  }
+
+  throw new Error(`unknown install command: ${subcommand}`);
+}
+
 function cmdCheck(argv: string[]): number {
   const { values } = parseArgs({
     args: argv,
@@ -257,6 +384,8 @@ function main(argv: string[]): number {
       return cmdStatus(rest);
     case "run":
       return cmdRun(rest);
+    case "install":
+      return cmdInstall(rest);
     case "check":
       return cmdCheck(rest);
     default:

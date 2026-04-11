@@ -14,12 +14,24 @@ name = "init"
 summary = "Initialize commit session artifacts."
 
 [[command]]
+name = "install-hooks"
+summary = "Install the bundled commit-msg hook template."
+
+[[command]]
 name = "inventory"
 summary = "Generate split inventory from the working tree."
 
 [[command]]
 name = "draft-message"
 summary = "Draft a GFM spec-style commit message."
+
+[[command]]
+name = "draft-mr-title"
+summary = "Draft an MR title from bundled title patterns."
+
+[[command]]
+name = "draft-mr-body"
+summary = "Draft an MR body block from bundled body patterns."
 
 [[command]]
 name = "lint-message"

@@ -11,6 +11,7 @@ Use this spec when deciding:
 - what the central `bagakit-cli` may discover and dispatch
 - why central aggregation must not absorb skill-owned runtime semantics
 - how skill CLI declarations relate to runtime surfaces and install payloads
+- how local install projections should be managed
 
 This file is the SSOT for:
 
@@ -18,6 +19,7 @@ This file is the SSOT for:
 - skill CLI discovery requirements
 - central aggregator boundaries
 - dispatch semantics for `bagakit-cli run`
+- local canonical skill projection requirements
 
 It is not the SSOT for:
 
@@ -25,6 +27,7 @@ It is not the SSOT for:
 - runtime-surface ownership
 - Bagakit driver footer guidance
 - installable skill directory protocol
+- distribution packaging or remote repository fetching
 
 Those belong respectively in:
 
@@ -46,6 +49,8 @@ The central `bagakit-cli` is an operator view and dispatch layer. It may:
 - list runtime surfaces
 - summarize repository status
 - dispatch to one skill-owned CLI
+- link canonical skill directories into one explicit target skills directory
+- inspect or remove machine-local target projections
 
 It must not:
 
@@ -56,6 +61,8 @@ It must not:
 - merge runtime surfaces into one shared state root
 - become the owner of per-skill command behavior, state transitions, or
   business validation semantics
+- make target agent skill directories authoritative
+- hide remote source fetching or release packaging behind local link commands
 
 This keeps skill installability real while still giving operators one coherent
 management entrypoint.
@@ -145,6 +152,13 @@ Optional command table:
 The command table is a discoverability aid. It is not a complete schema for
 the skill's CLI.
 
+For canonical monorepo skills, repository validation may set a stronger local
+bar: stable top-level commands shown in the skill-owned `--help` output should
+also appear in `[[command]]`, and every declared command should be visible in
+that help output. Hidden aliases and experimental subcommands should either
+stay out of help or be promoted into the declaration when they become a
+supported operator surface.
+
 ## Runner Semantics
 
 `runner` tells an aggregator how to launch the entrypoint:
@@ -191,8 +205,59 @@ Recommended central commands:
   - summarize skills, declared CLIs, and runtime surfaces
 - `run <selector> -- <args...>`
   - dispatch to the selected skill CLI
+- `install status [selector|all] --target <skills-root>`
+  - report whether selected canonical skills are linked into one target skills
+    directory
+- `install link [selector|all] --target <skills-root>`
+  - create symlink projections from canonical skill directories into one target
+    skills directory
+- `install unlink <selector|all> --target <skills-root>`
+  - remove symlink projections that currently point back to selected canonical
+    skills
 
 These views are derived. They are not durable repository truth.
+
+## Install Projection Semantics
+
+`bagakit-cli install` manages machine-local projections from canonical skill
+directories into an explicit agent skills directory.
+
+Projection rules:
+
+- the canonical source is always `skills/<family>/<skill-id>/`
+- the target name is `<skill-id>`
+- target directories are passed through `--target`
+- no target path is recorded into durable repository files
+- `all` expands to every discovered canonical skill
+- selectors may use either `<family>/<skill-id>` or `<skill-id>` when
+  unambiguous
+
+Status states:
+
+- `missing`
+  - target path does not exist
+- `linked`
+  - target is a symlink to the selected canonical skill directory
+- `wrong-link`
+  - target is a symlink, but points somewhere else
+- `conflict`
+  - target exists and is not a symlink
+
+Mutation rules:
+
+- `install link` creates missing symlinks
+- `install link` leaves existing correct symlinks unchanged
+- `install link` does not overwrite conflicts
+- `install link --replace` may replace a wrong symlink, but not a real
+  directory or file conflict
+- `install unlink` removes only symlinks that point back to the selected
+  canonical skill
+- `--dry-run` reports intended actions without changing the target
+
+This is local projection management, not package distribution. Remote source
+fetching, release bundles, and legacy standalone installation may later be
+added as explicit source-specific command groups, but they must not blur the
+canonical directory-as-install-unit rule.
 
 ## Validation Rules
 
@@ -209,6 +274,8 @@ Validators should reject:
 - duplicate command names in one declaration
 - absolute filesystem paths in `surface_refs`
 - parent-escaping or broad repository-root refs in `surface_refs`
+- canonical monorepo declarations whose stable top-level help commands and
+  `[[command]]` entries are out of sync
 
 Validators should warn, not fail, when:
 

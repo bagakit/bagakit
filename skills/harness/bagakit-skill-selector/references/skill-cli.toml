@@ -18,9 +18,97 @@ name = "preflight"
 summary = "Record task-level skill coverage preflight."
 
 [[command]]
+name = "episode-refs"
+summary = "Record task episode artifact references."
+
+[[command]]
+name = "task-signal"
+summary = "Record a task signal for future selection."
+
+[[command]]
 name = "plan"
 summary = "Record one visible or selected candidate."
 
 [[command]]
+name = "availability"
+summary = "Update candidate availability."
+
+[[command]]
+name = "recipe"
+summary = "Record a selector recipe considered or used."
+
+[[command]]
+name = "usage"
+summary = "Record task-local skill usage."
+
+[[command]]
+name = "candidate-result"
+summary = "Record candidate outcome evidence."
+
+[[command]]
+name = "selection-lesson"
+summary = "Record a reusable selection lesson."
+
+[[command]]
+name = "lesson-update"
+summary = "Update or invalidate a selection lesson."
+
+[[command]]
+name = "feedback"
+summary = "Record user, metric, or self-review feedback."
+
+[[command]]
+name = "search"
+summary = "Record a skill search need."
+
+[[command]]
+name = "benchmark"
+summary = "Record benchmark comparison evidence."
+
+[[command]]
+name = "error-pattern"
+summary = "Record an error pattern and resolution."
+
+[[command]]
+name = "evolver-signal"
+summary = "Record a candidate evolver signal."
+
+[[command]]
+name = "evolver-export"
+summary = "Export evolver signals from an episode."
+
+[[command]]
+name = "evolver-bridge"
+summary = "Bridge selector signals into evolver tooling."
+
+[[command]]
+name = "skill-ranking"
+summary = "Render skill ranking output."
+
+[[command]]
+name = "candidate-survey"
+summary = "Survey available candidates."
+
+[[command]]
+name = "preferences-init"
+summary = "Initialize selector preference file."
+
+[[command]]
+name = "daily"
+summary = "Render daily selector report."
+
+[[command]]
 name = "evaluate"
 summary = "Record task-local evaluation before closeout."
+
+[[command]]
+name = "validate"
+summary = "Validate one selector episode file."
+
+[[command]]
+name = "drivers"
+summary = "Render selection driver report."
+
+[[command]]
+name = "doctor"
+summary = "Run selector repository diagnostics."

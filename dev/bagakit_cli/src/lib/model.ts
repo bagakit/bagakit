@@ -33,6 +33,27 @@ export interface SkillCliRecord {
   issues: string[];
 }
 
+export type SkillInstallState = "linked" | "missing" | "wrong-link" | "conflict";
+
+export interface SkillInstallRecord {
+  skill: SkillSource;
+  targetPath: string;
+  targetRelativePath: string;
+  state: SkillInstallState;
+  issue?: string;
+}
+
+export type SkillInstallAction = "link" | "already-linked" | "replace-link" | "skip-conflict" | "unlink" | "missing";
+
+export interface SkillInstallResult {
+  skill: SkillSource;
+  targetPath: string;
+  targetRelativePath: string;
+  action: SkillInstallAction;
+  changed: boolean;
+  issue?: string;
+}
+
 export interface RuntimeSurfaceRecord {
   surfaceRoot: string;
   surfaceId: string;

@@ -15,12 +15,24 @@ name = "apply"
 summary = "Scaffold or refresh the shared knowledge substrate."
 
 [[command]]
+name = "paths"
+summary = "Print the resolved knowledge path protocol."
+
+[[command]]
 name = "index"
 summary = "Refresh generated guidebook and helper surfaces."
 
 [[command]]
 name = "recall"
 summary = "Search or fetch shared knowledge excerpts."
+
+[[command]]
+name = "ingest"
+summary = "Import reviewed markdown into shared knowledge."
+
+[[command]]
+name = "inspect-stack"
+summary = "Inspect configured knowledge stack and helper surfaces."
 
 [[command]]
 name = "doctor"

@@ -14,8 +14,112 @@ name = "init-topic"
 summary = "Create or refresh an evolver topic."
 
 [[command]]
+name = "capture-signal"
+summary = "Capture one evolution signal."
+
+[[command]]
+name = "validate-signals"
+summary = "Validate a signal contract."
+
+[[command]]
+name = "bridge-signals"
+summary = "Bridge external signals into evolver intake."
+
+[[command]]
+name = "import-signals"
+summary = "Import validated signals."
+
+[[command]]
+name = "export-signals"
+summary = "Export evolver signals."
+
+[[command]]
+name = "list-signals"
+summary = "List evolver signals."
+
+[[command]]
+name = "adopt-signal"
+summary = "Adopt a signal into an evolver topic."
+
+[[command]]
+name = "dismiss-signal"
+summary = "Dismiss one evolver signal."
+
+[[command]]
 name = "preflight"
 summary = "Record whether a topic should be tracked."
+
+[[command]]
+name = "add-candidate"
+summary = "Add an evolution candidate."
+
+[[command]]
+name = "add-source"
+summary = "Add a topic source reference."
+
+[[command]]
+name = "add-feedback"
+summary = "Record topic feedback."
+
+[[command]]
+name = "add-benchmark"
+summary = "Record benchmark evidence."
+
+[[command]]
+name = "add-note"
+summary = "Add an observation or decision note."
+
+[[command]]
+name = "set-route"
+summary = "Set promotion route for a topic."
+
+[[command]]
+name = "add-context-ref"
+summary = "Attach a context reference."
+
+[[command]]
+name = "remove-context-ref"
+summary = "Remove a context reference."
+
+[[command]]
+name = "record-decision"
+summary = "Record a topic decision."
+
+[[command]]
+name = "record-promotion"
+summary = "Record a proposed or landed promotion."
+
+[[command]]
+name = "set-candidate-status"
+summary = "Set candidate status."
+
+[[command]]
+name = "promote-candidate"
+summary = "Promote a candidate."
+
+[[command]]
+name = "reject-candidate"
+summary = "Reject a candidate."
+
+[[command]]
+name = "revisit-candidate"
+summary = "Reopen a candidate for review."
+
+[[command]]
+name = "set-topic-status"
+summary = "Set topic status."
+
+[[command]]
+name = "close-topic"
+summary = "Close an evolver topic."
+
+[[command]]
+name = "archive-topic"
+summary = "Archive an evolver topic."
+
+[[command]]
+name = "handoff"
+summary = "Render topic handoff."
 
 [[command]]
 name = "status"
@@ -24,3 +128,11 @@ summary = "Show topic or repository-level evolver status."
 [[command]]
 name = "promotion-readiness"
 summary = "Evaluate whether a topic is ready for durable promotion."
+
+[[command]]
+name = "refresh-index"
+summary = "Refresh evolver topic index."
+
+[[command]]
+name = "check"
+summary = "Run evolver repository checks."

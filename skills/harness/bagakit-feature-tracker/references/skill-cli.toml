@@ -18,8 +18,44 @@ name = "create-feature"
 summary = "Create a feature with explicit workspace mode."
 
 [[command]]
+name = "create-feature-from-planning-entry-handoff"
+summary = "Create a feature from a planning-entry handoff."
+
+[[command]]
+name = "assign-feature-workspace"
+summary = "Assign or change one feature workspace mode."
+
+[[command]]
 name = "show-feature-status"
 summary = "Show one feature's status."
+
+[[command]]
+name = "start-task"
+summary = "Start one feature task."
+
+[[command]]
+name = "run-task-gate"
+summary = "Record or run one task gate."
+
+[[command]]
+name = "prepare-task-commit"
+summary = "Prepare task commit evidence."
+
+[[command]]
+name = "finish-task"
+summary = "Finish one task with gate evidence."
+
+[[command]]
+name = "closeout-feature"
+summary = "Close out one feature lifecycle."
+
+[[command]]
+name = "archive-feature"
+summary = "Archive a completed feature."
+
+[[command]]
+name = "discard-feature"
+summary = "Discard a feature with rationale."
 
 [[command]]
 name = "validate-tracker"
@@ -28,3 +64,23 @@ summary = "Validate tracker consistency."
 [[command]]
 name = "diagnose-tracker"
 summary = "Run tracker diagnostics."
+
+[[command]]
+name = "replan-features"
+summary = "Replan feature ordering and dependencies."
+
+[[command]]
+name = "show-feature-dag"
+summary = "Show feature dependency graph."
+
+[[command]]
+name = "list-features"
+summary = "List tracked features."
+
+[[command]]
+name = "get-feature"
+summary = "Show one feature record."
+
+[[command]]
+name = "filter-features"
+summary = "Filter tracked features."

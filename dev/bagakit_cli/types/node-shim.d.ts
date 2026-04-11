@@ -8,6 +8,7 @@ declare module "node:fs" {
   export type Stats = {
     isDirectory(): boolean;
     isFile(): boolean;
+    isSymbolicLink(): boolean;
   };
 
   const value: {
@@ -18,8 +19,10 @@ declare module "node:fs" {
     mkdtempSync(prefix: string): string;
     readdirSync(path: string, options: { withFileTypes: true }): Dirent[];
     readdirSync(path: string, options?: { withFileTypes?: false }): string[];
+    lstatSync(path: string): Stats;
     statSync(path: string): Stats;
     realpathSync(path: string): string;
+    readlinkSync(path: string): string;
     rmSync(path: string, options?: { recursive?: boolean; force?: boolean }): void;
     symlinkSync(target: string, path: string, type?: string): void;
     chmodSync(path: string, mode: number): void;

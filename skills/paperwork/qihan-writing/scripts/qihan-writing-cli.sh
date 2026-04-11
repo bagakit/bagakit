@@ -5,12 +5,14 @@ skill_root="$(dirname "$script_dir")"
 
 usage() {
   cat <<'EOF'
-usage: qihan-writing-cli <command>
+usage: qihan-writing-cli <command> [args...]
 
 Commands:
   describe          Print a short skill description.
   list-references   List reference files shipped by this skill.
   validate          Check that required skill files exist.
+  lint              Run qihan-writing markdown lint checks.
+  route             Run qihan-writing route foundation and route derivation tools.
 EOF
 }
 
@@ -26,6 +28,15 @@ case "${1:-}" in
     test -f "$skill_root/references/workflow/OPERATING_SURFACE_MATRIX.md"
     test -f "$skill_root/references/writing/VOICE.md"
     test -f "$skill_root/scripts/qihan_write_lint.py"
+    test -f "$skill_root/scripts/qihan_route_tools.py"
+    ;;
+  lint)
+    shift
+    exec python3 "$skill_root/scripts/qihan_write_lint.py" "$@"
+    ;;
+  route)
+    shift
+    exec python3 "$skill_root/scripts/qihan_route_tools.py" "$@"
     ;;
   ""|-h|--help|help)
     usage

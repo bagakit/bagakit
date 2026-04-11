@@ -210,6 +210,100 @@ test("run dispatch preserves repository root as child cwd", () => {
   assert.equal(result.status, 0, stderr(result));
 });
 
+test("install status reports missing and linked skills", () => {
+  const root = tempRepo();
+  const target = fs.mkdtempSync(path.join(os.tmpdir(), "bagakit-cli-install-"));
+  makeSkill(root);
+
+  const before = runCli(["install", "status", "demo-skill", "--root", root, "--target", target, "--json"]);
+  assert.equal(before.status, 0, stderr(before));
+  assert.equal(JSON.parse(stdout(before))[0].state, "missing");
+
+  const link = runCli(["install", "link", "demo-skill", "--root", root, "--target", target, "--json"]);
+  assert.equal(link.status, 0, stderr(link));
+  assert.equal(JSON.parse(stdout(link))[0].action, "link");
+
+  const after = runCli(["install", "status", "demo-skill", "--root", root, "--target", target, "--json"]);
+  assert.equal(after.status, 0, stderr(after));
+  assert.equal(JSON.parse(stdout(after))[0].state, "linked");
+  assert.equal(fs.realpathSync(path.join(target, "demo-skill")), fs.realpathSync(path.join(root, "skills/harness/demo-skill")));
+});
+
+test("install link dry-run leaves target unchanged", () => {
+  const root = tempRepo();
+  const target = fs.mkdtempSync(path.join(os.tmpdir(), "bagakit-cli-install-"));
+  makeSkill(root);
+
+  const result = runCli([
+    "install",
+    "link",
+    "demo-skill",
+    "--root",
+    root,
+    "--target",
+    target,
+    "--dry-run",
+    "--json",
+  ]);
+  assert.equal(result.status, 0, stderr(result));
+  assert.equal(JSON.parse(stdout(result))[0].action, "link");
+  assert.equal(fs.existsSync(path.join(target, "demo-skill")), false);
+});
+
+test("install status reports conflicts without leaking target root", () => {
+  const root = tempRepo();
+  const target = fs.mkdtempSync(path.join(os.tmpdir(), "bagakit-cli-install-"));
+  makeSkill(root);
+  write(target, "demo-skill", "# conflict\n");
+
+  const result = runCli(["install", "status", "demo-skill", "--root", root, "--target", target, "--json"]);
+  assert.equal(result.status, 1);
+  const payload = JSON.parse(stdout(result))[0];
+  assert.equal(payload.state, "conflict");
+  assert.equal(payload.target, "demo-skill");
+  assert.doesNotMatch(stdout(result), new RegExp(escapeRegExp(target)));
+});
+
+test("install link replace updates only wrong symbolic links", () => {
+  const root = tempRepo();
+  const target = fs.mkdtempSync(path.join(os.tmpdir(), "bagakit-cli-install-"));
+  const other = fs.mkdtempSync(path.join(os.tmpdir(), "bagakit-cli-other-"));
+  makeSkill(root);
+  fs.symlinkSync(other, path.join(target, "demo-skill"), "dir");
+
+  const blocked = runCli(["install", "link", "demo-skill", "--root", root, "--target", target, "--json"]);
+  assert.equal(blocked.status, 1);
+  assert.equal(JSON.parse(stdout(blocked))[0].action, "skip-conflict");
+
+  const replaced = runCli([
+    "install",
+    "link",
+    "demo-skill",
+    "--root",
+    root,
+    "--target",
+    target,
+    "--replace",
+    "--json",
+  ]);
+  assert.equal(replaced.status, 0, stderr(replaced));
+  assert.equal(JSON.parse(stdout(replaced))[0].action, "replace-link");
+  assert.equal(fs.realpathSync(path.join(target, "demo-skill")), fs.realpathSync(path.join(root, "skills/harness/demo-skill")));
+});
+
+test("install unlink removes only links to selected repository skills", () => {
+  const root = tempRepo();
+  const target = fs.mkdtempSync(path.join(os.tmpdir(), "bagakit-cli-install-"));
+  makeSkill(root);
+  const link = runCli(["install", "link", "demo-skill", "--root", root, "--target", target]);
+  assert.equal(link.status, 0, stderr(link));
+
+  const unlink = runCli(["install", "unlink", "demo-skill", "--root", root, "--target", target, "--json"]);
+  assert.equal(unlink.status, 0, stderr(unlink));
+  assert.equal(JSON.parse(stdout(unlink))[0].action, "unlink");
+  assert.equal(fs.existsSync(path.join(target, "demo-skill")), false);
+});
+
 test("selector resolution rejects skills without declared CLI", () => {
   const root = tempRepo();
   write(root, "skills/harness/no-cli/SKILL.md", "# No CLI\n");

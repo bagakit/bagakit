@@ -22,5 +22,9 @@ name = "archive"
 summary = "Resolve handoff routes, write archive record, and archive artifacts."
 
 [[command]]
+name = "export-planning-entry-handoff"
+summary = "Export one approved brainstorm artifact into a planning-entry handoff."
+
+[[command]]
 name = "check-complete"
 summary = "Require analysis stage completion and archive completion."

@@ -26,5 +26,49 @@ name = "refresh-index"
 summary = "Refresh one topic index."
 
 [[command]]
+name = "refresh-wiki"
+summary = "Refresh researcher-local wiki and frontdoor pages."
+
+[[command]]
+name = "plan-pass"
+summary = "Record one planned research pass."
+
+[[command]]
+name = "add-track"
+summary = "Record one research track."
+
+[[command]]
+name = "list-tracks"
+summary = "List research tracks for a topic."
+
+[[command]]
+name = "add-claim"
+summary = "Add an evidence-bound claim."
+
+[[command]]
+name = "add-insight"
+summary = "Add an evidence-bound insight."
+
+[[command]]
+name = "add-lead"
+summary = "Add a follow-up research lead."
+
+[[command]]
+name = "resolve-lead"
+summary = "Resolve or update a research lead."
+
+[[command]]
+name = "new-synthesis"
+summary = "Create a synthesis artifact scaffold."
+
+[[command]]
+name = "render-handoff"
+summary = "Render a research topic handoff."
+
+[[command]]
+name = "list-topics"
+summary = "List researcher topic workspaces."
+
+[[command]]
 name = "doctor"
 summary = "Validate researcher topic workspaces."

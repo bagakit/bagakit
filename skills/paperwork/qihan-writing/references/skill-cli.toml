@@ -3,8 +3,8 @@ skill = "qihan-writing"
 cli_id = "qihan-writing"
 entrypoint = "scripts/qihan-writing-cli.sh"
 runner = "shell"
-usage = "sh scripts/qihan-writing-cli.sh <command>"
-summary = "Inspect and validate the qihan-writing skill assets."
+usage = "sh scripts/qihan-writing-cli.sh <command> [args...]"
+summary = "Inspect, validate, route, and lint qihan-writing artifacts."
 surface_refs = []
 
 [[command]]
@@ -18,3 +18,11 @@ summary = "List reference files shipped by this skill."
 [[command]]
 name = "validate"
 summary = "Check that required skill files exist."
+
+[[command]]
+name = "lint"
+summary = "Run qihan-writing markdown lint checks."
+
+[[command]]
+name = "route"
+summary = "Run qihan-writing route foundation and route derivation tools."

@@ -5,12 +5,13 @@ skill_root="$(dirname "$script_dir")"
 
 usage() {
   cat <<'EOF'
-usage: bagakit-paperwork-technical-writing-cli <command>
+usage: bagakit-paperwork-technical-writing-cli <command> [args...]
 
 Commands:
   describe          Print a short skill description.
   list-references   List reference files shipped by this skill.
   validate          Check that required skill files exist.
+  check-article     Run the bundled article quality checker directly.
 EOF
 }
 
@@ -26,6 +27,10 @@ case "${1:-}" in
     test -f "$skill_root/references/start-here.md"
     test -f "$skill_root/references/quality-gates.md"
     test -f "$skill_root/scripts/check-article.py"
+    ;;
+  check-article)
+    shift
+    exec python3 "$skill_root/scripts/check-article.py" "$@"
     ;;
   ""|-h|--help|help)
     usage

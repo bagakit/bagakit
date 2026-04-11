@@ -31,6 +31,7 @@ required_files = [
   "dev/bagakit_cli/bagakit-cli.sh",
   "dev/bagakit_cli/tsconfig.json",
   "dev/bagakit_cli/src/cli.ts",
+  "dev/bagakit_cli/src/lib/install.ts",
   "dev/bagakit_cli/src/lib/model.ts",
   "dev/bagakit_cli/src/lib/paths.ts",
   "dev/bagakit_cli/src/lib/skills.ts",
@@ -44,14 +45,14 @@ required_files = [
 [[suite]]
 id = "bagakit-cli-tests"
 owner = "dev/bagakit_cli"
-description = "Run bagakit-cli manifest discovery, surface discovery, and dispatch regression tests."
+description = "Run bagakit-cli manifest discovery, surface discovery, dispatch, and install projection regression tests."
 default = true
 proof_mode = "runtime"
-protects = ["bagakit-cli public discovery and dispatch behavior over skill-owned CLI manifests"]
-oracle = ["node:test suite creates temporary installable skills and asserts discovery, validation, surface listing, and forwarded execution"]
+protects = ["bagakit-cli public discovery, dispatch, and local install projection behavior over canonical skills"]
+oracle = ["node:test suite creates temporary installable skills and asserts discovery, validation, surface listing, forwarded execution, link status, dry-run, conflict handling, replace, and unlink behavior"]
 exercised_surface = ["dev/bagakit_cli/test/bagakit-cli.test.ts", "dev/bagakit_cli/src public helper seams", "temporary skill fixture repositories"]
-proves = ["bagakit-cli-tests proves the aggregator can discover skill CLI declarations and dispatch to skill-owned entrypoints."]
-does_not_prove = ["bagakit-cli-tests does not prove every skill command's business behavior or cross-repository indexing."]
+proves = ["bagakit-cli-tests proves the aggregator can discover skill CLI declarations, dispatch to skill-owned entrypoints, and manage symlink projections into explicit target directories."]
+does_not_prove = ["bagakit-cli-tests does not prove every skill command's business behavior, cross-repository indexing, remote fetching, or release packaging."]
 timeout_seconds = 180
 validation_class = "quality"
 groups = ["dev", "bagakit-cli", "quality"]
@@ -98,11 +99,11 @@ owner = "dev/bagakit_cli"
 description = "Require every canonical installable skill to declare an independently usable skill-owned CLI."
 default = true
 proof_mode = "runtime"
-protects = ["canonical skill-owned CLI declaration coverage for bagakit-cli aggregation"]
-oracle = ["coverage script scans discovered skills/<family>/<skill-id>/SKILL.md files and fails if references/skill-cli.toml is missing"]
-exercised_surface = ["skills/<family>/<skill-id>/references/skill-cli.toml", "gate_validation/dev/bagakit_cli/check-skill-cli-coverage.sh"]
-proves = ["bagakit-cli-coverage proves every current canonical installable skill declares a skill-owned CLI manifest."]
-does_not_prove = ["bagakit-cli-coverage does not prove each skill command's business behavior beyond declaration presence."]
+protects = ["canonical skill-owned CLI declaration coverage and declared-command discoverability for bagakit-cli aggregation"]
+oracle = ["coverage script scans discovered skills/<family>/<skill-id>/SKILL.md files, requires references/skill-cli.toml, reads each declared entrypoint help output, and fails when a declared command is absent from help"]
+exercised_surface = ["skills/<family>/<skill-id>/references/skill-cli.toml", "skill-owned CLI --help output", "gate_validation/dev/bagakit_cli/check-skill-cli-coverage.sh"]
+proves = ["bagakit-cli-coverage proves every current canonical installable skill declares a skill-owned CLI manifest and that listed commands are visible in the skill-owned help surface."]
+does_not_prove = ["bagakit-cli-coverage does not prove each skill command's business behavior beyond declaration and help visibility."]
 timeout_seconds = 60
 validation_class = "contract"
 groups = ["dev", "bagakit-cli", "contract", "skills"]

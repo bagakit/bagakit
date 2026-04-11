@@ -14,6 +14,18 @@ name = "apply"
 summary = "Apply flow-runner project surfaces."
 
 [[command]]
+name = "add-item"
+summary = "Add a normalized work item."
+
+[[command]]
+name = "ingest-feature-tracker"
+summary = "Ingest feature-tracker work into runner items."
+
+[[command]]
+name = "activate-feature-tracker"
+summary = "Activate a feature-tracker-derived item."
+
+[[command]]
 name = "list-items"
 summary = "List normalized work items."
 
@@ -22,8 +34,28 @@ name = "next"
 summary = "Select the next runnable work item."
 
 [[command]]
+name = "resume-candidates"
+summary = "List runnable resume candidates."
+
+[[command]]
+name = "snapshot"
+summary = "Record a repo snapshot for a runner session."
+
+[[command]]
 name = "checkpoint"
 summary = "Record a bounded session checkpoint."
+
+[[command]]
+name = "open-incident"
+summary = "Open an incident for a runner item."
+
+[[command]]
+name = "resolve-incident"
+summary = "Resolve a runner incident."
+
+[[command]]
+name = "archive-item"
+summary = "Archive a completed runner item."
 
 [[command]]
 name = "validate"
