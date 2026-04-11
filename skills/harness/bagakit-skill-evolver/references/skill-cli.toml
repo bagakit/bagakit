@@ -1,0 +1,26 @@
+version = 1
+skill = "bagakit-skill-evolver"
+cli_id = "bagakit-skill-evolver"
+entrypoint = "scripts/evolver.ts"
+runner = "node"
+usage = "node --experimental-strip-types scripts/evolver.ts <command> [args...]"
+summary = "Manage repository evolution topics, intake signals, and promotion readiness."
+surface_refs = [
+  ".bagakit/evolver",
+]
+
+[[command]]
+name = "init-topic"
+summary = "Create or refresh an evolver topic."
+
+[[command]]
+name = "preflight"
+summary = "Record whether a topic should be tracked."
+
+[[command]]
+name = "status"
+summary = "Show topic or repository-level evolver status."
+
+[[command]]
+name = "promotion-readiness"
+summary = "Evaluate whether a topic is ready for durable promotion."

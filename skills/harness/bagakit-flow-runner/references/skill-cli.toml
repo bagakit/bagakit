@@ -1,0 +1,30 @@
+version = 1
+skill = "bagakit-flow-runner"
+cli_id = "bagakit-flow-runner"
+entrypoint = "scripts/flow-runner.sh"
+runner = "shell"
+usage = "sh scripts/flow-runner.sh <command> [args...]"
+summary = "Run bounded flow sessions over normalized work items."
+surface_refs = [
+  ".bagakit/flow-runner",
+]
+
+[[command]]
+name = "apply"
+summary = "Apply flow-runner project surfaces."
+
+[[command]]
+name = "list-items"
+summary = "List normalized work items."
+
+[[command]]
+name = "next"
+summary = "Select the next runnable work item."
+
+[[command]]
+name = "checkpoint"
+summary = "Record a bounded session checkpoint."
+
+[[command]]
+name = "validate"
+summary = "Validate flow-runner runtime surfaces."

@@ -1,0 +1,140 @@
+version = 2
+
+[[suite]]
+id = "bagakit-cli-layout"
+owner = "dev/bagakit_cli"
+description = "Require the canonical bagakit-cli aggregator layout, contract, and validation registration."
+default = true
+proof_mode = "structural"
+protects = ["bagakit-cli maintainer tool layout and skill CLI contract registration"]
+oracle = ["fs runner checks required files for the aggregator, contract spec, tests, and validation registration"]
+exercised_surface = ["dev/bagakit_cli source tree", "docs/specs/skill-cli-contract.md", "gate_validation/dev/bagakit_cli registration"]
+proves = ["bagakit-cli-layout proves the aggregator surface is present with its contract and tests."]
+does_not_prove = ["bagakit-cli-layout does not prove skill business command behavior or live host integration."]
+validation_class = "structure"
+groups = ["dev", "bagakit-cli", "structure"]
+
+[suite.runner]
+kind = "fs"
+required_dirs = [
+  "dev/bagakit_cli",
+  "dev/bagakit_cli/src",
+  "dev/bagakit_cli/src/lib",
+  "dev/bagakit_cli/test",
+  "dev/bagakit_cli/types",
+  "gate_validation/dev/bagakit_cli",
+]
+required_files = [
+  "docs/specs/skill-cli-contract.md",
+  "dev/bagakit_cli/README.md",
+  "dev/bagakit_cli/package.json",
+  "dev/bagakit_cli/bagakit-cli.sh",
+  "dev/bagakit_cli/tsconfig.json",
+  "dev/bagakit_cli/src/cli.ts",
+  "dev/bagakit_cli/src/lib/model.ts",
+  "dev/bagakit_cli/src/lib/paths.ts",
+  "dev/bagakit_cli/src/lib/skills.ts",
+  "dev/bagakit_cli/src/lib/surfaces.ts",
+  "dev/bagakit_cli/src/lib/toml.ts",
+  "dev/bagakit_cli/test/bagakit-cli.test.ts",
+  "dev/bagakit_cli/types/node-shim.d.ts",
+  "gate_validation/dev/bagakit_cli/validation.toml",
+]
+
+[[suite]]
+id = "bagakit-cli-tests"
+owner = "dev/bagakit_cli"
+description = "Run bagakit-cli manifest discovery, surface discovery, and dispatch regression tests."
+default = true
+proof_mode = "runtime"
+protects = ["bagakit-cli public discovery and dispatch behavior over skill-owned CLI manifests"]
+oracle = ["node:test suite creates temporary installable skills and asserts discovery, validation, surface listing, and forwarded execution"]
+exercised_surface = ["dev/bagakit_cli/test/bagakit-cli.test.ts", "dev/bagakit_cli/src public helper seams", "temporary skill fixture repositories"]
+proves = ["bagakit-cli-tests proves the aggregator can discover skill CLI declarations and dispatch to skill-owned entrypoints."]
+does_not_prove = ["bagakit-cli-tests does not prove every skill command's business behavior or cross-repository indexing."]
+timeout_seconds = 180
+validation_class = "quality"
+groups = ["dev", "bagakit-cli", "quality"]
+
+[suite.runner]
+kind = "executable"
+command = "{node}"
+args = [
+  "--test",
+  "--experimental-strip-types",
+  "dev/bagakit_cli/test/bagakit-cli.test.ts",
+]
+
+[[suite]]
+id = "bagakit-cli-typecheck"
+owner = "dev/bagakit_cli"
+description = "Run a strict TypeScript typecheck for bagakit-cli."
+default = true
+proof_mode = "structural"
+protects = ["bagakit-cli TypeScript compile-time API and module boundary integrity"]
+oracle = ["repo-owned TypeScript wrapper runs tsc with dev/bagakit_cli/tsconfig.json and no emit"]
+exercised_surface = ["dev/bagakit_cli/tsconfig.json", "dev/bagakit_cli TypeScript source tree", "dev/bagakit_cli/types"]
+proves = ["bagakit-cli-typecheck proves the bagakit-cli TypeScript sources typecheck against dev/bagakit_cli/tsconfig.json."]
+does_not_prove = ["bagakit-cli-typecheck does not prove runtime behavior, live service behavior, or skill business command behavior."]
+timeout_seconds = 180
+validation_class = "quality"
+groups = ["dev", "bagakit-cli", "quality", "typecheck"]
+
+[suite.runner]
+kind = "bash_script"
+script = "dev/host_tools/typescript/tsc-local.sh"
+args = [
+  "--root",
+  "{repo_root}",
+  "--",
+  "-p",
+  "dev/bagakit_cli/tsconfig.json",
+  "--noEmit",
+]
+
+[[suite]]
+id = "bagakit-cli-coverage"
+owner = "dev/bagakit_cli"
+description = "Require every canonical installable skill to declare an independently usable skill-owned CLI."
+default = true
+proof_mode = "runtime"
+protects = ["canonical skill-owned CLI declaration coverage for bagakit-cli aggregation"]
+oracle = ["coverage script scans discovered skills/<family>/<skill-id>/SKILL.md files and fails if references/skill-cli.toml is missing"]
+exercised_surface = ["skills/<family>/<skill-id>/references/skill-cli.toml", "gate_validation/dev/bagakit_cli/check-skill-cli-coverage.sh"]
+proves = ["bagakit-cli-coverage proves every current canonical installable skill declares a skill-owned CLI manifest."]
+does_not_prove = ["bagakit-cli-coverage does not prove each skill command's business behavior beyond declaration presence."]
+timeout_seconds = 60
+validation_class = "contract"
+groups = ["dev", "bagakit-cli", "contract", "skills"]
+
+[suite.runner]
+kind = "bash_script"
+script = "gate_validation/dev/bagakit_cli/check-skill-cli-coverage.sh"
+args = [
+  "--root",
+  "{repo_root}",
+]
+
+[[suite]]
+id = "bagakit-cli-current-repo-check"
+owner = "dev/bagakit_cli"
+description = "Run bagakit-cli check against the current repository declarations and materialized runtime surfaces."
+default = true
+proof_mode = "runtime"
+protects = ["current repository skill CLI manifests and materialized runtime surface markers"]
+oracle = ["bagakit-cli check parses current repo skill CLI declarations and .bagakit runtime surfaces, failing on invalid manifests, missing entrypoints, symlink escapes, or malformed surface markers"]
+exercised_surface = ["dev/bagakit_cli/src/cli.ts check command", "skill CLI manifest files", "runtime surface marker files"]
+proves = ["bagakit-cli-current-repo-check proves current repository skill CLI declarations and materialized runtime surfaces are valid under the aggregator."]
+does_not_prove = ["bagakit-cli-current-repo-check does not prove every skill command's business behavior."]
+timeout_seconds = 120
+validation_class = "contract"
+groups = ["dev", "bagakit-cli", "contract", "repo"]
+
+[suite.runner]
+kind = "bash_script"
+script = "dev/bagakit_cli/bagakit-cli.sh"
+args = [
+  "check",
+  "--root",
+  "{repo_root}",
+]

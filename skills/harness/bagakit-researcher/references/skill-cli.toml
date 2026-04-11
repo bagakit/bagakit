@@ -1,0 +1,30 @@
+version = 1
+skill = "bagakit-researcher"
+cli_id = "bagakit-researcher"
+entrypoint = "scripts/bagakit-researcher.sh"
+runner = "shell"
+usage = "sh scripts/bagakit-researcher.sh <command> [args...]"
+summary = "Operate local-first research topics, source cards, summaries, and wiki views."
+surface_refs = [
+  ".bagakit/researcher",
+]
+
+[[command]]
+name = "init-topic"
+summary = "Initialize one topic workspace."
+
+[[command]]
+name = "add-source-card"
+summary = "Write one source card under originals."
+
+[[command]]
+name = "add-summary"
+summary = "Write one reusable summary."
+
+[[command]]
+name = "refresh-index"
+summary = "Refresh one topic index."
+
+[[command]]
+name = "doctor"
+summary = "Validate researcher topic workspaces."

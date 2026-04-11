@@ -1,0 +1,26 @@
+version = 1
+skill = "bagakit-skill-selector"
+cli_id = "bagakit-skill-selector"
+entrypoint = "scripts/skill_selector.ts"
+runner = "node"
+usage = "node --experimental-strip-types scripts/skill_selector.ts <command> [args...]"
+summary = "Manage task-local skill selection, usage evidence, and candidate review."
+surface_refs = [
+  ".bagakit/skill-selector",
+]
+
+[[command]]
+name = "init"
+summary = "Initialize one task-local selector episode."
+
+[[command]]
+name = "preflight"
+summary = "Record task-level skill coverage preflight."
+
+[[command]]
+name = "plan"
+summary = "Record one visible or selected candidate."
+
+[[command]]
+name = "evaluate"
+summary = "Record task-local evaluation before closeout."

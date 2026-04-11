@@ -1,0 +1,20 @@
+version = 1
+skill = "qihan-writing"
+cli_id = "qihan-writing"
+entrypoint = "scripts/qihan-writing-cli.sh"
+runner = "shell"
+usage = "sh scripts/qihan-writing-cli.sh <command>"
+summary = "Inspect and validate the qihan-writing skill assets."
+surface_refs = []
+
+[[command]]
+name = "describe"
+summary = "Print a short skill description."
+
+[[command]]
+name = "list-references"
+summary = "List reference files shipped by this skill."
+
+[[command]]
+name = "validate"
+summary = "Check that required skill files exist."

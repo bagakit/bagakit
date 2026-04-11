@@ -84,6 +84,7 @@ Current examples include:
 - `output-discipline.md`
 - `selector-data-model.md`
 - `bagakit-driver-contract.md`
+- `skill-cli-contract.md`
 - `evolver-memory.md`
 - `flow-runner-contract.md`
 - `harness-concepts.md`

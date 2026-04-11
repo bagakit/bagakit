@@ -1,0 +1,30 @@
+version = 1
+skill = "bagakit-feature-tracker"
+cli_id = "bagakit-feature-tracker"
+entrypoint = "scripts/feature-tracker.sh"
+runner = "shell"
+usage = "sh scripts/feature-tracker.sh <command> [args...]"
+summary = "Manage feature planning truth, tasks, and closeout lifecycle."
+surface_refs = [
+  ".bagakit/feature-tracker",
+]
+
+[[command]]
+name = "initialize-tracker"
+summary = "Apply tracker files into a project."
+
+[[command]]
+name = "create-feature"
+summary = "Create a feature with explicit workspace mode."
+
+[[command]]
+name = "show-feature-status"
+summary = "Show one feature's status."
+
+[[command]]
+name = "validate-tracker"
+summary = "Validate tracker consistency."
+
+[[command]]
+name = "diagnose-tracker"
+summary = "Run tracker diagnostics."

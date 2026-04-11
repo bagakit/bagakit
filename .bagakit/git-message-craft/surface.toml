@@ -1,0 +1,17 @@
+schema_version = 1
+surface_id = "git-message-craft-runtime"
+surface_root = ".bagakit/git-message-craft"
+owner_kind = "skill"
+owner_id = "bagakit-git-message-craft"
+lifecycle_class = "durable_state"
+edit_policy = "mixed"
+cleanup_safe = false
+source_of_truth = [
+  "docs/specs/runtime-surface-contract.md",
+  "skills/swe/bagakit-git-message-craft/SKILL.md",
+  "skills/swe/bagakit-git-message-craft/README.md",
+]
+reviewable_outputs = [
+  "<session>/commit-*.txt",
+  "<session>/mr-body-*.md",
+]

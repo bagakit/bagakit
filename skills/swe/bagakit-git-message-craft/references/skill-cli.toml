@@ -1,0 +1,30 @@
+version = 1
+skill = "bagakit-git-message-craft"
+cli_id = "bagakit-git-message-craft"
+entrypoint = "scripts/bagakit-git-message-craft.sh"
+runner = "shell"
+usage = "sh scripts/bagakit-git-message-craft.sh <command> [args...]"
+summary = "Craft, lint, and archive Git-facing messages."
+surface_refs = [
+  ".bagakit/git-message-craft",
+]
+
+[[command]]
+name = "init"
+summary = "Initialize commit session artifacts."
+
+[[command]]
+name = "inventory"
+summary = "Generate split inventory from the working tree."
+
+[[command]]
+name = "draft-message"
+summary = "Draft a GFM spec-style commit message."
+
+[[command]]
+name = "lint-message"
+summary = "Lint one commit message file."
+
+[[command]]
+name = "archive"
+summary = "Write completion archive record."

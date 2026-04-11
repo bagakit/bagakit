@@ -1,0 +1,26 @@
+version = 1
+skill = "bagakit-brainstorm"
+cli_id = "bagakit-brainstorm"
+entrypoint = "scripts/bagakit-brainstorm.sh"
+runner = "shell"
+usage = "sh scripts/bagakit-brainstorm.sh <command> [args...]"
+summary = "Create and manage bounded brainstorm artifacts."
+surface_refs = [
+  ".bagakit/brainstorm",
+]
+
+[[command]]
+name = "init"
+summary = "Create brainstorm analysis artifacts from templates."
+
+[[command]]
+name = "status"
+summary = "Show stage and archive status."
+
+[[command]]
+name = "archive"
+summary = "Resolve handoff routes, write archive record, and archive artifacts."
+
+[[command]]
+name = "check-complete"
+summary = "Require analysis stage completion and archive completion."

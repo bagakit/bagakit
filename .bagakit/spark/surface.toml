@@ -1,0 +1,19 @@
+schema_version = 1
+surface_id = "spark-runtime"
+surface_root = ".bagakit/spark"
+owner_kind = "skill"
+owner_id = "bagakit-spark"
+lifecycle_class = "durable_state"
+edit_policy = "mixed"
+cleanup_safe = false
+source_of_truth = [
+  "docs/specs/runtime-surface-contract.md",
+  "skills/harness/bagakit-spark/SKILL.md",
+  "skills/harness/bagakit-spark/README.md",
+  "skills/harness/bagakit-spark/references/session-protocol.md",
+]
+reviewable_outputs = [
+  "sessions/<session-id>/",
+  "sessions/<session-id>/publish/consensus-snapshot.md",
+  "experiments/<experiment-id>/",
+]

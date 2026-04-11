@@ -1,0 +1,20 @@
+version = 1
+skill = "bagakit-codex-webpage-design"
+cli_id = "bagakit-codex-webpage-design"
+entrypoint = "scripts/bagakit-codex-webpage-design-cli.sh"
+runner = "shell"
+usage = "sh scripts/bagakit-codex-webpage-design-cli.sh <command>"
+summary = "Inspect and validate the webpage-design skill assets."
+surface_refs = []
+
+[[command]]
+name = "describe"
+summary = "Print a short skill description."
+
+[[command]]
+name = "list-references"
+summary = "List reference files shipped by this skill."
+
+[[command]]
+name = "validate"
+summary = "Check that required skill files exist."

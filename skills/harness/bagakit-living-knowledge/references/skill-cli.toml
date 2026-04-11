@@ -1,0 +1,27 @@
+version = 1
+skill = "bagakit-living-knowledge"
+cli_id = "bagakit-living-knowledge"
+entrypoint = "scripts/bagakit-living-knowledge.sh"
+runner = "shell"
+usage = "sh scripts/bagakit-living-knowledge.sh <command> [args...]"
+summary = "Manage shared knowledge substrate indexing, recall, and ingestion."
+surface_refs = [
+  ".bagakit/living-knowledge",
+  ".bagakit/knowledge_conf.toml",
+]
+
+[[command]]
+name = "apply"
+summary = "Scaffold or refresh the shared knowledge substrate."
+
+[[command]]
+name = "index"
+summary = "Refresh generated guidebook and helper surfaces."
+
+[[command]]
+name = "recall"
+summary = "Search or fetch shared knowledge excerpts."
+
+[[command]]
+name = "doctor"
+summary = "Run non-destructive diagnostics."

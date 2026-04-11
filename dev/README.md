@@ -7,6 +7,7 @@ Nothing under `dev/` should be treated as runtime skill payload.
 Current split:
 
 - `eval/`
+- `bagakit_cli/`
 - `agent_runner/`
 - `agent_loop/`
 - `validator/`

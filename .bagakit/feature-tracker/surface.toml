@@ -1,0 +1,22 @@
+schema_version = 1
+surface_id = "feature-tracker-runtime"
+surface_root = ".bagakit/feature-tracker"
+owner_kind = "skill"
+owner_id = "bagakit-feature-tracker"
+lifecycle_class = "durable_state"
+edit_policy = "mixed"
+cleanup_safe = false
+source_of_truth = [
+  "docs/specs/runtime-surface-contract.md",
+  "docs/specs/feature-tracker-contract.md",
+  "skills/harness/bagakit-feature-tracker/SKILL.md",
+  "skills/harness/bagakit-feature-tracker/README.md",
+]
+reviewable_outputs = [
+  "index/features.json",
+  "index/FEATURES_DAG.json",
+  "features/<feature-id>/state.json",
+  "features/<feature-id>/tasks.json",
+  "features-archived/<feature-id>/",
+  "features-discarded/<feature-id>/",
+]

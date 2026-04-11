@@ -1,0 +1,11 @@
+{
+  "name": "@bagakit/cli",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Aggregator for Bagakit skill CLIs and runtime surfaces.",
+  "scripts": {
+    "test": "node --test --experimental-strip-types test/*.test.ts",
+    "typecheck": "bash ../host_tools/typescript/tsc-local.sh --root ../.. -- -p dev/bagakit_cli/tsconfig.json --noEmit"
+  }
+}
