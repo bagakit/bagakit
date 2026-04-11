@@ -278,6 +278,13 @@ reporting, the response footer may use:
 - See: `skills/swe/bagakit-codex-webpage-design/SKILL.md`
 </bagakit-rule>
 
+<bagakit-rule skill="bagakit-daily-media-automation">
+- Trigger: Codex should run or design a recurring research-to-publication automation with source evidence, generated media assets, webpage deployment, and mobile or team notification.
+- Do: Compose peer skills and tools by adapter without vendoring internals; plan dependency preflight, source and asset ledgers, webpage and deploy evidence, notification result, archive, and no-publish gates.
+- See: `skills/swe/bagakit-daily-media-automation/SKILL.md`
+- Evidence: `.bagakit/daily-media-automation/runs/<run-id>/archive.md`
+</bagakit-rule>
+
 <bagakit-rule skill="bagakit-feature-tracker">
 - Trigger: A repository needs durable feature or task planning truth before implementation or repeated flow execution.
 - Do: Create or update tracker state with explicit workspace mode, task gates, and lifecycle status.

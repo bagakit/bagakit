@@ -1,0 +1,42 @@
+version = 2
+
+[[suite]]
+id = "bagakit-daily-media-automation-layout"
+owner = "skills/swe/bagakit-daily-media-automation"
+description = "Require the canonical runtime layout for bagakit-daily-media-automation."
+default = true
+proof_mode = "structural"
+protects = ["bagakit-daily-media-automation installable runtime layout and orchestration reference set"]
+oracle = ["fs runner checks required skill files, runbook references, frontdoor declaration, CLI declaration, and validation registration while rejecting non-runtime payload paths"]
+exercised_surface = ["skills/swe/bagakit-daily-media-automation runtime directory", "daily-media-automation references", "gate_validation/skills/swe/bagakit-daily-media-automation registration"]
+proves = ["bagakit-daily-media-automation-layout proves required skill files and references are present."]
+does_not_prove = ["bagakit-daily-media-automation-layout does not prove live social acquisition, image generation quality, webpage visual parity, deployment success, notification delivery, or scheduler reliability."]
+validation_class = "structure"
+groups = ["skills", "swe", "daily-media-automation", "structure"]
+
+[suite.runner]
+kind = "fs"
+required_dirs = [
+  "skills/swe/bagakit-daily-media-automation",
+  "skills/swe/bagakit-daily-media-automation/references",
+  "skills/swe/bagakit-daily-media-automation/scripts",
+  "gate_validation/skills/swe/bagakit-daily-media-automation",
+]
+required_files = [
+  "skills/swe/bagakit-daily-media-automation/README.md",
+  "skills/swe/bagakit-daily-media-automation/SKILL.md",
+  "skills/swe/bagakit-daily-media-automation/references/adapter-matrix.md",
+  "skills/swe/bagakit-daily-media-automation/references/runbook.md",
+  "skills/swe/bagakit-daily-media-automation/references/run-artifacts.md",
+  "skills/swe/bagakit-daily-media-automation/references/frontdoor-rule.toml",
+  "skills/swe/bagakit-daily-media-automation/references/skill-cli.toml",
+  "skills/swe/bagakit-daily-media-automation/scripts/bagakit-daily-media-automation-cli.sh",
+  "gate_validation/skills/swe/bagakit-daily-media-automation/validation.toml",
+]
+forbidden_paths = [
+  "skills/swe/bagakit-daily-media-automation/SKILL_PAYLOAD.json",
+  "skills/swe/bagakit-daily-media-automation/agents",
+  "skills/swe/bagakit-daily-media-automation/docs",
+  "skills/swe/bagakit-daily-media-automation/gate",
+  "skills/swe/bagakit-daily-media-automation/scripts_dev",
+]

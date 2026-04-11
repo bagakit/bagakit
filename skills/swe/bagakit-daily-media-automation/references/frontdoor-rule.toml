@@ -1,0 +1,6 @@
+version = 1
+skill = "bagakit-daily-media-automation"
+trigger = "Codex should run or design a recurring research-to-publication automation with source evidence, generated media assets, webpage deployment, and mobile or team notification."
+do = "Compose peer skills and tools by adapter without vendoring internals; plan dependency preflight, source and asset ledgers, webpage and deploy evidence, notification result, archive, and no-publish gates."
+see = "skills/swe/bagakit-daily-media-automation/SKILL.md"
+evidence = ".bagakit/daily-media-automation/runs/<run-id>/archive.md"

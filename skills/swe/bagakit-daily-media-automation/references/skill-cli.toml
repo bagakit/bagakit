@@ -1,0 +1,22 @@
+version = 1
+skill = "bagakit-daily-media-automation"
+cli_id = "bagakit-daily-media-automation"
+entrypoint = "scripts/bagakit-daily-media-automation-cli.sh"
+runner = "shell"
+usage = "bash scripts/bagakit-daily-media-automation-cli.sh <command>"
+summary = "Inspect and preflight daily media automation dependencies."
+surface_refs = [
+  ".bagakit/daily-media-automation",
+]
+
+[[command]]
+name = "describe"
+summary = "Print a short skill description."
+
+[[command]]
+name = "list-references"
+summary = "List reference files shipped by this skill."
+
+[[command]]
+name = "doctor"
+summary = "Check local commands and optional adapters for a daily media automation run."
