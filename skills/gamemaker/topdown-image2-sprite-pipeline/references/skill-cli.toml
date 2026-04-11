@@ -1,0 +1,20 @@
+version = 1
+skill = "topdown-image2-sprite-pipeline"
+cli_id = "topdown-image2-sprite-pipeline"
+entrypoint = "scripts/topdown-image2-sprite-pipeline-cli.sh"
+runner = "shell"
+usage = "sh scripts/topdown-image2-sprite-pipeline-cli.sh <command>"
+summary = "Inspect and validate the top-down image2 sprite pipeline skill assets."
+surface_refs = []
+
+[[command]]
+name = "describe"
+summary = "Print a short skill description."
+
+[[command]]
+name = "list-files"
+summary = "List files shipped by this skill."
+
+[[command]]
+name = "validate"
+summary = "Check that required skill files exist."

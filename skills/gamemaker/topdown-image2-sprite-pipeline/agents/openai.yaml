@@ -1,0 +1,4 @@
+interface:
+  display_name: "Top-Down Image2 Sprite Pipeline"
+  short_description: "Generate and validate image2-derived top-down sprite sheets."
+  default_prompt: "Create an image2-only top-down character sprite asset package from source generation through processing, validation, and review."
