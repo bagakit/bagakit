@@ -29,6 +29,15 @@ If the brief is missing a deployment or notification adapter, default to
 If the brief is missing source thresholds, collect and synthesize only as a
 draft. Do not publish with thresholds invented by the agent.
 
+For starter thresholds, read `references/domain-packs.md` or list the built-ins:
+
+```bash
+bash skills/swe/bagakit-daily-media-automation/scripts/bagakit-daily-media-automation-cli.sh list-domain-packs
+```
+
+Built-in domain packs are only defaults. Review the generated brief before
+publication and tighten the pack when the source set or audience requires it.
+
 ## 2. Run Dependency Preflight
 
 Check:

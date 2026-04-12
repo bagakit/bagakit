@@ -18,6 +18,10 @@ name = "list-references"
 summary = "List reference files shipped by this skill."
 
 [[command]]
+name = "list-domain-packs"
+summary = "List built-in starter domain packs and their publish thresholds."
+
+[[command]]
 name = "doctor"
 summary = "Check local commands and optional adapters for a daily media automation run."
 

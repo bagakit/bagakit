@@ -87,6 +87,8 @@ Default peer routes:
     or host-specific messenger
 
 Read `references/adapter-matrix.md` when choosing or checking adapters.
+Read `references/domain-packs.md` when the user needs a starter pack such as
+AI news, release radar, or paper digest.
 
 ## Run Spine
 
@@ -160,7 +162,9 @@ not treat notification as a blocker.
 
 ## Generalization Model
 
-The AI-news version is only one domain pack.
+The AI-news version is only one domain pack. Built-in starter packs are
+documented in `references/domain-packs.md` and can be listed with
+`list-domain-packs`.
 
 Use the same spine for:
 
@@ -191,14 +195,22 @@ Generalize by swapping:
 
 Every domain pack must declare:
 
+- source pack
 - source minimum
 - recency window
 - credibility rubric
 - confidence bar
 - fallback behavior
+- editorial rubric
+- asset pack
+- output pack
 
 If these are omitted, collect and synthesize only as a draft, then finish as
 `drafted` or `blocked`; do not invent thresholds and publish.
+
+Built-in starter packs may prefill these fields during `init-run`, but they are
+still starter thresholds. Override them in the run brief when the domain needs
+stricter sourcing, recency, confidence, or output rules.
 
 ## Automation Prompt Shape
 
@@ -246,6 +258,8 @@ planning, a local handoff document is enough.
 
 Use `references/run-artifacts.md` for `surface.toml`, run id, status, gate
 result, ledger templates, and `validate-run` checks.
+Use `references/domain-packs.md` for built-in starter packs and extension
+rules.
 
 ## Completion Gate
 
@@ -254,6 +268,8 @@ Before calling the workflow complete, verify:
 - the dependency preflight was run or explicitly waived
 - the selected source pack and output pack are named
 - domain-pack thresholds are declared or the run is marked draft/blocked
+- starter domain-pack thresholds were reviewed against the actual publication
+  domain
 - source refs and claims are traceable
 - image assets are saved in the project when the webpage references them
 - webpage design/browser evidence exists when a webpage is produced

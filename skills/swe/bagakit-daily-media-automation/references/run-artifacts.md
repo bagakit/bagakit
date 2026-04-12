@@ -14,8 +14,8 @@ Use a stable repo-local run id:
 
 Examples:
 
-- `ai-news-20260520-main`
-- `release-radar-20260520-python`
+- `ai-news-<yyyymmdd>-main`
+- `release-radar-<yyyymmdd>-python`
 
 Do not encode usernames, machine paths, raw source names, or secrets.
 
@@ -83,9 +83,12 @@ Use `waived` only with a short reason and reviewer or user approval note.
 - cadence:
 - timezone:
 - source_window:
+- source_pack:
 - source_minimum:
 - recency_window:
 - confidence_bar:
+- editorial_rubric:
+- asset_pack:
 - output_pack:
 - deploy_adapter:
 - notify_adapter:
@@ -103,6 +106,10 @@ Use `waived` only with a short reason and reviewer or user approval note.
 
 If any domain-pack requirement is missing, the run may collect evidence but
 must finish as `drafted` or `blocked`, not `published`.
+
+Built-in starter packs in `references/domain-packs.md` may prefill these fields
+for common domains. Treat those values as reviewable defaults, not proof that a
+run is ready to publish.
 
 ## Collection Ledger Template
 

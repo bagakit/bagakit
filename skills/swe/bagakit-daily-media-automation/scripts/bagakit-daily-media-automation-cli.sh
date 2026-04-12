@@ -26,6 +26,7 @@ usage: bagakit-daily-media-automation-cli <command>
 Commands:
   describe          Print a short skill description.
   list-references   List reference files shipped by this skill.
+  list-domain-packs List built-in starter domain packs.
   doctor            Check local commands and optional adapters for a daily media automation run.
   init-run          Create a repo-local run ledger skeleton.
   validate-run      Validate run ledgers and no-publish gates.
@@ -142,6 +143,131 @@ required_env_status() {
 validate_run_id() {
   local run_id="$1"
   [[ "$run_id" =~ ^[a-z0-9][a-z0-9-]*-[0-9]{8}-[a-z0-9][a-z0-9-]*$ ]]
+}
+
+infer_domain_pack_from_run_id() {
+  local run_id="$1"
+  if [[ "$run_id" =~ ^(.+)-[0-9]{8}-[a-z0-9][a-z0-9-]*$ ]]; then
+    printf '%s\n' "${BASH_REMATCH[1]}"
+  fi
+}
+
+is_builtin_domain_pack() {
+  case "$1" in
+    ai-news|release-radar|paper-digest)
+      return 0
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
+domain_pack_field() {
+  local pack="$1"
+  local field="$2"
+  case "$pack:$field" in
+    ai-news:source_pack)
+      printf '%s\n' "official AI lab blogs; research feeds; GitHub releases; curated social and RSS sources"
+      ;;
+    ai-news:source_minimum)
+      printf '%s\n' "5"
+      ;;
+    ai-news:recency_window)
+      printf '%s\n' "last 36 hours unless brief overrides"
+      ;;
+    ai-news:credibility_rubric)
+      printf '%s\n' "primary lab, maintainer, paper, release note, or two independent reputable sources"
+      ;;
+    ai-news:confidence_bar)
+      printf '%s\n' "top claims carry source refs and uncertainty notes when sources disagree"
+      ;;
+    ai-news:fallback_behavior)
+      printf '%s\n' "draft only when source minimum or primary-source backing is missing"
+      ;;
+    ai-news:editorial_rubric)
+      printf '%s\n' "novelty; credibility; developer impact; risk; audience fit"
+      ;;
+    ai-news:asset_pack)
+      printf '%s\n' "web hero; social card; optional carousel"
+      ;;
+    ai-news:output_pack)
+      printf '%s\n' "web-brief"
+      ;;
+    release-radar:source_pack)
+      printf '%s\n' "official changelogs; GitHub releases; package registries; vendor blogs"
+      ;;
+    release-radar:source_minimum)
+      printf '%s\n' "3"
+      ;;
+    release-radar:recency_window)
+      printf '%s\n' "last 14 days unless brief overrides"
+      ;;
+    release-radar:credibility_rubric)
+      printf '%s\n' "official changelog, release notes, repository tags, or vendor announcement"
+      ;;
+    release-radar:confidence_bar)
+      printf '%s\n' "each included release records version, date or channel, source ref, and impact"
+      ;;
+    release-radar:fallback_behavior)
+      printf '%s\n' "draft only when official release evidence is unavailable"
+      ;;
+    release-radar:editorial_rubric)
+      printf '%s\n' "version significance; migration impact; security; adoption relevance"
+      ;;
+    release-radar:asset_pack)
+      printf '%s\n' "release summary card; comparison table image"
+      ;;
+    release-radar:output_pack)
+      printf '%s\n' "web-brief"
+      ;;
+    paper-digest:source_pack)
+      printf '%s\n' "arXiv or venue feeds; lab publication pages; code repositories; citation and context search"
+      ;;
+    paper-digest:source_minimum)
+      printf '%s\n' "4"
+      ;;
+    paper-digest:recency_window)
+      printf '%s\n' "last 14 days unless brief overrides"
+      ;;
+    paper-digest:credibility_rubric)
+      printf '%s\n' "paper metadata, author or institution, venue or preprint source, and code or data links when available"
+      ;;
+    paper-digest:confidence_bar)
+      printf '%s\n' "claims distinguish paper claims from independent verification and avoid unsupported SOTA claims"
+      ;;
+    paper-digest:fallback_behavior)
+      printf '%s\n' "draft only when papers lack enough metadata or claim support"
+      ;;
+    paper-digest:editorial_rubric)
+      printf '%s\n' "research novelty; method clarity; evidence strength; practical relevance; limitation clarity"
+      ;;
+    paper-digest:asset_pack)
+      printf '%s\n' "paper digest cover; method diagram brief; optional carousel"
+      ;;
+    paper-digest:output_pack)
+      printf '%s\n' "web-brief"
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
+run_list_domain_packs() {
+  printf '%s\n' "Built-in domain packs"
+  printf '%s\n' "---------------------"
+  printf '%-16s %-15s %-36s %s\n' "pack" "source_minimum" "recency_window" "output_pack"
+  local pack
+  for pack in ai-news release-radar paper-digest; do
+    printf '%-16s %-15s %-36s %s\n' \
+      "$pack" \
+      "$(domain_pack_field "$pack" source_minimum)" \
+      "$(domain_pack_field "$pack" recency_window)" \
+      "$(domain_pack_field "$pack" output_pack)"
+  done
+  printf '\n%s\n' "Use these as starter thresholds, then override in the run brief when the domain requires stricter rules."
+  printf '%s\n' "See references/domain-packs.md for source, editorial, asset, fallback, and no-publish guidance."
 }
 
 write_file_once() {
@@ -430,11 +556,15 @@ EOF
   local requirement
   local requirement_value
   for requirement in \
+    "source_pack|source pack" \
     "source_minimum|source minimum" \
     "recency_window|recency window" \
     "credibility rubric|credibility rubric" \
     "confidence_bar|confidence bar" \
-    "fallback behavior|fallback behavior"; do
+    "fallback behavior|fallback behavior" \
+    "editorial_rubric|editorial rubric" \
+    "asset_pack|asset pack" \
+    "output_pack|output pack"; do
     IFS='|' read -r primary_key fallback_key <<<"$requirement"
     requirement_value="$(first_field_value "$brief" "$primary_key" "$fallback_key")"
     if value_present "$requirement_value"; then
@@ -723,6 +853,30 @@ EOF
     printf 'root must exist and be writable: %s\n' "$root" >&2
     return 1
   fi
+  if [[ -z "$domain_pack" ]]; then
+    domain_pack="$(infer_domain_pack_from_run_id "$run_id")"
+  fi
+
+  local source_pack=""
+  local source_minimum=""
+  local recency_window=""
+  local credibility_rubric=""
+  local confidence_bar=""
+  local fallback_behavior=""
+  local editorial_rubric=""
+  local asset_pack=""
+  local output_pack=""
+  if is_builtin_domain_pack "$domain_pack"; then
+    source_pack="$(domain_pack_field "$domain_pack" source_pack)"
+    source_minimum="$(domain_pack_field "$domain_pack" source_minimum)"
+    recency_window="$(domain_pack_field "$domain_pack" recency_window)"
+    credibility_rubric="$(domain_pack_field "$domain_pack" credibility_rubric)"
+    confidence_bar="$(domain_pack_field "$domain_pack" confidence_bar)"
+    fallback_behavior="$(domain_pack_field "$domain_pack" fallback_behavior)"
+    editorial_rubric="$(domain_pack_field "$domain_pack" editorial_rubric)"
+    asset_pack="$(domain_pack_field "$domain_pack" asset_pack)"
+    output_pack="$(domain_pack_field "$domain_pack" output_pack)"
+  fi
 
   local surface_dir="$root/.bagakit/daily-media-automation"
   local run_dir="$surface_dir/runs/$run_id"
@@ -770,23 +924,26 @@ reviewable_outputs = [
 - audience:
 - cadence:
 - timezone:
-- source_window:
-- source_minimum:
-- recency_window:
-- confidence_bar:
-- output_pack:
+- source_window: $recency_window
+- source_pack: $source_pack
+- source_minimum: $source_minimum
+- recency_window: $recency_window
+- confidence_bar: $confidence_bar
+- editorial_rubric: $editorial_rubric
+- asset_pack: $asset_pack
+- output_pack: $output_pack
 - deploy_adapter: $deploy_adapter
 - notify_adapter: $notify_adapter
 - scheduler_adapter: $scheduler_adapter
 - review_mode:
-- no_publish_policy:
+- no_publish_policy: stop on any blocker
 
 ## Domain Pack Requirements
-- source minimum:
-- recency window:
-- credibility rubric:
-- confidence bar:
-- fallback behavior:" || return 1
+- source minimum: $source_minimum
+- recency window: $recency_window
+- credibility rubric: $credibility_rubric
+- confidence bar: $confidence_bar
+- fallback behavior: $fallback_behavior" || return 1
 
   write_file_once "$run_dir/collection-ledger.md" '# Collection Ledger
 
@@ -1127,6 +1284,14 @@ case "${1:-}" in
     ;;
   list-references)
     find "$skill_root/references" -type f | sed "s#^$skill_root/##" | sort
+    ;;
+  list-domain-packs)
+    shift
+    if [[ $# -gt 0 ]]; then
+      printf 'list-domain-packs takes no arguments\n' >&2
+      exit 2
+    fi
+    run_list_domain_packs
     ;;
   doctor)
     shift

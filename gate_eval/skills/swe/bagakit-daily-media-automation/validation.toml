@@ -1,0 +1,29 @@
+version = 2
+
+[[suite]]
+id = "bagakit-daily-media-automation-shared-runner-eval"
+owner = "gate_eval/skills/swe/bagakit-daily-media-automation"
+description = "Run deterministic non-gating eval for domain-pack initialization, run ledgers, no-publish blockers, and validation outcomes."
+default = true
+proof_mode = "runtime"
+protects = ["daily-media-automation eval cases for reusable recurring research-to-publication orchestration behavior"]
+oracle = ["shared dev/eval runner executes daily-media-automation suite cases against local fixture runs and checks CLI validation outcomes"]
+exercised_surface = ["gate_eval/skills/swe/bagakit-daily-media-automation/suite.ts", "dev/eval/src/cli.ts eval runner", "daily-media-automation CLI outputs and run ledgers"]
+proves = ["bagakit-daily-media-automation-shared-runner-eval proves deterministic fixture behavior for domain-pack starter initialization, structurally valid draft runs, publishable local ledgers, and notification-failure status separation."]
+does_not_prove = ["bagakit-daily-media-automation-shared-runner-eval does not prove live social acquisition, image generation quality, webpage visual parity, deployment success, notification delivery, scheduler reliability, or stochastic editorial quality."]
+timeout_seconds = 180
+validation_class = "quality"
+groups = ["skills", "swe", "daily-media-automation", "eval", "quality"]
+
+[suite.runner]
+kind = "executable"
+command = "{node}"
+args = [
+  "--experimental-strip-types",
+  "dev/eval/src/cli.ts",
+  "run",
+  "--root",
+  "{repo_root}",
+  "--suite",
+  "gate_eval/skills/swe/bagakit-daily-media-automation/suite.ts",
+]

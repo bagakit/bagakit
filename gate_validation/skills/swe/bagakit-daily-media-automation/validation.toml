@@ -26,6 +26,7 @@ required_files = [
   "skills/swe/bagakit-daily-media-automation/README.md",
   "skills/swe/bagakit-daily-media-automation/SKILL.md",
   "skills/swe/bagakit-daily-media-automation/references/adapter-matrix.md",
+  "skills/swe/bagakit-daily-media-automation/references/domain-packs.md",
   "skills/swe/bagakit-daily-media-automation/references/runbook.md",
   "skills/swe/bagakit-daily-media-automation/references/run-artifacts.md",
   "skills/swe/bagakit-daily-media-automation/references/frontdoor-rule.toml",
@@ -49,9 +50,9 @@ description = "Run deterministic CLI behavior, dependency-preflight, run-validat
 default = true
 proof_mode = "runtime"
 protects = ["bagakit-daily-media-automation public CLI behavior, adapter preflight semantics, run validation semantics, no-publish status rules, and run ledger contract text"]
-oracle = ["smoke script executes the skill CLI against deterministic routes, checks failure exit codes for missing values and blocked adapters, verifies env-name-only notification diagnostics, validates draft, publishable, and leak-detected run fixtures, and inspects skill references for no-publish, status separation, and ledger template anchors"]
+oracle = ["smoke script executes the skill CLI against deterministic routes, checks failure exit codes for missing values and blocked adapters, verifies env-name-only notification diagnostics, validates built-in domain-pack listing and initialization, validates draft, publishable, and leak-detected run fixtures, and inspects skill references for no-publish, status separation, domain-pack, and ledger template anchors"]
 exercised_surface = ["skills/swe/bagakit-daily-media-automation/scripts/bagakit-daily-media-automation-cli.sh", "skills/swe/bagakit-daily-media-automation/SKILL.md", "daily-media-automation references"]
-proves = ["bagakit-daily-media-automation-smoke proves deterministic local behavior for CLI parsing, selected dependency-preflight branches, run-ledger validation outcomes, status separation, leak guards, and the presence of no-publish and run-ledger contract anchors."]
+proves = ["bagakit-daily-media-automation-smoke proves deterministic local behavior for CLI parsing, selected dependency-preflight branches, built-in starter domain-pack listing and run initialization, run-ledger validation outcomes, status separation, leak guards, and the presence of no-publish and run-ledger contract anchors."]
 does_not_prove = ["bagakit-daily-media-automation-smoke does not prove live social acquisition, image generation quality, webpage visual parity, Vercel deployment success, notification delivery, scheduler reliability, or stochastic agent editorial quality."]
 timeout_seconds = 60
 validation_class = "smoke"

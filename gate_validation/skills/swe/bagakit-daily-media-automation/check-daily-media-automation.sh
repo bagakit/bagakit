@@ -31,6 +31,7 @@ CMD="$SKILL_DIR/scripts/bagakit-daily-media-automation-cli.sh"
 RUNBOOK="$SKILL_DIR/references/runbook.md"
 RUN_ARTIFACTS="$SKILL_DIR/references/run-artifacts.md"
 ADAPTER_MATRIX="$SKILL_DIR/references/adapter-matrix.md"
+DOMAIN_PACKS="$SKILL_DIR/references/domain-packs.md"
 SKILL_MD="$SKILL_DIR/SKILL.md"
 
 TMP_DIR="$(mktemp -d)"
@@ -60,9 +61,12 @@ write_publishable_run() {
 - cadence: manual
 - timezone: UTC
 - source_window: configured
+- source_pack: official release evidence
 - source_minimum: 1
 - recency_window: configured
 - confidence_bar: source-backed
+- editorial_rubric: release impact
+- asset_pack: release card
 - output_pack: web-brief
 - deploy_adapter: static
 - notify_adapter: none
@@ -71,11 +75,15 @@ write_publishable_run() {
 - no_publish_policy: stop on blocker
 
 ## Domain Pack Requirements
+- source pack: official release evidence
 - source minimum: 1
 - recency window: configured
 - credibility rubric: official source preferred
 - confidence bar: source-backed
 - fallback behavior: draft only
+- editorial rubric: release impact
+- asset pack: release card
+- output pack: web-brief
 EOF
 
   cat >"$run_dir/collection-ledger.md" <<'EOF'
@@ -199,9 +207,20 @@ grep -Fq "no-publish gates" "$TMP_DIR/out"
 
 run_ok bash "$CMD" list-references
 grep -Fq "references/adapter-matrix.md" "$TMP_DIR/out"
+grep -Fq "references/domain-packs.md" "$TMP_DIR/out"
 grep -Fq "references/run-artifacts.md" "$TMP_DIR/out"
 grep -Fq "references/runbook.md" "$TMP_DIR/out"
 grep -Fq "references/skill-cli.toml" "$TMP_DIR/out"
+
+run_ok bash "$CMD" list-domain-packs
+grep -Fq "Built-in domain packs" "$TMP_DIR/out"
+grep -Fq "ai-news" "$TMP_DIR/out"
+grep -Fq "release-radar" "$TMP_DIR/out"
+grep -Fq "paper-digest" "$TMP_DIR/out"
+grep -Fq "starter thresholds" "$TMP_DIR/out"
+
+run_fail 2 bash "$CMD" list-domain-packs unexpected
+grep -Fq "list-domain-packs takes no arguments" "$TMP_DIR/err"
 
 run_fail 2 bash "$CMD" doctor --source
 grep -Fq "missing value for --source" "$TMP_DIR/err"
@@ -312,11 +331,31 @@ test -f "$RUN_DIR/archive.md"
 grep -Fq 'surface_root = ".bagakit/daily-media-automation"' "$SURFACE"
 grep -Fq "run_id: $RUN_ID" "$RUN_DIR/brief.md"
 grep -Fq "domain_pack: ai-news" "$RUN_DIR/brief.md"
+grep -Fq "source_pack: official AI lab blogs; research feeds; GitHub releases; curated social and RSS sources" "$RUN_DIR/brief.md"
+grep -Fq "source_minimum: 5" "$RUN_DIR/brief.md"
+grep -Fq "recency_window: last 36 hours unless brief overrides" "$RUN_DIR/brief.md"
+grep -Fq "credibility rubric: primary lab, maintainer, paper, release note, or two independent reputable sources" "$RUN_DIR/brief.md"
+grep -Fq "fallback behavior: draft only when source minimum or primary-source backing is missing" "$RUN_DIR/brief.md"
+grep -Fq "editorial_rubric: novelty; credibility; developer impact; risk; audience fit" "$RUN_DIR/brief.md"
+grep -Fq "asset_pack: web hero; social card; optional carousel" "$RUN_DIR/brief.md"
+grep -Fq "output_pack: web-brief" "$RUN_DIR/brief.md"
 grep -Fq "deploy_adapter: static" "$RUN_DIR/deployment-ledger.md"
 grep -Fq "notify_adapter: none" "$RUN_DIR/notification-ledger.md"
 grep -Fq "notification_status: not_in_scope" "$RUN_DIR/notification-ledger.md"
 grep -Fq "publication_status: drafted" "$RUN_DIR/archive.md"
 grep -Fq "notification_status: not_in_scope" "$RUN_DIR/archive.md"
+
+INFER_ROOT="$TMP_DIR/infer-root"
+INFER_ID="paper-digest-$(printf '%08d' 0)-main"
+mkdir -p "$INFER_ROOT"
+run_ok bash "$CMD" init-run \
+  --root "$INFER_ROOT" \
+  --run-id "$INFER_ID" \
+  --deploy none \
+  --notify none \
+  --scheduler manual
+grep -Fq "domain_pack: paper-digest" "$INFER_ROOT/.bagakit/daily-media-automation/runs/$INFER_ID/brief.md"
+grep -Fq "source_minimum: 4" "$INFER_ROOT/.bagakit/daily-media-automation/runs/$INFER_ID/brief.md"
 
 if grep -R -F "$RUN_ROOT" "$RUN_DIR" "$SURFACE" >/dev/null; then
   echo "init-run leaked a machine-local root" >&2
@@ -373,8 +412,11 @@ assert_contains "$SKILL_MD" "published_with_notification_failure"
 assert_contains "$SKILL_MD" "Deployment and notification are separate statuses"
 assert_contains "$SKILL_MD" "Every domain pack must declare:"
 assert_contains "$SKILL_MD" "If these are omitted, collect and synthesize only as a draft"
+assert_contains "$SKILL_MD" "references/domain-packs.md"
+assert_contains "$SKILL_MD" "starter thresholds"
 
 assert_contains "$RUNBOOK" "If the brief is missing source thresholds, collect and synthesize only as a"
+assert_contains "$RUNBOOK" "list-domain-packs"
 assert_contains "$RUNBOOK" "Track deployment status separately from notification status."
 assert_contains "$RUNBOOK" "Publication status values:"
 assert_contains "$RUNBOOK" "validate-run"
@@ -385,6 +427,8 @@ assert_contains "$RUN_ARTIFACTS" "Publication status:"
 assert_contains "$RUN_ARTIFACTS" "Notification status:"
 assert_contains "$RUN_ARTIFACTS" "Gate status:"
 assert_contains "$RUN_ARTIFACTS" "Run Validation"
+assert_contains "$RUN_ARTIFACTS" "source_pack"
+assert_contains "$RUN_ARTIFACTS" "references/domain-packs.md"
 assert_contains "$RUN_ARTIFACTS" "source-minimum"
 assert_contains "$RUN_ARTIFACTS" "deployment-url"
 assert_contains "$RUN_ARTIFACTS" "notification_status"
@@ -395,5 +439,12 @@ assert_contains "$ADAPTER_MATRIX" 'Do not assume `skill_id` equals `cli_command`
 assert_contains "$ADAPTER_MATRIX" "Block publish when:"
 assert_contains "$ADAPTER_MATRIX" "If publish succeeds and notification fails"
 assert_contains "$ADAPTER_MATRIX" "published_with_notification_failure"
+
+assert_contains "$DOMAIN_PACKS" "## Built-In Starter Packs"
+assert_contains "$DOMAIN_PACKS" '`ai-news`'
+assert_contains "$DOMAIN_PACKS" '`release-radar`'
+assert_contains "$DOMAIN_PACKS" '`paper-digest`'
+assert_contains "$DOMAIN_PACKS" "Domain packs are starter contracts."
+assert_contains "$DOMAIN_PACKS" "do not vendor peer internals"
 
 echo "ok: bagakit-daily-media-automation behavior smoke passed"

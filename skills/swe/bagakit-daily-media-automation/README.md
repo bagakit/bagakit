@@ -21,4 +21,5 @@ Operator references:
 
 - `references/runbook.md`
 - `references/adapter-matrix.md`
+- `references/domain-packs.md`
 - `references/run-artifacts.md`
