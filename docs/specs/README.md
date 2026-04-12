@@ -79,6 +79,7 @@ Current examples include:
 - `feature-tracker-id-issuance.md`
 - `feature-tracker-projection-surfaces.md`
 - `frontdoor-index-contract.md`
+- `host-harness-contract.md`
 - `planning-entry-handoff-contract.md`
 - `principle-layer-contract.md`
 - `output-discipline.md`

@@ -1,10 +1,28 @@
 import { parseArgs } from "node:util";
 
+import { loadHostHarnessInventory } from "./lib/host_harness/discovery.ts";
+import { initializeHostHarness } from "./lib/host_harness/init.ts";
+import type {
+  HostHarnessInitResult,
+  HostHarnessPackageResult,
+  HostHarnessResolution,
+  HostHarnessSource,
+} from "./lib/host_harness/model.ts";
+import { distributeHostHarnessPackages } from "./lib/host_harness/packaging.ts";
+import { resolveHostHarnessSelector } from "./lib/host_harness/selectors.ts";
 import { checkCanonicalSkillLayout } from "./lib/skill/check.ts";
 import { loadSkillInventory } from "./lib/skill/discovery.ts";
 import { linkSkills } from "./lib/skill/linking.ts";
 import type { LinkResult, PackageResult, SkillResolution, SkillSource } from "./lib/skill/model.ts";
-import { defaultCodexSkillsDir, defaultDistDir, defaultRepoLocalCodexSkillsDir, defaultRepoRoot, displayPath, resolvePathFrom } from "./lib/skill/paths.ts";
+import {
+  defaultCodexSkillsDir,
+  defaultDistDir,
+  defaultHostHarnessDistDir,
+  defaultRepoLocalCodexSkillsDir,
+  defaultRepoRoot,
+  displayPath,
+  resolvePathFrom,
+} from "./lib/skill/paths.ts";
 import { distributePackages } from "./lib/skill/packaging.ts";
 import { resolveSkillSelector } from "./lib/skill/selectors.ts";
 
@@ -27,6 +45,22 @@ type JsonPackageResult = Readonly<{
   archivePath: string;
 }>;
 
+type JsonHostHarness = Readonly<{
+  harnessId: string;
+  selector: string;
+  path: string;
+}>;
+
+type JsonHostHarnessPackageResult = Readonly<{
+  selector: string;
+  archivePath: string;
+}>;
+
+type JsonHostHarnessInitResult = Readonly<{
+  selector: string;
+  hostRoot: string;
+}>;
+
 type InstallScope = "repo-local" | "global";
 
 function printHelp(): void {
@@ -37,6 +71,9 @@ Commands:
   install [--selector <selector>] [--scope <repo-local|global>] [--repo <dir>] [--root <repo-root>] [--force] [--json]
   link --selector <selector> [--root <repo-root>] [--dest <dir>] [--force] [--json]
   distribute-package [--root <repo-root>] [--selector <selector>] [--dist <dir>] [--no-clean] [--json]
+  host-harness-list [--root <repo-root>] [--selector <harness-id|all>] [--json]
+  host-harness-init --selector <harness-id> --repo <host-root> [--root <repo-root>] [--force] [--json]
+  host-harness-distribute-package [--root <repo-root>] [--selector <harness-id|all>] [--dist <dir>] [--no-clean] [--json]
 
 Selectors:
   all                  select every installable skill source
@@ -49,6 +86,7 @@ Defaults:
   install --scope global       $CODEX_HOME/skills or ~/.codex/skills
   --dest  $CODEX_HOME/skills or ~/.codex/skills
   --dist  dist/skill-packages
+  host-harness-distribute-package --dist  dist/host-harnesses
 
 Notes:
   - An installable skill source must live at skills/<family>/<skill-id>/ with SKILL.md.
@@ -60,6 +98,8 @@ Notes:
   - distribute-package with no selector, or selector "all", packages every discovered installable skill source.
   - No registry or delivery-profile metadata is consulted by this command surface.
   - Packaging writes family-scoped archives to avoid filename collisions.
+  - Host harness sources live flat at host-harnesses/<harness-id>/.
+  - host-harness-init materializes a dedicated host root from that source unit.
 
 Internal-only:
   check-layout [--root <repo-root>] [--json]`);
@@ -90,6 +130,28 @@ function jsonPackageResult(result: PackageResult): JsonPackageResult {
   };
 }
 
+function jsonHostHarness(harness: HostHarnessSource): JsonHostHarness {
+  return {
+    harnessId: harness.harnessId,
+    selector: harness.selector,
+    path: harness.relativeDir,
+  };
+}
+
+function jsonHostHarnessPackageResult(result: HostHarnessPackageResult): JsonHostHarnessPackageResult {
+  return {
+    selector: result.harness.selector,
+    archivePath: result.archivePath,
+  };
+}
+
+function jsonHostHarnessInitResult(repoRoot: string, result: HostHarnessInitResult): JsonHostHarnessInitResult {
+  return {
+    selector: result.harness.selector,
+    hostRoot: displayPath(repoRoot, result.hostRoot),
+  };
+}
+
 function printSkills(skills: SkillSource[]): void {
   for (const skill of skills) {
     console.log(`${skill.selector}\t${skill.relativeDir}`);
@@ -113,6 +175,23 @@ function printPackageResults(results: PackageResult[]): void {
   }
 }
 
+function printHostHarnesses(harnesses: HostHarnessSource[]): void {
+  for (const harness of harnesses) {
+    console.log(`${harness.selector}\t${harness.relativeDir}`);
+  }
+}
+
+function printHostHarnessResolution(resolution: HostHarnessResolution): void {
+  console.log(`# ${resolution.kind}: ${resolution.selector}`);
+  printHostHarnesses(resolution.harnesses);
+}
+
+function printHostHarnessPackageResults(results: HostHarnessPackageResult[]): void {
+  for (const result of results) {
+    console.log(`packaged\t${result.harness.selector}\t${result.archivePath}`);
+  }
+}
+
 function resolveRepoRoot(rawRoot: string): string {
   return resolvePathFrom(process.cwd(), rawRoot);
 }
@@ -131,6 +210,14 @@ function resolveSelection(repoRoot: string, selector: string): SkillResolution {
 function resolvePackageSelection(inventory: ReturnType<typeof loadSkillInventory>, rawSelector?: string): SkillSource[] {
   const resolution = rawSelector ? resolveSkillSelector(inventory, rawSelector) : null;
   return resolution ? resolution.skills : inventory.skills;
+}
+
+function resolveHostHarnessSelection(
+  inventory: ReturnType<typeof loadHostHarnessInventory>,
+  rawSelector?: string,
+): HostHarnessSource[] {
+  const resolution = rawSelector ? resolveHostHarnessSelector(inventory, rawSelector) : null;
+  return resolution ? resolution.harnesses : inventory.harnesses;
 }
 
 function cmdList(argv: string[]): number {
@@ -360,6 +447,125 @@ function cmdDistributePackage(argv: string[]): number {
   return 0;
 }
 
+function cmdHostHarnessList(argv: string[]): number {
+  const { values } = parseArgs({
+    args: argv,
+    options: {
+      ...commonOptions(),
+      selector: { type: "string" as const },
+    },
+    strict: true,
+    allowPositionals: false,
+  });
+  const repoRoot = resolveRepoRoot(values.root);
+  const inventory = loadHostHarnessInventory(repoRoot);
+  const resolution = values.selector ? resolveHostHarnessSelector(inventory, values.selector) : null;
+  const harnesses = resolution ? resolution.harnesses : inventory.harnesses;
+  if (values.json) {
+    console.log(JSON.stringify(harnesses.map(jsonHostHarness), null, 2));
+    return 0;
+  }
+
+  if (resolution) {
+    printHostHarnessResolution(resolution);
+  } else {
+    printHostHarnesses(harnesses);
+  }
+  return 0;
+}
+
+function cmdHostHarnessInit(argv: string[]): number {
+  const { values } = parseArgs({
+    args: argv,
+    options: {
+      ...commonOptions(),
+      selector: { type: "string" as const },
+      repo: { type: "string" as const },
+      force: { type: "boolean" as const, default: false },
+    },
+    strict: true,
+    allowPositionals: false,
+  });
+  if (!values.selector) {
+    throw new Error("host-harness-init requires --selector <harness-id>");
+  }
+  if (!values.repo) {
+    throw new Error("host-harness-init requires --repo <host-root>");
+  }
+
+  const repoRoot = resolveRepoRoot(values.root);
+  const resolution = resolveHostHarnessSelector(loadHostHarnessInventory(repoRoot), values.selector);
+  if (resolution.harnesses.length !== 1) {
+    throw new Error("host-harness-init requires one exact host harness selector");
+  }
+  const hostRoot = resolvePathFrom(process.cwd(), values.repo);
+  const result = initializeHostHarness(resolution.harnesses[0], {
+    hostRoot,
+    force: values.force,
+  });
+
+  if (values.json) {
+    console.log(
+      JSON.stringify(
+        {
+          selector: resolution.selector,
+          kind: resolution.kind,
+          result: jsonHostHarnessInitResult(process.cwd(), result),
+        },
+        null,
+        2,
+      ),
+    );
+    return 0;
+  }
+
+  console.log(`initialized\t${result.harness.selector}\t${displayPath(process.cwd(), result.hostRoot)}`);
+  return 0;
+}
+
+function cmdHostHarnessDistributePackage(argv: string[]): number {
+  const { values } = parseArgs({
+    args: argv,
+    options: {
+      ...commonOptions(),
+      selector: { type: "string" as const },
+      dist: { type: "string" as const },
+      "no-clean": { type: "boolean" as const, default: false },
+    },
+    strict: true,
+    allowPositionals: false,
+  });
+
+  const repoRoot = resolveRepoRoot(values.root);
+  const inventory = loadHostHarnessInventory(repoRoot);
+  const discoveredHarnesses = resolveHostHarnessSelection(inventory, values.selector);
+  const distDir = values.dist ? resolvePathFrom(repoRoot, values.dist) : defaultHostHarnessDistDir(repoRoot);
+  const results = distributeHostHarnessPackages(discoveredHarnesses, {
+    repoRoot,
+    distDir,
+    clean: !values["no-clean"],
+  });
+
+  if (values.json) {
+    console.log(
+      JSON.stringify(
+        {
+          selector: values.selector ?? null,
+          dist: displayPath(repoRoot, distDir),
+          clean: !values["no-clean"],
+          results: results.map(jsonHostHarnessPackageResult),
+        },
+        null,
+        2,
+      ),
+    );
+    return 0;
+  }
+
+  printHostHarnessPackageResults(results);
+  return 0;
+}
+
 function main(argv: string[]): number {
   const [command, ...rest] = argv;
   if (!command || command === "-h" || command === "--help") {
@@ -378,6 +584,12 @@ function main(argv: string[]): number {
       return cmdCheckLayout(rest);
     case "distribute-package":
       return cmdDistributePackage(rest);
+    case "host-harness-list":
+      return cmdHostHarnessList(rest);
+    case "host-harness-init":
+      return cmdHostHarnessInit(rest);
+    case "host-harness-distribute-package":
+      return cmdHostHarnessDistributePackage(rest);
     default:
       throw new Error(`unknown command: ${command}`);
   }

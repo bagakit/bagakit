@@ -1,0 +1,93 @@
+version = 2
+
+[[suite]]
+id = "bagakit-decision-harness-layout"
+owner = "host-harnesses/bagakit-decision-harness"
+description = "Require the canonical source layout for the L4 decision host harness."
+default = true
+proof_mode = "structural"
+protects = ["bagakit-decision-harness L4 source layout and host template"]
+oracle = ["fs runner checks required host-harness files and rejects skill payload compatibility files"]
+exercised_surface = ["host-harnesses/bagakit-decision-harness source unit", "gate_validation/host-harnesses registration"]
+proves = ["bagakit-decision-harness-layout proves: the L4 host harness source unit has required entrypoint, identity, template, references, and script files."]
+does_not_prove = ["bagakit-decision-harness-layout does not prove personal judgment improvement or live agent compliance."]
+validation_class = "structure"
+groups = ["host-harnesses", "decision-harness", "structure"]
+
+[suite.runner]
+kind = "fs"
+required_dirs = [
+  "host-harnesses",
+  "host-harnesses/bagakit-decision-harness",
+  "host-harnesses/bagakit-decision-harness/host-template",
+  "host-harnesses/bagakit-decision-harness/references",
+  "host-harnesses/bagakit-decision-harness/scripts",
+  "gate_validation/host-harnesses/bagakit-decision-harness",
+]
+required_files = [
+  "docs/specs/host-harness-contract.md",
+  "host-harnesses/README.md",
+  "host-harnesses/bagakit-decision-harness/SKILL.md",
+  "host-harnesses/bagakit-decision-harness/harness.toml",
+  "host-harnesses/bagakit-decision-harness/README.md",
+  "host-harnesses/bagakit-decision-harness/host-template/harness.toml",
+  "host-harnesses/bagakit-decision-harness/host-template/README.md",
+  "host-harnesses/bagakit-decision-harness/references/decision-loop.md",
+  "host-harnesses/bagakit-decision-harness/references/schema-contract.md",
+  "host-harnesses/bagakit-decision-harness/references/composition-contract.md",
+  "host-harnesses/bagakit-decision-harness/scripts/decision-harness.sh",
+  "gate_validation/host-harnesses/bagakit-decision-harness/validation.toml",
+  "gate_validation/host-harnesses/bagakit-decision-harness/check-decision-harness-contract.py",
+  "gate_validation/host-harnesses/bagakit-decision-harness/check-decision-harness-cli.sh",
+]
+forbidden_paths = [
+  "host-harnesses/bagakit-decision-harness/SKILL_PAYLOAD.json",
+  "host-harnesses/human-improvement",
+  "host-harnesses/harness",
+]
+
+[[suite]]
+id = "bagakit-decision-harness-contract"
+owner = "host-harnesses/bagakit-decision-harness"
+description = "Require the decision host harness to declare L4 identity and host-root ownership."
+default = true
+proof_mode = "structural"
+protects = ["L4 host-harness identity, flat source placement, and dedicated host-template contract"]
+oracle = ["contract checker parses harness.toml and verifies SKILL.md, host-template, and source directory semantics"]
+exercised_surface = ["host-harnesses/bagakit-decision-harness/harness.toml", "SKILL.md", "host-template/harness.toml"]
+proves = ["bagakit-decision-harness-contract proves: the source unit declares l4-host-harness identity and keeps host-domain files at the host root."]
+does_not_prove = ["bagakit-decision-harness-contract does not prove runtime effectiveness or downstream skill composition behavior."]
+timeout_seconds = 120
+validation_class = "contract"
+groups = ["host-harnesses", "decision-harness", "contract"]
+
+[suite.runner]
+kind = "python_script"
+script = "gate_validation/host-harnesses/bagakit-decision-harness/check-decision-harness-contract.py"
+args = [
+  "--root",
+  "{repo_root}",
+]
+
+[[suite]]
+id = "bagakit-decision-harness-cli-smoke"
+owner = "host-harnesses/bagakit-decision-harness"
+description = "Exercise host-harness discovery, host initialization, decision receipts, reviews, pattern promotion, AI updates, metrics, and package export."
+default = true
+proof_mode = "runtime"
+protects = ["decision host harness local runtime commands and distribution entrypoint"]
+oracle = ["bash smoke creates a temporary host root and asserts generated TOML artifacts and package archive"]
+exercised_surface = ["scripts/skill.sh host-harness-* commands", "decision-harness.sh runtime commands", "host-harness package archive"]
+proves = ["bagakit-decision-harness-cli-smoke proves: the L4 harness can be initialized locally and can create the core decision-improvement receipts without external services."]
+does_not_prove = ["bagakit-decision-harness-cli-smoke does not prove long-term judgment improvement or semantic quality of captured decisions."]
+timeout_seconds = 120
+validation_class = "smoke"
+groups = ["host-harnesses", "decision-harness", "cli", "distribution"]
+
+[suite.runner]
+kind = "bash_script"
+script = "gate_validation/host-harnesses/bagakit-decision-harness/check-decision-harness-cli.sh"
+args = [
+  "--root",
+  "{repo_root}",
+]

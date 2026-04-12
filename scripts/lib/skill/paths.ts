@@ -41,6 +41,10 @@ export function defaultDistDir(repoRoot: string): string {
   return path.join(repoRoot, "dist", "skill-packages");
 }
 
+export function defaultHostHarnessDistDir(repoRoot: string): string {
+  return path.join(repoRoot, "dist", "host-harnesses");
+}
+
 export function displayPath(repoRoot: string, absolutePath: string): string {
   const repoRootResolved = path.resolve(repoRoot);
   const absoluteResolved = path.resolve(absolutePath);

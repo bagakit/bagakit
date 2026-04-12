@@ -63,6 +63,7 @@ Rules:
 | `L1` | execution |
 | `L2` | behavior |
 | `L3` | framework |
+| `L4` | host harness |
 
 For harness-facing skills, the owning layer should be declared in frontmatter
 using:
@@ -74,6 +75,12 @@ Allowed values:
 - `l1-execution`
 - `l2-behavior`
 - `l3-framework`
+
+For L4 host harnesses, do not use `metadata.bagakit.harness_layer`.
+Host-harness identity belongs in `harness.toml`, and the agent entrypoint may
+repeat:
+
+- `metadata.bagakit.host_harness_layer: l4-host-harness`
 
 ## Runtime Surface Names
 
@@ -135,6 +142,16 @@ They do not replace the stable concept registry below.
 | --- | --- |
 | `host_repository` | one repository where Bagakit is applied or observed as a host context |
 | `self_hosting` | the stewardship mode in which the canonical Bagakit host repository is treated as a host worth observing and improving without collapsing host knowledge and repository evolution memory |
+
+### L4 Host Harness Concepts
+
+| Concept | Meaning |
+| --- | --- |
+| `host_harness` | an L4 unit that defines why one dedicated host workspace exists, what top-level directories carry domain truth, what long-running loop governs the host, and how ordinary skills are composed |
+| `host_harness_source` | the canonical source unit under `host-harnesses/<harness-id>/`, with `harness.toml` identity truth and `SKILL.md` agent entrypoint |
+| `host_harness_instance` | one initialized dedicated workspace governed by a host harness |
+| `host_domain_truth` | the primary host-root artifacts owned by the harness domain, not hidden under `.bagakit/` |
+| `host_harness_runtime_surface` | the `.bagakit/<harness-runtime>/` bookkeeping surface used for indexes, cache, receipts, and runtime state |
 
 ### L3 Framework Concepts
 

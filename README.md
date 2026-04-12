@@ -7,6 +7,7 @@ Bagakit skills repository, now acting as the canonical Bagakit monorepo.
 - this repo is the long-term source of truth for Bagakit skill authoring
 - this repo is maintained as one complete Bagakit system
 - `skills/` contains distributable runtime units inside that shared system
+- `host-harnesses/` contains L4 host-defining harness source units
 - new structure should prefer the monorepo target layout instead of expanding
   incomplete placeholder structure
 - do not preserve compatibility logic as a design goal
@@ -71,6 +72,7 @@ skills/
 │   ├── paperwork/
 │   ├── gamemaker/
 │   └── human-improvement/
+├── host-harnesses/
 ├── docs/
 │   ├── architecture/
 │   ├── specs/
@@ -100,6 +102,10 @@ skills/
 - `skills/`
   - installable Bagakit skill sources
   - runtime-ready skill content should live here
+- `host-harnesses/`
+  - L4 host harness source units
+  - each child defines one dedicated host workspace shape
+  - flat layout only: `host-harnesses/<harness-id>/`
 - `docs/specs/`
   - Bagakit-authored stable specifications and shared semantics
 - `docs/stewardship/`
@@ -145,6 +151,7 @@ Important split:
 - `gate_validation/` is the proving surface for release-blocking validation
 - `gate_eval/` is the non-gating measurement surface
 - agent-facing workflow semantics belong in `skills/`
+- host-defining workspace semantics belong in `host-harnesses/`
 - task-level skill selection and usage evidence and repository-level evolution must stay
   distinct
 

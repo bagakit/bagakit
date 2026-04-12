@@ -1,0 +1,35 @@
+schema_version = 1
+harness_id = "bagakit-decision-harness"
+harness_kind = "host_harness"
+bagakit_layer = "l4-host-harness"
+host_mode = "dedicated_workspace"
+domain = "human_improvement"
+primary_goal = "compound personal decision capability"
+agent_entrypoint = "SKILL.md"
+host_template = "host-template"
+
+owned_host_directories = [
+  "inbox",
+  "signals",
+  "decisions",
+  "reviews",
+  "patterns",
+  "drills",
+  "ai-updates",
+  "metrics",
+  "principles",
+  "projects",
+  "exports",
+]
+
+runtime_surface = ".bagakit/decision-harness"
+
+optional_skill_interfaces = [
+  "bagakit-spark",
+  "bagakit-brainstorm",
+  "bagakit-researcher",
+  "bagakit-living-knowledge",
+  "bagakit-skill-evolver",
+  "bagakit-feature-tracker",
+  "bagakit-flow-runner",
+]

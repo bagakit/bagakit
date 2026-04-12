@@ -1,0 +1,21 @@
+schema_version = 1
+harness_id = "bagakit-decision-harness"
+harness_kind = "host_harness_instance"
+bagakit_layer = "l4-host-harness"
+host_mode = "dedicated_workspace"
+domain = "human_improvement"
+primary_goal = "compound personal decision capability"
+
+[paths]
+inbox = "inbox"
+signals = "signals"
+decisions = "decisions"
+reviews = "reviews"
+patterns = "patterns"
+drills = "drills"
+ai_updates = "ai-updates"
+metrics = "metrics"
+principles = "principles"
+projects = "projects"
+exports = "exports"
+runtime = ".bagakit/decision-harness"
