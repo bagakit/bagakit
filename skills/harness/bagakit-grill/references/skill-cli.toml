@@ -1,0 +1,38 @@
+version = 1
+skill = "bagakit-grill"
+cli_id = "bagakit-grill"
+entrypoint = "scripts/grill.sh"
+runner = "shell"
+usage = "sh scripts/grill.sh <command> [args...]"
+summary = "Manage structured grill runs and generated grill briefs."
+surface_refs = [
+  ".bagakit/grill",
+]
+
+[[command]]
+name = "init"
+summary = "Create one grill run from a concrete target snapshot."
+
+[[command]]
+name = "plan"
+summary = "Add or update one question DAG node."
+
+[[command]]
+name = "next"
+summary = "Select the next ready question or research-needed node."
+
+[[command]]
+name = "answer"
+summary = "Record one raw user answer and update node state."
+
+[[command]]
+name = "attach-evidence"
+summary = "Attach research evidence refs to one research-needed node."
+
+[[command]]
+name = "render"
+summary = "Render the read-only grill brief from structured truth."
+
+[[command]]
+name = "status"
+summary = "Show one grill run status summary."

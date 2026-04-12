@@ -1,0 +1,7 @@
+version = 1
+skill = "bagakit-grill"
+trigger = "A concrete plan, design, goal snapshot, or implementation direction needs dependency-ordered grilling before execution."
+do = "Create or resume a grill run, inspect local context before asking, ask one decision-bearing question at a time with a recommended answer, and record progress in `grill-run.json`."
+see = "skills/harness/bagakit-grill/SKILL.md"
+surface = ".bagakit/grill/runs/<run-id>/"
+fallback = "If the target is too vague to grill, use `bagakit-spark` for early framing first."

@@ -1,0 +1,29 @@
+version = 2
+
+[[suite]]
+id = "bagakit-grill-starter-eval"
+owner = "gate_eval/skills/harness/bagakit-grill"
+description = "Run deterministic non-gating eval for the first-version grill lifecycle and brief projection."
+default = true
+proof_mode = "runtime"
+protects = ["bagakit-grill lifecycle behavior for structured SSOT, one-question progression, research-needed handoff, and generated brief summary"]
+oracle = ["shared dev/eval runner executes the grill starter suite against a temporary repo"]
+exercised_surface = ["gate_eval/skills/harness/bagakit-grill/suite.ts", "skills/harness/bagakit-grill/scripts/grill.sh"]
+proves = ["bagakit-grill-starter-eval proves deterministic lifecycle fixtures can initialize, plan, answer, attach evidence, and render a brief from structured truth."]
+does_not_prove = ["bagakit-grill-starter-eval does not prove live agent question quality, user satisfaction, or research correctness."]
+timeout_seconds = 120
+validation_class = "quality"
+groups = ["skills", "harness", "grill", "eval", "quality"]
+
+[suite.runner]
+kind = "executable"
+command = "{node}"
+args = [
+  "--experimental-strip-types",
+  "dev/eval/src/cli.ts",
+  "run",
+  "--root",
+  "{repo_root}",
+  "--suite",
+  "gate_eval/skills/harness/bagakit-grill/suite.ts",
+]
