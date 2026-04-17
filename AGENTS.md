@@ -15,6 +15,7 @@ monorepo.
 ## Boundary Model
 
 - `skills/` contains runtime-ready skill sources
+- `host-harnesses/` contains L4 host-defining harness source units
 - `docs/specs/` contains shared Bagakit specifications and durable semantics
 - `docs/stewardship/` contains maintainer-facing stewardship guidance
 - `gate_validation/` contains repo-owned and owner-local validation registration
@@ -40,6 +41,8 @@ Working split:
 - stable rules belong under `docs/`
 - evolving memory with future reuse value belongs under `mem/`
 - agent-facing workflow semantics belong under `skills/`, not `dev/`
+- host-defining workspace semantics belong under `host-harnesses/`, not
+  `skills/`
 
 Install split:
 
@@ -165,6 +168,23 @@ Current family boundary target:
 - `skills/human-improvement/<skill-id>/`
 
 Use family names only when they express a real co-evolution boundary.
+
+## Host Harness Model
+
+Host harnesses are L4 host-defining units.
+
+Rules:
+
+1. source units live directly under `host-harnesses/<harness-id>/`
+2. do not add family directories under `host-harnesses/`
+3. each host harness has `harness.toml` as identity truth and `SKILL.md` as
+   agent entrypoint
+4. host harnesses define dedicated workspace purpose and top-level host layout;
+   ordinary skills only add callable capabilities
+
+Stable contract:
+
+- `docs/specs/host-harness-contract.md`
 
 ## Decision Order
 
@@ -303,6 +323,14 @@ reporting, the response footer may use:
 - See: `skills/swe/bagakit-git-message-craft/SKILL.md`
 </bagakit-rule>
 
+<bagakit-rule skill="bagakit-grill">
+- Trigger: A concrete plan, design, goal snapshot, or implementation direction needs dependency-ordered grilling before execution.
+- Do: Create or resume a grill run, inspect local context before asking, ask one decision-bearing question at a time with a recommended answer, and record progress in `grill-run.json`.
+- See: `skills/harness/bagakit-grill/SKILL.md`
+- Surface: `.bagakit/grill/runs/<run-id>/`
+- Fallback: If the target is too vague to grill, use `bagakit-spark` for early framing first.
+</bagakit-rule>
+
 <bagakit-rule skill="bagakit-living-knowledge">
 - Trigger: A repository needs shared checked-in knowledge, deterministic recall, managed bootstrap guidance, or path protocol.
 - Do: Use the living-knowledge operator for indexing, recall, ingestion, and managed guidebook surfaces.
@@ -331,6 +359,18 @@ reporting, the response footer may use:
 - Trigger: The user wants a thinking partner, deep topic discussion, Socratic exploration, evidence-grounded conceptual exploration, or a discussion that should become an accepted snapshot, MVP eval, or thought experiment.
 - Do: Run the spark dialogue loop, ask only decision-changing questions, track research sufficiency, question inventory, feedback signals, and rationale, and use brainstorm or researcher only when their owned artifacts are needed.
 - See: `skills/harness/bagakit-spark/SKILL.md`
+</bagakit-rule>
+
+<bagakit-rule skill="bagakit-writing-core">
+- Trigger: A writing task needs generic route, foundation, structure, evidence, low-AI-smell, title, prose-mechanics, rewrite-feedback, or review primitives without adopting a personal style profile.
+- Do: Route the task first, check foundation sufficiency, apply generic writing mechanics, then lint or review with the core surfaces.
+- See: `skills/paperwork/bagakit-writing-core/SKILL.md`
+</bagakit-rule>
+
+<bagakit-rule skill="bagakit-writing-de-ai-tone">
+- Trigger: A writing task needs AI-tone detection, de-AI rewrite, bilingual AI-smell lexicon checks, structural rhythm review, or publishable-prose polish without adopting a personal style profile.
+- Do: Detect the dominant language and profile, audit P0/P1/P2 AI-tone patterns, rewrite only when requested or needed, then run a second-pass audit.
+- See: `skills/paperwork/bagakit-writing-de-ai-tone/SKILL.md`
 </bagakit-rule>
 
 <bagakit-rule skill="qihan-writing">
