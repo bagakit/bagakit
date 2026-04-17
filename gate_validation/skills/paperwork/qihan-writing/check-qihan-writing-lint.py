@@ -7,6 +7,7 @@ import json
 import re
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 
@@ -52,7 +53,7 @@ FORBIDDEN_FIXTURE_TOKENS = (
     "https://",
     "harness-devloop",
     "larkvc",
-    "bytedance",
+    "byte" + "dance",
     "廖家",
 )
 FORBIDDEN_FIXTURE_TOKENS_LOWER = tuple(
@@ -69,6 +70,12 @@ FORBIDDEN_FIXTURE_PATTERNS = (
     re.compile(r"\b(?:ssh|git|https?)://\S+", re.I),
     re.compile(r"\bgit@[A-Za-z0-9_.-]+:[^\s]+"),
     re.compile(r"\b(?:[a-z0-9-]+\.)+(?:com|cn|net|org|io|dev)\b", re.I),
+)
+
+FORBIDDEN_RUNTIME_REFERENCE_TOKENS = (
+    "gate_validation/",
+    "gate_eval/",
+    ".bagakit/researcher/",
 )
 
 
@@ -228,12 +235,191 @@ def assert_fixture_desensitized(fixture: Path) -> None:
         raise AssertionError(f"fixture contains leak-like patterns: {pattern_hits}")
 
 
+def assert_runtime_references_do_not_leak_maintainer_paths(skill_dir: Path) -> None:
+    reference_dir = skill_dir / "references"
+    leaked: list[str] = []
+    for path in sorted(reference_dir.rglob("*")):
+        if not path.is_file() or path.suffix not in {".md", ".json", ".toml"}:
+            continue
+        text = path.read_text(encoding="utf-8", errors="ignore")
+        for token in FORBIDDEN_RUNTIME_REFERENCE_TOKENS:
+            if token in text:
+                leaked.append(f"{path.relative_to(skill_dir)} contains {token}")
+    if leaked:
+        raise AssertionError(
+            "qihan runtime references should not depend on maintainer/project-local paths: "
+            + "; ".join(leaked)
+        )
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--root", default=".", help="Repository root")
     args = parser.parse_args()
 
     root = Path(args.root).resolve()
+    skill_dir = root / "skills/paperwork/qihan-writing"
+    readme_text = (skill_dir / "README.md").read_text(encoding="utf-8")
+    skill_text = (skill_dir / "SKILL.md").read_text(encoding="utf-8")
+    references_text = (skill_dir / "references/README.md").read_text(encoding="utf-8")
+    voice_text = (skill_dir / "references/writing/VOICE.md").read_text(encoding="utf-8")
+    north_star_text = (
+        skill_dir / "references/writing/STYLE_NORTH_STAR.md"
+    ).read_text(encoding="utf-8")
+    longform_text = (
+        skill_dir / "references/review/LONGFORM_RUBRIC.md"
+    ).read_text(encoding="utf-8")
+    for token in [
+        "paperwork L2 overlay",
+        "Use `bagakit-writing-core`",
+        "standalone-first",
+        "qihan-specific",
+        "Chinese-writing defaults",
+        "qihan style north star",
+        "fallback-only",
+        "not parallel authority",
+        "sync from `bagakit-writing-core`",
+        "bagakit-writing-de-ai-tone",
+    ]:
+        if token not in readme_text:
+            raise AssertionError(f"qihan README missing layering token: {token}")
+    for token in [
+        "`qihan-writing` is a paperwork L2 skill.",
+        "Use `bagakit-writing-core` for generic writing mechanics",
+        "Standalone-first rule",
+        "fallback-only",
+        "not a parallel authority",
+        "sync from `bagakit-writing-core`",
+        "bagakit-writing-de-ai-tone",
+        "references/writing/STYLE_NORTH_STAR.md",
+        "density, mechanism, mapping, agency, and alertness",
+    ]:
+        if token not in skill_text:
+            raise AssertionError(f"qihan SKILL missing layering token: {token}")
+    for token in [
+        "STYLE_NORTH_STAR.md",
+        "density, mechanism, mapping, agency, and alertness",
+    ]:
+        if token not in references_text:
+            raise AssertionError(f"qihan reference index missing north-star token: {token}")
+    for token in [
+        "qihan north star",
+        "隐喻是高概率 craft bonus，不是每篇硬门禁",
+        "中性及以上内容尽量给可信 agency",
+        "不要写成“未来可期”“持续赋能”这类口号或宣传感",
+        "二元对立制造张力",
+    ]:
+        if token not in voice_text:
+            raise AssertionError(f"qihan VOICE missing north-star token: {token}")
+    for token in [
+        "Density",
+        "Mechanism",
+        "Mapping",
+        "Agency",
+        "Alertness",
+        "隐喻是 craft bonus",
+        "中性及以上的文章",
+        "不要写成口号或宣传感",
+        "bagakit-writing-de-ai-tone",
+        "借冲突感制造张力",
+    ]:
+        if token not in north_star_text:
+            raise AssertionError(f"qihan STYLE_NORTH_STAR missing token: {token}")
+    for token in [
+        "Qihan North-Star Check",
+        "Density",
+        "Mechanism",
+        "Mapping",
+        "Agency",
+        "Alertness",
+        "如果 mapping 缺席但 literal prose 更清楚，不扣分",
+        "按宣传感处理",
+    ]:
+        if token not in longform_text:
+            raise AssertionError(f"qihan longform rubric missing north-star token: {token}")
+
+    qihan_cli = skill_dir / "scripts/qihan-writing-cli.sh"
+    core_proc = subprocess.run(
+        ["bash", str(qihan_cli), "core", "describe"],
+        cwd=root,
+        check=False,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    if core_proc.returncode != 0:
+        raise AssertionError(f"qihan core dispatch failed: {core_proc.stderr.strip()}")
+    if "bagakit-writing-core" not in core_proc.stdout:
+        raise AssertionError("qihan core dispatch did not reach writing-core")
+
+    de_ai_proc = subprocess.run(
+        ["bash", str(qihan_cli), "core", "de-ai-tone", "describe"],
+        cwd=root,
+        check=False,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    if de_ai_proc.returncode != 0:
+        raise AssertionError(f"qihan core de-AI-tone dispatch failed: {de_ai_proc.stderr.strip()}")
+    if "bagakit-writing-de-ai-tone" not in de_ai_proc.stdout:
+        raise AssertionError("qihan core dispatch did not reach de-AI-tone primitive")
+
+    assert_runtime_references_do_not_leak_maintainer_paths(skill_dir)
+
+    with tempfile.TemporaryDirectory(prefix="qihan-route-gate-") as tmp_dir:
+        incomplete_handoff = Path(tmp_dir) / "incomplete-handoff.md"
+        incomplete_handoff.write_text(
+            "\n".join(
+                [
+                    "# Handoff",
+                    "",
+                    "- title_promise: A title must make a judgment.",
+                    "- first_question: What should the reader decide first?",
+                    "- evidence_movement: Start from claim, then evidence.",
+                    "- chapter_movement: Move from problem to mechanism to action.",
+                    "- exit_move: Decide the next writing action.",
+                    "",
+                ]
+            ),
+            encoding="utf-8",
+        )
+        derive_proc = subprocess.run(
+            ["bash", str(qihan_cli), "route", "derive-route", str(incomplete_handoff)],
+            cwd=root,
+            check=False,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+        if derive_proc.returncode != 2:
+            raise AssertionError(
+                "qihan derive-route should reject incomplete handoff with exit 2; "
+                f"got {derive_proc.returncode}, stderr={derive_proc.stderr.strip()}"
+            )
+        try:
+            derive_payload = json.loads(derive_proc.stdout)
+        except json.JSONDecodeError as exc:
+            raise AssertionError(
+                f"qihan derive-route incomplete handoff did not emit JSON: {exc}"
+            ) from exc
+        if derive_payload.get("error") != "missing_required_fields":
+            raise AssertionError("qihan derive-route should emit structured missing_required_fields error")
+        if derive_payload.get("stable") is not False:
+            raise AssertionError("qihan derive-route error should mark handoff unstable")
+        missing_fields = set(derive_payload.get("missingFields", []))
+        for expected_missing in [
+            "promoted_claim",
+            "chosen_viewpoint",
+            "hard_boundary",
+            "evidence_pack",
+            "return_gate_passed_because",
+        ]:
+            if expected_missing not in missing_fields:
+                raise AssertionError(
+                    f"qihan derive-route missingFields should include {expected_missing}"
+                )
+
     fixtures_dir = (
         root / "gate_validation/skills/paperwork/qihan-writing/fixtures/prose-shape"
     )

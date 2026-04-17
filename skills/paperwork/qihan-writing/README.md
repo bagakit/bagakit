@@ -1,7 +1,28 @@
 # qihan-writing
 
 Writing and rewrite skill for producing technical, research, and execution-facing
-documents in a sharp, evidence-first style with low AI smell.
+documents in a qihan style: concise, deep, metaphor-aware, hopeful where earned,
+alert to risk, evidence-first, and low AI smell.
+
+`qihan-writing` is a paperwork L2 overlay.
+
+Use `bagakit-writing-core` for generic route, foundation, structure, evidence,
+de-AI-tone orchestration, lint, and review primitives. The canonical AI-tone
+taxonomy and bilingual lexicon live in `bagakit-writing-de-ai-tone`; qihan
+normally reaches that primitive through core. This skill keeps the qihan-specific
+Chinese-writing defaults: personal taste calibration, preferred priority order,
+the qihan style north star, Feishu-oriented layout guidance, accepted rewrite
+examples, and the stricter publish bar for the user's own longform writing.
+
+The skill remains standalone-first. If the sibling core is not installed, use
+the bundled local references and scripts, then record that core composition was
+unavailable.
+
+The bundled generic references are fallback-only copies. They are present so
+the L2 can still run in a host that has not installed `bagakit-writing-core`;
+they are not parallel authority. Generic route, structure, evidence, lint, and
+review changes should sync from `bagakit-writing-core`; AI-tone taxonomy should
+sync from `bagakit-writing-de-ai-tone`; qihan-specific overlays stay local.
 
 ## What problem this skill solves
 
@@ -19,6 +40,8 @@ Many drafts are structurally correct but still weak in three places:
 - choose a narrative angle before drafting longform text
 - escalate into deeper research when the article foundation is weak instead of forcing a card choice
 - force evidence and mechanism ahead of vague praise
+- review longform drafts against the qihan north star: density, mechanism,
+  mapping, agency, and alertness
 - absorb user rewrites as reusable rules
 - run a lightweight lint pass before publishing or long-term storage
 - review longform drafts with an explicit rubric and a multi-role quiet-room panel instead of relying on taste alone
@@ -34,10 +57,15 @@ Many drafts are structurally correct but still weak in three places:
 
 ## What ships in this skill
 
-- one operator route for starting, escalating, and reviewing
-- one writing route for card selection and structural drafting
-- one knowledge route for packet, handoff, reverse-outline, and route-tool compression
-- one review route for lint, rubric, and longform checks
+- qihan overlay instructions for Chinese longform taste and channel defaults
+- qihan-specific style north-star rules for density, mechanism, mapping,
+  agency, and alertness
+- fallback-only local copies of the generic route, structure, evidence, lint,
+  and review primitives, synced from `bagakit-writing-core` rather than owned
+  as a second truth source
+- qihan-specific rewrite examples and accepted style calibration
+- one operator route for starting, escalating, and reviewing when used
+  standalone
 
 File-level inventory stays in `references/README.md`.
 
@@ -55,7 +83,7 @@ File-level inventory stays in `references/README.md`.
 - `references/workflow`
   route the task, choose the lane, govern interaction, decide depth escalation, run insight loop, absorb rewrites
 - `references/writing`
-  voice, inline-code discipline, angle selection, angle review, structure, layout, tone, POV, and no-regression rules
+  voice, qihan north star, inline-code discipline, angle selection, angle review, structure, layout, tone, POV, and no-regression rules
 - `references/knowledge`
   route memos, depth research packets, research handoffs, reverse outlines, evidence architecture, research templates, interview records, and rewrite casebooks
 - `references/review`
@@ -71,13 +99,18 @@ identifiers into the runtime payload.
 ## Common usage
 
 ```bash
-python3 scripts/qihan_write_lint.py article.md
-python3 scripts/qihan_route_tools.py check-foundation route-memo.md
-python3 scripts/qihan_route_tools.py derive-route handoff.md --output route-state.md
+bash scripts/qihan-writing-cli.sh validate
+bash scripts/qihan-writing-cli.sh core describe
+bash scripts/qihan-writing-cli.sh lint article.md
+bash scripts/qihan-writing-cli.sh route check-foundation route-memo.md
+bash scripts/qihan-writing-cli.sh route derive-route handoff.md --output route-state.md
 ```
 
 `derive-route` only emits a derived route-state view. The handoff remains the
 authority surface.
+
+The `core` command dispatches to the sibling `bagakit-writing-core` CLI when it
+is installed next to this skill.
 
 Exit code semantics:
 

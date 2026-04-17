@@ -85,6 +85,11 @@ Accepted snapshots should preserve the principle under the decision, the user's
 acceptance reason, intended portability, failure boundaries, and transfer
 checks instead of only the chosen action.
 
+When paired or independent review can change snapshot or eval acceptance, fill
+`references/review-packet-template.md` as a task-local `review-packet.md`.
+Record reviewer scope, dialogue counterevidence, accepted deviations, and the
+next question or action instead of accepting a reviewer verdict from chat alone.
+
 For each meaningful discussion turn, run this loop:
 
 1. Frame

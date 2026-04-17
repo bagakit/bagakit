@@ -1,0 +1,168 @@
+"""Validate bagakit-paperwork-technical-writing article gate behavior."""
+
+from __future__ import annotations
+
+import json
+import subprocess
+import sys
+import tempfile
+from pathlib import Path
+
+
+SKILL_DIR = Path("skills/paperwork/bagakit-paperwork-technical-writing")
+FIXTURE_DIR = Path("gate_validation/skills/paperwork/bagakit-paperwork-technical-writing/fixtures")
+
+
+def run(cmd: list[str], root: Path) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        cmd,
+        cwd=root,
+        check=False,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+
+
+def require(condition: bool, message: str, failures: list[str]) -> None:
+    if not condition:
+        failures.append(message)
+
+
+def load_json(stdout: str, label: str, failures: list[str]) -> dict:
+    try:
+        payload = json.loads(stdout)
+    except json.JSONDecodeError as exc:
+        failures.append(f"{label} did not emit valid JSON: {exc}")
+        return {}
+    if not isinstance(payload, dict):
+        failures.append(f"{label} JSON payload must be an object")
+        return {}
+    return payload
+
+
+def main() -> int:
+    root = Path(".").resolve()
+    failures: list[str] = []
+
+    cli = SKILL_DIR / "scripts/bagakit-paperwork-technical-writing-cli.sh"
+    readme = SKILL_DIR / "README.md"
+    check_script = SKILL_DIR / "scripts/check-article.py"
+    review_template = SKILL_DIR / "references/review-packet-template.md"
+    report_template = SKILL_DIR / "references/tpl/review-report-template.md"
+    spec = Path("docs/specs/review-packet-contract.md")
+
+    for path in [cli, readme, check_script, review_template, report_template, spec]:
+        require((root / path).is_file(), f"missing required file: {path}", failures)
+
+    if failures:
+        for failure in failures:
+            print(f"error: {failure}")
+        return 1
+
+    cli_validate = run(["bash", str(cli), "validate"], root)
+    require(cli_validate.returncode == 0, "skill CLI validate failed", failures)
+
+    readme_text = (root / readme).read_text(encoding="utf-8")
+    for token in [
+        "Technical-writing L2",
+        "Use `bagakit-writing-core`",
+        "bagakit-writing-de-ai-tone",
+        "standalone-first",
+        "article.md",
+        "execution_appendix.md",
+        "review_report.md",
+    ]:
+        require(token in readme_text, f"README missing layering token: {token}", failures)
+
+    core_proc = run(["bash", str(cli), "core", "describe"], root)
+    require(core_proc.returncode == 0, "technical-writing core dispatch failed", failures)
+    require("bagakit-writing-core" in core_proc.stdout, "technical-writing core dispatch did not reach writing-core", failures)
+
+    de_ai_proc = run(["bash", str(cli), "core", "de-ai-tone", "describe"], root)
+    require(de_ai_proc.returncode == 0, "technical-writing core de-AI-tone dispatch failed", failures)
+    require(
+        "bagakit-writing-de-ai-tone" in de_ai_proc.stdout,
+        "technical-writing core dispatch did not reach de-AI-tone primitive",
+        failures,
+    )
+
+    template_proc = run(["bash", str(cli), "print-review-packet-template"], root)
+    require(template_proc.returncode == 0, "print-review-packet-template failed", failures)
+    for token in [
+        "Source Parentage",
+        "Counterevidence",
+        "accepted_deviations",
+        "reviewer_ownership",
+        "docs/specs/review-packet-contract.md",
+    ]:
+        require(token in template_proc.stdout, f"review packet template missing token: {token}", failures)
+
+    report_text = (root / report_template).read_text(encoding="utf-8")
+    for token in [
+        "Source Parentage And Counterevidence",
+        "Counterevidence checked",
+        "Accepted deviations",
+        "Review packet path",
+    ]:
+        require(token in report_text, f"review report template missing token: {token}", failures)
+
+    tmp_parent = root / ".bagakit" / "tmp"
+    tmp_parent.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory(prefix="paperwork-gate-", dir=tmp_parent) as tmp_dir:
+        valid_report = Path(tmp_dir) / "valid-report.md"
+        valid_proc = run(
+            [
+                sys.executable,
+                str(check_script),
+                "--input",
+                str(FIXTURE_DIR / "valid-article.md"),
+                "--strict",
+                "--profile",
+                "general",
+                "--report",
+                str(valid_report),
+                "--json",
+            ],
+            root,
+        )
+        require((valid_report).is_file(), "valid article report was not written", failures)
+    require(valid_proc.returncode == 0, f"valid article check failed: {valid_proc.stderr}", failures)
+    valid_payload = load_json(valid_proc.stdout, "valid article", failures)
+    require(valid_payload.get("status") == "pass", "valid article should pass hard gates", failures)
+
+    invalid_proc = run(
+        [
+            sys.executable,
+            str(check_script),
+            "--input",
+            str(FIXTURE_DIR / "invalid-article.md"),
+            "--strict",
+            "--profile",
+            "general",
+            "--json",
+        ],
+        root,
+    )
+    require(invalid_proc.returncode == 1, "invalid article should fail strict mode", failures)
+    invalid_payload = load_json(invalid_proc.stdout, "invalid article", failures)
+    issue_codes = {
+        str(issue.get("code"))
+        for issue in invalid_payload.get("issues", [])
+        if isinstance(issue, dict)
+    }
+    require("PLACEHOLDER" in issue_codes, "invalid article should report placeholder error", failures)
+    require("H2_RANGE" in issue_codes, "invalid article should report H2 range error", failures)
+
+    if failures:
+        print("paperwork technical-writing gate failed:")
+        for failure in failures:
+            print(f"- {failure}")
+        return 1
+
+    print("ok: paperwork technical-writing gate passed")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

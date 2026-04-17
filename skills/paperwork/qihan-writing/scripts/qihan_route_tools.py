@@ -161,18 +161,19 @@ def check_foundation(path: Path, forced_kind: str) -> tuple[dict, int]:
 def derive_route(handoff_path: Path, output_path: Path | None) -> tuple[str, int]:
     text = read_text(handoff_path)
     fields = parse_top_level_fields(text)
-    missing = [
-        key for key in ["title_promise", "first_question", "evidence_movement", "chapter_movement", "exit_move"]
-        if not nonempty(fields.get(key))
-    ]
+    required_fields = required_fields_for("handoff")
+    missing = [key for key in required_fields if not nonempty(fields.get(key))]
     if missing:
         return json.dumps(
             {
                 "file": str(handoff_path),
                 "kind": "handoff",
                 "stable": False,
+                "requiredFields": required_fields,
                 "missingFields": missing,
-                "msg": "handoff is missing route-state fields required for derive-route",
+                "error": "missing_required_fields",
+                "message": "handoff is missing required fields for derive-route",
+                "msg": "handoff is missing required fields for derive-route",
             },
             ensure_ascii=False,
             indent=2,

@@ -11,6 +11,7 @@ required_reference_links = [
   "references/asset-pipeline.md",
   "references/visual-quality-rubric.md",
   "references/artifact-contract.md",
+  "references/review-packet-template.md",
   "references/workflow-contract.toml",
 ]
 
@@ -169,6 +170,11 @@ required_when = "interactive page"
 id = "visual-judge-scorecards"
 artifact = "visual-judge-scorecards.md"
 required_when = "important UX, generated references, or exact-reference implementation"
+
+[[completion_artifact]]
+id = "review-packet"
+artifact = "review-packet.md"
+required_when = "paired or independent review is used"
 
 [[completion_artifact]]
 id = "judge-aggregation"

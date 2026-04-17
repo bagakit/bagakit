@@ -25,6 +25,7 @@ REQUIRED_ARTIFACT_IDS = {
     "research-sufficiency-judgment",
     "consensus-snapshot",
     "mvp-eval-envelope",
+    "review-packet",
     "feedback-signal-ledger",
     "rationale-ledger",
 }

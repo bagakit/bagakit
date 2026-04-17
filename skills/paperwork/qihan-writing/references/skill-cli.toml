@@ -3,7 +3,7 @@ skill = "qihan-writing"
 cli_id = "qihan-writing"
 entrypoint = "scripts/qihan-writing-cli.sh"
 runner = "shell"
-usage = "sh scripts/qihan-writing-cli.sh <command> [args...]"
+usage = "bash scripts/qihan-writing-cli.sh <command> [args...]"
 summary = "Inspect, validate, route, and lint qihan-writing artifacts."
 surface_refs = []
 
@@ -26,3 +26,11 @@ summary = "Run qihan-writing markdown lint checks."
 [[command]]
 name = "route"
 summary = "Run qihan-writing route foundation and route derivation tools."
+
+[[command]]
+name = "core"
+summary = "Run sibling bagakit-writing-core CLI when available."
+
+[[command]]
+name = "print-review-packet-template"
+summary = "Print the qihan-writing review packet template."

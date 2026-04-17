@@ -1006,7 +1006,21 @@ def build_report(input_path: Path, metrics: dict[str, float | int], issues: list
             else:
                 lines.append(f"- [{issue.level}] {issue.code} (line {issue.line}): {issue.message}")
 
-    lines.append("")
+    lines.extend(
+        [
+            "",
+            "## Source Parentage And Counterevidence",
+            "",
+            "- source_parentage:",
+            "  - claim_id:",
+            "  - source_refs:",
+            "  - limitation:",
+            "  - counterevidence_refs:",
+            "- Counterevidence checked: `yes|no`",
+            "- Review packet path:",
+            "",
+        ]
+    )
     return "\n".join(lines)
 
 

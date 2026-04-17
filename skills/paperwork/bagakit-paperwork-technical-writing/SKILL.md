@@ -7,6 +7,35 @@ description: Use when you need to write or rewrite technical articles into publi
 
 Deliver technical writing that is readable for publication and actionable for execution.
 
+## Layering
+
+`bagakit-paperwork-technical-writing` is a paperwork L2 delivery skill.
+
+Use `bagakit-writing-core` for generic writing mechanics:
+
+- route and foundation checks
+- title promise, structure, and claim/support discipline
+- de-AI-tone pass through `bagakit-writing-core` and `bagakit-writing-de-ai-tone`
+- prose-mechanics review
+- evidence architecture, source parentage, and counterevidence
+- rewrite-feedback and no-regression review primitives
+
+This skill owns the technical article delivery envelope:
+
+- `article.md`
+- `execution_appendix.md`
+- `review_report.md`
+- technical profile budgets and hard gates
+- engineering evidence, baseline regression, and source-parentage reporting
+
+Standalone-first rule: if `bagakit-writing-core` is unavailable, continue with
+the bundled local references and checker, then record that the core composition
+was not available.
+
+Technical-writing normally reaches `bagakit-writing-de-ai-tone` through core.
+The de-AI-tone technical profile may exempt precise technical terms, but it
+still flags PR inflation, vague authority, fake contrast, and chatbot artifacts.
+
 ## Purpose
 
 - Turn messy technical discussions into structured, reviewable articles.
@@ -68,6 +97,8 @@ Follow `docs/specs/output-discipline.md` for writing deliverables.
 - Optional outputs:
   - `outline.md`: structured outline before drafting.
   - `forum_minutes.md`: when expert-forum review is enabled.
+  - `review_packet.md`: when independent review, source parentage, or
+    publication readiness must be mergeable outside chat memory.
 
 ## Runtime Surface Declaration
 
@@ -150,6 +181,9 @@ Follow `docs/specs/output-discipline.md` for writing deliverables.
 - Review warnings from checker with explicit decisions in `review_report.md`.
 - Score with `references/agent-gate-rubric.md` and emit findings (`P1/P2/P3` + file/line + fix direction).
 - If any `P1` remains open, status is `revise` and release is blocked.
+- For high-stakes or independently reviewed articles, fill
+  `references/review-packet-template.md` as `review_packet.md` and record
+  source parentage, counterevidence, accepted deviations, and reviewer verdict.
 
 10. Run optional expert-forum review for high-stakes topics.
 - Use `lightning_talk_forum` to converge quickly.
@@ -224,6 +258,7 @@ python3 scripts/check-article.py --input <article.md> --strict --profile <...> -
 - `references/markdown-formatting.md`
 - `references/agent-gate-rubric.md`
 - `references/ai-tone-terms.txt`
+- `references/review-packet-template.md`
 - `references/tpl/article-template.md`
 - `references/tpl/execution-appendix-template.md`
 - `references/tpl/review-report-template.md`

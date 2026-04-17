@@ -1,0 +1,29 @@
+version = 2
+
+[[suite]]
+id = "bagakit-paperwork-technical-writing-behavior-starter-eval"
+owner = "gate_eval/skills/paperwork/bagakit-paperwork-technical-writing"
+description = "Run deterministic non-gating eval for source-parentage and counterevidence review surfaces."
+default = true
+proof_mode = "runtime"
+protects = ["technical-writing review packets preserve source parentage, counterevidence, and validator handoff evidence"]
+oracle = ["shared dev/eval runner executes the Paperwork behavior starter suite against the owned article validator"]
+exercised_surface = ["gate_eval/skills/paperwork/bagakit-paperwork-technical-writing/suite.ts", "skills/paperwork/bagakit-paperwork-technical-writing/scripts/bagakit-paperwork-technical-writing-cli.sh", "skills/paperwork/bagakit-paperwork-technical-writing/scripts/check-article.py"]
+proves = ["bagakit-paperwork-technical-writing-behavior-starter-eval proves source-parentage review fields are reachable through CLI and validator evidence."]
+does_not_prove = ["bagakit-paperwork-technical-writing-behavior-starter-eval does not prove live article quality, model judgment, or release-blocking correctness."]
+timeout_seconds = 180
+validation_class = "quality"
+groups = ["skills", "paperwork", "technical-writing", "eval", "quality"]
+
+[suite.runner]
+kind = "executable"
+command = "{node}"
+args = [
+  "--experimental-strip-types",
+  "dev/eval/src/cli.ts",
+  "run",
+  "--root",
+  "{repo_root}",
+  "--suite",
+  "gate_eval/skills/paperwork/bagakit-paperwork-technical-writing/suite.ts",
+]

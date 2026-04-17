@@ -47,6 +47,24 @@
 - Human judgment:
 - Follow-up required: `yes` | `no`
 
+## Source Parentage And Counterevidence
+
+- source_parentage:
+  - claim_id:
+  - source_refs:
+  - limitation:
+  - counterevidence_refs:
+
+| Article claim | Source ref | Limitation | Counterevidence |
+| --- | --- | --- | --- |
+|  |  |  |  |
+
+- Counterevidence checked: `yes` | `no`
+- If no material counterevidence, rationale:
+- Accepted deviations:
+- Rejected deviations:
+- Review packet path:
+
 ## Baseline Gate (Keep/Add/Tighten)
 
 - Keep:

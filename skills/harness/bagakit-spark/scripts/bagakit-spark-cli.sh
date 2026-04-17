@@ -11,6 +11,8 @@ Commands:
   describe          Print a short skill description.
   list-references   List reference files shipped by this skill.
   validate          Check that required skill files exist.
+  print-review-packet-template
+                    Print the Spark review packet template.
 EOF
 }
 
@@ -25,7 +27,11 @@ case "${1:-}" in
     test -f "$skill_root/SKILL.md"
     test -f "$skill_root/references/session-protocol.md"
     test -f "$skill_root/references/workflow-contract.toml"
+    test -f "$skill_root/references/review-packet-template.md"
     test -f "$skill_root/references/bagakit-driver.toml"
+    ;;
+  print-review-packet-template)
+    cat "$skill_root/references/review-packet-template.md"
     ;;
   ""|-h|--help|help)
     usage

@@ -3,7 +3,7 @@ skill = "bagakit-paperwork-technical-writing"
 cli_id = "bagakit-paperwork-technical-writing"
 entrypoint = "scripts/bagakit-paperwork-technical-writing-cli.sh"
 runner = "shell"
-usage = "sh scripts/bagakit-paperwork-technical-writing-cli.sh <command> [args...]"
+usage = "bash scripts/bagakit-paperwork-technical-writing-cli.sh <command> [args...]"
 summary = "Inspect, validate, and check technical-writing article artifacts."
 surface_refs = []
 
@@ -22,3 +22,11 @@ summary = "Check that required skill files exist."
 [[command]]
 name = "check-article"
 summary = "Run the bundled article quality checker directly."
+
+[[command]]
+name = "core"
+summary = "Run sibling bagakit-writing-core CLI when available."
+
+[[command]]
+name = "print-review-packet-template"
+summary = "Print the technical-writing review packet template."

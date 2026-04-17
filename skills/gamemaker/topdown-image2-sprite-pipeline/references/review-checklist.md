@@ -53,6 +53,9 @@ The reviewer should receive only the isolated package workspace and verify:
 - `independent-image2-validation-report.json`
 - `visual-metrics-report.json`
 - `review-disposition.md`
+- optional `review-packet.md` filled from
+  `references/review-packet-template.md` when paired or independent review is
+  used
 
 If two reviewers are available, split the review:
 

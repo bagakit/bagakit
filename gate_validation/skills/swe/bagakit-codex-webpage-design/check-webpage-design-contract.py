@@ -42,6 +42,7 @@ REQUIRED_COMPLETION_ARTIFACT_IDS = {
     "visual-parity-ledger",
     "interaction-parity-ledger",
     "visual-judge-scorecards",
+    "review-packet",
     "judge-aggregation",
     "code-quality-review",
     "handoff",

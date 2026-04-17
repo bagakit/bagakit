@@ -35,15 +35,23 @@ Current implemented slices:
   - deterministic eval for the repo skill surface: listing, linking, layout,
     and distribution packaging
 - `skills/`
-  - skill-owned non-gating eval slices now exist for every installable skill
-  - current families under eval ownership:
+  - skill-owned non-gating eval slices currently cover selected canonical
+    installable skills; this is the covered set, not a claim that every
+    installable skill already has an eval slice
+  - current slices under eval ownership:
     - `skills/harness/bagakit-brainstorm/`
     - `skills/harness/bagakit-feature-tracker/`
     - `skills/harness/bagakit-flow-runner/`
+    - `skills/harness/bagakit-grill/`
     - `skills/harness/bagakit-living-knowledge/`
     - `skills/harness/bagakit-researcher/`
     - `skills/harness/bagakit-skill-evolver/`
     - `skills/harness/bagakit-skill-selector/`
+    - `skills/harness/bagakit-spark/`
+    - `skills/paperwork/bagakit-paperwork-technical-writing/`
+    - `skills/paperwork/bagakit-writing-core/`
+    - `skills/paperwork/bagakit-writing-de-ai-tone/`
+    - `skills/gamemaker/topdown-image2-sprite-pipeline/`
     - `skills/swe/bagakit-git-message-craft/`
 
 Registration:

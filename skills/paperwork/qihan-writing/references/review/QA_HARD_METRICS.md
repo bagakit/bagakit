@@ -37,7 +37,7 @@
 - 开篇场景、机制解释、为什么需要某个设计、读者如何理解当前状态，更应该用段落承接。
 - 如果一篇主线文章反复出现 4 到 7 行的中型列表，即使没有任何超长列表，也要检查它是不是在用列表替代因果句和铰链句。
 
-脱敏回归样本放在 `gate_validation/skills/paperwork/qihan-writing/fixtures/prose-shape/`。这些样本只能是合成文本，不允许复制真实项目文档、机器本地路径或外部 guidebook 的原句。
+回归样本属于验证层，不属于安装后的 runtime payload。样本应使用脱敏合成文本，不允许复制真实项目文档、机器本地路径或外部 guidebook 的原句。
 
 ### 2.2 更广义的机械感 advisory
 
@@ -49,7 +49,7 @@
 - `READER_MOVEMENT_ADVISORY`：开篇没有足够快地给出对象、问题、判断和下一步。看到它时，先补读者进入正文前必须知道的一句话。
 - `SEMANTIC_REPETITION_ADVISORY`：相同句子或高度相似的开头重复出现。看到它时，先检查重复处是否真的有新增信息。
 
-这些指标仍然是 `ADVISORY`，不是硬失败。它们只能提示 review 入口，不能替代人工判断。脱敏合成样本放在 `gate_validation/skills/paperwork/qihan-writing/fixtures/prose-mechanics/`。
+这些指标仍然是 `ADVISORY`，不是硬失败。它们只能提示 review 入口，不能替代人工判断。验证层可以为这些指标维护脱敏合成样本，但 runtime 文档不依赖具体验证目录。
 
 ## 3. AI 味反模式
 

@@ -26,6 +26,7 @@ required_files=(
   "$skill_dir/references/asset-contract-template.md"
   "$skill_dir/references/review-checklist.md"
   "$skill_dir/references/frontdoor-rule.toml"
+  "$skill_dir/references/review-packet-template.md"
   "$manifest"
   "$cli"
 )
@@ -41,6 +42,7 @@ for token in \
   "Runtime Surface Declaration" \
   "no persistent Bagakit runtime surface by default" \
   "Paired Review Packet" \
+  "references/review-packet-template.md" \
   "review-disposition.md"; do
   if ! grep -Fq "$token" "$skill_dir/SKILL.md"; then
     printf 'SKILL.md missing token: %s\n' "$token" >&2

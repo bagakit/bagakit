@@ -10,6 +10,7 @@ required_reference_links = [
   "references/question-quality.md",
   "references/question-inventory.md",
   "references/composition-boundary.md",
+  "references/review-packet-template.md",
   "references/workflow-contract.toml",
 ]
 
@@ -77,6 +78,11 @@ required_when = "MVP or thought-experiment eval is used for acceptance"
 id = "satisfaction-audit-record"
 owner = "bagakit-spark"
 required_when = "quiet-room executor or reviewer returns a candidate result"
+
+[[artifact]]
+id = "review-packet"
+owner = "bagakit-spark"
+required_when = "paired or independent review is used before snapshot or eval acceptance"
 
 [[artifact]]
 id = "feedback-signal-ledger"

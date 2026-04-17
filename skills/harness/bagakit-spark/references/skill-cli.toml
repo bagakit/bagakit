@@ -20,3 +20,7 @@ summary = "List reference files shipped by this skill."
 [[command]]
 name = "validate"
 summary = "Check that required skill files exist."
+
+[[command]]
+name = "print-review-packet-template"
+summary = "Print the Spark review packet template."

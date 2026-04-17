@@ -138,6 +138,11 @@ script outputs; the other should inspect visual semantics and runtime
 readability. Do not let the same agent both create and approve a conditional
 package without explicit user acceptance.
 
+Use `references/review-packet-template.md` when the review should be handed to
+another agent or merged across two reviewers. The packet follows
+`docs/specs/review-packet-contract.md` and should be filled before final
+handoff.
+
 ## Bundled Scripts
 
 - `scripts/process_image2_sprite_package.py`: process accepted image2 source strips into runtime sheets, contact sheet, README, and validation report.

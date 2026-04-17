@@ -206,6 +206,9 @@ Before final handoff, verify:
   contradictory console logs are resolved or recorded as evidence conflicts
 - code structure was reviewed after visual iteration for component boundaries,
   shared tokens, data-driven repeated UI, and justified duplication
+- for paired or independent review, `review-packet.md` is filled from
+  `references/review-packet-template.md` with visual counterevidence,
+  accepted deviations, reviewer ownership, and merge verdict
 
 Read `references/visual-quality-rubric.md` for visual scoring, judge
 aggregation, parity ratings, and blocker rules. Read

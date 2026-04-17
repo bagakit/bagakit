@@ -17,10 +17,11 @@
 
 1. 先过 Hard Gate
 2. 再看 weighted dimensions
-3. 再决定是否给 Craft Bonus
-4. 最后扣 Anti-Pattern Penalty
-5. 如果是对外长文，再补一轮 distribution review
-6. 每次文章评审，再补一轮 audience panel review
+3. 再做 qihan north-star check
+4. 再决定是否给 Craft Bonus
+5. 最后扣 Anti-Pattern Penalty
+6. 如果是对外长文，再补一轮 distribution review
+7. 每次文章评审，再补一轮 audience panel review
 
 ## Hard Gate
 
@@ -60,6 +61,25 @@
 11. 分享/收藏动机：读者知道为什么要转发，也知道为什么值得收藏复用。
 12. 完读拉力与段落抓手：每节都会自然带出下一个问题，中途很少掉速。
 13. 无上下文可理解性与跨层穿透力：小白能跟上，相关领域读者不觉得散，专家不觉得浅。
+
+## Qihan North-Star Check
+
+这层只评估 qihan overlay，不替代 hard gate。
+
+检查五个维度：
+
+1. Density：句子是否精炼但不变薄，核心段落是否留下判断、机制、边界或压力。
+2. Mechanism：核心判断是否给出原因、边界、后果或反例，而不是靠重词制造深度感。
+3. Mapping：隐喻是高概率 craft bonus；有强抽象对象时优先尝试，但只保留能解释机制、命名模式、可说明 break point 的隐喻。
+4. Agency：中性及以上内容尽量给可信行动出口；批判、警醒、复盘和趋势判断尤其需要，但不能写成口号、宣传感或确定性许诺。
+5. Alertness：警醒来自具体风险和早期信号，不靠恐吓、二元对立、无依据人群泛化或拉踩群体。
+
+推荐判定：
+
+- 如果 density 和 mechanism 都弱，文章不是 qihan 成稿。
+- 如果 mapping 缺席但 literal prose 更清楚，不扣分。
+- 如果 warning 很强但没有 agency，要看内容是否允许；若文章已经达到中性及以上且读者读完只剩无力感，应要求补出口。
+- 如果 agency 写成“未来可期 / 持续赋能 / 保持信心”，按宣传感处理，不算希望。
 
 ## Craft Bonus
 

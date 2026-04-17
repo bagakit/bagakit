@@ -2,7 +2,7 @@
 name: qihan-writing
 version: 0.9.2
 description: |
-  写作与改写技能（qihan 风格）：用于把技术、研究、计划类内容写得“犀利、客观、严谨、低 AI 味”，并适配飞书云文档排版。
+  写作与改写技能（qihan 风格）：用于把技术、研究、计划类内容写得“精炼、有深度、有可承重隐喻、给人希望、让人警醒”，同时保持客观、严谨、低 AI 味，并适配飞书云文档排版。
 
   适用场景：
   - 产出研究精读、荟萃分析、技术方案、周报复盘、执行计划
@@ -14,11 +14,44 @@ description: |
 
 # qihan-writing
 
+## Layering
+
+`qihan-writing` is a paperwork L2 skill.
+
+Use `bagakit-writing-core` for generic writing mechanics:
+
+- route and foundation checks
+- title promise and title-pattern discipline
+- structure, paragraph movement, and claim/support quality
+- de-AI-tone pass through `bagakit-writing-core` and `bagakit-writing-de-ai-tone`
+- prose-mechanics lint
+- evidence architecture and review packet shape
+- rewrite feedback abstraction
+
+This skill owns the qihan overlay:
+
+- personal Chinese-writing taste calibration
+- preferred priority order among otherwise generic rules
+- the qihan style north star: density, mechanism, mapping, agency, and alertness
+- channel defaults such as Feishu-oriented layout
+- personal rewrite casebook and accepted style examples
+- the stricter publish bar for the user's own longform writing
+
+Standalone-first rule: if `bagakit-writing-core` is unavailable, continue with
+the bundled local references and scripts, then record that the core composition
+was not available.
+
+The bundled generic references are fallback-only copies. They keep standalone
+execution possible, but they are not a parallel authority. Generic changes
+sync from `bagakit-writing-core`; de-AI-tone taxonomy syncs from
+`bagakit-writing-de-ai-tone`; qihan-specific taste, channel defaults, and
+rewrite examples remain the local overlay.
+
 ## Runtime Contract
 
 - 用户交互遵循 `references/workflow/INTERACTION_CONTRACT.md`。
 - 这个 contract 只约束 agent 如何和用户说话、如何组织 reasoning、如何处理不确定性与错误。
-- 最终文稿怎么写，看 `references/writing/VOICE.md`、`references/writing/INLINE_CODE_USAGE.md`、`references/writing/NARRATIVE_ANGLE_SELECTION.md`、`references/writing/NARRATIVE_ANGLE_REVIEW_HEURISTIC.md`、`references/writing/AI_SMELLS.md`、`references/writing/STRUCTURE_PYRAMID.md` 等 output docs。
+- 最终文稿怎么写，看 `references/writing/VOICE.md`、`references/writing/STYLE_NORTH_STAR.md`、`references/writing/INLINE_CODE_USAGE.md`、`references/writing/NARRATIVE_ANGLE_SELECTION.md`、`references/writing/NARRATIVE_ANGLE_REVIEW_HEURISTIC.md`、`references/writing/AI_SMELLS.md`、`references/writing/STRUCTURE_PYRAMID.md` 等 output docs。
 
 ## Entry Control Points
 
@@ -70,8 +103,9 @@ description: |
 8) **标题要像刊物标题，不像草稿标签**：标题要覆盖文章的核心判断，读起来像技术刊物、研究短文或公众号头条的正式标题；不要只标记主题，也不要写成“某某介绍 / 某某说明 / 某某命令形状”。
 9) **把判断写在对象上，不写在作者姿态上**：少写作者自评式元话，也少拿模糊群体当论证替身。
 10) **优先具体机制，少用黑箱比喻**：像“接住”“接得住”这类词不算机制，机制要写成动作和落点。
-11) **结构要有层次美感**：长文正文不能只有一排同级标题。默认至少形成 H2 主梁 + H3 子结构；H2 负责文章骨架，H3 负责拆动作、证据、反例或边界。短概念页可以更克制，但只要已经形成多段论述，就不要让读者只看到单层目录。
-12) **AI smell 词表走 SSOT**：新增或调整词时，先问语境和正常说法建议；词表、lint 开关和 advisory suggestions 只维护在 `references/writing/ai-smell-lexicon.json`。
+11) **qihan north star**：长文默认追求 density、mechanism、mapping、agency、alertness。隐喻是高概率 craft bonus，不是每篇硬门禁；中性及以上内容尽量给可信 agency，但不要写成口号或宣传感。
+12) **结构要有层次美感**：长文正文不能只有一排同级标题。默认至少形成 H2 主梁 + H3 子结构；H2 负责文章骨架，H3 负责拆动作、证据、反例或边界。短概念页可以更克制，但只要已经形成多段论述，就不要让读者只看到单层目录。
+13) **AI smell 词表走 L1 SSOT**：新增或调整通用去 AI 味规则时，先问语境和正常说法建议；canonical 词表、profile 豁免和 detect/rewrite protocol 维护在 `bagakit-writing-de-ai-tone`。本 skill 只保留 standalone fallback 和 qihan-specific overlay。
 
 ## 输出纪律
 
@@ -109,7 +143,7 @@ description: |
 
 ### B. 起草与改写
 - **Step 2：套用 qihan 风格约束**
-  按 `references/writing/VOICE.md` 执行，默认要求句子短、结论前置、可证据化，并持续追问“这句话是否信息密度足够、是否可被反驳”。
+  按 `references/writing/VOICE.md` 和 `references/writing/STYLE_NORTH_STAR.md` 执行，默认要求句子短、结论前置、可证据化，并持续追问“这句话是否有 density、mechanism、mapping、agency 或 alertness 的真实增量”。
 - **Step 2.5：吸收用户改写并生成可复用规则**
   按 `references/workflow/REWRITE_FEEDBACK_LOOP.md` 执行；先记录原句与改写句，再做四维分析、抽规则、回扫全文。需要找成熟句型时，先查 `references/knowledge/REWRITE_CASEBOOK.md`。
 - **Step 3：去 AI 味**
@@ -123,9 +157,14 @@ description: |
 - **Step 4.5：硬性校验**
   当输出要进入飞书 / 对外分享 / 进入长期沉淀时，先跑 `scripts/qihan_write_lint.py`。它覆盖四类检查：标题与层级、AI 味和口癖、结构硬门禁、prose-shape / prose-mechanics 机械感 advisory。机械感检查只给非阻塞 `ADVISORY`，指标说明见 `references/review/QA_HARD_METRICS.md`。
 - **Step 4.6：长文终稿评审**
-  当输出是博客 / 公众号 / 内部专题长文时，再按 `references/review/LONGFORM_RUBRIC.md` 做一轮 review，并用 `references/review/LONGFORM_REVIEW_TEMPLATE.md` 记录 hard gate、weighted review、craft bonus、anti-pattern penalty。涉及“无依据的人群泛化 / 拉踩表达 / 语气过界”的问题，不用脚本裁决；要求独立 reviewer 做静室打分，优先使用 subagent blind review。
+  当输出是博客 / 公众号 / 内部专题长文时，再按 `references/review/LONGFORM_RUBRIC.md` 做一轮 review，并用 `references/review/LONGFORM_REVIEW_TEMPLATE.md` 记录 hard gate、weighted review、qihan north-star check、craft bonus、anti-pattern penalty。涉及“无依据的人群泛化 / 拉踩表达 / 语气过界”的问题，不用脚本裁决；要求独立 reviewer 做静室打分，优先使用 subagent blind review。
 - **Step 4.65：audience panel review**
   每次文章评审都要补一轮 `references/review/AUDIENCE_PANEL_REVIEW.md`。这是一道 publish-blocking gate，不是附加意见。默认启动 3 个静室 reviewer：小白、相关领域、该领域专家，并用 `references/review/AUDIENCE_PANEL_REVIEW_TEMPLATE.md` 留下独立 artifact。每个 reviewer 都必须给一篇对照文章、来自当前稿件的证据句或证据段，并写出“相比对照文章，这篇更强和更弱在哪里”。
+- **Step 4.7：review packet**
+  当长文、研究、方案或 audience panel review 需要被他人合并判断时，用
+  `references/review/REVIEW_PACKET_TEMPLATE.md` 生成独立 `review_packet.md`。
+  packet 必须写清 route memo、样本边界、counterevidence、accepted deviations、
+  reviewer ownership、merge rule 和 next action，避免把 reviewer 结论只留在聊天里。
 
 ### D. 交付与回扫
 - **Step 5：交付结构**
@@ -152,6 +191,7 @@ Workflow：
 Writing：
 
 - `references/writing/VOICE.md`
+- `references/writing/STYLE_NORTH_STAR.md`
 - `references/writing/INLINE_CODE_USAGE.md`
 - `references/writing/NARRATIVE_ANGLE_SELECTION.md`
 - `references/writing/NARRATIVE_ANGLE_REVIEW_HEURISTIC.md`
@@ -179,5 +219,6 @@ Review：
 - `references/review/QA_HARD_METRICS.md`
 - `references/review/AUDIENCE_PANEL_REVIEW.md`
 - `references/review/AUDIENCE_PANEL_REVIEW_TEMPLATE.md`
+- `references/review/REVIEW_PACKET_TEMPLATE.md`
 - `references/review/LONGFORM_RUBRIC.md`
 - `references/review/LONGFORM_REVIEW_TEMPLATE.md`

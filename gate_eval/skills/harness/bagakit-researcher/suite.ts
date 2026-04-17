@@ -185,8 +185,10 @@ function countOccurrences(text: string, needle: string): number {
 }
 
 function plannedPassArgs(tempRepo: string, topic: string): string[] {
-  const firstTrack = topic === "clean-topic" ? "summaries:Build a complete clean chain:c001-c099" : "track-alpha:Topic extraction:a001-a099";
-  const secondTrack = topic === "clean-topic" ? "originals:Preserve the source evidence:c001-c099" : "track-beta:Active mining:b001-b099";
+  const cleanEvidenceTopic = topic === "clean-topic" || topic === "handoff-readiness";
+  const firstTrack = cleanEvidenceTopic ? "summaries:Build a complete clean chain:c001-c099" : "track-alpha:Topic extraction:a001-a099";
+  const secondTrack = cleanEvidenceTopic ? "originals:Preserve the source evidence:c001-c099" : "track-beta:Active mining:b001-b099";
+  const sourceIdRange = cleanEvidenceTopic ? "c001-c099" : "a001-b099";
   return [
     "plan-pass",
     "--root",
@@ -226,7 +228,7 @@ function plannedPassArgs(tempRepo: string, topic: string): string[] {
     "--required-source-type",
     "source-card",
     "--source-id-range",
-    "a001-b099",
+    sourceIdRange,
     "--budget",
     "two tracks",
     "--merge-expectation",
@@ -811,6 +813,89 @@ Keep this curation intact.
             artifacts: [{ label: "selector-handoff", path: handoffPath }],
             outputs: {
               forbidden_roots_checked: [".bagakit/living-knowledge", ".bagakit/evolver"],
+            },
+            replacements: fixture.replacements,
+          };
+        } finally {
+          cleanupTempDir(fixture.tempRepo, context.keepTemp);
+        }
+      },
+    },
+    {
+      id: "handoff-readiness-requires-clean-evidence-chain",
+      title: "Handoff Readiness Requires Clean Evidence Chain",
+      summary: "A recommendation handoff should be prepared from a warning-free topic with explicit evidence, counterevidence, and synthesis links.",
+      focus: ["handoff-readiness", "counterevidence", "quality-clean"],
+      run: (context): EvalCaseResult => {
+        const { repoRoot } = context;
+        const fixture = withFixture(context);
+        const topic = "handoff-readiness";
+        try {
+          initTopic(fixture, repoRoot, topic, "Handoff Readiness");
+          expectOk(runResearcher(fixture, plannedPassArgs(fixture.tempRepo, topic), repoRoot), "plan-pass");
+          const helperCommands = addCleanArtifacts(fixture, repoRoot, topic);
+          const refreshArgs = ["refresh-index", "--root", fixture.tempRepo, "--topic-class", TOPIC_CLASS, "--topic", topic, "--title", "Handoff Readiness"];
+          expectOk(runResearcher(fixture, refreshArgs, repoRoot), "refresh-index handoff-ready");
+
+          const qualityArgs = ["doctor", "--root", fixture.tempRepo, "--topic-class", TOPIC_CLASS, "--topic", topic, "--quality"];
+          const quality = runResearcher(fixture, qualityArgs, repoRoot);
+          expectOk(quality, "doctor --quality handoff-ready");
+          assert.equal(`${quality.stdout}\n${quality.stderr}`.toLowerCase().includes("warning"), false);
+
+          const driftArgs = ["doctor", "--root", fixture.tempRepo, "--topic-class", TOPIC_CLASS, "--topic", topic, "--drift"];
+          const drift = runResearcher(fixture, driftArgs, repoRoot);
+          expectOk(drift, "doctor --drift handoff-ready");
+          assert.equal(`${drift.stdout}\n${drift.stderr}`.toLowerCase().includes("warning"), false);
+
+          const handoffArgs = [
+            "render-handoff",
+            "--root",
+            fixture.tempRepo,
+            "--topic-class",
+            TOPIC_CLASS,
+            "--topic",
+            topic,
+            "--kind",
+            "selector",
+          ];
+          expectOk(runResearcher(fixture, handoffArgs, repoRoot), "render-handoff selector handoff-ready");
+
+          const workspace = topicRoot(fixture.tempRepo, topic);
+          const claimsPath = path.join(workspace, "claims.md");
+          const synthesisPath = path.join(workspace, "summaries", "pass-001-synthesis.md");
+          const handoffPath = path.join(workspace, "handoffs", "selector-evidence.md");
+          const claimsText = fs.readFileSync(claimsPath, "utf8");
+          const synthesisText = fs.readFileSync(synthesisPath, "utf8");
+          const handoffText = fs.readFileSync(handoffPath, "utf8");
+          assert.ok(claimsText.includes("Counterevidence Refs"));
+          assert.ok(claimsText.includes("summaries/c001.md#avoid"));
+          assert.ok(synthesisText.includes("clean-claim"));
+          assert.ok(handoffText.includes("claims.md#clean-claim"));
+          assert.ok(handoffText.includes("summaries/pass-001-synthesis.md"));
+          assertNoPathLeaks(fixture.tempRepo, [claimsPath, synthesisPath, handoffPath]);
+
+          return {
+            assertions: [
+              "quality doctor is warning-free before handoff",
+              "drift doctor is warning-free before handoff",
+              "selector handoff includes evidence, counterevidence, and synthesis links",
+            ],
+            commands: [
+              commandLine(plannedPassArgs(fixture.tempRepo, topic)),
+              ...helperCommands,
+              commandLine(refreshArgs),
+              commandLine(qualityArgs),
+              commandLine(driftArgs),
+              commandLine(handoffArgs),
+            ],
+            artifacts: [
+              { label: "claims", path: claimsPath },
+              { label: "synthesis", path: synthesisPath },
+              { label: "selector-handoff", path: handoffPath },
+            ],
+            outputs: {
+              quality: quality.stdout.trim(),
+              drift: drift.stdout.trim(),
             },
             replacements: fixture.replacements,
           };

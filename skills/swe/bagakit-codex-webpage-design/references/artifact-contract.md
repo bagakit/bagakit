@@ -100,6 +100,11 @@ Files:
 - `visual-judge-scorecards.md`
   - independent quiet-room judge scorecards with 1-5 dimension scores,
     screenshot-region evidence, blocker findings, and rationale
+- `review-packet.md`
+  - paired or independent review packet following
+    `docs/specs/review-packet-contract.md`; records reviewer ownership,
+    visual counterevidence, accepted deviations, merge rule, verdict, and next
+    action
 - `judge-aggregation.md`
   - median/minimum scores, disagreement notes, blocker list, decision, and
     iteration actions from the visual gate protocol

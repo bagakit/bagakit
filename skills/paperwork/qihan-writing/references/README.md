@@ -95,6 +95,8 @@ other cases where the article spine matters.
   preserve information blocks during rewrite
 - `references/writing/VOICE.md`
   core style rules
+- `references/writing/STYLE_NORTH_STAR.md`
+  qihan-specific style north star: density, mechanism, mapping, agency, and alertness
 - `references/writing/AI_SMELLS.md`
   anti-patterns and rewrite heuristics
 - `references/writing/INLINE_CODE_USAGE.md`

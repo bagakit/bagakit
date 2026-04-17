@@ -52,11 +52,7 @@
 
 如果这轮升级要开 subagent team，默认按“课题”拆，不按“网页数量”拆。
 
-如果当前 repo 已经有现成 research packet，优先先看它，再决定还缺什么。当前相关主题可直接从：
-
-- `.bagakit/researcher/topics/frontier/qihan-writing-advanced-structure-techniques/index.md`
-
-开始。
+如果当前 workspace 已经有现成 research packet，优先先看它，再决定还缺什么。通过该 workspace 的研究主题索引、任务交接记录或用户提供的资料入口定位，不在 runtime 文档里假设某个项目本地路径存在。
 
 推荐拆法：
 
