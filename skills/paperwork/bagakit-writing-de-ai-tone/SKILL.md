@@ -1,0 +1,89 @@
+---
+name: bagakit-writing-de-ai-tone
+description: L1 paperwork primitive for detecting and rewriting low-human, AI-toned prose in Chinese and English. Use when a writing task needs de-AI-tone audit, AI-smell detection, structural rhythm review, lexicon checks, rewrite protocol, or publishable-prose polish without adopting a personal style profile.
+metadata:
+  bagakit:
+    harness_layer: l1-writing-primitive
+---
+
+# bagakit-writing-de-ai-tone
+
+Use this skill when the task is to remove AI-toned writing patterns from
+Chinese or English prose.
+
+This is a paperwork L1 primitive. It is not a personal style profile and not a
+technical-writing workflow. `bagakit-writing-core` composes this skill for
+publishable prose review; L2 skills should normally reach it through core.
+
+## Scope
+
+Owns:
+
+- AI-tone detection and rewrite protocol
+- Chinese and English AI-smell lexicon
+- structural AI tells: uniform rhythm, template phrases, fake contrast,
+  parallelism without information gain, vague authority, PR inflation
+- context profile exceptions for technical, docs, blog, social, and casual prose
+
+Does not own:
+
+- title promise, evidence architecture, route memo, or longform review
+- qihan personal taste
+- technical article fact verification or execution handoff
+
+## Default Workflow
+
+1. Detect the dominant language and profile.
+2. Load `references/rewrite-protocol.md`.
+3. For detailed pattern examples, load `references/patterns.md`.
+4. For word-level checks or script-backed audit, use
+   `scripts/bagakit-writing-de-ai-tone-cli.sh lint`.
+5. In rewrite mode, produce:
+   - issues found
+   - rewritten version
+   - change summary
+   - second-pass audit
+
+## Modes
+
+- `detect`: identify AI-tone issues only; group by P0/P1/P2.
+- `rewrite`: detect, rewrite, summarize changes, then run a second-pass audit.
+
+If the original text is already strong, say so and avoid unnecessary edits.
+De-AI-tone work should remove fake polish, not flatten useful voice.
+
+## Required Quality Rule
+
+For final prose, public-facing summaries, rewritten drafts, titles, abstracts,
+and review reports, run a de-AI-tone pass unless the user explicitly asks for
+raw notes or detection-only output.
+
+Research notes, route memos, source excerpts, and private scratch artifacts may
+skip this pass.
+
+## Runtime Surface Declaration
+
+- top-level Bagakit runtime surface roots:
+  - none by default
+- this skill works through installed references, scripts, and explicit task
+  outputs
+- stable contract:
+  - `docs/specs/runtime-surface-contract.md`
+
+## CLI
+
+```bash
+bash scripts/bagakit-writing-de-ai-tone-cli.sh lint --profile blog --fail-on warn artifact.md
+bash scripts/bagakit-writing-de-ai-tone-cli.sh print-rewrite-protocol
+```
+
+`ADVISORY` findings should guide rewriting but should not block by themselves.
+
+## Bagakit Footer
+
+When reporting a standalone de-AI-tone pass, use:
+
+```text
+[[BAGAKIT]]
+- DeAITone: Mode=<detect|rewrite>; Profile=<blog|technical|docs|social|business|internal-share|casual>; Gate=<pass|warn|fail>; Evidence=<lint/report>; Next=<next deterministic action>
+```

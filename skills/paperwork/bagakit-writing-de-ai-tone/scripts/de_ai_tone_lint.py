@@ -1,0 +1,353 @@
+"""Script-backed de-AI-tone lint for Markdown prose."""
+
+from __future__ import annotations
+
+import argparse
+import json
+import re
+import sys
+from dataclasses import dataclass
+from pathlib import Path
+
+
+SCRIPT_DIR = Path(__file__).resolve().parent
+SKILL_DIR = SCRIPT_DIR.parent
+LEXICON_PATH = SKILL_DIR / "references/lexicon.json"
+
+PROFILES = {
+    "blog",
+    "technical",
+    "docs",
+    "social",
+    "business",
+    "internal-share",
+    "casual",
+}
+
+TECHNICAL_EXEMPT_PROFILES = {"technical", "docs"}
+
+P0_PATTERNS = [
+    ("P0_CHATBOT_ARTIFACT", r"\b(Certainly|Absolutely|Great question|I hope this helps)\b|希望对你有所帮助|欢迎随时沟通"),
+    ("P0_CUTOFF_DISCLAIMER", r"as of my last update|截至我所知|截至我的知识"),
+    ("P0_VAGUE_AUTHORITY", r"experts believe|studies show|业内人士指出|有分析认为|据了解"),
+    ("P0_REASONING_ARTIFACT", r"let me think step by step|breaking this down|我们一步步分析|先来逐步分析"),
+    ("P0_SIGNIFICANCE_INFLATION", r"具有里程碑式的意义|开创性的|引领行业|marking a pivotal moment|watershed moment"),
+]
+
+P1_PATTERNS = [
+    ("P1_FORMULAIC_OPENING", r"随着[^。！？\n]{0,30}不断发展|In today'?s rapidly evolving|In an era where"),
+    ("P1_PROCESS_FILLER", r"进行(分析|讨论|研究|优化|设计|处理|改进|探索|实践)"),
+    ("P1_META_TRANSITION", r"值得(注意|一提)的是|需要指出的是|不难发现|众所周知|毋庸置疑|let'?s (explore|dive in|take a look)"),
+    ("P1_FALSE_BREADTH", r"无论是[^。！？\n]{0,40}还是|不管是[^。！？\n]{0,40}还是|Whether you'?re [^,\n]{1,60} or"),
+]
+
+TRANSITION_RE = re.compile(r"此外|与此同时|除此之外|另外|然而|事实上|实际上|本质上|在此基础上|moreover|furthermore|additionally|notably|that said", re.I)
+NEGATION_PAIR_RE = re.compile(r"不是[^\n。！？!?；;]{0,80}而是|并非[^\n。！？!?；;]{0,80}而是|与其说[^\n。！？!?；;]{0,80}不如说")
+EN_NOT_X_Y_RE = re.compile(r"\b(?:it'?s|this is|this isn'?t|it is not|this is not)\b[^.!?\n]{0,80}\b(?:not|isn'?t)\b[^.!?\n]{0,80}\b(?:it'?s|it is|but)\b", re.I)
+CONFLICT_BAIT_JOINER_RE = "|".join([r"vs\.?", "VS", re.escape(chr(47)), "对", "还是", "而不是"])
+CONFLICT_BAIT_VS_RE = re.compile(
+    r"[^。！？\n]{0,18}(?:" + CONFLICT_BAIT_JOINER_RE + r")[^。！？\n]{0,18}"
+)
+CONFLICT_BAIT_WORD_RE = re.compile(
+    r"该做|不该做|塌方式|体面|赢面高|赢面低|老路|新路|正路|错路|正确|错误|"
+    r"先进|落后|聪明|愚蠢|上桌|退场|站队|翻身|淘汰"
+)
+UNSUPPORTED_PEOPLE_RE = re.compile(
+    r"(?:人们往往|大多数人|多数人|很多人|许多人|不少人|普通人|一般人|大部分人|"
+    r"很多团队|多数团队|大多数团队|大家往往)[^。！？!?；;\n]{0,80}"
+)
+SUPPORT_SIGNAL_RE = re.compile(
+    r"\d+(?:\.\d+)?\s*%|\d+\s*/\s*\d+|样本|调研|统计|问卷|访谈|日志|"
+    r"survey|study|sample|according to|数据显示|报告显示|在这组|这次讨论|"
+    r"这组三次|过去[一二三四五六七八九十0-9]+次"
+    ,
+    re.I,
+)
+FOUR_CHAR_RE = re.compile(r"[\u4e00-\u9fff]{4}")
+STACKED_DE_RE = re.compile(r"的[^。！？\n]{0,8}的[^。！？\n]{0,8}的")
+LIST_RE = re.compile(r"^\s*(?:[-*+]\s+|\d+\.\s+)", re.M)
+HEADING_RE = re.compile(r"^#{1,6}\s+", re.M)
+BOLD_RE = re.compile(r"\*\*[^*\n]{1,80}\*\*")
+DASH_RE = re.compile(r"——|—|--")
+
+
+@dataclass
+class Finding:
+    level: str
+    severity: str
+    code: str
+    message: str
+    meta: dict
+
+    def as_dict(self) -> dict:
+        return {
+            "level": self.level,
+            "severity": self.severity,
+            "code": self.code,
+            "message": self.message,
+            "meta": self.meta,
+        }
+
+
+def load_lexicon() -> dict:
+    try:
+        return json.loads(LEXICON_PATH.read_text(encoding="utf-8"))
+    except FileNotFoundError as exc:
+        raise SystemExit("missing de-AI-tone lexicon") from exc
+    except json.JSONDecodeError as exc:
+        raise SystemExit(f"invalid de-AI-tone lexicon: {exc.lineno}:{exc.colno}") from exc
+
+
+def iter_input_files(paths: list[Path]) -> list[Path]:
+    files: list[Path] = []
+    for path in paths:
+        if path.is_dir():
+            files.extend(sorted(item for item in path.rglob("*.md") if item.is_file()))
+        elif path.is_file():
+            files.append(path)
+        else:
+            raise SystemExit(f"missing input: {path}")
+    return files
+
+
+def snippets(text: str, pattern: re.Pattern[str], limit: int = 8) -> list[str]:
+    found: list[str] = []
+    for match in pattern.finditer(text):
+        excerpt = match.group(0).strip()
+        if excerpt and excerpt not in found:
+            found.append(excerpt[:140])
+        if len(found) >= limit:
+            break
+    return found
+
+
+def word_count(text: str, term: str) -> int:
+    if re.search(r"[A-Za-z]", term):
+        return len(re.findall(rf"\b{re.escape(term)}\b", text, re.I))
+    return text.count(term)
+
+
+def lexicon_findings(text: str, profile: str, lexicon: dict) -> list[Finding]:
+    findings: list[Finding] = []
+    hits_by_tier: dict[str, list[dict]] = {"always": [], "density": [], "high_density": []}
+
+    for group in ("zh", "en"):
+        entries = lexicon.get(group, [])
+        if not isinstance(entries, list):
+            raise SystemExit(f"invalid lexicon group: {group}")
+        for entry in entries:
+            if not isinstance(entry, dict) or not entry.get("term"):
+                raise SystemExit(f"invalid lexicon entry in {group}")
+            if not entry.get("lint", True):
+                continue
+            if entry.get("technical_exemption") and profile in TECHNICAL_EXEMPT_PROFILES:
+                continue
+            term = str(entry["term"])
+            count = word_count(text, term)
+            if count <= 0:
+                continue
+            tier = str(entry.get("tier", "always"))
+            hits_by_tier.setdefault(tier, []).append(
+                {
+                    "term": term,
+                    "count": count,
+                    "suggestions": [str(item) for item in entry.get("suggestions", [])],
+                }
+            )
+
+    if hits_by_tier["always"]:
+        findings.append(
+            Finding(
+                "WARN",
+                "P1",
+                "P1_LEXICON_ALWAYS",
+                "Always-rewrite AI-tone terms found",
+                {"hits": hits_by_tier["always"][:20]},
+            )
+        )
+    density_hits = [item for item in hits_by_tier["density"] if item["count"] >= 2]
+    if density_hits:
+        findings.append(
+            Finding(
+                "WARN",
+                "P1",
+                "P1_LEXICON_DENSITY",
+                "Density-trigger AI-tone terms repeated",
+                {"hits": density_hits[:20]},
+            )
+        )
+    high_density_total = sum(item["count"] for item in hits_by_tier["high_density"])
+    if high_density_total >= 5:
+        findings.append(
+            Finding(
+                "ADVISORY",
+                "P2",
+                "P2_LEXICON_HIGH_DENSITY",
+                "High-density polish words may be flattening the prose",
+                {"hits": hits_by_tier["high_density"][:20], "total": high_density_total},
+            )
+        )
+    return findings
+
+
+def pattern_findings(text: str) -> list[Finding]:
+    findings: list[Finding] = []
+    for code, raw_pattern in P0_PATTERNS:
+        pattern = re.compile(raw_pattern, re.I)
+        items = snippets(text, pattern)
+        if items:
+            findings.append(Finding("FAIL", "P0", code, "Credibility-killing AI artifact", {"items": items}))
+
+    for code, raw_pattern in P1_PATTERNS:
+        pattern = re.compile(raw_pattern, re.I)
+        items = snippets(text, pattern)
+        if items:
+            findings.append(Finding("WARN", "P1", code, "Obvious AI-tone pattern", {"items": items}))
+
+    negation_items = snippets(text, NEGATION_PAIR_RE)
+    if negation_items:
+        level = "WARN" if len(negation_items) > 1 else "ADVISORY"
+        severity = "P1" if level == "WARN" else "P2"
+        findings.append(
+            Finding(
+                level,
+                severity,
+                "P1_FAKE_CONTRAST",
+                "Fake contrast pattern found; use direct positive claims unless the contrast is earned",
+                {"count": len(negation_items), "items": negation_items},
+            )
+        )
+
+    en_contrast = snippets(text, EN_NOT_X_Y_RE)
+    if en_contrast:
+        findings.append(
+            Finding(
+                "ADVISORY",
+                "P2",
+                "P2_EN_FAKE_CONTRAST",
+                "English not-X-but-Y pattern may be pseudo-insight",
+                {"items": en_contrast},
+            )
+        )
+
+    conflict_items: list[str] = []
+    for item in snippets(text, CONFLICT_BAIT_VS_RE, limit=12):
+        if CONFLICT_BAIT_WORD_RE.search(item):
+            conflict_items.append(item)
+    if conflict_items:
+        findings.append(
+            Finding(
+                "WARN",
+                "P1",
+                "P1_CONFLICT_BAIT_BINARY",
+                "Binary conflict framing creates argument-bait tension; replace it with a decision boundary, trade-off, or concrete failure mode",
+                {"count": len(conflict_items), "items": conflict_items[:8]},
+            )
+        )
+
+    people_items = [
+        item
+        for item in snippets(text, UNSUPPORTED_PEOPLE_RE, limit=12)
+        if not SUPPORT_SIGNAL_RE.search(item)
+    ]
+    if people_items:
+        findings.append(
+            Finding(
+                "WARN",
+                "P1",
+                "P1_UNSUPPORTED_PEOPLE_GENERALIZATION",
+                "Vague people-generalization can become self-serving dunking; name the sample, source, context, or concrete failure mode",
+                {"count": len(people_items), "items": people_items[:8]},
+            )
+        )
+
+    transition_count = len(TRANSITION_RE.findall(text))
+    if transition_count >= 4:
+        findings.append(
+            Finding(
+                "ADVISORY",
+                "P2",
+                "P2_TRANSITION_DENSITY",
+                "Transition phrase density is high",
+                {"count": transition_count},
+            )
+        )
+
+    dash_count = len(DASH_RE.findall(text))
+    if dash_count > max(1, len(text) // 1000):
+        findings.append(
+            Finding("WARN", "P1", "P1_DASH_OVERUSE", "Dash insertions are overused", {"count": dash_count})
+        )
+
+    list_count = len(LIST_RE.findall(text))
+    heading_count = len(HEADING_RE.findall(text))
+    bold_count = len(BOLD_RE.findall(text))
+    if list_count >= 8:
+        findings.append(Finding("ADVISORY", "P2", "P2_LIST_SCAFFOLDING", "List scaffolding may be replacing connected prose", {"count": list_count}))
+    if heading_count >= 5 and len(text) < 1200:
+        findings.append(Finding("ADVISORY", "P2", "P2_OVER_STRUCTURED", "Too many headings for a short text", {"count": heading_count}))
+    if bold_count >= 5:
+        findings.append(Finding("ADVISORY", "P2", "P2_BOLD_OVERUSE", "Bold formatting may be doing the work of structure", {"count": bold_count}))
+
+    four_char_count = len(FOUR_CHAR_RE.findall(text))
+    if four_char_count >= 12:
+        findings.append(Finding("ADVISORY", "P2", "P2_FOUR_CHAR_DENSITY", "Four-character phrase density is high", {"count": four_char_count}))
+    stacked_items = snippets(text, STACKED_DE_RE)
+    if stacked_items:
+        findings.append(Finding("ADVISORY", "P2", "P2_STACKED_DE", "Stacked 的 phrases reduce human rhythm", {"items": stacked_items}))
+
+    return findings
+
+
+def lint_text(text: str, path: Path, profile: str, lexicon: dict) -> dict:
+    findings = lexicon_findings(text, profile, lexicon) + pattern_findings(text)
+    return {
+        "path": str(path),
+        "profile": profile,
+        "findings": [finding.as_dict() for finding in findings],
+        "counts": {
+            "fail": sum(1 for item in findings if item.level == "FAIL"),
+            "warn": sum(1 for item in findings if item.level == "WARN"),
+            "advisory": sum(1 for item in findings if item.level == "ADVISORY"),
+        },
+    }
+
+
+def main(argv: list[str]) -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("paths", nargs="+", help="Markdown file or directory")
+    parser.add_argument("--profile", default="blog", choices=sorted(PROFILES))
+    parser.add_argument("--fail-on", default="warn", choices=("warn", "fail", "none"))
+    args = parser.parse_args(argv[1:])
+
+    lexicon = load_lexicon()
+    files = iter_input_files([Path(item) for item in args.paths])
+    reports = [
+        lint_text(path.read_text(encoding="utf-8"), path, args.profile, lexicon)
+        for path in files
+    ]
+
+    summary = {
+        "files": len(reports),
+        "fail": sum(item["counts"]["fail"] for item in reports),
+        "warn": sum(item["counts"]["warn"] for item in reports),
+        "advisory": sum(item["counts"]["advisory"] for item in reports),
+    }
+    payload = {
+        "schema": "bagakit.de_ai_tone_lint.v1",
+        "profile": args.profile,
+        "summary": summary,
+        "files": reports,
+        "findings": reports[0]["findings"] if len(reports) == 1 else [],
+    }
+    print(json.dumps(payload, ensure_ascii=False, indent=2))
+
+    if args.fail_on == "none":
+        return 0
+    if args.fail_on == "fail":
+        return 2 if summary["fail"] else 0
+    return 2 if summary["fail"] or summary["warn"] else 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main(sys.argv))

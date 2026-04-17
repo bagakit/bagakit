@@ -1,0 +1,33 @@
+version = 1
+
+[profiles.blog]
+description = "Default publishable article or essay profile."
+strictness = "strict"
+
+[profiles.technical]
+description = "Technical explanation, architecture note, API or implementation article."
+strictness = "medium"
+allowed_terms = ["闭环", "链路", "交付", "矩阵", "颗粒度", "robust", "comprehensive", "seamless", "ecosystem"]
+
+[profiles.docs]
+description = "Reference documentation where clarity matters more than voice."
+strictness = "medium"
+allow_more_lists = true
+
+[profiles.social]
+description = "Short-form social post."
+strictness = "medium"
+allow_fragments = true
+
+[profiles.business]
+description = "Business email, proposal, or executive-facing note."
+strictness = "strict"
+pr_inflation_sensitive = true
+
+[profiles.internal-share]
+description = "Internal peer-facing note."
+strictness = "strict"
+
+[profiles.casual]
+description = "Casual personal note."
+strictness = "p0-only"

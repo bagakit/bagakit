@@ -1,0 +1,32 @@
+version = 1
+skill = "bagakit-writing-de-ai-tone"
+cli_id = "bagakit-writing-de-ai-tone"
+entrypoint = "scripts/bagakit-writing-de-ai-tone-cli.sh"
+runner = "shell"
+usage = "bash scripts/bagakit-writing-de-ai-tone-cli.sh <command> [args...]"
+summary = "Inspect, validate, lint, and review de-AI-tone artifacts."
+surface_refs = []
+
+[[command]]
+name = "describe"
+summary = "Print a short skill description."
+
+[[command]]
+name = "list-references"
+summary = "List reference files shipped by this skill."
+
+[[command]]
+name = "validate"
+summary = "Check that required skill files exist."
+
+[[command]]
+name = "lint"
+summary = "Run de-AI-tone markdown lint checks."
+
+[[command]]
+name = "print-patterns"
+summary = "Print AI-tone pattern reference."
+
+[[command]]
+name = "print-rewrite-protocol"
+summary = "Print the detect/rewrite protocol."

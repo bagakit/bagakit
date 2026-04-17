@@ -1,0 +1,29 @@
+version = 2
+
+[[suite]]
+id = "bagakit-writing-core-behavior-starter-eval"
+owner = "gate_eval/skills/paperwork/bagakit-writing-core"
+description = "Run deterministic non-gating eval for writing-core route, lint, de-AI-tone dispatch, review, and anti-rationalization surfaces."
+default = true
+proof_mode = "runtime"
+protects = ["writing-core route/foundation, lint/prose mechanics, de-AI-tone dispatch, review packet, and anti-rationalization surfaces"]
+oracle = ["shared dev/eval runner executes the writing-core suite against the public skill CLI and synthetic artifacts"]
+exercised_surface = ["gate_eval/skills/paperwork/bagakit-writing-core/suite.ts", "skills/paperwork/bagakit-writing-core/scripts/bagakit-writing-core-cli.sh"]
+proves = ["bagakit-writing-core-behavior-starter-eval proves the core behavior surfaces are reachable through the public CLI and produce structured evidence."]
+does_not_prove = ["bagakit-writing-core-behavior-starter-eval does not prove subjective writing quality, live research quality, or L2 integration completeness."]
+timeout_seconds = 180
+validation_class = "quality"
+groups = ["skills", "paperwork", "bagakit-writing-core", "writing-core", "eval", "quality"]
+
+[suite.runner]
+kind = "executable"
+command = "{node}"
+args = [
+  "--experimental-strip-types",
+  "dev/eval/src/cli.ts",
+  "run",
+  "--root",
+  "{repo_root}",
+  "--suite",
+  "gate_eval/skills/paperwork/bagakit-writing-core/suite.ts",
+]

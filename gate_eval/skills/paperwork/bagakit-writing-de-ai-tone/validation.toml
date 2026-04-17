@@ -1,0 +1,29 @@
+version = 2
+
+[[suite]]
+id = "bagakit-writing-de-ai-tone-behavior-starter-eval"
+owner = "gate_eval/skills/paperwork/bagakit-writing-de-ai-tone"
+description = "Run deterministic non-gating eval for de-AI-tone detection, conflict-bait framing, profile exceptions, and core dispatch."
+default = true
+proof_mode = "runtime"
+protects = ["de-AI-tone CLI behavior, lexicon detection, conflict-bait binary framing checks, unsupported people-generalization checks, technical profile exceptions, and writing-core dispatch"]
+oracle = ["shared dev/eval runner executes the de-AI-tone suite against the public skill CLI and synthetic artifacts"]
+exercised_surface = ["gate_eval/skills/paperwork/bagakit-writing-de-ai-tone/suite.ts", "skills/paperwork/bagakit-writing-de-ai-tone/scripts/bagakit-writing-de-ai-tone-cli.sh", "skills/paperwork/bagakit-writing-core/scripts/bagakit-writing-core-cli.sh"]
+proves = ["bagakit-writing-de-ai-tone-behavior-starter-eval proves the primitive detects representative AI-tone and conflict-bait patterns, honors technical exemptions, and is reachable through writing-core."]
+does_not_prove = ["bagakit-writing-de-ai-tone-behavior-starter-eval does not prove subjective rewrite quality or all possible language patterns."]
+timeout_seconds = 180
+validation_class = "quality"
+groups = ["skills", "paperwork", "bagakit-writing-de-ai-tone", "de-ai-tone", "eval", "quality"]
+
+[suite.runner]
+kind = "executable"
+command = "{node}"
+args = [
+  "--experimental-strip-types",
+  "dev/eval/src/cli.ts",
+  "run",
+  "--root",
+  "{repo_root}",
+  "--suite",
+  "gate_eval/skills/paperwork/bagakit-writing-de-ai-tone/suite.ts",
+]

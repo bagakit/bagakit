@@ -1,0 +1,24 @@
+version = 2
+
+[[suite]]
+id = "bagakit-writing-de-ai-tone-contract"
+owner = "skills/paperwork/bagakit-writing-de-ai-tone"
+description = "Validate the de-AI-tone L1 skill CLI, lexicon/profile behavior, conflict-bait framing guards, detect lint JSON output, and core dispatch contract."
+default = true
+proof_mode = "runtime"
+protects = ["bagakit-writing-de-ai-tone public CLI, bilingual AI-tone lexicon, profile exceptions, conflict-bait binary framing checks, unsupported people-generalization checks, and writing-core dispatch"]
+oracle = ["Python regression check runs the de-AI-tone CLI on synthetic artifacts, verifies conflict-bait framing codes, and verifies core reaches the sibling primitive"]
+exercised_surface = ["de-AI-tone skill CLI", "de_ai_tone_lint.py", "lexicon.json", "context profiles", "conflict-bait fixture", "synthetic markdown fixtures", "writing-core de-ai-tone dispatch"]
+proves = ["bagakit-writing-de-ai-tone-contract proves the L1 primitive is installable, script-backed, catches representative conflict-bait frames, and is composed by writing-core for publishable prose checks."]
+does_not_prove = ["bagakit-writing-de-ai-tone-contract does not prove subjective rewrite quality, all possible AI-tone phrases, or every L2 writing profile."]
+timeout_seconds = 120
+validation_class = "contract"
+groups = ["skills", "paperwork", "bagakit-writing-de-ai-tone", "de-ai-tone", "contract"]
+
+[suite.runner]
+kind = "python_script"
+script = "gate_validation/skills/paperwork/bagakit-writing-de-ai-tone/check-writing-de-ai-tone.py"
+args = [
+  "--root",
+  "{repo_root}",
+]

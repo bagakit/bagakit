@@ -1,0 +1,24 @@
+version = 2
+
+[[suite]]
+id = "bagakit-writing-core-contract"
+owner = "skills/paperwork/bagakit-writing-core"
+description = "Validate the writing-core CLI, de-AI-tone dispatch, route checker, lint JSON output, review packet template, and anti-rationalization table."
+default = true
+proof_mode = "runtime"
+protects = ["bagakit-writing-core public CLI, de-AI-tone L1 dispatch, generic route/foundation checker, lint output schema, and review discipline surfaces"]
+oracle = ["Python regression check runs the skill CLI, verifies de-AI-tone sibling dispatch, checks route and lint commands on synthetic artifacts, and verifies review templates expose generic writing-core fields"]
+exercised_surface = ["writing-core skill CLI", "de-AI-tone dispatch", "writing_core_route_tools.py", "writing_core_lint.py", "review packet template", "anti-rationalization table", "synthetic markdown artifacts"]
+proves = ["bagakit-writing-core-contract proves the core exposes route, lint, de-AI-tone, review-packet, and anti-rationalization surfaces without requiring qihan-writing or technical-writing."]
+does_not_prove = ["bagakit-writing-core-contract does not prove subjective writing quality, live source correctness, channel-specific style quality, or all possible L2 integrations."]
+timeout_seconds = 120
+validation_class = "contract"
+groups = ["skills", "paperwork", "bagakit-writing-core", "writing-core", "contract"]
+
+[suite.runner]
+kind = "python_script"
+script = "gate_validation/skills/paperwork/bagakit-writing-core/check-writing-core.py"
+args = [
+  "--root",
+  "{repo_root}",
+]

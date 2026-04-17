@@ -1,0 +1,40 @@
+version = 1
+skill = "bagakit-writing-core"
+cli_id = "bagakit-writing-core"
+entrypoint = "scripts/bagakit-writing-core-cli.sh"
+runner = "shell"
+usage = "bash scripts/bagakit-writing-core-cli.sh <command> [args...]"
+summary = "Inspect, validate, route, lint, and review generic writing-core artifacts."
+surface_refs = []
+
+[[command]]
+name = "describe"
+summary = "Print a short skill description."
+
+[[command]]
+name = "list-references"
+summary = "List reference files shipped by this skill."
+
+[[command]]
+name = "validate"
+summary = "Check that required skill files exist."
+
+[[command]]
+name = "lint"
+summary = "Run generic writing-core markdown lint checks."
+
+[[command]]
+name = "de-ai-tone"
+summary = "Run sibling bagakit-writing-de-ai-tone CLI when available."
+
+[[command]]
+name = "route"
+summary = "Run writing-core route foundation and route derivation tools."
+
+[[command]]
+name = "print-review-packet-template"
+summary = "Print the generic writing-core review packet template."
+
+[[command]]
+name = "print-anti-rationalization-table"
+summary = "Print the generic anti-rationalization review table."

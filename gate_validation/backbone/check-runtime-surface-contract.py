@@ -227,6 +227,21 @@ EXPECTED_TEXT_TOKENS = {
         "none by default",
         "docs/specs/runtime-surface-contract.md",
     ],
+    "skills/paperwork/bagakit-writing-core/README.md": [
+        "## Runtime Surface Declaration",
+        "none by default",
+        "docs/specs/runtime-surface-contract.md",
+    ],
+    "skills/paperwork/bagakit-writing-core/SKILL.md": [
+        "## Runtime Surface Declaration",
+        "none by default",
+        "docs/specs/runtime-surface-contract.md",
+    ],
+    "skills/paperwork/bagakit-writing-de-ai-tone/SKILL.md": [
+        "## Runtime Surface Declaration",
+        "none by default",
+        "docs/specs/runtime-surface-contract.md",
+    ],
     "skills/paperwork/bagakit-paperwork-technical-writing/SKILL.md": [
         "## Runtime Surface Declaration",
         "none by default",

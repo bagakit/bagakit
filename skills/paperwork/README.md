@@ -5,7 +5,15 @@ writing, review, and delivery patterns.
 
 Current canonical skills:
 
+- `bagakit-writing-core`
+  - generic writing route, foundation, structure, evidence, de-AI-tone orchestration,
+    prose-mechanics, rewrite-feedback, and review primitives
+- `bagakit-writing-de-ai-tone`
+  - L1 primitive for Chinese and English AI-tone detection, rewrite protocol,
+    lexicon, profile exceptions, and publishable-prose polish gates
 - `qihan-writing`
-  - evidence-first technical and research writing / rewrite workflow
+  - personal Chinese-writing overlay with qihan taste, channel defaults, and
+    style calibration
 - `bagakit-paperwork-technical-writing`
-  - publishable technical article transformation with execution appendix and review report split
+  - publishable technical article transformation with execution appendix and
+    review report split
