@@ -1,5 +1,0 @@
-# bagakit-git-message-craft local mode
-# Keep git-message-craft session artifacts local by default.
-*
-!.gitignore
-!surface.toml
