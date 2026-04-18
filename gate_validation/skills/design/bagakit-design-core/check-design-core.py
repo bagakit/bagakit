@@ -1,4 +1,4 @@
-"""Validate bagakit-design-core structured contract and local surface metadata."""
+"""Validate bagakit-design-core structured contract and public synthesis notes."""
 
 from __future__ import annotations
 
@@ -17,11 +17,15 @@ POSIX_SEP = chr(47)
 CONTRACT_PATH = POSIX_SEP.join(
     [SKILL_ROOT, "references", "design-core-contract.toml"]
 )
-SURFACE_PATH = ".bagakit/design/surface.toml"
+DESIGN_MEMORY_ROOT = "mem/decisions/design-core"
 
 
 def skill_rel(*parts: str) -> str:
     return POSIX_SEP.join([SKILL_ROOT, *parts])
+
+
+def design_memory_rel(name: str) -> str:
+    return POSIX_SEP.join([DESIGN_MEMORY_ROOT, name])
 
 REQUIRED_STAGE_IDS = {
     "target-register",
@@ -50,23 +54,6 @@ REQUIRED_GUARD_IDS = {
     "reference-tier-honesty",
     "rights-boundary",
 }
-
-EXPECTED_SURFACE = {
-    "schema_version": 1,
-    "surface_id": "design-runtime",
-    "surface_root": ".bagakit/design",
-    "owner_kind": "skill",
-    "owner_id": "bagakit-design-core",
-    "lifecycle_class": "durable_state",
-    "edit_policy": "mixed",
-    "cleanup_safe": False,
-    "source_of_truth": [
-        "docs/specs/runtime-surface-contract.md",
-        "skills/design/bagakit-design-core/SKILL.md",
-        ".bagakit/design/README.md",
-    ],
-}
-
 
 def parse_flat_toml(text: str) -> dict:
     data: dict[str, object] = {}
@@ -156,11 +143,10 @@ def main() -> int:
         skill_rel("references", "design-rule-system.md"),
         skill_rel("scripts", "bagakit-design-core-cli.sh"),
         CONTRACT_PATH,
-        SURFACE_PATH,
-        ".bagakit/design/README.md",
-        ".bagakit/design/brand-tonality-synthesis.md",
-        ".bagakit/design/design-rule-synthesis.md",
-        ".bagakit/design/review-protocol.md",
+        design_memory_rel("brand-tonality-synthesis.md"),
+        design_memory_rel("design-rule-synthesis.md"),
+        design_memory_rel("image-reference-set-synthesis.md"),
+        design_memory_rel("review-protocol.md"),
     ]:
         if not (root / rel).is_file():
             failures.append(f"missing required file: {rel}")
@@ -196,28 +182,25 @@ def main() -> int:
             if token not in text:
                 failures.append(f"{rel} missing token: {token}")
 
-    surface = load_toml(root / SURFACE_PATH)
-    for key, expected in EXPECTED_SURFACE.items():
-        actual = surface.get(key)
-        if actual != expected:
-            failures.append(f"{SURFACE_PATH} field {key!r} mismatch: expected {expected!r}, got {actual!r}")
-    if not isinstance(surface.get("reviewable_outputs"), list):
-        failures.append(f"{SURFACE_PATH} reviewable_outputs must be an array")
-
     for rel, tokens in {
-        ".bagakit/design/brand-tonality-synthesis.md": [
+        design_memory_rel("brand-tonality-synthesis.md"): [
             "github:dominikmartn/hue@0c2914742d52fcf09aa2834893e187bd48eaeea3",
             "observed",
             "derived",
             "fallback",
         ],
-        ".bagakit/design/design-rule-synthesis.md": [
+        design_memory_rel("design-rule-synthesis.md"): [
             "github:pbakaus/impeccable@1aedbcf538e3fa6694ccbf00294cc18e59ba1f21",
             "Draft Review",
             "concrete design plan review",
             "result review",
         ],
-        ".bagakit/design/review-protocol.md": [
+        design_memory_rel("image-reference-set-synthesis.md"): [
+            "github:Leonxlnx/taste-skill@3c7017d636c3a4aad378433ea6d0cfa6c921da4a",
+            "section-reference-plan.md",
+            "section-frame-continuity-ledger.md",
+        ],
+        design_memory_rel("review-protocol.md"): [
             "Draft Review",
             "Concrete Plan Review",
             "Result Review",
@@ -234,7 +217,7 @@ def main() -> int:
             print(f"- {failure}")
         return 1
 
-    print("ok: design-core contract and local design surface are aligned")
+    print("ok: design-core contract and public synthesis notes are aligned")
     return 0
 
 

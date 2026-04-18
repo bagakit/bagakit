@@ -5,9 +5,10 @@ import path from "node:path";
 import type { EvalSuiteDefinition } from "../../../../dev/eval/src/lib/model.ts";
 
 const CONTRACT_PATH = "skills/design/bagakit-design-core/references/design-core-contract.toml";
-const TONALITY_SYNTHESIS_PATH = ".bagakit/design/brand-tonality-synthesis.md";
-const RULE_SYNTHESIS_PATH = ".bagakit/design/design-rule-synthesis.md";
-const REVIEW_PROTOCOL_PATH = ".bagakit/design/review-protocol.md";
+const TONALITY_SYNTHESIS_PATH = "mem/decisions/design-core/brand-tonality-synthesis.md";
+const RULE_SYNTHESIS_PATH = "mem/decisions/design-core/design-rule-synthesis.md";
+const IMAGE_REFERENCE_SYNTHESIS_PATH = "mem/decisions/design-core/image-reference-set-synthesis.md";
+const REVIEW_PROTOCOL_PATH = "mem/decisions/design-core/review-protocol.md";
 
 function readText(repoRoot: string, relativePath: string): string {
   return fs.readFileSync(path.join(repoRoot, relativePath), "utf8");
@@ -95,11 +96,12 @@ export const SUITE: EvalSuiteDefinition = {
     {
       id: "local-synthesis-preserves-clean-room-takeaways",
       title: "Local Synthesis Preserves Clean Room Takeaways",
-      summary: "The local design surface should preserve distilled tonality and rule-system takeaways without making external repos runtime dependencies.",
-      focus: ["clean-room-synthesis", "runtime-surface", "source-notes"],
+      summary: "Public design memory should preserve distilled tonality and rule-system takeaways without making external repos runtime dependencies.",
+      focus: ["clean-room-synthesis", "public-memory", "source-notes"],
       run: (context) => {
         const tonality = readText(context.repoRoot, TONALITY_SYNTHESIS_PATH);
         const rules = readText(context.repoRoot, RULE_SYNTHESIS_PATH);
+        const imageReference = readText(context.repoRoot, IMAGE_REFERENCE_SYNTHESIS_PATH);
         const protocol = readText(context.repoRoot, REVIEW_PROTOCOL_PATH);
 
         assert.ok(tonality.includes("observed"), "tonality synthesis should preserve observed provenance");
@@ -108,6 +110,14 @@ export const SUITE: EvalSuiteDefinition = {
         assert.ok(rules.includes("Draft Review"), "rule synthesis should preserve draft review checkpoint");
         assert.ok(rules.includes("concrete design plan review"), "rule synthesis should preserve concrete-plan checkpoint");
         assert.ok(rules.includes("result review"), "rule synthesis should preserve result checkpoint");
+        assert.ok(
+          imageReference.includes("section-reference-plan.md"),
+          "image reference synthesis should preserve section planning artifact",
+        );
+        assert.ok(
+          imageReference.includes("section-frame-continuity-ledger.md"),
+          "image reference synthesis should preserve continuity artifact",
+        );
         assert.ok(protocol.includes("design packet"), "review protocol should keep one design packet across checkpoints");
 
         return {
@@ -119,6 +129,7 @@ export const SUITE: EvalSuiteDefinition = {
           artifacts: [
             { label: "tonality-synthesis", path: TONALITY_SYNTHESIS_PATH },
             { label: "rule-synthesis", path: RULE_SYNTHESIS_PATH },
+            { label: "image-reference-synthesis", path: IMAGE_REFERENCE_SYNTHESIS_PATH },
             { label: "review-protocol", path: REVIEW_PROTOCOL_PATH },
           ],
         };
