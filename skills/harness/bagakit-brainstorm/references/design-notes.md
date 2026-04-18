@@ -40,6 +40,7 @@ Provide a deterministic way to move from Markdown context to analysis decisions 
 - Obvious fake-completion residue is deterministic and should be blocked:
   - shipped artifacts must not rely on illustrative sample rows in completion-critical tables
   - `example.*`, `待补充`, `TBD`, `TODO`, unrendered `{{...}}`, and default frontier/boundary prompt lines should fail completion until removed
+  - empty scaffold fields, empty bullets, and header-only tables should fail completion until filled, marked `Not applicable: <reason>`, or deleted
 
 ### 4.2) Method Pack Selection (Effectiveness First)
 

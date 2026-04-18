@@ -193,6 +193,11 @@ shape later feature, skill, knowledge, or implementation work.
   - explain why these signals change the option space
 - Generate 3-7 meaningfully different options (not minor wording variants).
 - For each option, include expected impact, complexity, risks, and confidence.
+- Treat init-time templates as scaffolds, not output:
+  - fill every decision-bearing field before setting `Status: complete`
+  - delete optional empty fields, empty bullets, and header-only tables
+  - if a required field is genuinely not applicable, write `Not applicable: <reason>`
+  - do not leave completion-facing artifacts with labels such as `- Primary:` or `- Question cards:` and no value or continuation
 
 4. Decision matrix.
 - Score each option using `impact`, `effort`, `risk`, `confidence` (1-5).
@@ -239,6 +244,7 @@ shape later feature, skill, knowledge, or implementation work.
 - Keep templates sample-free in completion-critical sections:
   - evidence/scoring/result tables should ship with headers only, not illustrative rows
   - obvious placeholder/example residue (`example.com`, `待补充`, `TBD`, `TODO`, `{{...}}`) must be removed before completion
+  - completion-facing artifacts must not retain empty scaffold fields, empty bullets, or header-only tables
 - MVP experiment records must explicitly report:
   - claim validation (`观点成立`) evidence
   - tool usability (`工具可用`) evidence
@@ -322,6 +328,8 @@ shape later feature, skill, knowledge, or implementation work.
 - Template discipline:
   - runtime artifacts should avoid explanatory filler and illustrative fake data
   - guidance belongs in `SKILL.md` / references, not in completion-facing artifact bodies
+  - after the agent fills a stage, unused optional scaffold fields should be deleted instead of left blank
+  - required-but-inapplicable fields should be explicit as `Not applicable: <reason>`
 - Frontier discipline:
   - recency/authority should influence expert reasoning and warnings, not degrade into quota-filling
   - time-bound claims should be paired with explicit boundary statements instead of blind freshness counts

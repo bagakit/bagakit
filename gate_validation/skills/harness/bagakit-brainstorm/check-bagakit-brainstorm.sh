@@ -198,26 +198,6 @@ write(
     - When a later结论修正 earlier观点, add a new entry that references the earlier entry id.
     - Link entries to `input_and_qa.md`, `finding_and_analyze.md`, `expert_forum.md`, or `outcome_and_handoff.md` when possible.
 
-    ## Clarification QA Bundle Template
-
-    ### Q-001
-    - Asked at:
-    - Asked by:
-    - User-facing question:
-    - Suggested answer shape:
-    - Why this question was asked:
-    - What this unlocks next:
-    - Current answer:
-    - Answered at:
-    - Answered by:
-    - Answer evidence:
-    - Memory-safe restatement:
-    - Canonical entities:
-    - Resolved references:
-    - Time anchors:
-    - Source refs:
-    - Follow-up:
-
     ## Clarification QA Bundles
 
     ### Q-001
@@ -246,27 +226,6 @@ write(
     - Source refs: input_and_qa.md#Q-001; raw_discussion_log.md#Q-001
     - Next action: Compare route-aware options in `finding_and_analyze.md`.
     - Follow-up: Use the answer to compare route-aware options in `finding_and_analyze.md`.
-
-    ## Discussion Entry Template
-
-    ### Entry <id>
-    - Timestamp:
-    - Recorder:
-    - Stage: `finding_and_analyze` | `expert_forum_review` | `outcome_and_handoff`
-    - Participants:
-    - Entry type: `expert_claim` | `expert_challenge` | `convergence` | `decision_update`
-    - Speaker id:
-    - Source artifact:
-    - Related question card:
-    - Raw content (keep original wording as faithfully as practical):
-    - Memory-safe restatement:
-    - Canonical entities:
-    - Resolved references:
-    - Time anchors:
-    - Source refs:
-    - Why it mattered:
-    - Decision impact:
-    - Follow-up:
 
     ## Discussion Log
 
@@ -1209,6 +1168,64 @@ if FORGED_MISSING_MOVE_OUTPUT="$(
 fi
 assert_output_line "$FORGED_MISSING_MOVE_OUTPUT" "TASK NOT COMPLETE"
 assert_output_line "$FORGED_MISSING_MOVE_OUTPUT" "archive check failed: artifact_moved_on_complete=None"
+
+EMPTY_FIELD_ROOT="$TMP_DIR/empty-field"
+EMPTY_FIELD_ARTIFACT="$(init_artifact "$EMPTY_FIELD_ROOT" "Empty field demo" "empty-field")"
+write_complete_artifact "$EMPTY_FIELD_ARTIFACT" "Empty field demo"
+python3 - "$EMPTY_FIELD_ARTIFACT" <<'PY'
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1]) / "finding_and_analyze.md"
+text = path.read_text(encoding="utf-8")
+text = text.replace(
+    "- Primary: Add route-aware lifecycle scenarios with blocked adapter and complete local/auto/adapter coverage.",
+    "- Primary:",
+)
+path.write_text(text, encoding="utf-8")
+PY
+if EMPTY_FIELD_OUTPUT="$(
+  python3 "$SKILL_DIR/scripts/bagakit-brainstorm.py" archive \
+    --root "$EMPTY_FIELD_ROOT" \
+    --dir "$EMPTY_FIELD_ARTIFACT" \
+    --driver local
+)"; then
+  echo "error: empty scaffold field unexpectedly passed archive" >&2
+  exit 1
+fi
+assert_output_line "$EMPTY_FIELD_OUTPUT" "status=blocked"
+assert_contains_line "$EMPTY_FIELD_OUTPUT" "blocked_reason=artifact_content_gate: finding_and_analyze.md:"
+assert_contains_line "$EMPTY_FIELD_OUTPUT" "contains empty field"
+
+HEADER_ONLY_ROOT="$TMP_DIR/header-only-table"
+HEADER_ONLY_ARTIFACT="$(init_artifact "$HEADER_ONLY_ROOT" "Header-only table demo" "header-only-table")"
+write_complete_artifact "$HEADER_ONLY_ARTIFACT" "Header-only table demo"
+python3 - "$HEADER_ONLY_ARTIFACT" <<'PY'
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1]) / "finding_and_analyze.md"
+text = path.read_text(encoding="utf-8")
+start = text.index("| Option | Impact(1-5) | Effort(1-5) | Risk(1-5) | Confidence(1-5) | Score |")
+end = text.index("\n\n## Recommended Direction", start)
+replacement = "\n".join([
+    "| Option | Impact(1-5) | Effort(1-5) | Risk(1-5) | Confidence(1-5) | Score |",
+    "|--------|-------------|-------------|-----------|------------------|-------|",
+])
+path.write_text(text[:start] + replacement + text[end:], encoding="utf-8")
+PY
+if HEADER_ONLY_OUTPUT="$(
+  python3 "$SKILL_DIR/scripts/bagakit-brainstorm.py" archive \
+    --root "$HEADER_ONLY_ROOT" \
+    --dir "$HEADER_ONLY_ARTIFACT" \
+    --driver local
+)"; then
+  echo "error: header-only table unexpectedly passed archive" >&2
+  exit 1
+fi
+assert_output_line "$HEADER_ONLY_OUTPUT" "status=blocked"
+assert_contains_line "$HEADER_ONLY_OUTPUT" "blocked_reason=artifact_content_gate: finding_and_analyze.md:"
+assert_contains_line "$HEADER_ONLY_OUTPUT" "contains header-only table"
 
 ABSOLUTE_ADAPTER_ROOT="$TMP_DIR/adapter-absolute-path"
 ABSOLUTE_ADAPTER_ARTIFACT="$(init_artifact "$ABSOLUTE_ADAPTER_ROOT" "Adapter absolute path demo" "absolute-route")"

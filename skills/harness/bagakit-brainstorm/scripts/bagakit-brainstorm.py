@@ -48,6 +48,10 @@ ARTIFACT_PLACEHOLDER_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
     ("frontier prompt marker", re.compile(r"^\s*-\s*Why this frontier context changes the option space:\s*$", re.IGNORECASE)),
     ("boundary prompt marker", re.compile(r"^\s*-\s*专家[A-Z]：\s*$")),
 )
+EMPTY_BULLET_RE = re.compile(r"^\s*-\s*$")
+EMPTY_FIELD_RE = re.compile(r"^(\s*)-\s*[^:\n]+(?:\:|：)\s*$")
+TABLE_ROW_RE = re.compile(r"^\s*\|.*\|\s*$")
+TABLE_SEPARATOR_RE = re.compile(r"^\s*\|?\s*:?-{3,}:?\s*(?:\|\s*:?-{3,}:?\s*)+\|?\s*$")
 
 
 def utc_now_iso() -> str:
@@ -313,6 +317,64 @@ def artifact_markdown_files(artifact_dir: Path) -> list[Path]:
     return files
 
 
+def indentation_width(line: str) -> int:
+    return len(line) - len(line.lstrip(" "))
+
+
+def has_indented_continuation(lines: list[str], index: int, base_indent: int) -> bool:
+    for line in lines[index + 1 :]:
+        if not line.strip():
+            continue
+        return indentation_width(line) > base_indent
+    return False
+
+
+def line_has_placeholder_marker(line: str) -> bool:
+    return any(pattern.search(line) for _, pattern in ARTIFACT_PLACEHOLDER_PATTERNS)
+
+
+def is_table_row(line: str) -> bool:
+    return TABLE_ROW_RE.match(line) is not None
+
+
+def is_table_separator(line: str) -> bool:
+    return TABLE_SEPARATOR_RE.match(line) is not None
+
+
+def artifact_empty_scaffold_issues(path: Path) -> list[str]:
+    issues: list[str] = []
+    lines = read_text(path).splitlines()
+    for line_number, line in enumerate(lines, start=1):
+        if EMPTY_BULLET_RE.match(line):
+            issues.append(f"{path.name}:{line_number} contains empty bullet")
+            continue
+
+        field_match = EMPTY_FIELD_RE.match(line)
+        if field_match and not line_has_placeholder_marker(line):
+            base_indent = len(field_match.group(1))
+            if not has_indented_continuation(lines, line_number - 1, base_indent):
+                issues.append(f"{path.name}:{line_number} contains empty field")
+
+    for index in range(len(lines) - 1):
+        if not is_table_row(lines[index]) or not is_table_separator(lines[index + 1]):
+            continue
+
+        has_data_row = False
+        for candidate in lines[index + 2 :]:
+            stripped = candidate.strip()
+            if not stripped or stripped.startswith("#"):
+                break
+            if not is_table_row(candidate):
+                break
+            if not is_table_separator(candidate):
+                has_data_row = True
+                break
+
+        if not has_data_row:
+            issues.append(f"{path.name}:{index + 1} contains header-only table")
+    return issues
+
+
 def artifact_placeholder_hard_issues(artifact_dir: Path) -> list[str]:
     issues: list[str] = []
     for path in artifact_markdown_files(artifact_dir):
@@ -321,6 +383,7 @@ def artifact_placeholder_hard_issues(artifact_dir: Path) -> list[str]:
                 if pattern.search(line):
                     issues.append(f"{path.name}:{line_number} contains {label}")
                     break
+        issues.extend(artifact_empty_scaffold_issues(path))
     return issues
 
 
@@ -968,12 +1031,8 @@ def raw_discussion_log_gate_issues(raw_discussion_file: Path) -> list[str]:
     issues: list[str] = []
     if not heading_exists(text, "Capture Rules"):
         issues.append("raw_discussion_log missing required heading: Capture Rules")
-    if not heading_exists(text, "Clarification QA Bundle Template"):
-        issues.append("raw_discussion_log missing required heading: Clarification QA Bundle Template")
     if not heading_exists(text, "Clarification QA Bundles"):
         issues.append("raw_discussion_log missing required heading: Clarification QA Bundles")
-    if not heading_exists(text, "Discussion Entry Template"):
-        issues.append("raw_discussion_log missing required heading: Discussion Entry Template")
     if not heading_exists(text, "Discussion Log"):
         issues.append("raw_discussion_log missing required heading: Discussion Log")
 
