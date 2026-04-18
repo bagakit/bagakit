@@ -17,6 +17,7 @@ REQUIRED_LOOP_RULE_IDS = {
     "mandatory-question-until-explicit-completion",
     "end-check-needs-summary-and-snapshot",
     "execution-window-reopens-loop",
+    "option-surface-preserves-meaningful-alternatives",
 }
 
 REQUIRED_ARTIFACT_IDS = {
@@ -50,16 +51,114 @@ REQUIRED_OUTPUT_FIELD_IDS = {
     "mvp-eval",
     "accepted-snapshot",
     "next-question-or-action",
+    "option-surface",
 }
 
 
 def load_toml(path: Path) -> dict:
     if tomllib is None:
-        raise RuntimeError("tomllib is required for this validation")
+        return parse_minimal_toml(path.read_text(encoding="utf-8"))
     with path.open("rb") as handle:
         data = tomllib.load(handle)
     if not isinstance(data, dict):
         raise ValueError("contract root must be a TOML table")
+    return data
+
+
+def parse_value(value: str) -> object:
+    value = value.strip()
+    if value.startswith("[") and value.endswith("]"):
+        return parse_inline_array(value)
+    if value.startswith('"') and value.endswith('"'):
+        return value[1:-1]
+    try:
+        return int(value)
+    except ValueError:
+        return value
+
+
+def parse_inline_array(value: str) -> list[str]:
+    inner = value.strip()[1:-1].strip()
+    if not inner:
+        return []
+    items: list[str] = []
+    for raw_item in inner.split(","):
+        item = raw_item.strip()
+        if not item:
+            continue
+        if item.startswith('"') and item.endswith('"'):
+            item = item[1:-1]
+        items.append(item)
+    return items
+
+
+def parse_array_item(line: str) -> str:
+    item = line.rstrip(",").strip()
+    if item.startswith('"') and item.endswith('"'):
+        item = item[1:-1]
+    return item
+
+
+def parse_minimal_toml(text: str) -> dict:
+    """Parse the simple TOML subset used by workflow-contract.toml."""
+
+    data: dict[str, object] = {}
+    current: dict[str, object] = data
+    array_key: str | None = None
+    array_target: dict[str, object] | None = None
+    array_values: list[str] = []
+
+    for raw_line in text.splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#"):
+            continue
+
+        if array_key is not None:
+            if line == "]":
+                if array_target is None:
+                    raise ValueError("array target missing")
+                array_target[array_key] = array_values
+                array_key = None
+                array_target = None
+                array_values = []
+                continue
+            item = parse_array_item(line)
+            if item:
+                array_values.append(item)
+            continue
+
+        if line.startswith("[[") and line.endswith("]]"):
+            section = line[2:-2].strip()
+            items = data.setdefault(section, [])
+            if not isinstance(items, list):
+                raise ValueError(f"section conflict: {section}")
+            current = {}
+            items.append(current)
+            continue
+
+        if line.startswith("[") and line.endswith("]"):
+            section = line[1:-1].strip()
+            table = data.setdefault(section, {})
+            if not isinstance(table, dict):
+                raise ValueError(f"section conflict: {section}")
+            current = table
+            continue
+
+        key, sep, value = line.partition("=")
+        if not sep:
+            continue
+        key = key.strip()
+        value = value.strip()
+        if value == "[":
+            array_key = key
+            array_target = current
+            array_values = []
+        else:
+            current[key] = parse_value(value)
+
+    if array_key is not None:
+        raise ValueError(f"unterminated array: {array_key}")
+
     return data
 
 

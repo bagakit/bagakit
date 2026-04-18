@@ -97,10 +97,11 @@ When Spark is explicitly invoked for planning, design, skill creation,
 architecture, product shaping, research framing, or other open-ended work, the
 first substantive response must contain a user-facing question.
 
-The question must be decision-changing and should include Spark's recommended
-default, rationale, and risk when that helps the user answer. Internal question
-inventory entries do not satisfy this rule. A written recommended default does
-not satisfy this rule unless the user is asked to confirm, reject, or modify it.
+The question must be decision-changing and should include Spark's visible
+option set, recommended default, rationale, and risk when that helps the user
+answer. Internal question inventory entries do not satisfy this rule. A written
+recommended default does not satisfy this rule unless the user is asked to
+confirm, reject, or modify it.
 
 Allowed exceptions:
 
@@ -157,12 +158,19 @@ Procedure:
 5. Ask one hard dependency-bearing branch question at a time.
 6. For each such question, include:
    - the branch being protected
-   - Spark's recommended answer
-   - rationale and evidence
+   - a compact option set when unresolved alternatives remain meaningful
+   - Spark's recommended default
+   - rationale and evidence for the visible options
    - risk if the recommendation is wrong
    - what changes after the user confirms, rejects, or modifies it
 7. Stop the stress-test only through the normal Spark convergence and snapshot
    rules.
+
+Single-default branch questions are allowed only for confirm/reject checks,
+local-evidence inferences where alternatives were already ruled out, or
+user-requested quick defaults. When using a single default, state the rejected
+alternative or why the option set collapsed so the user can challenge the
+recommendation.
 
 This is rigorous challenge, not adversarial performance. Do not increase
 pressure unless it protects a decision, exposes a hidden dependency, or improves
@@ -253,6 +261,8 @@ Common repair triggers:
 - a question asks the user to choose without explaining the relevant research
   findings
 - a question offers options without rationale or a recommended default
+- a question collapses meaningful alternatives into a single recommended answer
+  without explaining why the other branches were ruled out
 - an end-check question lacks the consensus snapshot candidate
 - the agent designs a research or question rule without applying that rule to
   the design action itself
@@ -315,7 +325,8 @@ Recommendation:
 ```
 
 Do not ask the user to choose between labels whose meaning has not been
-explained.
+explained. Do not show only the recommendation when meaningful alternatives
+remain unresolved; if the option set has collapsed to one default, say why.
 
 Before snapshot acceptance, challenge:
 

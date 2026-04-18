@@ -30,6 +30,11 @@ protects = "post-snapshot implementation, validation, or commit action does not 
 proof_surface = "next question, end-check question, or accepted snapshot ref after execution"
 
 [[loop_rule]]
+id = "option-surface-preserves-meaningful-alternatives"
+protects = "Spark recommendations do not collapse meaningful alternatives into a single default without rationale"
+proof_surface = "visible option set with rationale, risk, and one recommended default, or explicit reason the option set collapsed"
+
+[[loop_rule]]
 id = "mvp-eval-needs-quiet-room-separation"
 protects = "Spark cannot self-design, self-execute, self-review, and self-accept an MVP or thought-experiment eval"
 proof_surface = "mvp eval envelope with quiet-room route, actor refs, evidence packet, or explicit blocked/provisional status"
@@ -168,3 +173,7 @@ required_when = "later execution should reenter this discussion"
 [[output_field]]
 id = "next-question-or-action"
 required_when = "open Spark session"
+
+[[output_field]]
+id = "option-surface"
+required_when = "user is choosing or stress-testing among unresolved alternatives"

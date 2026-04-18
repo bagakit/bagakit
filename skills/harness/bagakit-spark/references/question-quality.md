@@ -19,8 +19,8 @@ Before asking, answer these privately:
 9. Is this the smallest question that unlocks the next step?
 10. Can local code, project documents, brainstorm state, or existing researcher
     evidence answer this with enough confidence for the current decision?
-11. If asking the user to choose or stress-test a branch, what recommended
-    answer should Spark offer, and what rationale supports it?
+11. If asking the user to choose or stress-test a branch, what visible option
+    set should Spark offer before the recommended default?
 12. Is this hard enough that it should be asked alone?
 
 Ask only if the answers are concrete.
@@ -146,12 +146,21 @@ If the question asks the user to choose among options, include the evidence or
 reason each option exists, the main risk, and a recommended default. A question
 that only names labels without context is not answerable enough.
 
+When meaningful alternatives remain unresolved, do not present only one
+recommended answer. Surface a compact option set, normally two options and at
+most three. Each option should have a short rationale and risk, followed by one
+recommended default. If Spark presents only one default, the question must be a
+confirm/reject check, a local-evidence inference where alternatives are already
+ruled out, or a user-requested quick default. In that case, state the rejected
+alternative or why the option set collapsed.
+
 For plan or design stress-tests, walk the decision tree branch by branch.
 Resolve dependency-bearing branches before downstream branches, and ask one
 hard branch question at a time. Each such question should include Spark's
-recommended answer, the rationale, and the risk if the recommendation is
-wrong. This borrows the useful discipline of external grilling patterns
-without copying adversarial tone as a goal.
+visible option set when the branch still has meaningful alternatives, Spark's
+recommended default, the rationale, and the risk if the recommendation is
+wrong. This borrows the useful discipline of external grilling patterns without
+copying adversarial tone as a goal.
 
 When the user points out that a question was weak, under-supported, or violated
 the Spark protocol, do not ask whether to fix it. Reflect, rerun the missed
@@ -199,6 +208,8 @@ surface instruction.
   research sufficiency judgment
 - asking the user to choose between options without explaining the research
   findings, rationale, risk, or recommended default
+- collapsing meaningful alternatives into a single A-only recommendation
+  without saying why alternatives were ruled out
 - asking the user to answer questions that local code, project documents,
   brainstorm state, or existing researcher evidence can answer well enough
 - stress-testing a plan through a broad interview batch instead of resolving

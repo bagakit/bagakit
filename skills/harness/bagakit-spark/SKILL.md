@@ -119,10 +119,16 @@ When the user wants to stress-test a plan or design, enter a plan/design
 stress-test submode. Map the dependent decision branches, resolve them in
 dependency order, inspect local code, project documents, brainstorm state, or
 research evidence before asking, and ask one hard branch question at a time
-with Spark's recommended answer and rationale. This pattern is grounded in
-`frontier/bagakit-spark-skill` claims `c017` and `c018` and insight `i004`.
-Do not copy adversarial intensity for its own sake; the pressure exists to
-protect decisions and shared understanding.
+with Spark's recommended answer and rationale. When unresolved alternatives
+remain meaningful, surface a compact option set first, normally two options and
+at most three, with rationale and risk for each option plus one recommended
+default. Do not collapse the user's choice into a single "recommended answer A"
+unless the branch is only asking for confirm/reject, local evidence has already
+ruled out the alternatives, or the user asked for a quick default. In those
+single-default cases, state what alternative was rejected or why the option set
+collapsed. This pattern is grounded in `frontier/bagakit-spark-skill` claims
+`c017` and `c018` and insight `i004`. Do not copy adversarial intensity for its
+own sake; the pressure exists to protect decisions and shared understanding.
 
 Show the user model when it helps the goal: to let the user correct it, build
 shared understanding, explain a challenge, or give formative feedback. Do not
@@ -269,8 +275,9 @@ Before asking the user, name internally:
 - whether the agent can resolve it by local reading or research instead
 - whether local code, project documents, brainstorm state, or existing
   researcher evidence already answers it well enough for the current decision
-- whether the agent should present a recommended answer for the user to
-  confirm, reject, or modify
+- whether the user needs a visible option set before the recommendation, or
+  whether this is a single-default confirm/reject question
+- which option Spark recommends for the user to confirm, reject, or modify
 - whether the question is hard enough that it should be asked alone
 
 Good spark questions are:
@@ -280,8 +287,10 @@ Good spark questions are:
 - grounded in the current frame
 - ordered by dependency
 - small enough to answer without derailing the topic
-- paired with a recommended default and rationale when the user is being asked
-  to choose or stress-test a branch
+- paired with a compact option set, rationale, risk, and one recommended
+  default when the user is being asked to choose among unresolved alternatives
+- explicit about why alternatives were not shown when Spark offers only one
+  recommended default
 
 Ask no more than three questions in one turn. If a question is conceptually
 hard or identity/goal revealing, ask it alone.

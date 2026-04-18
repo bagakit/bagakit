@@ -16,7 +16,7 @@ export const SUITE: EvalSuiteDefinition = {
   id: "bagakit-spark-behavior-starter-eval",
   owner: "gate_eval/skills/harness/bagakit-spark",
   title: "Spark Behavior Starter Eval",
-  summary: "Check deterministic review surfaces for accepted-snapshot closure, weak-question findings, research gaps, and next actions.",
+  summary: "Check deterministic review surfaces for accepted-snapshot closure, weak-question findings, option surfaces, research gaps, and next actions.",
   defaultOutputDir: "gate_eval/skills/harness/bagakit-spark/results/runs",
   cases: [
     {
@@ -58,6 +58,47 @@ export const SUITE: EvalSuiteDefinition = {
           ],
           outputs: {
             required_review_fields: ["premature closure evidence", "weak-question evidence", "research sufficiency judgment", "next_action"],
+          },
+        };
+      },
+    },
+    {
+      id: "recommendation-keeps-option-surface",
+      title: "Recommendation Keeps Option Surface",
+      summary: "Spark recommendation rules should preserve meaningful alternatives before naming a default.",
+      focus: ["question-quality", "option-surface", "stress-test"],
+      run: (context): EvalCaseResult => {
+        const skillRel = "skills/harness/bagakit-spark/SKILL.md";
+        const questionRel = "skills/harness/bagakit-spark/references/question-quality.md";
+        const protocolRel = "skills/harness/bagakit-spark/references/session-protocol.md";
+        const contractRel = "skills/harness/bagakit-spark/references/workflow-contract.toml";
+        const skill = readRepoFile(context.repoRoot, skillRel);
+        const questionQuality = readRepoFile(context.repoRoot, questionRel);
+        const protocol = readRepoFile(context.repoRoot, protocolRel);
+        const contract = readRepoFile(context.repoRoot, contractRel);
+
+        assertIncludes(skill, "Do not collapse the user's choice into a single", "spark skill");
+        assertIncludes(questionQuality, "When meaningful alternatives remain unresolved", "question quality");
+        assertIncludes(questionQuality, "A-only recommendation", "question quality");
+        assertIncludes(protocol, "Single-default branch questions are allowed only", "session protocol");
+        assertIncludes(contract, "option-surface-preserves-meaningful-alternatives", "spark workflow contract");
+        assertIncludes(contract, "option-surface", "spark workflow contract");
+
+        return {
+          assertions: [
+            "Spark skill instructions forbid collapsing meaningful alternatives into a single default",
+            "question-quality reference defines when single-default questions are allowed",
+            "session protocol carries the option-surface rule into stress-test output shape",
+            "workflow contract exposes option-surface as protected behavior",
+          ],
+          artifacts: [
+            { label: "spark-skill", path: skillRel },
+            { label: "question-quality", path: questionRel },
+            { label: "session-protocol", path: protocolRel },
+            { label: "workflow-contract", path: contractRel },
+          ],
+          outputs: {
+            protected_behavior: "recommendations preserve meaningful alternatives before naming one default",
           },
         };
       },
