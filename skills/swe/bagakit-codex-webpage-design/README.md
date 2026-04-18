@@ -12,6 +12,12 @@ approved mockups, real assets, design systems, or structured content can be
 stronger references. Do not implement from text requirements with no design
 reference.
 
+For high-craft or no-reference work, the design draft should be shaped by a
+reference survey and reviewed against that tier. The workflow also checks
+information compression, surface-led composition, density budget, and copy/icon
+economy before implementation so the result does not become redundant,
+wireframe-like, over-padded, or verbose.
+
 For spatial or stateful pages, machine validation is not enough. The workflow
 also gates canvas safe zones, mobile touchable states, artifact freshness, and
 independent visual judge aggregation before claiming parity.

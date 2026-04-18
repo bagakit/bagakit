@@ -58,17 +58,18 @@ adapt to the project:
 2. `reference-intent`
    - strongest reference source and intent class:
      `exact`, `style_reference`, `asset`, `content_context`, or `data_context`
-3. `reference-provenance-ledger`
-   - source class, produced artifact, and non-substitution constraints
+3. `reference-provenance-ledger` and `reference-survey-ledger`
+   - source class, comparison tier, and non-substitution constraints
 4. `image-prompt` and `design-reference`
    - required when no stronger reference exists; Image2 design generation is
      mandatory before coding unless unavailable, in which case the missing
      image is a blocker handoff
 5. `state-reference-set`
    - default, selected, search/filter, empty/error, modal, disabled, responsive
-6. `visual-decomposition`
+6. `visual-decomposition` and design-draft quality passes
    - page frame, regions, typography, palette, material, component treatment,
-     spacing, hierarchy, and signature details
+     information compression, surface composition, density, copy/icon budget,
+     hierarchy, and signature details
 7. `design-spec-ledger`
    - concrete grid, spacing, type, control, material, and state tokens
 8. `asset-requirement-pass` and `asset-generation-ledger`
@@ -244,19 +245,15 @@ Use bench cases for failures such as:
 - duplicated or conflicting mode controls that make the business flow unclear
 - toy single-page experiments used as false proof that the skill can build a
   sellable product MVP
+- design drafts without comparable references, information compression, density
+  discipline, surface-led composition, or copy/icon economy
 
 ## References
 Load the relevant reference:
 
-- `references/image-prompt-guide.md`
-  - image2 prompt structure, state board generation, reference-drift checks
-- `references/implementation-loop.md`
-  - frontend stack choice, product workflow gate, control surface gate,
-    interaction model, affordance evidence, canvas stability, browser loop
+- `references/image-prompt-guide.md` - image2 prompt structure, state boards, reference-drift checks
+- `references/implementation-loop.md` - stack choice, workflow/control gates, affordance evidence, canvas stability, browser loop
 - `references/asset-pipeline.md` - generated asset roles and slice/mask/crop
-- `references/visual-quality-rubric.md`
-  - aesthetic review, parity rating, quiet-room judge scoring, blockers
-- `references/artifact-contract.md`
-  - artifact names, blocking artifacts, and final handoff format
-- `references/workflow-contract.toml`
-  - structured stages, completion artifacts, guards, and failure coverage
+- `references/visual-quality-rubric.md` - aesthetic review, parity rating, judge scoring, blockers
+- `references/artifact-contract.md` - artifact names, blocking artifacts, final handoff format
+- `references/workflow-contract.toml` - stages, completion artifacts, guards, failure coverage

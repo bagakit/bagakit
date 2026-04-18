@@ -31,11 +31,17 @@ Viewport:
 Content:
 - <real copy, sections, data, product facts>
 
+Reference survey:
+- <3+ comparable products/pages and the design qualities this draft must meet or beat>
+
 Visual direction:
 - <style, era, mood, density, material, lighting, texture>
 
 Layout:
-- <grid, hero, navigation, content order, focal hierarchy>
+- <grid, surface areas, navigation, content order, focal hierarchy, density>
+
+Information design:
+- <core object/state/action model, compression strategy, copy/icon budget>
 
 Typography:
 - <display/body/mono direction, scale, contrast>
@@ -61,18 +67,29 @@ Implementation constraints:
 
 Negative constraints:
 - no generic gradient blobs, bland SaaS cards, stock-photo mood boards,
-  unreadable text, irrelevant decoration, crowded layout, or fake UI chrome
+  unreadable text, irrelevant decoration, crowded layout, fake UI chrome,
+  wireframe-like outlined box stacks, oversized padding used as polish,
+  duplicate content modules, verbose explanatory copy, or weak reference-tier
+  craft
 ```
 
 ## Prompt Rules
 
 - Use real copy and real assets when available.
+- For high-craft work, ground the prompt in a `reference-survey-ledger.md`
+  rather than asking image2 to invent the design tier from scratch.
 - State whether the prompt is creating the primary design reference or only a
   style/exploration variant.
 - Specify the page as a webpage mockup, not an abstract poster.
 - Name the target viewport and whether the image should show the full page or a
   first viewport.
 - Include constraints that make the design implementable in HTML/CSS.
+- Ask for surface-led composition: regions should be organized by planes,
+  material, density, hierarchy, and state, not only by thin outlines.
+- Include a density target. Avoid large padding, empty hero space, and
+  low-information cards unless the design brief gives a concrete reason.
+- Include a copy/icon budget. Ask for concise labels, status, counts, grouping,
+  and meaningful icons instead of explanatory paragraphs.
 - Ask for one strong direction at a time; variants belong in separate prompts.
 - If text fidelity matters, keep text short and expect to implement exact text
   in code rather than trusting generated image text.
@@ -90,6 +107,15 @@ Negative constraints:
 Before coding, answer:
 
 - What is the visual point of view?
+- Which comparable references define the target tier, and where is this draft
+  stronger or weaker?
+- Did the design integrate duplicate concepts into one clear object-flow model?
+- Does the page read as surface-led product design rather than a wireframe or
+  stack of outlined boxes?
+- Is the first viewport dense enough to communicate useful state without
+  feeling crowded?
+- Which explanatory text should become an icon, count, status, label, grouping,
+  tooltip, or removed element?
 - Which details must be preserved exactly?
 - Which generated details are not web-feasible or not worth matching?
 - What assets are missing?

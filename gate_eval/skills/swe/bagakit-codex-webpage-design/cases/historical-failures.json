@@ -389,6 +389,72 @@
       ]
     },
     {
+      "id": "high-craft-design-without-reference-survey",
+      "source_refs": [
+        ".bagakit/skill-selector/tasks/webpage-design-advanced-design-gates/skill-usage.toml"
+      ],
+      "failure": "A high-craft or no-reference webpage design begins from generic taste or Image2 alone without inspecting comparable projects and recording the reference tier the draft must meet or beat.",
+      "contract_guard_ids": [
+        "reference-survey-before-design",
+        "comparative-reference-tier"
+      ]
+    },
+    {
+      "id": "redundant-content-obscures-core-flow",
+      "source_refs": [
+        ".bagakit/skill-selector/tasks/webpage-design-advanced-design-gates/skill-usage.toml"
+      ],
+      "failure": "A design looks polished but repeats claims, panels, metrics, or actions instead of compressing them into one clear object-state-action-next-step model.",
+      "contract_guard_ids": [
+        "information-compression",
+        "information-architecture"
+      ]
+    },
+    {
+      "id": "wireframe-box-stack-passes-as-clean-design",
+      "source_refs": [
+        ".bagakit/skill-selector/tasks/webpage-design-advanced-design-gates/skill-usage.toml"
+      ],
+      "failure": "The draft relies on many outlined rectangles, divider lines, and generic cards, so it reads as a wireframe or box stack rather than a surface-led product design.",
+      "contract_guard_ids": [
+        "surface-composition",
+        "design-spec-fidelity"
+      ]
+    },
+    {
+      "id": "oversized-padding-lowers-signal-density",
+      "source_refs": [
+        ".bagakit/skill-selector/tasks/webpage-design-advanced-design-gates/skill-usage.toml"
+      ],
+      "failure": "The page uses large padding, low-information cards, empty hero space, or long scroll length as polish while weakening useful information density and first-viewport signal.",
+      "contract_guard_ids": [
+        "density-and-signal",
+        "full-page-structural-parity"
+      ]
+    },
+    {
+      "id": "verbose-copy-and-icons-as-decoration",
+      "source_refs": [
+        ".bagakit/skill-selector/tasks/webpage-design-advanced-design-gates/skill-usage.toml"
+      ],
+      "failure": "The design carries too much explanatory copy and decorative icon usage instead of using concise labels, semantic icons, counts, status, grouping, and progressive disclosure.",
+      "contract_guard_ids": [
+        "copy-icon-economy",
+        "control-surface-clarity"
+      ]
+    },
+    {
+      "id": "comparative-review-accepts-weaker-than-reference",
+      "source_refs": [
+        ".bagakit/skill-selector/tasks/webpage-design-advanced-design-gates/skill-usage.toml"
+      ],
+      "failure": "The final design review accepts a page that is weaker than the comparable reference set in information clarity, density, composition, responsive handling, material craft, or signature detail.",
+      "contract_guard_ids": [
+        "comparative-reference-tier",
+        "ambition-bar"
+      ]
+    },
+    {
       "id": "toy-single-page-false-mvp-proof",
       "source_refs": [
         ".bagakit/skill-selector/tasks/webpage-design-ambition-motion-experiment/skill-usage.toml"

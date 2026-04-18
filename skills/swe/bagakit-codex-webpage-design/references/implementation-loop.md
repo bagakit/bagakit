@@ -48,6 +48,33 @@ and signature details. The design spec ledger must turn those targets into
 implementable tokens and geometry standards instead of leaving the agent to
 eyeball small details during CSS work.
 
+For high-craft work, or when no stronger provided reference exists, write
+`reference-survey-ledger.md` before producing the final design reference. It
+should inspect at least three comparable product or page references and record
+what each one proves about information density, navigation model, surface
+composition, copy economy, icon language, material system, responsive treatment,
+and signature craft. Image2 can synthesize a direction from this survey, but it
+does not replace the survey. If comparable references cannot be found, record
+the search gap and lower confidence instead of inventing a design tier.
+
+Before implementation, run these design-draft gates when the page is
+product-like, content-heavy, workspace-oriented, dashboard-like, or high-craft:
+
+- `information-compression-pass.md`: state the one core concept model, merge
+  duplicate claims, remove redundant modules, and show how the primary object,
+  state, action, and next step become legible without repeated explanation.
+- `surface-composition-pass.md`: reject wireframe-like stacks of outlined boxes.
+  Use surface areas, layering, material, density, contrast, typography, and
+  state treatment to organize the page; borders should clarify boundaries or
+  state, not carry the whole composition.
+- `density-budget.md`: define first-viewport density, region gaps, card/list
+  density, control spacing, and scroll length targets. Oversized padding,
+  low-information cards, and empty hero space need a specific product reason.
+- `copy-icon-budget.md`: limit explanatory copy. Prefer icons, counts, status
+  marks, grouping, location, and concise labels when they communicate more
+  cleanly than sentences. Preserve text for object names, state, action, result,
+  and necessary risk.
+
 Before implementation, run an `asset-requirement-pass.md` for high-craft or
 strongly styled references. If the reference's craft relies on material,
 texture, illustration, edge masks, glyphs, icon language, glow/noise overlays,
@@ -549,6 +576,14 @@ Use Playwright or available browser tools to check:
 - information architecture legibility: object taxonomy, navigation hierarchy,
   page region responsibilities, progressive disclosure, and information scent
   are clear without external explanation
+- information compression: duplicate concepts, repeated claims, and redundant
+  modules are merged, removed, or given different scope
+- surface composition: the page does not read as a wireframe or pile of
+  outlined cards; surface, density, type, material, and state carry hierarchy
+- density budget: padding, gutters, card internals, row height, and scroll
+  length preserve useful signal instead of creating low-density polish
+- copy and icon economy: explanatory text is minimized, icon usage has semantic
+  ownership, and labels/counts/status cues communicate the next path
 - workflow legibility: first action, current object, next action, and
   completion signal are visible without external explanation
 - control surface ownership: each mode switch, tab group, toolbar, footer
@@ -594,6 +629,9 @@ Use Playwright or available browser tools to check:
   chart, or loses the markers that make it operable.
 - ambition-bar checks for a useful product-specific surprise, signature craft
   detail, and non-generic result when the task asks for high-craft work
+- comparative design review against the reference survey: the draft must not be
+  weaker than the recorded reference tier in information clarity, density,
+  composition, responsive handling, material craft, or signature detail
 - screenshots or DOM checks for branch states in the state reference set
 - obvious visual bugs: overlap, malformed icons, broken assets, inconsistent
   spacing, unreadable text, accidental scrollbars, and layout jumps

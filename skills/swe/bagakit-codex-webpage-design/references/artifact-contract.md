@@ -16,10 +16,28 @@ Files:
 - `reference-provenance-ledger.md`
   - source class, produced artifact, non-substitution constraints, and
     reference review status
+- `reference-survey-ledger.md`
+  - comparable product/page references, source class, inspected strengths,
+    information density, composition model, copy/icon language, responsive
+    treatment, signature craft, and cannot-lose comparison points
 - `visual-decomposition.md`
   - reference image reading: page frame, region proportions, toolbar,
     navigation, focal object, typography, palette, materials, component shapes,
     spacing rhythm, and signature details
+- `information-compression-pass.md`
+  - core concept model, duplicate concepts or claims, redundant modules,
+    merged/removed/demoted surfaces, and the final object-state-action-next-step
+    reading path
+- `surface-composition-pass.md`
+  - how surfaces, layers, density, material, contrast, typography, and state
+    treatment carry hierarchy without relying on wireframe outlines or stacked
+    generic cards
+- `density-budget.md`
+  - first-viewport density, region gaps, card/list density, component padding,
+    row height, scroll length, and accepted reasons for any large whitespace
+- `copy-icon-budget.md`
+  - copy budget, icon/control semantics, required labels, removable explanation
+    text, status/count/grouping cues, and visual-noise risks
 - `design-spec-ledger.md`
   - implementable tokens and geometry inferred from the reference: page grid,
     spacing scale, typography scale, color/material tokens, control sizes,
@@ -100,6 +118,11 @@ Files:
 - `visual-judge-scorecards.md`
   - independent quiet-room judge scorecards with 1-5 dimension scores,
     screenshot-region evidence, blocker findings, and rationale
+- `comparative-design-review.md`
+  - final comparison against the reference survey for information clarity,
+    density, surface composition, copy/icon economy, responsive handling,
+    material craft, signature detail, and any accepted weaker-than-reference
+    deltas
 - `review-packet.md`
   - paired or independent review packet following
     `docs/specs/review-packet-contract.md`; records reviewer ownership,
@@ -132,11 +155,12 @@ or logical artifact names.
 
 `reference-intent.md`, `visual-decomposition.md`, `design-spec-ledger.md`, and
 state coverage are blocking artifacts for implementation. For high-craft work,
-`ambition-bar.md` is also blocking before implementation. If no stronger
-reference exists, `design-reference.md` must point to an image2-generated
-reference before implementation can claim visual completion. If image
-generation is unavailable, preserve `image-prompt.md` and hand off the blocker
-instead of coding directly from text requirements.
+`reference-survey-ledger.md`, `ambition-bar.md`, and the design-draft quality
+passes are also blocking before implementation. If no stronger reference
+exists, `design-reference.md` must point to an image2-generated reference before
+implementation can claim visual completion. If image generation is unavailable,
+preserve `image-prompt.md` and hand off the blocker instead of coding directly
+from text requirements.
 
 `reference-provenance-ledger.md` is blocking whenever a generated or provided
 reference will guide implementation. It must classify the source as
@@ -428,7 +452,12 @@ pass status.
 - Design reference: <repo-relative artifact ref>
 - Reference intent: <exact|style_reference|asset|content_context|data_context>
 - Reference provenance: <external_strong|image2_filesystem|browser_exploration_only|blocked_no_reference and ref>
+- Reference survey ledger: <ref or not_needed_stronger_reference_low_craft>
 - Visual decomposition: <ref>
+- Information compression pass: <ref or not_needed_simple_page>
+- Surface composition pass: <ref or not_needed_low_craft>
+- Density budget: <ref or not_needed_simple_page>
+- Copy/icon budget: <ref or not_needed_simple_page>
 - Design spec ledger: <ref>
 - Ambition bar: <ref or not_needed_low_craft>
 - MVP experiment plan: <ref or not_needed_not_skill_experiment>
@@ -449,6 +478,7 @@ pass status.
 - Canvas stability: <ref or not_needed_non_spatial_page>
 - Canvas safe zones: <passed|partial|blocked|not_needed and ref>
 - Visual judge scorecards: <ref or not_needed_low_risk>
+- Comparative design review: <ref or not_needed_no_reference_survey>
 - Judge aggregation: <pass|needs_iteration|blocked|not_needed_low_risk and ref>
 - Image2 status: <generated|not_needed_stronger_reference|blocked_unavailable>
 - Reference provenance gate: <passed|blocked with evidence ref>

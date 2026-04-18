@@ -34,10 +34,40 @@ artifact = "reference-provenance-ledger.md"
 blocks_completion = true
 
 [[stage]]
+id = "reference-survey-ledger"
+phase = "before_implementation"
+artifact = "reference-survey-ledger.md"
+required_when = "no stronger provided reference exists or high-craft work needs a market/reference tier"
+
+[[stage]]
 id = "design-reference"
 phase = "before_implementation"
 artifact = "design-reference.*"
 blocks_completion = true
+
+[[stage]]
+id = "information-compression-pass"
+phase = "before_implementation"
+artifact = "information-compression-pass.md"
+required_when = "product-like, content-heavy, or high-craft page"
+
+[[stage]]
+id = "surface-composition-pass"
+phase = "before_implementation"
+artifact = "surface-composition-pass.md"
+required_when = "high-craft or strongly styled page"
+
+[[stage]]
+id = "density-budget"
+phase = "before_implementation"
+artifact = "density-budget.md"
+required_when = "product-like, dashboard, workspace, or high-craft page"
+
+[[stage]]
+id = "copy-icon-budget"
+phase = "before_implementation"
+artifact = "copy-icon-budget.md"
+required_when = "product-like, dashboard, workspace, or high-craft page"
 
 [[stage]]
 id = "state-reference-set"
@@ -172,6 +202,11 @@ artifact = "visual-judge-scorecards.md"
 required_when = "important UX, generated references, or exact-reference implementation"
 
 [[completion_artifact]]
+id = "comparative-design-review"
+artifact = "comparative-design-review.md"
+required_when = "reference-survey-ledger is required"
+
+[[completion_artifact]]
 id = "review-packet"
 artifact = "review-packet.md"
 required_when = "paired or independent review is used"
@@ -205,6 +240,16 @@ proof_surface = "reference-provenance-ledger plus design-reference artifact"
 id = "image2-reference-authority"
 protects = "when no stronger external reference exists, visual completion requires a saved Image2 design artifact instead of a coded HTML design source"
 proof_surface = "reference-provenance-ledger plus design-reference artifact plus image-prompt retry evidence when blocked"
+
+[[guard]]
+id = "reference-survey-before-design"
+protects = "high-craft or no-reference design drafts must be shaped by comparable product references instead of invented without research"
+proof_surface = "reference-survey-ledger plus reference-intent plus image-prompt or design-reference"
+
+[[guard]]
+id = "comparative-reference-tier"
+protects = "final design review must not accept a draft that is weaker than the recorded reference tier in information clarity, density, composition, or craft"
+proof_surface = "reference-survey-ledger plus comparative-design-review plus visual-judge-scorecards"
 
 [[guard]]
 id = "skill-quality-no-reference-invalid"
@@ -265,6 +310,26 @@ proof_surface = "reference-coverage-matrix plus visual-parity-ledger"
 id = "information-architecture"
 protects = "complex product screens must expose object taxonomy, region ownership, and information scent"
 proof_surface = "information-architecture-map"
+
+[[guard]]
+id = "information-compression"
+protects = "design drafts must integrate duplicate concepts, repeated claims, and redundant modules into one clear object-flow model"
+proof_surface = "information-compression-pass plus information-architecture-map plus workflow-model"
+
+[[guard]]
+id = "surface-composition"
+protects = "advanced design drafts must avoid wireframe-like stacks of outlined boxes by using surface, density, hierarchy, material, and state treatment deliberately"
+proof_surface = "surface-composition-pass plus visual-decomposition plus design-spec-ledger"
+
+[[guard]]
+id = "density-and-signal"
+protects = "layouts must not use oversized padding, low-density cards, or decorative whitespace to fake polish while reducing useful signal"
+proof_surface = "density-budget plus micro-parity-checklist plus full-page-structural-parity-ledger"
+
+[[guard]]
+id = "copy-icon-economy"
+protects = "design drafts must reduce explanatory copy and visual noise by using icons, status, counts, grouping, and labels with clear semantic ownership"
+proof_surface = "copy-icon-budget plus control-surface-map plus micro-parity-checklist"
 
 [[guard]]
 id = "motion-frame-stability"
@@ -505,6 +570,30 @@ guard_ids = ["full-page-structural-parity"]
 [[historical_failure_guard]]
 case_id = "duplicated-mode-controls-unclear-flow"
 guard_ids = ["control-surface-clarity"]
+
+[[historical_failure_guard]]
+case_id = "high-craft-design-without-reference-survey"
+guard_ids = ["reference-survey-before-design", "comparative-reference-tier"]
+
+[[historical_failure_guard]]
+case_id = "redundant-content-obscures-core-flow"
+guard_ids = ["information-compression", "information-architecture"]
+
+[[historical_failure_guard]]
+case_id = "wireframe-box-stack-passes-as-clean-design"
+guard_ids = ["surface-composition", "design-spec-fidelity"]
+
+[[historical_failure_guard]]
+case_id = "oversized-padding-lowers-signal-density"
+guard_ids = ["density-and-signal", "full-page-structural-parity"]
+
+[[historical_failure_guard]]
+case_id = "verbose-copy-and-icons-as-decoration"
+guard_ids = ["copy-icon-economy", "control-surface-clarity"]
+
+[[historical_failure_guard]]
+case_id = "comparative-review-accepts-weaker-than-reference"
+guard_ids = ["comparative-reference-tier", "ambition-bar"]
 
 [[historical_failure_guard]]
 case_id = "toy-single-page-false-mvp-proof"

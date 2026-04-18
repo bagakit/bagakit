@@ -68,25 +68,44 @@ For interactive pages, add a sixth check:
    - Does each mode switch, tab group, toolbar, inspector action, footer
      control, and floating control have clear ownership and scope without
      unexplained duplication?
+11. Reference Tier
+   - Which comparable references set the bar, and is this design at least as
+     strong in information clarity, density, composition, responsive handling,
+     material craft, and signature detail?
+12. Information Economy
+   - Are duplicate concepts, repeated claims, repeated panels, and redundant
+     controls compressed into one clear object-flow model?
+   - Does the first viewport show the core object, state, action, and next step
+     without verbose explanation?
+13. Surface Composition
+   - Does the page use planes, material, density, type, contrast, and state to
+     organize information instead of looking like a wireframe or outlined-card
+     stack?
+14. Signal Density
+   - Are padding, gutters, card internals, row heights, and scroll length
+     justified by comprehension rather than decoration?
+15. Copy And Icon Economy
+   - Could labels, icons, counts, status marks, grouping, location, or tooltips
+     replace explanatory copy without losing meaning?
 
 Then add implementation checks:
 
-11. State Parity
+16. State Parity
    - Are the important branch states based on a state reference frame or
      reusable rule from the reference set rather than local improvisation?
-12. Full-Page Structural Parity
+17. Full-Page Structural Parity
    - Do whole-page and first-viewport screenshots preserve the reference's
      page frame, section order, region proportions, control placement, primary
      object layout, and mobile hierarchy?
-13. Design Spec Fidelity
+18. Design Spec Fidelity
    - Did the implementation derive and use a design spec ledger for grid,
      spacing, typography, control geometry, material tokens, and state
      treatment rather than ad hoc CSS guesses?
-14. Micro-Parity
+19. Micro-Parity
    - Do cropped details such as button spacing, icon alignment, row density,
      borders, shadows, text leading, dividers, and selected/hover states match
      the reference or have accepted reasons?
-15. Material Parity
+20. Material Parity
    - When the reference depends on texture, torn edges, illustrated glyphs,
      custom icon language, glow/noise overlays, or other material craft, did
      the implementation use an asset kit rather than flattening the design
@@ -97,38 +116,38 @@ Then add implementation checks:
      reference-specific sprites instead of replaced by generic icons?
    - If panel or card frames scale, does a nine-slice renderer keep corners,
      edges, center fill, padding, and min size stable across specimen sizes?
-16. Code Craft
+21. Code Craft
    - Are repeated UI structures data-driven and componentized with shared
      tokens, or did visual iteration leave a large brittle one-off component?
-17. Behavior Proof
+22. Behavior Proof
    - Do visible interactive affordances actually work in the browser, including
      click selection, search/filter, reset, capture editing, keyboard
      activation, and drag/pan/zoom when implied?
-16. Affordance Honesty
+23. Affordance Honesty
    - Has every visible live-looking control been inventoried and classified as
      working, disabled, hidden, or explicitly out of scope?
-17. Reference Coverage
+24. Reference Coverage
    - Has every reference-visible control, state, and signature detail been
      implemented or explicitly accounted for before judging parity?
-18. State Coherence
+25. State Coherence
    - When the app enters blocked, empty, missing-input, failed, disconnected,
      permission-denied, or low-confidence states, do primary surfaces clearly
      become unavailable, stale, recoverable, or scoped instead of looking live?
-19. Canvas Stability
+26. Canvas Stability
    - If the page presents a graph, map, canvas, whiteboard, or spatial surface,
      does manipulation feel smooth without flicker, object reset, pan/drag
      conflict, or layout jumps?
-20. Motion-Frame Stability
+27. Motion-Frame Stability
    - Do before, mid-drag, and after-drag frames show continuous movement without
      flashing, disappearing content, z-order jumps, unwanted transitions, or
      relation-line redraw artifacts?
-21. Mobile State Honesty
+28. Mobile State Honesty
    - Do mobile tabs, drawers, bottom sheets, and segmented controls visually
      match the content being shown?
    - Do core mobile visualizations such as waveforms, charts, maps, timelines,
      and media scrubbers remain visible and operable instead of collapsing into
      blank or clipped blocks?
-22. Spatial Label Legibility
+29. Spatial Label Legibility
    - Do graph, map, timeline, and spatial labels avoid overlap, collision,
      unreadable clustering, or ambiguous ownership?
    - Are label placement and truncation reviewed in screenshots, not only by
@@ -156,6 +175,21 @@ Watch for:
 - oversized generic hero text with vague copy
 - gradient blob backgrounds
 - repeated rounded cards without information design
+- wireframe-like layouts made of many outlined boxes and divider lines
+- surface treatment that cannot explain which region owns which concept
+- duplicate claims, duplicate CTA strips, repeated metric cards, or repeated
+  panels that do not create a clearer hierarchy
+- big padding, empty hero space, oversized cards, and long scroll length used
+  to imply premium quality while reducing useful information
+- verbose explanatory paragraphs where labels, icons, counts, status, grouping,
+  or progressive disclosure would communicate better
+- generic icon usage that decorates rather than clarifies action, status, or
+  object type
+- design drafts created without comparable reference inspection for high-craft
+  or no-reference tasks
+- generated designs accepted even though they are weaker than the reference set
+  in information clarity, density, composition, responsive handling, material
+  craft, or signature detail
 - stock-like abstract imagery
 - one-note palettes
 - fake dashboard screenshots with unreadable text
