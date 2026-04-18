@@ -1,4 +1,4 @@
-"""Check runtime-surface contract alignment across docs, skills, and local roots."""
+"""Check runtime-surface contract alignment across docs, skills, and optional local roots."""
 
 from __future__ import annotations
 
@@ -12,7 +12,7 @@ except ModuleNotFoundError:  # pragma: no cover
     tomllib = None  # type: ignore[assignment]
 
 
-EXPECTED_SURFACES = {
+OPTIONAL_SURFACES = {
     ".bagakit/researcher/surface.toml": {
         "surface_id": "researcher-runtime",
         "surface_root": ".bagakit/researcher",
@@ -90,6 +90,9 @@ EXPECTED_SURFACES = {
 EXPECTED_TEXT_TOKENS = {
     "docs/specs/runtime-surface-contract.md": [
         "surface.toml",
+        "`.bagakit/` is local runtime state by default",
+        "A host repository may ignore the",
+        "Default repository validation must not require a fresh checkout",
         "lifecycle_class",
         "edit_policy",
         "README.md",
@@ -104,49 +107,7 @@ EXPECTED_TEXT_TOKENS = {
         "Runtime Surface Declaration Policy",
         "docs/specs/runtime-surface-contract.md",
         "persistent runtime surface by default",
-    ],
-    ".bagakit/README.md": [
-        "surface.toml",
-        ".bagakit/skill-selector/",
-        ".bagakit/design/",
-        ".bagakit/living-knowledge/",
-        "docs/specs/runtime-surface-contract.md",
-    ],
-    ".bagakit/design/README.md": [
-        "bagakit-design-core",
-        "design-packet.toml",
-        "docs/specs/runtime-surface-contract.md",
-    ],
-    ".bagakit/researcher/README.md": [
-        "surface.toml",
-        ".bagakit/evolver/",
-        ".bagakit/skill-selector/",
-    ],
-    ".bagakit/evolver/README.md": [
-        "surface.toml",
-        "topics/<topic>/README.md",
-    ],
-    ".bagakit/skill-selector/README.md": [
-        ".bagakit/evolver/",
-        ".bagakit/researcher/",
-        "Task-local skill usage truth belongs here",
-    ],
-    ".bagakit/living-knowledge/README.md": [
-        ".generated/",
-        ".bagakit/knowledge_conf.toml",
-        "docs/",
-    ],
-    ".bagakit/researcher/AGENTS.md": [
-        "bagakit-researcher",
-        "docs/specs/runtime-surface-contract.md",
-    ],
-    ".bagakit/evolver/AGENTS.md": [
-        "bagakit-skill-evolver",
-        "docs/specs/evolver-memory.md",
-    ],
-    ".bagakit/skill-selector/AGENTS.md": [
-        "bagakit-skill-selector",
-        "tasks/<task-slug>/skill-usage.toml",
+        "host repositories may ignore `.bagakit/` by default",
     ],
     "skills/harness/bagakit-brainstorm/README.md": [
         "## Runtime Surface Declaration",
@@ -351,10 +312,9 @@ def main() -> int:
     root = Path(args.root).expanduser().resolve()
     failures: list[str] = []
 
-    for rel, expected in EXPECTED_SURFACES.items():
+    for rel, expected in OPTIONAL_SURFACES.items():
         path = root / rel
         if not path.is_file():
-            failures.append(f"missing surface marker: {rel}")
             continue
         try:
             data = load_toml(path)
@@ -387,7 +347,7 @@ def main() -> int:
             print(f"error: {failure}", file=sys.stderr)
         return 1
 
-    print("ok: runtime-surface contract is aligned across docs, skill docs, and materialized local roots")
+    print("ok: runtime-surface contract is aligned across docs, skill docs, and optional local roots")
     return 0
 
 

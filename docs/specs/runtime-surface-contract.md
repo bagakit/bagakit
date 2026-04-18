@@ -9,6 +9,8 @@ It is the SSOT for:
   surface
 - the materialization rule for top-level runtime-surface roots
 - the machine-readable `surface.toml` marker contract
+- the rule that `.bagakit/` runtime state is private by default and may be
+  ignored by host repositories
 - lifecycle and edit-policy vocabulary for Bagakit-owned local state
 - when `README.md` and path-local `AGENTS.md` belong inside one runtime root
 - what canonical skill docs must declare about runtime-surface ownership
@@ -39,6 +41,7 @@ The goal of this spec is to keep Bagakit runtime roots:
 - low-ambiguity
 - machine-readable enough for validation
 - readable enough for human recovery and review
+- safe for host repositories to keep out of version control by default
 
 ## First Principle
 
@@ -58,6 +61,24 @@ skill exists.
 
 Materialize one top-level runtime root only when the owning skill or tool
 actually needs project-local state in that host repository.
+
+`.bagakit/` is local runtime state by default. A host repository may ignore the
+entire directory without violating this contract. The existence of a runtime
+surface, including a `surface.toml` marker, does not by itself mean any file
+under `.bagakit/` should be committed.
+
+If material produced under `.bagakit/` becomes durable public repository truth,
+promote or copy the reviewed conclusion into the owning public surface before
+committing it:
+
+- `docs/` for stable shared knowledge, specs, architecture, and stewardship
+- `mem/` for durable but still-evolving repository memory
+- `gate_validation/` for release-blocking proof registration
+- `gate_eval/` for non-gating eval or benchmark assets
+- `skills/` for runtime payload that should ship with one installable skill
+
+Do not make `.bagakit/` a checked-in evidence archive to avoid deciding which
+public surface owns the material.
 
 ## Surface Model
 
@@ -99,6 +120,7 @@ Rules:
 - the root must contain `surface.toml`
 - the root may contain extra files beyond `surface.toml`
 - consumers must not rely on ad hoc extra files for identity
+- version control must not assume the root is present in a fresh checkout
 
 ### Root-Adjacent Protocol File
 
@@ -116,6 +138,9 @@ Rules:
   in the surface metadata or runtime docs
 - a root-adjacent file does not replace the owning surface root when the skill
   also owns one
+- root-adjacent protocol files under `.bagakit/` are local runtime/config
+  surfaces by default; their absence must fall back to the owning contract's
+  documented defaults unless the host explicitly requires local configuration
 
 ## Materialization Rule
 
@@ -124,6 +149,8 @@ Default rule:
 1. declare runtime-surface ownership in the owning skill docs
 2. create the top-level root only when the host repository needs it
 3. if the top-level root exists, it must include `surface.toml`
+4. keep the root untracked unless a reviewed file has been promoted to a
+   public owning surface outside `.bagakit/`
 
 Do not:
 
@@ -132,12 +159,19 @@ Do not:
 - use one shared catch-all root for multiple unrelated skill boundaries
 - treat a transient export path as an owned runtime surface unless the owning
   contract says it is
+- require downstream hosts to commit `.bagakit/` only because Bagakit created
+  a surface marker or local runtime state
 
 ## `surface.toml` Contract
 
 Every materialized top-level runtime surface must include:
 
 - `.bagakit/<surface>/surface.toml`
+
+This marker is required for local materialized roots. It is not a Git tracking
+requirement. Repositories may ignore `.bagakit/`; tools and validators should
+validate `surface.toml` when the root exists, and should tolerate its absence
+when the surface has not been materialized in the current checkout.
 
 Current authoring baseline:
 
@@ -308,25 +342,41 @@ Validation should prefer:
 Do not rely only on README prose to determine runtime-surface identity when a
 machine-readable contract exists.
 
+Validation must distinguish:
+
+- materialized local-state validation
+  - validate `surface.toml` and state shape when the runtime root exists
+- public repository validation
+  - validate durable contracts, docs, skill payloads, eval fixtures, and
+    promoted memory outside `.bagakit/`
+
+Default repository validation must not require a fresh checkout to contain
+private `.bagakit/` state. If a suite needs example runtime state, use a
+temporary fixture, generated test workspace, or promoted fixture outside
+`.bagakit/`.
+
 ## Current Repository Guidance
 
-For this canonical repository today:
+The canonical repository also treats `.bagakit/` as local runtime state that may
+be ignored. Self-hosting evidence that should survive in Git belongs in the
+public owning surface:
+
+- `docs/` for stable contracts, architecture, stewardship, and shared knowledge
+- `mem/` for durable but still-evolving repository memory
+- `gate_eval/` for non-gating eval and benchmark artifacts
+- `gate_validation/` for gate registration and proof scripts
+- `skills/` for installable runtime payload
+
+Skill-owned runtime surfaces such as:
 
 - `.bagakit/researcher/`
-  - materialized durable state surface
 - `.bagakit/evolver/`
-  - materialized durable state surface
 - `.bagakit/skill-selector/`
-  - materialized durable state surface
 - `.bagakit/living-knowledge/`
-  - materialized generated-state surface
-
-Other skill-owned runtime surfaces such as:
-
 - `.bagakit/feature-tracker/`
 - `.bagakit/flow-runner/`
 - `.bagakit/brainstorm/`
 - `.bagakit/git-message-craft/`
 
-remain declared contracts even when they are not materialized in this repo at
-all times.
+remain declared runtime contracts even when they are ignored, absent, or
+locally materialized only for the current operator.

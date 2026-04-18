@@ -142,6 +142,8 @@ Optional fields:
 - `surface_refs`
   - repo-relative navigational refs to concrete runtime or protocol paths this
     CLI commonly operates on
+  - refs under `.bagakit/` are local runtime/config surfaces; listing them does
+    not imply they are present in a fresh checkout or committed to Git
 
 Optional command table:
 

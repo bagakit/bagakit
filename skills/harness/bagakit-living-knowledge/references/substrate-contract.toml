@@ -13,6 +13,7 @@ shared_page_template = "skills/harness/bagakit-living-knowledge/playbook/tpl/sha
 
 [path_protocol]
 config = ".bagakit/knowledge_conf.toml"
+config_behavior = "optional_local_override"
 default_shared_root = "docs"
 default_system_root = "docs"
 runtime_root = ".bagakit/living-knowledge"

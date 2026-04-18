@@ -241,13 +241,13 @@ args = [
 [[suite]]
 id = "runtime-surface-contract"
 owner = "gate_validation/backbone"
-description = "Require the runtime-surface contract to stay aligned across specs, skill docs, and current materialized .bagakit roots."
+description = "Require the runtime-surface contract to stay aligned across specs, skill docs, and optional local .bagakit roots."
 default = true
 proof_mode = "wording_contract"
 protects = ["runtime-surface ownership vocabulary and local root protocol alignment across repo bootstrap, specs, and skill docs"]
-oracle = ["owned contract anchors parsed from runtime-surface spec, skill declarations, and current materialized .bagakit roots"]
-exercised_surface = ["docs/specs/runtime-surface-contract.md", "skill runtime surface declarations", ".bagakit runtime root declarations"]
-proves = ["runtime-surface-contract proves: Require the runtime-surface contract to stay aligned across specs, skill docs, and current materialized .bagakit roots."]
+oracle = ["owned contract anchors parsed from runtime-surface spec, skill declarations, and optional local .bagakit roots"]
+exercised_surface = ["docs/specs/runtime-surface-contract.md", "skill runtime surface declarations", "optional .bagakit runtime root declarations"]
+proves = ["runtime-surface-contract proves: Require the runtime-surface contract to stay aligned across specs, skill docs, and optional local .bagakit roots."]
 does_not_prove = ["runtime-surface-contract does not prove behavior outside its documented contract anchors."]
 timeout_seconds = 120
 validation_class = "contract"

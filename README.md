@@ -53,8 +53,8 @@ become structured evolver state is top-level `.mem_inbox/`.
 Important split:
 
 - evidence may stay distributed across local workspaces and operational traces
-- `evolver` memory and decision state should be structurally tracked in
-  `.bagakit/evolver/`
+- `evolver` runtime memory and decision state is structurally recorded in
+  `.bagakit/evolver/` when that surface is locally materialized
 - durable conclusions should be promoted into `docs/specs/`,
   `docs/stewardship/`, or `skills/`
 
@@ -77,8 +77,7 @@ skills/
 │   ├── architecture/
 │   ├── specs/
 │   └── stewardship/
-├── .bagakit/
-│   └── evolver/
+├── .bagakit/              # local runtime state, ignored by default
 ├── dev/
 │   ├── eval/
 │   ├── validator/
@@ -125,10 +124,14 @@ skills/
   - repo-owned and owner-local validation registration
 - `gate_eval/`
   - non-gating eval and benchmark assets
-- `.bagakit/evolver/`
-  - project-local evolver state
-  - the repository learning surface, including the evolver memory plane and
-    decision plane
+- `.bagakit/`
+  - project-local Bagakit runtime state
+  - ignored by default because task, research, selector, evolver, and design
+    runtime state may contain private host context
+  - materialized top-level runtime surfaces still carry `surface.toml` locally
+    per `docs/specs/runtime-surface-contract.md`
+  - reviewed public evidence must be promoted to `docs/`, `mem/`,
+    `gate_validation/`, `gate_eval/`, or `skills/` before being committed
 - `.mem_inbox/`
   - optional evolver-owned intake buffer for upstream-worthy memory that is
     not yet structured topic state

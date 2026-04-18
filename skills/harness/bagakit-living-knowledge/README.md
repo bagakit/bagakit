@@ -22,6 +22,7 @@ This skill does not own:
   - `.bagakit/living-knowledge/`
 - root-adjacent protocol file:
   - `.bagakit/knowledge_conf.toml`
+  - optional local override; absence means use defaults
 - shared checked-in knowledge root, not a project-local runtime root:
   - `docs/`
 - stable contract:
@@ -32,8 +33,9 @@ This skill does not own:
 
 ## Core Surfaces
 
-- config:
+- local config override:
   - `.bagakit/knowledge_conf.toml`
+  - may be ignored with the rest of `.bagakit/`
 - shared root:
   - default `docs/`
 - system pages under the shared root:
@@ -51,6 +53,9 @@ This skill does not own:
 
 ## Hygiene
 
+- `.bagakit/` is host-local runtime state. Do not treat
+  `.bagakit/knowledge_conf.toml` or generated helper output as required
+  checked-in knowledge.
 - Use repo-relative paths only in shared pages, managed bootstrap text, and
   durable examples.
 - Do not publish absolute filesystem paths, timestamp-derived file names, raw

@@ -83,7 +83,7 @@ re-absorbing the other runtime systems.
 - generated `must-sop.md`
 - progressive-loading `must-recall.md`
 - shared knowledge normalization, indexing, recall, and reviewed ingestion
-- shared path protocol through `.bagakit/knowledge_conf.toml`
+- optional local path protocol override through `.bagakit/knowledge_conf.toml`
 - reusable-items governance and starter catalogs inside the shared root
 
 ### Moved Out
@@ -108,11 +108,13 @@ They are not implicit obligations of `living-knowledge`.
 
 ## Configuration
 
-Project configuration lives at:
+Local project configuration may live at:
 
 - `.bagakit/knowledge_conf.toml`
 
-This config is the path protocol entry surface.
+This file is a host-local path protocol override. It may be ignored with the
+rest of `.bagakit/`. If it is absent, `living-knowledge` uses the default path
+protocol below.
 
 Current fields:
 
@@ -161,6 +163,9 @@ Meaning:
 
 Rule:
 
+- `.bagakit/knowledge_conf.toml` is not a checked-in exception to the default
+  private `.bagakit/` rule
+- absence of the config must preserve default behavior
 - if a peer system ignores this config, it must still stay standalone-first
 - if a peer system chooses to follow it, the config is the shared path contract
 - `living-knowledge` must not require the peer to exist
@@ -178,7 +183,8 @@ If no config exists, that root is:
 This is a contract default, not a statement that every repository should stop
 distinguishing other authoritative docs surfaces.
 Repositories with a more specialized shared knowledge root may override the path
-in `knowledge_conf.toml`.
+in local `.bagakit/knowledge_conf.toml`, but shared public knowledge itself
+still belongs outside `.bagakit/`.
 
 ## System Pages
 
@@ -367,6 +373,7 @@ They are not authority because:
 - the shared checked-in files remain the real source of truth
 - the helper outputs may be deleted and rebuilt
 - recall must still work from the shared checked-in surface
+- repositories may ignore `.bagakit/` without losing shared knowledge
 
 ## Validation And Eval
 

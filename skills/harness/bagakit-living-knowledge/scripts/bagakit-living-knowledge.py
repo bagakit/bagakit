@@ -820,7 +820,7 @@ def doctor_command(args: argparse.Namespace) -> int:
     warnings: list[str] = []
 
     if not s.config_file.is_file():
-        errors.append("missing .bagakit/knowledge_conf.toml")
+        warnings.append("missing local .bagakit/knowledge_conf.toml; using default knowledge path protocol")
     if not s.shared_root.is_dir():
         errors.append(f"missing shared root: {relpath(root, s.shared_root)}")
     if not s.must_guidebook.is_file():
@@ -833,8 +833,8 @@ def doctor_command(args: argparse.Namespace) -> int:
         errors.append(f"missing system page: {relpath(root, s.must_sop)}")
     if not s.reusable_items_norms.is_file():
         errors.append(f"missing reusable-items governance page: {relpath(root, s.reusable_items_norms)}")
-    if not (s.generated_root / ".gitignore").is_file():
-        errors.append(f"missing generated-root gitignore: {relpath(root, s.generated_root / '.gitignore')}")
+    if s.generated_root.exists() and not (s.generated_root / ".gitignore").is_file():
+        warnings.append(f"missing generated-root gitignore: {relpath(root, s.generated_root / '.gitignore')}")
     if s.agents.is_file():
         agents_text = s.agents.read_text(encoding="utf-8", errors="replace")
         if root.as_posix() in agents_text or REPO_ABSOLUTE_PATH_RE.search(agents_text):

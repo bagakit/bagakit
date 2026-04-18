@@ -24,7 +24,8 @@ monorepo.
 - `dev/release_projection/` contains projection and release tooling
 - `dev/host_tools/` contains maintainer-only host-side tooling
 - `dev/validator/` contains the generic validation framework
-- `.bagakit/evolver/` contains project-local evolver state
+- `.bagakit/` contains host-local Bagakit runtime state and may be ignored;
+  materialized top-level runtime surfaces still require `surface.toml`
 - `mem/` contains durable repository memory that is still evolving and should
   not be promoted to specs or runtime payload
 - `catalog/` is reserved for non-authoritative metadata or legacy notes and
@@ -240,7 +241,8 @@ Boot layer:
 - If a task needs maintenance-route guidance or shared directives, read `must-sop.md`.
 - If a task needs prior decisions or facts, follow `must-recall.md`.
 - `AGENTS.md` is only the bootstrap layer; the shared checked-in knowledge root
-  is configured in `.bagakit/knowledge_conf.toml`.
+  defaults to `docs`, and `.bagakit/knowledge_conf.toml` is only a
+  local override when present.
 
 Recall discipline:
 
@@ -253,6 +255,8 @@ Recall discipline:
 Substrate discipline:
 
 - Shared knowledge belongs under the configured shared root.
+- `.bagakit/` is host-local runtime state and may be ignored; do not publish
+  shared knowledge there.
 - Durable examples and managed bootstrap text must stay repo-relative; never
   record absolute filesystem paths in shared knowledge or AGENTS guidance.
 - When imported material needs one durable handle, prefer a short opaque id
@@ -279,6 +283,7 @@ reporting, the response footer may use:
 - `[[BAGAKIT]]`
 - `- LivingKnowledge: Surface=<updated shared surfaces or none>; Evidence=<commands/checks>; Next=<one deterministic next action>`
 <!-- BAGAKIT:LIVING-KNOWLEDGE:END -->
+
 <!-- BAGAKIT:FRONTDOOR:START -->
 <bagakit-rule skill="bagakit-skill-selector">
 - Trigger: Non-trivial Bagakit-shaped work, skill choice, composition, retries, eval evidence, or possible evolver handoff.

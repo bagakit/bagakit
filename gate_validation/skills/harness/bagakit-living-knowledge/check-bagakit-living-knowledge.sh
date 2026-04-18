@@ -61,6 +61,8 @@ grep -q "must-guidebook.md" AGENTS.md
 grep -q "must-authority.md" AGENTS.md
 grep -q "must-sop.md" AGENTS.md
 grep -q "must-recall.md" AGENTS.md
+grep -q ".bagakit/knowledge_conf.toml" AGENTS.md
+grep -q "local override" AGENTS.md
 grep -q "Maintaining Reusable Items" docs/norms-maintaining-reusable-items.md
 
 PATHS_OUT="$("$CMD" paths --root .)"
@@ -71,8 +73,16 @@ grep -q "^evolver_root: .bagakit/evolver$" <<<"$PATHS_OUT"
 
 grep -q "docs" docs/must-guidebook.md
 grep -q ".bagakit/researcher" docs/must-authority.md
+grep -q ".bagakit/.*host-local runtime state" docs/must-authority.md
 grep -q "generated from optional frontmatter" docs/must-sop.md
 grep -q "recall search" docs/must-recall.md
+
+rm -rf .bagakit
+sh "$CMD" doctor --root . >"$TMP_DIR/no-local-config-doctor.out" 2>"$TMP_DIR/no-local-config-doctor.err"
+grep -q "doctor passed" "$TMP_DIR/no-local-config-doctor.out"
+grep -q "using default knowledge path protocol" "$TMP_DIR/no-local-config-doctor.err"
+APPLY_OUT="$("$CMD" apply --root .)"
+grep -q "^applied: \\.$" <<<"$APPLY_OUT"
 
 mkdir -p docs/notes
 cat > docs/notes/decision-shared-root.md <<'EOF'

@@ -52,11 +52,67 @@ ABSOLUTE_PATH_PATTERN = re.compile(
 
 def load_toml(path: Path) -> dict:
     if tomllib is None:
-        raise RuntimeError("tomllib is required for this validation")
+        return load_contract_toml_subset(path)
     with path.open("rb") as handle:
         data = tomllib.load(handle)
     if not isinstance(data, dict):
         raise ValueError("contract root must be a TOML table")
+    return data
+
+
+def parse_scalar(raw: str, line_no: int) -> object:
+    value = raw.strip()
+    if value.startswith('"') and value.endswith('"'):
+        return value[1:-1]
+    if value.isdigit():
+        return int(value)
+    raise ValueError(f"unsupported TOML value on line {line_no}: {raw}")
+
+
+def load_contract_toml_subset(path: Path) -> dict:
+    """Parse the constrained TOML subset used by substrate-contract.toml."""
+
+    data: dict[str, object] = {}
+    current: dict[str, object] = data
+    current_name = ""
+
+    for line_no, raw_line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
+        line = raw_line.strip()
+        if not line or line.startswith("#"):
+            continue
+        if line.startswith("[[") and line.endswith("]]"):
+            name = line[2:-2].strip()
+            if not name:
+                raise ValueError(f"empty array table name on line {line_no}")
+            bucket = data.setdefault(name, [])
+            if not isinstance(bucket, list):
+                raise ValueError(f"{name} cannot be both a table and array table")
+            entry: dict[str, object] = {}
+            bucket.append(entry)
+            current = entry
+            current_name = name
+            continue
+        if line.startswith("[") and line.endswith("]"):
+            name = line[1:-1].strip()
+            if not name:
+                raise ValueError(f"empty table name on line {line_no}")
+            table = data.setdefault(name, {})
+            if not isinstance(table, dict):
+                raise ValueError(f"{name} cannot be both a table and array table")
+            current = table
+            current_name = name
+            continue
+        if "=" not in line:
+            raise ValueError(f"expected key/value on line {line_no}")
+        key, raw_value = line.split("=", 1)
+        key = key.strip()
+        if not key:
+            raise ValueError(f"empty key on line {line_no}")
+        if key in current:
+            scope = current_name or "root"
+            raise ValueError(f"duplicate key {key!r} in {scope} on line {line_no}")
+        current[key] = parse_scalar(raw_value, line_no)
+
     return data
 
 
@@ -129,6 +185,7 @@ def main() -> int:
     else:
         expected_paths = {
             "config": ".bagakit/knowledge_conf.toml",
+            "config_behavior": "optional_local_override",
             "default_shared_root": "docs",
             "default_system_root": "docs",
             "runtime_root": ".bagakit/living-knowledge",

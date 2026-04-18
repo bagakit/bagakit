@@ -90,6 +90,10 @@ Primary state lives under:
 
 - `.bagakit/evolver/`
 
+This is host-local runtime state and may be ignored by Git. The surface
+protocol still applies: if `.bagakit/evolver/` is materialized, it carries
+`surface.toml`.
+
 Optional pre-topic intake may live under:
 
 - `.mem_inbox/`

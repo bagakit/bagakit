@@ -58,6 +58,11 @@ Required policy:
   explicitly.
 - If one declared top-level runtime surface is materialized in a host repo, it
   must carry `surface.toml` per `docs/specs/runtime-surface-contract.md`.
+- Declaring or materializing a runtime surface does not require the host to
+  commit `.bagakit/`; host repositories may ignore `.bagakit/` by default.
+- Public evidence or durable conclusions first produced under `.bagakit/` must
+  be promoted to `docs/`, `mem/`, `gate_validation/`, `gate_eval/`, or the
+  owning skill payload before being committed.
 - Path-local `AGENTS.md` inside one runtime surface is optional and should be
   used only when the subtree needs narrower execution guidance than the root
   `AGENTS.md`.

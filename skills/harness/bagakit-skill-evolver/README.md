@@ -9,6 +9,10 @@ This skill is the behavioral layer.
 This skill ships its own low-level operator scripts for working with
 `.bagakit/evolver/`.
 
+`.bagakit/evolver/` is host-local runtime state and may be ignored by Git. If
+the surface is materialized, it still carries `surface.toml` per the runtime
+surface contract.
+
 ## Runtime Surface Declaration
 
 - top-level runtime surface root when materialized:

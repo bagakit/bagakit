@@ -17,6 +17,10 @@ The optional pre-topic intake buffer is defined separately in:
 The evolver operator reads and writes project-local state under
 `.bagakit/evolver/`.
 
+This is a local runtime surface. Host repositories may ignore `.bagakit/`;
+materializing `.bagakit/evolver/` still requires its `surface.toml` marker per
+`docs/specs/runtime-surface-contract.md`.
+
 This surface is downstream of task-local evidence, not the raw home of it.
 Selector-owned task logs stay under `.bagakit/skill-selector/tasks/` until
 their contents are routed or summarized into repository-level learning.
@@ -355,13 +359,20 @@ That means:
 
 ## Project-State Rule
 
-Evolver state belongs to `.bagakit/evolver/`, not to `mem/`.
+Live evolver operator state belongs to `.bagakit/evolver/`, not to `mem/`.
 
 Reason:
 
 - it is operational project state
 - it is manipulated by the evolver operator
 - it should stay distinct from more general repository memory and notes
+
+Commit rule:
+
+- do not make `.bagakit/evolver/` a checked-in public archive
+- if an evolver conclusion should survive as public repository truth, promote
+  the reviewed result into `docs/`, `mem/`, `gate_validation/`, `gate_eval/`,
+  or `skills/` according to the owning surface
 
 ## Validation
 

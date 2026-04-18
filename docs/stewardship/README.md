@@ -126,7 +126,9 @@ Those boundaries are defined in:
 
 ## Surface Guide For Stewards
 
-Use these surfaces deliberately:
+Use these surfaces deliberately. `.bagakit/` entries are host-local runtime
+surfaces: they may be ignored by Git, but when a top-level runtime surface is
+materialized it still follows the `surface.toml` protocol.
 
 - `.bagakit/skill-selector/`
   - task-local or host-local skill coverage preflight, composition, usage
