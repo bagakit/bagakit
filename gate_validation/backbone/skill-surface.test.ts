@@ -315,6 +315,64 @@ test("install resolves explicit repo-local targets and global scope", () => {
   }
 });
 
+test("install-status compares canonical skill sources with flat install roots", () => {
+  const repoRoot = makeTempRepo();
+  const consumerRepo = makeTempRepo();
+  const codexHome = makeTempRepo();
+  const staleTarget = makeTempRepo();
+  mkdirSync(path.join(repoRoot, "skills"), { recursive: true });
+  mkdirSync(path.join(codexHome, "skills"), { recursive: true });
+  mkdirSync(consumerRepo, { recursive: true });
+  mkdirSync(staleTarget, { recursive: true });
+  writeSkill(repoRoot, "harness", "alpha");
+  writeSkill(repoRoot, "paperwork", "beta");
+  symlinkSync(path.join(repoRoot, "skills", "harness", "alpha"), path.join(codexHome, "skills", "alpha"), "dir");
+  symlinkSync(staleTarget, path.join(codexHome, "skills", "beta"), "dir");
+
+  try {
+    const globalRun = runCli(["install-status", "--root", repoRoot, "--scope", "global", "--json"], {
+      cwd: consumerRepo,
+      env: {
+        ...process.env,
+        CODEX_HOME: codexHome,
+      },
+    });
+    assert.equal(globalRun.status, 0, globalRun.stderr);
+    const globalStatus = JSON.parse(globalRun.stdout);
+    const globalResults = Object.fromEntries(
+      globalStatus.scans[0].results.map((result: { selector: string; status: string }) => [result.selector, result.status]),
+    );
+    assert.deepEqual(globalResults, {
+      "harness/alpha": "installed",
+      "paperwork/beta": "stale",
+    });
+
+    const repoLocalRun = runCli(
+      ["install-status", "--root", repoRoot, "--scope", "repo-local", "--repo", consumerRepo, "--selector", "alpha", "--json"],
+      { cwd: repoRoot },
+    );
+    assert.equal(repoLocalRun.status, 0, repoLocalRun.stderr);
+    const repoLocalStatus = JSON.parse(repoLocalRun.stdout);
+    assert.equal(repoLocalStatus.scans[0].results[0].selector, "harness/alpha");
+    assert.equal(repoLocalStatus.scans[0].results[0].status, "missing");
+
+    const strictRun = runCli(["install-status", "--root", repoRoot, "--scope", "global", "--selector", "beta", "--strict"], {
+      cwd: consumerRepo,
+      env: {
+        ...process.env,
+        CODEX_HOME: codexHome,
+      },
+    });
+    assert.equal(strictRun.status, 1);
+    assert.ok(strictRun.stdout.includes("stale\tpaperwork/beta"));
+  } finally {
+    rmSync(repoRoot, { recursive: true, force: true });
+    rmSync(consumerRepo, { recursive: true, force: true });
+    rmSync(codexHome, { recursive: true, force: true });
+    rmSync(staleTarget, { recursive: true, force: true });
+  }
+});
+
 test("distributePackages creates family-scoped archives without rewriting payload membership", () => {
   if (!commandAvailable("zip") || !commandAvailable("unzip")) {
     return;

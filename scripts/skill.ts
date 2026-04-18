@@ -12,6 +12,7 @@ import { distributeHostHarnessPackages } from "./lib/host_harness/packaging.ts";
 import { resolveHostHarnessSelector } from "./lib/host_harness/selectors.ts";
 import { checkCanonicalSkillLayout } from "./lib/skill/check.ts";
 import { loadSkillInventory } from "./lib/skill/discovery.ts";
+import { scanSkillInstallStatus, type SkillInstallStatusResult } from "./lib/skill/install_status.ts";
 import { linkSkills } from "./lib/skill/linking.ts";
 import type { LinkResult, PackageResult, SkillResolution, SkillSource } from "./lib/skill/model.ts";
 import {
@@ -40,6 +41,15 @@ type JsonLinkResult = Readonly<{
   sourcePath: string;
 }>;
 
+type JsonInstallStatusResult = Readonly<{
+  selector: string;
+  status: SkillInstallStatusResult["status"];
+  destinationPath: string;
+  sourcePath: string;
+  existingTargetPath: string | null;
+  detail: string;
+}>;
+
 type JsonPackageResult = Readonly<{
   selector: string;
   archivePath: string;
@@ -62,6 +72,13 @@ type JsonHostHarnessInitResult = Readonly<{
 }>;
 
 type InstallScope = "repo-local" | "global";
+type InstallStatusScope = InstallScope | "all";
+
+type InstallStatusTarget = Readonly<{
+  scope: "repo-local" | "global" | "custom";
+  consumerRepoRoot: string | null;
+  destDir: string;
+}>;
 
 function printHelp(): void {
   console.log(`bagakit skill
@@ -69,6 +86,7 @@ function printHelp(): void {
 Commands:
   list [--root <repo-root>] [--selector <selector>] [--json]
   install [--selector <selector>] [--scope <repo-local|global>] [--repo <dir>] [--root <repo-root>] [--force] [--json]
+  install-status [--selector <selector>] [--scope <repo-local|global|all>] [--repo <dir>] [--dest <dir>] [--root <repo-root>] [--strict] [--json]
   link --selector <selector> [--root <repo-root>] [--dest <dir>] [--force] [--json]
   distribute-package [--root <repo-root>] [--selector <selector>] [--dist <dir>] [--no-clean] [--json]
   host-harness-list [--root <repo-root>] [--selector <harness-id|all>] [--json]
@@ -84,6 +102,7 @@ Selectors:
 Defaults:
   install --scope repo-local   <cwd>/.codex/skills
   install --scope global       $CODEX_HOME/skills or ~/.codex/skills
+  install-status --scope all   checks repo-local and global install roots
   --dest  $CODEX_HOME/skills or ~/.codex/skills
   --dist  dist/skill-packages
   host-harness-distribute-package --dist  dist/host-harnesses
@@ -92,9 +111,10 @@ Notes:
   - An installable skill source must live at skills/<family>/<skill-id>/ with SKILL.md.
   - install is the preferred distribution entrypoint; it resolves repo-local or global pickup paths for you.
   - install with no selector, or selector "all", installs every discovered installable skill source.
+  - install-status reports installed, missing, stale, or conflict by comparing discovered sources with flat install roots.
   - link is the low-level projection primitive when you need an explicit destination path.
   - Relative --dest and --dist paths resolve against --root.
-  - list, install, link, and distribute-package discover skills directly from the directory protocol.
+  - list, install, install-status, link, and distribute-package discover skills directly from the directory protocol.
   - distribute-package with no selector, or selector "all", packages every discovered installable skill source.
   - No registry or delivery-profile metadata is consulted by this command surface.
   - Packaging writes family-scoped archives to avoid filename collisions.
@@ -120,6 +140,17 @@ function jsonLinkResult(result: LinkResult): JsonLinkResult {
     status: result.status,
     destinationPath: result.destinationPath,
     sourcePath: result.sourcePath,
+  };
+}
+
+function jsonInstallStatusResult(repoRoot: string, result: SkillInstallStatusResult): JsonInstallStatusResult {
+  return {
+    selector: result.skill.selector,
+    status: result.status,
+    destinationPath: displayPath(process.cwd(), result.destinationPath),
+    sourcePath: displayPath(repoRoot, result.sourcePath),
+    existingTargetPath: result.existingTargetPath ? displayPath(process.cwd(), result.existingTargetPath) : null,
+    detail: result.detail,
   };
 }
 
@@ -166,6 +197,17 @@ function printResolution(resolution: SkillResolution): void {
 function printLinkResults(results: LinkResult[]): void {
   for (const result of results) {
     console.log(`${result.status}\t${result.skill.selector}\t${result.destinationPath} -> ${result.sourcePath}`);
+  }
+}
+
+function printInstallStatusResults(repoRoot: string, results: SkillInstallStatusResult[]): void {
+  for (const result of results) {
+    const destinationPath = displayPath(process.cwd(), result.destinationPath);
+    const sourcePath = displayPath(repoRoot, result.sourcePath);
+    const targetSuffix = result.existingTargetPath
+      ? `\tcurrent=${displayPath(process.cwd(), result.existingTargetPath)}`
+      : "";
+    console.log(`${result.status}\t${result.skill.selector}\t${destinationPath} -> ${sourcePath}${targetSuffix}`);
   }
 }
 
@@ -318,6 +360,13 @@ function parseInstallScope(rawScope: string): InstallScope {
   throw new Error(`invalid install scope: ${rawScope}. expected repo-local or global`);
 }
 
+function parseInstallStatusScope(rawScope: string): InstallStatusScope {
+  if (rawScope === "all") {
+    return "all";
+  }
+  return parseInstallScope(rawScope);
+}
+
 function resolveInstallDestination(scope: InstallScope, rawRepo?: string): Readonly<{
   scope: InstallScope;
   consumerRepoRoot: string | null;
@@ -340,6 +389,38 @@ function resolveInstallDestination(scope: InstallScope, rawRepo?: string): Reado
     consumerRepoRoot,
     destDir: defaultRepoLocalCodexSkillsDir(consumerRepoRoot),
   };
+}
+
+function resolveInstallStatusTargets(
+  repoRoot: string,
+  rawScope: string,
+  rawRepo?: string,
+  rawDest?: string,
+): InstallStatusTarget[] {
+  if (rawDest) {
+    if (rawRepo) {
+      throw new Error("--repo is only valid with --scope repo-local or --scope all");
+    }
+    return [
+      {
+        scope: "custom",
+        consumerRepoRoot: null,
+        destDir: resolvePathFrom(repoRoot, rawDest),
+      },
+    ];
+  }
+
+  const scope = parseInstallStatusScope(rawScope);
+  if (scope === "global") {
+    return [resolveInstallDestination("global")];
+  }
+  if (scope === "repo-local") {
+    return [resolveInstallDestination("repo-local", rawRepo)];
+  }
+  return [
+    resolveInstallDestination("repo-local", rawRepo),
+    resolveInstallDestination("global"),
+  ];
 }
 
 function cmdInstall(argv: string[]): number {
@@ -398,6 +479,65 @@ function cmdInstall(argv: string[]): number {
   console.log(`install\t${scope}\t${displayPath(process.cwd(), installTarget.destDir)}`);
   printLinkResults(results);
   return 0;
+}
+
+function cmdInstallStatus(argv: string[]): number {
+  const { values } = parseArgs({
+    args: argv,
+    options: {
+      ...commonOptions(),
+      selector: { type: "string" as const },
+      scope: { type: "string" as const, default: "all" },
+      repo: { type: "string" as const },
+      dest: { type: "string" as const },
+      strict: { type: "boolean" as const, default: false },
+    },
+    strict: true,
+    allowPositionals: false,
+  });
+
+  const repoRoot = resolveRepoRoot(values.root);
+  const inventory = loadSkillInventory(repoRoot);
+  const resolution = values.selector
+    ? resolveSkillSelector(inventory, values.selector)
+    : {
+        selector: "all",
+        kind: "all" as const,
+        skills: inventory.skills,
+      };
+  const targets = resolveInstallStatusTargets(repoRoot, values.scope, values.repo, values.dest);
+  const scans = targets.map((target) => ({
+    target,
+    results: scanSkillInstallStatus(resolution.skills, target.destDir),
+  }));
+  const ok = scans.every((scan) => scan.results.every((result) => result.status === "installed"));
+
+  if (values.json) {
+    console.log(
+      JSON.stringify(
+        {
+          selector: resolution.selector,
+          kind: resolution.kind,
+          ok,
+          scans: scans.map((scan) => ({
+            scope: scan.target.scope,
+            repo: scan.target.consumerRepoRoot ? displayPath(process.cwd(), scan.target.consumerRepoRoot) : null,
+            destination: displayPath(process.cwd(), scan.target.destDir),
+            results: scan.results.map((result) => jsonInstallStatusResult(repoRoot, result)),
+          })),
+        },
+        null,
+        2,
+      ),
+    );
+    return values.strict && !ok ? 1 : 0;
+  }
+
+  for (const scan of scans) {
+    console.log(`install-status\t${scan.target.scope}\t${displayPath(process.cwd(), scan.target.destDir)}`);
+    printInstallStatusResults(repoRoot, scan.results);
+  }
+  return values.strict && !ok ? 1 : 0;
 }
 
 function cmdDistributePackage(argv: string[]): number {
@@ -578,6 +718,8 @@ function main(argv: string[]): number {
       return cmdList(rest);
     case "install":
       return cmdInstall(rest);
+    case "install-status":
+      return cmdInstallStatus(rest);
     case "link":
       return cmdLink(rest);
     case "check-layout":
