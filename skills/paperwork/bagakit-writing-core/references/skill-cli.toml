@@ -25,7 +25,7 @@ summary = "Run generic writing-core markdown lint checks."
 
 [[command]]
 name = "de-ai-tone"
-summary = "Run sibling bagakit-writing-de-ai-tone CLI when available."
+summary = "Run bagakit-writing-de-ai-tone CLI when available."
 
 [[command]]
 name = "route"

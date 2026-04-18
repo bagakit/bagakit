@@ -4,6 +4,38 @@ script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 skill_root="$(dirname "$script_dir")"
 sibling_root="$(dirname "$skill_root")"
 
+join_skill_cli_path() {
+  local base="${1%/}"
+  printf '%s/%s/%s\n' "$base" "$2" "$3"
+}
+
+find_skill_cli() {
+  local skill_id="$1"
+  local rel_cli="$2"
+  local explicit_env="$3"
+  local candidate
+
+  if [[ -n "${!explicit_env:-}" && -f "${!explicit_env}" ]]; then
+    printf '%s\n' "${!explicit_env}"
+    return 0
+  fi
+
+  local candidates=()
+  candidates+=("$(join_skill_cli_path "$sibling_root" "$skill_id" "$rel_cli")")
+  [[ -n "${BAGAKIT_SKILLS_DIR:-}" ]] && candidates+=("$(join_skill_cli_path "$BAGAKIT_SKILLS_DIR" "$skill_id" "$rel_cli")")
+  candidates+=("$(join_skill_cli_path "$PWD/.codex/skills" "$skill_id" "$rel_cli")")
+  [[ -n "${CODEX_HOME:-}" ]] && candidates+=("$(join_skill_cli_path "$CODEX_HOME/skills" "$skill_id" "$rel_cli")")
+  [[ -n "${HOME:-}" ]] && candidates+=("$(join_skill_cli_path "$HOME/.codex/skills" "$skill_id" "$rel_cli")" "$(join_skill_cli_path "$HOME/.agents/skills" "$skill_id" "$rel_cli")")
+
+  for candidate in "${candidates[@]}"; do
+    if [[ -f "$candidate" ]]; then
+      printf '%s\n' "$candidate"
+      return 0
+    fi
+  done
+  return 1
+}
+
 usage() {
   cat <<'EOF'
 usage: bagakit-writing-core-cli <command> [args...]
@@ -13,7 +45,7 @@ Commands:
   list-references   List reference files shipped by this skill.
   validate          Check that required skill files exist.
   lint              Run generic writing-core markdown lint checks.
-  de-ai-tone        Run sibling bagakit-writing-de-ai-tone CLI when available.
+  de-ai-tone        Run bagakit-writing-de-ai-tone CLI when available.
   route             Run writing-core route foundation and derivation tools.
   print-review-packet-template
                     Print the writing-core review packet template.
@@ -41,7 +73,6 @@ case "${1:-}" in
     test -f "$skill_root/references/review/REVIEW_PACKET_TEMPLATE.md"
     test -f "$skill_root/scripts/writing_core_lint.py"
     test -f "$skill_root/scripts/writing_core_route_tools.py"
-    test -f "$sibling_root/bagakit-writing-de-ai-tone/scripts/bagakit-writing-de-ai-tone-cli.sh"
     ;;
   lint)
     shift
@@ -49,9 +80,8 @@ case "${1:-}" in
     ;;
   de-ai-tone)
     shift
-    de_ai_cli="$sibling_root/bagakit-writing-de-ai-tone/scripts/bagakit-writing-de-ai-tone-cli.sh"
-    if [[ ! -f "$de_ai_cli" ]]; then
-      printf 'bagakit-writing-de-ai-tone is required for publishable prose review but is not available next to bagakit-writing-core\n' >&2
+    if ! de_ai_cli="$(find_skill_cli bagakit-writing-de-ai-tone scripts/bagakit-writing-de-ai-tone-cli.sh BAGAKIT_DE_AI_TONE_CLI)"; then
+      printf 'bagakit-writing-de-ai-tone is required for publishable prose review; install it or set BAGAKIT_DE_AI_TONE_CLI\n' >&2
       exit 2
     fi
     exec bash "$de_ai_cli" "$@"

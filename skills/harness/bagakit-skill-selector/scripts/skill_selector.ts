@@ -73,6 +73,34 @@ import {
 const scriptRoot = path.dirname(fileURLToPath(import.meta.url));
 const defaultEvolverCli = path.resolve(scriptRoot, "../../bagakit-skill-evolver/scripts/evolver.ts");
 
+function existingFile(filePath: string): string | undefined {
+  return fs.existsSync(filePath) && fs.statSync(filePath).isFile() ? filePath : undefined;
+}
+
+function skillCliCandidates(skillId: string, relCli: string, repoRoot: string): string[] {
+  return [
+    path.resolve(scriptRoot, "..", "..", skillId, relCli),
+    process.env.BAGAKIT_SKILLS_DIR ? path.join(process.env.BAGAKIT_SKILLS_DIR, skillId, relCli) : "",
+    path.join(repoRoot, ".codex", "skills", skillId, relCli),
+    process.env.CODEX_HOME ? path.join(process.env.CODEX_HOME, "skills", skillId, relCli) : "",
+    process.env.HOME ? path.join(process.env.HOME, ".codex", "skills", skillId, relCli) : "",
+    process.env.HOME ? path.join(process.env.HOME, ".agents", "skills", skillId, relCli) : "",
+  ].filter((candidate) => candidate !== "");
+}
+
+function resolveEvolverCli(rawPath: string | undefined, repoRoot: string): string {
+  if (rawPath) {
+    return resolvePathFromCwd(rawPath);
+  }
+  for (const candidate of [defaultEvolverCli, ...skillCliCandidates("bagakit-skill-evolver", "scripts/evolver.ts", repoRoot)]) {
+    const found = existingFile(candidate);
+    if (found) {
+      return found;
+    }
+  }
+  throw new Error("bagakit-skill-evolver CLI is not available; install it or pass --evolver-cli");
+}
+
 function printHelp(): void {
   console.log(`bagakit skill selector
 
@@ -817,7 +845,7 @@ function cmdEvolverBridge(flags: Map<string, string | boolean>): number {
   const repoRoot = resolvePathFromCwd(requiredString(flags, "root"));
   const filePath = resolvePathFromCwd(requiredString(flags, "file"));
   const outputPath = resolveEvolverOutputPath(filePath, readStringFlag(flags, "output") ?? undefined);
-  const evolverCli = resolvePathFromCwd(readStringFlag(flags, "evolver-cli") ?? defaultEvolverCli);
+  const evolverCli = resolveEvolverCli(readStringFlag(flags, "evolver-cli") ?? undefined, repoRoot);
   const doc = readSkillUsageDoc(filePath);
   const statuses = readEvolverBridgeableStatuses(flags);
   const signalIds = selectedEvolverSignalIds(doc, statuses);

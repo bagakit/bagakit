@@ -4,6 +4,38 @@ script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 skill_root="$(dirname "$script_dir")"
 sibling_root="$(dirname "$skill_root")"
 
+join_skill_cli_path() {
+  local base="${1%/}"
+  printf '%s/%s/%s\n' "$base" "$2" "$3"
+}
+
+find_skill_cli() {
+  local skill_id="$1"
+  local rel_cli="$2"
+  local explicit_env="$3"
+  local candidate
+
+  if [[ -n "${!explicit_env:-}" && -f "${!explicit_env}" ]]; then
+    printf '%s\n' "${!explicit_env}"
+    return 0
+  fi
+
+  local candidates=()
+  candidates+=("$(join_skill_cli_path "$sibling_root" "$skill_id" "$rel_cli")")
+  [[ -n "${BAGAKIT_SKILLS_DIR:-}" ]] && candidates+=("$(join_skill_cli_path "$BAGAKIT_SKILLS_DIR" "$skill_id" "$rel_cli")")
+  candidates+=("$(join_skill_cli_path "$PWD/.codex/skills" "$skill_id" "$rel_cli")")
+  [[ -n "${CODEX_HOME:-}" ]] && candidates+=("$(join_skill_cli_path "$CODEX_HOME/skills" "$skill_id" "$rel_cli")")
+  [[ -n "${HOME:-}" ]] && candidates+=("$(join_skill_cli_path "$HOME/.codex/skills" "$skill_id" "$rel_cli")" "$(join_skill_cli_path "$HOME/.agents/skills" "$skill_id" "$rel_cli")")
+
+  for candidate in "${candidates[@]}"; do
+    if [[ -f "$candidate" ]]; then
+      printf '%s\n' "$candidate"
+      return 0
+    fi
+  done
+  return 1
+}
+
 usage() {
   cat <<'EOF'
 usage: bagakit-paperwork-technical-writing-cli <command> [args...]
@@ -13,7 +45,7 @@ Commands:
   list-references   List reference files shipped by this skill.
   validate          Check that required skill files exist.
   check-article     Run the bundled article quality checker directly.
-  core              Run sibling bagakit-writing-core CLI when available.
+  core              Run bagakit-writing-core CLI when available.
   print-review-packet-template
                     Print the technical-writing review packet template.
 EOF
@@ -39,9 +71,8 @@ case "${1:-}" in
     ;;
   core)
     shift
-    core_cli="$sibling_root/bagakit-writing-core/scripts/bagakit-writing-core-cli.sh"
-    if [[ ! -f "$core_cli" ]]; then
-      printf 'bagakit-writing-core is not available next to technical-writing; install or compose it explicitly\n' >&2
+    if ! core_cli="$(find_skill_cli bagakit-writing-core scripts/bagakit-writing-core-cli.sh BAGAKIT_WRITING_CORE_CLI)"; then
+      printf 'bagakit-writing-core is not available; install it or set BAGAKIT_WRITING_CORE_CLI\n' >&2
       exit 2
     fi
     exec bash "$core_cli" "$@"

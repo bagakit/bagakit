@@ -25,7 +25,7 @@ summary = "Run the bundled article quality checker directly."
 
 [[command]]
 name = "core"
-summary = "Run sibling bagakit-writing-core CLI when available."
+summary = "Run bagakit-writing-core CLI when available."
 
 [[command]]
 name = "print-review-packet-template"

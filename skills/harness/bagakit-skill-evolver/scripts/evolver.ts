@@ -1,6 +1,5 @@
 import fs from "node:fs";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
 
 import {
   ensureBaseLayout,
@@ -79,7 +78,7 @@ import {
   validateTopicShape,
 } from "./lib/validate.ts";
 
-const defaultRoot = path.resolve(fileURLToPath(new URL("../../../..", import.meta.url)));
+const defaultRoot = process.cwd();
 
 function earlierIso(left: string, right: string): string {
   return left <= right ? left : right;
