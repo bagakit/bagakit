@@ -18,6 +18,7 @@ REQUIRED_LOOP_RULE_IDS = {
     "end-check-needs-summary-and-snapshot",
     "execution-window-reopens-loop",
     "option-surface-preserves-meaningful-alternatives",
+    "stress-test-option-audit-before-recommendation",
 }
 
 REQUIRED_ARTIFACT_IDS = {
@@ -52,6 +53,7 @@ REQUIRED_OUTPUT_FIELD_IDS = {
     "accepted-snapshot",
     "next-question-or-action",
     "option-surface",
+    "option-surface-audit",
 }
 
 

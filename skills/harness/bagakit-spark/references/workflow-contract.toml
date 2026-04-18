@@ -35,6 +35,11 @@ protects = "Spark recommendations do not collapse meaningful alternatives into a
 proof_surface = "visible option set with rationale, risk, and one recommended default, or explicit reason the option set collapsed"
 
 [[loop_rule]]
+id = "stress-test-option-audit-before-recommendation"
+protects = "Spark plan/design stress-test questions do not produce one-option grill-style recommendations without showing alternatives or collapse rationale"
+proof_surface = "branch-protected option-surface audit before the recommended default"
+
+[[loop_rule]]
 id = "mvp-eval-needs-quiet-room-separation"
 protects = "Spark cannot self-design, self-execute, self-review, and self-accept an MVP or thought-experiment eval"
 proof_surface = "mvp eval envelope with quiet-room route, actor refs, evidence packet, or explicit blocked/provisional status"
@@ -177,3 +182,7 @@ required_when = "open Spark session"
 [[output_field]]
 id = "option-surface"
 required_when = "user is choosing or stress-testing among unresolved alternatives"
+
+[[output_field]]
+id = "option-surface-audit"
+required_when = "Spark is asking a plan/design stress-test branch question or giving a grill-like recommendation"

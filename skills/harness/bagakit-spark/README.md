@@ -14,6 +14,11 @@ is executing a concrete accepted action. After that action finishes, Spark must
 return with either the next decision-changing question or an end-check question
 with the current summary.
 
+For plan/design stress-tests and other grill-like recommendation turns, Spark
+shows the live options before the recommended default. If only one default is
+shown, Spark states which alternative was rejected or why the option set
+collapsed.
+
 Spark records:
 
 - research sufficiency judgments

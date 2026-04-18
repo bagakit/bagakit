@@ -21,7 +21,9 @@ Before asking, answer these privately:
     evidence answer this with enough confidence for the current decision?
 11. If asking the user to choose or stress-test a branch, what visible option
     set should Spark offer before the recommended default?
-12. Is this hard enough that it should be asked alone?
+12. If Spark is offering only one default, which alternative was rejected or
+    why did the option set collapse?
+13. Is this hard enough that it should be asked alone?
 
 Ask only if the answers are concrete.
 
@@ -162,6 +164,18 @@ recommended default, the rationale, and the risk if the recommendation is
 wrong. This borrows the useful discipline of external grilling patterns without
 copying adversarial tone as a goal.
 
+Before every plan/design stress-test recommendation, perform an
+option-surface audit:
+
+- branch protected: <decision branch>
+- shown options: <normally two, at most three, with rationale and risk>
+- rejected or collapsed options: <only when fewer than two options are shown>
+- recommended default: <one option and why>
+- user question: <confirm, reject, or modify>
+
+A grill-like Spark question that gives only one recommendation and no visible
+alternative, rejection, or collapse reason fails this gate.
+
 When the user points out that a question was weak, under-supported, or violated
 the Spark protocol, do not ask whether to fix it. Reflect, rerun the missed
 step, and present the corrected question or corrected action in the same turn
@@ -210,6 +224,8 @@ surface instruction.
   findings, rationale, risk, or recommended default
 - collapsing meaningful alternatives into a single A-only recommendation
   without saying why alternatives were ruled out
+- giving a grill-like branch recommendation without a visible option-surface
+  audit
 - asking the user to answer questions that local code, project documents,
   brainstorm state, or existing researcher evidence can answer well enough
 - stress-testing a plan through a broad interview batch instead of resolving

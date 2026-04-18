@@ -172,6 +172,43 @@ user-requested quick defaults. When using a single default, state the rejected
 alternative or why the option set collapsed so the user can challenge the
 recommendation.
 
+Before presenting any stress-test recommendation, run an option-surface audit:
+
+1. Name the dependency branch being protected.
+2. List the live options Spark considered, normally two and at most three.
+3. For every visible option, include rationale and main risk.
+4. If fewer than two options are visible, name the rejected or collapsed
+   alternative and why it is not being shown as live.
+5. Pick one recommended default.
+6. Ask the user to confirm, reject, or modify that recommendation.
+
+The user-facing branch question should preserve this order:
+
+```text
+Branch protected: <decision branch>
+Options:
+- A. <option>; rationale: <reason/evidence>; risk: <main downside>
+- B. <option>; rationale: <reason/evidence>; risk: <main downside>
+Recommendation:
+- <default and why>
+Risk if wrong:
+- <main consequence>
+[[Spark | Q-###]] <confirm, reject, or modify the recommendation>
+```
+
+If the option set collapsed:
+
+```text
+Branch protected: <decision branch>
+Collapsed option: <alternative> because <reason>
+Recommendation:
+- <default and why>
+[[Spark | Q-###]] <confirm, reject, or modify this single-default path>
+```
+
+A stress-test answer that only says "recommended answer" without options,
+rejected alternatives, or a collapse reason is a protocol failure.
+
 This is rigorous challenge, not adversarial performance. Do not increase
 pressure unless it protects a decision, exposes a hidden dependency, or improves
 shared understanding.
@@ -263,6 +300,7 @@ Common repair triggers:
 - a question offers options without rationale or a recommended default
 - a question collapses meaningful alternatives into a single recommended answer
   without explaining why the other branches were ruled out
+- a plan/design stress-test recommendation omits the option-surface audit
 - an end-check question lacks the consensus snapshot candidate
 - the agent designs a research or question rule without applying that rule to
   the design action itself

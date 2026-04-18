@@ -129,6 +129,13 @@ single-default cases, state what alternative was rejected or why the option set
 collapsed. This pattern is grounded in `frontier/bagakit-spark-skill` claims
 `c017` and `c018` and insight `i004`. Do not copy adversarial intensity for its
 own sake; the pressure exists to protect decisions and shared understanding.
+Before every plan/design stress-test recommendation, run an option-surface
+audit: name the branch, list live options, mark each option as
+`shown|rejected|collapsed`, then ask the user to confirm, reject, or modify the
+recommended default. If fewer than two options are visible, state the collapsed
+or rejected alternative explicitly. A stress-test response that only gives a
+single recommended answer without this audit is a protocol failure and should
+be repaired in the same turn when noticed.
 
 Show the user model when it helps the goal: to let the user correct it, build
 shared understanding, explain a challenge, or give formative feedback. Do not
@@ -277,6 +284,8 @@ Before asking the user, name internally:
   researcher evidence already answers it well enough for the current decision
 - whether the user needs a visible option set before the recommendation, or
   whether this is a single-default confirm/reject question
+- which alternatives were rejected or collapsed before Spark offers one
+  default
 - which option Spark recommends for the user to confirm, reject, or modify
 - whether the question is hard enough that it should be asked alone
 
@@ -291,6 +300,8 @@ Good spark questions are:
   default when the user is being asked to choose among unresolved alternatives
 - explicit about why alternatives were not shown when Spark offers only one
   recommended default
+- explicit about the option-surface audit for plan/design stress-test branch
+  questions
 
 Ask no more than three questions in one turn. If a question is conceptually
 hard or identity/goal revealing, ask it alone.
@@ -388,6 +399,7 @@ What changed: <one or two bullets>
 Current model of you: <knowledge/goal/gap inference, clearly marked as inference>
 Why this model is shown: <correction, shared understanding, challenge, or formative feedback>
 Open branches: <only meaningful alternatives>
+Option-surface audit: <shown/rejected/collapsed options when stress-testing or choosing>
 Goal challenge: <only when needed; evidence, uncertainty, alternatives, trade-off>
 Research judgment: <research_now|research_later|research_not_needed plus rationale>
 Question inventory: <answered/pending/deferred/lead status for high-impact questions>
