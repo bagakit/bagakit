@@ -269,6 +269,18 @@ def main() -> int:
     longform_text = (
         skill_dir / "references/review/LONGFORM_RUBRIC.md"
     ).read_text(encoding="utf-8")
+    operating_surface_text = (
+        skill_dir / "references/workflow/OPERATING_SURFACE_MATRIX.md"
+    ).read_text(encoding="utf-8")
+    sop_lanes_text = (
+        skill_dir / "references/workflow/SOP_LANES.md"
+    ).read_text(encoding="utf-8")
+    qa_metrics_text = (
+        skill_dir / "references/review/QA_HARD_METRICS.md"
+    ).read_text(encoding="utf-8")
+    review_template_text = (
+        skill_dir / "references/review/LONGFORM_REVIEW_TEMPLATE.md"
+    ).read_text(encoding="utf-8")
     for token in [
         "paperwork L2 overlay",
         "Use `bagakit-writing-core`",
@@ -293,6 +305,11 @@ def main() -> int:
         "bagakit-writing-de-ai-tone",
         "references/writing/STYLE_NORTH_STAR.md",
         "density, mechanism, mapping, agency, and alertness",
+        "lint 是非 trivial 终稿交付的默认门禁",
+        "lint not run: <reason>",
+        "Step 3.1：大白话自检",
+        "plain-language pass",
+        "没有当前聊天、repo 背景和内部术语的人听懂",
     ]:
         if token not in skill_text:
             raise AssertionError(f"qihan SKILL missing layering token: {token}")
@@ -337,6 +354,46 @@ def main() -> int:
     ]:
         if token not in longform_text:
             raise AssertionError(f"qihan longform rubric missing north-star token: {token}")
+    for label, text in [
+        ("OPERATING_SURFACE_MATRIX", operating_surface_text),
+        ("SOP_LANES", sop_lanes_text),
+        ("QA_HARD_METRICS", qa_metrics_text),
+    ]:
+        for token in [
+            "终稿",
+            "长段改写",
+            "review / polish",
+            "markdown",
+            "lint not run: <reason>",
+        ]:
+            if token not in text:
+                raise AssertionError(f"qihan {label} missing lint trigger token: {token}")
+    for label, text in [
+        ("README", readme_text),
+        ("SOP_LANES", sop_lanes_text),
+        ("QA_HARD_METRICS", qa_metrics_text),
+        ("LONGFORM_REVIEW_TEMPLATE", review_template_text),
+    ]:
+        for token in [
+            "大白话",
+            "plain-language",
+            "无上下文",
+            "对象",
+            "核心判断",
+            "下一步",
+        ]:
+            if token not in text:
+                raise AssertionError(f"qihan {label} missing plain-language token: {token}")
+    for token in [
+        "Lint Gate",
+        "qihan_write_lint.py",
+        "WARN/FAIL blocking",
+        "lint not run: <reason>",
+        "accepted deviations",
+        "Plain-Language Pass",
+    ]:
+        if token not in review_template_text:
+            raise AssertionError(f"qihan longform review template missing lint token: {token}")
 
     qihan_cli = skill_dir / "scripts/qihan-writing-cli.sh"
     core_proc = subprocess.run(

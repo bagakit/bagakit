@@ -42,7 +42,7 @@
 | --- | --- | --- |
 | `references/workflow/INSIGHT_INTERVIEW_LOOP.md` | 用户心里有判断，但没完全说出来 | 证据、理论、时代背景缺口 |
 | `references/workflow/REWRITE_FEEDBACK_LOOP.md` | 用户直接给“原句 -> 改写句” | 从零搭命题或补研究基础 |
-| `references/review/QA_HARD_METRICS.md` | 进入飞书、对外分享、长期沉淀前 | 判定文章命题是否成立 |
+| `references/review/QA_HARD_METRICS.md` | 非 trivial 终稿、长段改写、review / polish 产物、飞书稿、对外分享稿、长期沉淀稿，或已有可 lint 的 markdown artifact | 低成本抓结构、口癖、AI 味和机械感漂移 |
 | `references/review/LONGFORM_RUBRIC.md` | 博客、公众号、内部专题长文终稿 | 早期研究或基础重建阶段 |
 | `references/review/AUDIENCE_PANEL_REVIEW.md` | 每次文章评审 | 只做内部机制自证，不看无上下文读者体验 |
 | `references/knowledge/DEPTH_RESEARCH_PACKET_TEMPLATE.md` | 进入 depth escalation 时 | 局部润色或单句改写 |
@@ -89,3 +89,28 @@
 | 从原始 draft 直接推导 route state 的小工具 | 现在 route tool 只能从 handoff 压 route，不能直接从 draft 反推 route |
 
 这些缺口先显式标出来，不在这里继续加装饰性文档。
+
+## 6. Lint Gate Trigger
+
+lint 的默认触发条件要比“对外发布”更宽。
+
+默认要跑：
+
+- 完整文稿终稿
+- 长段改写稿
+- review / polish 后的准终稿
+- 飞书稿、对外分享稿、长期沉淀稿
+- 任何已经写成 markdown 文件、可以被 `qihan_write_lint.py` 检查的 artifact
+
+可以跳过：
+
+- 短聊天回答
+- 单句或局部表达修改
+- 没有落地文件的临时片段
+- 用户明确要求先不要校验
+
+跳过时必须写清：
+
+```text
+lint not run: <reason>
+```

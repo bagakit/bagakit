@@ -6,6 +6,23 @@
 
 评审日期：
 
+## Lint Gate
+
+- 是否已运行 `qihan_write_lint.py`：
+- lint artifact / command：
+- 结果：`pass` | `WARN/FAIL blocking` | `not run`
+- 如果未运行：`lint not run: <reason>`
+- accepted deviations：
+
+## Plain-Language Pass
+
+- 是否已做大白话自检：
+- plain-language pass 结论：
+- 无上下文读者能否复述对象、核心判断和下一步：
+- 最需要解释的术语 / 内部语境：
+- 已补的对象定义 / 具体场景 / 例子：
+- 仍然可能让小白掉线的句段：
+
 ## Hard Gate
 
 - [ ] 开头 15% 内有明确问题和核心命题

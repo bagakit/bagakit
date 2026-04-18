@@ -148,6 +148,8 @@ rewrite examples remain the local overlay.
   按 `references/workflow/REWRITE_FEEDBACK_LOOP.md` 执行；先记录原句与改写句，再做四维分析、抽规则、回扫全文。需要找成熟句型时，先查 `references/knowledge/REWRITE_CASEBOOK.md`。
 - **Step 3：去 AI 味**
   按 `references/writing/AI_SMELLS.md` 执行，优先删掉模板化连接词和空转动词，把判断改成动词 + 阈值 + 例子 / 反例，同时回扫黑话动词、后台口吻、分号硬切、静态清单句。
+- **Step 3.1：大白话自检**
+  去 AI 味之后，必须做一次 plain-language pass：这段能不能用大白话讲给没有当前聊天、repo 背景和内部术语的人听懂。优先检查首屏、段首句、术语首次出现、关键判断和结尾。如果读者需要靠上下文猜，先补对象定义、具体场景、动作主体、判断边界或例子；不要继续加隐喻、术语或抽象评价。
 - **Step 3.2：系列概念首现检查**
   如果是系列文章，标题或章节标题里出现非通用概念、项目内术语、场景特化表达时，确认它已在前序文章介绍过；否则在当前第一次出现处解释，或用 quote 注释补一句定义。
 
@@ -155,7 +157,7 @@ rewrite examples remain the local overlay.
 - **Step 4：飞书文档排版**
   按 `references/writing/FEISHU_LAYOUT.md` 执行；控制标题层级、callout、表格、流程图，并避免正文开头重复 title。长文在飞书里必须有可展开的层级感，默认至少有 H2 主梁和 H3 子标题。
 - **Step 4.5：硬性校验**
-  当输出要进入飞书 / 对外分享 / 进入长期沉淀时，先跑 `scripts/qihan_write_lint.py`。它覆盖四类检查：标题与层级、AI 味和口癖、结构硬门禁、prose-shape / prose-mechanics 机械感 advisory。机械感检查只给非阻塞 `ADVISORY`，指标说明见 `references/review/QA_HARD_METRICS.md`。
+  lint 是非 trivial 终稿交付的默认门禁，不只在“对外发布”时才触发。只要本轮产物是完整文稿、长段改写稿、review / polish 后的准终稿、飞书稿、对外分享稿、长期沉淀稿，或已经有可运行 lint 的 markdown artifact，交付前都要跑 `scripts/qihan_write_lint.py`。可以跳过的情况只包括：短聊天回答、单句 / 局部表达修改、没有落地 artifact 的临时片段、用户明确要求先不要校验。跳过时必须在交付说明里写清 `lint not run: <reason>`。它覆盖四类检查：标题与层级、AI 味和口癖、结构硬门禁、prose-shape / prose-mechanics 机械感 advisory。机械感检查只给非阻塞 `ADVISORY`，指标说明见 `references/review/QA_HARD_METRICS.md`。`WARN` / `FAIL` 默认阻塞终稿交付，除非用户明确接受偏离。
 - **Step 4.6：长文终稿评审**
   当输出是博客 / 公众号 / 内部专题长文时，再按 `references/review/LONGFORM_RUBRIC.md` 做一轮 review，并用 `references/review/LONGFORM_REVIEW_TEMPLATE.md` 记录 hard gate、weighted review、qihan north-star check、craft bonus、anti-pattern penalty。涉及“无依据的人群泛化 / 拉踩表达 / 语气过界”的问题，不用脚本裁决；要求独立 reviewer 做静室打分，优先使用 subagent blind review。
 - **Step 4.65：audience panel review**

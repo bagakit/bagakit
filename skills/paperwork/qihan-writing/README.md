@@ -43,7 +43,12 @@ Many drafts are structurally correct but still weak in three places:
 - review longform drafts against the qihan north star: density, mechanism,
   mapping, agency, and alertness
 - absorb user rewrites as reusable rules
-- run a lightweight lint pass before publishing or long-term storage
+- run a lightweight lint pass by default before non-trivial final delivery,
+  including rewrites, review / polish outputs, Feishu drafts, external sharing,
+  long-term storage, or any markdown artifact that can be checked
+- run a plain-language pass so no-context readers can understand the object,
+  claim, and next action without guessing from private context
+  也就是做一次大白话自检：无上下文读者能否复述对象、核心判断和下一步
 - review longform drafts with an explicit rubric and a multi-role quiet-room panel instead of relying on taste alone
 
 ## Operator route
