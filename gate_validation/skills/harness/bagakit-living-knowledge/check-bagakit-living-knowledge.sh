@@ -31,6 +31,16 @@ TMP_DIR="$(mktemp -d)"
 trap 'rm -rf "$TMP_DIR"' EXIT
 
 cd "$TMP_DIR"
+mkdir not-project
+cd not-project
+if "$CMD" apply --root . >"$TMP_DIR/not-project-apply.out" 2>"$TMP_DIR/not-project-apply.err"; then
+  echo "apply unexpectedly accepted a directory that was not a project root" >&2
+  exit 1
+fi
+test ! -e .bagakit-knowledge.toml
+grep -q "requires --root to point at a project root" "$TMP_DIR/not-project-apply.err"
+cd "$TMP_DIR"
+
 mkdir repo
 cd repo
 git init -q
@@ -40,6 +50,14 @@ git config user.name "Test User"
 printf '# placeholder\n' > README.md
 git add README.md
 git commit -q -m "chore: init"
+
+mkdir -p app/subdir
+if "$CMD" apply --root app/subdir >"$TMP_DIR/git-subdir-apply.out" 2>"$TMP_DIR/git-subdir-apply.err"; then
+  echo "apply unexpectedly accepted a Git worktree subdirectory as the project root" >&2
+  exit 1
+fi
+test ! -e app/subdir/.bagakit-knowledge.toml
+grep -q "pass the Git top-level directory explicitly" "$TMP_DIR/git-subdir-apply.err"
 
 APPLY_OUT="$("$CMD" apply --root .)"
 grep -q "^applied: \\.$" <<<"$APPLY_OUT"

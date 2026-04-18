@@ -67,6 +67,10 @@ This skill does not own:
 
 ## Quick Start
 
+Run mutating commands with `--root` set to the project root. Inside a Git
+worktree, use the Git top-level directory; `apply` refuses arbitrary directories
+so `.bagakit-knowledge.toml` is not created outside the intended project.
+
 ```bash
 export BAGAKIT_LIVING_KNOWLEDGE_SKILL_DIR="<repo-relative-installed-skill-dir>"
 

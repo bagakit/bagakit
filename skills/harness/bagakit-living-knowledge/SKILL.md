@@ -196,6 +196,11 @@ default that root is `docs/`.
 
 1. Scaffold or refresh the shared knowledge substrate:
 
+Run mutating commands with `--root` pointing at the project root. Inside a Git
+worktree, that means the Git top-level directory; `apply` refuses arbitrary
+directories so it does not create `.bagakit-knowledge.toml` outside the
+intended project.
+
 ```bash
 export BAGAKIT_LIVING_KNOWLEDGE_SKILL_DIR="<repo-relative-installed-skill-dir>"
 sh "$BAGAKIT_LIVING_KNOWLEDGE_SKILL_DIR/scripts/bagakit-living-knowledge.sh" apply --root .

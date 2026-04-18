@@ -166,6 +166,9 @@ Rule:
 
 - `.bagakit-knowledge.toml` is a root-level hidden shared config, not private
   `.bagakit/` runtime state
+- mutating `living-knowledge` commands must treat `--root` as the project root
+  and must not create `.bagakit-knowledge.toml` in arbitrary caller directories
+- inside a Git worktree, the project root is the Git top-level directory
 - absence of the config must preserve default behavior
 - if a peer system ignores this config, it must still stay standalone-first
 - if a peer system chooses to follow it, the config is the shared path contract

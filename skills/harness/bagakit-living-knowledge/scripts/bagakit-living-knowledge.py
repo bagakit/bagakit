@@ -12,6 +12,17 @@ from typing import Any, Iterable, Sequence
 
 ENV_SKILL_DIR = "BAGAKIT_LIVING_KNOWLEDGE_SKILL_DIR"
 CONFIG_PATH = ".bagakit-knowledge.toml"
+NON_GIT_PROJECT_MARKERS = (
+    "AGENTS.md",
+    "package.json",
+    "pyproject.toml",
+    "Cargo.toml",
+    "go.mod",
+    "deno.json",
+    "deno.jsonc",
+    "pnpm-workspace.yaml",
+    "Makefile",
+)
 START_TAG = "<!-- BAGAKIT:LIVING-KNOWLEDGE:START -->"
 END_TAG = "<!-- BAGAKIT:LIVING-KNOWLEDGE:END -->"
 ROOT_REDEFINITION_RE = re.compile(r"(?i)\bas the (?:canonical|shared) knowledge root\b")
@@ -87,9 +98,41 @@ def normalize_rel(value: str) -> str:
 
 def repo_root(value: str) -> Path:
     root = Path(value).expanduser().resolve()
-    if not root.exists():
+    if not root.exists() or not root.is_dir():
         raise SystemExit(f"error: invalid --root: {value}")
     return root
+
+
+def git_toplevel(root: Path) -> Path | None:
+    result = subprocess.run(
+        ["git", "-C", str(root), "rev-parse", "--show-toplevel"],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        return None
+    text = result.stdout.strip()
+    if not text:
+        return None
+    return Path(text).resolve()
+
+
+def require_project_root(root: Path, command: str) -> None:
+    git_root = git_toplevel(root)
+    if git_root is not None:
+        if root.resolve() == git_root:
+            return
+        raise SystemExit(
+            f"error: {command} requires --root to be the project root; "
+            "this path is inside a Git worktree, so pass the Git top-level directory explicitly"
+        )
+    if any((root / marker).exists() for marker in NON_GIT_PROJECT_MARKERS):
+        return
+    raise SystemExit(
+        f"error: {command} requires --root to point at a project root; "
+        "initialize the project first or pass a directory with a project marker"
+    )
 
 
 def skill_root() -> Path:
@@ -585,6 +628,7 @@ def build_must_sop(root: Path, shared_root: Path, system_root: Path) -> str:
 
 def apply_command(args: argparse.Namespace) -> int:
     root = repo_root(args.root)
+    require_project_root(root, "apply")
     default_cfg = KnowledgeConfig()
     s = surfaces(root, default_cfg)
     outputs: list[str] = []
@@ -678,6 +722,7 @@ def paths_command(args: argparse.Namespace) -> int:
 
 def index_command(args: argparse.Namespace) -> int:
     root = repo_root(args.root)
+    require_project_root(root, "index")
     cfg = load_config(root)
     s = surfaces(root, cfg)
     s.generated_root.mkdir(parents=True, exist_ok=True)
@@ -751,6 +796,7 @@ def recall_get_command(args: argparse.Namespace) -> int:
 
 def ingest_command(args: argparse.Namespace) -> int:
     root = repo_root(args.root)
+    require_project_root(root, "ingest")
     cfg = load_config(root)
     s = surfaces(root, cfg)
     source = safe_any_repo_path(root, args.source)
@@ -775,6 +821,8 @@ def ingest_command(args: argparse.Namespace) -> int:
 
 def inspect_stack_command(args: argparse.Namespace) -> int:
     root = repo_root(args.root)
+    if args.output:
+        require_project_root(root, "inspect-stack")
     cfg = load_config(root)
     s = surfaces(root, cfg)
     cwd = safe_any_repo_path(root, args.cwd)

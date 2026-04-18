@@ -270,6 +270,8 @@ Substrate discipline:
 
 Inspection helpers:
 
+- Run these commands from the project root so `--root .` resolves to the
+  intended project.
 - View the resolved path protocol:
   - `sh "$BAGAKIT_LIVING_KNOWLEDGE_SKILL_DIR/scripts/bagakit-living-knowledge.sh" paths --root .`
 - Refresh the guidebook and helper map:
