@@ -81,11 +81,59 @@ Implications:
 
 - `tasks.json` is the only task source of truth
 - the default feature directory contains only `state.json` and `tasks.json`
+- `state.json` may also carry runtime-owner semantics such as `runtime_role`,
+  `blocked_reason_class`, and `runtime_relations`; when present,
+  `index/features.json` should project those fields as read-optimized index
+  state rather than inventing them independently
 - root-level helper markdown files such as `proposal.md`, `spec-delta.md`, and
   `verification.md` are optional operator aids, not authoritative task state
 - local issuer state may help create new ids but may not redefine tracked
   feature truth
 - external bridges may read tracker truth but do not become tracker truth
+
+## Runtime Ownership Split Contract
+
+Some features are runtime frontdoors only.
+Others own the currently executing lane.
+
+The tracker may represent that distinction in canonical feature state.
+
+Stable runtime-owner fields:
+
+- `state.json.runtime_role`
+  - `standalone`
+  - `frontdoor_context`
+  - `execution_owner`
+- `state.json.blocked_reason_class`
+  - `none`
+  - `external_blocker`
+  - `internal_blocker`
+  - `parked_context`
+- `state.json.runtime_relations`
+  - list of typed feature-to-feature runtime links
+  - stable relation values:
+    - `frontdoor_for`
+    - `handoff_from`
+
+Projection rule:
+
+- `state.json` remains canonical for these runtime-owner fields
+- `index/features.json` may project them for list/read surfaces
+- `FEATURES_DAG.json` must not carry them because they are not dependency truth
+
+Required invariants:
+
+- non-`none` `blocked_reason_class` requires `status = blocked`
+- `parked_context` requires `runtime_role = frontdoor_context`
+- `frontdoor_context` features may only point outward with
+  `runtime_relations[].relation = frontdoor_for`
+- `execution_owner` features may only point outward with
+  `runtime_relations[].relation = handoff_from`
+- cross-feature runtime links should stay symmetric:
+  `frontdoor_for(A -> B)` requires `handoff_from(B -> A)`
+
+These fields describe runtime ownership posture only.
+They do not replace dependency truth, task truth, or closeout state.
 
 ## Planning Entry Handoff Consumption Rule
 

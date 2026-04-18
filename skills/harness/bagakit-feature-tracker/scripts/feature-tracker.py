@@ -44,6 +44,13 @@ WORKSPACE_MODES = {"worktree", "current_tree", "proposal_only"}
 CLOSED_FEAT_STATUS = {"archived", "discarded"}
 FEATURE_SCOPES = {"active", "archived", "discarded"}
 DEFAULT_FEATURE_SCOPES = frozenset({"active"})
+RUNTIME_ROLES = {"standalone", "frontdoor_context", "execution_owner"}
+BLOCKED_REASON_CLASSES = {"none", "external_blocker", "internal_blocker", "parked_context"}
+RUNTIME_RELATION_TYPES = {"frontdoor_for", "handoff_from"}
+RUNTIME_RELATION_REVERSE = {
+    "frontdoor_for": "handoff_from",
+    "handoff_from": "frontdoor_for",
+}
 PLANNING_ENTRY_HANDOFF_SCHEMA = "bagakit/planning-entry-handoff/v1"
 PLANNING_ENTRY_HANDOFF_STATUS = {"draft", "approved", "superseded", "applied", "rejected"}
 PLANNING_ENTRY_HANDOFF_CLARIFICATION_STATUS = {"pending", "in_progress", "complete", "blocked"}
@@ -142,6 +149,58 @@ def require_string_list(value: Any, label: str) -> list[str]:
     out: list[str] = []
     for index, item in enumerate(value):
         out.append(require_nonempty_string(item, f"{label}[{index}]"))
+    return out
+
+
+def canonical_runtime_role(value: Any, *, feat_id: str) -> str:
+    raw = str(value or "standalone").strip()
+    if raw not in RUNTIME_ROLES:
+        raise SystemExit(
+            f"error: {feat_id}: runtime_role must be one of {', '.join(sorted(RUNTIME_ROLES))}"
+        )
+    return raw
+
+
+def canonical_blocked_reason_class(value: Any, *, feat_id: str, status: str) -> str:
+    raw = str(value or "none").strip()
+    if raw not in BLOCKED_REASON_CLASSES:
+        raise SystemExit(
+            "error: "
+            f"{feat_id}: blocked_reason_class must be one of {', '.join(sorted(BLOCKED_REASON_CLASSES))}"
+        )
+    if status != "blocked" and raw != "none":
+        raise SystemExit(
+            f"error: {feat_id}: blocked_reason_class `{raw}` requires state status=blocked"
+        )
+    return raw
+
+
+def canonical_runtime_relations(value: Any, *, feat_id: str) -> list[dict[str, str]]:
+    if value is None:
+        return []
+    if not isinstance(value, list):
+        raise SystemExit(f"error: {feat_id}: runtime_relations must be a list")
+
+    out: list[dict[str, str]] = []
+    seen: set[tuple[str, str]] = set()
+    for index, item in enumerate(value):
+        rel = require_record(item, f"{feat_id}: runtime_relations[{index}]")
+        relation = require_nonempty_string(rel.get("relation"), f"{feat_id}: runtime_relations[{index}].relation")
+        if relation not in RUNTIME_RELATION_TYPES:
+            raise SystemExit(
+                f"error: {feat_id}: runtime_relations[{index}].relation must be one of {', '.join(sorted(RUNTIME_RELATION_TYPES))}"
+            )
+        target_feat = require_nonempty_string(rel.get("feat_id"), f"{feat_id}: runtime_relations[{index}].feat_id")
+        if not is_valid_feat_id(target_feat):
+            raise SystemExit(f"error: {feat_id}: invalid runtime relation feature id: {target_feat}")
+        if target_feat == feat_id:
+            raise SystemExit(f"error: {feat_id}: runtime relation may not target self")
+        pair = (relation, target_feat)
+        if pair in seen:
+            continue
+        seen.add(pair)
+        out.append({"relation": relation, "feat_id": target_feat})
+    out.sort(key=lambda item: (item["relation"], feat_sort_key(item["feat_id"])))
     return out
 
 
@@ -1118,14 +1177,31 @@ def get_feat_index_entry(index_data: dict[str, Any], feat_id: str) -> dict[str, 
 
 
 def feat_index_payload(state: dict[str, Any]) -> dict[str, Any]:
-    return {
+    feat_id = str(state["feat_id"])
+    status = str(state.get("status") or "proposal")
+    runtime_role = canonical_runtime_role(state.get("runtime_role"), feat_id=feat_id)
+    blocked_reason_class = canonical_blocked_reason_class(
+        state.get("blocked_reason_class"),
+        feat_id=feat_id,
+        status=status,
+    )
+    runtime_relations = canonical_runtime_relations(state.get("runtime_relations"), feat_id=feat_id)
+
+    payload = {
         "feat_id": state["feat_id"],
         "title": state.get("title", ""),
-        "status": state.get("status", "proposal"),
+        "status": status,
         "workspace_mode": state.get("workspace_mode", ""),
         "branch": state.get("branch", ""),
         "worktree_name": state.get("worktree_name", ""),
     }
+    if runtime_role != "standalone" or "runtime_role" in state:
+        payload["runtime_role"] = runtime_role
+    if blocked_reason_class != "none" or "blocked_reason_class" in state:
+        payload["blocked_reason_class"] = blocked_reason_class
+    if runtime_relations or "runtime_relations" in state:
+        payload["runtime_relations"] = runtime_relations
+    return payload
 
 
 def upsert_feat_index_entry(index_data: dict[str, Any], state: dict[str, Any]) -> None:
@@ -1979,6 +2055,9 @@ def cmd_feat_new(args: argparse.Namespace) -> int:
         "worktree_name": wt_name,
         "worktree_path": wt_rel,
         "current_task_id": None,
+        "runtime_role": "standalone",
+        "blocked_reason_class": "none",
+        "runtime_relations": [],
         "counters": {
             "gate_fail_streak": 0,
             "no_progress_rounds": 0,
@@ -3574,6 +3653,43 @@ def validate_feat(paths: HarnessPaths, root: Path, feat_id: str) -> list[str]:
     except SystemExit as exc:
         errors.append(normalize_error_text(exc))
 
+    try:
+        state_runtime_role = canonical_runtime_role(state.get("runtime_role"), feat_id=feat_id)
+    except SystemExit as exc:
+        errors.append(normalize_error_text(exc))
+        state_runtime_role = "standalone"
+
+    try:
+        state_blocked_reason = canonical_blocked_reason_class(
+            state.get("blocked_reason_class"),
+            feat_id=feat_id,
+            status=str(status or ""),
+        )
+    except SystemExit as exc:
+        errors.append(normalize_error_text(exc))
+        state_blocked_reason = "none"
+
+    try:
+        state_runtime_relations = canonical_runtime_relations(state.get("runtime_relations"), feat_id=feat_id)
+    except SystemExit as exc:
+        errors.append(normalize_error_text(exc))
+        state_runtime_relations = []
+
+    if state_runtime_role == "frontdoor_context":
+        invalid = [item["relation"] for item in state_runtime_relations if item["relation"] != "frontdoor_for"]
+        if invalid:
+            errors.append(
+                f"{feat_id}: frontdoor_context may only declare runtime_relations with relation=frontdoor_for"
+            )
+    if state_runtime_role == "execution_owner":
+        invalid = [item["relation"] for item in state_runtime_relations if item["relation"] != "handoff_from"]
+        if invalid:
+            errors.append(
+                f"{feat_id}: execution_owner may only declare runtime_relations with relation=handoff_from"
+            )
+    if state_blocked_reason == "parked_context" and state_runtime_role != "frontdoor_context":
+        errors.append(f"{feat_id}: blocked_reason_class parked_context requires runtime_role=frontdoor_context")
+
     index_entry = get_feat_index_entry(load_index(paths), feat_id)
     if index_entry is None:
         errors.append(f"{feat_id}: missing feature index entry")
@@ -3586,6 +3702,31 @@ def validate_feat(paths: HarnessPaths, root: Path, feat_id: str) -> list[str]:
             errors.append(f"{feat_id}: index workspace_mode drift from state.json")
         if str(index_entry.get("branch") or "") != str(state.get("branch") or ""):
             errors.append(f"{feat_id}: index branch drift from state.json")
+        try:
+            index_runtime_role = canonical_runtime_role(index_entry.get("runtime_role"), feat_id=feat_id)
+        except SystemExit as exc:
+            errors.append(normalize_error_text(exc))
+            index_runtime_role = "standalone"
+        if index_runtime_role != state_runtime_role:
+            errors.append(f"{feat_id}: index runtime_role drift from state.json")
+        try:
+            index_blocked_reason = canonical_blocked_reason_class(
+                index_entry.get("blocked_reason_class"),
+                feat_id=feat_id,
+                status=str(index_entry.get("status") or ""),
+            )
+        except SystemExit as exc:
+            errors.append(normalize_error_text(exc))
+            index_blocked_reason = "none"
+        if index_blocked_reason != state_blocked_reason:
+            errors.append(f"{feat_id}: index blocked_reason_class drift from state.json")
+        try:
+            index_runtime_relations = canonical_runtime_relations(index_entry.get("runtime_relations"), feat_id=feat_id)
+        except SystemExit as exc:
+            errors.append(normalize_error_text(exc))
+            index_runtime_relations = []
+        if index_runtime_relations != state_runtime_relations:
+            errors.append(f"{feat_id}: index runtime_relations drift from state.json")
 
     workspace_mode = str(state.get("workspace_mode") or "").strip()
     if workspace_mode not in WORKSPACE_MODES:
@@ -3697,6 +3838,52 @@ def validate_feat(paths: HarnessPaths, root: Path, feat_id: str) -> list[str]:
     return errors
 
 
+def validate_runtime_relation_consistency(paths: HarnessPaths, feat_ids: list[str]) -> list[str]:
+    errors: list[str] = []
+    statuses: dict[str, str] = {}
+    relations_by_feat: dict[str, list[dict[str, str]]] = {}
+    roles_by_feat: dict[str, str] = {}
+
+    for feat_id in feat_ids:
+        state, _tasks = load_feat(paths, feat_id)
+        statuses[feat_id] = str(state.get("status") or "")
+        try:
+            roles_by_feat[feat_id] = canonical_runtime_role(state.get("runtime_role"), feat_id=feat_id)
+            relations_by_feat[feat_id] = canonical_runtime_relations(state.get("runtime_relations"), feat_id=feat_id)
+        except SystemExit:
+            continue
+
+    relation_lookup = {
+        (feat_id, rel["relation"], rel["feat_id"])
+        for feat_id, relations in relations_by_feat.items()
+        for rel in relations
+    }
+
+    for feat_id, relations in relations_by_feat.items():
+        for rel in relations:
+            target = rel["feat_id"]
+            relation = rel["relation"]
+            if target not in statuses:
+                errors.append(f"{feat_id}: runtime relation target missing from tracker index: {target}")
+                continue
+            expected_reverse = RUNTIME_RELATION_REVERSE[relation]
+            if (target, expected_reverse, feat_id) not in relation_lookup:
+                errors.append(
+                    f"{feat_id}: runtime relation `{relation}` to {target} is missing reverse `{expected_reverse}` relation"
+                )
+            target_role = roles_by_feat.get(target)
+            if relation == "frontdoor_for" and target_role not in {"execution_owner", "standalone"}:
+                errors.append(
+                    f"{feat_id}: frontdoor_for target {target} must stay execution_owner or standalone, found {target_role or '<missing>'}"
+                )
+            if relation == "handoff_from" and target_role != "frontdoor_context":
+                errors.append(
+                    f"{feat_id}: handoff_from target {target} must stay frontdoor_context, found {target_role or '<missing>'}"
+                )
+
+    return errors
+
+
 def cmd_validate(args: argparse.Namespace) -> int:
     root = Path(args.root).resolve()
     paths = HarnessPaths(root)
@@ -3791,6 +3978,8 @@ def cmd_validate(args: argparse.Namespace) -> int:
 
     for feat_id in feats:
         errors.extend(validate_feat(paths, root, feat_id))
+    if feats:
+        errors.extend(validate_runtime_relation_consistency(paths, feats))
 
     # Validate physical archive layout.
     registered_worktrees = git_worktree_paths(root)
