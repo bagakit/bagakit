@@ -262,6 +262,22 @@ Use this when one local clone should feed many repos.
 bash <bagakit-skills-clone>/scripts/skill.sh install --scope global
 ```
 
+Common Make wrappers:
+
+```bash
+make install-status
+make install-check
+make install-global
+make update-global
+make install-repo REPO=<consumer-repo>
+make update-repo REPO=<consumer-repo>
+```
+
+`install-*` creates missing links and leaves correct links unchanged.
+`update-*` passes `--force` to refresh stale or conflicting links. Use
+`make install-status` to inspect, and `make install-check` when stale, missing,
+or conflicting installs should fail the command.
+
 ### Raw Link Primitive
 
 `install` is the preferred user-facing entrypoint.
@@ -274,9 +290,18 @@ paths.
 bash scripts/skill.sh link --selector harness --dest <target-skills-dir>
 ```
 
+Make wrapper:
+
+```bash
+make link-skills DEST=<target-skills-dir> SELECTOR=harness
+make update-link DEST=<target-skills-dir> SELECTOR=harness
+```
+
 ### Package Archives
 
-Package archive generation follows the same directory protocol and writes
+Package archive generation is not the normal local install or update path.
+Use it only when you need distributable `.skill` archives instead of symlinked
+local projections. It follows the same directory protocol and writes
 family-scoped `.skill` archives.
 
 ```bash
