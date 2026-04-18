@@ -26,6 +26,14 @@ observed/derived/fallback choices, design-rule coverage, and accepted
 uncertainty. Review the packet during draft review, concrete implementation
 planning, and final result review.
 
+If generated references are split into section frames, treat the ordered frame
+set as the design authority. First verify that the frame count equals the
+planned section count and that each frame is one focused horizontal section.
+Then judge the set for rhythm and continuity: composition, density, imagery,
+background treatment, and CTA rhythm may vary, but palette, typography,
+spacing cadence, CTA family, material language, image grade, icon style, and
+voice should still read as one site.
+
 For image2-generated webpage mockups, default to a strong visual target:
 preserve layout, hierarchy, proportions, materials, focal object, and signature
 details unless the user explicitly says the image is loose inspiration.
@@ -102,25 +110,30 @@ For interactive pages, add a sixth check:
    - Were hierarchy, IA, typography, layout, color, states, accessibility,
      motion, copy, icon usage, and generic-output risks reviewed before the
      draft, before coding, and after seeing the result?
+18. Section Frame Set
+   - For multi-section generated references, does the accepted set contain one
+     frame per planned section, with clear labels, section jobs, and enough
+     implementation detail to build from?
+   - Does the scroll rhythm vary without breaking one brand world?
 
 Then add implementation checks:
 
-18. State Parity
+19. State Parity
    - Are the important branch states based on a state reference frame or
      reusable rule from the reference set rather than local improvisation?
-19. Full-Page Structural Parity
+20. Full-Page Structural Parity
    - Do whole-page and first-viewport screenshots preserve the reference's
      page frame, section order, region proportions, control placement, primary
      object layout, and mobile hierarchy?
-20. Design Spec Fidelity
+21. Design Spec Fidelity
    - Did the implementation derive and use a design spec ledger for grid,
      spacing, typography, control geometry, material tokens, and state
      treatment rather than ad hoc CSS guesses?
-21. Micro-Parity
+22. Micro-Parity
    - Do cropped details such as button spacing, icon alignment, row density,
      borders, shadows, text leading, dividers, and selected/hover states match
      the reference or have accepted reasons?
-22. Material Parity
+23. Material Parity
    - When the reference depends on texture, torn edges, illustrated glyphs,
      custom icon language, glow/noise overlays, or other material craft, did
      the implementation use an asset kit rather than flattening the design
@@ -131,38 +144,38 @@ Then add implementation checks:
      reference-specific sprites instead of replaced by generic icons?
    - If panel or card frames scale, does a nine-slice renderer keep corners,
      edges, center fill, padding, and min size stable across specimen sizes?
-23. Code Craft
+24. Code Craft
    - Are repeated UI structures data-driven and componentized with shared
      tokens, or did visual iteration leave a large brittle one-off component?
-24. Behavior Proof
+25. Behavior Proof
    - Do visible interactive affordances actually work in the browser, including
      click selection, search/filter, reset, capture editing, keyboard
      activation, and drag/pan/zoom when implied?
-25. Affordance Honesty
+26. Affordance Honesty
    - Has every visible live-looking control been inventoried and classified as
      working, disabled, hidden, or explicitly out of scope?
-26. Reference Coverage
+27. Reference Coverage
    - Has every reference-visible control, state, and signature detail been
      implemented or explicitly accounted for before judging parity?
-27. State Coherence
+28. State Coherence
    - When the app enters blocked, empty, missing-input, failed, disconnected,
      permission-denied, or low-confidence states, do primary surfaces clearly
      become unavailable, stale, recoverable, or scoped instead of looking live?
-28. Canvas Stability
+29. Canvas Stability
    - If the page presents a graph, map, canvas, whiteboard, or spatial surface,
      does manipulation feel smooth without flicker, object reset, pan/drag
      conflict, or layout jumps?
-29. Motion-Frame Stability
+30. Motion-Frame Stability
    - Do before, mid-drag, and after-drag frames show continuous movement without
      flashing, disappearing content, z-order jumps, unwanted transitions, or
      relation-line redraw artifacts?
-30. Mobile State Honesty
+31. Mobile State Honesty
    - Do mobile tabs, drawers, bottom sheets, and segmented controls visually
      match the content being shown?
    - Do core mobile visualizations such as waveforms, charts, maps, timelines,
      and media scrubbers remain visible and operable instead of collapsing into
      blank or clipped blocks?
-31. Spatial Label Legibility
+32. Spatial Label Legibility
    - Do graph, map, timeline, and spatial labels avoid overlap, collision,
      unreadable clustering, or ambiguous ownership?
    - Are label placement and truncation reviewed in screenshots, not only by
@@ -221,6 +234,16 @@ Watch for:
   unrelated to the reference frame
 - generated state boards that look like the failed implementation rather than
   the strong original reference
+- multi-section generated references collapsed into one tall image, one
+  collage, one "best" frame, or fewer frames than the planned section count
+- section frame sets whose frames repeat the same obvious composition, card
+  slab, CTA treatment, image ratio, or background treatment across the scroll
+- split generated section frames that drift into unrelated palette,
+  typography, material, imagery, icon, or copy systems
+- first viewports that default to a familiar text-plus-visual split without
+  support from the brief, reference tier, or brand tone
+- visual-direction briefs producing text-only, card-only, or tiny-thumbnail
+  references when strong imagery should carry hierarchy
 - browser-rendered design references that are really implementation sketches,
   lack provenance, or share source files and design decisions with the app
   being judged
@@ -340,6 +363,15 @@ Never mark `acceptable_delta` when `full-page-structural-parity-ledger.md` is
 missing for an exact, image2-generated, or state-board implementation. Local
 crops, micro-parity checks, component token matching, and style-language notes
 cannot prove that the overall page structure matches.
+
+Never mark `acceptable_delta` for a multi-section generated reference when
+`section-reference-plan.md` is missing, planned sections have no corresponding
+reference frame, or the implementation follows only one hero or overview image
+while ignoring the ordered frame set.
+
+Never mark `acceptable_delta` when split section frames no longer read as one
+site, or when the implementation averages away the frame set's deliberate
+rhythm into repeated slabs.
 
 Never mark `acceptable_delta` while the full-page ledger has high-severity
 drift in first viewport composition, section order, region proportions, control
@@ -516,6 +548,7 @@ screenshot-region evidence for these dimensions:
 | control architecture | Does each control group have one clear owner, scope, and non-duplicated purpose? |
 | state quality | Do selected, empty, responsive, disabled, and branch states belong to the same system? |
 | full-page structural parity | Do whole-page screenshots preserve first viewport, section order, region proportions, control placement, primary object layout, and mobile hierarchy? |
+| section frame continuity | For split generated references, do the frames preserve one brand world while varying rhythm and section jobs? |
 | design spec fidelity | Were grid, spacing, type, color, material, control, and state tokens inferred and used consistently? |
 | micro-parity | Do cropped details match the reference in controls, typography, borders, shadows, density, and icon alignment? |
 | spatial label legibility | Are graph, map, timeline, and spatial labels readable without overlap or ambiguous ownership? |
@@ -595,6 +628,8 @@ Before implementation and after each screenshot pass, review:
 | control architecture and duplicate controls | <clear/partial/conflicting> | <high/medium/low> | <fix/defer> |
 | focal object and center composition | <match/partial/miss> | <high/medium/low> | <fix/defer> |
 | full-page structure and section order | <match/partial/miss> | <high/medium/low> | <fix/defer> |
+| ordered section-frame set | <complete/partial/missing/not_applicable> | <high/medium/low> | <fix/defer> |
+| section rhythm and continuity | <coherent/partial/drift/not_applicable> | <high/medium/low> | <fix/defer> |
 | typography hierarchy | <match/partial/miss> | <high/medium/low> | <fix/defer> |
 | design spec and token conformance | <match/partial/miss> | <high/medium/low> | <fix/defer> |
 | micro-parity details | <match/partial/miss> | <high/medium/low> | <fix/defer> |

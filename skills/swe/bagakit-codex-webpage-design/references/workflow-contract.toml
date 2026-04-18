@@ -91,6 +91,18 @@ artifact = "state-reference-set.md"
 required_when = "material states or breakpoints define the product"
 
 [[stage]]
+id = "section-reference-plan"
+phase = "before_implementation"
+artifact = "section-reference-plan.md"
+required_when = "multi-section generated landing, marketing, product, portfolio, or full-site reference set is needed"
+
+[[stage]]
+id = "section-frame-continuity-ledger"
+phase = "before_implementation"
+artifact = "section-frame-continuity-ledger.md"
+required_when = "section-reference-plan exists or generated references are split across multiple section frames"
+
+[[stage]]
 id = "visual-decomposition"
 phase = "before_implementation"
 artifact = "visual-decomposition.md"
@@ -318,6 +330,21 @@ protects = "state boards must extend the accepted reference instead of copying a
 proof_surface = "reference-intent plus state-reference-set"
 
 [[guard]]
+id = "section-reference-count"
+protects = "multi-section generated references must preserve one implementation-readable horizontal frame for each planned section instead of collapsing into one tall page, one best frame, or a partial set"
+proof_surface = "section-reference-plan plus design-reference artifact refs"
+
+[[guard]]
+id = "section-frame-rhythm"
+protects = "multi-section generated references must vary frame anchor, density, treatment, image-to-text balance, and CTA rhythm instead of repeating the same composition"
+proof_surface = "section-reference-plan plus visual-decomposition"
+
+[[guard]]
+id = "section-frame-continuity"
+protects = "split generated frames must still read as one brand world across palette, typography, spacing, CTA family, material, imagery, icon style, and voice"
+proof_surface = "section-frame-continuity-ledger plus design-reference plus visual-parity-ledger"
+
+[[guard]]
 id = "affordance-honesty"
 protects = "visible live-looking controls must be implemented, disabled, hidden, or explicitly out of scope"
 proof_surface = "affordance-inventory plus behavior-matrix"
@@ -512,6 +539,18 @@ guard_ids = ["nonhappy-primary-action-safety", "working-affordance-evidence-cove
 [[historical_failure_guard]]
 case_id = "state-board-copies-failed-implementation"
 guard_ids = ["state-reference-authority", "reference-first"]
+
+[[historical_failure_guard]]
+case_id = "multi-section-reference-collapsed-to-one-frame"
+guard_ids = ["section-reference-count", "reference-first"]
+
+[[historical_failure_guard]]
+case_id = "section-frames-repeat-template-rhythm"
+guard_ids = ["section-frame-rhythm", "ambition-bar"]
+
+[[historical_failure_guard]]
+case_id = "split-section-frames-break-brand-world"
+guard_ids = ["section-frame-continuity", "brand-tonality-preservation"]
 
 [[historical_failure_guard]]
 case_id = "fake-visible-controls-pass-happy-path"

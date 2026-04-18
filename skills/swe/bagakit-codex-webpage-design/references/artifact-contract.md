@@ -76,6 +76,17 @@ Files:
   - reference frames or reusable component/state rules for default, selected,
     search/filter, empty/loading/error, modal/drawer/open panel, hover/focus,
     disabled, and responsive states that materially affect the product feel
+- `section-reference-plan.md`
+  - required for multi-section generated landing, marketing, product,
+    portfolio, or full-site references; records section count, ordered section
+    names, section job, frame label, canvas ratio, frame anchor,
+    background/material treatment, image role, CTA role, density level, and
+    responsive implication
+- `section-frame-continuity-ledger.md`
+  - required when generated references are split across multiple section
+    frames; records shared palette, type scale, spacing cadence, CTA family,
+    radius/material language, imagery grade, icon or mark style, copy tone,
+    visual throughline, and any one-time delayed-recognition detail
 - `information-architecture-map.md`
   - object taxonomy, navigation hierarchy, page region responsibilities,
     content grouping, progressive disclosure, information scent, object
@@ -265,6 +276,27 @@ State coverage means each meaningful branch state has one of:
 - an explicit gap marked blocking or accepted before implementation
 
 Do not implement important state visuals from local invention.
+
+Section reference coverage means each planned generated section has one
+focused horizontal frame or an explicit accepted gap before implementation.
+For generated multi-section landing, marketing, product, portfolio, or
+full-site work, `section-reference-plan.md` and
+`section-frame-continuity-ledger.md` are blocking artifacts before coding. The
+plan is the count and ordering source of truth; `design-reference.md` points to
+the generated frame artifacts and must not silently omit planned sections.
+
+If both a tall overview and section frames exist, the section frames carry
+section-level craft and implementation detail. The tall overview may help with
+scroll order, but it must not override missing per-section frames. If only
+section frames exist, `full-page-structural-parity-ledger.md` compares the
+implemented scroll against the ordered frame set: section order, first
+viewport, region proportions, rhythm, responsive hierarchy, and accepted
+deltas.
+
+The continuity ledger should summarize one shared brand system rather than
+duplicate per-frame state. Use it to prevent palette, typography, CTA,
+material, imagery, icon, or copy drift across generated frames while allowing
+composition, density, and background treatment to vary deliberately.
 
 If there is a strong original reference, state frames must preserve that
 reference. Do not derive state boards from a failed or under-review

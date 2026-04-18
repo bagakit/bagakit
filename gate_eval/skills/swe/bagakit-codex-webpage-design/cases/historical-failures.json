@@ -103,6 +103,39 @@
       ]
     },
     {
+      "id": "multi-section-reference-collapsed-to-one-frame",
+      "source_refs": [
+        "mem/decisions/design-core/image-reference-set-synthesis.md"
+      ],
+      "failure": "A generated multi-section webpage reference is accepted as one tall collage, one best frame, or an incomplete subset, so section-level hierarchy, imagery, spacing, and implementation details are missing.",
+      "contract_guard_ids": [
+        "section-reference-count",
+        "reference-first"
+      ]
+    },
+    {
+      "id": "section-frames-repeat-template-rhythm",
+      "source_refs": [
+        "mem/decisions/design-core/image-reference-set-synthesis.md"
+      ],
+      "failure": "A split generated reference set technically has one frame per section, but each frame repeats the same composition, card slab, CTA treatment, image-to-text ratio, or background intensity, making the scroll feel template-generated.",
+      "contract_guard_ids": [
+        "section-frame-rhythm",
+        "ambition-bar"
+      ]
+    },
+    {
+      "id": "split-section-frames-break-brand-world",
+      "source_refs": [
+        "mem/decisions/design-core/image-reference-set-synthesis.md"
+      ],
+      "failure": "Separate generated section frames drift into different palettes, typography systems, CTA families, material languages, imagery treatments, icon styles, or copy voices, so they no longer read as one site.",
+      "contract_guard_ids": [
+        "section-frame-continuity",
+        "brand-tonality-preservation"
+      ]
+    },
+    {
       "id": "fake-visible-controls-pass-happy-path",
       "source_refs": [
         ".bagakit/skill-selector/tasks/webpage-design-full-state-parity/skill-usage.toml",

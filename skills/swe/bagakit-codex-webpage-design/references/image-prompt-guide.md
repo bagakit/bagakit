@@ -41,6 +41,16 @@ Design core:
 Visual direction:
 - <style, era, mood, density, material, lighting, texture>
 
+Section reference set:
+- <when the page has multiple generated sections, planned count and one
+  horizontal implementation-readable frame per section>
+- <ordered section names, section jobs, frame anchors, background/material
+  treatment, image role, CTA role, and density/tempo for each frame>
+- <shared palette, type scale, spacing cadence, CTA family, radius/material
+  language, imagery grade, icon style, and copy tone across the frame set>
+- <one visual throughline and any single delayed-recognition detail that helps
+  scan order or brand recall>
+
 Layout:
 - <grid, surface areas, navigation, content order, focal hierarchy, density>
 
@@ -104,6 +114,27 @@ Negative constraints:
 - If the interface has meaningful states, ask image2 for a coherent set of
   frames with the same grid, typography, art direction, components, and spacing.
   Do not let each state become a separate redesign.
+- If the page itself has multiple generated sections, prefer a section frame
+  set: one focused horizontal frame per planned section. A tall full-page
+  overview may supplement the set, but it should not replace per-section frames
+  when section-level craft, imagery, hierarchy, and implementation detail
+  matter.
+- Record the planned section count before generation. The accepted reference
+  set should have one generated frame per planned section, labeled by section
+  order and job. If the count is ambiguous, choose an explicit count from the
+  brief and record the rationale instead of silently returning one "best"
+  frame.
+- Vary section rhythm across the generated set. Do not repeat the same frame
+  anchor, card slab, hero split, CTA treatment, image-to-text ratio, or
+  background intensity throughout the scroll unless the reference survey
+  supports that restraint.
+- Keep split frames visually continuous. Palette, typography, CTA family,
+  border radius, material language, image treatment, icon style, and copy tone
+  should read as one brand system even when composition and density vary.
+- Use imagery as structure when the brief calls for visual direction. Product
+  crops, editorial media, full-bleed visuals, material textures, or generated
+  assets can carry hierarchy; tiny decorative thumbnails and fake dashboards
+  should not.
 - For state boards derived from a strong reference, say explicitly that the new
   states must preserve the strong reference's layout, proportions, material,
   component density, typography, and signature details.
@@ -132,6 +163,12 @@ Before coding, answer:
 - What responsive behavior is implied?
 - Does the design set cover all meaningful branch states?
 - Do branch-state frames stay visually coherent with the primary frame?
+- If this is a section frame set, does the number of frames equal the planned
+  section count, and does each frame show exactly one focused section?
+- Does the ordered frame set vary rhythm while preserving one palette,
+  typography system, CTA family, material language, image treatment, and voice?
+- Does the first viewport avoid a reflexive template composition unless the
+  brief or reference tier supports it?
 - Did the generated board drift toward a failed implementation instead of the
   strong reference?
 - Which states are missing and should block implementation or be governed by a
