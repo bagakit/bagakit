@@ -241,8 +241,8 @@ Boot layer:
 - If a task needs maintenance-route guidance or shared directives, read `must-sop.md`.
 - If a task needs prior decisions or facts, follow `must-recall.md`.
 - `AGENTS.md` is only the bootstrap layer; the shared checked-in knowledge root
-  defaults to `docs`, and `.bagakit/knowledge_conf.toml` is only a
-  local override when present.
+  defaults to `docs`, with shared path protocol config in
+  `.bagakit-knowledge.toml` when present.
 
 Recall discipline:
 

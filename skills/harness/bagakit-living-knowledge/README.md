@@ -20,9 +20,9 @@ This skill does not own:
 
 - top-level runtime surface root when materialized:
   - `.bagakit/living-knowledge/`
-- root-adjacent protocol file:
-  - `.bagakit/knowledge_conf.toml`
-  - optional local override; absence means use defaults
+- shared path protocol file:
+  - `.bagakit-knowledge.toml`
+  - shared repository config; absence means use defaults
 - shared checked-in knowledge root, not a project-local runtime root:
   - `docs/`
 - stable contract:
@@ -33,9 +33,9 @@ This skill does not own:
 
 ## Core Surfaces
 
-- local config override:
-  - `.bagakit/knowledge_conf.toml`
-  - may be ignored with the rest of `.bagakit/`
+- shared path protocol config:
+  - `.bagakit-knowledge.toml`
+  - belongs at the repository root when explicit path truth is needed
 - shared root:
   - default `docs/`
 - system pages under the shared root:
@@ -53,9 +53,8 @@ This skill does not own:
 
 ## Hygiene
 
-- `.bagakit/` is host-local runtime state. Do not treat
-  `.bagakit/knowledge_conf.toml` or generated helper output as required
-  checked-in knowledge.
+- `.bagakit/` is host-local runtime state. Keep generated helper output there,
+  but do not put shared path protocol truth there.
 - Use repo-relative paths only in shared pages, managed bootstrap text, and
   durable examples.
 - Do not publish absolute filesystem paths, timestamp-derived file names, raw

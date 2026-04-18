@@ -42,9 +42,9 @@ Those are separate systems.
 
 - top-level runtime surface root when materialized:
   - `.bagakit/living-knowledge/`
-- root-adjacent protocol file:
-  - `.bagakit/knowledge_conf.toml`
-  - optional local override; absence means use the documented defaults
+- shared path protocol file:
+  - `.bagakit-knowledge.toml`
+  - shared repository config; absence means use the documented defaults
 - shared checked-in knowledge root, not a project-local runtime root:
   - `docs/`
 - stable contract:
@@ -84,7 +84,7 @@ should come back through explicit ownership, not by quietly widening
 Use this skill when a repository needs:
 
 - one shared filesystem-first knowledge root
-- configurable local path protocol under `.bagakit/knowledge_conf.toml`
+- configurable shared path protocol under `.bagakit-knowledge.toml`
 - system pages that make loading progressive instead of chat-dependent
 - generated maintenance-route guidance through `must-sop.md`
 - reusable-items governance and starter catalogs inside the shared root
@@ -137,9 +137,9 @@ Required rules:
 
 Configuration:
 
-- `.bagakit/knowledge_conf.toml`
-  - optional local override
-  - not required to be committed
+- `.bagakit-knowledge.toml`
+  - shared repository config
+  - safe to commit when the repository wants explicit path protocol truth
   - absent config means use the default path protocol below
 
 Shared checked-in knowledge:
@@ -188,9 +188,9 @@ evolver_root = ".bagakit/evolver"
 The other three are protocol declarations that peer systems may follow while
 remaining standalone-first when the config is absent.
 
-Because `.bagakit/` is host-local runtime state, repositories may ignore this
-config file. Shared durable knowledge still belongs in the configured shared
-root, and by default that root is `docs/`.
+Because `.bagakit/` is host-local runtime state, this config lives outside it.
+Shared durable knowledge still belongs in the configured shared root, and by
+default that root is `docs/`.
 
 ## Recommended Flow
 

@@ -10,6 +10,7 @@ from pathlib import Path, PurePosixPath
 
 
 DEFAULT_RESEARCHER_ROOT = ".bagakit/researcher"
+KNOWLEDGE_CONFIG_PATH = ".bagakit-knowledge.toml"
 OPTIONAL_DIRS = ("passes", "tracks", "insights", "handoffs")
 
 MANAGED_SECTION_ORDER = (
@@ -81,7 +82,7 @@ def validate_researcher_root(raw: str) -> str:
 
 
 def load_researcher_root(root: Path) -> str:
-    conf = root / ".bagakit" / "knowledge_conf.toml"
+    conf = root / KNOWLEDGE_CONFIG_PATH
     if not conf.is_file():
         return DEFAULT_RESEARCHER_ROOT
     current = ""

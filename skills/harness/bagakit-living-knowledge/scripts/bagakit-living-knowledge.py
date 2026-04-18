@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Any, Iterable, Sequence
 
 ENV_SKILL_DIR = "BAGAKIT_LIVING_KNOWLEDGE_SKILL_DIR"
+CONFIG_PATH = ".bagakit-knowledge.toml"
 START_TAG = "<!-- BAGAKIT:LIVING-KNOWLEDGE:START -->"
 END_TAG = "<!-- BAGAKIT:LIVING-KNOWLEDGE:END -->"
 ROOT_REDEFINITION_RE = re.compile(r"(?i)\bas the (?:canonical|shared) knowledge root\b")
@@ -251,7 +252,7 @@ def parse_simple_toml(path: Path) -> dict[str, dict[str, str]]:
 
 
 def load_config(root: Path) -> KnowledgeConfig:
-    conf = root / ".bagakit" / "knowledge_conf.toml"
+    conf = root / CONFIG_PATH
     if not conf.is_file():
         return KnowledgeConfig()
     payload = parse_simple_toml(conf)
@@ -285,7 +286,7 @@ def config_text(config: KnowledgeConfig) -> str:
 
 def surfaces(root: Path, config: KnowledgeConfig | None = None) -> Surfaces:
     cfg = config or load_config(root)
-    config_file = root / ".bagakit" / "knowledge_conf.toml"
+    config_file = root / CONFIG_PATH
     shared_root = safe_any_repo_path(root, cfg.shared_root)
     system_root = safe_any_repo_path(root, cfg.system_root)
     generated_root = safe_any_repo_path(root, cfg.generated_root)
@@ -585,7 +586,7 @@ def build_must_sop(root: Path, shared_root: Path, system_root: Path) -> str:
 def apply_command(args: argparse.Namespace) -> int:
     root = repo_root(args.root)
     default_cfg = KnowledgeConfig()
-    s = surfaces(root, default_cfg if not (root / ".bagakit" / "knowledge_conf.toml").exists() else None)
+    s = surfaces(root, default_cfg)
     outputs: list[str] = []
 
     outputs.append(write_if_needed(root, s.config_file, config_text(default_cfg), args.force))
@@ -820,7 +821,7 @@ def doctor_command(args: argparse.Namespace) -> int:
     warnings: list[str] = []
 
     if not s.config_file.is_file():
-        warnings.append("missing local .bagakit/knowledge_conf.toml; using default knowledge path protocol")
+        warnings.append(f"missing {CONFIG_PATH}; using default knowledge path protocol")
     if not s.shared_root.is_dir():
         errors.append(f"missing shared root: {relpath(root, s.shared_root)}")
     if not s.must_guidebook.is_file():

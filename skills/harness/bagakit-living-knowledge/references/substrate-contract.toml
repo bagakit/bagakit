@@ -12,8 +12,8 @@ authority_template = "skills/harness/bagakit-living-knowledge/playbook/tpl/must-
 shared_page_template = "skills/harness/bagakit-living-knowledge/playbook/tpl/shared-page-template.md"
 
 [path_protocol]
-config = ".bagakit/knowledge_conf.toml"
-config_behavior = "optional_local_override"
+config = ".bagakit-knowledge.toml"
+config_behavior = "shared_docs_config"
 default_shared_root = "docs"
 default_system_root = "docs"
 runtime_root = ".bagakit/living-knowledge"

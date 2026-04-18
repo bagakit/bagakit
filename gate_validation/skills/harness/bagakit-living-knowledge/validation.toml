@@ -31,7 +31,7 @@ required_files = [
   "skills/harness/bagakit-living-knowledge/scripts/bagakit-living-knowledge.sh",
   "skills/harness/bagakit-living-knowledge/scripts/bagakit-living-knowledge.py",
   "skills/harness/bagakit-living-knowledge/playbook/tpl/agents-block-template.md",
-  "skills/harness/bagakit-living-knowledge/playbook/tpl/knowledge-conf-template.toml",
+  "skills/harness/bagakit-living-knowledge/playbook/tpl/bagakit-knowledge-template.toml",
   "skills/harness/bagakit-living-knowledge/playbook/tpl/must-guidebook-template.md",
   "skills/harness/bagakit-living-knowledge/playbook/tpl/must-authority-template.md",
   "skills/harness/bagakit-living-knowledge/playbook/tpl/must-recall-template.md",
@@ -69,7 +69,7 @@ default = true
 proof_mode = "runtime"
 protects = ["living-knowledge public operator behavior for apply, paths, recall, ingest, doctor, default path fallback, generated guides, and leakage rejection"]
 oracle = ["smoke script runs the living-knowledge CLI in a temporary repo and checks generated files, default behavior without local .bagakit config, command outputs, rejected bad inputs, and absence of absolute path leaks"]
-exercised_surface = ["bagakit-living-knowledge.sh CLI", "AGENTS managed block", "optional .bagakit/knowledge_conf.toml local override", "generated docs/must-* pages", "ingested shared markdown files"]
+exercised_surface = ["bagakit-living-knowledge.sh CLI", "AGENTS managed block", "shared .bagakit-knowledge.toml path protocol", "generated docs/must-* pages", "ingested shared markdown files"]
 proves = ["bagakit-living-knowledge-smoke proves: Run the canonical bagakit-living-knowledge substrate smoke checks, including repo-relative path and low-leakage ingestion hygiene."]
 does_not_prove = ["bagakit-living-knowledge-smoke does not prove live service behavior, stochastic agent quality, or unrelated repository surfaces."]
 timeout_seconds = 300

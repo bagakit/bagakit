@@ -83,15 +83,15 @@ synthesized into Bagakit-facing guidance.
 
 - top-level runtime surface root when materialized:
   - `.bagakit/researcher/`
-- optional root-adjacent protocol file:
-  - `.bagakit/knowledge_conf.toml`
+- shared path protocol file:
+  - `.bagakit-knowledge.toml`
 - stable contract:
   - `docs/specs/runtime-surface-contract.md`
 - if the top-level root exists in a host repo, it should carry `surface.toml`
 
 ## Core Surfaces
 
-Researcher uses the configured `researcher_root` when `.bagakit/knowledge_conf.toml` exists.
+Researcher uses the configured `researcher_root` when `.bagakit-knowledge.toml` exists.
 
 Current default:
 

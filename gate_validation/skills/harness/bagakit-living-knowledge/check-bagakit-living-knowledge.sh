@@ -48,7 +48,7 @@ if grep -q "$TMP_DIR/repo" <<<"$APPLY_OUT"; then
   exit 1
 fi
 
-test -f .bagakit/knowledge_conf.toml
+test -f .bagakit-knowledge.toml
 test -f docs/must-guidebook.md
 test -f docs/must-authority.md
 test -f docs/must-sop.md
@@ -61,8 +61,8 @@ grep -q "must-guidebook.md" AGENTS.md
 grep -q "must-authority.md" AGENTS.md
 grep -q "must-sop.md" AGENTS.md
 grep -q "must-recall.md" AGENTS.md
-grep -q ".bagakit/knowledge_conf.toml" AGENTS.md
-grep -q "local override" AGENTS.md
+grep -q ".bagakit-knowledge.toml" AGENTS.md
+grep -q "shared path protocol config" AGENTS.md
 grep -q "Maintaining Reusable Items" docs/norms-maintaining-reusable-items.md
 
 PATHS_OUT="$("$CMD" paths --root .)"
@@ -78,9 +78,17 @@ grep -q "generated from optional frontmatter" docs/must-sop.md
 grep -q "recall search" docs/must-recall.md
 
 rm -rf .bagakit
-sh "$CMD" doctor --root . >"$TMP_DIR/no-local-config-doctor.out" 2>"$TMP_DIR/no-local-config-doctor.err"
-grep -q "doctor passed" "$TMP_DIR/no-local-config-doctor.out"
-grep -q "using default knowledge path protocol" "$TMP_DIR/no-local-config-doctor.err"
+sh "$CMD" doctor --root . >"$TMP_DIR/no-local-runtime-doctor.out" 2>"$TMP_DIR/no-local-runtime-doctor.err"
+grep -q "doctor passed" "$TMP_DIR/no-local-runtime-doctor.out"
+if grep -q "using default knowledge path protocol" "$TMP_DIR/no-local-runtime-doctor.err"; then
+  echo "doctor unexpectedly treated missing .bagakit as missing shared config" >&2
+  exit 1
+fi
+
+rm .bagakit-knowledge.toml
+sh "$CMD" doctor --root . >"$TMP_DIR/no-config-doctor.out" 2>"$TMP_DIR/no-config-doctor.err"
+grep -q "doctor passed" "$TMP_DIR/no-config-doctor.out"
+grep -q "using default knowledge path protocol" "$TMP_DIR/no-config-doctor.err"
 APPLY_OUT="$("$CMD" apply --root .)"
 grep -q "^applied: \\.$" <<<"$APPLY_OUT"
 

@@ -146,25 +146,25 @@ EXPECTED_TEXT_TOKENS = {
     "skills/harness/bagakit-living-knowledge/README.md": [
         "## Runtime Surface Declaration",
         ".bagakit/living-knowledge/",
-        ".bagakit/knowledge_conf.toml",
+        ".bagakit-knowledge.toml",
         "docs/specs/runtime-surface-contract.md",
     ],
     "skills/harness/bagakit-living-knowledge/SKILL.md": [
         "## Runtime Surface Declaration",
         ".bagakit/living-knowledge/",
-        ".bagakit/knowledge_conf.toml",
+        ".bagakit-knowledge.toml",
         "docs/specs/runtime-surface-contract.md",
     ],
     "skills/harness/bagakit-researcher/README.md": [
         "## Runtime Surface Declaration",
         ".bagakit/researcher/",
-        ".bagakit/knowledge_conf.toml",
+        ".bagakit-knowledge.toml",
         "docs/specs/runtime-surface-contract.md",
     ],
     "skills/harness/bagakit-researcher/SKILL.md": [
         "## Runtime Surface Declaration",
         ".bagakit/researcher/",
-        ".bagakit/knowledge_conf.toml",
+        ".bagakit-knowledge.toml",
         "docs/specs/runtime-surface-contract.md",
     ],
     "skills/harness/bagakit-skill-evolver/README.md": [

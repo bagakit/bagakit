@@ -12,8 +12,8 @@ Standalone local-first research workflow for repositories that need:
 
 - top-level runtime surface root when materialized:
   - `.bagakit/researcher/`
-- optional root-adjacent protocol file:
-  - `.bagakit/knowledge_conf.toml`
+- shared path protocol file:
+  - `.bagakit-knowledge.toml`
 - stable contract:
   - `docs/specs/runtime-surface-contract.md`
 - if the top-level root exists in a host repo, it should carry `surface.toml`
@@ -22,7 +22,7 @@ Standalone local-first research workflow for repositories that need:
 
 - default runtime root:
   - `.bagakit/researcher/topics/<topic-class>/<topic>/`
-- configured runtime root, when `.bagakit/knowledge_conf.toml` declares
+- configured runtime root, when `.bagakit-knowledge.toml` declares
   `researcher_root` under `.bagakit/`:
   - `<researcher_root>/topics/<topic-class>/<topic>/`
 - required topic files:

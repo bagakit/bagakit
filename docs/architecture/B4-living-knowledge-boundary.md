@@ -60,8 +60,8 @@ That would recreate the same boundary blur that the split was meant to remove.
 - managed `AGENTS.md` bootstrap block
 - progressive-loading `must-*` reading surfaces
 - generated `must-sop.md`
-- default shared path protocol, with `.bagakit/knowledge_conf.toml` available
-  only as a host-local override
+- default shared path protocol, with `.bagakit-knowledge.toml` available
+  as root-level hidden shared repository config
 - shared knowledge normalization
 - deterministic recall over shared knowledge
 - explicit reviewed ingestion into the shared knowledge root

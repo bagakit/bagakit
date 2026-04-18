@@ -20,7 +20,7 @@ Base runtime root:
 └── index.md
 ```
 
-Configured base runtime when `.bagakit/knowledge_conf.toml` declares
+Configured base runtime when `.bagakit-knowledge.toml` declares
 `researcher_root` under `.bagakit/`:
 
 ```text

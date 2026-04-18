@@ -83,7 +83,7 @@ re-absorbing the other runtime systems.
 - generated `must-sop.md`
 - progressive-loading `must-recall.md`
 - shared knowledge normalization, indexing, recall, and reviewed ingestion
-- optional local path protocol override through `.bagakit/knowledge_conf.toml`
+- shared path protocol config through `.bagakit-knowledge.toml`
 - reusable-items governance and starter catalogs inside the shared root
 
 ### Moved Out
@@ -108,13 +108,14 @@ They are not implicit obligations of `living-knowledge`.
 
 ## Configuration
 
-Local project configuration may live at:
+Shared project configuration may live at:
 
-- `.bagakit/knowledge_conf.toml`
+- `.bagakit-knowledge.toml`
 
-This file is a host-local path protocol override. It may be ignored with the
-rest of `.bagakit/`. If it is absent, `living-knowledge` uses the default path
-protocol below.
+This file is a root-level hidden Bagakit-specific shared path protocol config.
+It is outside `.bagakit/` so that it can be committed when a repository wants
+explicit path truth without making `.bagakit/` public state. If it is absent,
+`living-knowledge` uses the default path protocol below.
 
 Current fields:
 
@@ -163,8 +164,8 @@ Meaning:
 
 Rule:
 
-- `.bagakit/knowledge_conf.toml` is not a checked-in exception to the default
-  private `.bagakit/` rule
+- `.bagakit-knowledge.toml` is a root-level hidden shared config, not private
+  `.bagakit/` runtime state
 - absence of the config must preserve default behavior
 - if a peer system ignores this config, it must still stay standalone-first
 - if a peer system chooses to follow it, the config is the shared path contract
@@ -182,9 +183,9 @@ If no config exists, that root is:
 
 This is a contract default, not a statement that every repository should stop
 distinguishing other authoritative docs surfaces.
-Repositories with a more specialized shared knowledge root may override the path
-in local `.bagakit/knowledge_conf.toml`, but shared public knowledge itself
-still belongs outside `.bagakit/`.
+Repositories with a more specialized shared knowledge root may set the path in
+`.bagakit-knowledge.toml`, but shared public knowledge itself still belongs
+outside `.bagakit/`.
 
 ## System Pages
 

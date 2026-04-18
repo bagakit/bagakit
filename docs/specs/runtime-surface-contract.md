@@ -127,9 +127,9 @@ Rules:
 Some contracts legitimately live directly under `.bagakit/` rather than inside
 one top-level surface root.
 
-Current example:
-
-- `.bagakit/knowledge_conf.toml`
+Current canonical examples should be named by their owning contract. Shared
+checked-in config such as `.bagakit-knowledge.toml` is not a `.bagakit/`
+root-adjacent protocol file.
 
 Rules:
 
@@ -194,7 +194,6 @@ reviewable_outputs = [
   "topics/<topic-class>/<topic>/summaries/",
 ]
 adjacent_protocol_files = [
-  ".bagakit/knowledge_conf.toml",
 ]
 ```
 
