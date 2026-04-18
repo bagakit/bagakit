@@ -39,14 +39,18 @@ or an external workflow system, not in the message preamble.
 - no frontmatter or `schema =` preamble
 - required body sections:
   - `Context`
-  - `Key Facts`
+  - `Key Deltas` by default, or legacy `Key Facts`
   - `Validation`
-- `Context` contains `Before`, `Change`, and `Result`
+- default `Context` contains `Why`
+- legacy expanded `Context` contains `Before`, `Change`, and `Result`
+- `Key Deltas` contains 1-3 before-after-why delta lines
 - `Key Facts` contains 1-5 ranked fact lines
 - `Key Facts` starts with `P0` and stays sorted through `P2`
-- every fact uses normalized repo-relative `path:line` refs
+- every delta or fact uses normalized repo-relative `path:line` refs
 - no absolute filesystem path literals
 - no unresolved placeholders
 
 `lint-message` also emits non-blocking warnings when key explanatory lines
-begin with ambiguous English pronouns such as `This` or `It`.
+begin with ambiguous English pronouns such as `This` or `It`, and when
+`Validation` looks like a long command transcript instead of a compact result
+digest.

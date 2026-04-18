@@ -22,8 +22,12 @@ FOOTER_PROTOCOL_LINE = f"- GitMessageCraft: Protocol={FOOTER_PROTOCOL}"
 SUBJECT_RE = re.compile(r"^[a-z][a-z0-9-]*(?:\([^)]+\))?: .+$")
 COMMIT_SHA_RE = re.compile(r"^[0-9a-f]{7,40}$")
 FACT_LINE_RE = re.compile(r"(?m)^- (?P<priority>P[0-2]): (?P<summary>.+?) Key refs: (?P<refs>.+)$")
+DELTA_LINE_RE = re.compile(
+    r"(?m)^- (?P<module>[^:\n]+): (?P<before>.+?) -> (?P<after>.+?); why: (?P<why>.+?) Key refs: (?P<refs>.+)$"
+)
 AMBIGUOUS_START_RE = re.compile(r"^(?:it|this|that|these|those|they)\b", re.IGNORECASE)
 FOOTER_PROTOCOL_RE = re.compile(r"(?m)^- GitMessageCraft: Protocol=(?P<protocol>[^\s;]+)(?:;.*)?$")
+VALIDATION_TRANSCRIPT_HINT_RE = re.compile(r"(?:\bfor\b.+\bdo\b|;\s*do\b|\|\|\s*exit|\bGOCACHE=|\bTMPDIR=|--glob\s+)", re.IGNORECASE)
 MR_SUMMARY_START = "<!-- bagakit:git-message-craft:start -->"
 MR_SUMMARY_END = "<!-- bagakit:git-message-craft:end -->"
 SESSION_ARTIFACTS_LOCAL = "local"
@@ -327,6 +331,15 @@ class FactEntry:
     refs: str
 
 
+@dataclass
+class DeltaEntry:
+    module: str
+    before: str
+    after: str
+    why: str
+    refs: str
+
+
 def parse_status_line(line: str) -> ChangeItem | None:
     if not line.strip():
         return None
@@ -432,6 +445,21 @@ def parse_fact_entry(root: Path, raw: str) -> FactEntry:
     return FactEntry(priority=priority, summary=statement, refs=refs)
 
 
+def parse_delta_entry(root: Path, raw: str) -> DeltaEntry:
+    parts = [part.strip() for part in raw.split("|")]
+    if len(parts) != 5 or not all(parts):
+        raise ValueError("--delta must be in format 'module|before|after|why|key refs'")
+    module = normalize_git_message_text(root, parts[0], "delta module")
+    before = normalize_git_message_text(root, parts[1], "delta before")
+    after = normalize_git_message_text(root, parts[2], "delta after")
+    why = normalize_git_message_text(root, parts[3], "delta why")
+    refs = normalize_key_refs(root, parts[4])
+    for label, value in (("module", module), ("before", before), ("after", after), ("why", why)):
+        if "<" in value or ">" in value:
+            raise ValueError(f"delta {label} must not contain placeholder tokens")
+    return DeltaEntry(module=module, before=before, after=after, why=why, refs=refs)
+
+
 def extract_section(text: str, heading: str) -> str:
     pattern = rf"(?ms)^## {re.escape(heading)}\n(.*?)(?=^## |\Z)"
     match = re.search(pattern, text)
@@ -456,6 +484,16 @@ def render_fact_section(facts: list[FactEntry]) -> list[str]:
     return lines
 
 
+def render_delta_section(deltas: list[DeltaEntry]) -> list[str]:
+    lines = ["## Key Deltas"]
+    for item in deltas:
+        lines.append(
+            f"- {item.module}: {item.before} -> {item.after}; why: {item.why}. Key refs: {item.refs}"
+        )
+    lines.append("")
+    return lines
+
+
 def render_context_section(before: str, change: str, result: str) -> list[str]:
     lines = ["## Context"]
     lines.append(f"- Before: {before}")
@@ -463,6 +501,10 @@ def render_context_section(before: str, change: str, result: str) -> list[str]:
     lines.append(f"- Result: {result}")
     lines.append("")
     return lines
+
+
+def render_compact_context_section(why: str) -> list[str]:
+    return ["## Context", f"- Why: {why}", ""]
 
 
 def render_footer() -> list[str]:
@@ -791,15 +833,15 @@ def cmd_draft_message(args: argparse.Namespace) -> int:
     summary = args.summary.strip()
     if not ctype or not summary:
         raise SystemExit("error: --type and --summary are required")
+    compact_why = args.why.strip()
     why_before = args.why_before.strip()
     why_change = args.why_change.strip()
     why_gain = args.why_gain.strip()
-    if not why_before or not why_change or not why_gain:
-        raise SystemExit("error: --why-before, --why-change, and --why-gain are required")
     try:
-        why_before = normalize_git_message_text(root, why_before, "why-before")
-        why_change = normalize_git_message_text(root, why_change, "why-change")
-        why_gain = normalize_git_message_text(root, why_gain, "why-gain")
+        compact_why = normalize_git_message_text(root, compact_why, "why") if compact_why else ""
+        why_before = normalize_git_message_text(root, why_before, "why-before") if why_before else ""
+        why_change = normalize_git_message_text(root, why_change, "why-change") if why_change else ""
+        why_gain = normalize_git_message_text(root, why_gain, "why-gain") if why_gain else ""
         summary = normalize_git_message_text(root, summary, "summary")
         scope = normalize_git_message_text(root, scope, "scope") if scope else ""
     except ValueError as exc:
@@ -832,23 +874,40 @@ def cmd_draft_message(args: argparse.Namespace) -> int:
         raise SystemExit("error: provide at least one --check item with concrete validation evidence")
 
     try:
+        deltas = [parse_delta_entry(root, raw) for raw in args.delta]
+    except ValueError as exc:
+        raise SystemExit(f"error: {exc}")
+    try:
         facts = [parse_fact_entry(root, raw) for raw in args.fact]
     except ValueError as exc:
         raise SystemExit(f"error: {exc}")
-    if not facts:
-        raise SystemExit("error: provide at least one --fact with repo-relative key refs")
-    if len(facts) > 5:
-        raise SystemExit("error: keep commit messages to at most 5 ranked facts; split the commit or compress the facts")
-
-    facts = sorted(facts, key=lambda item: FACT_PRIORITY_ORDER[item.priority])
-    if facts[0].priority != "p0":
-        raise SystemExit("error: at least one primary fact is required; start the ranked list with p0")
+    if deltas and facts:
+        raise SystemExit("error: use --delta for compact messages or --fact for expanded messages, not both")
+    if deltas:
+        if not compact_why:
+            raise SystemExit("error: compact --delta messages require --why")
+        if len(deltas) > 3:
+            raise SystemExit("error: keep compact commit messages to at most 3 key deltas; move wider detail to MR/archive")
+    else:
+        if not why_before or not why_change or not why_gain:
+            raise SystemExit("error: expanded --fact messages require --why-before, --why-change, and --why-gain")
+        if not facts:
+            raise SystemExit("error: provide at least one --fact with repo-relative key refs")
+        if len(facts) > 5:
+            raise SystemExit("error: keep commit messages to at most 5 ranked facts; split the commit or compress the facts")
+        facts = sorted(facts, key=lambda item: FACT_PRIORITY_ORDER[item.priority])
+        if facts[0].priority != "p0":
+            raise SystemExit("error: at least one primary fact is required; start the ranked list with p0")
 
     subject = f"{ctype}({scope}): {summary}" if scope else f"{ctype}: {summary}"
 
     lines = [subject, ""]
-    lines.extend(render_context_section(why_before, why_change, why_gain))
-    lines.extend(render_fact_section(facts))
+    if deltas:
+        lines.extend(render_compact_context_section(compact_why))
+        lines.extend(render_delta_section(deltas))
+    else:
+        lines.extend(render_context_section(why_before, why_change, why_gain))
+        lines.extend(render_fact_section(facts))
     lines.extend(render_simple_section("Validation", checks, ""))
     if follow_ups:
         lines.extend(render_simple_section("Follow-ups", follow_ups, "state remaining actions"))
@@ -998,67 +1057,109 @@ def cmd_lint_message(args: argparse.Namespace) -> int:
         for sample in absolute_literals[:5]:
             errors.append(f"absolute path literal found: {sample}")
 
-    required_headings = [
-        "Context",
-        "Key Facts",
-        "Validation",
-    ]
-    for heading in required_headings:
-        if f"## {heading}" not in body:
-            errors.append(f"missing required GFM heading: ## {heading}")
+    if "## Context" not in body:
+        errors.append("missing required GFM heading: ## Context")
+    if "## Validation" not in body:
+        errors.append("missing required GFM heading: ## Validation")
+    has_key_deltas = "## Key Deltas" in body
+    has_key_facts = "## Key Facts" in body
+    if not has_key_deltas and not has_key_facts:
+        errors.append("missing required GFM heading: ## Key Deltas or ## Key Facts")
+    if has_key_deltas and has_key_facts:
+        errors.append("use either ## Key Deltas or ## Key Facts, not both")
 
     context_section = extract_section(body, "Context")
+    why_match = re.search(r"(?m)^- Why: (?P<value>.+\S)$", context_section)
     before_match = re.search(r"(?m)^- Before: (?P<value>.+\S)$", context_section)
     change_match = re.search(r"(?m)^- Change: (?P<value>.+\S)$", context_section)
     result_match = re.search(r"(?m)^- Result: (?P<value>.+\S)$", context_section)
-    if not before_match:
-        errors.append("Context must include '- Before: <pre-change state and context>'")
-    if not change_match:
-        errors.append("Context must include '- Change: <what changed in this commit>'")
-    if not result_match:
-        errors.append("Context must include '- Result: <incremental outcome>'")
-    for label, match in (("Before", before_match), ("Change", change_match), ("Result", result_match)):
+    if has_key_deltas:
+        if not why_match:
+            errors.append("Context must include '- Why: <compact rationale>' for Key Deltas")
+    else:
+        if not before_match:
+            errors.append("Context must include '- Before: <pre-change state and context>'")
+        if not change_match:
+            errors.append("Context must include '- Change: <what changed in this commit>'")
+        if not result_match:
+            errors.append("Context must include '- Result: <incremental outcome>'")
+    for label, match in (("Why", why_match), ("Before", before_match), ("Change", change_match), ("Result", result_match)):
         if match:
             warning = ambiguous_context_warning(label, match.group("value"))
             if warning:
                 warnings.append(warning)
 
-    facts_section = extract_section(body, "Key Facts")
-    fact_entries = list(FACT_LINE_RE.finditer(facts_section))
-    if not fact_entries:
-        errors.append("Key Facts must include at least one ranked fact line")
-    if len(fact_entries) > 5:
-        errors.append("Key Facts must include at most 5 ranked fact lines")
-    previous_priority = -1
-    first_priority = ""
-    for index, match in enumerate(fact_entries):
-        priority = match.group("priority")
-        summary_value = match.group("summary").strip()
-        refs_text = match.group("refs")
-        priority_value = FACT_PRIORITY_ORDER[priority.lower()]
-        if index == 0:
-            first_priority = priority
-        if priority_value < previous_priority:
-            errors.append("Key Facts must be sorted by priority from P0 to P2")
-        previous_priority = priority_value
-        try:
-            normalized_refs = normalize_key_refs(lint_root, refs_text)
-        except ValueError as exc:
-            errors.append(f"Key refs invalid: {exc}")
-            continue
-        if refs_text.strip() != normalized_refs:
-            errors.append(
-                f"Key refs must use normalized repo-relative 'path:line' items; expected: {normalized_refs}"
-            )
-        warning = ambiguous_context_warning(f"Key fact {priority}", summary_value)
-        if warning:
-            warnings.append(warning)
-    if fact_entries and first_priority != "P0":
-        errors.append("Key Facts must start with a primary P0 fact")
+    if has_key_deltas:
+        deltas_section = extract_section(body, "Key Deltas")
+        delta_entries = list(DELTA_LINE_RE.finditer(deltas_section))
+        if not delta_entries:
+            errors.append("Key Deltas must include at least one before-after-why delta line")
+        if len(delta_entries) > 3:
+            warnings.append("Key Deltas has more than 3 lines; move wider module maps to MR/archive")
+        for match in delta_entries:
+            refs_text = match.group("refs")
+            try:
+                normalized_refs = normalize_key_refs(lint_root, refs_text)
+            except ValueError as exc:
+                errors.append(f"Key refs invalid: {exc}")
+                continue
+            if refs_text.strip() != normalized_refs:
+                errors.append(
+                    f"Key refs must use normalized repo-relative 'path:line' items; expected: {normalized_refs}"
+                )
+            for label in ("before", "after", "why"):
+                warning = ambiguous_context_warning(f"Key delta {label}", match.group(label).strip())
+                if warning:
+                    warnings.append(warning)
+    if has_key_facts:
+        facts_section = extract_section(body, "Key Facts")
+        fact_entries = list(FACT_LINE_RE.finditer(facts_section))
+        if not fact_entries:
+            errors.append("Key Facts must include at least one ranked fact line")
+        if len(fact_entries) > 5:
+            errors.append("Key Facts must include at most 5 ranked fact lines")
+        previous_priority = -1
+        first_priority = ""
+        for index, match in enumerate(fact_entries):
+            priority = match.group("priority")
+            summary_value = match.group("summary").strip()
+            refs_text = match.group("refs")
+            priority_value = FACT_PRIORITY_ORDER[priority.lower()]
+            if index == 0:
+                first_priority = priority
+            if priority_value < previous_priority:
+                errors.append("Key Facts must be sorted by priority from P0 to P2")
+            previous_priority = priority_value
+            try:
+                normalized_refs = normalize_key_refs(lint_root, refs_text)
+            except ValueError as exc:
+                errors.append(f"Key refs invalid: {exc}")
+                continue
+            if refs_text.strip() != normalized_refs:
+                errors.append(
+                    f"Key refs must use normalized repo-relative 'path:line' items; expected: {normalized_refs}"
+                )
+            warning = ambiguous_context_warning(f"Key fact {priority}", summary_value)
+            if warning:
+                warnings.append(warning)
+        if fact_entries and first_priority != "P0":
+            errors.append("Key Facts must start with a primary P0 fact")
 
     validation_section = extract_section(body, "Validation")
-    if not re.search(r"(?m)^- ", validation_section):
+    validation_bullets = [
+        line[2:].strip()
+        for line in validation_section.splitlines()
+        if line.startswith("- ") and line[2:].strip()
+    ]
+    if not validation_bullets:
         errors.append("Validation section must include at least one bullet")
+    if len(validation_bullets) > 3:
+        warnings.append("Validation has more than 3 bullets; keep a result digest and move command ledgers to archive/MR")
+    for item in validation_bullets:
+        if len(item) > 160:
+            warnings.append("Validation bullet is long; summarize the outcome and move the full command to archive/MR")
+        if VALIDATION_TRANSCRIPT_HINT_RE.search(item):
+            warnings.append("Validation bullet looks like a command transcript; keep only the check outcome in the commit body")
 
     follow_up_section = extract_section(body, "Follow-ups")
     if "## Follow-ups" in body and not re.search(r"(?m)^- .+\S$", follow_up_section):
@@ -1234,14 +1335,21 @@ def build_parser() -> argparse.ArgumentParser:
     p_msg.add_argument("--type", required=True, help="commit type (feat/fix/refactor/docs/test/chore)")
     p_msg.add_argument("--scope", default="", help="commit scope")
     p_msg.add_argument("--summary", required=True, help="short subject summary")
-    p_msg.add_argument("--why-before", required=True, help="pre-change state and why change was needed")
-    p_msg.add_argument("--why-change", required=True, help="what changed in this commit")
-    p_msg.add_argument("--why-gain", required=True, help="what concrete result this commit brings")
+    p_msg.add_argument("--why", default="", help="compact commit rationale for Key Deltas mode")
+    p_msg.add_argument("--why-before", default="", help="expanded pre-change state and why change was needed")
+    p_msg.add_argument("--why-change", default="", help="expanded what changed in this commit")
+    p_msg.add_argument("--why-gain", default="", help="expanded concrete result this commit brings")
+    p_msg.add_argument(
+        "--delta",
+        action="append",
+        default=[],
+        help="compact delta in format 'module|before|after|why|repo-relative key refs'",
+    )
     p_msg.add_argument(
         "--fact",
         action="append",
         default=[],
-        help="ranked fact in format 'p0|self-contained statement|repo-relative key refs'",
+        help="expanded ranked fact in format 'p0|self-contained statement|repo-relative key refs'",
     )
     p_msg.add_argument("--check", action="append", default=[], help="validation evidence bullet (required, repeatable)")
     p_msg.add_argument("--follow-up", action="append", default=[], help="optional follow-up bullet")

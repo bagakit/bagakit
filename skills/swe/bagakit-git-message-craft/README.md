@@ -7,10 +7,12 @@ instead of bloated, chat-dependent text.
 
 - Commit messages use a compact footer protocol marker instead of frontmatter.
 - MR title/body drafts now use bundled Git-facing templates.
-- Required body is now just `Context`, `Key Facts`, and `Validation`.
-- `Key Facts` replaces module-by-module dumping.
-- Facts are ranked `P0` / `P1` / `P2`, sorted by importance, and limited to
-  1-5 lines.
+- Required body is now just `Context`, `Key Deltas`, and `Validation` by
+  default.
+- `Key Deltas` replaces module-by-module dumping with before -> after -> why
+  state transitions.
+- Legacy `Key Facts` remains available for expanded messages.
+- Validation is a short result digest, not a full command ledger.
 - `init` creates only the session directory; it no longer sprays empty
   template files.
 - `draft-message` writes one commit file per planned commit.
@@ -32,24 +34,24 @@ instead of bloated, chat-dependent text.
 refactor(git-message-craft): collapse session scaffolding
 
 ## Context
-- Before: init created several empty files that rarely carried real signal.
-- Change: init now creates only the session directory, and draft-message writes one commit file per planned commit.
-- Result: git-message-craft sessions stay readable and the commit focuses on non-inferable facts.
+- Why: init produced noisy commit bodies that repeated setup context and validation commands.
 
-## Key Facts
-- P0: init now creates only the session directory. Key refs: scripts/bagakit-git-message-craft.py:642, scripts/bagakit-git-message-craft.py:654
-- P1: draft-message emits the footer protocol marker after the required sections. Key refs: scripts/bagakit-git-message-craft.py:778, scripts/bagakit-git-message-craft.py:784
+## Key Deltas
+- session setup: empty template scaffolding -> one planned commit file per message; why: commit history should carry only review-changing context. Key refs: scripts/bagakit-git-message-craft.py:642
+- validation evidence: command transcript -> compact result digest; why: full ledgers belong in archive or MR surfaces. Key refs: scripts/bagakit-git-message-craft.py:1028
 
 ## Validation
-- git diff --check
+- pass: git-message-craft smoke
 
 [[BAGAKIT]]
 - GitMessageCraft: Protocol=bagakit.git-message-craft/v1
 ```
 
-`lint-message` warns when `Context` or `Key Facts` start with vague English
-pronouns such as `This` or `It`. The warning is non-blocking because reference
-resolution is qualitative, but the guidance is explicit.
+`lint-message` warns when `Context`, `Key Deltas`, or `Key Facts` start with
+vague English pronouns such as `This` or `It`. It also warns when `Validation`
+looks like a long command transcript. These warnings are non-blocking because
+reference resolution and prose density are qualitative, but the guidance is
+explicit.
 
 ## Quick start
 
@@ -66,12 +68,10 @@ sh scripts/bagakit-git-message-craft.sh draft-message \
   --type refactor \
   --scope git-message-craft \
   --summary "collapse session scaffolding" \
-  --why-before "init created several empty template files and the commit message recorded too much inferable metadata" \
-  --why-change "trim the contract to Context, Key Facts, and Validation while keeping one commit file per planned commit" \
-  --why-gain "history stays readable and reviewers see the highest-signal facts first" \
-  --fact "p0|init now creates only the session directory|scripts/bagakit-git-message-craft.py:642, scripts/bagakit-git-message-craft.py:654" \
-  --fact "p1|lint-message rejects wrong footer protocols and out-of-order facts|scripts/bagakit-git-message-craft.py:916, scripts/bagakit-git-message-craft.py:920" \
-  --check "git diff --check" \
+  --why "init produced noisy commit bodies that repeated setup context and validation commands" \
+  --delta "session setup|empty template scaffolding|one planned commit file per message|commit history should carry only review-changing context|scripts/bagakit-git-message-craft.py:642" \
+  --delta "validation evidence|command transcript|compact result digest|full ledgers belong in archive or MR surfaces|scripts/bagakit-git-message-craft.py:1028" \
+  --check "pass: git-message-craft smoke" \
   --output .bagakit/git-message-craft/<session>/commit-refactor-collapse-session-scaffolding.txt
 
 sh scripts/bagakit-git-message-craft.sh lint-message \

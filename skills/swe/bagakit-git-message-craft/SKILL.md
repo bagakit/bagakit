@@ -67,24 +67,51 @@ Footer protocol marker:
 Required sections:
 
 - `## Context`
-- `## Key Facts`
+- `## Key Deltas` by default, or legacy `## Key Facts` for expanded messages
 - `## Validation`
 
 Optional sections:
 
 - `## Follow-ups`
 
+### Default compact body
+
+Use this shape unless the commit genuinely needs an expanded fact list:
+
+```markdown
+## Context
+- Why: <one sentence explaining why this commit exists>
+
+## Key Deltas
+- <module>: <before state> -> <after state>; why: <why this transition matters>. Key refs: <path:line>
+
+## Validation
+- pass: <check or review outcome>
+```
+
 ### `## Context`
 
-Exactly three bullets:
+Default compact form:
+
+- `Why`: one sentence explaining why this commit exists.
+
+Expanded legacy form:
 
 - `Before`: what was wrong or unclear before this commit
 - `Change`: what the commit did
 - `Result`: the concrete outcome of the change
 
-These bullets should be self-contained. Do not start them with vague English pronouns like `This` or `It` when the noun can be named directly.
+Context bullets should be self-contained. Do not start them with vague English pronouns like `This` or `It` when the noun can be named directly.
 
-### `## Key Facts`
+### `## Key Deltas`
+
+- Keep 1-3 bullets total.
+- Use only major changed modules, not every touched file.
+- Each bullet must say `<module>: <before> -> <after>; why: <why>`.
+- Every bullet must include `Key refs: path:line`.
+- Use repo-relative POSIX-style refs only.
+
+### `## Key Facts` Expanded Fallback
 
 - Keep 1-5 bullets total.
 - Every bullet starts with `P0`, `P1`, or `P2`.
@@ -95,11 +122,17 @@ These bullets should be self-contained. Do not start them with vague English pro
 
 ### `## Validation`
 
-- At least one concrete check, command, or review statement.
+- Keep 1-3 bullets total by default.
+- Write outcome digests such as `pass: scripts/check.sh` or
+  `pass: warm broad-root acceptance`.
+- Do not paste full command transcripts, shell loops, or every task-gate check
+  into the commit body.
+- At least one concrete check, command, or review statement is required.
 - Validation evidence must use repo-relative paths. If a command only works by
   naming a machine-local or symlink-source absolute path outside the current
   project, omit that path or rewrite the evidence around the project-local
   command shape before drafting.
+- Long validation ledgers belong in archive, MR, or task/session artifacts.
 
 ### MR Surface
 
@@ -284,7 +317,7 @@ Archive is complete only when:
 ## Complexity Guardrails
 
 - `preset-heavy` / 预设偏多:
-  - Keep one default path: `Context + Key Facts + Validation`.
+  - Keep one default path: `Context + Key Deltas + Validation`.
   - Check: optional sections stay limited to `Follow-ups`; workflow-only metadata stays out of the commit.
 - `implementation-heavy` / 实现偏重:
   - Do not solve writing quality by adding more generated templates.
@@ -303,7 +336,9 @@ Archive is complete only when:
 
 - If not inside a Git repo, stop with setup guidance.
 - If split boundaries are unclear, ask one clarification question about the intended rollback boundary.
-- If a commit needs more than 5 facts, split it or compress the facts before committing.
+- If a compact commit needs more than 3 deltas, move the wider module map to
+  MR/archive or split the commit.
+- If an expanded commit needs more than 5 facts, split it or compress the facts before committing.
 
 ## Playbook Minimality Principle
 

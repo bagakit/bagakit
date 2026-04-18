@@ -31,19 +31,35 @@ Do not use frontmatter for protocol data.
 
 ```markdown
 ## Context
-- Before: init created several empty files that rarely carried real signal.
-- Change: init now creates only the session directory, and each planned commit gets one draft file.
-- Result: sessions stay readable and the message focuses on the highest-signal facts.
+- Why: init produced noisy commit bodies that repeated setup context and validation commands.
 
-## Key Facts
-- P0: init now creates only the session directory. Key refs: scripts/bagakit-git-message-craft.py:642, scripts/bagakit-git-message-craft.py:654
-- P1: lint-message rejects wrong footer protocols and out-of-order facts. Key refs: scripts/bagakit-git-message-craft.py:916, scripts/bagakit-git-message-craft.py:920
+## Key Deltas
+- session setup: empty template scaffolding -> one planned commit file per message; why: commit history should carry only review-changing context. Key refs: scripts/bagakit-git-message-craft.py:642
+- validation evidence: command transcript -> compact result digest; why: full ledgers belong in archive or MR surfaces. Key refs: scripts/bagakit-git-message-craft.py:1028
 
 ## Validation
-- git diff --check
+- pass: git-message-craft smoke
 ```
 
-## 4) Fact Writing Rules
+## 4) Delta Writing Rules
+
+- keep 1-3 deltas total by default
+- include only major changed modules
+- write each delta as `<module>: <before> -> <after>; why: <why>`
+- keep each delta to one line
+- include `Key refs: path:line`
+- move full module maps to MR, archive, or session artifacts
+
+## 5) Validation Digest Rules
+
+- keep 1-3 validation bullets by default
+- write the result, not the full transcript
+- prefer `pass: scripts/check.sh`, `pass: warm export acceptance`, or a short
+  review statement
+- move shell loops, repeated gate checks, and machine-local commands to archive
+  or task/session artifacts
+
+## 6) Expanded Fact Writing Rules
 
 - keep 1-5 facts total
 - order facts by importance, not by file order
@@ -58,7 +74,10 @@ Priority intent:
 - `P1`: important supporting fact
 - `P2`: secondary fact that still matters for review
 
-## 5) Optional Section
+Use expanded `Key Facts` only when a before-after-why delta does not fit the
+commit's evidence shape.
+
+## 7) Optional Section
 
 Use `## Follow-ups` only when unfinished or deferred work matters to the
 reviewer.
@@ -70,11 +89,15 @@ reviewer.
 
 If there are no follow-ups, omit the section.
 
-## 6) Anti-Patterns
+## 8) Anti-Patterns
 
 - repeating metadata Git already stores
 - using frontmatter for protocol markers that belong in the footer
-- dumping one bullet per touched module with no prioritization
+- dumping one bullet per touched module with no before-after-why transition
+- pasting full feature goals, task plans, or gate command ledgers into commit
+  bodies
+- listing every validation command instead of a compact result digest
+- copying machine-local command paths into validation evidence
 - listing more than 5 facts instead of splitting the commit
 - using `This` / `It` when the subject can be named directly
 - using absolute filesystem paths anywhere in the durable message
@@ -85,7 +108,7 @@ If there are no follow-ups, omit the section.
 If the current repository defines a higher-level commit wrapper, use that
 wrapper with the drafted message file after `lint-message` passes.
 
-## 7) Relation To MR Drafts
+## 9) Relation To MR Drafts
 
 This file governs the commit surface only.
 

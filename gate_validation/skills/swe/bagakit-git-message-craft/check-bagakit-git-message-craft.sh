@@ -126,6 +126,48 @@ fi
 
 "$CMD" lint-message --root "$TMP_DIR" --message "$MESSAGE_FILE"
 
+COMPACT_MESSAGE_FILE="$SESSION_DIR/commit-refactor-compact-deltas.txt"
+"$CMD" draft-message \
+  --root "$TMP_DIR" \
+  --dir "$SESSION_DIR" \
+  --type refactor \
+  --scope commit \
+  --summary "compress commit body around deltas" \
+  --why "the rohan warm-export case showed that copied plan text and full gate commands made commit bodies noisy" \
+  --delta "git-message-craft contract|generic facts repeated context|major modules describe before-after-why transitions|reviewers need the state change, not a module inventory|app.py:1" \
+  --delta "validation evidence|full command ledgers entered the commit body|validation is rendered as a short result digest|complete command detail belongs in archive or MR surfaces|docs/notes.md:1" \
+  --check "pass: git-message-craft smoke" \
+  --check "pass: compact validation digest review" \
+  --output "$COMPACT_MESSAGE_FILE"
+
+grep -q -- '^## Key Deltas$' "$COMPACT_MESSAGE_FILE"
+grep -q -- 'git-message-craft contract: generic facts repeated context -> major modules describe before-after-why transitions; why: reviewers need the state change, not a module inventory. Key refs: app.py:1' "$COMPACT_MESSAGE_FILE"
+grep -q -- 'validation evidence: full command ledgers entered the commit body -> validation is rendered as a short result digest; why: complete command detail belongs in archive or MR surfaces. Key refs: docs/notes.md:1' "$COMPACT_MESSAGE_FILE"
+if grep -q -- '^## Key Facts$' "$COMPACT_MESSAGE_FILE"; then
+  echo "compact draft unexpectedly emitted Key Facts" >&2
+  exit 1
+fi
+"$CMD" lint-message --root "$TMP_DIR" --message "$COMPACT_MESSAGE_FILE"
+
+NOISY_VALIDATION_MESSAGE="$TMP_DIR/noisy-validation.txt"
+cp "$COMPACT_MESSAGE_FILE" "$NOISY_VALIDATION_MESSAGE"
+python3 - <<'PY' "$NOISY_VALIDATION_MESSAGE"
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+text = path.read_text(encoding="utf-8")
+text = text.replace(
+    "- pass: compact validation digest review",
+    "- pass: compact validation digest review\n- pass: docs review\n- pass: for f in README.md docs/*.md; do lint \"$f\" || exit $?; done",
+    1,
+)
+path.write_text(text, encoding="utf-8")
+PY
+"$CMD" lint-message --root "$TMP_DIR" --message "$NOISY_VALIDATION_MESSAGE" >"$TMP_DIR/noisy-validation.out" 2>"$TMP_DIR/noisy-validation.err"
+grep -q -- "Validation has more than 3 bullets" "$TMP_DIR/noisy-validation.err"
+grep -q -- "Validation bullet looks like a command transcript" "$TMP_DIR/noisy-validation.err"
+
 BAD_DRAFT_MESSAGE="$SESSION_DIR/commit-bad-external-validation.txt"
 if "$CMD" draft-message \
   --root "$TMP_DIR" \

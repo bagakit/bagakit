@@ -33,10 +33,11 @@ hook.
 
 - subject format
 - `[[BAGAKIT]]` footer anchor and protocol marker
-- required `Context`, `Key Facts`, `Validation` sections
-- ranked facts and normalized refs
+- required `Context`, `Validation`, and `Key Deltas` or legacy `Key Facts`
+  sections
+- compact deltas or ranked facts with normalized refs
 - no absolute paths
 - no placeholder tokens
 
-Warnings about ambiguous pronouns remain non-blocking; hard invariants still
-block the commit.
+Warnings about ambiguous pronouns and noisy validation ledgers remain
+non-blocking; hard invariants still block the commit.
