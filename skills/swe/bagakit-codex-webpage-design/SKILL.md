@@ -66,7 +66,7 @@ adapt to the project:
      image is a blocker handoff
 5. `state-reference-set`
    - default, selected, search/filter, empty/error, modal, disabled, responsive
-6. `visual-decomposition` and design-draft quality passes
+6. `visual-decomposition`, optional design-core packet, and design-draft passes
    - page frame, regions, typography, palette, material, component treatment,
      information compression, surface composition, density, copy/icon budget,
      hierarchy, and signature details
@@ -200,8 +200,8 @@ Before final handoff, verify:
 - mobile screenshots prove core mobile visualizations, selected tab or drawer
   states, and evidence surfaces in the actual selected states; desktop
   screenshots or DOM assertions alone cannot clear mobile interaction bugs
-- high-craft work meets the ambition bar; "nice but not surprising" is still
-  `needs_iteration` unless the user lowers the target
+- high-craft or brand-heavy work preserves any design-core packet and meets
+  the ambition bar; "nice but not surprising" is still `needs_iteration`
 - latest artifacts correspond to the latest screenshots and validation run
 - browser interaction results are preserved as named artifacts, and stale or
   contradictory console logs are resolved or recorded as evidence conflicts

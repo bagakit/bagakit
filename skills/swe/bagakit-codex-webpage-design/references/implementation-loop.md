@@ -57,6 +57,29 @@ and signature craft. Image2 can synthesize a direction from this survey, but it
 does not replace the survey. If comparable references cannot be found, record
 the search gap and lower confidence instead of inventing a design tier.
 
+## Design Core Composition Gate
+
+If `bagakit-design-core` was selected by selector preflight, or a
+`design-core-design-packet.toml` is already present, consume it before final
+image prompting or implementation. The packet is optional peer input, not a
+hard requirement for every webpage task; when absent, continue with this
+skill's local reference survey, decomposition, ambition, and visual-quality
+rules.
+
+When a packet exists, run three checkpoint reviews:
+
+- `design-core-draft-review.md`: before implementation, check target register,
+  tone axes, reference tier, and full-surface rule coverage.
+- `design-core-plan-review.md`: before coding, map packet decisions into
+  tokens, component geometry, assets, state rules, and responsive behavior.
+- `design-core-result-review.md`: before handoff, compare the final rendered
+  result against packet tone, observed/derived/fallback choices, accepted
+  uncertainty, and rule blockers.
+
+Do not flatten the packet into a Markdown summary that becomes a second source
+of truth. Checkpoint reviews should cite packet fields and record verdicts,
+accepted deltas, blockers, and next actions.
+
 Before implementation, run these design-draft gates when the page is
 product-like, content-heavy, workspace-oriented, dashboard-like, or high-craft:
 

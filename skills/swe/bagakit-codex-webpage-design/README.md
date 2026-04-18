@@ -18,6 +18,11 @@ information compression, surface-led composition, density budget, and copy/icon
 economy before implementation so the result does not become redundant,
 wireframe-like, over-padded, or verbose.
 
+When `bagakit-design-core` is selected or a design packet is provided, this
+workflow consumes it as optional peer input. The web skill still owns
+implementation, browser evidence, and parity; the packet constrains brand
+tonality, rule coverage, and draft/plan/result review.
+
 For spatial or stateful pages, machine validation is not enough. The workflow
 also gates canvas safe zones, mobile touchable states, artifact freshness, and
 independent visual judge aggregation before claiming parity.

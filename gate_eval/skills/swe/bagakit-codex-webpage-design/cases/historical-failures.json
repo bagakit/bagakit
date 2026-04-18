@@ -455,6 +455,40 @@
       ]
     },
     {
+      "id": "brand-tone-lost-between-draft-and-build",
+      "source_refs": [
+        ".bagakit/skill-selector/tasks/webpage-design-hue-impeccable-optimization/skill-usage.toml"
+      ],
+      "failure": "The draft names brand tone and comparable references, but the implementation plan or CSS tokens drift back to generic styling because tone axes were not preserved as a design packet.",
+      "contract_guard_ids": [
+        "brand-tonality-preservation",
+        "design-packet-provenance"
+      ]
+    },
+    {
+      "id": "design-rules-only-reviewed-at-final-screenshot",
+      "source_refs": [
+        ".bagakit/skill-selector/tasks/webpage-design-hue-impeccable-optimization/skill-usage.toml"
+      ],
+      "failure": "The task applies design rules only during final screenshot review, after implementation choices are already fixed, instead of reviewing the draft, concrete design plan, and final result against the same packet.",
+      "contract_guard_ids": [
+        "design-rule-three-checkpoint-review",
+        "design-core-optional-composition"
+      ]
+    },
+    {
+      "id": "provided-design-packet-ignored-by-web-implementation",
+      "source_refs": [
+        ".bagakit/skill-selector/tasks/webpage-design-hue-impeccable-optimization/skill-usage.toml"
+      ],
+      "failure": "A design-core packet exists, but the webpage implementation treats it as advisory prose and builds from local taste, losing source confidence, observed/derived/fallback distinctions, and accepted uncertainty.",
+      "contract_guard_ids": [
+        "design-core-optional-composition",
+        "brand-tonality-preservation",
+        "design-packet-provenance"
+      ]
+    },
+    {
       "id": "toy-single-page-false-mvp-proof",
       "source_refs": [
         ".bagakit/skill-selector/tasks/webpage-design-ambition-motion-experiment/skill-usage.toml"

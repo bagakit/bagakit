@@ -1,0 +1,85 @@
+version = 2
+
+[[suite]]
+id = "bagakit-design-core-layout"
+owner = "skills/design/bagakit-design-core"
+description = "Require the canonical runtime layout for bagakit-design-core."
+default = true
+proof_mode = "structural"
+protects = ["bagakit-design-core installable runtime layout, frontdoor declaration, CLI declaration, and local design surface marker"]
+oracle = ["fs runner checks required skill files, references, script, local surface marker, and validation/eval registration"]
+exercised_surface = ["skills/design/bagakit-design-core runtime directory", ".bagakit/design runtime surface", "gate_validation/skills/design/bagakit-design-core registration"]
+proves = ["bagakit-design-core-layout proves required runtime files and local surface marker are present."]
+does_not_prove = ["bagakit-design-core-layout does not prove live design quality, aesthetic judgment, or implementation behavior."]
+validation_class = "structure"
+groups = ["skills", "design", "design-core", "structure"]
+
+[suite.runner]
+kind = "fs"
+required_dirs = [
+  "skills/design",
+  "skills/design/bagakit-design-core",
+  "skills/design/bagakit-design-core/references",
+  "skills/design/bagakit-design-core/scripts",
+  ".bagakit/design",
+  "gate_validation/skills/design/bagakit-design-core",
+  "gate_eval/skills/design/bagakit-design-core",
+  "gate_eval/skills/design/bagakit-design-core/results",
+  "gate_eval/skills/design/bagakit-design-core/results/runs",
+]
+required_files = [
+  "skills/design/README.md",
+  "skills/design/bagakit-design-core/README.md",
+  "skills/design/bagakit-design-core/SKILL.md",
+  "skills/design/bagakit-design-core/references/frontdoor-rule.toml",
+  "skills/design/bagakit-design-core/references/bagakit-driver.toml",
+  "skills/design/bagakit-design-core/references/skill-cli.toml",
+  "skills/design/bagakit-design-core/references/design-core-contract.toml",
+  "skills/design/bagakit-design-core/references/artifact-contract.md",
+  "skills/design/bagakit-design-core/references/brand-tonality.md",
+  "skills/design/bagakit-design-core/references/design-rule-system.md",
+  "skills/design/bagakit-design-core/scripts/bagakit-design-core-cli.sh",
+  ".bagakit/design/surface.toml",
+  ".bagakit/design/README.md",
+  ".bagakit/design/brand-tonality-synthesis.md",
+  ".bagakit/design/design-rule-synthesis.md",
+  ".bagakit/design/review-protocol.md",
+  "gate_validation/skills/design/README.md",
+  "gate_validation/skills/design/bagakit-design-core/validation.toml",
+  "gate_validation/skills/design/bagakit-design-core/check-design-core.py",
+  "gate_eval/skills/design/bagakit-design-core/README.md",
+  "gate_eval/skills/design/bagakit-design-core/validation.toml",
+  "gate_eval/skills/design/bagakit-design-core/suite.ts",
+  "gate_eval/skills/design/bagakit-design-core/results/.gitignore",
+  "gate_eval/skills/design/bagakit-design-core/results/README.md",
+  "gate_eval/skills/design/bagakit-design-core/results/runs/.gitkeep",
+]
+forbidden_paths = [
+  "skills/design/bagakit-design-core/SKILL_PAYLOAD.json",
+  "skills/design/bagakit-design-core/docs",
+  "skills/design/bagakit-design-core/gate",
+  "skills/design/bagakit-design-core/scripts_dev",
+]
+
+[[suite]]
+id = "bagakit-design-core-contract"
+owner = "skills/design/bagakit-design-core"
+description = "Require the structured design-core workflow contract and local design surface metadata."
+default = true
+proof_mode = "structural"
+protects = ["design-core stage, guard, runtime surface, and checkpoint-review contract"]
+oracle = ["parsed design-core contract ids plus surface.toml and skill runtime declarations"]
+exercised_surface = ["skills/design/bagakit-design-core/references/design-core-contract.toml", ".bagakit/design/surface.toml", "design-core skill docs"]
+proves = ["bagakit-design-core-contract proves required contract stages, guards, local surface metadata, and runtime declarations are aligned."]
+does_not_prove = ["bagakit-design-core-contract does not prove stochastic design judgment or final visual quality."]
+timeout_seconds = 120
+validation_class = "contract"
+groups = ["skills", "design", "design-core", "contract"]
+
+[suite.runner]
+kind = "python_script"
+script = "gate_validation/skills/design/bagakit-design-core/check-design-core.py"
+args = [
+  "--root",
+  "{repo_root}",
+]

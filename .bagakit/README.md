@@ -13,6 +13,8 @@ Rules:
 - researcher-owned evidence workspaces live under `.bagakit/researcher/`
 - evolver-owned decision memory lives under `.bagakit/evolver/`
 - selector-owned task-local evidence lives under `.bagakit/skill-selector/`
+- design-core-owned design synthesis and task design packets live under
+  `.bagakit/design/`
 - generated local living-knowledge helper output lives under
   `.bagakit/living-knowledge/`
 - root-adjacent protocol files such as `.bagakit/knowledge_conf.toml` still

@@ -1,0 +1,7 @@
+version = 1
+skill = "bagakit-design-core"
+trigger = "A design task needs brand-tonality extraction, design-rule coverage, reference-tier reasoning, or draft/plan/result review before implementation."
+do = "Inspect available design evidence, map tone into concrete axes, apply the design-rule system, write or consume a design packet, and review draft, concrete plan, and final result without owning implementation."
+see = "skills/design/bagakit-design-core/SKILL.md"
+surface = ".bagakit/design/"
+fallback = "If the target is too vague to design-review, use `bagakit-spark` before creating a design packet."

@@ -56,6 +56,20 @@ EXPECTED_SURFACES = {
             ".bagakit/skill-selector/README.md",
         ],
     },
+    ".bagakit/design/surface.toml": {
+        "surface_id": "design-runtime",
+        "surface_root": ".bagakit/design",
+        "owner_kind": "skill",
+        "owner_id": "bagakit-design-core",
+        "lifecycle_class": "durable_state",
+        "edit_policy": "mixed",
+        "cleanup_safe": False,
+        "source_of_truth": [
+            "docs/specs/runtime-surface-contract.md",
+            "skills/design/bagakit-design-core/SKILL.md",
+            ".bagakit/design/README.md",
+        ],
+    },
     ".bagakit/living-knowledge/surface.toml": {
         "surface_id": "living-knowledge-local-state",
         "surface_root": ".bagakit/living-knowledge",
@@ -83,6 +97,7 @@ EXPECTED_TEXT_TOKENS = {
         ".bagakit/researcher/",
         ".bagakit/evolver/",
         ".bagakit/skill-selector/",
+        ".bagakit/design/",
         ".bagakit/living-knowledge/",
     ],
     "docs/skill-development.md": [
@@ -93,7 +108,13 @@ EXPECTED_TEXT_TOKENS = {
     ".bagakit/README.md": [
         "surface.toml",
         ".bagakit/skill-selector/",
+        ".bagakit/design/",
         ".bagakit/living-knowledge/",
+        "docs/specs/runtime-surface-contract.md",
+    ],
+    ".bagakit/design/README.md": [
+        "bagakit-design-core",
+        "design-packet.toml",
         "docs/specs/runtime-surface-contract.md",
     ],
     ".bagakit/researcher/README.md": [
@@ -205,6 +226,16 @@ EXPECTED_TEXT_TOKENS = {
     "skills/harness/bagakit-skill-selector/SKILL.md": [
         "## Runtime Surface Declaration",
         ".bagakit/skill-selector/",
+        "docs/specs/runtime-surface-contract.md",
+    ],
+    "skills/design/bagakit-design-core/README.md": [
+        "## Runtime Surface Declaration",
+        ".bagakit/design/",
+        "docs/specs/runtime-surface-contract.md",
+    ],
+    "skills/design/bagakit-design-core/SKILL.md": [
+        "## Runtime Surface Declaration",
+        ".bagakit/design/",
         "docs/specs/runtime-surface-contract.md",
     ],
     "skills/swe/bagakit-git-message-craft/README.md": [

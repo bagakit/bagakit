@@ -19,6 +19,13 @@ state boards must be judged against that original reference before they can
 guide implementation. Reject state boards that copy visual drift from a failed
 implementation.
 
+If a `design-core-design-packet.toml` exists, treat it as the design-method
+context for this webpage task. It does not replace the visual reference, but it
+does constrain tonality, target register, source confidence,
+observed/derived/fallback choices, design-rule coverage, and accepted
+uncertainty. Review the packet during draft review, concrete implementation
+planning, and final result review.
+
 For image2-generated webpage mockups, default to a strong visual target:
 preserve layout, hierarchy, proportions, materials, focal object, and signature
 details unless the user explicitly says the image is loose inspiration.
@@ -87,25 +94,33 @@ For interactive pages, add a sixth check:
 15. Copy And Icon Economy
    - Could labels, icons, counts, status marks, grouping, location, or tooltips
      replace explanatory copy without losing meaning?
+16. Brand Tonality
+   - If a design-core packet exists or a brand/site reference was inspected, do
+     palette, typography, density, material, motion, icon style, imagery, and
+     copy preserve the recorded tone axes?
+17. Design Rule Coverage
+   - Were hierarchy, IA, typography, layout, color, states, accessibility,
+     motion, copy, icon usage, and generic-output risks reviewed before the
+     draft, before coding, and after seeing the result?
 
 Then add implementation checks:
 
-16. State Parity
+18. State Parity
    - Are the important branch states based on a state reference frame or
      reusable rule from the reference set rather than local improvisation?
-17. Full-Page Structural Parity
+19. Full-Page Structural Parity
    - Do whole-page and first-viewport screenshots preserve the reference's
      page frame, section order, region proportions, control placement, primary
      object layout, and mobile hierarchy?
-18. Design Spec Fidelity
+20. Design Spec Fidelity
    - Did the implementation derive and use a design spec ledger for grid,
      spacing, typography, control geometry, material tokens, and state
      treatment rather than ad hoc CSS guesses?
-19. Micro-Parity
+21. Micro-Parity
    - Do cropped details such as button spacing, icon alignment, row density,
      borders, shadows, text leading, dividers, and selected/hover states match
      the reference or have accepted reasons?
-20. Material Parity
+22. Material Parity
    - When the reference depends on texture, torn edges, illustrated glyphs,
      custom icon language, glow/noise overlays, or other material craft, did
      the implementation use an asset kit rather than flattening the design
@@ -116,38 +131,38 @@ Then add implementation checks:
      reference-specific sprites instead of replaced by generic icons?
    - If panel or card frames scale, does a nine-slice renderer keep corners,
      edges, center fill, padding, and min size stable across specimen sizes?
-21. Code Craft
+23. Code Craft
    - Are repeated UI structures data-driven and componentized with shared
      tokens, or did visual iteration leave a large brittle one-off component?
-22. Behavior Proof
+24. Behavior Proof
    - Do visible interactive affordances actually work in the browser, including
      click selection, search/filter, reset, capture editing, keyboard
      activation, and drag/pan/zoom when implied?
-23. Affordance Honesty
+25. Affordance Honesty
    - Has every visible live-looking control been inventoried and classified as
      working, disabled, hidden, or explicitly out of scope?
-24. Reference Coverage
+26. Reference Coverage
    - Has every reference-visible control, state, and signature detail been
      implemented or explicitly accounted for before judging parity?
-25. State Coherence
+27. State Coherence
    - When the app enters blocked, empty, missing-input, failed, disconnected,
      permission-denied, or low-confidence states, do primary surfaces clearly
      become unavailable, stale, recoverable, or scoped instead of looking live?
-26. Canvas Stability
+28. Canvas Stability
    - If the page presents a graph, map, canvas, whiteboard, or spatial surface,
      does manipulation feel smooth without flicker, object reset, pan/drag
      conflict, or layout jumps?
-27. Motion-Frame Stability
+29. Motion-Frame Stability
    - Do before, mid-drag, and after-drag frames show continuous movement without
      flashing, disappearing content, z-order jumps, unwanted transitions, or
      relation-line redraw artifacts?
-28. Mobile State Honesty
+30. Mobile State Honesty
    - Do mobile tabs, drawers, bottom sheets, and segmented controls visually
      match the content being shown?
    - Do core mobile visualizations such as waveforms, charts, maps, timelines,
      and media scrubbers remain visible and operable instead of collapsing into
      blank or clipped blocks?
-29. Spatial Label Legibility
+31. Spatial Label Legibility
    - Do graph, map, timeline, and spatial labels avoid overlap, collision,
      unreadable clustering, or ambiguous ownership?
    - Are label placement and truncation reviewed in screenshots, not only by
@@ -190,6 +205,12 @@ Watch for:
 - generated designs accepted even though they are weaker than the reference set
   in information clarity, density, composition, responsive handling, material
   craft, or signature detail
+- brand tone described in the prompt but not preserved in tokens, assets,
+  motion, icon language, density, or final screenshot review
+- design rules applied only after implementation rather than during draft and
+  concrete-plan review
+- design-core packet fields copied into Markdown summaries but ignored by the
+  actual design spec, CSS tokens, and component decisions
 - stock-like abstract imagery
 - one-note palettes
 - fake dashboard screenshots with unreadable text

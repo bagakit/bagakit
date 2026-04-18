@@ -43,7 +43,10 @@ required_dirs = [
   "mem",
   "scripts",
   "skills",
+  "skills/design",
   "skills/harness",
+  "gate_validation/skills/design",
+  "gate_eval/skills/design",
 ]
 required_files = [
   ".gitignore",
@@ -106,7 +109,9 @@ required_files = [
   "scripts/skill.sh",
   "scripts/skill.ts",
   "skills/README.md",
+  "skills/design/README.md",
   "skills/harness/README.md",
+  "gate_validation/skills/design/README.md",
 ]
 
 [[suite]]

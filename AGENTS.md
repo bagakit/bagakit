@@ -162,6 +162,7 @@ For canonical monorepo skills:
 Current family boundary target:
 
 - `skills/harness/<skill-id>/`
+- `skills/design/<skill-id>/`
 - `skills/swe/<skill-id>/`
 - `skills/paperwork/<skill-id>/`
 - `skills/gamemaker/<skill-id>/`
@@ -303,6 +304,14 @@ reporting, the response footer may use:
 - Do: Compose peer skills and tools by adapter without vendoring internals; plan dependency preflight, source and asset ledgers, webpage and deploy evidence, notification result, archive, and no-publish gates.
 - See: `skills/swe/bagakit-daily-media-automation/SKILL.md`
 - Evidence: `.bagakit/daily-media-automation/runs/<run-id>/archive.md`
+</bagakit-rule>
+
+<bagakit-rule skill="bagakit-design-core">
+- Trigger: A design task needs brand-tonality extraction, design-rule coverage, reference-tier reasoning, or draft/plan/result review before implementation.
+- Do: Inspect available design evidence, map tone into concrete axes, apply the design-rule system, write or consume a design packet, and review draft, concrete plan, and final result without owning implementation.
+- See: `skills/design/bagakit-design-core/SKILL.md`
+- Surface: `.bagakit/design/`
+- Fallback: If the target is too vague to design-review, use `bagakit-spark` before creating a design packet.
 </bagakit-rule>
 
 <bagakit-rule skill="bagakit-feature-tracker">

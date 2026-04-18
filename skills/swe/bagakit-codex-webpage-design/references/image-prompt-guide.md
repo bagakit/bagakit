@@ -34,6 +34,10 @@ Content:
 Reference survey:
 - <3+ comparable products/pages and the design qualities this draft must meet or beat>
 
+Design core:
+- <target register, tone axes, observed/derived/fallback constraints, rule
+  coverage priorities, and accepted uncertainty when a design packet exists>
+
 Visual direction:
 - <style, era, mood, density, material, lighting, texture>
 
@@ -78,6 +82,10 @@ Negative constraints:
 - Use real copy and real assets when available.
 - For high-craft work, ground the prompt in a `reference-survey-ledger.md`
   rather than asking image2 to invent the design tier from scratch.
+- When a `design-core-design-packet.toml` exists, include its target register,
+  tone axes, observed/derived/fallback constraints, rule priorities, and
+  accepted uncertainty. The generated draft should preserve the packet rather
+  than inventing a new visual identity.
 - State whether the prompt is creating the primary design reference or only a
   style/exploration variant.
 - Specify the page as a webpage mockup, not an abstract poster.
@@ -109,6 +117,8 @@ Before coding, answer:
 - What is the visual point of view?
 - Which comparable references define the target tier, and where is this draft
   stronger or weaker?
+- If a design-core packet exists, did the draft preserve target register,
+  brand tone axes, source confidence, and rule coverage?
 - Did the design integrate duplicate concepts into one clear object-flow model?
 - Does the page read as surface-led product design rather than a wireframe or
   stack of outlined boxes?

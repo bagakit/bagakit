@@ -5,6 +5,7 @@ This directory is the long-term home for installable Bagakit skill sources.
 The required layout is family-based:
 
 - `skills/harness/`
+- `skills/design/`
 - `skills/swe/`
 - `skills/paperwork/`
 - `skills/gamemaker/`

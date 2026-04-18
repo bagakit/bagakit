@@ -20,6 +20,13 @@ Files:
   - comparable product/page references, source class, inspected strengths,
     information density, composition model, copy/icon language, responsive
     treatment, signature craft, and cannot-lose comparison points
+- `design-core-design-packet.toml`
+  - optional peer packet from `bagakit-design-core`; target register, source
+    evidence refs, tone axes, rule coverage, observed/derived/fallback split,
+    accepted uncertainty, and downstream hints
+- `design-core-draft-review.md`
+  - draft review against the design packet's tonality, reference tier, and
+    full-surface rule coverage before implementation
 - `visual-decomposition.md`
   - reference image reading: page frame, region proportions, toolbar,
     navigation, focal object, typography, palette, materials, component shapes,
@@ -42,6 +49,9 @@ Files:
   - implementable tokens and geometry inferred from the reference: page grid,
     spacing scale, typography scale, color/material tokens, control sizes,
     component density, state treatments, and accepted uncertainty
+- `design-core-plan-review.md`
+  - concrete design plan review that maps packet tone and design rules into
+    CSS tokens, assets, component geometry, states, and responsive behavior
 - `asset-requirement-pass.md`
   - determines whether reference craft needs generated or provided material
     assets rather than CSS approximation; lists required textures, masks,
@@ -123,6 +133,9 @@ Files:
     density, surface composition, copy/icon economy, responsive handling,
     material craft, signature detail, and any accepted weaker-than-reference
     deltas
+- `design-core-result-review.md`
+  - final review against the consumed design-core packet; required when a
+    packet, draft review, or plan review shaped the work
 - `review-packet.md`
   - paired or independent review packet following
     `docs/specs/review-packet-contract.md`; records reviewer ownership,
@@ -152,6 +165,14 @@ Files:
 
 Do not store absolute filesystem paths in these files. Use repo-relative paths
 or logical artifact names.
+
+`design-core-design-packet.toml` is optional composition, not a hard dependency.
+When it exists, consume it as design guidance for image prompts, design spec,
+assets, component rules, and result review. When it is absent, this skill stays
+self-contained and uses its local reference survey, decomposition, ambition,
+and visual quality rules. Do not duplicate the packet into Markdown as a second
+source of truth; checkpoint reviews should cite packet fields and record
+verdicts, deltas, and blockers.
 
 `reference-intent.md`, `visual-decomposition.md`, `design-spec-ledger.md`, and
 state coverage are blocking artifacts for implementation. For high-craft work,

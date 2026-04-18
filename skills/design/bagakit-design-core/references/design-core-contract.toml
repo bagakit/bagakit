@@ -1,0 +1,116 @@
+version = 1
+skill_id = "bagakit-design-core"
+contract_kind = "skill_workflow_contract"
+owner = "skills/design/bagakit-design-core"
+
+[entry]
+skill = "SKILL.md"
+required_reference_links = [
+  "references/artifact-contract.md",
+  "references/brand-tonality.md",
+  "references/design-rule-system.md",
+  "references/design-core-contract.toml",
+]
+
+[[stage]]
+id = "target-register"
+phase = "before_design"
+artifact = "target-register.md"
+blocks_completion = true
+
+[[stage]]
+id = "source-evidence"
+phase = "before_design"
+artifact = "source-evidence.md"
+blocks_completion = true
+
+[[stage]]
+id = "brand-tonality"
+phase = "before_design"
+artifact = "tone-axis-map.toml"
+required_when = "brand, product, website, screenshot, generated design, or named visual direction exists"
+
+[[stage]]
+id = "first-frame-composition"
+phase = "before_design"
+artifact = "first-frame-composition.md"
+required_when = "first viewport, landing page, product shell, generated design, or screenshot review matters"
+
+[[stage]]
+id = "design-rule-coverage"
+phase = "before_design"
+artifact = "rule-coverage-map.md"
+blocks_completion = true
+
+[[stage]]
+id = "design-packet"
+phase = "before_implementation"
+artifact = "design-packet.toml"
+blocks_completion = true
+
+[[stage]]
+id = "draft-checkpoint-review"
+phase = "draft_review"
+artifact = "draft-checkpoint-review.md"
+blocks_completion = true
+
+[[stage]]
+id = "plan-checkpoint-review"
+phase = "concrete_design"
+artifact = "plan-checkpoint-review.md"
+blocks_completion = true
+
+[[completion_artifact]]
+id = "result-checkpoint-review"
+artifact = "result-checkpoint-review.md"
+blocks_completion = true
+
+[[completion_artifact]]
+id = "handoff"
+artifact = "handoff.md"
+blocks_completion = true
+
+[[guard]]
+id = "evidence-before-taste"
+protects = "design judgment should start from inspected source evidence rather than freeform taste"
+proof_surface = "source-evidence plus target-register"
+
+[[guard]]
+id = "tone-axis-concreteness"
+protects = "brand adjectives must map to concrete visual, motion, copy, icon, and density decisions"
+proof_surface = "tone-axis-map plus design-packet"
+
+[[guard]]
+id = "observed-derived-split"
+protects = "observed source facts, derived choices, and fallback substitutions must stay distinct"
+proof_surface = "source-evidence plus design-packet"
+
+[[guard]]
+id = "target-register-fit"
+protects = "brand, product, tool, editorial, game, and data surfaces should be judged against the right optimization target"
+proof_surface = "target-register plus rule-coverage-map"
+
+[[guard]]
+id = "first-frame-fit"
+protects = "the first viewport or first screen must express the intended visual relationship, focal subject, density, and safe text zones"
+proof_surface = "first-frame-composition plus draft-checkpoint-review"
+
+[[guard]]
+id = "full-surface-rule-coverage"
+protects = "review must cover hierarchy, information architecture, typography, layout, color, interaction states, accessibility, motion, copy, and generic-output risks"
+proof_surface = "rule-coverage-map plus checkpoint reviews"
+
+[[guard]]
+id = "three-checkpoint-review"
+protects = "tonality and design rules must be revisited while reviewing the draft, concrete plan, and final result"
+proof_surface = "draft-checkpoint-review plus plan-checkpoint-review plus result-checkpoint-review"
+
+[[guard]]
+id = "reference-tier-honesty"
+protects = "design review must name the comparison tier and not accept output that is weaker than the chosen bar without an explicit downgrade"
+proof_surface = "source-evidence plus rule-coverage-map plus checkpoint reviews"
+
+[[guard]]
+id = "rights-boundary"
+protects = "proprietary fonts, logos, screenshots, icons, and imagery must be treated as references or user-provided assets, not silently redistributed substitutes"
+proof_surface = "source-evidence plus design-packet"

@@ -19,6 +19,8 @@ REQUIRED_STAGE_IDS = {
     "design-brief",
     "reference-intent",
     "reference-survey-ledger",
+    "design-core-packet",
+    "design-core-draft-review",
     "design-reference",
     "state-reference-set",
     "visual-decomposition",
@@ -27,6 +29,7 @@ REQUIRED_STAGE_IDS = {
     "density-budget",
     "copy-icon-budget",
     "design-spec-ledger",
+    "design-core-plan-review",
     "ambition-bar",
     "information-architecture-map",
     "workflow-model",
@@ -50,6 +53,7 @@ REQUIRED_COMPLETION_ARTIFACT_IDS = {
     "review-packet",
     "judge-aggregation",
     "comparative-design-review",
+    "design-core-result-review",
     "code-quality-review",
     "handoff",
 }
@@ -58,6 +62,10 @@ REQUIRED_GUARD_IDS = {
     "reference-first",
     "reference-survey-before-design",
     "comparative-reference-tier",
+    "design-core-optional-composition",
+    "design-packet-provenance",
+    "brand-tonality-preservation",
+    "design-rule-three-checkpoint-review",
     "skill-quality-no-reference-invalid",
     "state-reference-authority",
     "affordance-honesty",
@@ -120,6 +128,15 @@ def require_superset(actual: set[str], expected: set[str], label: str) -> list[s
     return [f"{label} missing ids: {missing}"] if missing else []
 
 
+def item_by_id(items: object, item_id: str) -> dict | None:
+    if not isinstance(items, list):
+        return None
+    for item in items:
+        if isinstance(item, dict) and item.get("id") == item_id:
+            return item
+    return None
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--root", default=".", help="repository root")
@@ -172,6 +189,22 @@ def main() -> int:
         )
     )
     failures.extend(require_superset(guard_ids, REQUIRED_GUARD_IDS, "guard"))
+
+    design_core_packet = item_by_id(contract.get("stage"), "design-core-packet")
+    if not design_core_packet:
+        failures.append("missing design-core-packet stage")
+    else:
+        if design_core_packet.get("blocks_completion") is True:
+            failures.append("design-core-packet must stay optional and must not block all webpage-design completion")
+        required_when = design_core_packet.get("required_when")
+        if not isinstance(required_when, str) or "bagakit-design-core" not in required_when:
+            failures.append("design-core-packet required_when must name bagakit-design-core composition")
+
+    entry = contract.get("entry")
+    if isinstance(entry, dict):
+        optional_peers = entry.get("optional_peer_contracts")
+        if not isinstance(optional_peers, list) or "skills/design/bagakit-design-core/references/design-core-contract.toml" not in optional_peers:
+            failures.append("entry.optional_peer_contracts must declare the design-core contract")
 
     entry = contract.get("entry")
     if not isinstance(entry, dict):

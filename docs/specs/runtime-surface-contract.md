@@ -89,6 +89,7 @@ Examples in this repository today include:
 - `.bagakit/researcher/`
 - `.bagakit/evolver/`
 - `.bagakit/skill-selector/`
+- `.bagakit/design/`
 - `.bagakit/living-knowledge/`
 
 Rules:

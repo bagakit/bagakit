@@ -1,0 +1,29 @@
+version = 2
+
+[[suite]]
+id = "bagakit-design-core-contract-eval"
+owner = "gate_eval/skills/design/bagakit-design-core"
+description = "Run non-gating eval for design-core contract and local synthesis coverage."
+default = true
+proof_mode = "runtime"
+protects = ["design-core contract coverage for brand tonality, rule coverage, design packet, and three checkpoint reviews"]
+oracle = ["shared dev/eval runner executes deterministic contract and synthesis assertions"]
+exercised_surface = ["gate_eval/skills/design/bagakit-design-core/suite.ts", "skills/design/bagakit-design-core/references/design-core-contract.toml", ".bagakit/design synthesis docs"]
+proves = ["bagakit-design-core-contract-eval proves deterministic contract and synthesis fixtures preserve the intended core design surfaces."]
+does_not_prove = ["bagakit-design-core-contract-eval does not prove live design quality, taste, or implementation fidelity."]
+timeout_seconds = 120
+validation_class = "quality"
+groups = ["skills", "design", "design-core", "eval", "quality"]
+
+[suite.runner]
+kind = "executable"
+command = "{node}"
+args = [
+  "--experimental-strip-types",
+  "dev/eval/src/cli.ts",
+  "run",
+  "--root",
+  "{repo_root}",
+  "--suite",
+  "gate_eval/skills/design/bagakit-design-core/suite.ts",
+]

@@ -14,6 +14,9 @@ required_reference_links = [
   "references/review-packet-template.md",
   "references/workflow-contract.toml",
 ]
+optional_peer_contracts = [
+  "skills/design/bagakit-design-core/references/design-core-contract.toml",
+]
 
 [[stage]]
 id = "design-brief"
@@ -38,6 +41,18 @@ id = "reference-survey-ledger"
 phase = "before_implementation"
 artifact = "reference-survey-ledger.md"
 required_when = "no stronger provided reference exists or high-craft work needs a market/reference tier"
+
+[[stage]]
+id = "design-core-packet"
+phase = "before_implementation"
+artifact = "design-core-design-packet.toml"
+required_when = "bagakit-design-core is selected, a design packet is provided, or brand-heavy work needs tone/rule continuity"
+
+[[stage]]
+id = "design-core-draft-review"
+phase = "before_implementation"
+artifact = "design-core-draft-review.md"
+required_when = "design-core-packet exists or brand-heavy/high-craft work needs tone and rule review before implementation"
 
 [[stage]]
 id = "design-reference"
@@ -86,6 +101,12 @@ id = "design-spec-ledger"
 phase = "before_implementation"
 artifact = "design-spec-ledger.md"
 blocks_completion = true
+
+[[stage]]
+id = "design-core-plan-review"
+phase = "before_implementation"
+artifact = "design-core-plan-review.md"
+required_when = "design-core-packet exists or brand-heavy/high-craft work needs concrete tone and rule preservation before coding"
 
 [[stage]]
 id = "asset-requirement-pass"
@@ -207,6 +228,11 @@ artifact = "comparative-design-review.md"
 required_when = "reference-survey-ledger is required"
 
 [[completion_artifact]]
+id = "design-core-result-review"
+artifact = "design-core-result-review.md"
+required_when = "design-core-packet exists or brand-heavy/high-craft work used design-core draft or plan review"
+
+[[completion_artifact]]
 id = "review-packet"
 artifact = "review-packet.md"
 required_when = "paired or independent review is used"
@@ -250,6 +276,26 @@ proof_surface = "reference-survey-ledger plus reference-intent plus image-prompt
 id = "comparative-reference-tier"
 protects = "final design review must not accept a draft that is weaker than the recorded reference tier in information clarity, density, composition, or craft"
 proof_surface = "reference-survey-ledger plus comparative-design-review plus visual-judge-scorecards"
+
+[[guard]]
+id = "design-core-optional-composition"
+protects = "webpage-design may consume a design-core packet when present but must remain self-contained when the packet is absent"
+proof_surface = "design-core-packet stage required_when plus implementation-loop fallback text"
+
+[[guard]]
+id = "design-packet-provenance"
+protects = "design-core packet inputs must preserve source evidence, confidence, observed/derived/fallback split, and accepted uncertainty"
+proof_surface = "design-core-design-packet plus design-core-draft-review"
+
+[[guard]]
+id = "brand-tonality-preservation"
+protects = "image prompt, design spec, assets, and CSS tokens must preserve recorded brand tone axes instead of drifting to generic styling"
+proof_surface = "design-core-design-packet plus design-spec-ledger plus design-core-result-review"
+
+[[guard]]
+id = "design-rule-three-checkpoint-review"
+protects = "design rules and tonality must be considered while reviewing the draft, the concrete design plan, and the final result"
+proof_surface = "design-core-draft-review plus design-core-plan-review plus design-core-result-review"
 
 [[guard]]
 id = "skill-quality-no-reference-invalid"
@@ -594,6 +640,18 @@ guard_ids = ["copy-icon-economy", "control-surface-clarity"]
 [[historical_failure_guard]]
 case_id = "comparative-review-accepts-weaker-than-reference"
 guard_ids = ["comparative-reference-tier", "ambition-bar"]
+
+[[historical_failure_guard]]
+case_id = "brand-tone-lost-between-draft-and-build"
+guard_ids = ["brand-tonality-preservation", "design-packet-provenance"]
+
+[[historical_failure_guard]]
+case_id = "design-rules-only-reviewed-at-final-screenshot"
+guard_ids = ["design-rule-three-checkpoint-review", "design-core-optional-composition"]
+
+[[historical_failure_guard]]
+case_id = "provided-design-packet-ignored-by-web-implementation"
+guard_ids = ["design-core-optional-composition", "brand-tonality-preservation", "design-packet-provenance"]
 
 [[historical_failure_guard]]
 case_id = "toy-single-page-false-mvp-proof"

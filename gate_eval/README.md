@@ -48,10 +48,12 @@ Current implemented slices:
     - `skills/harness/bagakit-skill-evolver/`
     - `skills/harness/bagakit-skill-selector/`
     - `skills/harness/bagakit-spark/`
+    - `skills/design/bagakit-design-core/`
     - `skills/paperwork/bagakit-paperwork-technical-writing/`
     - `skills/paperwork/bagakit-writing-core/`
     - `skills/paperwork/bagakit-writing-de-ai-tone/`
     - `skills/gamemaker/topdown-image2-sprite-pipeline/`
+    - `skills/swe/bagakit-codex-webpage-design/`
     - `skills/swe/bagakit-git-message-craft/`
 
 Registration:

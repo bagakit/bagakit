@@ -1,0 +1,8 @@
+version = 1
+insert_target = "bagakit_footer"
+summary_line = "- DesignCore: Packet=<design-packet ref or none>; Register=<brand|product|editorial|tool|game|data|mixed|unknown>; Tone=<tone-axis-map ref or not_needed>; RuleCoverage=<rule-coverage-map ref or not_needed>; DraftReview=<pass|needs_iteration|blocked|not_done>; PlanReview=<pass|needs_iteration|blocked|not_done>; ResultReview=<pass|needs_iteration|blocked|not_done>; Next=<one deterministic next action>"
+
+[[directive]]
+id = "DESIGN_CORE"
+when = "bagakit-design-core materially shaped brand tonality, rule coverage, design packet, or design review"
+instruction = "cite the design packet, target register, tone-axis map, source evidence, rule coverage, checkpoint review verdicts, unresolved blockers, accepted uncertainty, and next action"
