@@ -9,11 +9,15 @@ export const NODE_STATUSES = [
   "evidence_attached",
   "skipped",
 ] as const;
-export const RUN_STATUSES = ["planning", "active", "research_blocked", "complete"] as const;
+export const RUN_STATUSES = ["planning", "active", "research_blocked", "convergence_pending", "complete"] as const;
+export const CONVERGENCE_STATUSES = ["not_needed", "pending", "resolved"] as const;
+export const CONVERGENCE_DECISIONS = ["close", "switch", "correct"] as const;
 
 export type NodeKind = (typeof NODE_KINDS)[number];
 export type NodeStatus = (typeof NODE_STATUSES)[number];
 export type RunStatus = (typeof RUN_STATUSES)[number];
+export type ConvergenceStatus = (typeof CONVERGENCE_STATUSES)[number];
+export type ConvergenceDecision = (typeof CONVERGENCE_DECISIONS)[number];
 
 export interface EvidenceRef {
   ref: string;
@@ -27,6 +31,7 @@ export interface GrillNode {
   status: NodeStatus;
   depends_on: string[];
   question: string;
+  options_considered: string[];
   decision_protected: string;
   recommended_answer: string;
   rationale: string;
@@ -40,9 +45,22 @@ export interface QAEvent {
   event_id: string;
   node_id: string;
   question: string;
+  options_considered: string[];
   recommended_answer: string;
   raw_answer: string;
   answered_at: string;
+}
+
+export interface ConvergenceCheck {
+  status: ConvergenceStatus;
+  answer_count: number;
+  goal_or_principle: string;
+  signal: string;
+  adjacent_branch: string;
+  decision: "" | ConvergenceDecision;
+  note: string;
+  resolved_at: string;
+  updated_at: string;
 }
 
 export interface GrillRun {
@@ -55,6 +73,7 @@ export interface GrillRun {
   updated_at: string;
   question_nodes: GrillNode[];
   qa_events: QAEvent[];
+  convergence_check: ConvergenceCheck;
   render: {
     brief_path: string;
     last_rendered_at: string;

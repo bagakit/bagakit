@@ -40,6 +40,11 @@ protects = "Spark plan/design stress-test questions do not produce one-option gr
 proof_surface = "branch-protected option-surface audit before the recommended default"
 
 [[loop_rule]]
+id = "trajectory-check-before-convergence"
+protects = "repeated same-branch agreement creates convergence pressure but cannot close a branch before checking the underlying goal, principle, and adjacent direction"
+proof_surface = "trajectory check with branch-width question before closure or another same-direction question"
+
+[[loop_rule]]
 id = "mvp-eval-needs-quiet-room-separation"
 protects = "Spark cannot self-design, self-execute, self-review, and self-accept an MVP or thought-experiment eval"
 proof_surface = "mvp eval envelope with quiet-room route, actor refs, evidence packet, or explicit blocked/provisional status"
@@ -100,6 +105,11 @@ owner = "bagakit-spark"
 required_when = "user replies change or critique Spark's process"
 
 [[artifact]]
+id = "trajectory-check"
+owner = "bagakit-spark"
+required_when = "repeated same-branch agreement or branch narrowing creates convergence pressure"
+
+[[artifact]]
 id = "rationale-ledger"
 owner = "bagakit-spark"
 required_when = "a user answer encodes a transferable principle, criterion, or rejected alternative"
@@ -158,6 +168,10 @@ required_when = "high-impact questions exist"
 [[output_field]]
 id = "feedback-signals"
 required_when = "user reply critiques, confirms, redirects, or exposes process signal"
+
+[[output_field]]
+id = "trajectory-check"
+required_when = "convergence pressure or branch narrowing is active"
 
 [[output_field]]
 id = "mvp-eval"

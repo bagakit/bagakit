@@ -341,7 +341,7 @@ reporting, the response footer may use:
 
 <bagakit-rule skill="bagakit-grill">
 - Trigger: A concrete plan, design, goal snapshot, or implementation direction needs dependency-ordered grilling before execution.
-- Do: Create or resume a grill run, inspect local context before asking, ask one decision-bearing question at a time with a recommended answer, and record progress in `grill-run.json`.
+- Do: Create or resume a grill run, preserve the protected goal or principle, inspect local context before asking, ask one decision-bearing question at a time with options considered plus a recommended answer, and treat multi-round no-branch as convergence pressure before completion.
 - See: `skills/harness/bagakit-grill/SKILL.md`
 - Surface: `.bagakit/grill/runs/<run-id>/`
 - Fallback: If the target is too vague to grill, use `bagakit-spark` for early framing first.
@@ -373,7 +373,7 @@ reporting, the response footer may use:
 
 <bagakit-rule skill="bagakit-spark">
 - Trigger: The user wants a thinking partner, deep topic discussion, Socratic exploration, evidence-grounded conceptual exploration, or a discussion that should become an accepted snapshot, MVP eval, or thought experiment.
-- Do: Run the spark dialogue loop, ask only decision-changing questions, track research sufficiency, question inventory, feedback signals, and rationale, and use brainstorm or researcher only when their owned artifacts are needed.
+- Do: Run the spark dialogue loop, ask only decision-changing questions, track research sufficiency, question inventory, feedback signals, and rationale, show option-surface audits before grill-like stress-test recommendations, and use brainstorm or researcher only when their owned artifacts are needed.
 - See: `skills/harness/bagakit-spark/SKILL.md`
 </bagakit-rule>
 

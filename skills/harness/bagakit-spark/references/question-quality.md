@@ -23,7 +23,9 @@ Before asking, answer these privately:
     set should Spark offer before the recommended default?
 12. If Spark is offering only one default, which alternative was rejected or
     why did the option set collapse?
-13. Is this hard enough that it should be asked alone?
+13. Has repeated same-branch agreement created `convergence_pressure`?
+14. If so, what adjacent direction would reveal a wrong goal or principle model?
+15. Is this hard enough that it should be asked alone?
 
 Ask only if the answers are concrete.
 
@@ -185,6 +187,9 @@ Before asking a convergence or acceptance question, check the question
 inventory: which good questions are answered, which follow-up questions remain,
 which are deferred with rationale, and which should become researcher leads.
 Do not ask for closure while high-impact follow-up questions are invisible.
+If repeated same-branch agreement created `convergence_pressure`, also ask a
+branch-width question before closure: converge this branch, switch to the named
+adjacent direction, or correct the underlying goal or principle model.
 
 Before asking to end a Spark task that is meant to produce or realize something,
 check whether a small MVP experiment or thought experiment has evaluated the
@@ -212,6 +217,8 @@ surface instruction.
 - asking whether to end without summarizing the confirmed key points
 - asking whether to enter final confirmation without the current consensus
   snapshot candidate
+- treating repeated agreement as completion instead of `convergence_pressure`
+  that requires a branch-width question
 - treating an implementation request as Spark completion when Spark was invoked
   to shape the target and no user-facing decision question has been answered
 - treating accepted-snapshot execution permission as permission to finish the

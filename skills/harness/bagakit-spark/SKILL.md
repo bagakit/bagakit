@@ -217,6 +217,14 @@ whether it is positive, negative, mixed, or neutral for the preceding Spark
 move, and record the process adjustment when it changes the next move or future
 skill behavior.
 
+Run a trajectory check when the same branch receives repeated agreement: two
+consecutive thin agreements with no new rationale, or three consecutive light
+agreement turns. This creates `convergence_pressure`, not completion. Before
+asking another same-direction question or proposing closure, state the inferred
+underlying goal or principle, name one meaningful adjacent direction that may
+still be untested or collapsed, and ask whether to converge this branch, switch
+direction, or correct the model.
+
 When the Spark task is meant to implement, design, build, learn, or otherwise
 realize something, treat a small MVP experiment as the discussion-level eval.
 For abstract knowledge, challenge, or worldview topics, use a bounded thought
@@ -404,6 +412,7 @@ Goal challenge: <only when needed; evidence, uncertainty, alternatives, trade-of
 Research judgment: <research_now|research_later|research_not_needed plus rationale>
 Question inventory: <answered/pending/deferred/lead status for high-impact questions>
 Feedback signals: <positive/negative/mixed/neutral process signals when relevant>
+Trajectory check: <none|convergence_pressure|branch_narrowing plus branch-width action>
 MVP eval: <hypothesis/trial/evidence packet/interpretation/snapshot impact when relevant>
 Quiet-room eval: <not_needed|planned|running|passed|failed|quiet_room_blocked|provisional_no_quiet_room plus executor/reviewer refs>
 Eval acceptance: <accepted/corrected/rejected/incomplete plus acceptance activity when endpoint>

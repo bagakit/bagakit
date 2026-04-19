@@ -3,7 +3,7 @@ import { parseArgs } from "node:util";
 
 import { briefPath, ensureGrillSurface, readRun, repoRelative, runPath, writeBrief, writeRun } from "./lib/io.ts";
 import { slugify, utcNow } from "./lib/model.ts";
-import { attachEvidence, createRun, nextNode, progressCounts, recordAnswer, refreshRun, upsertNode } from "./lib/planner.ts";
+import { attachEvidence, createRun, nextNode, progressCounts, recordAnswer, recordConvergenceCheck, refreshRun, upsertNode } from "./lib/planner.ts";
 import { renderBrief } from "./lib/render.ts";
 
 function printHelp(): void {
@@ -11,10 +11,11 @@ function printHelp(): void {
 
 Commands:
   init --root <repo-root> [--run-id <id>] --target <text> [--target-ref <ref>] [--force]
-  plan --root <repo-root> --run <id> --node <id> --question <text> --decision <text> --recommended-answer <text> --rationale <text> [--risk <text>] [--kind <question|research_needed>] [--depends-on <id> ...]
+  plan --root <repo-root> --run <id> --node <id> --question <text> --decision <text> --recommended-answer <text> --rationale <text> [--risk <text>] [--kind <question|research_needed>] [--option <text> ...] [--depends-on <id> ...]
   next --root <repo-root> --run <id> [--json]
   answer --root <repo-root> --run <id> --node <id> --answer <text>
   attach-evidence --root <repo-root> --run <id> --node <id> --evidence-ref <ref> --summary <text>
+  convergence-check --root <repo-root> --run <id> --goal <text> --signal <text> --adjacent-branch <text> --decision <close|switch|correct> [--note <text>]
   render --root <repo-root> --run <id>
   status --root <repo-root> --run <id> [--json]
 `);
@@ -87,6 +88,7 @@ function commandPlan(argv: string[]): number {
       "recommended-answer": { type: "string" as const },
       rationale: { type: "string" as const },
       risk: { type: "string" as const, default: "" },
+      option: { type: "string" as const, multiple: true, default: [] },
       "depends-on": { type: "string" as const, multiple: true, default: [] },
     },
     strict: true,
@@ -99,6 +101,7 @@ function commandPlan(argv: string[]): number {
     id: requireString(values.node, "--node"),
     kind: requireString(values.kind, "--kind"),
     question: requireString(values.question, "--question"),
+    options: values.option ?? [],
     decision: requireString(values.decision, "--decision"),
     recommendedAnswer: requireString(values["recommended-answer"], "--recommended-answer"),
     rationale: requireString(values.rationale, "--rationale"),
@@ -133,6 +136,9 @@ function commandNext(argv: string[]): number {
     console.log(`kind=${node.kind}`);
     console.log(`status=${node.status}`);
     console.log(`question=${node.question}`);
+    for (const option of node.options_considered) {
+      console.log(`option=${option}`);
+    }
     console.log(`recommended_answer=${node.recommended_answer}`);
     if (node.risk_if_wrong) {
       console.log(`risk_if_wrong=${node.risk_if_wrong}`);
@@ -189,6 +195,35 @@ function commandAttachEvidence(argv: string[]): number {
   return 0;
 }
 
+function commandConvergenceCheck(argv: string[]): number {
+  const { values } = parseArgs({
+    args: argv,
+    options: {
+      ...commonOptions(),
+      run: { type: "string" as const },
+      goal: { type: "string" as const },
+      signal: { type: "string" as const },
+      "adjacent-branch": { type: "string" as const },
+      decision: { type: "string" as const },
+      note: { type: "string" as const, default: "" },
+    },
+    strict: true,
+    allowPositionals: false,
+  });
+  const repoRoot = path.resolve(values.root);
+  const runId = requireString(values.run, "--run");
+  const run = recordConvergenceCheck(readRun(repoRoot, runId), {
+    goalOrPrinciple: requireString(values.goal, "--goal"),
+    signal: requireString(values.signal, "--signal"),
+    adjacentBranch: requireString(values["adjacent-branch"], "--adjacent-branch"),
+    decision: requireString(values.decision, "--decision"),
+    note: values.note ?? "",
+  });
+  writeRun(repoRoot, run);
+  console.log(`ok: recorded convergence check (${run.convergence_check.decision})`);
+  return 0;
+}
+
 function commandRender(argv: string[]): number {
   const { values } = parseArgs({
     args: argv,
@@ -231,6 +266,7 @@ function commandStatus(argv: string[]): number {
     status: run.status,
     counts: progressCounts(run),
     next_node_id: node?.id ?? "",
+    convergence_check: run.convergence_check,
     brief_path: run.render.brief_path,
   };
   if (values.json) {
@@ -239,6 +275,7 @@ function commandStatus(argv: string[]): number {
     console.log(`run_id=${payload.run_id}`);
     console.log(`status=${payload.status}`);
     console.log(`next_node_id=${payload.next_node_id || "none"}`);
+    console.log(`convergence_check=${payload.convergence_check.status}`);
     console.log(`brief_path=${payload.brief_path}`);
   }
   return 0;
@@ -256,6 +293,7 @@ function main(): number {
     if (command === "next") return commandNext(argv);
     if (command === "answer") return commandAnswer(argv);
     if (command === "attach-evidence") return commandAttachEvidence(argv);
+    if (command === "convergence-check") return commandConvergenceCheck(argv);
     if (command === "render") return commandRender(argv);
     if (command === "status") return commandStatus(argv);
     throw new Error(`unknown command: ${command}`);

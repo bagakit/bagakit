@@ -21,6 +21,11 @@ Maintain a compact visible state:
     trigger-for-thinking, follow-up question, correction, objection,
     protocol-failure report, or completion signal; include valence and process
     adjustment when the signal changes Spark behavior
+- `trajectory_check`
+  - repeated same-branch agreement, branch narrowing, or missing correction
+    signals that create `convergence_pressure`; records the inferred underlying
+    goal or principle, the untested adjacent direction, and whether the next
+    move is converge branch, switch direction, or correct model
 - `unknowns`
   - unresolved ambiguities
 - `blind_spots`
@@ -78,6 +83,7 @@ snapshot into the feature description.
    - ask the user
    - challenge a weak assumption
    - challenge the goal itself
+   - run a trajectory check after repeated same-branch agreement
    - run the research sufficiency SOP
    - read local context
    - open or update brainstorm
@@ -343,6 +349,31 @@ Allowed `valence` values:
 Only record signals that change the user model, next question, research
 judgment, snapshot content, MVP eval, or future skill rule. Do not reduce the
 user to a score; preserve the reason and adjustment.
+
+## Trajectory Check
+
+Repeated agreement is a convergence signal, not a completion signal.
+
+Mark `convergence_pressure` when either is true:
+
+- two consecutive user replies agree with the same branch without adding new
+  rationale
+- three consecutive user replies agree with the same branch with only light
+  elaboration
+
+Before asking another same-direction question, proposing closure, or accepting a
+snapshot under `convergence_pressure`, ask one branch-width question. It should
+state:
+
+- the inferred underlying goal or principle
+- why recent agreement suggests this branch may be ready to converge
+- one meaningful adjacent direction that is still untested, collapsed, or at
+  risk of being ignored
+- whether the user wants to converge this branch, switch direction, or correct
+  the model
+
+Do not present the agreement count as a score. Use it as a quiet trigger for
+reflection and branch-width repair.
 
 ## Evidence-Backed Question Shape
 
@@ -620,6 +651,7 @@ The snapshot is the execution-facing summary, not the raw transcript:
 - open branches or unresolved risks
 - evidence refs, including brainstorm run and researcher topic when available
 - feedback signal summary and process adjustments
+- trajectory check status and any branch-width decision
 - research sufficiency judgment
 - insight sufficiency judgment
 - question inventory status
@@ -688,3 +720,7 @@ Stop asking and synthesize when:
 - the user asks to proceed
 - the discussion has enough structure to hand off to brainstorm, researcher,
   feature-tracker, or implementation
+
+Repeated same-branch agreement may trigger an end-check, but it never satisfies
+completion by itself. If `convergence_pressure` is active, resolve the
+branch-width question before treating the branch as closed.

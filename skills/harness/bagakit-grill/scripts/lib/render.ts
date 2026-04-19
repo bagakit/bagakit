@@ -12,8 +12,15 @@ function renderNext(node: GrillNode | undefined): string[] {
   const lines = [
     `- Next node: \`${node.id}\` (${node.kind}, ${node.status})`,
     `- Question: ${oneLine(node.question)}`,
-    `- Recommended answer: ${oneLine(node.recommended_answer)}`,
   ];
+  const options = node.options_considered ?? [];
+  if (options.length > 0) {
+    lines.push("- Options considered:");
+    for (const option of options) {
+      lines.push(`  - ${oneLine(option)}`);
+    }
+  }
+  lines.push(`- Recommended answer: ${oneLine(node.recommended_answer)}`);
   if (node.risk_if_wrong) {
     lines.push(`- Risk if wrong: ${oneLine(node.risk_if_wrong)}`);
   }
@@ -49,10 +56,33 @@ export function renderBrief(run: GrillRun): string {
     `- answered: ${counts.answered ?? 0}`,
     `- research_needed: ${counts.research_needed ?? 0}`,
     `- evidence_attached: ${counts.evidence_attached ?? 0}`,
+    `- convergence_check: ${run.convergence_check.status}`,
     "",
     "## Current Focus",
     "",
     ...renderNext(next),
+    "",
+    "## Convergence Check",
+    "",
+    `- Status: ${run.convergence_check.status}`,
+  );
+  if (run.convergence_check.goal_or_principle) {
+    lines.push(`- Goal or principle: ${oneLine(run.convergence_check.goal_or_principle)}`);
+  }
+  if (run.convergence_check.signal) {
+    lines.push(`- Signal: ${oneLine(run.convergence_check.signal)}`);
+  }
+  if (run.convergence_check.adjacent_branch) {
+    lines.push(`- Adjacent branch: ${oneLine(run.convergence_check.adjacent_branch)}`);
+  }
+  if (run.convergence_check.decision) {
+    lines.push(`- Decision: ${run.convergence_check.decision}`);
+  }
+  if (run.convergence_check.note) {
+    lines.push(`- Note: ${oneLine(run.convergence_check.note)}`);
+  }
+
+  lines.push(
     "",
     "## Recent Answer",
     "",
@@ -63,6 +93,15 @@ export function renderBrief(run: GrillRun): string {
     lines.push(
       `- Node: \`${last.node_id}\``,
       `- Answered at: ${last.answered_at}`,
+    );
+    const options = last.options_considered ?? [];
+    if (options.length > 0) {
+      lines.push("- Options considered:");
+      for (const option of options) {
+        lines.push(`  - ${oneLine(option)}`);
+      }
+    }
+    lines.push(
       `- Raw answer: ${oneLine(last.raw_answer)}`,
     );
   } else {

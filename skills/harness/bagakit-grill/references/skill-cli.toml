@@ -15,7 +15,7 @@ summary = "Create one grill run from a concrete target snapshot."
 
 [[command]]
 name = "plan"
-summary = "Add or update one question DAG node."
+summary = "Add or update one question DAG node with its option surface."
 
 [[command]]
 name = "next"
@@ -28,6 +28,10 @@ summary = "Record one raw user answer and update node state."
 [[command]]
 name = "attach-evidence"
 summary = "Attach research evidence refs to one research-needed node."
+
+[[command]]
+name = "convergence-check"
+summary = "Record the close, switch, or correct decision for multi-round no-branch convergence."
 
 [[command]]
 name = "render"
