@@ -14,7 +14,7 @@ Boot layer:
 - If a task needs prior decisions or facts, follow `must-recall.md`.
 - `AGENTS.md` is only the bootstrap layer; the shared checked-in knowledge root
   defaults to `{{SHARED_ROOT}}`, with shared path protocol config in
-  `.bagakit-knowledge.toml` when present.
+  `docs/.bagakit-knowledge.toml` when present.
 
 Recall discipline:
 

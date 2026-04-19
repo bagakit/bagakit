@@ -83,7 +83,7 @@ re-absorbing the other runtime systems.
 - generated `must-sop.md`
 - progressive-loading `must-recall.md`
 - shared knowledge normalization, indexing, recall, and reviewed ingestion
-- shared path protocol config through `.bagakit-knowledge.toml`
+- shared path protocol config through `docs/.bagakit-knowledge.toml`
 - reusable-items governance and starter catalogs inside the shared root
 
 ### Moved Out
@@ -110,12 +110,13 @@ They are not implicit obligations of `living-knowledge`.
 
 Shared project configuration may live at:
 
-- `.bagakit-knowledge.toml`
+- `docs/.bagakit-knowledge.toml`
 
-This file is a root-level hidden Bagakit-specific shared path protocol config.
-It is outside `.bagakit/` so that it can be committed when a repository wants
-explicit path truth without making `.bagakit/` public state. If it is absent,
-`living-knowledge` uses the default path protocol below.
+This file is a hidden Bagakit-specific shared path protocol config under the
+shared docs root. It lives in `docs/` so path protocol truth stays with the
+checked-in knowledge substrate instead of becoming a root hidden exception or
+private `.bagakit/` runtime state. If it is absent, `living-knowledge` uses the
+default path protocol below.
 
 Current fields:
 
@@ -164,10 +165,10 @@ Meaning:
 
 Rule:
 
-- `.bagakit-knowledge.toml` is a root-level hidden shared config, not private
-  `.bagakit/` runtime state
+- `docs/.bagakit-knowledge.toml` is a shared docs-root config, not private
+  `.bagakit/` runtime state and not a repository-root hidden exception
 - mutating `living-knowledge` commands must treat `--root` as the project root
-  and must not create `.bagakit-knowledge.toml` in arbitrary caller directories
+  and must not create `docs/.bagakit-knowledge.toml` in arbitrary caller directories
 - inside a Git worktree, the project root is the Git top-level directory
 - absence of the config must preserve default behavior
 - if a peer system ignores this config, it must still stay standalone-first
@@ -187,7 +188,7 @@ If no config exists, that root is:
 This is a contract default, not a statement that every repository should stop
 distinguishing other authoritative docs surfaces.
 Repositories with a more specialized shared knowledge root may set the path in
-`.bagakit-knowledge.toml`, but shared public knowledge itself still belongs
+`docs/.bagakit-knowledge.toml`, but shared public knowledge itself still belongs
 outside `.bagakit/`.
 
 ## System Pages

@@ -21,7 +21,7 @@ This skill does not own:
 - top-level runtime surface root when materialized:
   - `.bagakit/living-knowledge/`
 - shared path protocol file:
-  - `.bagakit-knowledge.toml`
+  - `docs/.bagakit-knowledge.toml`
   - shared repository config; absence means use defaults
 - shared checked-in knowledge root, not a project-local runtime root:
   - `docs/`
@@ -34,8 +34,8 @@ This skill does not own:
 ## Core Surfaces
 
 - shared path protocol config:
-  - `.bagakit-knowledge.toml`
-  - belongs at the repository root when explicit path truth is needed
+  - `docs/.bagakit-knowledge.toml`
+  - belongs under `docs/` when explicit path truth is needed
 - shared root:
   - default `docs/`
 - system pages under the shared root:
@@ -69,7 +69,10 @@ This skill does not own:
 
 Run mutating commands with `--root` set to the project root. Inside a Git
 worktree, use the Git top-level directory; `apply` refuses arbitrary directories
-so `.bagakit-knowledge.toml` is not created outside the intended project.
+so `docs/.bagakit-knowledge.toml` is not created outside the intended project.
+The config lives in `docs/` so the path protocol stays with checked-in shared
+knowledge instead of becoming private `.bagakit/` state or a root hidden
+exception.
 
 ```bash
 export BAGAKIT_LIVING_KNOWLEDGE_SKILL_DIR="<repo-relative-installed-skill-dir>"

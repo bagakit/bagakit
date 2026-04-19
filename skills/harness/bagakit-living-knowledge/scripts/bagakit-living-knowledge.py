@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Any, Iterable, Sequence
 
 ENV_SKILL_DIR = "BAGAKIT_LIVING_KNOWLEDGE_SKILL_DIR"
-CONFIG_PATH = ".bagakit-knowledge.toml"
+CONFIG_PATH = "docs/.bagakit-knowledge.toml"
 NON_GIT_PROJECT_MARKERS = (
     "AGENTS.md",
     "package.json",

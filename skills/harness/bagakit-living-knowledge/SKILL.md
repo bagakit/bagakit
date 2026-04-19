@@ -43,7 +43,7 @@ Those are separate systems.
 - top-level runtime surface root when materialized:
   - `.bagakit/living-knowledge/`
 - shared path protocol file:
-  - `.bagakit-knowledge.toml`
+  - `docs/.bagakit-knowledge.toml`
   - shared repository config; absence means use the documented defaults
 - shared checked-in knowledge root, not a project-local runtime root:
   - `docs/`
@@ -84,7 +84,7 @@ should come back through explicit ownership, not by quietly widening
 Use this skill when a repository needs:
 
 - one shared filesystem-first knowledge root
-- configurable shared path protocol under `.bagakit-knowledge.toml`
+- configurable shared path protocol under `docs/.bagakit-knowledge.toml`
 - system pages that make loading progressive instead of chat-dependent
 - generated maintenance-route guidance through `must-sop.md`
 - reusable-items governance and starter catalogs inside the shared root
@@ -137,7 +137,7 @@ Required rules:
 
 Configuration:
 
-- `.bagakit-knowledge.toml`
+- `docs/.bagakit-knowledge.toml`
   - shared repository config
   - safe to commit when the repository wants explicit path protocol truth
   - absent config means use the default path protocol below
@@ -188,9 +188,10 @@ evolver_root = ".bagakit/evolver"
 The other three are protocol declarations that peer systems may follow while
 remaining standalone-first when the config is absent.
 
-Because `.bagakit/` is host-local runtime state, this config lives outside it.
-Shared durable knowledge still belongs in the configured shared root, and by
-default that root is `docs/`.
+Because `.bagakit/` is host-local runtime state, this config lives under the
+shared docs root instead of under `.bagakit/` or as a repository-root hidden
+exception. Shared durable knowledge pages still belong in the configured shared
+root, and by default that root is `docs/`.
 
 ## Recommended Flow
 
@@ -198,7 +199,7 @@ default that root is `docs/`.
 
 Run mutating commands with `--root` pointing at the project root. Inside a Git
 worktree, that means the Git top-level directory; `apply` refuses arbitrary
-directories so it does not create `.bagakit-knowledge.toml` outside the
+directories so it does not create `docs/.bagakit-knowledge.toml` outside the
 intended project.
 
 ```bash

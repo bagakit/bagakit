@@ -10,7 +10,7 @@ from pathlib import Path, PurePosixPath
 
 
 DEFAULT_RESEARCHER_ROOT = ".bagakit/researcher"
-KNOWLEDGE_CONFIG_PATH = ".bagakit-knowledge.toml"
+KNOWLEDGE_CONFIG_PATH = "docs/.bagakit-knowledge.toml"
 OPTIONAL_DIRS = ("passes", "tracks", "insights", "handoffs")
 
 MANAGED_SECTION_ORDER = (

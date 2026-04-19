@@ -184,7 +184,7 @@ def main() -> int:
         failures.append("missing [path_protocol] table")
     else:
         expected_paths = {
-            "config": ".bagakit-knowledge.toml",
+            "config": "docs/.bagakit-knowledge.toml",
             "config_behavior": "shared_docs_config",
             "default_shared_root": "docs",
             "default_system_root": "docs",

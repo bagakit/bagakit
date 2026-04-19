@@ -104,7 +104,7 @@ usage = "sh scripts/bagakit-living-knowledge.sh <command> [args...]"
 summary = "Manage the repository living-knowledge substrate."
 surface_refs = [
   ".bagakit/living-knowledge",
-  ".bagakit-knowledge.toml",
+  "docs/.bagakit-knowledge.toml",
 ]
 
 [[command]]

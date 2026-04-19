@@ -209,7 +209,8 @@ assert_file "$(join_path "$SMOKE_WS" "summaries/a01.md")"
 assert_contains "$(join_path "$SMOKE_WS" "index.md")" 'a01.md'
 assert_contains "$(join_path "$SMOKE_WS" "index.md")" 'summaries/a01.md'
 
-cat > "$TMP_DIR/.bagakit-knowledge.toml" <<'EOF'
+mkdir -p "$TMP_DIR/docs"
+cat > "$TMP_DIR/docs/.bagakit-knowledge.toml" <<'EOF'
 [paths]
 researcher_root = ".bagakit/researcher"
 EOF
@@ -220,7 +221,7 @@ run_researcher doctor --root "$TMP_DIR" --topic-class configured --topic topic-r
 CONFIGURED_WS="$(topic_path configured topic-root)"
 assert_file "$(join_path "$CONFIGURED_WS" "index.md")"
 
-cat > "$TMP_DIR/.bagakit-knowledge.toml" <<'EOF'
+cat > "$TMP_DIR/docs/.bagakit-knowledge.toml" <<'EOF'
 [paths]
 researcher_root = "docs/.research"
 EOF
@@ -231,7 +232,7 @@ assert_command_fails run_researcher init-topic \
   --topic old-root \
   --title "Invalid Root"
 
-cat > "$TMP_DIR/.bagakit-knowledge.toml" <<'EOF'
+cat > "$TMP_DIR/docs/.bagakit-knowledge.toml" <<'EOF'
 [paths]
 researcher_root = ".bagakit/researcher"
 EOF

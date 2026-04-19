@@ -38,7 +38,7 @@ assert_contains_line() {
 
 assert_no_shared_knowledge_surface() {
   local scenario_root="$1"
-  test ! -e "$scenario_root/.bagakit-knowledge.toml"
+  test ! -e "$scenario_root/docs/.bagakit-knowledge.toml"
   test ! -e "$scenario_root/.bagakit/living-knowledge"
   test ! -e "$scenario_root/.bagakit/knowledge"
 }

@@ -7,7 +7,7 @@ usage = "sh scripts/bagakit-living-knowledge.sh <command> [args...]"
 summary = "Manage shared knowledge substrate indexing, recall, and ingestion."
 surface_refs = [
   ".bagakit/living-knowledge",
-  ".bagakit-knowledge.toml",
+  "docs/.bagakit-knowledge.toml",
 ]
 
 [[command]]

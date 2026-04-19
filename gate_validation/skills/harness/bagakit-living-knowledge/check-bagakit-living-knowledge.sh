@@ -37,7 +37,7 @@ if "$CMD" apply --root . >"$TMP_DIR/not-project-apply.out" 2>"$TMP_DIR/not-proje
   echo "apply unexpectedly accepted a directory that was not a project root" >&2
   exit 1
 fi
-test ! -e .bagakit-knowledge.toml
+test ! -e docs/.bagakit-knowledge.toml
 grep -q "requires --root to point at a project root" "$TMP_DIR/not-project-apply.err"
 cd "$TMP_DIR"
 
@@ -56,7 +56,7 @@ if "$CMD" apply --root app/subdir >"$TMP_DIR/git-subdir-apply.out" 2>"$TMP_DIR/g
   echo "apply unexpectedly accepted a Git worktree subdirectory as the project root" >&2
   exit 1
 fi
-test ! -e app/subdir/.bagakit-knowledge.toml
+test ! -e app/subdir/docs/.bagakit-knowledge.toml
 grep -q "pass the Git top-level directory explicitly" "$TMP_DIR/git-subdir-apply.err"
 
 APPLY_OUT="$("$CMD" apply --root .)"
@@ -66,7 +66,7 @@ if grep -q "$TMP_DIR/repo" <<<"$APPLY_OUT"; then
   exit 1
 fi
 
-test -f .bagakit-knowledge.toml
+test -f docs/.bagakit-knowledge.toml
 test -f docs/must-guidebook.md
 test -f docs/must-authority.md
 test -f docs/must-sop.md
@@ -79,11 +79,12 @@ grep -q "must-guidebook.md" AGENTS.md
 grep -q "must-authority.md" AGENTS.md
 grep -q "must-sop.md" AGENTS.md
 grep -q "must-recall.md" AGENTS.md
-grep -q ".bagakit-knowledge.toml" AGENTS.md
+grep -q "docs/.bagakit-knowledge.toml" AGENTS.md
 grep -q "shared path protocol config" AGENTS.md
 grep -q "Maintaining Reusable Items" docs/norms-maintaining-reusable-items.md
 
 PATHS_OUT="$("$CMD" paths --root .)"
+grep -q "^config: docs/.bagakit-knowledge.toml$" <<<"$PATHS_OUT"
 grep -q "^shared_root: docs$" <<<"$PATHS_OUT"
 grep -q "^researcher_root: .bagakit/researcher$" <<<"$PATHS_OUT"
 grep -q "^selector_root: .bagakit/skill-selector$" <<<"$PATHS_OUT"
@@ -103,7 +104,7 @@ if grep -q "using default knowledge path protocol" "$TMP_DIR/no-local-runtime-do
   exit 1
 fi
 
-rm .bagakit-knowledge.toml
+rm docs/.bagakit-knowledge.toml
 sh "$CMD" doctor --root . >"$TMP_DIR/no-config-doctor.out" 2>"$TMP_DIR/no-config-doctor.err"
 grep -q "doctor passed" "$TMP_DIR/no-config-doctor.out"
 grep -q "using default knowledge path protocol" "$TMP_DIR/no-config-doctor.err"

@@ -128,7 +128,7 @@ Some contracts legitimately live directly under `.bagakit/` rather than inside
 one top-level surface root.
 
 Current canonical examples should be named by their owning contract. Shared
-checked-in config such as `.bagakit-knowledge.toml` is not a `.bagakit/`
+checked-in config such as `docs/.bagakit-knowledge.toml` is not a `.bagakit/`
 root-adjacent protocol file.
 
 Rules:

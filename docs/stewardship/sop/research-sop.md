@@ -23,7 +23,7 @@ For this repository, the default root is:
 
 - `.bagakit/researcher/`
 
-If `.bagakit-knowledge.toml` declares `researcher_root`, use that
+If `docs/.bagakit-knowledge.toml` declares `researcher_root`, use that
 configured root instead.
 
 ## Topic Workspace Rule
