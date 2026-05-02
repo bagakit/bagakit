@@ -1,0 +1,22 @@
+version = 1
+skill = "bagakit-set-loop-goal"
+cli_id = "bagakit-set-loop-goal"
+entrypoint = "scripts/bagakit-set-loop-goal-cli.sh"
+runner = "shell"
+usage = "sh scripts/bagakit-set-loop-goal-cli.sh <command>"
+summary = "Inspect and validate the set-loop-goal skill assets."
+surface_refs = [
+  ".bagakit/goal/",
+]
+
+[[command]]
+name = "describe"
+summary = "Print a short skill description."
+
+[[command]]
+name = "list-references"
+summary = "List reference files shipped by this skill."
+
+[[command]]
+name = "validate"
+summary = "Check that required skill files exist."

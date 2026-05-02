@@ -20,16 +20,19 @@ required_dirs = [
   "skills/harness/bagakit-set-loop-goal",
   "skills/harness/bagakit-set-loop-goal/agents",
   "skills/harness/bagakit-set-loop-goal/references",
+  "skills/harness/bagakit-set-loop-goal/scripts",
   "gate_validation/skills/harness/bagakit-set-loop-goal",
 ]
 required_files = [
   "skills/harness/bagakit-set-loop-goal/SKILL.md",
   "skills/harness/bagakit-set-loop-goal/agents/openai.yaml",
+  "skills/harness/bagakit-set-loop-goal/references/skill-cli.toml",
   "skills/harness/bagakit-set-loop-goal/references/frontdoor-rule.toml",
   "skills/harness/bagakit-set-loop-goal/references/goal-file-contract.md",
   "skills/harness/bagakit-set-loop-goal/references/tool-orchestration.md",
   "skills/harness/bagakit-set-loop-goal/references/loop-off-loop.md",
   "skills/harness/bagakit-set-loop-goal/references/design-origin.md",
+  "skills/harness/bagakit-set-loop-goal/scripts/bagakit-set-loop-goal-cli.sh",
   "gate_validation/skills/harness/bagakit-set-loop-goal/validation.toml",
 ]
 forbidden_paths = [
