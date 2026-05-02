@@ -111,9 +111,9 @@ Examples:
 - `gate_eval/backbone/planning_surface/suite.ts`
   - property comparison through textual/report artifacts rather than more
     normalized comparison packets
-- `gate_validation/skills/swe/bagakit-git-message-craft/check-anti-patterns.py`
-  - regex-heavy markdown-policy detection; some of it is appropriate, but it is
-    exactly the kind of surface that can drift into wording policing
+- `gate_validation/skills/swe/bagakit-git-message-craft/`
+  - the former regex-heavy markdown-policy detector was removed because it was
+    exactly the kind of surface that drifts into wording policing
 
 Why these should be improved:
 

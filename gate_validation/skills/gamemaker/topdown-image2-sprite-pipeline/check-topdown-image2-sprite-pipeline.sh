@@ -38,18 +38,6 @@ for file in "${required_files[@]}"; do
   fi
 done
 
-for token in \
-  "Runtime Surface Declaration" \
-  "no persistent Bagakit runtime surface by default" \
-  "Paired Review Packet" \
-  "references/review-packet-template.md" \
-  "review-disposition.md"; do
-  if ! grep -Fq "$token" "$skill_dir/SKILL.md"; then
-    printf 'SKILL.md missing token: %s\n' "$token" >&2
-    exit 1
-  fi
-done
-
 for command in \
   check-dependencies \
   process \

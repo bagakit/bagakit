@@ -27,11 +27,6 @@ feature_tracker_init_temp_repo "$TMP_DIR"
 bash "$SKILL_DIR/scripts/feature-tracker.sh" check-reference-readiness --root "$TMP_DIR" >/dev/null
 bash "$SKILL_DIR/scripts/feature-tracker.sh" initialize-tracker --root "$TMP_DIR" >/dev/null
 
-grep -q "git -C <execution-root>" "$ROOT/docs/specs/feature-tracker-contract.md"
-grep -q "git -C <execution-root>" "$SKILL_DIR/README.md"
-grep -q "git -C <execution-root>" "$SKILL_DIR/SKILL.md"
-grep -q "Concurrency Contract" "$ROOT/docs/specs/feature-tracker-contract.md"
-
 CONCURRENT_A_OUT="$TMP_DIR/concurrent-a.out"
 CONCURRENT_A_ERR="$TMP_DIR/concurrent-a.err"
 CONCURRENT_B_OUT="$TMP_DIR/concurrent-b.out"

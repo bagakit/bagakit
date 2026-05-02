@@ -63,18 +63,6 @@ def main() -> int:
     cli_validate = run(["bash", str(cli), "validate"], root)
     require(cli_validate.returncode == 0, "skill CLI validate failed", failures)
 
-    readme_text = (root / readme).read_text(encoding="utf-8")
-    for token in [
-        "Technical-writing L2",
-        "Use `bagakit-writing-core`",
-        "bagakit-writing-de-ai-tone",
-        "standalone-first",
-        "article.md",
-        "execution_appendix.md",
-        "review_report.md",
-    ]:
-        require(token in readme_text, f"README missing layering token: {token}", failures)
-
     core_proc = run(["bash", str(cli), "core", "describe"], root)
     require(core_proc.returncode == 0, "technical-writing core dispatch failed", failures)
     require("bagakit-writing-core" in core_proc.stdout, "technical-writing core dispatch did not reach writing-core", failures)

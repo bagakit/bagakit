@@ -1,4 +1,4 @@
-"""Validate bagakit-design-core structured contract and public synthesis notes."""
+"""Validate bagakit-design-core structured contract and required files."""
 
 from __future__ import annotations
 
@@ -176,48 +176,13 @@ def main() -> int:
     )
     failures.extend(require_ids(section_ids(contract_text, "guard"), REQUIRED_GUARD_IDS, "guard"))
 
-    for rel in [skill_rel("SKILL.md"), skill_rel("README.md")]:
-        text = (root / rel).read_text(encoding="utf-8")
-        for token in ["## Runtime Surface Declaration", ".bagakit/design/", "docs/specs/runtime-surface-contract.md"]:
-            if token not in text:
-                failures.append(f"{rel} missing token: {token}")
-
-    for rel, tokens in {
-        design_memory_rel("brand-tonality-synthesis.md"): [
-            "github:dominikmartn/hue@0c2914742d52fcf09aa2834893e187bd48eaeea3",
-            "observed",
-            "derived",
-            "fallback",
-        ],
-        design_memory_rel("design-rule-synthesis.md"): [
-            "github:pbakaus/impeccable@1aedbcf538e3fa6694ccbf00294cc18e59ba1f21",
-            "Draft Review",
-            "concrete design plan review",
-            "result review",
-        ],
-        design_memory_rel("image-reference-set-synthesis.md"): [
-            "github:Leonxlnx/taste-skill@3c7017d636c3a4aad378433ea6d0cfa6c921da4a",
-            "section-reference-plan.md",
-            "section-frame-continuity-ledger.md",
-        ],
-        design_memory_rel("review-protocol.md"): [
-            "Draft Review",
-            "Concrete Plan Review",
-            "Result Review",
-        ],
-    }.items():
-        text = (root / rel).read_text(encoding="utf-8")
-        for token in tokens:
-            if token not in text:
-                failures.append(f"{rel} missing token: {token}")
-
     if failures:
         print("design-core contract check failed:")
         for failure in failures:
             print(f"- {failure}")
         return 1
 
-    print("ok: design-core contract and public synthesis notes are aligned")
+    print("ok: design-core structured contract is aligned")
     return 0
 
 

@@ -130,6 +130,11 @@ Validation should prove public behavior or owned contract text, not private
 implementation shape. Detailed assertion-choice rules live in
 `docs/stewardship/sop/validation-sop.md`.
 
+Do not add meaningless validation that only checks incidental headings,
+arbitrary phrases, private source strings, or broad keyword arrays in skill
+docs. If exact wording is the contract, classify it as a narrow wording
+contract and state what behavior it does not prove.
+
 ## Tool Rule
 
 Bagakit repository tooling should be designed as reusable operator tools rather

@@ -27,12 +27,7 @@ done
 
 ROOT="$(cd "$ROOT" && pwd)"
 SKILL_DIR="$ROOT/skills/swe/bagakit-git-message-craft"
-VALIDATION_DIR="$ROOT/gate_validation/skills/swe/bagakit-git-message-craft"
 CMD="$SKILL_DIR/scripts/bagakit-git-message-craft.sh"
-
-python3 "$VALIDATION_DIR/check-anti-patterns.py" \
-  --skill-md "$SKILL_DIR/SKILL.md" \
-  --rules "$VALIDATION_DIR/rules.toml" >/dev/null
 
 TMP_DIR="$(mktemp -d)"
 trap 'rm -rf "$TMP_DIR"' EXIT

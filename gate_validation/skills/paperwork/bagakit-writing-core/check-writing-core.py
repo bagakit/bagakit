@@ -87,16 +87,6 @@ def main() -> int:
         failures,
     )
 
-    readme_text = (root / readme).read_text(encoding="utf-8")
-    for token in [
-        "L1 paperwork core",
-        "not a book exporter",
-        "Commands",
-        "core should not silently inherit an L2",
-        "core MUST run the de-AI-tone pass",
-    ]:
-        require(token in readme_text, f"README missing boundary token: {token}", failures)
-
     reference_text = "\n".join(
         path.read_text(encoding="utf-8")
         for path in (root / SKILL_DIR / "references").rglob("*")
