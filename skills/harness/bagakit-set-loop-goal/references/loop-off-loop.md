@@ -14,7 +14,8 @@ The outer loop should correct the control plane, not become a second executor.
 
 ## Supervisor Cycle
 
-1. Re-read the Goal file.
+1. Re-read `current.md`, `state.yaml`, and the foreground Goal file when the
+   Goal surface exists; otherwise re-read the explicit Goal file.
 2. Read inner-loop evidence: checkpoint, diff, validation, incident, or user
    discussion.
 3. Classify whether execution is aligned, drifting, blocked, or ready to stop.
@@ -42,7 +43,9 @@ The outer loop should correct the control plane, not become a second executor.
 When useful, emit a concise packet:
 
 ```toml
+goal_state_file = ".bagakit/goal/state.yaml"
 goal_file = ".bagakit/goal/<goal-id>.md"
+foreground_goal = "<goal-id>"
 status = "on_track" # on_track | needs_correction | blocked | ready_to_stop
 goal_delta = "none" # none | clarify | narrow | broaden | replace
 sidecar = "not_needed" # not_needed | dispatched | pending | unavailable | incorporated

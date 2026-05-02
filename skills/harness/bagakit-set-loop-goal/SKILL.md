@@ -23,8 +23,15 @@ Core contract:
   Handoff file; keep compact pointers and summaries in the Goal.
 - Use Goal frontmatter `status` as the machine-readable lifecycle marker;
   completion means `status: complete` plus concise completion evidence.
-- Maintain `.bagakit/goal/current` as the active Goal pointer when the Goal
-  surface exists; multiple Goals form one linear chain, not a parallel DAG.
+- Maintain `.bagakit/goal/current.md` as the agent-facing entrypoint and
+  `.bagakit/goal/state.yaml` as the Goal registry/topology when the Goal surface
+  exists.
+- Keep exactly one foreground Goal for execution, but allow multiple incomplete
+  Goals to remain registered with statuses such as `paused`, `blocked`, or
+  `ready_for_review`, and roles such as backlog or review work.
+- Never mark a previous incomplete Goal abandoned merely because a new Goal is
+  created or selected; archive completed or explicitly abandoned Goals under
+  `.bagakit/goal/archive/` so they do not interfere with the active work set.
 - Treat new user ideas as proposed Goal deltas before implementation. Sidecar
   analysis such as Grok may inform deltas, but must not directly execute.
 - Support loop-off-loop control: the outer loop observes inner execution,
@@ -36,13 +43,16 @@ Core contract:
 Minimal workflow:
 
 1. Choose or create a goal path, usually `.bagakit/goal/<goal-id>.md` plus
-   `.bagakit/goal/current`, or a user-supplied pasted text file reference.
+   `.bagakit/goal/current.md`, `.bagakit/goal/state.yaml`, and
+   `.bagakit/goal/archive/`, or a user-supplied pasted text file reference.
    Durable Goal files default to the target project's `.bagakit/goal/`, not the
    installed skill directory or a global agent directory.
-2. Read the current Goal and all indexed owner files before editing.
+2. Read `current.md`, `state.yaml`, the foreground Goal, and all indexed owner
+   files before editing.
 3. Classify each new fact as Goal material, owner-file material, sidecar input,
    open question, or discard.
-4. Update the Goal with a compact delta and pointers to owner files.
+4. Update the Goal and state registry with a compact delta and pointers to owner
+   files.
 5. Run a fresh-executor check: a new agent should know why, where, current
    state, principles, acceptance, risks, and next action from the Goal.
 6. If supervision is active, emit or update the next supervisor instruction

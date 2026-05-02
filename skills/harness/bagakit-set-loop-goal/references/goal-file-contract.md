@@ -23,7 +23,9 @@ research notebook, transcript, or backlog.
 Default durable placement is the target project's local Goal surface:
 
 - `.bagakit/goal/<goal-id>.md`
-- `.bagakit/goal/current`
+- `.bagakit/goal/current.md`
+- `.bagakit/goal/state.yaml`
+- `.bagakit/goal/archive/`
 
 This path is relative to the project or host repository whose agent will execute
 the work. Do not place durable Goal files inside the installed skill directory,
@@ -45,45 +47,76 @@ Accepted temporary placement:
 Use repo-relative paths or logical ids. Do not write machine-local absolute
 paths into durable Goal files.
 
-## Current Pointer And Linear Chain
+## Goal Surface State
 
-When a project materializes `.bagakit/goal/`, keep a `current` file beside the
-Goal files. This is an ordinary text control file, not a symlink, because it may
-need to carry a small execution topology.
+When a project materializes `.bagakit/goal/`, keep separate surfaces for the
+agent entrypoint, the machine-readable work set, and inactive history:
 
-Single-Goal form:
+- `current.md`: Markdown entrypoint for the executor. It names the foreground
+  Goal, points to `state.yaml`, and tells the executor how to recover.
+- `state.yaml`: registry and topology for incomplete or reviewable Goals.
+- `<goal-id>.md`: one Goal control plane.
+- `archive/`: completed, abandoned, or otherwise inactive Goal files that should
+  not affect the current work set.
 
-```toml
-schema = "bagakit.goal-current.v1"
-current_goal = "<goal-id>"
-current_goal_file = ".bagakit/goal/<goal-id>.md"
-execution_shape = "single"
-chain = ["<goal-id>"]
+`current.md` is an ordinary text file, not a symlink. Keep it short and
+agent-facing:
+
+```markdown
+# Current Goal
+
+Read `.bagakit/goal/state.yaml`, resolve `foreground_goal`, then read that Goal
+file before acting. Creating or switching to a new Goal does not abandon any
+previous incomplete Goal; update the registry status instead.
 ```
 
-Multi-Goal form:
+`state.yaml` is the machine-readable topology. Use it for the foreground cursor,
+known incomplete Goals, and relation edges:
 
-```toml
-schema = "bagakit.goal-current.v1"
-current_goal = "<active-goal-id>"
-current_goal_file = ".bagakit/goal/<active-goal-id>.md"
-execution_shape = "chain"
-chain = ["<first-goal-id>", "<active-goal-id>", "<next-goal-id>"]
+```yaml
+schema: bagakit.goal-state.v1
+foreground_goal: <goal-id>
+
+goals:
+  <goal-id>:
+    file: .bagakit/goal/<goal-id>.md
+    status: active
+    role: foreground
+  <paused-goal-id>:
+    file: .bagakit/goal/<paused-goal-id>.md
+    status: paused
+    role: backlog
+
+edges:
+  - from: <paused-goal-id>
+    to: <goal-id>
+    kind: interrupts
+
+archive:
+  dir: .bagakit/goal/archive
 ```
 
 Rules:
 
-- Read `.bagakit/goal/current` first when it exists, then read
-  `current_goal_file`.
-- Keep exactly one current Goal. The chain is an execution order, not a DAG,
-  because one agent loop cannot actively execute two Goals at once.
-- Infer previous and next Goals from `chain`; do not model parallel branches.
-- Keep lifecycle state in each Goal file's frontmatter. Do not duplicate
-  `status` in `current`.
-- When the current Goal reaches `status: complete`, move `current_goal` to the
-  next chain item only after the completion evidence is recorded.
-- If `current_goal_file` is missing or contradicts the target Goal's
-  frontmatter, repair the pointer before execution or stop and ask.
+- Read `.bagakit/goal/current.md` first when it exists, then read `state.yaml`,
+  then read the `foreground_goal` file.
+- Keep exactly one foreground Goal. The registry may contain multiple incomplete
+  Goals, but one agent loop should execute only one foreground Goal at a time.
+- Allow topology edges such as `depends_on`, `blocks`, `interrupts`,
+  `resumes_after`, or `supersedes` when they change scheduling or recovery.
+  Edges may be DAG-like, but they are not permission for parallel execution.
+- Creating or switching to a new Goal must not mark the previous Goal
+  `abandoned` unless the user explicitly says it is abandoned. Use `paused`,
+  `blocked`, or `ready_for_review` as appropriate.
+- Keep lifecycle state in each Goal file's frontmatter. Mirror status in
+  `state.yaml` only as a registry cache; repair it from the Goal frontmatter if
+  they conflict.
+- When a Goal reaches `status: complete` or `status: abandoned`, record evidence
+  in the Goal file, move it under `archive/`, update its `truth_surface` to the
+  archived path, and remove it from the active `goals` registry unless it still
+  affects the foreground Goal as a short historical pointer.
+- If `foreground_goal` or its file is missing or contradicts the target Goal's
+  frontmatter, repair the state before execution or stop and ask.
 
 ## Frontmatter Lifecycle
 
@@ -94,7 +127,7 @@ status field as the lifecycle source of truth.
 ---
 schema: bagakit.loop-goal.v1
 goal_id: <goal-id>
-status: draft # draft | active | blocked | ready_for_review | complete | abandoned
+status: draft # draft | active | paused | blocked | ready_for_review | complete | abandoned
 truth_surface: .bagakit/goal/<goal-id>.md
 completion_evidence: []
 ---
@@ -104,6 +137,7 @@ Status meanings:
 
 - `draft`: the Goal is being shaped and should not drive execution yet.
 - `active`: execution should continue.
+- `paused`: the Goal is intentionally not foreground but may be resumed.
 - `blocked`: execution needs a user decision, missing evidence, or unavailable
   tooling.
 - `ready_for_review`: acceptance likely holds, but review or user confirmation
@@ -117,12 +151,16 @@ When the Goal is complete, set `status: complete` and add concise
 results. Do not add timestamps, usernames, hostnames, or absolute paths unless
 the user explicitly requires them for a private runtime file.
 
+If the Goal is archived, update `truth_surface` to the archived path, usually
+`.bagakit/goal/archive/<goal-id>.md`.
+
 ## Goal Wrapper
 
 When the user asks for "a paragraph to set as Goal", write a short wrapper that
 points at the Goal file instead of pasting the full control plane into chat.
-If `.bagakit/goal/current` exists, point the wrapper there first so the executor
-can resolve the current Goal and chain before reading the active Goal file.
+If `.bagakit/goal/current.md` exists, point the wrapper there first so the
+executor can resolve `state.yaml` and the foreground Goal before reading the
+Goal file.
 
 The wrapper should:
 
@@ -143,8 +181,9 @@ Template:
 
 ```text
 Read `<current-file-or-goal-file>` before continuing and treat it as the
-execution control plane for this task. If this is `.bagakit/goal/current`,
-resolve the current Goal file from it before acting.
+execution control plane for this task. If this is `.bagakit/goal/current.md`,
+read `.bagakit/goal/state.yaml`, resolve `foreground_goal`, and read that Goal
+file before acting.
 
 Your job is to complete the objective described in that Goal file, not merely
 make one attempt. For every concrete execution action, dispatch the work through
@@ -154,8 +193,9 @@ facts appear, and choosing the next iteration. Continue through as many
 iterations as needed until the Goal's acceptance and stop rules say the task is
 genuinely complete. After restart, compact, or handoff, recover state from the
 Goal file and its indexed owner files before acting. Before reporting final
-completion, update the Goal frontmatter to `status: complete` and add concise
-`completion_evidence`; if the work is blocked, needs review, or is abandoned,
+completion, update the Goal frontmatter to `status: complete`, add concise
+`completion_evidence`, and archive the Goal so it no longer interferes with the
+active work set. If the work is paused, blocked, needs review, or is abandoned,
 write that status instead of claiming completion.
 ```
 
@@ -163,14 +203,31 @@ write that status instead of claiming completion.
 
 Use this spine unless the host already has a compatible format:
 
-Current file:
+Current entrypoint:
 
-```toml
-schema = "bagakit.goal-current.v1"
-current_goal = "<goal-id>"
-current_goal_file = ".bagakit/goal/<goal-id>.md"
-execution_shape = "single"
-chain = ["<goal-id>"]
+```markdown
+# Current Goal
+
+Read `.bagakit/goal/state.yaml`, resolve `foreground_goal`, then read that Goal
+file before acting.
+```
+
+State file:
+
+```yaml
+schema: bagakit.goal-state.v1
+foreground_goal: <goal-id>
+
+goals:
+  <goal-id>:
+    file: .bagakit/goal/<goal-id>.md
+    status: active
+    role: foreground
+
+edges: []
+
+archive:
+  dir: .bagakit/goal/archive
 ```
 
 Goal file:
@@ -249,6 +306,7 @@ Do not turn the Goal into a storage bin.
 | source notes, claims, evidence | Researcher or evidence files |
 | repeated execution checkpoints, incidents, retry history | Flow Runner or session logs |
 | raw Grok/sidecar output | sidecar log; Goal keeps distilled delta or pointer |
+| completed or abandoned Goal history | `.bagakit/goal/archive/` |
 
 When unsure, add a one-line pointer in the Goal and put the detail in the owner
 surface.
