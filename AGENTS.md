@@ -113,6 +113,8 @@ Current core references:
   - `docs/specs/frontdoor-index-contract.md`
 - selector entry policy:
   - `docs/specs/selector-selection-model.md`
+- task-local shared-understanding ledgers:
+  - `docs/specs/consensus-ledger-contract.md`
 - validation assertion discipline:
   - `docs/stewardship/sop/validation-sop.md`
 
@@ -307,6 +309,13 @@ reporting, the response footer may use:
 - Trigger: Markdown notes need option exploration, trade-offs, expert-forum review, and a next-step handoff.
 - Do: Run the bounded brainstorm workflow and produce explicit handoff artifacts.
 - See: `skills/harness/bagakit-brainstorm/SKILL.md`
+</bagakit-rule>
+
+<bagakit-rule skill="bagakit-consensus-ledger">
+- Trigger: Task-local shared understanding needs recoverable state: confirmed consensus, known unknowns, inferred-but-unconfirmed understanding, blind spots, goal dimensions, decision items, snapshots, or promotion boundaries.
+- Do: Prefer an embedded ledger in the owner run/session directory; use standalone fallback only when no stronger owner exists.
+- See: `skills/harness/bagakit-consensus-ledger/SKILL.md`
+- Spec: `docs/specs/consensus-ledger-contract.md`
 </bagakit-rule>
 
 <bagakit-rule skill="bagakit-codex-webpage-design">

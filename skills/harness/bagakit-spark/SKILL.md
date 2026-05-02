@@ -22,6 +22,8 @@ It is not a chat style. It is a dialogue loop that:
 - then challenges blind spots, weak assumptions, and missing paths in service
   of the goal
 - branches when alternative frames materially change the path
+- uses `bagakit-consensus-ledger` when shared understanding should be
+  recoverable beyond the current response
 - uses `bagakit-brainstorm` for durable discussion records and handoff
 - uses `bagakit-researcher` when a branch needs evidence before continuing
 - uses a small MVP experiment or thought experiment to evaluate discussion
@@ -58,6 +60,10 @@ It may coordinate peers, but ownership remains separate:
 
 - `bagakit-spark`
   - owns the dialogue loop, question discipline, branch state, and synthesis
+- `bagakit-consensus-ledger`
+  - owns task-local shared-understanding state, including confirmed consensus,
+    open unknowns, inferred-but-unconfirmed understanding, blind spots, goal
+    dimensions, provenance, and handoff snapshots
 - `bagakit-brainstorm`
   - owns raw discussion logs, option analysis, expert forum, and handoff
     artifacts
@@ -72,12 +78,21 @@ Spark must remain standalone-first. If brainstorm or researcher is unavailable,
 continue with visible session notes and explicit research prompts instead of
 pretending the peer artifact exists.
 
+If `bagakit-consensus-ledger` is unavailable, keep a compact visible
+shared-understanding section in the Spark response or snapshot candidate and
+state which ledger updates would normally be recorded.
+
 ## Core Loop
 
 Spark's normal working substrate is iterative brainstorm: preserve the raw
 discussion, update derived state after each meaningful turn, and let the next
 question grow from that state. Researcher joins when a branch needs evidence or
 frontier grounding.
+
+Consensus-ledger is the preferred substrate for the current shared
+understanding model. When a Spark session already has an owner directory, embed
+the ledger there as `consensus-ledger.json` and `consensus-ledger.md`. Use the
+standalone fallback only when no stronger owner surface exists.
 
 When a Spark conclusion may later guide implementation, feature planning,
 knowledge, or skill evolution, follow `docs/specs/principle-layer-contract.md`.
@@ -171,8 +186,9 @@ done, ready to converge, or ready for the next action.
 When a discussion will feed a feature, implementation, validation, or commit
 stage, publish a user-confirmed consensus snapshot instead of copying the
 summary into the feature description. The feature should keep refs to the spark
-session, brainstorm run, researcher topic, and accepted snapshot. The accepted
-snapshot must include the user's acceptance record at the end of the same file.
+session, consensus ledger, brainstorm run, researcher topic, and accepted
+snapshot. The accepted snapshot must include the user's acceptance record at the
+end of the same file.
 When the consensus changes, archive the previous snapshot and publish a new
 accepted snapshot rather than letting redundant summaries drift.
 
@@ -335,6 +351,17 @@ Question guidance details live in:
 
 Spark should normally rely on iterative brainstorm for its durable state.
 
+Use consensus-ledger and brainstorm together by keeping different truths in
+different places:
+
+- consensus-ledger owns the current shared-understanding ledger, including
+  epistemic classes, statuses, dimensions, inferred-knowns, unknowns, and
+  snapshot basis
+- brainstorm owns raw discussion preservation, option analysis, expert forum,
+  and broad handoff artifacts
+
+Do not copy the full consensus ledger into brainstorm raw logs. Record refs.
+
 Use `bagakit-brainstorm` when the discussion becomes durable planning or when
 the conversation needs:
 
@@ -418,6 +445,7 @@ Quiet-room eval: <not_needed|planned|running|passed|failed|quiet_room_blocked|pr
 Eval acceptance: <accepted/corrected/rejected/incomplete plus acceptance activity when endpoint>
 Rationale: <principle/criteria/rejected alternative/portability boundary when relevant>
 Accepted snapshot: <accepted snapshot ref, candidate status, or none>
+Consensus ledger: <ledger ref, updated dimensions, or none>
 Next question or action: <one question or concrete action>
 Evidence used: <brainstorm/researcher refs when available>
 ```
@@ -428,6 +456,7 @@ For final responses, include:
 - the strongest remaining uncertainty
 - the source of any evidence-backed claim
 - the accepted snapshot ref when later execution should reenter this discussion
+- the consensus ledger ref when shared-understanding state shaped the result
 - eval acceptance or remaining failure signal when the task was meant to
   realize something
 - one next action
@@ -447,3 +476,4 @@ footer may use:
 - `references/question-inventory.md`
 - `references/composition-boundary.md`
 - `references/workflow-contract.toml`
+- `docs/specs/consensus-ledger-contract.md`

@@ -10,8 +10,8 @@ function printHelp(): void {
   console.log(`bagakit grill
 
 Commands:
-  init --root <repo-root> [--run-id <id>] --target <text> [--target-ref <ref>] [--force]
-  plan --root <repo-root> --run <id> --node <id> --question <text> --decision <text> --recommended-answer <text> --rationale <text> [--risk <text>] [--kind <question|research_needed>] [--option <text> ...] [--depends-on <id> ...]
+  init --root <repo-root> [--run-id <id>] --target <text> [--target-ref <ref>] [--ledger-ref <ref>] [--force]
+  plan --root <repo-root> --run <id> --node <id> --question <text> --decision <text> --recommended-answer <text> --rationale <text> [--risk <text>] [--kind <question|research_needed>] [--option <text> ...] [--depends-on <id> ...] [--ledger-ref <ref> ...]
   next --root <repo-root> --run <id> [--json]
   answer --root <repo-root> --run <id> --node <id> --answer <text>
   attach-evidence --root <repo-root> --run <id> --node <id> --evidence-ref <ref> --summary <text>
@@ -42,6 +42,7 @@ function commandInit(argv: string[]): number {
       "run-id": { type: "string" as const },
       target: { type: "string" as const },
       "target-ref": { type: "string" as const, default: "" },
+      "ledger-ref": { type: "string" as const, default: "" },
       force: { type: "boolean" as const, default: false },
     },
     strict: true,
@@ -68,6 +69,7 @@ function commandInit(argv: string[]): number {
     runId,
     target,
     targetRef: values["target-ref"],
+    ledgerRef: values["ledger-ref"],
     briefPath: repoRelative(repoRoot, briefPath(repoRoot, runId)),
   });
   writeRun(repoRoot, run);
@@ -89,6 +91,7 @@ function commandPlan(argv: string[]): number {
       rationale: { type: "string" as const },
       risk: { type: "string" as const, default: "" },
       option: { type: "string" as const, multiple: true, default: [] },
+      "ledger-ref": { type: "string" as const, multiple: true, default: [] },
       "depends-on": { type: "string" as const, multiple: true, default: [] },
     },
     strict: true,
@@ -106,6 +109,7 @@ function commandPlan(argv: string[]): number {
     recommendedAnswer: requireString(values["recommended-answer"], "--recommended-answer"),
     rationale: requireString(values.rationale, "--rationale"),
     risk: values.risk ?? "",
+    ledgerRefs: values["ledger-ref"] ?? [],
     dependsOn: values["depends-on"] ?? [],
   });
   writeRun(repoRoot, updated);

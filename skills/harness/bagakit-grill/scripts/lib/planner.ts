@@ -41,6 +41,7 @@ export function createRun(input: {
   runId: string;
   target: string;
   targetRef?: string;
+  ledgerRef?: string;
   briefPath: string;
 }): GrillRun {
   const now = utcNow();
@@ -49,6 +50,7 @@ export function createRun(input: {
     run_id: input.runId,
     target_snapshot: input.target,
     target_ref: input.targetRef ?? "",
+    ledger_ref: input.ledgerRef ?? "",
     status: "planning",
     created_at: now,
     updated_at: now,
@@ -124,6 +126,7 @@ export function upsertNode(run: GrillRun, input: {
   recommendedAnswer: string;
   rationale: string;
   risk: string;
+  ledgerRefs: string[];
   dependsOn: string[];
 }): GrillRun {
   const now = utcNow();
@@ -144,6 +147,7 @@ export function upsertNode(run: GrillRun, input: {
     rationale: "",
     risk_if_wrong: "",
     evidence_refs: [],
+    ledger_refs: [],
     created_at: now,
     updated_at: now,
   };
@@ -154,6 +158,7 @@ export function upsertNode(run: GrillRun, input: {
   base.recommended_answer = input.recommendedAnswer;
   base.rationale = input.rationale;
   base.risk_if_wrong = input.risk;
+  base.ledger_refs = input.ledgerRefs;
   base.depends_on = input.dependsOn;
   base.updated_at = now;
 

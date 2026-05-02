@@ -70,6 +70,11 @@ owner = "bagakit-spark"
 required_when = "high-impact questions or follow-ups exist"
 
 [[artifact]]
+id = "consensus-ledger"
+owner = "bagakit-consensus-ledger"
+required_when = "shared understanding should persist beyond the current response or feed Spark snapshot, implementation, validation, Grill, living-knowledge, or evolver"
+
+[[artifact]]
 id = "research-sufficiency-judgment"
 owner = "bagakit-spark"
 required_when = "discussion opens a research-relevant branch"
@@ -130,6 +135,12 @@ decision = "research_not_needed"
 use_when = "the issue is local preference, already evidenced context, or not decision-changing"
 
 [[composition_boundary]]
+id = "shared-understanding-ledger"
+peer = "bagakit-consensus-ledger"
+spark_owns = "dialogue loop, question discipline, synthesis, and snapshot acceptance"
+peer_owns = "epistemic item classes, shared-understanding statuses, goal dimensions, embedded ledger placement, and promotion boundary"
+
+[[composition_boundary]]
 id = "brainstorm-state-substrate"
 peer = "bagakit-brainstorm"
 spark_owns = "discussion loop, question inventory, snapshot meaning, and acceptance"
@@ -152,6 +163,10 @@ id = "quiet-room-evidence-producer"
 peer = "subagent or independent reviewer"
 spark_owns = "bounded brief, acceptance criteria, interpretation, blocked/provisional status, and snapshot impact"
 peer_owns = "independent execution, review observations, produced artifacts, and failure findings"
+
+[[output_field]]
+id = "consensus-ledger"
+required_when = "shared-understanding state materially shapes the Spark route, snapshot, handoff, or reentry"
 
 [[output_field]]
 id = "current-frame"

@@ -74,6 +74,7 @@ Current examples include:
 
 - `runtime-surface-contract.md`
 - `canonical-capability-ladder.md`
+- `consensus-ledger-contract.md`
 - `document-surface-rules.md`
 - `feature-tracker-contract.md`
 - `feature-tracker-id-issuance.md`

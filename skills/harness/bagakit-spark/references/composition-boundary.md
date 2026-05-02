@@ -7,6 +7,7 @@ runtime ownership.
 
 | Surface | Owner | Spark Use |
 | --- | --- | --- |
+| `<spark-session>/consensus-ledger.json` or `.bagakit/consensus-ledger/` | `bagakit-consensus-ledger` | shared-understanding state, epistemic item status, dimensions, snapshot basis |
 | `.bagakit/brainstorm/` | `bagakit-brainstorm` | durable discussion records, option analysis, forum, handoff |
 | `.bagakit/researcher/` | `bagakit-researcher` | source cards, summaries, claims, insights, leads, wiki |
 | `.bagakit/spark/` | `bagakit-spark` | session state, phase labels, publish consensus snapshots |
@@ -44,6 +45,7 @@ When a spark discussion creates or reshapes a feature, the feature should store
 refs instead of duplicated consensus prose:
 
 - spark session ref
+- consensus ledger ref
 - brainstorm run ref
 - researcher topic ref
 - accepted consensus snapshot ref
@@ -87,6 +89,7 @@ If a peer skill is unavailable:
 ## Anti-Patterns
 
 - treating spark as the owner of brainstorm raw logs
+- treating spark as the owner of consensus-ledger schema or status vocabulary
 - treating spark as the owner of researcher source cards
 - copying consensus snapshots into feature text where later updates can drift
 - promoting researcher evidence into shared knowledge without an explicit outer

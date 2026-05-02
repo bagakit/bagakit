@@ -13,6 +13,10 @@ Maintain a compact visible state:
   - what would count as a better understanding or useful decision
 - `knowns`
   - stable facts, user preferences, and evidence-backed claims
+- `consensus_ledger`
+  - embedded ledger ref when shared understanding should persist beyond the
+    current response; records epistemic classes, statuses, dimensions, and
+    snapshot basis through `bagakit-consensus-ledger`
 - `user_model`
   - inferred knowledge, understanding, goals, values, constraints, and current
     practice level; mark this as inference
@@ -43,8 +47,9 @@ Maintain a compact visible state:
     track answered, pending, deferred, rejected, converted-to-lead, not-needed,
     and follow-up questions; see `references/question-inventory.md`
 - `provenance`
-  - spark session ref, brainstorm run ref, researcher topic ref, and accepted
-    consensus snapshot ref when later execution should reenter this discussion
+  - spark session ref, consensus ledger ref, brainstorm run ref, researcher
+    topic ref, and accepted consensus snapshot ref when later execution should
+    reenter this discussion
 - `next_move`
   - one question, one research action, or one synthesis action
 
@@ -65,8 +70,8 @@ Mark durable Spark records with the phase that produced them:
     boundary, or future recall point needs clarification
 
 Feature descriptions should cite the relevant spark session, brainstorm run,
-researcher topic, and accepted snapshot refs. Do not copy the full consensus
-snapshot into the feature description.
+consensus ledger, researcher topic, and accepted snapshot refs. Do not copy the
+full consensus snapshot or ledger into the feature description.
 
 ## Turn Loop
 
@@ -86,6 +91,7 @@ snapshot into the feature description.
    - run a trajectory check after repeated same-branch agreement
    - run the research sufficiency SOP
    - read local context
+   - create or update the embedded consensus ledger
    - open or update brainstorm
    - open or update researcher
    - run a small MVP experiment or thought experiment
@@ -616,6 +622,12 @@ the iterative state substrate:
 Do not wait until the end to summarize from memory. Update the brainstorm state
 after meaningful turns.
 
+When shared-understanding state becomes decision-bearing, also update the
+embedded consensus ledger. Use ledger dimensions for current goal, success bar,
+user model, exploration branches, value tradeoffs, research gaps, and
+experiment candidates. Keep inferred user-model items as `unknown_known` with
+`inferred` status until the user confirms, corrects, contests, or defers them.
+
 The brainstorm questioning loop ends only when the user explicitly expresses
 completion, asks to converge, or asks to move to the next action. Agent-side
 confidence is not enough to stop asking if the user is still adding material.
@@ -645,6 +657,7 @@ The snapshot is the execution-facing summary, not the raw transcript:
 
 - phase label
 - current goal and success bar
+- consensus ledger ref and relevant dimension status
 - accepted user model, clearly marked as an inference
 - important constraints and non-goals
 - accepted and rejected challenges
@@ -661,6 +674,7 @@ The snapshot is the execution-facing summary, not the raw transcript:
 The feature description should store refs, not copied snapshot prose:
 
 - spark session ref
+- consensus ledger ref
 - brainstorm run ref
 - researcher topic ref
 - accepted snapshot ref

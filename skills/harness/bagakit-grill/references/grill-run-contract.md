@@ -22,11 +22,17 @@ Grill owns:
 - `research_needed` nodes when good questions require background evidence
 - generated read-only summary views
 
+Grill may use `bagakit-consensus-ledger` for the target's shared-understanding
+state. In that case the ledger owns epistemic classes, item statuses, goal
+dimensions, and promotion state, while Grill still owns the question DAG,
+answer events, and convergence state machine.
+
 Grill does not own:
 
 - deep dialogue and early framing
 - broad brainstorm artifacts
 - research execution
+- consensus-ledger schema or status vocabulary
 - shared knowledge writing
 - review verdicts
 - promotion or repository learning
@@ -48,6 +54,8 @@ Peer ownership:
     <run-id>/
       grill-run.json
       grill-brief.md
+      consensus-ledger.json
+      consensus-ledger.md
 ```
 
 The CLI materializes `.bagakit/grill/` on `init`. Do not pre-create the
@@ -68,6 +76,8 @@ runtime root just because the skill is installed.
   principle, convergence signal, adjacent branch, and close/switch/correct
   decision
 - `render`: generated-view metadata
+- `ledger_ref`: optional repo-relative embedded consensus ledger ref when the
+  run uses `bagakit-consensus-ledger`
 
 ## Node Fields
 
@@ -86,6 +96,8 @@ Each `question_nodes` entry has:
 - `rationale`: why this question matters
 - `risk_if_wrong`: optional consequence if the recommendation is wrong
 - `evidence_refs`: evidence refs attached after research
+- `ledger_refs`: optional refs to consensus-ledger dimensions or items that the
+  question protects, closes, contests, or defers
 
 ## Option-Surface Rule
 
@@ -118,6 +130,10 @@ marking a run complete, the agent should state:
 
 If the adjacent branch depends on missing evidence, add a `research_needed`
 node instead of closing the grill.
+
+If the adjacent branch is a shared-understanding gap rather than a research
+gap, update the embedded consensus ledger with `known_unknown` or
+`unknown_unknown` state instead of silently closing the branch.
 
 The CLI records this as `convergence_check`. When a run has at least two user
 answers and all current nodes are resolved, `refreshRun` may mark the run
@@ -182,4 +198,5 @@ Risk if wrong: <main consequence>
 Convergence check: <none|multi-round no-branch plus close/switch/correct>
 Code/docs checked: <refs or none>
 Run refs: <grill-run.json and grill-brief.md>
+Ledger refs: <consensus-ledger.json or none>
 ```

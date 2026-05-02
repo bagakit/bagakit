@@ -37,6 +37,7 @@ export interface GrillNode {
   rationale: string;
   risk_if_wrong: string;
   evidence_refs: EvidenceRef[];
+  ledger_refs: string[];
   created_at: string;
   updated_at: string;
 }
@@ -68,6 +69,7 @@ export interface GrillRun {
   run_id: string;
   target_snapshot: string;
   target_ref: string;
+  ledger_ref: string;
   status: RunStatus;
   created_at: string;
   updated_at: string;

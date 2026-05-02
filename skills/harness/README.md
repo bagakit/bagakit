@@ -11,6 +11,7 @@ Current harness skill sources:
 - `bagakit-brainstorm`
 - `bagakit-feature-tracker`
 - `bagakit-flow-runner`
+- `bagakit-consensus-ledger`
 - `bagakit-grill`
 - `bagakit-living-knowledge`
 - `bagakit-researcher`

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Bagakit Consensus Ledger"
+  short_description: "Maintain task-local shared-understanding ledgers."
+  default_prompt: "Use bagakit-consensus-ledger to record what is confirmed, inferred, unknown, and ready for handoff."

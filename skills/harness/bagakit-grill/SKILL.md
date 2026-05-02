@@ -22,6 +22,9 @@ Bagakit-specific rules:
 - Grill target intake must preserve the underlying goal or principle being
   protected. If the target snapshot does not make that clear, ask one intake
   question or route back to `bagakit-spark` before building the question DAG.
+- Use `bagakit-consensus-ledger` when the target's shared-understanding state
+  should be recoverable. Embed `consensus-ledger.json` inside the Grill run
+  directory and keep Grill's own run file focused on the DAG and lifecycle.
 - Never ask a Grill question with only a recommended answer. Every user-facing
   Grill question must show two to four options considered, then mark the
   recommended answer. If one path is clearly dominant, include the main rejected
@@ -40,22 +43,27 @@ Bagakit-specific rules:
 Minimal loop:
 
 1. Initialize or resume one grill run.
-2. Plan the next dependency-ready question node.
-3. Ask one question with options considered, a recommended answer, and risk if
+2. Initialize or update the embedded consensus ledger when the target has
+   decision-bearing dimensions, unknowns, or inferred assumptions.
+3. Plan the next dependency-ready question node.
+4. Ask one question with options considered, a recommended answer, and risk if
    wrong.
-4. Record the user's answer.
-5. If repeated answers create no new branch, run the convergence check.
-6. Render the read-only brief.
+5. Record the user's answer and update the ledger item or dimension it closes,
+   contests, or defers.
+6. If repeated answers create no new branch, run the convergence check.
+7. Render the read-only brief.
 
 If a good next question needs background evidence, add a `research_needed` node
 and hand research execution to explicit selector/researcher composition. After
 evidence exists, attach the evidence refs and continue the grill.
 
 Keep user-facing responses compact: target, progress, one question, options
-considered, recommended answer, risk, checked refs, and run refs.
+considered, recommended answer, risk, ledger refs, checked refs, and run refs.
 
 Read references only when needed:
 
 - `references/grill-run-contract.md`: run schema, CLI loop, boundary details.
 - `references/skill-cli.toml`: CLI registration.
 - `references/frontdoor-rule.toml`: project frontdoor declaration.
+- `docs/specs/consensus-ledger-contract.md`: shared-understanding ledger
+  protocol used by Grill when the target has recoverable consensus state.

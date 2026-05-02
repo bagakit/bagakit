@@ -1,0 +1,43 @@
+version = 1
+skill = "bagakit-consensus-ledger"
+cli_id = "bagakit-consensus-ledger"
+entrypoint = "scripts/consensus-ledger.sh"
+runner = "shell"
+usage = "sh scripts/consensus-ledger.sh <command> [args...]"
+summary = "Manage task-local shared-understanding ledgers."
+surface_refs = [
+  ".bagakit/consensus-ledger",
+  "<owner-dir>/consensus-ledger.json",
+]
+
+[[command]]
+name = "init"
+summary = "Create one embedded or standalone consensus ledger."
+
+[[command]]
+name = "add-dimension"
+summary = "Add or update a goal-relative dimension."
+
+[[command]]
+name = "add-item"
+summary = "Add or update one epistemic item."
+
+[[command]]
+name = "add-question"
+summary = "Add or update one decision-changing question."
+
+[[command]]
+name = "snapshot"
+summary = "Record one candidate or accepted snapshot."
+
+[[command]]
+name = "render"
+summary = "Render the human-readable ledger view."
+
+[[command]]
+name = "status"
+summary = "Show ledger status."
+
+[[command]]
+name = "validate"
+summary = "Validate one ledger file."

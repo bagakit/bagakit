@@ -47,6 +47,9 @@ export function renderBrief(run: GrillRun): string {
   if (run.target_ref) {
     lines.push(`- Target ref: \`${run.target_ref}\``);
   }
+  if (run.ledger_ref) {
+    lines.push(`- Consensus ledger: \`${run.ledger_ref}\``);
+  }
   lines.push(
     "",
     "## Progress",
