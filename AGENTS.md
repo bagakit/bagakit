@@ -130,10 +130,14 @@ Validation should prove public behavior or owned contract text, not private
 implementation shape. Detailed assertion-choice rules live in
 `docs/stewardship/sop/validation-sop.md`.
 
-Do not add meaningless validation that only checks incidental headings,
-arbitrary phrases, private source strings, or broad keyword arrays in skill
-docs. If exact wording is the contract, classify it as a narrow wording
-contract and state what behavior it does not prove.
+Before adding or changing validation, choose the smallest proof-bearing oracle:
+structured state, generated artifact, public command boundary, deterministic
+fixture or receipt, or narrow wording contract. Do not add checks that only
+police incidental headings, arbitrary phrases, private source strings, or broad
+keyword arrays. If exact wording is the contract, classify it as a wording
+contract and state what behavior it does not prove. If meaningful behavior lacks
+a stable proof surface, expose a smaller owner-owned artifact or use non-gating
+eval instead of skipping the test or adding a prose checklist.
 
 ## Tool Rule
 
