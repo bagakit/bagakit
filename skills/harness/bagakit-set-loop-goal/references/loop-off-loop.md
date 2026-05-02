@@ -1,21 +1,87 @@
 # Loop-Off-Loop Control
 
 Use this reference when a Goal file supports an inner execution loop observed
-by an outer supervisor loop.
+by an outer supervisor loop or by a self-supervised executor checkpoint.
+
+## Contents
+
+- Model
+- Invocation Wrapper
+- Supervisor File
+- Supervisor Cycle
+- Drift Classes
+- Supervisor Packet
+- Relationship To bagakit-loop-supervisor
 
 ## Model
 
-- Inner loop: implements or advances the task.
-- Outer loop: observes evidence, detects drift, and updates the Goal or next
-  instruction.
-- Goal file: the steering index both loops share.
+- Inner loop: implements or advances one bounded step.
+- Supervisor checkpoint: observes evidence, detects drift, and updates the Goal
+  or next instruction.
+- Goal surface: `current.md`, `state.yaml`, optional `supervisor.md`, and the
+  foreground Goal file.
 
-The outer loop should correct the control plane, not become a second executor.
+The supervisor should correct the control plane, not become a second executor.
+
+## Invocation Wrapper
+
+When the host supports file references, the text set in the Codex Goal command,
+Claude Loop command, or a comparable agent goal should reference the Goal
+entrypoint directly.
+
+Use the fixed templates below. Do not rewrite them as free-form prose. Only
+change repo-relative paths when the host project uses a different Goal surface,
+and only omit the supervisor block when `supervisor.md` does not exist.
+
+With supervisor:
+
+```text
+@./.bagakit/goal/current.md
+Read current.md first; it resolves state.yaml, foreground_goal, and the active Goal.
+
+@./.bagakit/goal/supervisor.md
+Read supervisor.md when present; run checkpoint rules around bounded work.
+
+Context may be stale or wrong; recover from these files before trusting prior context.
+```
+
+Without supervisor:
+
+```text
+@./.bagakit/goal/current.md
+Read current.md first; it resolves state.yaml, foreground_goal, and the active Goal.
+
+Context may be stale or wrong; recover from this file before trusting prior context.
+```
+
+If supervision is added later, `current.md` should recall `supervisor.md`; if it
+exists at Goal setup time, include both references because direct file inclusion
+improves recovery.
+
+When file references are unavailable, use the same instructions with
+repo-relative paths.
+
+## Supervisor File
+
+Use `.bagakit/goal/supervisor.md` for shared supervision rules when
+`state.yaml` sets `supervision.mode` to `self` or `external`.
+
+Keep `supervisor.md` focused on:
+
+- role boundary between executor and supervisor checkpoint
+- checkpoint cadence
+- drift classes
+- packet schema
+- sidecar/Grok handling
+- stop, ask, and patch rules
+
+Do not put run logs, raw sidecar output, or task details in `supervisor.md`.
 
 ## Supervisor Cycle
 
-1. Re-read `current.md`, `state.yaml`, and the foreground Goal file when the
-   Goal surface exists; otherwise re-read the explicit Goal file.
+1. Re-read `current.md`, `state.yaml`, `supervisor.md` when present, and the
+   foreground Goal file when the Goal surface exists; otherwise re-read the
+   explicit Goal file.
 2. Read inner-loop evidence: checkpoint, diff, validation, incident, or user
    discussion.
 3. Classify whether execution is aligned, drifting, blocked, or ready to stop.
@@ -68,9 +134,7 @@ Rules:
 
 ## Relationship To bagakit-loop-supervisor
 
-If `bagakit-loop-supervisor` is available, it owns repeated supervisor packets,
-drift logs, and sidecar session logs. This skill owns the Goal file that the
-supervisor reads and updates.
-
-If no supervisor skill is available, still apply the cycle manually and keep the
-Goal file compact.
+There should not be a separate `bagakit-loop-supervisor` skill until supervision
+has an independent operator that owns durable packet logs, drift logs, sidecar
+sessions, and runner integration. Until then, supervision is a mode of
+`bagakit-set-loop-goal`, with `supervisor.md` as the optional contract file.

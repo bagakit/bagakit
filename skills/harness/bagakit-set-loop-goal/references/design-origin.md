@@ -3,6 +3,13 @@
 Read this reference when evolving `bagakit-set-loop-goal` or when the original
 intent behind Goal files is unclear.
 
+## Contents
+
+- Source Request
+- Original Discussion Excerpts
+- FAQ
+- Design Answers
+
 ## Source Request
 
 The user wanted a skill that helps agents create a high-quality Goal file.
@@ -47,6 +54,17 @@ index.
 
 9. "我觉得应该这样改，而且我们还得考虑一个已经完成的 goal 就不应该形成干扰，所以在 goal 的目录下应该还有一个 archive 的目录，对吧？"
 
+10. "我发现之前的 Agent 在调用这个 skill 的时候，很少在 goal 执行时 @ current.md。现在这部分的要求应该要写明确，之前可能确实不太清晰。
+
+我建议的要求如下：
+1. 如果有 Supervisor 的情况下，要把这两个文件都 @ 上。虽然有可能 Supervisor 是后加的，导致在最初 add 的时候没有被包含进去，后续会靠 current 去召回；但如果一开始就有，两个都 add 上效果会更好。
+2. 在 @ 里面对应的那句话也需要比较讲究：
+   (a) 如果引入了 current，就应该有大概十几个词的一句话说明如何查看。
+   (b) 如果有 Supervisor 的话也是类似的处理。
+  c. 还需要有一句固定的话，去让模型 aware 到它可能会被 context（可能是从某个地方错误的上下文开始）。
+
+这样做的目的是明确它应该如何遵循这些文件、为什么要遵循这些模版，从而让它的目标完成得更好。"
+
 ## FAQ
 
 ### Q1: Goal 文件是不是要包含所有上下文？
@@ -89,6 +107,18 @@ A: 执行游标不是 DAG，因为同一个执行 loop 只能有一个 foregroun
 
 A: 已完成或明确 abandoned 的 Goal 不应该继续干扰当前工作集。完成时先把 Goal frontmatter 改为 `status: complete` 并记录 `completion_evidence`，然后把它移入 `.bagakit/goal/archive/`，同步更新 `truth_surface`，并从 `state.yaml` 的 active `goals` registry 中移除，最多保留一个短历史指针。要恢复归档 Goal 时，应显式恢复到主 Goal 目录并重新登记状态。
 
+### Q11: Supervisor 是否需要独立 skill？
+
+A: 目前不需要。Supervisor 能力应作为 `bagakit-set-loop-goal` 的 supervision mode 存在，用 `.bagakit/goal/supervisor.md` 承载监督协议。只有当它拥有独立 operator，能持续写 supervisor packets、drift logs、Grok sidecar sessions，并与 runner 自动联动时，才值得拆成独立 skill。
+
+### Q12: Goal command 或 Loop command 里应该如何引用 Goal 文件？
+
+A: 支持文件引用时，至少 `@./.bagakit/goal/current.md`，并附一句短说明：`Read current.md first; it resolves state.yaml, foreground_goal, and the active Goal.` 如果 supervisor 已存在，还要同时 `@./.bagakit/goal/supervisor.md`，并附：`Read supervisor.md when present; run checkpoint rules around bounded work.` 最后固定加入：`Context may be stale or wrong; recover from these files before trusting prior context.`
+
+### Q13: Goal command 和 Loop command 的提示词是否允许自由发挥？
+
+A: 不允许。Goal command 和 Loop command 应使用固定 wrapper 模板。只允许替换 repo-relative 文件路径，或在没有 `supervisor.md` 时省略 supervisor block；文件说明句和 stale-context warning 必须保留。
+
 ## Design Answers
 
 1. A high-quality Goal file is a compact, recoverable steering index.
@@ -124,3 +154,11 @@ A: 已完成或明确 abandoned 的 Goal 不应该继续干扰当前工作集。
 13. Completed or explicitly abandoned Goals should move under
     `.bagakit/goal/archive/` so historical work does not interfere with the
     active registry.
+14. Supervision is a mode of this skill, not a separate skill by default.
+    `.bagakit/goal/supervisor.md` owns shared checkpoint rules when supervision
+    is active.
+15. Goal and Loop wrappers should explicitly reference
+    `current.md`, also reference `supervisor.md` when present, and include the
+    fixed stale-context recovery warning.
+16. Goal and Loop prompts should use fixed templates rather than free-form agent
+    prose; only paths and the supervisor block are variable.

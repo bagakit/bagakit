@@ -3,6 +3,19 @@
 Use this reference when creating, rewriting, compressing, or reviewing a Goal
 file.
 
+## Contents
+
+- Quality Bar
+- Placement
+- Goal Surface State
+- Supervisor Contract
+- Frontmatter Lifecycle
+- Goal Wrapper
+- Minimum Structure
+- What Belongs In The Goal
+- What Belongs Elsewhere
+- Fresh-Executor Check
+
 ## Quality Bar
 
 A high-quality Goal file lets a fresh executor continue after restart, compact,
@@ -25,6 +38,7 @@ Default durable placement is the target project's local Goal surface:
 - `.bagakit/goal/<goal-id>.md`
 - `.bagakit/goal/current.md`
 - `.bagakit/goal/state.yaml`
+- `.bagakit/goal/supervisor.md` when supervision is active
 - `.bagakit/goal/archive/`
 
 This path is relative to the project or host repository whose agent will execute
@@ -55,6 +69,8 @@ agent entrypoint, the machine-readable work set, and inactive history:
 - `current.md`: Markdown entrypoint for the executor. It names the foreground
   Goal, points to `state.yaml`, and tells the executor how to recover.
 - `state.yaml`: registry and topology for incomplete or reviewable Goals.
+- `supervisor.md`: optional supervision contract for checkpoint cadence, drift
+  handling, sidecar rules, and packet shape.
 - `<goal-id>.md`: one Goal control plane.
 - `archive/`: completed, abandoned, or otherwise inactive Goal files that should
   not affect the current work set.
@@ -68,6 +84,12 @@ agent-facing:
 Read `.bagakit/goal/state.yaml`, resolve `foreground_goal`, then read that Goal
 file before acting. Creating or switching to a new Goal does not abandon any
 previous incomplete Goal; update the registry status instead.
+
+If `.bagakit/goal/supervisor.md` exists, read it and run its checkpoint before
+each bounded execution round and before final completion.
+
+Context may be stale or wrong; recover from these files before trusting prior
+context.
 ```
 
 `state.yaml` is the machine-readable topology. Use it for the foreground cursor,
@@ -76,6 +98,11 @@ known incomplete Goals, and relation edges:
 ```yaml
 schema: bagakit.goal-state.v1
 foreground_goal: <goal-id>
+
+supervision:
+  mode: self # off | self | external
+  contract: .bagakit/goal/supervisor.md
+  checkpoint: before_action_and_after_round
 
 goals:
   <goal-id>:
@@ -100,6 +127,8 @@ Rules:
 
 - Read `.bagakit/goal/current.md` first when it exists, then read `state.yaml`,
   then read the `foreground_goal` file.
+- If `supervision.mode` is not `off`, read `supervision.contract` before
+  execution and follow its checkpoint rules.
 - Keep exactly one foreground Goal. The registry may contain multiple incomplete
   Goals, but one agent loop should execute only one foreground Goal at a time.
 - Allow topology edges such as `depends_on`, `blocks`, `interrupts`,
@@ -117,6 +146,62 @@ Rules:
   affects the foreground Goal as a short historical pointer.
 - If `foreground_goal` or its file is missing or contradicts the target Goal's
   frontmatter, repair the state before execution or stop and ask.
+
+## Supervisor Contract
+
+Use `.bagakit/goal/supervisor.md` when the Goal needs self-supervision or a
+separate outer loop. This file is a reusable supervision contract, not a log and
+not a second Goal schema.
+
+Template:
+
+````markdown
+# Goal Supervisor
+
+## Role Boundary
+- Inner loop: execute one bounded step toward the foreground Goal.
+- Supervisor checkpoint: observe evidence, detect drift, and update the Goal or
+  next instruction before more implementation.
+- Do not become a second executor.
+
+## Checkpoint Cadence
+- Run before each bounded execution round.
+- Run after each bounded execution round.
+- Run before claiming `status: complete`.
+
+## Drift Classes
+- target drift
+- method drift
+- scope drift
+- evidence drift
+- retry drift
+- risk drift
+- context drift
+
+## Packet
+```toml
+goal_state_file = ".bagakit/goal/state.yaml"
+goal_file = ".bagakit/goal/<goal-id>.md"
+foreground_goal = "<goal-id>"
+status = "on_track" # on_track | needs_correction | blocked | ready_to_stop
+goal_delta = "none" # none | clarify | narrow | broaden | replace
+sidecar = "not_needed" # not_needed | dispatched | pending | unavailable | incorporated
+drift = []
+evidence = []
+goal_patch = ""
+next_instruction = ""
+stop_rule = ""
+user_question = ""
+```
+
+## Rules
+- Patch the Goal only when new information changes execution direction or
+  recovery.
+- Ask before changing the promised outcome, dropping a requirement, or taking
+  irreversible, privacy-sensitive, publication, or cost-bearing action.
+- Distill sidecar output into a Goal delta, risk, non-goal, acceptance
+  criterion, open question, or owner-file pointer.
+````
 
 ## Frontmatter Lifecycle
 
@@ -160,7 +245,9 @@ When the user asks for "a paragraph to set as Goal", write a short wrapper that
 points at the Goal file instead of pasting the full control plane into chat.
 If `.bagakit/goal/current.md` exists, point the wrapper there first so the
 executor can resolve `state.yaml` and the foreground Goal before reading the
-Goal file.
+Goal file. If `.bagakit/goal/supervisor.md` exists at creation time, include it
+as a second file reference in the wrapper; `current.md` should still recall it
+later if supervision is added after the initial Goal is set.
 
 The wrapper should:
 
@@ -177,13 +264,41 @@ The wrapper should:
   `completion_evidence` before claiming final completion
 - point to the Goal file as the control plane
 
+For the Codex Goal command, Claude Loop command, or any host that supports file
+references, use one of these fixed templates instead of improvising prose. Only
+the file paths and the presence of the `supervisor.md` block may vary; keep the
+one-sentence file guidance and stale-context warning intact.
+
+With supervisor:
+
+```text
+@./.bagakit/goal/current.md
+Read current.md first; it resolves state.yaml, foreground_goal, and the active Goal.
+
+@./.bagakit/goal/supervisor.md
+Read supervisor.md when present; run checkpoint rules around bounded work.
+
+Context may be stale or wrong; recover from these files before trusting prior context.
+```
+
+Without supervisor:
+
+```text
+@./.bagakit/goal/current.md
+Read current.md first; it resolves state.yaml, foreground_goal, and the active Goal.
+
+Context may be stale or wrong; recover from this file before trusting prior context.
+```
+
 Template:
 
 ```text
 Read `<current-file-or-goal-file>` before continuing and treat it as the
 execution control plane for this task. If this is `.bagakit/goal/current.md`,
 read `.bagakit/goal/state.yaml`, resolve `foreground_goal`, and read that Goal
-file before acting.
+file before acting. If `.bagakit/goal/supervisor.md` is referenced or exists,
+read it before execution and run its checkpoint rules around each bounded work
+round.
 
 Your job is to complete the objective described in that Goal file, not merely
 make one attempt. For every concrete execution action, dispatch the work through
@@ -209,7 +324,11 @@ Current entrypoint:
 # Current Goal
 
 Read `.bagakit/goal/state.yaml`, resolve `foreground_goal`, then read that Goal
-file before acting.
+file before acting. If `.bagakit/goal/supervisor.md` exists, read it before
+execution and run its checkpoint rules.
+
+Context may be stale or wrong; recover from these files before trusting prior
+context.
 ```
 
 State file:
@@ -217,6 +336,11 @@ State file:
 ```yaml
 schema: bagakit.goal-state.v1
 foreground_goal: <goal-id>
+
+supervision:
+  mode: off
+  contract: .bagakit/goal/supervisor.md
+  checkpoint: before_action_and_after_round
 
 goals:
   <goal-id>:
@@ -228,6 +352,16 @@ edges: []
 
 archive:
   dir: .bagakit/goal/archive
+```
+
+Supervisor file when `supervision.mode` is not `off`:
+
+```markdown
+# Goal Supervisor
+
+Run a checkpoint before and after each bounded execution round. Classify
+alignment as `on_track`, `needs_correction`, `blocked`, or `ready_to_stop`.
+Patch the Goal only when new information changes direction or recovery.
 ```
 
 Goal file:
@@ -306,6 +440,7 @@ Do not turn the Goal into a storage bin.
 | source notes, claims, evidence | Researcher or evidence files |
 | repeated execution checkpoints, incidents, retry history | Flow Runner or session logs |
 | raw Grok/sidecar output | sidecar log; Goal keeps distilled delta or pointer |
+| supervisor protocol and checkpoint cadence | `.bagakit/goal/supervisor.md` |
 | completed or abandoned Goal history | `.bagakit/goal/archive/` |
 
 When unsure, add a one-line pointer in the Goal and put the detail in the owner

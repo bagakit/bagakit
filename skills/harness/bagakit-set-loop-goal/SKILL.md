@@ -26,6 +26,8 @@ Core contract:
 - Maintain `.bagakit/goal/current.md` as the agent-facing entrypoint and
   `.bagakit/goal/state.yaml` as the Goal registry/topology when the Goal surface
   exists.
+- When supervision is active, maintain `.bagakit/goal/supervisor.md` as the
+  supervisor contract; do not create a separate supervisor skill or schema fork.
 - Keep exactly one foreground Goal for execution, but allow multiple incomplete
   Goals to remain registered with statuses such as `paused`, `blocked`, or
   `ready_for_review`, and roles such as backlog or review work.
@@ -38,13 +40,16 @@ Core contract:
   updates the Goal when alignment drifts, and sends corrections without taking
   over implementation.
 - When the user asks for text to set as an Agent Goal, write a short Goal
-  wrapper that orders the agent to read the Goal file before continuing.
+  wrapper that uses file references for `current.md`, and also `supervisor.md`
+  when present. Use the fixed wrapper templates in
+  `references/loop-off-loop.md`; do not freestyle equivalent prose.
 
 Minimal workflow:
 
 1. Choose or create a goal path, usually `.bagakit/goal/<goal-id>.md` plus
-   `.bagakit/goal/current.md`, `.bagakit/goal/state.yaml`, and
-   `.bagakit/goal/archive/`, or a user-supplied pasted text file reference.
+   `.bagakit/goal/current.md`, `.bagakit/goal/state.yaml`, optional
+   `.bagakit/goal/supervisor.md`, and `.bagakit/goal/archive/`, or a
+   user-supplied pasted text file reference.
    Durable Goal files default to the target project's `.bagakit/goal/`, not the
    installed skill directory or a global agent directory.
 2. Read `current.md`, `state.yaml`, the foreground Goal, and all indexed owner
@@ -64,8 +69,8 @@ Read references only when needed:
   placement rules, Goal wrapper, and template.
 - `references/tool-orchestration.md`: Team mode, Grok sidecar, OpenSpec,
   Brainstorm, Feature Tracker, Flow Runner, and related surfaces.
-- `references/loop-off-loop.md`: supervisor loop, drift classes, and packet
-  semantics.
+- `references/loop-off-loop.md`: supervisor.md contract, Goal or Loop command
+  invocation wrappers, drift classes, and packet semantics.
 - `references/design-origin.md`: original user discussion, FAQ, and design
   rationale for evolving this skill.
 - `references/frontdoor-rule.toml`: project frontdoor declaration.
