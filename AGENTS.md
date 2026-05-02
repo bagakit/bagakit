@@ -92,6 +92,16 @@ Default rule:
 2. otherwise use logical names or environment variables
 3. do not encode machine-local paths into durable project text
 
+## Temporary Artifact Rule
+
+Ad hoc temporary files and directories belong under `.tmp/` by default.
+Use an owned runtime/cache surface only when that surface is declared by
+`surface.toml`; do not create new root scratch directories or generated
+directories inside installable skill payloads.
+
+Detailed local artifact rules live in
+`docs/specs/runtime-surface-contract.md`.
+
 ## AGENTS Context Rule
 
 Keep `AGENTS.md` short.
@@ -108,6 +118,8 @@ Current core references:
 - document placement and authority:
   - `docs/specs/document-surface-rules.md`
 - runtime-surface ownership and local root protocol:
+  - `docs/specs/runtime-surface-contract.md`
+- ad hoc temporary artifact hygiene:
   - `docs/specs/runtime-surface-contract.md`
 - all-skills frontdoor index contract:
   - `docs/specs/frontdoor-index-contract.md`

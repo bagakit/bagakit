@@ -1,6 +1,7 @@
 # Keep local scratch files out of commits.
 *.swp
 *.tmp
+.tmp/
 .DS_Store
 # Ignore first-level docs-local scratch directories.
 docs/.*/

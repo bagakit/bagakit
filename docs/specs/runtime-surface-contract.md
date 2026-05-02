@@ -12,6 +12,7 @@ It is the SSOT for:
 - the rule that `.bagakit/` runtime state is private by default and may be
   ignored by host repositories
 - lifecycle and edit-policy vocabulary for Bagakit-owned local state
+- the default scratch-root rule for ad hoc temporary artifacts
 - when `README.md` and path-local `AGENTS.md` belong inside one runtime root
 - what canonical skill docs must declare about runtime-surface ownership
 
@@ -141,6 +142,37 @@ Rules:
 - root-adjacent protocol files under `.bagakit/` are local runtime/config
   surfaces by default; their absence must fall back to the owning contract's
   documented defaults unless the host explicitly requires local configuration
+
+## Ad Hoc Temporary Artifacts
+
+Use `.tmp/` as the fixed repo-local scratch root for ad hoc temporary output
+that is not owned by a declared runtime surface, eval results surface,
+distribution artifact, or preview artifact.
+
+Rules:
+
+- write scratch material under `.tmp/<tool-or-task>/`
+- do not create new top-level scratch roots such as `tmp/`, `temp/`,
+  `.dist-*`, or `dist_local*`
+- do not put generated scratch directories such as `.tmp/`, `tmp/`, `dist/`,
+  `build/`, `node_modules/`, or `__pycache__/` inside installable skill
+  directories
+- prefer the operating-system temp directory for isolated automated tests that
+  do not need repo-relative inspection
+- use `.tmp/` for smoke, probe, compare, or review-pack output unless the
+  command is intentionally producing a release or preview artifact
+- clean `.tmp/` outputs when they are no longer needed, and promote reviewed
+  conclusions to the owning public surface instead of keeping them as scratch
+  evidence
+
+`.bagakit/tmp/` is a Bagakit-owned cache surface. It is cleanup-safe, but it is
+not the default ad hoc scratch drawer for unrelated tools.
+
+`dist/` and `site/` are explicit generated projection outputs. They may be
+created by packaging or local preview commands, but default validation and
+agent-driven checks should use `.tmp/` unless the task is specifically to
+produce those artifacts. Do not leave generated projection outputs in the
+steady-state root after a check-only task.
 
 ## Materialization Rule
 

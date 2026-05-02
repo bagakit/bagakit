@@ -38,7 +38,7 @@ EOF
 done
 
 ROOT="$(cd "$ROOT" && pwd)"
-TMP_DIR="$ROOT/.bagakit/package-smoke"
+TMP_DIR="$ROOT/.tmp/package-smoke"
 mkdir -p "$(dirname "$TMP_DIR")"
 
 bash "$ROOT/scripts/skill.sh" distribute-package --dist "$TMP_DIR" --selector all --json > "$TMP_DIR.json"

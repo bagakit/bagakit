@@ -222,8 +222,8 @@ Naming principle:
 - packaging must not depend on delivery-profile metadata
 
 Recommended checks:
-- `make package-one SELECTOR=<family/skill-id> DIST_DIR=.dist-check` should
-  always produce `.dist-check/<family>/<skill>.skill`
+- `make package-one SELECTOR=<family/skill-id> DIST_DIR=.tmp/package-check`
+  should always produce `.tmp/package-check/<family>/<skill>.skill`
 - the repo packager should not require per-skill manifest files to reconstruct
   payload
 

@@ -89,6 +89,7 @@ required_files = [
   "gate_validation/backbone/check-canonical-packaging.sh",
   "gate_validation/backbone/check-canonical-skill-layout.sh",
   "gate_validation/backbone/check-frontdoor-contract.sh",
+  "gate_validation/backbone/check-local-artifact-hygiene.py",
   "gate_validation/backbone/check-runtime-control-chain.py",
   "gate_validation/backbone/check-runtime-surface-contract.py",
   "gate_validation/backbone/check-validation-proof-discipline.py",
@@ -167,6 +168,29 @@ forbidden_paths = [
   "gate_eval/dev/skill_ops",
   "gate_validation/dev/skill",
   "gate_validation/dev/skill_ops",
+]
+
+[[suite]]
+id = "local-artifact-hygiene"
+owner = "gate_validation/backbone"
+description = "Keep ad hoc temporary output and generated scratch directories out of steady-state repo roots and skill payloads."
+default = true
+proof_mode = "structural"
+protects = ["canonical root directory hygiene and installable skill payload boundaries"]
+oracle = ["repo-owned checker rejects unexpected top-level scratch roots and generated directories inside skills/"]
+exercised_surface = ["repository root directory names", "skills/ installable payload subtrees", "docs/specs/runtime-surface-contract.md"]
+proves = ["local-artifact-hygiene proves: ad hoc temporary output and generated scratch directories are absent from steady-state root and installable skill payloads."]
+does_not_prove = ["local-artifact-hygiene does not prove runtime behavior, generated artifact content, or whether ignored local state outside the checked boundaries is safe to delete."]
+timeout_seconds = 60
+validation_class = "structure"
+groups = ["repo", "backbone", "structure", "hygiene"]
+
+[suite.runner]
+kind = "python_script"
+script = "gate_validation/backbone/check-local-artifact-hygiene.py"
+args = [
+  "--root",
+  "{repo_root}",
 ]
 
 [[suite]]

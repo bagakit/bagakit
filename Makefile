@@ -24,7 +24,7 @@ help:
 	@echo "  make update-link DEST=<dir> [SELECTOR=all]                # force-refresh explicit link target"
 	@echo "  make package-all [DIST_DIR=...]         # write .skill archives for discovered installable skill sources"
 	@echo "  make package-one SELECTOR=<selector>    # write .skill archives for one selector"
-	@echo "  make clean                       # remove dist/"
+	@echo "  make clean                       # remove generated local artifacts"
 
 install-global:
 	@cd "$(ROOT)" && bash scripts/skill.sh install --selector "$(INSTALL_SELECTOR)" --scope global
@@ -86,4 +86,4 @@ validate-repo:
 	cd scripts && bash gate.sh validate
 
 clean:
-	rm -rf dist
+	rm -rf .tmp dist dist_* .dist-* site tmp
