@@ -1,0 +1,7 @@
+version = 1
+skill = "bagakit-set-loop-goal"
+trigger = "A long-running agent task needs a high-quality Goal file that can survive restart, compact, handoff, sidecar analysis, or loop supervision."
+do = "Create or update a compact Goal control file, route details into owning planning/spec/research/runner surfaces, and preserve enough state for a fresh executor to continue safely."
+see = "skills/harness/bagakit-set-loop-goal/SKILL.md"
+surface = ".bagakit/goal/current and .bagakit/goal/<goal-id>.md"
+fallback = "If the target itself is still unclear, use bagakit-spark first; if execution truth is missing, use the owning planning or runner skill before writing a control-plane Goal."

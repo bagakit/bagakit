@@ -14,6 +14,7 @@ Current harness skill sources:
 - `bagakit-grill`
 - `bagakit-living-knowledge`
 - `bagakit-researcher`
+- `bagakit-set-loop-goal`
 - `bagakit-spark`
 - `bagakit-skill-selector`
 - `bagakit-skill-evolver`
