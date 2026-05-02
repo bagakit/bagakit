@@ -59,29 +59,27 @@ adapt to the project:
    - strongest reference source and intent class:
      `exact`, `style_reference`, `asset`, `content_context`, or `data_context`
 3. `reference-provenance-ledger` and `reference-survey-ledger`
-   - source class, comparison tier, and non-substitution constraints
+   - source class, comparison tier, archetype route, and non-substitution constraints
 4. `image-prompt` and `design-reference`
-   - required when no stronger reference exists; Image2 design generation is
-     mandatory before coding unless unavailable, in which case the missing
-     image is a blocker handoff
+   - required when no stronger reference exists; missing Image2 output is a blocker handoff
 5. `state-reference-set`
    - default, selected, search/filter, empty/error, modal, disabled, responsive
 6. `visual-decomposition`, optional design-core packet, and design-draft passes
    - page frame, regions, typography, palette, material, component treatment,
      information compression, surface composition, density, copy/icon budget,
-     hierarchy, and signature details
+     semantic visual ownership, hierarchy, and signature details
 7. `design-spec-ledger`
-   - concrete grid, spacing, type, control, material, and state tokens
+   - visual-system source of truth for grid, type, color, hierarchy, control,
+     material, density, motion, brand tone, and state tokens
 8. `asset-requirement-pass` and `asset-generation-ledger`
    - required when CSS alone cannot carry texture, masks, glyphs, or craft
 9. `ambition-bar`
-   - required for high-craft work; names the reference tier,
-     product-specific delight moment, signature detail, and anti-generic risks
+   - required for high-craft work; names the reference tier, delight moment, signature detail, and anti-generic risks
 10. `information-architecture-map`, `workflow-model`,
-    `control-surface-map`, and `interaction-model`
+    `control-surface-map`, `interaction-model`, `interaction-intuition-pass`, and `mobile-interaction-plan`
    - required for interactive pages before implementation
-11. `capability-route`
-   - stack and libraries matched to graph, search, editing, canvas, or 3D
+11. `frontend-architecture-plan`, `component-source-ledger`, and `capability-route`
+   - host stack, component structure, source decisions, and libraries matched to graph, search, editing, canvas, or 3D
 12. implementation and browser loop
    - run, capture screenshots, exercise interactions, and iterate
 13. completion ledgers
@@ -169,6 +167,8 @@ Before final handoff, verify:
   agent-authored browser page is not reference authority
 - `design-spec-ledger` exists and the implementation uses its token and
   geometry standards instead of ad hoc visual guesses
+- product-like, high-craft, component-heavy, or content-heavy pages account for semantic visual ownership before implementation
+- interactive or componentized work has a frontend architecture plan, component source decisions, interaction-intuition pass, and mobile interaction plan when required
 - required material assets exist and `material-parity-checklist` has no
   unresolved blocker when CSS-only rendering cannot carry the reference craft
 - no implementation began from text alone or from an agent-authored HTML
@@ -211,8 +211,7 @@ Before final handoff, verify:
   `references/review-packet-template.md` with visual counterevidence,
   accepted deviations, reviewer ownership, and merge verdict
 
-Read `references/visual-quality-rubric.md` for visual scoring, judge
-aggregation, parity ratings, and blocker rules. Read
+Read `references/visual-quality-rubric.md` for scoring and blockers. Read
 `references/artifact-contract.md` for artifact names and handoff shape.
 
 ## Failure Learning
@@ -253,6 +252,8 @@ Load the relevant reference:
 
 - `references/image-prompt-guide.md` - image2 prompt structure, state boards, reference-drift checks
 - `references/implementation-loop.md` - stack choice, workflow/control gates, affordance evidence, canvas stability, browser loop
+- `references/frontend-architecture.md` - component tree, state/data ownership, file/style organization, token integration
+- `references/design-archetypes.md` - archetype router and reference comparison targets
 - `references/asset-pipeline.md` - generated asset roles and slice/mask/crop
 - `references/visual-quality-rubric.md` - aesthetic review, parity rating, judge scoring, blockers
 - `references/artifact-contract.md` - artifact names, blocking artifacts, final handoff format

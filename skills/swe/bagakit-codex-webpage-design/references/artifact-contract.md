@@ -31,6 +31,9 @@ Files:
   - reference image reading: page frame, region proportions, toolbar,
     navigation, focal object, typography, palette, materials, component shapes,
     spacing rhythm, and signature details
+- `semantic-visual-map.md`
+  - major visual regions mapped to the user question, object, state, action,
+    risk, visual expression, and merge/demote decision each region owns
 - `information-compression-pass.md`
   - core concept model, duplicate concepts or claims, redundant modules,
     merged/removed/demoted surfaces, and the final object-state-action-next-step
@@ -46,9 +49,10 @@ Files:
   - copy budget, icon/control semantics, required labels, removable explanation
     text, status/count/grouping cues, and visual-noise risks
 - `design-spec-ledger.md`
-  - implementable tokens and geometry inferred from the reference: page grid,
-    spacing scale, typography scale, color/material tokens, control sizes,
-    component density, state treatments, and accepted uncertainty
+  - token and visual-system source of truth inferred from the reference:
+    typography, color palette, spacing, hierarchy, borders/elevation/radius,
+    state styling, density, motion, brand tone, page grid, control geometry,
+    component density, and accepted uncertainty
 - `design-core-plan-review.md`
   - concrete design plan review that maps packet tone and design rules into
     CSS tokens, assets, component geometry, states, and responsive behavior
@@ -102,9 +106,25 @@ Files:
 - `interaction-model.md`
   - user goals, task flow, core objects, object states, feedback, and
     accessibility expectations for non-static pages
+- `interaction-intuition-pass.md`
+  - first action discoverability, status visibility, convention fit, control
+    ownership, feedback, reversibility, error prevention, recovery paths,
+    keyboard behavior, and touch alternatives before implementation
+- `mobile-interaction-plan.md`
+  - navigation adaptation, tab/drawer/sheet ownership, target size, gesture
+    alternatives, primary action placement, visualization fallback, selected
+    states, and mobile evidence plan for dense or interactive pages
 - `capability-route.md`
   - stack and library choices mapped to required effects such as graph,
     search, charting, rich text, animation, canvas, or 3D
+- `frontend-architecture-plan.md`
+  - component hierarchy, repeated data structures, state ownership, file/style
+    organization, shared token usage, and post-parity refactor targets before
+    code; simple static pages may record `not_needed_simple_static_page`
+- `component-source-ledger.md`
+  - source status for major components and widgets: `host_component`,
+    `accessible_primitive`, `domain_library`, `custom_reference_craft`,
+    `custom_simple`, or `blocked`, with rationale and owner
 - `affordance-inventory.md`
   - every visible interactive affordance classified exactly once as `working`,
     `disabled`, `hidden`, or `explicitly_out_of_scope`
@@ -210,12 +230,15 @@ For skill-quality experiments, `blocked_no_reference` means the experiment is
 `invalid_no_reference`, not a partial implementation score. Stop before app
 implementation and preserve the prompt, retry evidence, and blocker handoff.
 
-`design-spec-ledger.md` must be concrete enough to implement from: page grid,
-spacing scale, typography scale, color/material tokens, control geometry,
-component density, and state treatment. If the implementation uses scattered
-one-off CSS values instead of the ledger's tokens or constants, code quality
-and visual parity remain incomplete. When review changes a standard, update
-the ledger first so the design source of truth does not drift.
+`design-spec-ledger.md` must be concrete enough to implement from and is the
+token and visual-system source of truth. It must cover typography, color
+palette, spacing, hierarchy, borders/elevation/radius, state styling, density,
+motion, brand tone, page grid, control geometry, component density, and accepted
+uncertainty. Do not create a separate `visual-system-ledger.md`; strengthen this
+ledger instead. If the implementation uses scattered one-off CSS values instead
+of the ledger's variables, tokens, or constants, code quality and visual parity
+remain incomplete. When review changes a standard, update the ledger first so
+the design source of truth does not drift.
 
 `asset-requirement-pass.md` is blocking for high-craft references whose visual
 quality depends on non-geometric material details: grain, worn paper, fabric,
@@ -306,10 +329,19 @@ baseline.
 
 For complex product pages and non-static pages,
 `information-architecture-map.md`, `workflow-model.md`,
-`control-surface-map.md`, `interaction-model.md`, and the capability route are
-also blocking artifacts. Do not implement a graph, editor, search experience,
-workflow surface, chart, map, animation-heavy page, canvas, WebGL, or 3D
-experience from a static reference alone.
+`control-surface-map.md`, `interaction-model.md`, `interaction-intuition-pass.md`,
+`mobile-interaction-plan.md`, `frontend-architecture-plan.md`,
+`component-source-ledger.md`, and the capability route are also blocking
+artifacts. Do not implement a graph, editor, search experience, workflow
+surface, chart, map, animation-heavy page, canvas, WebGL, or 3D experience from
+a static reference alone.
+
+For product-like, content-heavy, and high-craft pages, `semantic-visual-map.md`
+must assign a semantic job to each major visual region before implementation.
+Each region should state the user question it answers, the object/state/action
+or risk it represents, the visual expression it uses, and whether overlapping
+regions were merged, demoted, or removed. Simple one-message pages may satisfy
+this through `visual-decomposition.md` and `copy-icon-budget.md`.
 
 `information-architecture-map.md` must define the product's object model before
 visual implementation: primary and secondary objects, metadata, evidence
@@ -339,6 +371,31 @@ For responsive tabs, drawers, sheets, and segmented controls, each selected
 state must expose distinct owner content or a distinct workflow scope. If two
 tabs render the same panel, they are duplicate controls and must be merged,
 removed, or re-scoped before completion.
+
+`interaction-intuition-pass.md` must make the first plausible action testable
+before implementation. It should connect workflow, control ownership, status,
+feedback, reversibility, error prevention, recovery, keyboard behavior, and
+touch alternatives to browser evidence. Purely static pages may record
+`not_needed_simple_static_page`.
+
+`mobile-interaction-plan.md` is blocking before code for interactive, dense,
+spatial, editor, dashboard, or commerce surfaces. It must choose mobile
+navigation, drawer/sheet/tab ownership, target sizes, gesture alternatives,
+primary action placement, visualization fallback, and selected-state evidence
+before screenshots expose late mobile failures. Simple static pages may record
+responsive typography and content order instead of a separate plan.
+
+`frontend-architecture-plan.md` must be written before code for componentized or
+stateful work. It should name component hierarchy, repeated data structures,
+state ownership, file/style organization, shared token usage from
+`design-spec-ledger.md`, and post-parity refactor targets. Simple static pages
+may record `not_needed_simple_static_page`.
+
+`component-source-ledger.md` must prefer host components first, mature
+accessible primitives for common widgets, domain libraries for complex tables,
+graphs, editors, maps, and gestures, and custom components only when reference
+craft, host constraints, or simple low-risk behavior justify them. A `blocked`
+source status must stop implementation or narrow the scope before coding.
 
 For graph, map, timeline, and other spatial views, screenshot review must
 inspect labels and ownership cues. Passing node selection or final-state
@@ -507,6 +564,7 @@ pass status.
 - Reference provenance: <external_strong|image2_filesystem|browser_exploration_only|blocked_no_reference and ref>
 - Reference survey ledger: <ref or not_needed_stronger_reference_low_craft>
 - Visual decomposition: <ref>
+- Semantic visual map: <ref or not_needed_simple_page>
 - Information compression pass: <ref or not_needed_simple_page>
 - Surface composition pass: <ref or not_needed_low_craft>
 - Density budget: <ref or not_needed_simple_page>
@@ -519,7 +577,11 @@ pass status.
 - Workflow model: <ref or not_needed_static_page>
 - Control surface map: <ref or not_needed_static_page>
 - Interaction model: <ref or not_needed_static_page>
+- Interaction intuition pass: <ref or not_needed_simple_static_page>
+- Mobile interaction plan: <ref or not_needed_simple_static_page>
 - Capability route: <ref or not_needed_static_page>
+- Frontend architecture plan: <ref or not_needed_simple_static_page>
+- Component source ledger: <ref or not_needed_simple_static_page>
 - Affordance inventory: <ref or not_needed_static_page>
 - Behavior matrix: <ref or not_needed_static_page>
 - Visual bug ledger: <ref and blocker count>
@@ -544,11 +606,15 @@ pass status.
 - console/runtime: <result>
 - interaction/state parity: <ref or not_needed_static_page>
 - browser check results: <ref with interaction/console/overflow result>
+- visual-system token integrity: <passed|partial|blocked with evidence ref>
 - information architecture review: <passed|partial|blocked|not_applicable with evidence ref>
+- semantic visual review: <passed|partial|blocked|not_applicable with evidence ref>
 - workflow legibility: <passed|partial|blocked|not_applicable with evidence ref>
 - control surface review: <passed|partial|blocked|not_applicable with evidence ref>
+- interaction intuition review: <passed|partial|blocked|not_applicable with evidence ref>
 - required interactions: <passed|partial|not_applicable with evidence ref>
 - affordance behavior: <passed|partial|not_applicable with evidence ref>
+- mobile interaction plan: <passed|partial|blocked|not_applicable with evidence ref>
 - canvas stability: <passed|partial|not_applicable with evidence ref>
 - motion-frame stability: <passed|partial|blocked|not_applicable with evidence ref>
 - mobile touch/mode entry: <passed|partial|blocked|not_applicable with evidence ref>
@@ -559,6 +625,8 @@ pass status.
 - micro-parity scan: <passed|partial|blocked with evidence ref>
 - material parity scan: <passed|partial|blocked|not_needed with evidence ref>
 - asset pipeline integrity: <passed|partial|blocked|not_needed with role/crop/alpha/slice/responsive refs>
+- frontend architecture review: <passed|partial|blocked|not_applicable with evidence ref>
+- component source review: <passed|partial|blocked|not_applicable with evidence ref>
 - code quality review: <ref>
 - parity rating: <match|acceptable_delta|needs_iteration>
 - side-by-side ledger: <ref>

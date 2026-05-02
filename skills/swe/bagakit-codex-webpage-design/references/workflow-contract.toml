@@ -8,6 +8,8 @@ skill = "SKILL.md"
 required_reference_links = [
   "references/image-prompt-guide.md",
   "references/implementation-loop.md",
+  "references/frontend-architecture.md",
+  "references/design-archetypes.md",
   "references/asset-pipeline.md",
   "references/visual-quality-rubric.md",
   "references/artifact-contract.md",
@@ -161,6 +163,36 @@ id = "interaction-model"
 phase = "before_implementation"
 artifact = "interaction-model.md"
 required_when = "interactive page"
+
+[[stage]]
+id = "frontend-architecture-plan"
+phase = "before_implementation"
+artifact = "frontend-architecture-plan.md"
+required_when = "interactive, product-like, component-heavy, responsive, or stateful page"
+
+[[stage]]
+id = "component-source-ledger"
+phase = "before_implementation"
+artifact = "component-source-ledger.md"
+required_when = "implementation uses generated, adapted, library, or custom reusable UI components"
+
+[[stage]]
+id = "interaction-intuition-pass"
+phase = "before_implementation"
+artifact = "interaction-intuition-pass.md"
+required_when = "interactive page"
+
+[[stage]]
+id = "semantic-visual-map"
+phase = "before_implementation"
+artifact = "semantic-visual-map.md"
+required_when = "product-like, high-craft, dashboard, workspace, or component-heavy page"
+
+[[stage]]
+id = "mobile-interaction-plan"
+phase = "before_implementation"
+artifact = "mobile-interaction-plan.md"
+required_when = "responsive page has interactive controls, mode switches, drawers, gestures, spatial surfaces, or primary actions"
 
 [[stage]]
 id = "capability-route"
@@ -385,6 +417,21 @@ protects = "complex product screens must expose object taxonomy, region ownershi
 proof_surface = "information-architecture-map"
 
 [[guard]]
+id = "frontend-architecture-before-code"
+protects = "state, data, layout, and component boundaries must be planned before code edits create brittle one-off UI"
+proof_surface = "frontend-architecture-plan plus information-architecture-map plus capability-route"
+
+[[guard]]
+id = "component-source-discipline"
+protects = "generated, adapted, library, and custom components must record source class, owner, allowed modification, and replacement rule before use"
+proof_surface = "component-source-ledger plus frontend-architecture-plan plus code-quality-review"
+
+[[guard]]
+id = "archetype-reference-fit"
+protects = "selected page or product archetype must fit the reference intent and workflow instead of forcing a generic dashboard, landing page, or tool shell"
+proof_surface = "reference-intent plus information-architecture-map plus frontend-architecture-plan"
+
+[[guard]]
 id = "information-compression"
 protects = "design drafts must integrate duplicate concepts, repeated claims, and redundant modules into one clear object-flow model"
 proof_surface = "information-compression-pass plus information-architecture-map plus workflow-model"
@@ -403,6 +450,16 @@ proof_surface = "density-budget plus micro-parity-checklist plus full-page-struc
 id = "copy-icon-economy"
 protects = "design drafts must reduce explanatory copy and visual noise by using icons, status, counts, grouping, and labels with clear semantic ownership"
 proof_surface = "copy-icon-budget plus control-surface-map plus micro-parity-checklist"
+
+[[guard]]
+id = "interaction-intuition"
+protects = "planned interactions must match what users would try from visible affordances, feedback, state changes, and recovery paths"
+proof_surface = "interaction-intuition-pass plus interaction-model plus behavior-matrix"
+
+[[guard]]
+id = "semantic-visual-ownership"
+protects = "visual emphasis, icons, color, density, and material treatment must map to product semantics instead of decoration"
+proof_surface = "semantic-visual-map plus copy-icon-budget plus design-spec-ledger"
 
 [[guard]]
 id = "motion-frame-stability"
@@ -438,6 +495,11 @@ proof_surface = "ambition-bar plus judge-aggregation"
 id = "design-spec-fidelity"
 protects = "micro details must be derived from concrete tokens and geometry, not ad hoc guesses"
 proof_surface = "design-spec-ledger plus micro-parity-checklist"
+
+[[guard]]
+id = "visual-system-token-integrity"
+protects = "CSS tokens, component variants, and state styles must preserve the design spec ledger instead of drifting into scattered one-off values"
+proof_surface = "design-spec-ledger plus frontend-architecture-plan plus code-quality-review"
 
 [[guard]]
 id = "material-asset-parity"
@@ -478,6 +540,11 @@ proof_surface = "state-reference-set plus material-parity-checklist plus desktop
 id = "mobile-spatial-adaptation"
 protects = "dense board, graph, pin-wall, map, and timeline surfaces must use an intentional mobile adaptation rather than a shrunken unreadable desktop layout"
 proof_surface = "state-reference-set plus full-page-structural-parity-ledger plus mobile screenshots"
+
+[[guard]]
+id = "mobile-interaction-before-code"
+protects = "mobile touch, mode, drawer, gesture, and primary-action behavior must be planned before responsive code compresses desktop controls"
+proof_surface = "mobile-interaction-plan plus state-reference-set plus interaction-model"
 
 [[guard]]
 id = "implementation-checkpoint"

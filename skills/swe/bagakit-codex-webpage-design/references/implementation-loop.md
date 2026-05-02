@@ -57,6 +57,13 @@ and signature craft. Image2 can synthesize a direction from this survey, but it
 does not replace the survey. If comparable references cannot be found, record
 the search gap and lower confidence instead of inventing a design tier.
 
+The survey should name the closest page archetype, such as editorial,
+workbench, dashboard, studio/editor, map/atlas, catalog/commerce,
+document/reader, or command center. Use the archetype to choose relevant
+comparison norms for density, navigation, controls, interaction, and mobile
+behavior, but do not let it override a user-provided exact reference or design
+authority.
+
 ## Design Core Composition Gate
 
 If `bagakit-design-core` was selected by selector preflight, or a
@@ -160,8 +167,17 @@ Record concrete standards for:
   badge shape, table or feed density, and repeated module spacing
 - state treatment: hover, selected, active, disabled, focus, loading, empty,
   pressed, modal/drawer, and responsive variants
+- motion and transition tokens: duration, easing, affordance feedback,
+  reduced-motion fallback, and which motion claims need browser proof
 - accepted uncertainty: details that cannot be measured exactly from the
   reference and the conservative web-safe value chosen
+
+Treat the ledger as the visual-system and token source of truth before CSS.
+For repeated UI or high-craft work, the ledger must name typography, color,
+spacing, hierarchy, border, elevation, radius, state, density, motion, and brand
+tone decisions before implementation uses them. Low-risk static sketches may
+record a smaller token set, but repeated components should still consume shared
+variables, theme tokens, component props, or equivalent constants.
 
 Use the ledger while implementing. Define CSS variables, theme tokens,
 component props, or equivalent constants from it before styling repeated UI.
@@ -289,6 +305,28 @@ between them, which region owns each decision, and why the next action matters.
 If the surface could be replaced by a nice static dashboard without losing the
 test, mark the run as `smoke_test`, not proof of product-MVP capability.
 
+## Semantic Visual Ownership Gate
+
+Before implementation, write or inspect `semantic-visual-map.md` for
+product-like, content-heavy, workspace, dashboard, editor, commerce, or
+high-craft pages. For a simple static page, record
+`not_needed_simple_static_page` when the visual-decomposition and copy-icon
+budget already make the message, hierarchy, and content order clear.
+
+For every major region, record:
+
+- user question answered by the region
+- object, state, action, or risk represented there
+- visual expression used: layout, type, icon, color, material, motion, image,
+  chart, or control treatment
+- semantic owner of repeated icons, colors, badges, cards, and status marks
+- duplicate decision: keep with different scope, mirror with shared state,
+  merge, demote, or remove
+
+Decorative icons, repeated panels, and redundant copy are blockers when they
+make the product flow less legible. A visual region should earn its space by
+owning a distinct semantic job, not only by matching a polished composition.
+
 ## Product Workflow Gate
 
 Before implementation, write or inspect `workflow-model.md` for interactive
@@ -331,6 +369,63 @@ workflow value. Otherwise remove, merge, or restyle one before visual judging.
    tooling, or repeated browser iteration matter.
 
 Do not add a heavy framework only to render a static design.
+
+## Frontend Architecture Gate
+
+Before coding, write or inspect `frontend-architecture-plan.md` unless the
+page qualifies for `not_needed_simple_static_page`. The escape hatch is only
+for simple static pages with no meaningful state ownership, repeated component
+system, or risky interaction surface; it does not waive the design-spec token
+discipline needed to keep the page coherent.
+
+The plan must keep host stack first. Use the existing project stack,
+components, routing, styling, and build conventions before adding a new
+framework, Storybook, or UI library. Static HTML/CSS/JS remains valid when it
+can faithfully implement the reference and interaction scope.
+
+Record:
+
+- stack route and why it is enough for this page
+- page shell and component hierarchy
+- repeated data structures or fixtures that drive repeated UI
+- state ownership: URL, server, local store, component state, DOM state, or
+  static data
+- file and style organization, including the token entrypoint from
+  `design-spec-ledger.md`
+- post-parity refactor targets that should wait until visual behavior is
+  proven
+
+Do not start with pasted one-off markup for repeated UI unless the plan
+classifies the page as `not_needed_simple_static_page` or explains why a small
+custom static composition is the lower-risk implementation.
+
+## Component Source Gate
+
+Before coding, write `component-source-ledger.md` or extend
+`capability-route.md` with component source decisions.
+
+For a page already classified as `not_needed_simple_static_page`, a short
+component source note may classify the surface as `custom_simple` without a
+separate ledger.
+
+Classify each significant component or behavior as:
+
+- `host_component`: existing app, design-system, or framework component
+- `accessible_primitive`: mature primitive for common widgets such as dialog,
+  menu, tabs, select, tooltip, combobox, or disclosure
+- `domain_library`: table, chart, graph, map, editor, canvas, gesture, or
+  animation library chosen for central product behavior
+- `custom_reference_craft`: custom component needed to match reference craft,
+  material, layout, or signature detail
+- `custom_simple`: low-risk custom DOM for simple static or lightly
+  interactive behavior
+- `blocked`: no acceptable source yet
+
+Prefer host components first, then mature accessible primitives for common
+widgets, then domain libraries for complex behavior. Custom components are
+valid when reference craft, host constraints, or simple low-risk behavior
+justify them. Do not force React, Storybook, a component library, or a UI kit
+when the host stack or page scope does not need it.
 
 ## MVP Experiment Gate
 
@@ -376,6 +471,59 @@ not purely static. Include:
 
 For dense information interfaces, use an information-seeking model such as
 overview first, zoom/filter, then details-on-demand.
+
+## Interaction Intuition Gate
+
+Before implementation, write or inspect `interaction-intuition-pass.md` when
+the page is interactive, dense, workflow-oriented, or has any primary action.
+For a purely static page, record `not_needed_simple_static_page` and keep the
+required interaction scope to links, responsive reading order, and accessible
+focus where applicable.
+
+Check:
+
+- first action discoverability in the first viewport or current work region
+- current status visibility: selected object, active mode, progress, pending
+  work, blocked requirements, and completion signal
+- convention fit for tabs, menus, filters, drawers, selection, search, forms,
+  charts, maps, editors, and commit actions
+- control ownership and scope before behavior is implemented
+- feedback, reversibility, undo/reset/clear, error prevention, and recovery
+  paths
+- keyboard behavior and touch alternatives for primary controls
+
+The pass should feed `workflow-model.md`, `control-surface-map.md`,
+`behavior-matrix.md`, and browser evidence. Do not wait until the last
+screenshot to discover that the first action, active mode, or recovery path is
+unclear.
+
+## Mobile Interaction Planning Gate
+
+Before implementation, write or inspect `mobile-interaction-plan.md` for dense,
+interactive, spatial, editor, dashboard, commerce, or workflow pages. Simple
+static pages may record `not_needed_simple_static_page` with responsive
+typography, content order, and link behavior instead of a full mobile
+interaction plan.
+
+Record:
+
+- breakpoint strategy and whether mobile is stacked, tabbed, drawer-based,
+  sheet-based, simplified, or split into alternate views
+- owner for each mobile tab, drawer section, bottom sheet, sticky action,
+  command area, and mode switch
+- target size, reach, focus, keyboard, and safe-area constraints for touch
+  controls
+- gesture alternatives for drag, pan, hover, scrub, multi-select, canvas,
+  graph, map, editor, and chart behavior
+- primary action placement, blocked-action handling, and recovery path
+- visualization fallback for charts, timelines, maps, graphs, waveforms,
+  canvases, tables, and dense evidence strips
+- selected-state evidence needed for mobile screenshots and structured browser
+  checks
+
+Mobile planning is a before-code gate. Desktop implementation may not be
+shrunk into mobile and judged only from final screenshots; screenshots verify
+the plan, they do not replace it.
 
 ## Affordance Inventory Gate
 
@@ -524,47 +672,50 @@ when Playwright interactions pass.
 3. Establish page shell, dimensions, typography scale, and color tokens from
    the ledger.
 4. Establish the ambition-bar signature detail for high-craft work.
-5. Establish the information architecture map for complex product surfaces.
+5. Establish the information architecture map and semantic visual ownership map
+   for complex product surfaces.
 6. Match the decomposed page regions and focal composition.
-7. Implement the workflow model, control surface map, interaction model, and
-   capability route.
-8. Place primary layout blocks and real content.
-9. Implement repeated UI through components, data arrays, and shared tokens.
-10. Integrate media, icons, and signature assets through the asset pipeline.
-11. Add responsive behavior.
-12. Add interactions and states from the state reference set.
-13. Complete the reference coverage matrix, affordance inventory, and behavior
+7. Establish stack selection, frontend architecture plan, component source
+   ledger, and capability route.
+8. Establish the workflow model, control surface map, interaction model,
+   interaction intuition pass, and mobile interaction plan.
+9. Place primary layout blocks and real content.
+10. Implement repeated UI through components, data arrays, and shared tokens.
+11. Integrate media, icons, and signature assets through the asset pipeline.
+12. Add responsive behavior from the mobile interaction plan.
+13. Add interactions and states from the state reference set.
+14. Complete the reference coverage matrix, affordance inventory, and behavior
     matrix.
-14. Run browser screenshot and interaction checks. Save structured interaction,
+15. Run browser screenshot and interaction checks. Save structured interaction,
     console, and overflow results as named artifacts before claiming pass.
-15. Create an implementation checkpoint before long visual iteration: working
+16. Create an implementation checkpoint before long visual iteration: working
     URL, files created, latest screenshot refs, current blocker count, and next
     action. If the run stalls after reference or asset setup, stop with
     `blocked_in_implementation` rather than silently waiting.
-16. Run `full-page-structural-parity-ledger.md` against the reference and the
+17. Run `full-page-structural-parity-ledger.md` against the reference and the
     latest full-page/first-viewport screenshots. Fix high-severity structure
     drift before crop or micro-parity review.
-17. Run a pre-judge information-architecture sanity check: what objects exist,
+18. Run a pre-judge information-architecture sanity check: what objects exist,
     how navigation is organized, which region owns each object/action, and
     whether the user can infer the product model without explanation.
-18. Run a pre-judge interaction-logic sanity check: what does the user do
+19. Run a pre-judge interaction-logic sanity check: what does the user do
     first, what changes next, which control owns each mode, and whether any
     duplicate control is redundant or conflicting.
-19. Run a pre-judge screenshot sanity check. If screenshots visibly contain
+20. Run a pre-judge screenshot sanity check. If screenshots visibly contain
     blocker defects, update the ledgers and keep iterating before using judge
     passes.
-20. Run `material-parity-checklist.md` when assets are required. Check crop
+21. Run `material-parity-checklist.md` when assets are required. Check crop
     manifests, alpha/mask integrity, nine-slice behavior, tiling seams,
     responsive asset behavior, fallback, desktop screenshots, and mobile
     screenshots before visual judging.
-21. Run `micro-parity-checklist.md` against reference crops for topbar,
+22. Run `micro-parity-checklist.md` against reference crops for topbar,
     navigation, primary content, repeated components, controls, and responsive
     states. Fix high-severity spacing, typography, border, shadow, icon, and
     control-geometry mismatches before judge review.
-22. Iterate on visible mismatches, blocker bugs, fake controls, unclear
+23. Iterate on visible mismatches, blocker bugs, fake controls, unclear
     information architecture, unclear workflow, duplicate controls, and
     insufficient ambition.
-23. Refactor after visual parity so the implementation is maintainable rather
+24. Refactor after visual parity so the implementation is maintainable rather
     than a pasted one-off prototype.
 
 ## Browser Loop
@@ -618,6 +769,22 @@ Use Playwright or available browser tools to check:
   checks
 - design spec conformance: live CSS and component tokens still match the
   latest `design-spec-ledger.md`
+- frontend architecture conformance: component hierarchy, repeated data,
+  state ownership, file/style organization, and post-parity refactor targets
+  still match `frontend-architecture-plan.md`, or the page explicitly recorded
+  `not_needed_simple_static_page`
+- component source conformance: host components, accessible primitives, domain
+  libraries, and custom components match `component-source-ledger.md` or the
+  source section of `capability-route.md`
+- semantic visual ownership: major regions, icons, colors, badges, charts, and
+  repeated panels each have one semantic job or are merged, demoted, or removed
+- interaction intuition: first action, current status, active mode, feedback,
+  reversibility, blocked-action recovery, keyboard behavior, and touch
+  alternatives match `interaction-intuition-pass.md`
+- mobile interaction planning: mobile navigation, tabs, drawers, sheets,
+  primary actions, touch targets, gesture alternatives, visualization
+  fallbacks, and selected states match `mobile-interaction-plan.md`; final
+  screenshots alone do not satisfy this gate
 - material asset pipeline: role, crop manifest, alpha/mask semantics,
   nine-slice or patch behavior, selector usage, fallback behavior, density, and
   desktop/mobile responsive behavior are recorded before material parity passes
@@ -659,7 +826,8 @@ Use Playwright or available browser tools to check:
 - obvious visual bugs: overlap, malformed icons, broken assets, inconsistent
   spacing, unreadable text, accidental scrollbars, and layout jumps
 - component/code structure after iteration: duplication, repeated markup,
-  shared tokens, component boundaries, and data-driven repeated UI
+  shared tokens, component boundaries, data-driven repeated UI, and alignment
+  with the frontend architecture plan
 - saved browser check results: interaction, console, overflow, and capture
   status are preserved as named artifacts rather than only described in prose
 - browser result integrity: each `ok: true` interaction records expected versus

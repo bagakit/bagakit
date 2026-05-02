@@ -87,6 +87,13 @@ For interactive pages, add a sixth check:
    - Which comparable references set the bar, and is this design at least as
      strong in information clarity, density, composition, responsive handling,
      material craft, and signature detail?
+   - Which industry archetype applies, such as an operations console,
+     ecommerce detail page, editorial feature, creator tool, spatial canvas, or
+     media viewer, and does the reference meet or exceed that archetype's
+     expected density, navigation, object model, component behavior, and mobile
+     conventions?
+   - If the task has no supplied reference, was a relevant archetype inspected
+     or explicitly ruled out before accepting the generated direction?
 12. Information Economy
    - Are duplicate concepts, repeated claims, repeated panels, and redundant
      controls compressed into one clear object-flow model?
@@ -96,6 +103,8 @@ For interactive pages, add a sixth check:
    - Does the page use planes, material, density, type, contrast, and state to
      organize information instead of looking like a wireframe or outlined-card
      stack?
+   - Can every major visual region name the object, state, decision, or action
+     it owns, rather than existing only as a decorative plane?
 14. Signal Density
    - Are padding, gutters, card internals, row heights, and scroll length
      justified by comprehension rather than decoration?
@@ -129,6 +138,9 @@ Then add implementation checks:
    - Did the implementation derive and use a design spec ledger for grid,
      spacing, typography, control geometry, material tokens, and state
      treatment rather than ad hoc CSS guesses?
+   - Are design tokens treated as the implementation source of truth, with
+     local overrides justified by the ledger instead of silently inventing new
+     values?
 22. Micro-Parity
    - Do cropped details such as button spacing, icon alignment, row density,
      borders, shadows, text leading, dividers, and selected/hover states match
@@ -147,6 +159,9 @@ Then add implementation checks:
 24. Code Craft
    - Are repeated UI structures data-driven and componentized with shared
      tokens, or did visual iteration leave a large brittle one-off component?
+   - Do repeated cards, rows, buttons, tabs, inspectors, media objects, and
+     controls come from owned components or data maps, so later fixes update
+     the repeated visual family instead of one copied instance?
 25. Behavior Proof
    - Do visible interactive affordances actually work in the browser, including
      click selection, search/filter, reset, capture editing, keyboard
@@ -180,6 +195,22 @@ Then add implementation checks:
      unreadable clustering, or ambiguous ownership?
    - Are label placement and truncation reviewed in screenshots, not only by
      DOM existence or final selected state?
+33. Mobile Ergonomics
+   - Do primary mobile controls meet the declared target-size standard, avoid
+     crowding, and stay reachable when navigation collapses into tabs, drawers,
+     bottom sheets, or segmented controls?
+   - Does mobile navigation adapt the information architecture instead of
+     shrinking the desktop layout, and is the selected state proven in
+     screenshots for each mobile mode?
+   - When desktop uses drag, hover, scrub, keyboard shortcuts, or other
+     precision interactions, is there a touch-safe alternative or documented
+     mobile scope decision?
+34. Source And Token Discipline
+   - Can the reviewer trace visual values from reference observation to the
+     `design-spec-ledger.md` token source to component usage without relying on
+     scattered one-off CSS edits?
+   - When implementation diverges from the reference, is the delta recorded in
+     the SSOT artifact rather than hidden in local component code?
 
 For high-craft requests, also ask:
 
@@ -205,6 +236,8 @@ Watch for:
 - repeated rounded cards without information design
 - wireframe-like layouts made of many outlined boxes and divider lines
 - surface treatment that cannot explain which region owns which concept
+- major visual regions that cannot name their semantic job, owned object,
+  current state, decision, or next action
 - duplicate claims, duplicate CTA strips, repeated metric cards, or repeated
   panels that do not create a clearer hierarchy
 - big padding, empty hero space, oversized cards, and long scroll length used
@@ -215,6 +248,9 @@ Watch for:
   object type
 - design drafts created without comparable reference inspection for high-craft
   or no-reference tasks
+- generated or exploratory references accepted while weaker than the relevant
+  industry archetype in density, navigation, component behavior, mobile
+  convention, or object-model clarity
 - generated designs accepted even though they are weaker than the reference set
   in information clarity, density, composition, responsive handling, material
   craft, or signature detail
@@ -224,11 +260,17 @@ Watch for:
   concrete-plan review
 - design-core packet fields copied into Markdown summaries but ignored by the
   actual design spec, CSS tokens, and component decisions
+- `design-spec-ledger.md` treated as an optional note while implementation
+  values live in scattered selectors, inline overrides, or copied component
+  variants
 - stock-like abstract imagery
 - one-note palettes
 - fake dashboard screenshots with unreadable text
 - decorative detail that has no relation to the product or audience
 - mobile text overflow, clipped buttons, or crowded controls
+- mobile layouts that only shrink desktop navigation, hide primary controls,
+  lack touch-safe alternatives for gesture-heavy interactions, or show selected
+  states without screenshot evidence
 - broken or oversized SVG/icons caused by broad CSS selectors
 - default, hover, selected, empty, loading, modal, or error states that look
   unrelated to the reference frame
@@ -258,6 +300,9 @@ Watch for:
   with an unrelated responsive layout without explicit acceptance
 - missing design spec ledger, scattered one-off CSS values, or detail fixes
   that change the implementation without updating the visual SSOT
+- repeated rows, cards, toolbars, tabs, inspectors, media objects, or controls
+  copied by markup instead of owned by a component, data map, or tokenized
+  source
 - material-heavy references rendered only with clean CSS boxes, simple
   gradients, generic noise, or plain borders when the reference's craft depends
   on texture, masks, glyphs, handmade edges, illustrated marks, or overlays
@@ -355,6 +400,12 @@ Never mark `match` or `acceptable_delta` when the required
 An agent-authored HTML/CSS page cannot become visual authority through
 freeze-order evidence, screenshot polish, or independent review.
 
+Never mark `match` or `acceptable_delta` for a generated or exploratory
+reference when the relevant industry archetype was not inspected or explicitly
+ruled out. A generated reference that is weaker than the archetype's expected
+density, navigation, component behavior, mobile convention, or object-model
+clarity remains `needs_iteration` even if it looks polished.
+
 Never mark `acceptable_delta` when the implementation looks like a different
 page from the design reference. A pleasant page, good interaction model,
 appropriate library choice, and clean console do not prove visual parity.
@@ -387,6 +438,11 @@ Never mark `acceptable_delta` when `design-spec-ledger.md` or
 state-board implementation. A whole-page screenshot that "basically feels
 right" does not prove button spacing, control geometry, typography rhythm,
 border/shadow treatment, or repeated-component density.
+
+Never mark `acceptable_delta` when the implementation bypasses the design
+spec or token SSOT. Scattered one-off values, local CSS guesses, component-only
+overrides, or screenshot-driven tweaks must either be promoted into the
+design-spec ledger or recorded as accepted deltas before parity can pass.
 
 Never mark `acceptable_delta` when `material-parity-checklist.md` is missing
 for a high-craft reference whose signature quality depends on generated or
@@ -428,6 +484,11 @@ button padding, inconsistent group gaps, off-center icons, mismatched input
 height, uneven card internals, heavy dividers, or state treatments that do not
 belong to the reference system.
 
+Never mark `acceptable_delta` when repeated visual families are copy-pasted
+without source ownership. Cards, rows, tabs, toolbars, inspectors, media
+objects, and controls should share owned components, data maps, or tokenized
+variants so one repeated family cannot silently drift across instances.
+
 Never mark `acceptable_delta` when required interactions are fake or
 unverified. If a visible control is intentionally non-functional in a
 prototype, document it as out of scope and ensure it is visually non-primary,
@@ -455,6 +516,11 @@ blocked-generation, empty-cart, permission-denied, disconnected, or failed
 states must disable, hide, empty, or explicitly mark stale any dependent
 player, transcript, citation, checkout, editor, queue, graph, or inspector
 surface.
+
+Never mark `acceptable_delta` when major visual regions lack semantic
+ownership. The reviewer should be able to name what each primary region owns:
+object type, state, decision, navigation scope, action scope, or feedback
+responsibility.
 
 Never mark `acceptable_delta` when mobile screenshots show selected tabs,
 drawers, bottom sheets, or segmented controls out of sync with the visible
@@ -506,6 +572,12 @@ Never mark `acceptable_delta` for mobile when mode switches, canvas controls,
 capture controls, or other primary controls are clipped, hidden by overflow, or
 too small for practical touch operation.
 
+Never mark `acceptable_delta` for mobile when the ergonomics plan is missing:
+primary target sizes must be checked against the declared standard, collapsed
+navigation must preserve the IA, gesture-heavy interactions need touch-safe
+alternatives or an explicit scope decision, and each selected mobile mode needs
+screenshot evidence.
+
 Never mark `acceptable_delta` while `visual-bug-ledger` has blocker items.
 
 Never keep a prior `match` or `acceptable_delta` decision after the user
@@ -543,30 +615,38 @@ screenshot-region evidence for these dimensions:
 | craft | Are typography, spacing, contrast, iconography, material, and states clean? |
 | operability | Can the user understand context, status, and next action without hesitation? |
 | reference alignment | Does it preserve layout, proportions, density, materials, component treatment, and signature details? |
+| industry archetype fit | Does the reference and implementation meet or exceed the relevant product archetype's density, navigation, component behavior, mobile convention, and object model? |
 | information architecture | Are object taxonomy, navigation hierarchy, page region responsibilities, and progressive disclosure clear? |
+| semantic ownership | Can each major region name the object, state, decision, navigation scope, action scope, or feedback responsibility it owns? |
 | workflow legibility | What does the user do first, what changes next, and how is completion or progress visible? |
 | control architecture | Does each control group have one clear owner, scope, and non-duplicated purpose? |
 | state quality | Do selected, empty, responsive, disabled, and branch states belong to the same system? |
 | full-page structural parity | Do whole-page screenshots preserve first viewport, section order, region proportions, control placement, primary object layout, and mobile hierarchy? |
 | section frame continuity | For split generated references, do the frames preserve one brand world while varying rhythm and section jobs? |
 | design spec fidelity | Were grid, spacing, type, color, material, control, and state tokens inferred and used consistently? |
+| token fidelity | Do implemented visual values trace back to the `design-spec-ledger.md` token SSOT or to recorded accepted deltas? |
+| component/source discipline | Are repeated UI families owned by components, data maps, or tokenized variants rather than copied markup and local overrides? |
 | micro-parity | Do cropped details match the reference in controls, typography, borders, shadows, density, and icon alignment? |
 | spatial label legibility | Are graph, map, timeline, and spatial labels readable without overlap or ambiguous ownership? |
 | material readability | Are frame specimens and material-backed panels readable in real screenshots, including helper and disabled text? |
 | interaction honesty | Do visible controls work, disable honestly, hide, or become non-primary? |
 | accessibility/actionability | Are labels, focus behavior, keyboard paths, and dragging alternatives acceptable? |
+| mobile ergonomics | Do mobile target sizes, navigation adaptation, selected states, and gesture alternatives remain usable and evidenced in screenshots? |
 | ambition/delight | Does the result contain a product-specific high-craft moment that is useful, memorable, and non-generic? |
 | mvp complexity | For skill experiments, does the task prove a sellable product MVP rather than a toy single page? |
 | motion-frame stability | Does drag/pan remain visually continuous during movement, not only after mouseup? |
 
 Each judge must also list blockers. A blocker is any visible defect that should
 prevent ship or handoff: major layout mismatch, incoherent product identity,
-clipped primary content, unclear information architecture, unclear primary
-workflow, duplicated or conflicting control groups, fake primary control,
-unreadable or inaccessible primary action, missing full-page structural
-parity, missing design-spec evidence, unresolved high-severity micro-parity
-drift, unstable canvas manipulation, or branch state that looks unrelated to
-the system.
+reference weaker than the relevant industry archetype, clipped primary
+content, unclear information architecture, major region without semantic
+ownership, unclear primary workflow, duplicated or conflicting control groups,
+fake primary control, unreadable or inaccessible primary action, missing
+full-page structural parity, missing design-spec evidence, token drift outside
+the SSOT, copy-pasted repeated UI without source ownership, unresolved
+high-severity micro-parity drift, unusable mobile target size or navigation,
+gesture-only primary mobile flow without an alternative, unstable canvas
+manipulation, or branch state that looks unrelated to the system.
 
 Judges should treat screenshots as higher authority than automation summaries.
 If automation says the interaction passes but the screenshot shows overlap,
@@ -623,7 +703,9 @@ Before implementation and after each screenshot pass, review:
 | --- | --- | --- | --- |
 | page frame and region proportions | <match/partial/miss> | <high/medium/low> | <fix/defer> |
 | navigation and toolbar structure | <match/partial/miss> | <high/medium/low> | <fix/defer> |
+| industry archetype fit | <meets/partial/weaker> | <high/medium/low> | <fix/defer> |
 | information architecture | <clear/partial/unclear> | <high/medium/low> | <fix/defer> |
+| semantic region ownership | <clear/partial/unclear> | <high/medium/low> | <fix/defer> |
 | workflow legibility | <clear/partial/unclear> | <high/medium/low> | <fix/defer> |
 | control architecture and duplicate controls | <clear/partial/conflicting> | <high/medium/low> | <fix/defer> |
 | focal object and center composition | <match/partial/miss> | <high/medium/low> | <fix/defer> |
@@ -632,6 +714,7 @@ Before implementation and after each screenshot pass, review:
 | section rhythm and continuity | <coherent/partial/drift/not_applicable> | <high/medium/low> | <fix/defer> |
 | typography hierarchy | <match/partial/miss> | <high/medium/low> | <fix/defer> |
 | design spec and token conformance | <match/partial/miss> | <high/medium/low> | <fix/defer> |
+| token SSOT usage | <traced/partial/scattered> | <high/medium/low> | <fix/defer> |
 | micro-parity details | <match/partial/miss> | <high/medium/low> | <fix/defer> |
 | palette, material, and background | <match/partial/miss> | <high/medium/low> | <fix/defer> |
 | component shape and line treatment | <match/partial/miss> | <high/medium/low> | <fix/defer> |
@@ -644,5 +727,7 @@ Before implementation and after each screenshot pass, review:
 | motion-frame stability | <smooth/partial/flickers/not_applicable> | <high/medium/low> | <fix/defer> |
 | graph/canvas safe zones | <clear/partial/blocked/not_applicable> | <high/medium/low> | <fix/defer> |
 | mobile touch and mode entry | <clear/partial/blocked/not_applicable> | <high/medium/low> | <fix/defer> |
+| mobile target, navigation, and gesture alternatives | <clear/partial/blocked/not_applicable> | <high/medium/low> | <fix/defer> |
 | visual judge aggregation | <pass/needs_iteration/blocked/missing> | <high/medium/low> | <fix/defer> |
 | component/code structure | <clean/partial/brittle> | <high/medium/low> | <fix/defer> |
+| repeated component/source ownership | <owned/partial/copied> | <high/medium/low> | <fix/defer> |
