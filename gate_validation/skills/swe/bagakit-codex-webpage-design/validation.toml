@@ -26,6 +26,8 @@ required_files = [
   "skills/swe/bagakit-codex-webpage-design/SKILL.md",
   "skills/swe/bagakit-codex-webpage-design/references/image-prompt-guide.md",
   "skills/swe/bagakit-codex-webpage-design/references/implementation-loop.md",
+  "skills/swe/bagakit-codex-webpage-design/references/frontend-architecture.md",
+  "skills/swe/bagakit-codex-webpage-design/references/design-archetypes.md",
   "skills/swe/bagakit-codex-webpage-design/references/asset-pipeline.md",
   "skills/swe/bagakit-codex-webpage-design/references/visual-quality-rubric.md",
   "skills/swe/bagakit-codex-webpage-design/references/artifact-contract.md",
