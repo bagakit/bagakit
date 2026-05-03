@@ -32,8 +32,16 @@ name = "route"
 summary = "Run writing-core route foundation and route derivation tools."
 
 [[command]]
+name = "intake"
+summary = "Run writing-core Intake packet validation and Core-veto mapping tools."
+
+[[command]]
 name = "print-review-packet-template"
 summary = "Print the generic writing-core review packet template."
+
+[[command]]
+name = "print-intake-handoff"
+summary = "Print the Intake handoff and Core veto reference."
 
 [[command]]
 name = "print-anti-rationalization-table"

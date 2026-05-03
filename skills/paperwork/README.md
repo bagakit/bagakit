@@ -5,6 +5,10 @@ writing, review, and delivery patterns.
 
 Current canonical skills:
 
+- `bagakit-writing-intake`
+  - L1 intake surface for writing routes, evidence-bound language profile
+    distillation, privacy boundaries, style candidates, Core risk candidates,
+    and handoff packets before drafting or style overlay work
 - `bagakit-writing-core`
   - generic writing route, foundation, structure, evidence, de-AI-tone orchestration,
     prose-mechanics, rewrite-feedback, and review primitives

@@ -11,6 +11,7 @@ from pathlib import Path
 
 
 SKILL_DIR = Path("skills/paperwork/bagakit-writing-core")
+CORE_INTAKE_MARKERS = ["intake_packet", "bagakit-writing-intake", "core_veto"]
 
 
 def run(cmd: list[str], root: Path) -> subprocess.CompletedProcess[str]:
@@ -41,6 +42,80 @@ def load_json(stdout: str, label: str, failures: list[str]) -> dict:
     return payload
 
 
+def read_text(path: Path) -> str:
+    return path.read_text(encoding="utf-8", errors="ignore")
+
+
+def core_text_files(root: Path) -> list[Path]:
+    suffixes = {".md", ".toml", ".json", ".yaml", ".yml", ".sh", ".py"}
+    return sorted(
+        path
+        for path in (root / SKILL_DIR).rglob("*")
+        if path.is_file() and path.suffix.lower() in suffixes
+    )
+
+
+def check_core_intake_adapter(root: Path, cli: Path, failures: list[str]) -> None:
+    files = core_text_files(root)
+    text_by_path = {path: read_text(path) for path in files}
+    skill_text = text_by_path.get(root / SKILL_DIR / "SKILL.md", "")
+    adapter_files = [
+        path
+        for path, text in text_by_path.items()
+        if any(marker in text for marker in CORE_INTAKE_MARKERS)
+    ]
+    command_advertised = "print-intake-handoff" in skill_text
+    if not adapter_files and not command_advertised:
+        print("note: writing-core intake adapter surface not detected; skipping adaptive intake checks")
+        return
+
+    adapter_text = "\n".join(text_by_path[path] for path in adapter_files).lower()
+    required_groups = {
+        "intake packet": [["intake_packet"]],
+        "Core veto": [["core_veto"], ["core", "veto"]],
+        "Intake skill": [["bagakit-writing-intake"]],
+        "semantic/content preservation": [["semantic drift"], ["semantic", "preservation"], ["content preservation"], ["content_regression"]],
+        "evidence loss or insufficiency": [["evidence loss"], ["evidence_insufficient"], ["evidence", "insufficient"], ["evidence architecture"]],
+        "task mismatch": [["task mismatch"], ["task_mismatch"], ["task fitness"]],
+    }
+    for label, alternatives in required_groups.items():
+        require(
+            any(all(token in adapter_text for token in alternative) for alternative in alternatives),
+            f"writing-core intake adapter missing contract signal: {label}",
+            failures,
+        )
+    require("sample_provenance" not in adapter_text, "writing-core adapter must not reference undefined sample_provenance field", failures)
+    require("evidence_ledger" in adapter_text, "writing-core adapter must consume Intake evidence_ledger", failures)
+    require("privacy_boundary" in adapter_text, "writing-core adapter must consume Intake privacy_boundary", failures)
+    require(
+        "rewrite_feedback_rule_candidates" in adapter_text,
+        "writing-core adapter must map Intake rewrite_feedback_rule_candidates to Core validation",
+        failures,
+    )
+
+    require(
+        "personal taste" in adapter_text or "style overlay" in adapter_text,
+        "writing-core intake adapter should keep personal taste/style overlay outside Core ownership",
+        failures,
+    )
+
+    help_proc = run(["bash", str(cli), "--help"], root)
+    help_text = f"{help_proc.stdout}\n{help_proc.stderr}".lower()
+    if "intake" in help_text:
+        validate_proc = run(["bash", str(cli), "validate"], root)
+        require(validate_proc.returncode == 0, "writing-core validate failed after intake adapter surfaced", failures)
+
+    handoff_proc = run(["bash", str(cli), "print-intake-handoff"], root)
+    require(
+        handoff_proc.returncode == 0,
+        "writing-core CLI print-intake-handoff must succeed when adapter surface exists or SKILL advertises it",
+        failures,
+    )
+    handoff_output = f"{handoff_proc.stdout}\n{handoff_proc.stderr}".lower()
+    require("intake_packet" in handoff_output, "writing-core CLI print-intake-handoff missing intake_packet", failures)
+    require("core_veto" in handoff_output, "writing-core CLI print-intake-handoff missing core_veto", failures)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--root", default=".", help="Repository root")
@@ -52,6 +127,7 @@ def main() -> int:
     cli = SKILL_DIR / "scripts/bagakit-writing-core-cli.sh"
     lint_script = SKILL_DIR / "scripts/writing_core_lint.py"
     route_script = SKILL_DIR / "scripts/writing_core_route_tools.py"
+    intake_script = SKILL_DIR / "scripts/writing_core_intake_packet.py"
     review_template = SKILL_DIR / "references/review/REVIEW_PACKET_TEMPLATE.md"
     anti_rationalization = SKILL_DIR / "references/review/ANTI_RATIONALIZATION_TABLE.md"
     de_ai_cli = Path("skills/paperwork/bagakit-writing-de-ai-tone/scripts/bagakit-writing-de-ai-tone-cli.sh")
@@ -64,6 +140,7 @@ def main() -> int:
         cli,
         lint_script,
         route_script,
+        intake_script,
         review_template,
         anti_rationalization,
         Path("skills/paperwork/bagakit-writing-de-ai-tone/references/lexicon.json"),
@@ -119,6 +196,8 @@ def main() -> int:
         "accepted deviation",
     ]:
         require(token in anti_proc.stdout, f"anti-rationalization table missing token: {token}", failures)
+
+    check_core_intake_adapter(root, cli, failures)
 
     tmp_parent = root / ".bagakit" / "tmp"
     tmp_parent.mkdir(parents=True, exist_ok=True)
@@ -222,6 +301,224 @@ def main() -> int:
             "lint fixture should produce a writing signal",
             failures,
         )
+
+        intake_packet = tmp / "intake-packet.json"
+        intake_packet.write_text(
+            json.dumps(
+                {
+                    "intake_packet": {
+                        "packet_version": "0.1",
+                        "task_route": {
+                            "requested_action": "plan a rewrite",
+                            "intake_lane": "rewrite_plan",
+                            "final_prose_requested": False,
+                            "final_prose_owner": "bagakit-writing-core",
+                        },
+                        "audience_channel_genre": {
+                            "audience": "internal technical readers",
+                            "channel": "Feishu doc",
+                            "genre": "research synthesis",
+                            "decision_or_action_expected": "choose rewrite owner",
+                        },
+                        "source_material_state": {
+                            "available_materials": ["draft"],
+                            "missing_materials": [],
+                            "stability": "partial",
+                            "reason": "draft is present but style evidence is thin",
+                        },
+                        "evidence_ledger": [
+                            {
+                                "id": "e1",
+                                "kind": "draft",
+                                "source_scope": "provided_in_task",
+                                "excerpt_or_pointer": "draft paragraph 1",
+                                "supports": ["semantic_drift"],
+                                "confidence": "medium",
+                            }
+                        ],
+                        "privacy_boundary": {
+                            "raw_private_samples_in_packet": False,
+                            "retention_rule": "do_not_store_raw_samples",
+                            "allowed_reuse": "task_only",
+                            "notes": "Use task-local pointers only.",
+                        },
+                        "language_profile": {
+                            "dimensions": [
+                                {
+                                    "name": "opening_move",
+                                    "observation": "Starts with a claim.",
+                                    "candidate_rule": "Start with the decision-relevant claim.",
+                                    "scope": "document",
+                                    "rollback_condition": "Do not apply when context is missing.",
+                                    "evidence_ids": ["e1"],
+                                    "confidence": "medium",
+                                }
+                            ],
+                            "confidence": "medium",
+                            "evidence_ids": ["e1"],
+                        },
+                        "expression_strengths": [],
+                        "expression_frictions": [],
+                        "protected_spans": [],
+                        "style_candidates": [],
+                        "core_risk_candidates": [
+                            {
+                                "risk": "semantic_drift",
+                                "evidence_ids": ["e1"],
+                                "why_core_should_check": "Rewrite may change the claim.",
+                                "confidence": "medium",
+                            }
+                        ],
+                        "rewrite_feedback_rule_candidates": [],
+                        "handoff": {
+                            "next_owner": "bagakit-writing-core",
+                            "owner_reason": "Core should confirm semantic preservation.",
+                            "must_read_refs": ["references/workflow/INTAKE_HANDOFF_AND_CORE_VETO.md"],
+                            "open_questions": [],
+                        },
+                    }
+                },
+                ensure_ascii=False,
+                indent=2,
+            ),
+            encoding="utf-8",
+        )
+        intake_proc = run(["bash", str(cli), "intake", "check-packet", str(intake_packet)], root)
+        require(intake_proc.returncode == 0, f"intake check-packet failed: {intake_proc.stderr}", failures)
+        intake_payload = load_json(intake_proc.stdout, "intake check-packet", failures)
+        require(intake_payload.get("stable") is True, "intake check-packet should mark valid fixture stable", failures)
+        veto_kinds = {str(item.get("vetoKind")) for item in intake_payload.get("coreVetoCandidates", [])}
+        require("content_regression" in veto_kinds, "intake check-packet should map semantic_drift to content_regression", failures)
+
+        broken_packet = tmp / "broken-intake-packet.json"
+        broken_source = json.loads(intake_packet.read_text(encoding="utf-8"))
+        broken_source["intake_packet"]["language_profile"]["evidence_ids"] = ["missing-evidence"]
+        broken_packet.write_text(json.dumps(broken_source, ensure_ascii=False, indent=2), encoding="utf-8")
+        broken_proc = run(["bash", str(cli), "intake", "check-packet", str(broken_packet)], root)
+        require(broken_proc.returncode == 2, "intake check-packet should reject unknown evidence references", failures)
+        broken_payload = load_json(broken_proc.stdout, "broken intake check-packet", failures)
+        require(broken_payload.get("stable") is False, "broken intake check-packet should mark packet unstable", failures)
+        require(
+            broken_payload.get("nextAction") == "repair_intake_packet",
+            "broken intake check-packet should return repair next action",
+            failures,
+        )
+
+        yaml_packet = tmp / "intake-packet.yaml"
+        yaml_packet.write_text(
+            "\n".join(
+                [
+                    "intake_packet:",
+                    "  packet_version: '0.1'",
+                    "  task_route:",
+                    "    requested_action: plan a rewrite",
+                    "    intake_lane: rewrite_plan",
+                    "    final_prose_requested: false",
+                    "    final_prose_owner: bagakit-writing-core",
+                    "  audience_channel_genre:",
+                    "    audience: internal technical readers",
+                    "    channel: Feishu doc",
+                    "    genre: research synthesis",
+                    "    decision_or_action_expected: choose rewrite owner",
+                    "  source_material_state:",
+                    "    available_materials: [draft]",
+                    "    missing_materials: []",
+                    "    stability: partial",
+                    "    reason: draft is present but style evidence is thin",
+                    "  evidence_ledger:",
+                    "    - id: e1",
+                    "      kind: draft",
+                    "      source_scope: provided_in_task",
+                    "      excerpt_or_pointer: draft paragraph 1",
+                    "      supports: [semantic_drift]",
+                    "      confidence: medium",
+                    "  privacy_boundary:",
+                    "    raw_private_samples_in_packet: false",
+                    "    retention_rule: do_not_store_raw_samples",
+                    "    allowed_reuse: task_only",
+                    "    notes: Use task-local pointers only.",
+                    "  language_profile:",
+                    "    dimensions:",
+                    "      - name: opening_move",
+                    "        observation: Starts with a claim.",
+                    "        candidate_rule: Start with the decision-relevant claim.",
+                    "        scope: document",
+                    "        rollback_condition: Do not apply when context is missing.",
+                    "        evidence_ids: [e1]",
+                    "        confidence: medium",
+                    "    confidence: medium",
+                    "    evidence_ids: [e1]",
+                    "  expression_strengths: []",
+                    "  expression_frictions: []",
+                    "  protected_spans: []",
+                    "  style_candidates: []",
+                    "  core_risk_candidates:",
+                    "    - risk: semantic_drift",
+                    "      evidence_ids: [e1]",
+                    "      why_core_should_check: Rewrite may change the claim.",
+                    "      confidence: medium",
+                    "  rewrite_feedback_rule_candidates: []",
+                    "  handoff:",
+                    "    next_owner: bagakit-writing-core",
+                    "    owner_reason: Core should confirm semantic preservation.",
+                    "    must_read_refs: [references/workflow/INTAKE_HANDOFF_AND_CORE_VETO.md]",
+                    "    open_questions: []",
+                    "",
+                ]
+            ),
+            encoding="utf-8",
+        )
+        yaml_proc = run(["bash", str(cli), "intake", "check-packet", str(yaml_packet)], root)
+        require(yaml_proc.returncode == 0, f"intake check-packet should accept YAML packets: {yaml_proc.stderr}", failures)
+        yaml_payload = load_json(yaml_proc.stdout, "YAML intake check-packet", failures)
+        require(yaml_payload.get("stable") is True, "YAML intake check-packet should mark valid fixture stable", failures)
+
+        invalid_packet = tmp / "invalid-intake-packet.json"
+        invalid_source = json.loads(intake_packet.read_text(encoding="utf-8"))
+        invalid = invalid_source["intake_packet"]
+        invalid["source_material_state"]["available_materials"] = [42]
+        invalid["language_profile"]["dimensions"][0]["evidence_ids"] = []
+        invalid["language_profile"]["dimensions"][0]["confidence"] = "certain"
+        invalid["evidence_ledger"][0]["supports"] = [None]
+        invalid["evidence_ledger"][0]["source_scope"] = "guessed"
+        invalid["rewrite_feedback_rule_candidates"] = [
+            {
+                "before_pointer": "draft sentence 1",
+                "after_pointer": "user edit 1",
+                "delta_type": "vibes",
+                "inferred_rule": "Use a sharper verb.",
+                "scope": "document",
+                "rollback_condition": "Do not apply when it changes facts.",
+                "evidence_ids": ["e1"],
+                "confidence": "medium",
+            }
+        ]
+        invalid["style_candidates"] = [
+            {
+                "rule_candidate": "Open with a judgment.",
+                "applies_when": "Synthesis doc",
+                "avoid_when": "Definition-first doc",
+                "evidence_ids": "e1",
+                "confidence": "medium",
+            }
+        ]
+        invalid["handoff"]["must_read_refs"] = [False]
+        invalid_packet.write_text(json.dumps(invalid_source, ensure_ascii=False, indent=2), encoding="utf-8")
+        invalid_proc = run(["bash", str(cli), "intake", "check-packet", str(invalid_packet)], root)
+        require(invalid_proc.returncode == 2, "intake check-packet should reject bad enums, wrong types, and empty evidence refs", failures)
+        invalid_payload = load_json(invalid_proc.stdout, "invalid intake check-packet", failures)
+        invalid_errors = "\n".join(str(item) for item in invalid_payload.get("errors", []))
+        for expected_error in [
+            "source_scope has unsupported value",
+            "source_material_state.available_materials[0] must be a string",
+            "confidence has unsupported value",
+            "evidence_ledger[0].supports[0] must be a string",
+            "evidence_ids must cite at least one evidence id",
+            "delta_type has unsupported value",
+            "style_candidates[0].evidence_ids must be a list",
+            "handoff.must_read_refs[0] must be a string",
+        ]:
+            require(expected_error in invalid_errors, f"invalid packet should report: {expected_error}", failures)
 
     if failures:
         print("writing-core gate failed:")

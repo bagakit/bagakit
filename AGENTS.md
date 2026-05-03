@@ -434,6 +434,12 @@ reporting, the response footer may use:
 - See: `skills/paperwork/bagakit-writing-de-ai-tone/SKILL.md`
 </bagakit-rule>
 
+<bagakit-rule skill="bagakit-writing-intake">
+- Trigger: A writing task needs pre-draft intake, evidence-bound language-profile distillation, rewrite-feedback rule candidates, privacy boundaries, style candidates, or Core risk candidates before Core, de-AI-tone, style overlay, or delivery work.
+- Do: Emit an intake_packet with evidence ledger, privacy boundary, protected spans, style candidates, Core risk candidates, rewrite-feedback rule candidates, and a named next owner; do not produce final prose.
+- See: `skills/paperwork/bagakit-writing-intake/SKILL.md`
+</bagakit-rule>
+
 <bagakit-rule skill="qihan-writing">
 - Trigger: Technical, research, planning, weekly-review, or Feishu-oriented prose needs qihan-style rewriting or drafting.
 - Do: Route through the operating surface matrix before drafting, then apply the writing and review references.

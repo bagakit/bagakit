@@ -1,0 +1,4 @@
+interface:
+  display_name: "Writing Intake"
+  short_description: "Emit evidence-bound writing intake packets."
+  default_prompt: "Use $bagakit-writing-intake to diagnose this writing task, emit an evidence-bound intake_packet, and name the downstream owner before any final prose."

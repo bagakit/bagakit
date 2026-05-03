@@ -47,6 +47,9 @@ Commands:
   lint              Run generic writing-core markdown lint checks.
   de-ai-tone        Run bagakit-writing-de-ai-tone CLI when available.
   route             Run writing-core route foundation and derivation tools.
+  intake            Run writing-core Intake packet checks and Core-veto mapping tools.
+  print-intake-handoff
+                    Print the Intake handoff and Core veto reference.
   print-review-packet-template
                     Print the writing-core review packet template.
   print-anti-rationalization-table
@@ -68,11 +71,13 @@ case "${1:-}" in
     test -f "$skill_root/references/knowledge/PRE_DRAFT_ROUTE_MEMO_TEMPLATE.md"
     test -f "$skill_root/references/writing/AI_SMELLS.md"
     test -f "$skill_root/references/writing/ai-smell-lexicon.json"
+    test -f "$skill_root/references/workflow/INTAKE_HANDOFF_AND_CORE_VETO.md"
     test -f "$skill_root/references/review/QA_HARD_METRICS.md"
     test -f "$skill_root/references/review/ANTI_RATIONALIZATION_TABLE.md"
     test -f "$skill_root/references/review/REVIEW_PACKET_TEMPLATE.md"
     test -f "$skill_root/scripts/writing_core_lint.py"
     test -f "$skill_root/scripts/writing_core_route_tools.py"
+    test -f "$skill_root/scripts/writing_core_intake_packet.py"
     ;;
   lint)
     shift
@@ -90,8 +95,15 @@ case "${1:-}" in
     shift
     exec python3 "$skill_root/scripts/writing_core_route_tools.py" "$@"
     ;;
+  intake)
+    shift
+    exec python3 "$skill_root/scripts/writing_core_intake_packet.py" "$@"
+    ;;
   print-review-packet-template)
     cat "$skill_root/references/review/REVIEW_PACKET_TEMPLATE.md"
+    ;;
+  print-intake-handoff)
+    cat "$skill_root/references/workflow/INTAKE_HANDOFF_AND_CORE_VETO.md"
     ;;
   print-anti-rationalization-table)
     cat "$skill_root/references/review/ANTI_RATIONALIZATION_TABLE.md"

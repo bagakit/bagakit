@@ -1,0 +1,36 @@
+version = 1
+skill = "bagakit-writing-intake"
+cli_id = "bagakit-writing-intake"
+entrypoint = "scripts/bagakit-writing-intake-cli.sh"
+runner = "shell"
+usage = "bash scripts/bagakit-writing-intake-cli.sh <command> [args...]"
+summary = "Inspect and validate the writing-intake references. The CLI emits contracts only; it does not draft prose."
+surface_refs = ["references/intake-packet-contract.md"]
+
+[[command]]
+name = "describe"
+summary = "Print a short skill description."
+
+[[command]]
+name = "list-references"
+summary = "List reference files shipped by this skill."
+
+[[command]]
+name = "validate"
+summary = "Check that required skill files and declarations exist."
+
+[[command]]
+name = "print-packet-contract"
+summary = "Print the intake_packet contract."
+
+[[command]]
+name = "print-profile-dimensions"
+summary = "Print profile dimension guidance."
+
+[[command]]
+name = "print-core-style-boundary"
+summary = "Print Intake, Core, and Style ownership boundaries."
+
+[[command]]
+name = "print-rewrite-feedback-rule-candidates"
+summary = "Print rewrite-feedback rule candidate guidance."

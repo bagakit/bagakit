@@ -19,19 +19,23 @@ locked inside one style-specific skill.
 This skill owns generic writing primitives:
 
 - task routing before drafting
+- intake packet consumption from `bagakit-writing-intake`
 - foundation sufficiency checks
 - title promise and title-pattern discipline
 - structure, paragraph movement, and claim/support quality
 - evidence architecture, source parentage, sample boundary, and counterevidence
+- content preservation, no-regression checks, task fitness, and Core vetoes
 - de-AI-tone orchestration through `bagakit-writing-de-ai-tone`
 - prose-mechanics lint and publishable-prose review discipline
-- rewrite-feedback abstraction from one local edit to a reusable rule
+- Core validation of Intake-extracted rewrite-feedback rule candidates for
+  clarity, structure, evidence, semantic preservation, and no-regression
 - generic longform review, audience-fit checks, and review packet shape
 - anti-rationalization discipline for common agent excuses
 
 It does not own:
 
 - personal taste calibration
+- personal language profile distillation
 - qihan-specific Chinese longform defaults
 - Feishu or channel-specific layout
 - a technical article delivery envelope
@@ -43,6 +47,14 @@ Those belong to L2 skills or peer systems.
 ## Relationship To L2 Skills
 
 Use this core as the L1 writing substrate.
+
+- `bagakit-writing-intake`
+  - owns diagnostic intake, evidence ledger, privacy boundary, personal
+    language profile distillation, style candidates, rewrite-feedback rule
+    candidate extraction, and handoff owner
+  - emits an `intake_packet` that Core may consume as route context
+  - does not decide generic publishability, evidence sufficiency, semantic
+    preservation, no-regression, or Core veto outcomes
 
 - `bagakit-writing-de-ai-tone`
   - owns AI-tone detection, protected-span handling, rewrite protocol,
@@ -68,6 +80,9 @@ compose the core explicitly.
 1. Route the writing task.
    - Start with `references/workflow/OPERATING_SURFACE_MATRIX.md`.
    - Pick the scenario and lane before drafting.
+   - When a `bagakit-writing-intake` `intake_packet` is supplied, consume it
+     through `references/workflow/INTAKE_HANDOFF_AND_CORE_VETO.md` before
+     selecting the lane.
 2. Check whether the foundation is stable.
    - Use `references/knowledge/PRE_DRAFT_ROUTE_MEMO_TEMPLATE.md`.
    - Run `scripts/writing_core_route_tools.py check-foundation` when a route
@@ -106,11 +121,13 @@ bash scripts/bagakit-writing-core-cli.sh lint --fail-on warn <artifact.md>
 bash scripts/bagakit-writing-core-cli.sh de-ai-tone lint --profile blog <artifact.md>
 bash scripts/bagakit-writing-core-cli.sh route check-foundation <route-memo.md>
 bash scripts/bagakit-writing-core-cli.sh print-review-packet-template
+bash scripts/bagakit-writing-core-cli.sh print-intake-handoff
 ```
 
 ## References
 
 - `references/README.md`
+- `references/workflow/INTAKE_HANDOFF_AND_CORE_VETO.md`
 - `references/workflow/OPERATING_SURFACE_MATRIX.md`
 - `references/knowledge/PRE_DRAFT_ROUTE_MEMO_TEMPLATE.md`
 - `references/writing/AI_SMELLS.md`

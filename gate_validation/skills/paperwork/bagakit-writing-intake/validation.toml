@@ -1,0 +1,24 @@
+version = 2
+
+[[suite]]
+id = "bagakit-writing-intake-contract"
+owner = "skills/paperwork/bagakit-writing-intake"
+description = "Validate the writing-intake skill directory protocol, frontdoor and CLI declarations, intake_packet contract fields, privacy/provenance boundaries, Core veto handoff, and scoped installable-payload leak hygiene."
+default = true
+proof_mode = "wording_contract"
+protects = ["bagakit-writing-intake installable skill surface, frontdoor and CLI declarations, intake_packet handoff contract, Core/Style boundary, privacy and provenance guardrails, and new Intake payload leak hygiene"]
+oracle = ["Python contract check inspects the Intake packet contract for required YAML-shape anchors and exact required field names, language-profile and rewrite-feedback item keys, handoff owner enum wording, final-prose stop wording, privacy/provenance guardrails, frontdoor and CLI declarations, CLI validate/describe/print behavior, absence of forbidden skill payload manifests, and scoped machine-local leak patterns"]
+exercised_surface = ["bagakit-writing-intake SKILL.md", "bagakit-writing-intake references", "bagakit-writing-intake CLI", "frontdoor declaration", "CLI manifest", "installable Intake payload files"]
+proves = ["bagakit-writing-intake-contract proves the Intake skill exposes a concrete packet handoff wording contract, declares frontdoor and CLI surfaces, keeps Core veto and Style overlay boundaries visible, declares privacy/provenance handling, states Intake stops before final prose, and does not ship obvious machine-local path or capture-name leaks in new Intake files."]
+does_not_prove = ["bagakit-writing-intake-contract does not prove subjective style quality, all possible private-data leaks, all future packet consumers, machine-readable YAML packet validation, or generated prose quality."]
+timeout_seconds = 120
+validation_class = "contract"
+groups = ["skills", "paperwork", "bagakit-writing-intake", "writing-intake", "contract", "leak-check"]
+
+[suite.runner]
+kind = "python_script"
+script = "gate_validation/skills/paperwork/bagakit-writing-intake/check-writing-intake.py"
+args = [
+  "--root",
+  "{repo_root}",
+]

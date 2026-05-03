@@ -8,6 +8,7 @@ they do not duplicate the full de-AI-tone taxonomy.
 
 ## Read First
 
+- `workflow/INTAKE_HANDOFF_AND_CORE_VETO.md`
 - `workflow/OPERATING_SURFACE_MATRIX.md`
 - `workflow/SCENARIO_ROUTER.md`
 - `workflow/SOP_LANES.md`
@@ -15,6 +16,7 @@ they do not duplicate the full de-AI-tone taxonomy.
 
 ## Workflow
 
+- `workflow/INTAKE_HANDOFF_AND_CORE_VETO.md`
 - `workflow/DEPTH_ESCALATION_LOOP.md`
 - `workflow/INSIGHT_INTERVIEW_LOOP.md`
 - `workflow/REWRITE_FEEDBACK_LOOP.md`
@@ -52,6 +54,10 @@ they do not duplicate the full de-AI-tone taxonomy.
 
 ## Boundary Notes
 
+- Intake packet production, personal language profile distillation, and style
+  candidate generation belong to `bagakit-writing-intake`; Core consumes the
+  packet only to run generic foundation, evidence, content-preservation,
+  no-regression, clarity, task-fitness, and veto checks.
 - AI-tone lexicon and detect/rewrite protocol belong to
   `bagakit-writing-de-ai-tone`.
 - Channel-specific layout belongs in an L2 skill.

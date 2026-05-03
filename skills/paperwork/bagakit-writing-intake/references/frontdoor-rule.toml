@@ -1,0 +1,5 @@
+version = 1
+skill = "bagakit-writing-intake"
+trigger = "A writing task needs pre-draft intake, evidence-bound language-profile distillation, rewrite-feedback rule candidates, privacy boundaries, style candidates, or Core risk candidates before Core, de-AI-tone, style overlay, or delivery work."
+do = "Emit an intake_packet with evidence ledger, privacy boundary, protected spans, style candidates, Core risk candidates, rewrite-feedback rule candidates, and a named next owner; do not produce final prose."
+see = "skills/paperwork/bagakit-writing-intake/SKILL.md"
