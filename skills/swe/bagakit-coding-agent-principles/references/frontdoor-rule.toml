@@ -1,0 +1,5 @@
+version = 1
+skill = "bagakit-coding-agent-principles"
+trigger = "Codex must make a non-trivial coding or implementation change and should protect the user goal with the smallest project-native, behavior-proven change."
+do = "State the protected-principle gate, walk the project-native proof-first ladder, keep the diff narrow, and prove public behavior or an owner-owned contract."
+see = "skills/swe/bagakit-coding-agent-principles/SKILL.md"
