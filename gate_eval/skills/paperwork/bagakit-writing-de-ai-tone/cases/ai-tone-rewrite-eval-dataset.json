@@ -22,7 +22,7 @@
         "scene": "status",
         "source_text": "# 本周进展\n\n随着 AI 协作能力的不断发展，我们通过统一能力进行分析，从而打通研发链路，进而赋能业务闭环。业内人士指出，这具有里程碑式的意义。\n\n2026-07-07，@Ming 完成了 `docs/specs/runtime-surface-contract.md` 的验证，失败率从 18% 降到 7%。这不是工具问题，而是底层逻辑问题。很多团队会把它写成该做 vs 不该做。\n\n接下来我们将持续优化，未来可期。",
         "expected_issue_codes": ["P0_VAGUE_AUTHORITY", "P0_SIGNIFICANCE_INFLATION", "P1_FORMULAIC_OPENING", "P1_PROCESS_FILLER", "P1_FAKE_CONTRAST", "P1_CONFLICT_BAIT_BINARY", "P1_UNSUPPORTED_PEOPLE_GENERALIZATION"],
-        "expected_protected_classes": ["date", "file_path", "inline_code", "metric"]
+        "expected_protected_classes": ["date", "file_path", "inline_code", "metric", "owner"]
       },
       "metadata": {
         "rubric": {
@@ -86,7 +86,7 @@
         "scene": "public-writing",
         "source_text": "# NovaFlow update\n\nIn today's rapidly evolving AI landscape, NovaFlow is a game-changer for modern teams. This is not a dashboard but a full ecosystem. Moreover, experts believe this marks a watershed moment for operational excellence.\n\nReleased on 2026-07-07, the workflow view reduced handoffs by 42% in the pilot. Details: https://example.com/novaflow/pilot.",
         "expected_issue_codes": ["P0_VAGUE_AUTHORITY", "P0_SIGNIFICANCE_INFLATION", "P1_FORMULAIC_OPENING", "P1_LEXICON_ALWAYS", "P2_EN_FAKE_CONTRAST"],
-        "expected_protected_classes": ["date", "metric", "url"]
+        "expected_protected_classes": ["date", "metric", "product_ui_label", "url"]
       },
       "metadata": {
         "rubric": {
@@ -99,6 +99,39 @@
         },
         "minimum_pass": ["dehyped rewrite", "metric and URL preserved", "source-bound claim", "second-pass audit"],
         "red_flags": ["metric changed", "URL dropped", "new customer claim invented", "game-changer retained"]
+      }
+    },
+    {
+      "id": "quoted-source-product-label-boundary",
+      "skill_id": "bagakit-writing-de-ai-tone",
+      "split": "baseline",
+      "prompt": "Run a de-AI-tone rewrite-plan style pass for reference_state.source_text. Use profile business and scene public-writing. Preserve the product label, quoted source excerpt, and URL exactly. Treat the hype inside the quote as source material, not as the author's own prose. If the draft lacks evidence for a replacement claim, mark an evidence gap instead of inventing customers, audience segments, benchmarks, examples, or source facts.",
+      "expected_outcome": "A strong answer flags the author's process filler outside the quote, preserves Product: AcmeCopilot, the full quoted source excerpt, and the URL, and says the quoted hype should be assessed or replaced only with provided evidence. It does not infer a customer group, add a benchmark, or turn the vendor quote into Bagakit's own claim.",
+      "notes_for_human_review": "This case tests the boundary between protected quoted source material and the author's prose. Penalize any answer that edits the quote, treats quoted hype as a blocking author finding, or fills the evidence gap with invented customer or audience facts.",
+      "allowed_tools": ["bash skills/paperwork/bagakit-writing-de-ai-tone/scripts/bagakit-writing-de-ai-tone-cli.sh lint"],
+      "expected_tools": ["bash skills/paperwork/bagakit-writing-de-ai-tone/scripts/bagakit-writing-de-ai-tone-cli.sh lint"],
+      "tags": ["en", "business", "public-writing", "quoted-source", "evidence-gap"],
+      "risk_tags": ["quote-drift", "fabricated-evidence", "product-label-breakage"],
+      "dimensions": ["detection_precision", "protected_span_integrity", "scene_fit", "rewrite_quality", "evidence_preservation", "second_pass_audit"],
+      "reference_state": {
+        "profile": "business",
+        "scene": "public-writing",
+        "source_text": "# Vendor quote review\n\nProduct: AcmeCopilot\n\nSource: \"In today's rapidly evolving landscape, AcmeCopilot is a game-changer and experts believe it marks a watershed moment.\"\n\nThe draft says we should 进行分析 before writing our own claim. Details: https://example.com/acme/source.",
+        "expected_issue_codes": ["P1_PROCESS_FILLER"],
+        "forbidden_issue_codes": ["P0_VAGUE_AUTHORITY", "P0_SIGNIFICANCE_INFLATION", "P1_FORMULAIC_OPENING", "P1_LEXICON_ALWAYS"],
+        "expected_protected_classes": ["product_ui_label", "quoted_source", "url"]
+      },
+      "metadata": {
+        "rubric": {
+          "detection_precision": "Flags only the author's process filler while leaving AI-toned words inside protected quoted source material out of blocking findings.",
+          "protected_span_integrity": "Preserves Product: AcmeCopilot, the quoted source sentence, and https://example.com/acme/source exactly.",
+          "scene_fit": "Keeps the response suitable for public-writing review without inventing a target audience or campaign framing.",
+          "rewrite_quality": "Plans a rewrite around evidence actually present and separates source assessment from author prose edits.",
+          "evidence_preservation": "Marks a clear evidence gap when no source supports a replacement customer, benchmark, or example claim.",
+          "second_pass_audit": "Checks quote survival, product-label survival, URL survival, and absence of fabricated evidence."
+        },
+        "minimum_pass": ["quoted source preserved", "product label preserved", "evidence gap marked", "second-pass audit"],
+        "red_flags": ["quote rewritten", "invented customer claim", "forbidden quoted hype flagged as author prose", "URL dropped"]
       }
     },
     {

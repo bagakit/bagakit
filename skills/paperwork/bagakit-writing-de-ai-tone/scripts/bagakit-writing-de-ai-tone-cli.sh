@@ -12,6 +12,8 @@ Commands:
   list-references          List reference files shipped by this skill.
   validate                 Check that required skill files exist.
   lint                     Run de-AI-tone markdown lint checks.
+  detect                   Alias for lint; detection-only CLI mode.
+  rewrite-plan             Print the agent rewrite protocol; this CLI does not rewrite prose.
   print-patterns           Print AI-tone pattern reference.
   print-rewrite-protocol   Print detect/rewrite protocol.
   print-protected-spans    Print protected-span and scene-pack protocol.
@@ -39,6 +41,13 @@ case "${1:-}" in
   lint)
     shift
     exec python3 "$skill_root/scripts/de_ai_tone_lint.py" "$@"
+    ;;
+  detect)
+    shift
+    exec python3 "$skill_root/scripts/de_ai_tone_lint.py" "$@"
+    ;;
+  rewrite-plan)
+    cat "$skill_root/references/rewrite-protocol.md"
     ;;
   print-patterns)
     cat "$skill_root/references/patterns.md"

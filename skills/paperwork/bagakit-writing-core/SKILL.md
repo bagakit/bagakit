@@ -45,8 +45,10 @@ Those belong to L2 skills or peer systems.
 Use this core as the L1 writing substrate.
 
 - `bagakit-writing-de-ai-tone`
-  - owns AI-tone detection, rewrite protocol, bilingual lexicon, profile
-    exceptions, and script-backed de-AI-tone lint
+  - owns AI-tone detection, protected-span handling, rewrite protocol,
+    bilingual lexicon, profile exceptions, and script-backed de-AI-tone lint
+  - does not replace core-owned title, evidence, structure, audience, or
+    longform review decisions
   - is a required L1 primitive for final prose, public summaries, rewritten
     drafts, titles, abstracts, and review reports
 

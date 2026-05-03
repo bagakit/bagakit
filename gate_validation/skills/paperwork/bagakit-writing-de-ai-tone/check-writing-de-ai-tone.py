@@ -86,13 +86,17 @@ def main() -> int:
 
     protocol = run(["bash", str(cli), "print-rewrite-protocol"], root)
     require(protocol.returncode == 0, "print-rewrite-protocol failed", failures)
-    for token in ["Detect Mode", "Rewrite Mode", "Protected-Span Pass", "Second-pass audit"]:
+    for token in ["Detect Mode", "Rewrite Mode", "Protected-Span Pass", "Second-pass audit", "Evidence Gap Guard"]:
         require(token in protocol.stdout, f"rewrite protocol missing token: {token}", failures)
 
     protected_protocol = run(["bash", str(cli), "print-protected-spans"], root)
     require(protected_protocol.returncode == 0, "print-protected-spans failed", failures)
-    for token in ["Protected Span Classes", "Scene Packs", "Humanizer Boundary"]:
+    for token in ["Protected Span Classes", "Scene Packs", "Humanizer Boundary", "`owner`", "`quoted_source`", "`product_ui_label`"]:
         require(token in protected_protocol.stdout, f"protected-span protocol missing token: {token}", failures)
+
+    rewrite_plan = run(["bash", str(cli), "rewrite-plan"], root)
+    require(rewrite_plan.returncode == 0, "rewrite-plan failed", failures)
+    require("The shipped CLI does not rewrite prose automatically" in rewrite_plan.stdout, "rewrite-plan should expose CLI rewrite boundary", failures)
 
     zh = run(
         [
@@ -213,8 +217,142 @@ def main() -> int:
         "date",
         "api_symbol",
         "issue_or_id",
+        "owner",
+        "quoted_source",
+        "product_ui_label",
     ]:
         require(expected in classes, f"protected-spans fixture missed {expected}", failures)
+
+    protected_negative = run(
+        [
+            "bash",
+            str(cli),
+            "detect",
+            "--profile",
+            "business",
+            "--scene",
+            "public-writing",
+            "--fail-on",
+            "none",
+            str(FIXTURE_DIR / "protected-negative.md"),
+        ],
+        root,
+    )
+    require(protected_negative.returncode == 0, f"protected-negative lint failed: {protected_negative.stderr}", failures)
+    protected_negative_payload = load_json(protected_negative.stdout, "protected-negative lint", failures)
+    protected_negative_classes = protected_negative_payload.get("protected_spans", {}).get("classes", {})
+    for expected in ["owner", "quoted_source", "product_ui_label"]:
+        require(expected in protected_negative_classes, f"protected-negative missed protected class {expected}", failures)
+    require(
+        protected_negative_classes.get("owner", {}).get("count") == 1,
+        "protected-negative should de-duplicate overlapping Owner line and @handle spans",
+        failures,
+    )
+    require(
+        protected_negative_classes.get("quoted_source", {}).get("count") == 3,
+        "protected-negative should protect full source/quote lines without double-counting nested quoted text",
+        failures,
+    )
+    require(
+        protected_negative_classes.get("product_ui_label", {}).get("count") == 4,
+        "protected-negative should protect full product/button lines without double-counting nested label tokens",
+        failures,
+    )
+    require(
+        protected_negative_payload.get("summary", {}).get("fail", 0) == 0
+        and protected_negative_payload.get("summary", {}).get("warn", 0) == 0,
+        "protected quoted/source/product/owner text, including long label lines, should not create blocking AI-tone findings",
+        failures,
+    )
+
+    author_quote = run(
+        [
+            "bash",
+            str(cli),
+            "lint",
+            "--profile",
+            "business",
+            "--scene",
+            "public-writing",
+            "--fail-on",
+            "none",
+            str(FIXTURE_DIR / "author-quote.md"),
+        ],
+        root,
+    )
+    require(author_quote.returncode == 0, f"author-quote lint failed: {author_quote.stderr}", failures)
+    author_quote_payload = load_json(author_quote.stdout, "author-quote lint", failures)
+    require(
+        "quoted_source" not in author_quote_payload.get("protected_spans", {}).get("classes", {}),
+        "author-owned quote marks should not become quoted_source protected spans",
+        failures,
+    )
+    require("P1_LEXICON_ALWAYS" in codes(author_quote_payload), "author-owned quoted AI-hype should still be linted", failures)
+
+    casual = run(
+        [
+            "bash",
+            str(cli),
+            "lint",
+            "--profile",
+            "casual",
+            "--fail-on",
+            "warn",
+            str(FIXTURE_DIR / "casual-p1.md"),
+        ],
+        root,
+    )
+    casual_payload = load_json(casual.stdout, "casual lint", failures)
+    require(casual.returncode == 0, "casual p0-only profile should not fail on P1 warnings", failures)
+    require(casual_payload.get("summary", {}).get("warn", 0) == 0, "casual p0-only should downgrade P1 warnings", failures)
+    require(casual_payload.get("summary", {}).get("advisory", 0) > 0, "casual p0-only should keep downgraded P1 as advisory signal", failures)
+
+    docs_list = run(
+        [
+            "bash",
+            str(cli),
+            "lint",
+            "--profile",
+            "docs",
+            "--scene",
+            "docs",
+            "--fail-on",
+            "none",
+            str(FIXTURE_DIR / "docs-list.md"),
+        ],
+        root,
+    )
+    require(docs_list.returncode == 0, f"docs-list lint failed: {docs_list.stderr}", failures)
+    require("P2_LIST_SCAFFOLDING" not in codes(load_json(docs_list.stdout, "docs-list lint", failures)), "docs profile should tolerate checklist scaffolding fixture", failures)
+
+    multi = run(
+        [
+            "bash",
+            str(cli),
+            "lint",
+            "--profile",
+            "blog",
+            "--scene",
+            "auto",
+            "--fail-on",
+            "none",
+            str(FIXTURE_DIR / "multi-file"),
+        ],
+        root,
+    )
+    require(multi.returncode == 0, f"multi-file lint failed: {multi.stderr}", failures)
+    multi_payload = load_json(multi.stdout, "multi-file lint", failures)
+    multi_findings = multi_payload.get("findings", [])
+    require(isinstance(multi_findings, list) and len(multi_findings) >= 2, "multi-file top-level findings should aggregate all files", failures)
+    require(
+        all(isinstance(item, dict) and item.get("path") for item in multi_findings),
+        "multi-file top-level findings should carry path",
+        failures,
+    )
+    multi_classes = multi_payload.get("protected_spans", {}).get("classes", {})
+    for expected in ["owner", "url", "product_ui_label"]:
+        require(expected in multi_classes, f"multi-file aggregate missed protected class {expected}", failures)
+    require(multi_payload.get("scene_metadata", {}).get("active_scenes"), "multi-file payload should expose active scene metadata", failures)
 
     core = run(
         [

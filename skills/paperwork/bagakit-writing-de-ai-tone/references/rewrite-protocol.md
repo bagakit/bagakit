@@ -22,6 +22,10 @@ Return:
 5. Second-pass audit. Re-read the rewrite and either fix remaining AI tells or
    state that no blocking AI-tone issue remains.
 
+The shipped CLI does not rewrite prose automatically. `lint` and `detect`
+produce detection JSON; `rewrite-plan` prints this protocol for an agent or
+downstream writing workflow to apply.
+
 ## Protected-Span Pass
 
 Before rewriting, identify hard-information spans that must survive:
@@ -38,6 +42,25 @@ The CLI lint report includes a `protected_spans` summary to make this pass
 visible for downstream agents.
 
 ## Scene Pack
+
+When the CLI receives `--scene auto`, it may infer an active scene from visible
+commands, paths, owners, metrics, dates, list shape, and document length. Treat
+that inference as rewrite context, not as a new fact about the audience or
+publication channel.
+
+## Evidence Gap Guard
+
+Do not invent missing evidence while removing AI-tone:
+
+- If a lexicon suggestion says a claim needs a metric, customer, example,
+  owner, or source, use only evidence already present in the draft or provided
+  by the user.
+- If the evidence is absent, mark an evidence gap and either narrow the claim
+  or ask for the missing source.
+- Do not add customer names, percentages, examples, quotes, benchmarks, dates,
+  or audience assumptions to make the rewrite sound more grounded.
+- Do not turn protected quoted text into the author's claim. Keep the quote
+  intact and write any assessment outside it.
 
 ## Rewrite Threshold
 

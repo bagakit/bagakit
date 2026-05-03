@@ -34,6 +34,15 @@ SCENES = {
 }
 
 TECHNICAL_EXEMPT_PROFILES = {"technical", "docs"}
+P0_ONLY_PROFILES = {"casual"}
+
+SCENE_PRIORITY_CLASSES = {
+    "chat": ["owner", "date", "issue_or_id", "url"],
+    "status": ["owner", "metric", "date", "issue_or_id", "url"],
+    "docs": ["code_block", "inline_code", "command", "file_path", "api_symbol", "version", "url", "product_ui_label"],
+    "public-writing": ["url", "metric", "date", "quoted_source", "product_ui_label", "api_symbol"],
+    "technical": ["code_block", "inline_code", "command", "file_path", "api_symbol", "version", "metric", "date"],
+}
 
 P0_PATTERNS = [
     ("P0_CHATBOT_ARTIFACT", r"\b(Certainly|Absolutely|Great question|I hope this helps)\b|希望对你有所帮助|欢迎随时沟通"),
@@ -84,6 +93,15 @@ PROTECTED_SPAN_PATTERNS = [
     ("code_block", re.compile(r"```[\s\S]*?```")),
     ("inline_code", re.compile(r"(?<!`)`([^`\n]{1,180})`(?!`)")),
     ("url", re.compile(r"https?://[^\s)>\]，。！？；、]+")),
+    ("quoted_source", re.compile(r"(?m)^\s*>\s?.+$")),
+    ("quoted_source", re.compile(r"(?m)^\s*(?:Source|Quote|Quoted|Vendor deck|来源|引用|原文)[:：]\s*[^\n]+", re.I)),
+    ("owner", re.compile(r"(?<!\w)@[\w.-]{2,64}(?!\w)")),
+    ("owner", re.compile(r"(?m)^\s*(?:Owner|DRI|Responsible|Assignee|负责人|责任人)[:：]\s*[^\n]+", re.I)),
+    (
+        "product_ui_label",
+        re.compile(r"(?m)^\s*(?:Product|UI|Button|Menu|Label|Field|产品|界面|按钮|菜单|标签|字段)[:：]\s*[^\n]+", re.I),
+    ),
+    ("product_ui_label", re.compile(r"(?<![\w.])[A-Z][A-Za-z0-9]*[A-Z][A-Za-z0-9]*(?![\w.])")),
     (
         "command",
         re.compile(
@@ -174,12 +192,9 @@ def word_count(text: str, term: str) -> int:
 
 
 def protected_span_summary(text: str) -> dict:
-    classes: dict[str, dict] = {}
-    total = 0
+    spans_by_class: dict[str, list[tuple[int, int, str]]] = {}
 
     for class_name, pattern in PROTECTED_SPAN_PATTERNS:
-        samples: list[str] = []
-        count = 0
         for match in pattern.finditer(text):
             raw = match.group(1) if class_name == "inline_code" and match.groups() else match.group(0)
             sample = normalize_sample(raw)
@@ -187,17 +202,53 @@ def protected_span_summary(text: str) -> dict:
                 continue
             if not sample:
                 continue
-            count += 1
-            if sample not in samples and len(samples) < 8:
-                samples.append(sample)
-        if count:
-            classes[class_name] = {"count": count, "samples": samples}
-            total += count
+            spans_by_class.setdefault(class_name, []).append((match.start(), match.end(), sample))
+
+    classes: dict[str, dict] = {}
+    total = 0
+
+    for class_name, spans in spans_by_class.items():
+        accepted: list[tuple[int, int, str]] = []
+        for start, end, sample in sorted(spans, key=lambda item: (item[0], -(item[1] - item[0]))):
+            if accepted and start < accepted[-1][1]:
+                if end > accepted[-1][1]:
+                    accepted[-1] = (accepted[-1][0], end, accepted[-1][2])
+                continue
+            accepted.append((start, end, sample))
+
+        class_entry = classes.setdefault(class_name, {"count": 0, "samples": []})
+        for _start, _end, sample in accepted:
+            class_entry["count"] += 1
+            total += 1
+            if sample not in class_entry["samples"] and len(class_entry["samples"]) < 8:
+                class_entry["samples"].append(sample)
 
     return {
         "total": total,
         "classes": classes,
     }
+
+
+def merge_protected_span_summaries(summaries: list[dict]) -> dict:
+    merged: dict[str, dict] = {}
+    total = 0
+
+    for summary in summaries:
+        total += int(summary.get("total", 0))
+        classes = summary.get("classes", {})
+        if not isinstance(classes, dict):
+            continue
+        for class_name, data in classes.items():
+            if not isinstance(data, dict):
+                continue
+            class_entry = merged.setdefault(str(class_name), {"count": 0, "samples": []})
+            class_entry["count"] += int(data.get("count", 0))
+            for raw_sample in data.get("samples", []):
+                sample = normalize_sample(str(raw_sample))
+                if sample and sample not in class_entry["samples"] and len(class_entry["samples"]) < 8:
+                    class_entry["samples"].append(sample)
+
+    return {"total": total, "classes": merged}
 
 
 def mask_protected_spans(text: str) -> str:
@@ -273,7 +324,7 @@ def lexicon_findings(text: str, profile: str, lexicon: dict) -> list[Finding]:
     return findings
 
 
-def pattern_findings(text: str) -> list[Finding]:
+def pattern_findings(text: str, profile: str) -> list[Finding]:
     findings: list[Finding] = []
     for code, raw_pattern in P0_PATTERNS:
         pattern = re.compile(raw_pattern, re.I)
@@ -365,11 +416,14 @@ def pattern_findings(text: str) -> list[Finding]:
     list_count = len(LIST_RE.findall(text))
     heading_count = len(HEADING_RE.findall(text))
     bold_count = len(BOLD_RE.findall(text))
-    if list_count >= 8:
+    list_threshold = 14 if profile == "docs" else 8
+    heading_threshold = 8 if profile == "docs" else 5
+    bold_threshold = 10 if profile == "docs" else 5
+    if list_count >= list_threshold:
         findings.append(Finding("ADVISORY", "P2", "P2_LIST_SCAFFOLDING", "List scaffolding may be replacing connected prose", {"count": list_count}))
-    if heading_count >= 5 and len(text) < 1200:
+    if heading_count >= heading_threshold and len(text) < 1200:
         findings.append(Finding("ADVISORY", "P2", "P2_OVER_STRUCTURED", "Too many headings for a short text", {"count": heading_count}))
-    if bold_count >= 5:
+    if bold_count >= bold_threshold:
         findings.append(Finding("ADVISORY", "P2", "P2_BOLD_OVERUSE", "Bold formatting may be doing the work of structure", {"count": bold_count}))
 
     four_char_count = len(FOUR_CHAR_RE.findall(text))
@@ -382,12 +436,61 @@ def pattern_findings(text: str) -> list[Finding]:
     return findings
 
 
+def apply_profile_semantics(findings: list[Finding], profile: str) -> list[Finding]:
+    if profile not in P0_ONLY_PROFILES:
+        return findings
+
+    adjusted: list[Finding] = []
+    for finding in findings:
+        if finding.severity == "P0":
+            adjusted.append(finding)
+            continue
+        adjusted.append(
+            Finding(
+                "ADVISORY",
+                "P2",
+                finding.code,
+                f"{finding.message} (advisory under {profile} p0-only profile)",
+                {**finding.meta, "profile_adjustment": "p0-only"},
+            )
+        )
+    return adjusted
+
+
+def infer_scene(text: str, requested_scene: str) -> tuple[str, bool]:
+    if requested_scene != "auto":
+        return requested_scene, False
+
+    protected = protected_span_summary(text)
+    classes = set(protected.get("classes", {}).keys())
+    if {"command", "file_path", "api_symbol", "version"} & classes:
+        return "technical", True
+    if {"owner", "metric", "date"} <= classes or re.search(r"(?m)^#{1,3}\s*(本周|进展|Status|Update)", text, re.I):
+        return "status", True
+    if LIST_RE.search(text) and ({"inline_code", "file_path", "url"} & classes):
+        return "docs", True
+    if len(text.strip()) <= 320 and ("\n\n" not in text.strip()):
+        return "chat", True
+    return "public-writing", True
+
+
 def lint_text(text: str, path: Path, profile: str, scene: str, lexicon: dict) -> dict:
-    findings = lexicon_findings(text, profile, lexicon) + pattern_findings(text)
+    active_scene, inferred_scene = infer_scene(text, scene)
+    masked_text = mask_protected_spans(text)
+    findings = apply_profile_semantics(
+        lexicon_findings(masked_text, profile, lexicon) + pattern_findings(masked_text, profile),
+        profile,
+    )
     return {
         "path": str(path),
         "profile": profile,
-        "scene": scene,
+        "scene": active_scene,
+        "scene_metadata": {
+            "requested": scene,
+            "active": active_scene,
+            "inferred": inferred_scene,
+            "priority_protected_classes": SCENE_PRIORITY_CLASSES.get(active_scene, []),
+        },
         "protected_spans": protected_span_summary(text),
         "findings": [finding.as_dict() for finding in findings],
         "counts": {
@@ -420,14 +523,34 @@ def main(argv: list[str]) -> int:
         "advisory": sum(item["counts"]["advisory"] for item in reports),
         "protected_spans": sum(item["protected_spans"]["total"] for item in reports),
     }
+    findings = [
+        {**finding, "path": report["path"]}
+        for report in reports
+        for finding in report["findings"]
+    ]
+    protected_spans = merge_protected_span_summaries([report["protected_spans"] for report in reports])
+    active_scenes = sorted({str(report["scene"]) for report in reports})
     payload = {
         "schema": "bagakit.de_ai_tone_lint.v1",
         "profile": args.profile,
-        "scene": args.scene,
+        "scene": active_scenes[0] if len(active_scenes) == 1 else "mixed",
+        "scene_metadata": {
+            "requested": args.scene,
+            "active_scenes": active_scenes,
+            "files": [
+                {
+                    "path": report["path"],
+                    "active": report["scene"],
+                    "inferred": report.get("scene_metadata", {}).get("inferred", False),
+                    "priority_protected_classes": report.get("scene_metadata", {}).get("priority_protected_classes", []),
+                }
+                for report in reports
+            ],
+        },
         "summary": summary,
         "files": reports,
-        "findings": reports[0]["findings"] if len(reports) == 1 else [],
-        "protected_spans": reports[0]["protected_spans"] if len(reports) == 1 else {},
+        "findings": findings,
+        "protected_spans": protected_spans,
     }
     print(json.dumps(payload, ensure_ascii=False, indent=2))
 

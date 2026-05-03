@@ -44,12 +44,12 @@ rewrite_priority = "preserve accountability, sequence, blockers, and metrics"
 
 [scene_packs.docs]
 description = "Reference docs, SOPs, API notes, and command guides."
-protected_span_classes = ["code_block", "inline_code", "command", "file_path", "api_symbol", "version", "url"]
+protected_span_classes = ["code_block", "inline_code", "command", "file_path", "api_symbol", "version", "url", "product_ui_label"]
 rewrite_priority = "prefer exactness over voice"
 
 [scene_packs.public-writing]
 description = "Articles, posts, public summaries, and shareable prose."
-protected_span_classes = ["url", "metric", "date", "quoted_source", "api_symbol"]
+protected_span_classes = ["url", "metric", "date", "quoted_source", "product_ui_label", "api_symbol"]
 rewrite_priority = "remove template polish while preserving sources and claims"
 
 [scene_packs.technical]

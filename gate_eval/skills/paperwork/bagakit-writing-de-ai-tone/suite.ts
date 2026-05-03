@@ -13,6 +13,7 @@ const REQUIRED_REWRITE_CASES = [
   "already-human-minimal-edit",
   "conflict-bait-public-note",
   "english-product-update-dehype",
+  "quoted-source-product-label-boundary",
   "technical-doc-protected-spans",
   "zh-internal-status-accountability",
 ];
@@ -187,9 +188,9 @@ export const SUITE: EvalSuiteDefinition = {
         const coveredDimensions = new Set<string>();
 
         assert.deepEqual(caseIds, [...REQUIRED_REWRITE_CASES].sort());
-        assert.equal(dataset.items.length, 5);
-        assert.equal(report.totals.with_split, 5);
-        assert.ok(report.splits.some((split) => split.split === "baseline" && split.count === 4), "dataset should have four baseline cases");
+        assert.equal(dataset.items.length, 6);
+        assert.equal(report.totals.with_split, 6);
+        assert.ok(report.splits.some((split) => split.split === "baseline" && split.count === 5), "dataset should have five baseline cases");
         assert.ok(report.splits.some((split) => split.split === "holdout" && split.count === 1), "dataset should have one holdout case");
         assert.ok(dataset.items.every((item) => item.skill_id === "bagakit-writing-de-ai-tone"));
 
@@ -228,7 +229,7 @@ export const SUITE: EvalSuiteDefinition = {
 
         return {
           assertions: [
-            "rewrite dataset contains five representative de-AI-tone cases",
+            "rewrite dataset contains six representative de-AI-tone cases",
             "baseline and holdout splits are explicit",
             "cases carry human-review rubrics for all declared dimensions",
             "case references include source text, profile, scene, expected issue codes, and expected protected-span classes",

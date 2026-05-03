@@ -11,7 +11,7 @@
     {"term": "沉淀", "tier": "always", "lint": true, "suggestions": ["记录", "积累", "总结"]},
     {"term": "链路", "tier": "always", "lint": true, "suggestions": ["流程", "路径", "环节"], "technical_exemption": true},
     {"term": "颗粒度", "tier": "always", "lint": true, "suggestions": ["细节程度", "精细程度"], "technical_exemption": true},
-    {"term": "价值", "tier": "always", "lint": true, "suggestions": ["具体收益", "数字或例子"]},
+    {"term": "价值", "tier": "always", "lint": true, "suggestions": ["具体收益", "用已有来源里的数字或例子；没有来源就标 evidence gap"]},
     {"term": "范式", "tier": "always", "lint": true, "suggestions": ["模式", "方式", "做法"]},
     {"term": "护城河", "tier": "always", "lint": true, "suggestions": ["竞争优势", "壁垒"]},
     {"term": "落地", "tier": "always", "lint": true, "suggestions": ["执行", "实施", "做成"]},
@@ -26,7 +26,7 @@
     {"term": "提升", "tier": "density", "lint": false, "suggestions": ["说明提升指标"]},
     {"term": "深入", "tier": "high_density", "lint": false, "suggestions": []},
     {"term": "全面", "tier": "high_density", "lint": false, "suggestions": []},
-    {"term": "显著", "tier": "high_density", "lint": false, "suggestions": ["给数字"]},
+    {"term": "显著", "tier": "high_density", "lint": false, "suggestions": ["仅在来源已有数字时保留；否则收窄说法"]},
     {"term": "生态", "tier": "high_density", "lint": false, "suggestions": ["系统", "行业", "平台"], "technical_exemption": true}
   ],
   "en": [
@@ -52,8 +52,8 @@
     {"term": "elevate", "tier": "density", "lint": true, "suggestions": ["improve"]},
     {"term": "empower", "tier": "density", "lint": true, "suggestions": ["enable"]},
     {"term": "ecosystem", "tier": "density", "lint": true, "suggestions": ["system", "platform"], "technical_exemption": true},
-    {"term": "significant", "tier": "high_density", "lint": false, "suggestions": ["state the specific size"]},
-    {"term": "innovative", "tier": "high_density", "lint": false, "suggestions": ["state what is new"]},
+    {"term": "significant", "tier": "high_density", "lint": false, "suggestions": ["state the specific size only when the source provides it; otherwise narrow the claim"]},
+    {"term": "innovative", "tier": "high_density", "lint": false, "suggestions": ["state what is new only from visible evidence; otherwise mark an evidence gap"]},
     {"term": "sophisticated", "tier": "high_density", "lint": false, "suggestions": []}
   ]
 }

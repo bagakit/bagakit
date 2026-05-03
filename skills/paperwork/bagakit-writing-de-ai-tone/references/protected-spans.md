@@ -20,9 +20,19 @@ Treat these spans as protected by default:
 | `date` | `2026-07-07` | Preserve date values. |
 | `api_symbol` | `docs.documents.create`, `foo.bar()` | Preserve symbol spelling. |
 | `issue_or_id` | `ABC-123`, `#42`, short hashes | Preserve identifier. |
+| `owner` | `@Ming`, `Owner: platform-docs`, `负责人：小周` | Preserve responsibility and accountability identifiers. |
+| `quoted_source` | blockquotes, quoted source excerpts, `Source: ...` | Do not lint or rewrite inside the quoted material; discuss it outside the quote. |
+| `product_ui_label` | `NovaFlow`, `Product: Game-Changer Console`, `Button: Actionable Insights` | Preserve product names and UI labels even when they contain AI-smell words. |
+
+Labelled `Source:`, `Quote:`, `Product:`, `Button:`, `Field:`, and equivalent
+Chinese lines are protected as whole lines, not only short prefixes.
+Ordinary author-owned quote marks are not protected by themselves; if the
+author writes `"game-changer"` as their own wording, lint it as author prose.
 
 The lint report exposes these as `protected_spans`. The report is not a
 rewrite engine; it is a preflight map for the agent or downstream skill.
+Top-level JSON aggregates protected span class counts and samples across all
+input files. File-level reports keep the per-file map.
 
 ## Scene Packs
 
@@ -38,7 +48,9 @@ acceptable.
 | `technical` | design docs, implementation notes, engineering reports | code, APIs, commands, paths, errors, versions | Keep precision; avoid cosmetic rewrite of technical terms. |
 
 If the scene is unknown, use `auto`, then infer the scene from content and
-state the inference in the rewrite summary.
+state the inference in the rewrite summary. The CLI exposes `scene_metadata`
+with active scenes and priority protected classes so downstream review can see
+which scene rule was applied.
 
 ## Rewrite Contract
 

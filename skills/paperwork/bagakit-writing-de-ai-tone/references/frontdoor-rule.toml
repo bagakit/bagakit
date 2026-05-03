@@ -1,5 +1,5 @@
 version = 1
 skill = "bagakit-writing-de-ai-tone"
-trigger = "A writing task needs AI-tone detection, de-AI rewrite, bilingual AI-smell lexicon checks, structural rhythm review, or publishable-prose polish without adopting a personal style profile."
-do = "Detect the dominant language, profile, and scene; preserve protected spans; audit P0/P1/P2 AI-tone patterns; rewrite only when requested or needed; then run a second-pass audit."
+trigger = "A writing task specifically needs AI-tone detection, de-AI rewrite protocol, protected-span handling, bilingual AI-smell lexicon checks, or structural rhythm review without adopting a personal style profile."
+do = "Detect the dominant language, profile, and scene; preserve protected spans; audit P0/P1/P2 AI-tone patterns; rewrite only when requested or needed; mark evidence gaps instead of inventing facts; then run a second-pass audit."
 see = "skills/paperwork/bagakit-writing-de-ai-tone/SKILL.md"

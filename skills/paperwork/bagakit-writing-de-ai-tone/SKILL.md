@@ -1,6 +1,6 @@
 ---
 name: bagakit-writing-de-ai-tone
-description: L1 paperwork primitive for detecting and rewriting low-human, AI-toned prose in Chinese and English. Use when a writing task needs de-AI-tone audit, AI-smell detection, structural rhythm review, lexicon checks, rewrite protocol, or publishable-prose polish without adopting a personal style profile.
+description: L1 paperwork primitive for detecting AI-toned prose and guiding meaning-preserving rewrites in Chinese and English. Use when a writing task specifically needs de-AI-tone audit, AI-smell detection, protected-span handling, structural rhythm review, lexicon checks, or rewrite protocol without adopting a personal style profile.
 metadata:
   bagakit:
     harness_layer: l1-writing-primitive
@@ -22,7 +22,8 @@ Owns:
 - AI-tone detection and rewrite protocol
 - Chinese and English AI-smell lexicon
 - protected-span preflight for commands, paths, code, URLs, dates, metrics,
-  versions, API symbols, and responsibility-bearing identifiers
+  versions, API symbols, quoted sources, product/UI labels, and
+  responsibility-bearing identifiers
 - structural AI tells: uniform rhythm, template phrases, fake contrast,
   parallelism without information gain, vague authority, PR inflation
 - context profile exceptions for technical, docs, blog, social, and casual prose
@@ -30,7 +31,8 @@ Owns:
 
 Does not own:
 
-- title promise, evidence architecture, route memo, or longform review
+- title promise, evidence architecture, route memo, audience inference, or
+  longform review
 - qihan personal taste
 - technical article fact verification or execution handoff
 - detector evasion or claims that a text is human-authored
@@ -43,7 +45,8 @@ Does not own:
 4. Load `references/rewrite-protocol.md`.
 5. For detailed pattern examples, load `references/patterns.md`.
 6. For word-level checks or script-backed audit, use
-   `scripts/bagakit-writing-de-ai-tone-cli.sh lint`.
+   `scripts/bagakit-writing-de-ai-tone-cli.sh lint` or the detection alias
+   `scripts/bagakit-writing-de-ai-tone-cli.sh detect`.
 7. In rewrite mode, produce:
    - issues found
    - protected spans and scene assumption
@@ -55,6 +58,10 @@ Does not own:
 
 - `detect`: identify AI-tone issues only; group by P0/P1/P2.
 - `rewrite`: detect, rewrite, summarize changes, then run a second-pass audit.
+
+The CLI implements detection, validation, reference printing, and
+`rewrite-plan`. It does not automatically rewrite prose; rewrite mode is an
+agent protocol or downstream workflow contract.
 
 If the original text is already strong, say so and avoid unnecessary edits.
 De-AI-tone work should remove fake polish, not flatten useful voice.
@@ -81,6 +88,8 @@ skip this pass.
 
 ```bash
 bash scripts/bagakit-writing-de-ai-tone-cli.sh lint --profile blog --scene public-writing --fail-on warn artifact.md
+bash scripts/bagakit-writing-de-ai-tone-cli.sh detect --profile casual --fail-on warn note.md
+bash scripts/bagakit-writing-de-ai-tone-cli.sh rewrite-plan
 bash scripts/bagakit-writing-de-ai-tone-cli.sh print-rewrite-protocol
 bash scripts/bagakit-writing-de-ai-tone-cli.sh print-protected-spans
 ```

@@ -4,7 +4,7 @@ cli_id = "bagakit-writing-de-ai-tone"
 entrypoint = "scripts/bagakit-writing-de-ai-tone-cli.sh"
 runner = "shell"
 usage = "bash scripts/bagakit-writing-de-ai-tone-cli.sh <command> [args...]"
-summary = "Inspect, validate, lint, and review de-AI-tone artifacts."
+summary = "Inspect, validate, detect, and plan de-AI-tone reviews. The CLI does not rewrite prose automatically."
 surface_refs = ["references/protected-spans.md"]
 
 [[command]]
@@ -22,6 +22,14 @@ summary = "Check that required skill files exist."
 [[command]]
 name = "lint"
 summary = "Run de-AI-tone markdown lint checks."
+
+[[command]]
+name = "detect"
+summary = "Alias for lint; detection-only CLI mode."
+
+[[command]]
+name = "rewrite-plan"
+summary = "Print the agent rewrite protocol; this CLI does not rewrite prose."
 
 [[command]]
 name = "print-patterns"
