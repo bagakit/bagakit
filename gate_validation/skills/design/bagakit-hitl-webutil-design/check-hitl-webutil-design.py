@@ -16,6 +16,9 @@ POSIX_SEP = chr(47)
 SKILL_ROOT = POSIX_SEP.join(["skills", "design", "bagakit-hitl-webutil-design"])
 CONTRACT_PATH = POSIX_SEP.join([SKILL_ROOT, "references", "workflow-contract.toml"])
 CROSSWALK_PATH = POSIX_SEP.join([SKILL_ROOT, "references", "composition-crosswalk.md"])
+MANUAL_TEST_TEMPLATE_PATH = POSIX_SEP.join(
+    [SKILL_ROOT, "references", "templates", "manual-test-console.md"]
+)
 
 REQUIRED_STAGE_IDS = {
     "design-brief",
@@ -224,6 +227,8 @@ def main() -> int:
         skill_rel("references", "mechanisms", "README.md"),
         skill_rel("references", "styles", "README.md"),
         skill_rel("references", "artifacts", "README.md"),
+        skill_rel("references", "templates", "README.md"),
+        MANUAL_TEST_TEMPLATE_PATH,
         skill_rel("references", "artifacts", "page-manifest.md"),
         skill_rel("references", "artifacts", "agent-handoff-packet.md"),
         skill_rel("references", "artifacts", "report-export.md"),
@@ -242,6 +247,7 @@ def main() -> int:
 
     contract_text = (root / CONTRACT_PATH).read_text(encoding="utf-8")
     crosswalk_text = (root / CROSSWALK_PATH).read_text(encoding="utf-8")
+    manual_test_template_text = (root / MANUAL_TEST_TEMPLATE_PATH).read_text(encoding="utf-8")
     skill_text = (root / SKILL_ROOT / "SKILL.md").read_text(encoding="utf-8")
 
     try:
@@ -310,6 +316,33 @@ def main() -> int:
         failures.append("SKILL.md must name the webpage-design implementation handoff peer")
     if "Lean V0 Rule" not in skill_text:
         failures.append("SKILL.md must preserve the Lean V0 Rule")
+    if "Explicit Invocation Contract" not in skill_text or "request for a HITL page" not in skill_text:
+        failures.append("SKILL.md must preserve explicit invocation as a HITL page request")
+    if "concrete page brief" not in skill_text:
+        failures.append("SKILL.md must preserve page brief as the explicit invocation default output")
+    if "expects a built" not in skill_text or "frontend page" not in skill_text:
+        failures.append("SKILL.md must preserve implementation handoff when the user expects a built page")
+    if "strongly matches the request" not in skill_text or "scenario first" not in skill_text:
+        failures.append("SKILL.md must preserve high-fit scene-first design routing")
+    if "taxonomy work, critique, or planning without a page" not in skill_text:
+        failures.append("SKILL.md must preserve the no-page exception for taxonomy, critique, or planning requests")
+    for required in [
+        "manual-test-execution",
+        "case-inventory",
+        "procedure-runbook",
+        "copyable-reproduction",
+        "result-capture",
+        "evidence-context",
+        "local-session-state",
+        "interaction-result-packet",
+        "ide-verification-console",
+        "report-export",
+        "agent-handoff-packet",
+    ]:
+        if required not in manual_test_template_text:
+            failures.append(f"manual-test-console template missing required route token: {required}")
+    if "Do not hard-code" not in manual_test_template_text:
+        failures.append("manual-test-console template must include parameterization guidance")
 
     if failures:
         print("hitl-webutil-design contract check failed:")

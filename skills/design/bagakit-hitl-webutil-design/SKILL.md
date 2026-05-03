@@ -13,6 +13,23 @@ decide what a HITL page must do for the human and the agent, how that page
 should scan in a concrete scene, and what durable artifact should round-trip
 back to the agent.
 
+## Explicit Invocation Contract
+
+When the user explicitly invokes `bagakit-hitl-webutil-design`, treat that as a
+request for a HITL page, not merely a request to discuss HITL principles.
+
+Default output:
+
+- design a concrete page brief
+- choose the scene route when one fits
+- bind mechanisms, style, artifacts, and any matching template
+- hand off to `bagakit-codex-webpage-design` when the user expects a built
+  frontend page
+
+If one crosswalk scene or template strongly matches the request, design from
+that scenario first. Do not stay at mechanism-only abstraction unless the user
+explicitly asks for taxonomy work, critique, or planning without a page.
+
 Scenario pages are cross-products, not atomic modules.
 
 - `mechanisms/`
@@ -24,6 +41,9 @@ Scenario pages are cross-products, not atomic modules.
 - `artifacts/`
   - durable outputs such as page manifests, report exports, and agent handoff
     packets
+- `templates/`
+  - reusable page blueprints that bind mechanisms, style, artifacts, and data
+    contracts for one repeatable HITL page family
 - `composition-crosswalk.md`
   - the bridge from scene to mechanism set, style route, artifacts, audience
     mode, and minimum eval
@@ -61,7 +81,7 @@ Always read:
 - `references/composition-crosswalk.md`
 - `references/workflow-contract.toml`
 - the relevant `README.md` under `references/mechanisms/`,
-  `references/styles/`, and `references/artifacts/`
+  `references/styles/`, `references/artifacts/`, and `references/templates/`
 
 Read by route:
 
@@ -74,6 +94,7 @@ Read by route:
     - `references/styles/repo-reading-workbench.md`
     - `references/styles/intelligence-briefing-desk.md`
 - manual execution or verification page
+  - `references/templates/manual-test-console.md`
   - `references/mechanisms/case-inventory.md`
   - `references/mechanisms/procedure-runbook.md`
   - `references/mechanisms/copyable-reproduction.md`

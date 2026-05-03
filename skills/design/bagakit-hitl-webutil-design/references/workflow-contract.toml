@@ -9,6 +9,7 @@ required_reference_links = [
   "references/mechanisms/README.md",
   "references/styles/README.md",
   "references/artifacts/README.md",
+  "references/templates/README.md",
   "references/composition-crosswalk.md",
   "references/workflow-contract.toml",
 ]
