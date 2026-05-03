@@ -4,6 +4,7 @@ Lightweight route tools for bagakit-writing-core.
 
 Usage:
   python3 scripts/writing_core_route_tools.py check-foundation [--kind auto|route|handoff|packet] path/to/file.md
+  python3 scripts/writing_core_route_tools.py review-foundation path/to/draft-or-route.md
   python3 scripts/writing_core_route_tools.py derive-route path/to/handoff.md [--output path/to/route-state.md]
 
 Exit codes:
@@ -23,6 +24,11 @@ from pathlib import Path
 TOP_LEVEL_BULLET_RE = re.compile(r"^- ([A-Za-z0-9_]+):(.*)$")
 H2_RE = re.compile(r"^##\s+(.+?)\s*$")
 H3_RE = re.compile(r"^###\s+(.+?)\s*$")
+QUESTION_RE = re.compile(r"[?？]|(first_question|第一问题|核心问题|要回答)", re.I)
+EVIDENCE_RE = re.compile(r"(evidence|source|引用|证据|样本|数据|case|fixture|benchmark|http|`[^`]+`|\d+)", re.I)
+SAMPLE_BOUNDARY_RE = re.compile(r"(sample|scope|boundary|window|样本|边界|范围|对象|口径)", re.I)
+COUNTER_RE = re.compile(r"(counter|反例|反证|风险|限制|limitation|unless|except|除非|但|不过)", re.I)
+ACTION_RE = re.compile(r"(next|action|owner|metric|acceptance|下一步|动作|触发|验收|负责人|指标|决策)", re.I)
 
 
 def read_text(path: Path) -> str:
@@ -130,6 +136,100 @@ def next_action_for(kind: str, stable: bool) -> str:
     return "fill_research_to_draft_handoff" if stable else "continue_research"
 
 
+def visible_lines(text: str) -> list[str]:
+    lines: list[str] = []
+    in_code = False
+    for raw in text.splitlines():
+        if raw.strip().startswith("```"):
+            in_code = not in_code
+            continue
+        if in_code:
+            continue
+        line = raw.strip()
+        if line:
+            lines.append(line)
+    return lines
+
+
+def dimension(name: str, status: str, evidence: list[str], fix: str) -> dict:
+    return {
+        "name": name,
+        "status": status,
+        "evidence": evidence[:5],
+        "smallestNextAction": fix,
+    }
+
+
+def foundation_review(path: Path) -> tuple[dict, int]:
+    text = read_text(path)
+    fields = parse_top_level_fields(text)
+    lines = visible_lines(text)
+    headings = [match.group(1).strip() for line in lines if (match := H2_RE.match(line) or H3_RE.match(line))]
+    title_lines = [line for line in lines if line.startswith("# ")]
+
+    object_evidence = []
+    if nonempty(fields.get("title_promise")):
+        object_evidence.append(f"title_promise: {fields['title_promise']}")
+    object_evidence.extend(title_lines[:2])
+    object_status = "stable" if object_evidence and not any("TODO" in item or "TBD" in item for item in object_evidence) else "missing"
+
+    first_question_evidence = []
+    if nonempty(fields.get("first_question")):
+        first_question_evidence.append(f"first_question: {fields['first_question']}")
+    first_question_evidence.extend([line for line in lines if QUESTION_RE.search(line)][:3])
+    first_question_status = "stable" if first_question_evidence else "missing"
+
+    evidence_lines = [line for line in lines if EVIDENCE_RE.search(line)]
+    evidence_status = "stable" if len(evidence_lines) >= 2 else "partial" if evidence_lines else "missing"
+
+    sample_lines = [line for line in lines if SAMPLE_BOUNDARY_RE.search(line)]
+    sample_status = "stable" if sample_lines else "partial" if evidence_lines else "missing"
+
+    counter_lines = [line for line in lines if COUNTER_RE.search(line)]
+    counter_status = "stable" if counter_lines else "partial"
+
+    action_lines = [line for line in lines if ACTION_RE.search(line)]
+    action_status = "stable" if action_lines else "missing"
+
+    dimensions = [
+        dimension("object_boundary", object_status, object_evidence or headings, "Name the object and boundary in one sentence."),
+        dimension("first_question", first_question_status, first_question_evidence, "Write the reader's first question before drafting."),
+        dimension("evidence_shape", evidence_status, evidence_lines, "Name the evidence type: source, sample, command, metric, or example."),
+        dimension("sample_boundary", sample_status, sample_lines, "State the sample/scope boundary or mark it unknown."),
+        dimension("counterevidence", counter_status, counter_lines, "Add one counterexample, limitation, or falsifier."),
+        dimension("reader_action", action_status, action_lines, "Add the next action, trigger, owner, metric, or acceptance condition."),
+    ]
+    critical_missing = [
+        item["name"]
+        for item in dimensions
+        if item["name"] in {"object_boundary", "first_question", "evidence_shape", "reader_action"}
+        and item["status"] == "missing"
+    ]
+    partial_count = sum(1 for item in dimensions if item["status"] == "partial")
+    missing_count = sum(1 for item in dimensions if item["status"] == "missing")
+    if critical_missing:
+        status = "unstable"
+    elif missing_count or partial_count > 2:
+        status = "partial"
+    else:
+        status = "stable"
+    next_action = "draft_or_rewrite" if status == "stable" else dimensions[0]["smallestNextAction"]
+    for item in dimensions:
+        if item["status"] in {"missing", "partial"}:
+            next_action = item["smallestNextAction"]
+            break
+    report = {
+        "schema": "bagakit.writing_core_foundation_review.v1",
+        "file": str(path),
+        "status": status,
+        "stable": status == "stable",
+        "dimensions": dimensions,
+        "blockers": critical_missing,
+        "smallestNextAction": next_action,
+    }
+    return report, 0 if status in {"stable", "partial"} else 2
+
+
 def check_foundation(path: Path, forced_kind: str) -> tuple[dict, int]:
     text = read_text(path)
     fields = parse_top_level_fields(text)
@@ -213,6 +313,9 @@ def build_parser() -> argparse.ArgumentParser:
     check.add_argument("path", help="Path to a markdown artifact")
     check.add_argument("--kind", choices=("auto", "route", "handoff", "packet"), default="auto")
 
+    review = sub.add_parser("review-foundation", help="Review content-aware foundation sufficiency for a draft or route artifact.")
+    review.add_argument("path", help="Path to a markdown artifact")
+
     derive = sub.add_parser("derive-route", help="Derive a non-authoritative route-state view from a research-to-draft handoff.")
     derive.add_argument("path", help="Path to a handoff markdown file")
     derive.add_argument("--output", help="Optional output path for the derived route-state view")
@@ -230,6 +333,15 @@ def main(argv: list[str]) -> int:
             print(f"file not found: {path}")
             return 2
         report, exit_code = check_foundation(path, args.kind)
+        print(json.dumps(report, ensure_ascii=False, indent=2))
+        return exit_code
+
+    if args.cmd == "review-foundation":
+        path = Path(args.path).expanduser()
+        if not path.exists():
+            print(f"file not found: {path}")
+            return 2
+        report, exit_code = foundation_review(path)
         print(json.dumps(report, ensure_ascii=False, indent=2))
         return exit_code
 

@@ -80,12 +80,14 @@
 | `REWRITE_FEEDBACK_LOOP.md` | 把局部改句变成全文规则 |
 | `EVIDENCE_ARCHITECTURE.md` | 防止把证据 dump 进正文 |
 | `writing_core_lint.py` + `references/review/QA_HARD_METRICS.md` | 低成本抓结构和口癖漂移 |
+| `references/rules/core-rule-registry.toml` | 把外部 style-guide/agent-style 启发收束为可验证 rule metadata |
+| `writing_core_inventory.py` | 重写前后低成本对照 claims、evidence、constraints、actions、risks 和 technical details |
 
 ### Still Missing
 
 | Gap | Effect |
 | --- | --- |
-| 更深一层的 content-aware foundation sufficiency grader | 现有 route tool 能查 artifact 是否齐全，但还不能判断理论、背景、证据是否真的“够深” |
+| 更深一层的 content-aware foundation depth grader | `review-foundation` 能抓对象、问题、证据形态和行动出口，但还不替代理论、背景、证据深度判断 |
 | 从原始 draft 直接推导 route state 的小工具 | 现在 route tool 只能从 handoff 压 route，不能直接从 draft 反推 route |
 
 这些缺口先显式标出来，不在这里继续加装饰性文档。

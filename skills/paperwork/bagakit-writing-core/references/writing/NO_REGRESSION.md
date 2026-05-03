@@ -11,3 +11,9 @@
    - 评测标准（结构 / 零散度 / 排版比例等）
    - 实施细节（检查项、阈值、流程或下一步）
 3) **改写前做 inventory**：先列出原文有哪些信息块；改写后逐项对照，确保都还在。
+
+可用脚本出口：
+
+```bash
+bash scripts/bagakit-writing-core-cli.sh inventory compare source.md rewrite.md --fail-on risk
+```

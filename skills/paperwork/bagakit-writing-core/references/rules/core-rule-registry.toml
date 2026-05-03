@@ -1,0 +1,113 @@
+version = 1
+
+[[rule]]
+id = "foundation-object-boundary"
+source = "bagakit-core"
+scope = ["foundation", "route"]
+severity = "warn"
+enforcement_tier = "review"
+proof_mode = "foundation_review"
+owner = "bagakit-writing-core"
+applies_when = ["drafting", "rewrite", "research_synthesis"]
+exempt_when = ["raw_notes"]
+good_example = "The artifact names the object, boundary, and first reader question before drafting."
+bad_example = "The draft starts from a broad topic label and relies on later sections to define the object."
+non_goal = "Do not infer private or personal style from missing foundation fields."
+
+[[rule]]
+id = "title-promise-topic-label"
+source = "bagakit-core"
+scope = ["title", "opening"]
+severity = "warn"
+enforcement_tier = "review"
+proof_mode = "review_packet"
+owner = "bagakit-writing-core"
+applies_when = ["longform", "technical_article", "decision_memo"]
+exempt_when = ["scratch_outline", "raw_notes"]
+good_example = "The title makes a claim, boundary, decision, or reader problem visible."
+bad_example = "The title only names a topic, project, or implementation surface."
+non_goal = "Do not enforce a personal or qihan title style."
+
+[[rule]]
+id = "evidence-shape-visible"
+source = "bagakit-core"
+scope = ["evidence", "foundation"]
+severity = "warn"
+enforcement_tier = "review"
+proof_mode = "foundation_review"
+owner = "bagakit-writing-core"
+applies_when = ["synthesis", "technical_article", "review_report"]
+exempt_when = ["brainstorm_notes"]
+good_example = "The draft says whether support comes from examples, commands, sources, data, or user edits."
+bad_example = "The draft asserts a conclusion without source shape, sample boundary, or counterevidence."
+non_goal = "Do not require external citations for purely local operational notes."
+
+[[rule]]
+id = "no-regression-evidence-classes"
+source = "bagakit-core"
+scope = ["rewrite", "no_regression"]
+severity = "warn"
+enforcement_tier = "review"
+proof_mode = "inventory_compare"
+owner = "bagakit-writing-core"
+applies_when = ["rewrite", "polish", "compression"]
+exempt_when = ["explicit_scope_cut"]
+good_example = "The rewrite preserves claims, evidence, constraints, actions, risks, and technical details."
+bad_example = "The rewrite reads smoother but drops source links, commands, metrics, or next actions."
+non_goal = "Do not block an explicit user-requested deletion when the scope cut is recorded."
+
+[[rule]]
+id = "paragraph-movement-list-substitute"
+source = "bagakit-core"
+scope = ["structure", "paragraph_movement"]
+severity = "advisory"
+enforcement_tier = "lint"
+proof_mode = "lint_json"
+owner = "bagakit-writing-core"
+applies_when = ["longform", "research_synthesis", "decision_memo"]
+exempt_when = ["checklist", "api_reference", "command_guide"]
+good_example = "Lists carry inventory while surrounding prose explains causality and reader movement."
+bad_example = "Back-to-back lists replace the reasoning that connects claims, evidence, and action."
+non_goal = "Do not penalize reference docs for using precise lists."
+
+[[rule]]
+id = "audience-first-use"
+source = "bagakit-core"
+scope = ["audience", "clarity"]
+severity = "warn"
+enforcement_tier = "review"
+proof_mode = "audience_review"
+owner = "bagakit-writing-core"
+applies_when = ["shared_doc", "public_summary", "handoff"]
+exempt_when = ["private_scratch"]
+good_example = "The first use of a specialized term includes enough local context for the target reader."
+bad_example = "The draft assumes chat, repo, or prior-session context that the target reader cannot see."
+non_goal = "Do not expand every familiar domain term into a tutorial."
+
+[[rule]]
+id = "review-packet-counterevidence"
+source = "bagakit-core"
+scope = ["review", "evidence"]
+severity = "warn"
+enforcement_tier = "review"
+proof_mode = "review_packet"
+owner = "bagakit-writing-core"
+applies_when = ["high_stakes", "longform", "publication_ready"]
+exempt_when = ["low_risk_note"]
+good_example = "The review packet records counterevidence, accepted deviations, and reviewer ownership."
+bad_example = "The review only says the draft is clear without naming residual risk or missing evidence."
+non_goal = "Do not turn every small rewrite into a full publication review."
+
+[[rule]]
+id = "anti-rationalization-accepted-deviation"
+source = "bagakit-core"
+scope = ["review", "anti_rationalization"]
+severity = "warn"
+enforcement_tier = "review"
+proof_mode = "review_packet"
+owner = "bagakit-writing-core"
+applies_when = ["review", "publish", "handoff"]
+exempt_when = ["none"]
+good_example = "A rule deviation is accepted only with boundary, reason, and next action."
+bad_example = "The agent explains away a weak opening, title, evidence gap, or list-heavy section."
+non_goal = "Do not remove legitimate variation when the boundary is explicit."

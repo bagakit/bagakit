@@ -128,6 +128,9 @@ def main() -> int:
     lint_script = SKILL_DIR / "scripts/writing_core_lint.py"
     route_script = SKILL_DIR / "scripts/writing_core_route_tools.py"
     intake_script = SKILL_DIR / "scripts/writing_core_intake_packet.py"
+    rules_script = SKILL_DIR / "scripts/writing_core_rules.py"
+    inventory_script = SKILL_DIR / "scripts/writing_core_inventory.py"
+    rule_registry = SKILL_DIR / "references/rules/core-rule-registry.toml"
     review_template = SKILL_DIR / "references/review/REVIEW_PACKET_TEMPLATE.md"
     anti_rationalization = SKILL_DIR / "references/review/ANTI_RATIONALIZATION_TABLE.md"
     de_ai_cli = Path("skills/paperwork/bagakit-writing-de-ai-tone/scripts/bagakit-writing-de-ai-tone-cli.sh")
@@ -141,6 +144,9 @@ def main() -> int:
         lint_script,
         route_script,
         intake_script,
+        rules_script,
+        inventory_script,
+        rule_registry,
         review_template,
         anti_rationalization,
         Path("skills/paperwork/bagakit-writing-de-ai-tone/references/lexicon.json"),
@@ -155,6 +161,18 @@ def main() -> int:
 
     cli_validate = run(["bash", str(cli), "validate"], root)
     require(cli_validate.returncode == 0, "skill CLI validate failed", failures)
+
+    rules_validate = run(["bash", str(cli), "rules", "validate"], root)
+    require(rules_validate.returncode == 0, f"rules validate failed: {rules_validate.stderr}", failures)
+    rules_payload = load_json(rules_validate.stdout, "rules validate", failures)
+    require(rules_payload.get("ok") is True, "rules validate should report ok", failures)
+    require(int(rules_payload.get("count", 0)) >= 8, "rules registry should expose the initial Core rule set", failures)
+
+    rule_show = run(["bash", str(cli), "rules", "show", "title-promise-topic-label"], root)
+    require(rule_show.returncode == 0, "rules show should find title-promise-topic-label", failures)
+    rule_payload = load_json(rule_show.stdout, "rules show", failures)
+    require(rule_payload.get("owner") == "bagakit-writing-core", "shown rule should keep Core ownership", failures)
+    require("proof_mode" in rule_payload, "shown rule should expose proof_mode", failures)
 
     de_ai_proc = run(["bash", str(cli), "de-ai-tone", "describe"], root)
     require(de_ai_proc.returncode == 0, "writing-core de-ai-tone dispatch failed", failures)
@@ -223,6 +241,36 @@ def main() -> int:
         require(route_proc.returncode == 0, f"route check failed: {route_proc.stderr}", failures)
         route_payload = load_json(route_proc.stdout, "route check", failures)
         require(route_payload.get("stable") is True, "route check should mark fixture stable", failures)
+
+        foundation = tmp / "foundation.md"
+        foundation.write_text(
+            "\n".join(
+                [
+                    "# Rewrite Core Needs A Rule Registry",
+                    "",
+                    "- title_promise: Core rules should be reusable metadata, not scattered advice.",
+                    "- first_question: Which generic writing checks should every L2 skill inherit?",
+                    "- evidence_shape: Source notes, rule ids, and benchmark 12 ms command output.",
+                    "- sample_boundary: Applies to paperwork L1 Core and excludes personal style overlays.",
+                    "- counterevidence: A tiny typo fix should not require a full review packet.",
+                    "- exit_move: Next action: run rules validate and inventory compare before accepting the rewrite.",
+                    "",
+                ]
+            ),
+            encoding="utf-8",
+        )
+        foundation_proc = run(["bash", str(cli), "route", "review-foundation", str(foundation)], root)
+        require(foundation_proc.returncode == 0, f"foundation review failed: {foundation_proc.stderr}", failures)
+        foundation_payload = load_json(foundation_proc.stdout, "foundation review", failures)
+        require(
+            foundation_payload.get("schema") == "bagakit.writing_core_foundation_review.v1",
+            "foundation review should expose its schema",
+            failures,
+        )
+        require(foundation_payload.get("status") == "stable", "foundation fixture should be stable", failures)
+        dimensions = {str(item.get("name")) for item in foundation_payload.get("dimensions", [])}
+        for expected_dimension in ["object_boundary", "first_question", "evidence_shape", "reader_action"]:
+            require(expected_dimension in dimensions, f"foundation review missing dimension: {expected_dimension}", failures)
 
         incomplete_handoff = tmp / "incomplete-handoff.md"
         incomplete_handoff.write_text(
@@ -299,6 +347,39 @@ def main() -> int:
         require(
             "AI_PATTERNS" in codes or "LIST_BLOCK_CLUSTER" in codes,
             "lint fixture should produce a writing signal",
+            failures,
+        )
+
+        source = tmp / "source.md"
+        source.write_text(
+            "\n".join(
+                [
+                    "# Preserve Evidence",
+                    "",
+                    "Claim: Core must keep rewrite evidence visible.",
+                    "Evidence: benchmark source https://example.com/core shows `scripts/core-check.ts` at 12 ms.",
+                    "Constraint: must not drop protected implementation paths.",
+                    "Risk: deleting the command hides a review failure.",
+                    "Next action: run validate before publishing.",
+                    "",
+                ]
+            ),
+            encoding="utf-8",
+        )
+        rewrite = tmp / "rewrite.md"
+        rewrite.write_text("# Preserve Evidence\n\nCore should improve the draft.\n", encoding="utf-8")
+        inventory_proc = run(["bash", str(cli), "inventory", "compare", str(source), str(rewrite), "--fail-on", "risk"], root)
+        require(inventory_proc.returncode == 2, "inventory compare should fail on detected regression risk", failures)
+        inventory_payload = load_json(inventory_proc.stdout, "inventory compare", failures)
+        require(
+            inventory_payload.get("schema") == "bagakit.writing_core_inventory_compare.v1",
+            "inventory compare should expose its schema",
+            failures,
+        )
+        require(inventory_payload.get("regressionRisk") is True, "inventory compare should flag regression risk", failures)
+        require(
+            bool(inventory_payload.get("missingCategories")) or bool(inventory_payload.get("missingProtectedLikeTokens")),
+            "inventory compare should name missing categories or protected-like tokens",
             failures,
         )
 

@@ -47,7 +47,10 @@ Commands:
   lint              Run generic writing-core markdown lint checks.
   de-ai-tone        Run bagakit-writing-de-ai-tone CLI when available.
   route             Run writing-core route foundation and derivation tools.
+                    Includes check-foundation, review-foundation, and derive-route.
   intake            Run writing-core Intake packet checks and Core-veto mapping tools.
+  rules             Validate, list, or show Core rule metadata.
+  inventory         Build or compare no-regression inventories.
   print-intake-handoff
                     Print the Intake handoff and Core veto reference.
   print-review-packet-template
@@ -72,12 +75,16 @@ case "${1:-}" in
     test -f "$skill_root/references/writing/AI_SMELLS.md"
     test -f "$skill_root/references/writing/ai-smell-lexicon.json"
     test -f "$skill_root/references/workflow/INTAKE_HANDOFF_AND_CORE_VETO.md"
+    test -f "$skill_root/references/rules/core-rule-registry.toml"
     test -f "$skill_root/references/review/QA_HARD_METRICS.md"
     test -f "$skill_root/references/review/ANTI_RATIONALIZATION_TABLE.md"
     test -f "$skill_root/references/review/REVIEW_PACKET_TEMPLATE.md"
     test -f "$skill_root/scripts/writing_core_lint.py"
     test -f "$skill_root/scripts/writing_core_route_tools.py"
     test -f "$skill_root/scripts/writing_core_intake_packet.py"
+    test -f "$skill_root/scripts/writing_core_rules.py"
+    test -f "$skill_root/scripts/writing_core_inventory.py"
+    python3 "$skill_root/scripts/writing_core_rules.py" validate >/dev/null
     ;;
   lint)
     shift
@@ -98,6 +105,14 @@ case "${1:-}" in
   intake)
     shift
     exec python3 "$skill_root/scripts/writing_core_intake_packet.py" "$@"
+    ;;
+  rules)
+    shift
+    exec python3 "$skill_root/scripts/writing_core_rules.py" "$@"
+    ;;
+  inventory)
+    shift
+    exec python3 "$skill_root/scripts/writing_core_inventory.py" "$@"
     ;;
   print-review-packet-template)
     cat "$skill_root/references/review/REVIEW_PACKET_TEMPLATE.md"

@@ -29,6 +29,10 @@ they do not duplicate the full de-AI-tone taxonomy.
 - `knowledge/RESEARCH_TO_DRAFT_HANDOFF_TEMPLATE.md`
 - `knowledge/REVERSE_OUTLINE_TEMPLATE.md`
 
+## Rules
+
+- `rules/core-rule-registry.toml`
+
 ## Writing
 
 - `writing/AI_SMELLS.md`
@@ -58,6 +62,8 @@ they do not duplicate the full de-AI-tone taxonomy.
   candidate generation belong to `bagakit-writing-intake`; Core consumes the
   packet only to run generic foundation, evidence, content-preservation,
   no-regression, clarity, task-fitness, and veto checks.
+- Rule metadata belongs in `rules/core-rule-registry.toml`; prose references
+  should explain practice, not duplicate the registry.
 - AI-tone lexicon and detect/rewrite protocol belong to
   `bagakit-writing-de-ai-tone`.
 - Channel-specific layout belongs in an L2 skill.

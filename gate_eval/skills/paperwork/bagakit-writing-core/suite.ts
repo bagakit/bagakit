@@ -22,14 +22,14 @@ export const SUITE: EvalSuiteDefinition = {
   id: "bagakit-writing-core-behavior-starter-eval",
   owner: "gate_eval/skills/paperwork/bagakit-writing-core",
   title: "Bagakit Writing Core Behavior Starter Eval",
-  summary: "Check that route, lint, review, and anti-rationalization surfaces are reachable through the writing-core CLI.",
+  summary: "Check that route, rule metadata, no-regression, lint, review, and anti-rationalization surfaces are reachable through the writing-core CLI.",
   defaultOutputDir: "gate_eval/skills/paperwork/bagakit-writing-core/results/runs",
   cases: [
     {
       id: "core-route-lint-review-surfaces-are-reachable",
       title: "Core Route Lint Review Surfaces Are Reachable",
-      summary: "The public CLI should expose route/foundation checks, lint JSON, review packet, and anti-rationalization discipline.",
-      focus: ["route", "lint", "review-packet", "anti-rationalization"],
+      summary: "The public CLI should expose route/foundation checks, rule metadata, no-regression inventory, lint JSON, review packet, and anti-rationalization discipline.",
+      focus: ["route", "rules", "no-regression", "lint", "review-packet", "anti-rationalization"],
       run: (context): EvalCaseResult => {
         const fixture = withFixture(context);
         const cliRel = "skills/paperwork/bagakit-writing-core/scripts/bagakit-writing-core-cli.sh";
@@ -74,6 +74,37 @@ export const SUITE: EvalSuiteDefinition = {
               "",
             ].join("\n"),
           );
+          const foundationPath = path.join(fixture.tempRepo, "foundation.md");
+          fs.writeFileSync(
+            foundationPath,
+            [
+              "# Rewrite Core Needs A Rule Registry",
+              "",
+              "- title_promise: Core rules should be reusable metadata, not scattered advice.",
+              "- first_question: Which generic writing checks should every L2 skill inherit?",
+              "- evidence_shape: Source notes, rule ids, and benchmark 12 ms command output.",
+              "- sample_boundary: Applies to paperwork L1 Core and excludes personal style overlays.",
+              "- counterevidence: A tiny typo fix should not require a full review packet.",
+              "- exit_move: Next action: run rules validate and inventory compare before accepting the rewrite.",
+              "",
+            ].join("\n"),
+          );
+          const sourcePath = path.join(fixture.tempRepo, "source.md");
+          fs.writeFileSync(
+            sourcePath,
+            [
+              "# Preserve Evidence",
+              "",
+              "Claim: Core must keep rewrite evidence visible.",
+              "Evidence: benchmark source https://example.com/core shows `scripts/core-check.ts` at 12 ms.",
+              "Constraint: must not drop protected implementation paths.",
+              "Risk: deleting the command hides a review failure.",
+              "Next action: run validate before publishing.",
+              "",
+            ].join("\n"),
+          );
+          const rewritePath = path.join(fixture.tempRepo, "rewrite.md");
+          fs.writeFileSync(rewritePath, "# Preserve Evidence\n\nCore should improve the draft.\n");
 
           const route = runCommand("bash", [cli, "route", "check-foundation", routePath], {
             cwd: context.repoRoot,
@@ -82,6 +113,46 @@ export const SUITE: EvalSuiteDefinition = {
           expectOk(route, "route check");
           const routeJson = JSON.parse(route.stdout);
           assert.equal(routeJson.stable, true, "route fixture should be stable");
+
+          const foundation = runCommand("bash", [cli, "route", "review-foundation", foundationPath], {
+            cwd: context.repoRoot,
+            replacements: fixture.replacements,
+          });
+          expectOk(foundation, "foundation review");
+          const foundationJson = JSON.parse(foundation.stdout);
+          assert.equal(foundationJson.schema, "bagakit.writing_core_foundation_review.v1");
+          assert.equal(foundationJson.status, "stable", "foundation fixture should be stable");
+
+          const rules = runCommand("bash", [cli, "rules", "validate"], {
+            cwd: context.repoRoot,
+            replacements: fixture.replacements,
+          });
+          expectOk(rules, "rules validate");
+          const rulesJson = JSON.parse(rules.stdout);
+          assert.equal(rulesJson.ok, true, "rule registry should validate");
+          assert.ok(rulesJson.count >= 8, "rule registry should expose initial Core rules");
+
+          const ruleShow = runCommand("bash", [cli, "rules", "show", "title-promise-topic-label"], {
+            cwd: context.repoRoot,
+            replacements: fixture.replacements,
+          });
+          expectOk(ruleShow, "rules show");
+          const ruleShowJson = JSON.parse(ruleShow.stdout);
+          assert.equal(ruleShowJson.owner, "bagakit-writing-core");
+          assert.ok(ruleShowJson.proof_mode, "shown rule should expose proof_mode");
+
+          const inventory = runCommand("bash", [cli, "inventory", "compare", sourcePath, rewritePath, "--fail-on", "risk"], {
+            cwd: context.repoRoot,
+            replacements: fixture.replacements,
+          });
+          assert.equal(inventory.status, 2, `inventory compare should fail on risk\nstdout:\n${inventory.stdout}\nstderr:\n${inventory.stderr}`);
+          const inventoryJson = JSON.parse(inventory.stdout);
+          assert.equal(inventoryJson.schema, "bagakit.writing_core_inventory_compare.v1");
+          assert.equal(inventoryJson.regressionRisk, true, "inventory compare should flag rewrite regression risk");
+          assert.ok(
+            (inventoryJson.missingCategories ?? []).length > 0 || (inventoryJson.missingProtectedLikeTokens ?? []).length > 0,
+            "inventory compare should name missing categories or protected-like tokens",
+          );
 
           const lint = runCommand("bash", [cli, "lint", "--fail-on", "none", draftPath], {
             cwd: context.repoRoot,
@@ -120,6 +191,9 @@ export const SUITE: EvalSuiteDefinition = {
           return {
             assertions: [
               "route check marks a complete route memo stable",
+              "foundation review emits stable structured dimensions for a complete route artifact",
+              "rule registry validates and exposes individual rule metadata",
+              "inventory compare flags dropped evidence, actions, risks, or protected-like tokens",
               "lint emits structured writing signals and prose mechanics",
               "de-AI-tone primitive is reachable through writing-core",
               "review packet exposes the generic writing-core skill id",
@@ -127,6 +201,10 @@ export const SUITE: EvalSuiteDefinition = {
             ],
             commands: [
               `bash ${cliRel} route check-foundation <temp-repo>/route.md`,
+              `bash ${cliRel} route review-foundation <temp-repo>/foundation.md`,
+              `bash ${cliRel} rules validate`,
+              `bash ${cliRel} rules show title-promise-topic-label`,
+              `bash ${cliRel} inventory compare <temp-repo>/source.md <temp-repo>/rewrite.md --fail-on risk`,
               `bash ${cliRel} lint --fail-on none <temp-repo>/draft.md`,
               `bash ${cliRel} de-ai-tone lint --profile blog --fail-on none <temp-repo>/draft.md`,
               `bash ${cliRel} print-review-packet-template`,
@@ -134,11 +212,17 @@ export const SUITE: EvalSuiteDefinition = {
             ],
             artifacts: [
               { label: "route-fixture", path: routePath },
+              { label: "foundation-fixture", path: foundationPath },
               { label: "draft-fixture", path: draftPath },
+              { label: "source-fixture", path: sourcePath },
+              { label: "rewrite-fixture", path: rewritePath },
               { label: "writing-core-cli", path: cliRel },
             ],
             outputs: {
               route_stable: routeJson.stable,
+              foundation_status: foundationJson.status,
+              rules_count: rulesJson.count,
+              inventory_status: inventoryJson.status,
               lint_codes: Array.from(codes).sort(),
             },
             replacements: fixture.replacements,

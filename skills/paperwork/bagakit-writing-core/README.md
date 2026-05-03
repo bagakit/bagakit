@@ -34,6 +34,9 @@ bash scripts/bagakit-writing-core-cli.sh list-references
 bash scripts/bagakit-writing-core-cli.sh lint --fail-on warn artifact.md
 bash scripts/bagakit-writing-core-cli.sh de-ai-tone lint --profile blog artifact.md
 bash scripts/bagakit-writing-core-cli.sh route check-foundation route-memo.md
+bash scripts/bagakit-writing-core-cli.sh route review-foundation artifact.md
+bash scripts/bagakit-writing-core-cli.sh rules validate
+bash scripts/bagakit-writing-core-cli.sh inventory compare source.md rewrite.md --fail-on risk
 bash scripts/bagakit-writing-core-cli.sh print-review-packet-template
 bash scripts/bagakit-writing-core-cli.sh print-anti-rationalization-table
 ```

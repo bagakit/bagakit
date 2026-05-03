@@ -25,6 +25,7 @@ This skill owns generic writing primitives:
 - structure, paragraph movement, and claim/support quality
 - evidence architecture, source parentage, sample boundary, and counterevidence
 - content preservation, no-regression checks, task fitness, and Core vetoes
+- Core rule metadata for reusable generic writing checks
 - de-AI-tone orchestration through `bagakit-writing-de-ai-tone`
 - prose-mechanics lint and publishable-prose review discipline
 - Core validation of Intake-extracted rewrite-feedback rule candidates for
@@ -87,6 +88,8 @@ compose the core explicitly.
    - Use `references/knowledge/PRE_DRAFT_ROUTE_MEMO_TEMPLATE.md`.
    - Run `scripts/writing_core_route_tools.py check-foundation` when a route
      memo, handoff, or depth packet exists.
+   - Run `scripts/writing_core_route_tools.py review-foundation` when only a
+     draft or loose route artifact exists.
 3. Choose structure and title promise.
    - Use `references/writing/NARRATIVE_ANGLE_SELECTION.md`.
    - Review the choice with
@@ -96,9 +99,12 @@ compose the core explicitly.
      `references/writing/AI_SMELLS.md`, and
      `references/workflow/REWRITE_FEEDBACK_LOOP.md`.
 5. Lint and review.
+   - Use `references/rules/core-rule-registry.toml` as the rule metadata index.
    - MUST run the de-AI-tone pass for publishable prose:
      `bash scripts/bagakit-writing-core-cli.sh de-ai-tone lint --profile <profile> <artifact.md>`.
    - Run `scripts/writing_core_lint.py`.
+   - For rewrites, run `scripts/writing_core_inventory.py compare` before
+     accepting a smoother but thinner draft.
    - Use `references/review/QA_HARD_METRICS.md`,
      `references/review/LONGFORM_RUBRIC.md`, and
      `references/review/ANTI_RATIONALIZATION_TABLE.md`.
@@ -120,6 +126,9 @@ bash scripts/bagakit-writing-core-cli.sh list-references
 bash scripts/bagakit-writing-core-cli.sh lint --fail-on warn <artifact.md>
 bash scripts/bagakit-writing-core-cli.sh de-ai-tone lint --profile blog <artifact.md>
 bash scripts/bagakit-writing-core-cli.sh route check-foundation <route-memo.md>
+bash scripts/bagakit-writing-core-cli.sh route review-foundation <artifact.md>
+bash scripts/bagakit-writing-core-cli.sh rules validate
+bash scripts/bagakit-writing-core-cli.sh inventory compare <source.md> <rewrite.md> --fail-on risk
 bash scripts/bagakit-writing-core-cli.sh print-review-packet-template
 bash scripts/bagakit-writing-core-cli.sh print-intake-handoff
 ```
@@ -129,6 +138,7 @@ bash scripts/bagakit-writing-core-cli.sh print-intake-handoff
 - `references/README.md`
 - `references/workflow/INTAKE_HANDOFF_AND_CORE_VETO.md`
 - `references/workflow/OPERATING_SURFACE_MATRIX.md`
+- `references/rules/core-rule-registry.toml`
 - `references/knowledge/PRE_DRAFT_ROUTE_MEMO_TEMPLATE.md`
 - `references/writing/AI_SMELLS.md`
 - `references/writing/STRUCTURE_PYRAMID.md`
