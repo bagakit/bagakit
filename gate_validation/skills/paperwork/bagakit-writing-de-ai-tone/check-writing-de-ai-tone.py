@@ -62,6 +62,7 @@ def main() -> int:
         SKILL_DIR / "SKILL.md",
         SKILL_DIR / "references/patterns.md",
         SKILL_DIR / "references/rewrite-protocol.md",
+        SKILL_DIR / "references/protected-spans.md",
         SKILL_DIR / "references/context-profiles.toml",
         SKILL_DIR / "references/lexicon.json",
         SKILL_DIR / "references/frontdoor-rule.toml",
@@ -85,8 +86,13 @@ def main() -> int:
 
     protocol = run(["bash", str(cli), "print-rewrite-protocol"], root)
     require(protocol.returncode == 0, "print-rewrite-protocol failed", failures)
-    for token in ["Detect Mode", "Rewrite Mode", "Second-pass audit"]:
+    for token in ["Detect Mode", "Rewrite Mode", "Protected-Span Pass", "Second-pass audit"]:
         require(token in protocol.stdout, f"rewrite protocol missing token: {token}", failures)
+
+    protected_protocol = run(["bash", str(cli), "print-protected-spans"], root)
+    require(protected_protocol.returncode == 0, "print-protected-spans failed", failures)
+    for token in ["Protected Span Classes", "Scene Packs", "Humanizer Boundary"]:
+        require(token in protected_protocol.stdout, f"protected-span protocol missing token: {token}", failures)
 
     zh = run(
         [
@@ -175,6 +181,40 @@ def main() -> int:
         "advisory-only fixture should produce advisory findings",
         failures,
     )
+
+    protected = run(
+        [
+            "bash",
+            str(cli),
+            "lint",
+            "--profile",
+            "technical",
+            "--scene",
+            "technical",
+            "--fail-on",
+            "none",
+            str(FIXTURE_DIR / "protected-spans.md"),
+        ],
+        root,
+    )
+    require(protected.returncode == 0, f"protected-spans lint failed: {protected.stderr}", failures)
+    protected_payload = load_json(protected.stdout, "protected-spans lint", failures)
+    require(protected_payload.get("scene") == "technical", "protected-spans lint should preserve scene", failures)
+    protected_spans = protected_payload.get("protected_spans", {})
+    classes = protected_spans.get("classes", {}) if isinstance(protected_spans, dict) else {}
+    require(protected_payload.get("summary", {}).get("protected_spans", 0) >= 8, "protected-spans fixture should report protected span count", failures)
+    for expected in [
+        "inline_code",
+        "command",
+        "file_path",
+        "url",
+        "version",
+        "metric",
+        "date",
+        "api_symbol",
+        "issue_or_id",
+    ]:
+        require(expected in classes, f"protected-spans fixture missed {expected}", failures)
 
     core = run(
         [

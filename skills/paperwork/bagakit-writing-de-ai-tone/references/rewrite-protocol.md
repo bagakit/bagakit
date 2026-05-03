@@ -5,7 +5,8 @@
 Return:
 
 1. Issues found, grouped by P0/P1/P2.
-2. Assessment: which findings are real release risks and which are judgment
+2. Protected spans and scene assumption.
+3. Assessment: which findings are real release risks and which are judgment
    calls.
 
 Do not rewrite in detect mode.
@@ -15,10 +16,28 @@ Do not rewrite in detect mode.
 Return:
 
 1. Issues found, with short offending excerpts.
-2. Rewritten version, preserving intent, facts, examples, and useful structure.
-3. Change summary, focused on meaningful structural edits.
-4. Second-pass audit. Re-read the rewrite and either fix remaining AI tells or
+2. Protected spans and scene assumption.
+3. Rewritten version, preserving intent, facts, examples, and useful structure.
+4. Change summary, focused on meaningful structural edits.
+5. Second-pass audit. Re-read the rewrite and either fix remaining AI tells or
    state that no blocking AI-tone issue remains.
+
+## Protected-Span Pass
+
+Before rewriting, identify hard-information spans that must survive:
+
+- code blocks and inline code
+- commands, paths, URLs, API names, field names, and error strings
+- dates, versions, metrics, identifiers, owners, and quoted source names
+
+Rewrite the prose around these spans. Do not paraphrase a protected span just to
+make the sentence sound smoother. If a protected span appears wrong, call it out
+as a separate factual issue instead of silently fixing it.
+
+The CLI lint report includes a `protected_spans` summary to make this pass
+visible for downstream agents.
+
+## Scene Pack
 
 ## Rewrite Threshold
 
@@ -32,6 +51,14 @@ Recommend full paragraph rebuild when all of these are true:
 
 For a rebuild, first state the core point in one sentence, then rewrite around
 that point.
+
+Use the scene pack to set rewrite pressure:
+
+- `chat`: reduce padding and keep the ask clear.
+- `status`: preserve owners, metrics, blockers, sequence, and dates.
+- `docs`: prefer exactness over voice; keep command and path text stable.
+- `public-writing`: remove template polish while preserving sources and claims.
+- `technical`: keep precise technical terms; avoid cosmetic synonym swaps.
 
 ## Conflict-Bait Guard
 
@@ -63,3 +90,9 @@ allowed when they carry precise meaning.
 
 Do not flag quoted examples when the text is explicitly discussing AI writing
 patterns. Only flag the author's own prose.
+
+## Humanizer Boundary
+
+Humanizer or detector-evasion artifacts may be used as adversarial fixtures.
+They must not define the success target. The target is meaning-preserving,
+source-preserving, accountable prose with fewer AI-tone tells.

@@ -49,6 +49,19 @@ These should normally be removed or rewritten before release.
 - Repeated precise terms beat synonym cycling.
 - Specific failure modes beat vague group dunking.
 - A real continuum beats a staged binary fight.
+- Protected hard facts beat smoother wording.
 
 When in doubt, ask: if this sentence is deleted, what information disappears?
 If the answer is "nothing", delete it.
+
+## Humanizer Artifacts To Treat As Adversarial
+
+These patterns can appear after generic "humanizer" rewrites. Treat them as
+review targets, not as goals:
+
+- facts removed to create a smoother paragraph
+- commands, paths, or identifiers paraphrased into natural language
+- metrics rounded or softened without permission
+- sources turned into vague authority
+- accountability removed from status updates
+- detector-focused rhythm variation that makes the text less precise

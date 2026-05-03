@@ -14,6 +14,7 @@ Commands:
   lint                     Run de-AI-tone markdown lint checks.
   print-patterns           Print AI-tone pattern reference.
   print-rewrite-protocol   Print detect/rewrite protocol.
+  print-protected-spans    Print protected-span and scene-pack protocol.
 EOF
 }
 
@@ -28,6 +29,7 @@ case "${1:-}" in
     test -f "$skill_root/SKILL.md"
     test -f "$skill_root/references/patterns.md"
     test -f "$skill_root/references/rewrite-protocol.md"
+    test -f "$skill_root/references/protected-spans.md"
     test -f "$skill_root/references/context-profiles.toml"
     test -f "$skill_root/references/lexicon.json"
     test -f "$skill_root/references/frontdoor-rule.toml"
@@ -43,6 +45,9 @@ case "${1:-}" in
     ;;
   print-rewrite-protocol)
     cat "$skill_root/references/rewrite-protocol.md"
+    ;;
+  print-protected-spans)
+    cat "$skill_root/references/protected-spans.md"
     ;;
   ""|-h|--help|help)
     usage

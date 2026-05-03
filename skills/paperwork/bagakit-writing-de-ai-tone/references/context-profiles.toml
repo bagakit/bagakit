@@ -31,3 +31,28 @@ strictness = "strict"
 [profiles.casual]
 description = "Casual personal note."
 strictness = "p0-only"
+
+[scene_packs.chat]
+description = "IM replies and short coordination notes."
+protected_span_classes = ["date", "issue_or_id", "owner", "url"]
+rewrite_priority = "remove padding while preserving the ask"
+
+[scene_packs.status]
+description = "Weekly updates, progress reports, and incident notes."
+protected_span_classes = ["metric", "date", "issue_or_id", "owner", "url"]
+rewrite_priority = "preserve accountability, sequence, blockers, and metrics"
+
+[scene_packs.docs]
+description = "Reference docs, SOPs, API notes, and command guides."
+protected_span_classes = ["code_block", "inline_code", "command", "file_path", "api_symbol", "version", "url"]
+rewrite_priority = "prefer exactness over voice"
+
+[scene_packs.public-writing]
+description = "Articles, posts, public summaries, and shareable prose."
+protected_span_classes = ["url", "metric", "date", "quoted_source", "api_symbol"]
+rewrite_priority = "remove template polish while preserving sources and claims"
+
+[scene_packs.technical]
+description = "Design docs, implementation notes, and engineering reports."
+protected_span_classes = ["code_block", "inline_code", "command", "file_path", "api_symbol", "version", "metric", "date"]
+rewrite_priority = "keep precise technical terms and avoid cosmetic synonym swaps"

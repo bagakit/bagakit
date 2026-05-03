@@ -5,7 +5,7 @@ entrypoint = "scripts/bagakit-writing-de-ai-tone-cli.sh"
 runner = "shell"
 usage = "bash scripts/bagakit-writing-de-ai-tone-cli.sh <command> [args...]"
 summary = "Inspect, validate, lint, and review de-AI-tone artifacts."
-surface_refs = []
+surface_refs = ["references/protected-spans.md"]
 
 [[command]]
 name = "describe"
@@ -30,3 +30,7 @@ summary = "Print AI-tone pattern reference."
 [[command]]
 name = "print-rewrite-protocol"
 summary = "Print the detect/rewrite protocol."
+
+[[command]]
+name = "print-protected-spans"
+summary = "Print the protected-span and scene-pack protocol."

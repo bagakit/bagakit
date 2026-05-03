@@ -21,25 +21,32 @@ Owns:
 
 - AI-tone detection and rewrite protocol
 - Chinese and English AI-smell lexicon
+- protected-span preflight for commands, paths, code, URLs, dates, metrics,
+  versions, API symbols, and responsibility-bearing identifiers
 - structural AI tells: uniform rhythm, template phrases, fake contrast,
   parallelism without information gain, vague authority, PR inflation
 - context profile exceptions for technical, docs, blog, social, and casual prose
+- scene packs for chat, status, docs, public-writing, and technical prose
 
 Does not own:
 
 - title promise, evidence architecture, route memo, or longform review
 - qihan personal taste
 - technical article fact verification or execution handoff
+- detector evasion or claims that a text is human-authored
 
 ## Default Workflow
 
 1. Detect the dominant language and profile.
-2. Load `references/rewrite-protocol.md`.
-3. For detailed pattern examples, load `references/patterns.md`.
-4. For word-level checks or script-backed audit, use
+2. Detect or infer the scene pack.
+3. Load `references/protected-spans.md` and preserve hard-information spans.
+4. Load `references/rewrite-protocol.md`.
+5. For detailed pattern examples, load `references/patterns.md`.
+6. For word-level checks or script-backed audit, use
    `scripts/bagakit-writing-de-ai-tone-cli.sh lint`.
-5. In rewrite mode, produce:
+7. In rewrite mode, produce:
    - issues found
+   - protected spans and scene assumption
    - rewritten version
    - change summary
    - second-pass audit
@@ -73,8 +80,9 @@ skip this pass.
 ## CLI
 
 ```bash
-bash scripts/bagakit-writing-de-ai-tone-cli.sh lint --profile blog --fail-on warn artifact.md
+bash scripts/bagakit-writing-de-ai-tone-cli.sh lint --profile blog --scene public-writing --fail-on warn artifact.md
 bash scripts/bagakit-writing-de-ai-tone-cli.sh print-rewrite-protocol
+bash scripts/bagakit-writing-de-ai-tone-cli.sh print-protected-spans
 ```
 
 `ADVISORY` findings should guide rewriting but should not block by themselves.

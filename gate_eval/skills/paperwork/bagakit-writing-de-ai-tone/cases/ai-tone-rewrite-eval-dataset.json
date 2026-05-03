@@ -1,0 +1,168 @@
+{
+  "schema": "bagakit.eval-dataset/v1",
+  "dataset_id": "bagakit-writing-de-ai-tone-rewrite-v1",
+  "title": "Bagakit De-AI-Tone Rewrite Quality Eval",
+  "description": "Qualitative eval cases for bagakit-writing-de-ai-tone rewrite work. The cases test issue detection, protected-span preservation, scene fit, rewrite quality, evidence preservation, second-pass audit, and minimal-edit judgment.",
+  "item_schema": "bagakit.eval-dataset-item/v1",
+  "items": [
+    {
+      "id": "zh-internal-status-accountability",
+      "skill_id": "bagakit-writing-de-ai-tone",
+      "split": "baseline",
+      "prompt": "Run a de-AI-tone rewrite for the source text in reference_state.source_text. Use profile internal-share and scene status. Return issues found, protected spans, rewritten version, change summary, and second-pass audit. Preserve the date, owner, metric, and file path exactly. Do not turn the update into public-marketing prose.",
+      "expected_outcome": "A strong answer removes formulaic opening, process filler, fake contrast, vague authority, unsupported people-generalization, and empty future-facing polish while preserving accountability: the owner, date, metric movement, and file path survive unchanged. Because the source only has generic future-facing polish, it should remove or call out that ending rather than inventing a next step. The rewrite should sound like an internal peer update, not a campaign note.",
+      "notes_for_human_review": "Penalize fact drift, erased ownership, softened metrics, and a rewrite that keeps the staged binary frame. Reward concise sequencing and a second-pass audit that checks protected spans.",
+      "allowed_tools": ["bash skills/paperwork/bagakit-writing-de-ai-tone/scripts/bagakit-writing-de-ai-tone-cli.sh lint"],
+      "expected_tools": ["bash skills/paperwork/bagakit-writing-de-ai-tone/scripts/bagakit-writing-de-ai-tone-cli.sh lint"],
+      "tags": ["zh", "internal-share", "status", "rewrite"],
+      "risk_tags": ["fact-drift", "accountability-loss", "blandness"],
+      "dimensions": ["detection_precision", "protected_span_integrity", "scene_fit", "rewrite_quality", "second_pass_audit"],
+      "reference_state": {
+        "profile": "internal-share",
+        "scene": "status",
+        "source_text": "# 本周进展\n\n随着 AI 协作能力的不断发展，我们通过统一能力进行分析，从而打通研发链路，进而赋能业务闭环。业内人士指出，这具有里程碑式的意义。\n\n2026-07-07，@Ming 完成了 `docs/specs/runtime-surface-contract.md` 的验证，失败率从 18% 降到 7%。这不是工具问题，而是底层逻辑问题。很多团队会把它写成该做 vs 不该做。\n\n接下来我们将持续优化，未来可期。",
+        "expected_issue_codes": ["P0_VAGUE_AUTHORITY", "P0_SIGNIFICANCE_INFLATION", "P1_FORMULAIC_OPENING", "P1_PROCESS_FILLER", "P1_FAKE_CONTRAST", "P1_CONFLICT_BAIT_BINARY", "P1_UNSUPPORTED_PEOPLE_GENERALIZATION"],
+        "expected_protected_classes": ["date", "file_path", "inline_code", "metric"]
+      },
+      "metadata": {
+        "rubric": {
+          "detection_precision": "Identifies the high-signal AI-tone issues without treating the concrete progress facts as the problem.",
+          "protected_span_integrity": "Preserves 2026-07-07, @Ming, `docs/specs/runtime-surface-contract.md`, 18%, and 7% exactly.",
+          "scene_fit": "Uses internal status-update prose with visible owner, sequence, and no marketing polish; it does not invent a next action when the source only has a generic ending.",
+          "rewrite_quality": "Rebuilds the paragraph around the real progress and removes fake contrast instead of swapping synonyms.",
+          "second_pass_audit": "Explicitly checks protected spans, fact survival, and whether blocking AI-tone remains."
+        },
+        "minimum_pass": ["issues found", "protected spans", "rewritten version", "change summary", "second-pass audit"],
+        "red_flags": ["owner removed", "metrics rounded", "file path paraphrased", "invented next step", "still says future is promising"]
+      }
+    },
+    {
+      "id": "technical-doc-protected-spans",
+      "skill_id": "bagakit-writing-de-ai-tone",
+      "split": "baseline",
+      "prompt": "Run a de-AI-tone rewrite for reference_state.source_text. Use profile technical and scene technical. Keep commands, paths, API symbols, versions, dates, and metrics exact. Reduce AI-tone around the technical facts, but do not cosmetically paraphrase precise technical terms.",
+      "expected_outcome": "A strong answer keeps the command, file path, API symbol, version, date, p95 numbers, and technical nouns intact. It removes formulaic framing and process filler while preserving the docs-oriented sequence and making clear which check should run before release.",
+      "notes_for_human_review": "This case is mostly a protected-span trap. Penalize any rewrite that changes flags, paths, versions, API symbols, or metrics. Also penalize over-humanized prose that makes the instruction less exact.",
+      "allowed_tools": ["bash skills/paperwork/bagakit-writing-de-ai-tone/scripts/bagakit-writing-de-ai-tone-cli.sh lint"],
+      "expected_tools": ["bash skills/paperwork/bagakit-writing-de-ai-tone/scripts/bagakit-writing-de-ai-tone-cli.sh lint"],
+      "tags": ["technical", "docs", "protected-spans", "rewrite"],
+      "risk_tags": ["protected-span-breakage", "over-sanitization"],
+      "dimensions": ["detection_precision", "protected_span_integrity", "scene_fit", "rewrite_quality", "evidence_preservation", "second_pass_audit"],
+      "reference_state": {
+        "profile": "technical",
+        "scene": "technical",
+        "source_text": "# Release note\n\n随着平台能力的不断发展，我们需要进行优化，确保 docs pipeline 更加 robust。\n\nBefore release, run `bash skills/paperwork/bagakit-writing-de-ai-tone/scripts/bagakit-writing-de-ai-tone-cli.sh lint --profile technical --scene technical --fail-on none docs/api.md`.\n\nThe API `docs.documents.create` stays on v2.3.1. On 2026-07-07, p95 moved from 180ms to 120ms after `docs/api.md` stopped rebuilding unchanged sections.",
+        "expected_issue_codes": ["P1_FORMULAIC_OPENING", "P1_PROCESS_FILLER"],
+        "forbidden_issue_codes": ["P1_DASH_OVERUSE"],
+        "expected_protected_classes": ["api_symbol", "date", "file_path", "inline_code", "metric"]
+      },
+      "metadata": {
+        "rubric": {
+          "detection_precision": "Flags formulaic and filler prose while allowing precise technical terms under the technical profile.",
+          "protected_span_integrity": "Preserves the shell command, `docs.documents.create`, v2.3.1, 2026-07-07, 180ms, 120ms, and `docs/api.md` exactly.",
+          "scene_fit": "Keeps the result as a technical release note or docs instruction rather than making it chatty.",
+          "rewrite_quality": "Removes filler around the release check and latency fact without adding unsupported rationale.",
+          "evidence_preservation": "Keeps the before/after metric and cause relationship visible.",
+          "second_pass_audit": "Audits command, API, path, version, date, and metrics after rewriting."
+        },
+        "minimum_pass": ["protected span map", "technical rewrite", "unchanged command", "second-pass audit"],
+        "red_flags": ["flag removed", "API renamed", "metric softened", "technical terms replaced for style"]
+      }
+    },
+    {
+      "id": "english-product-update-dehype",
+      "skill_id": "bagakit-writing-de-ai-tone",
+      "split": "baseline",
+      "prompt": "Run a de-AI-tone rewrite for reference_state.source_text. Use profile business and scene public-writing. Preserve the release date, metric, URL, and product name. Remove hype, vague authority, fake contrast, and generic transition scaffolding. Keep the output suitable for a public product update.",
+      "expected_outcome": "A strong answer rewrites the update into a grounded public note: what shipped, what changed, who it helps, and what evidence supports the claim. It preserves NovaFlow, 2026-07-07, 42%, and the URL exactly while removing game-changer language and vague experts.",
+      "notes_for_human_review": "Look for whether the agent replaces hype with concrete scope. Penalize invented customer evidence, changed metrics, and a rewrite that becomes too dry to publish.",
+      "allowed_tools": ["bash skills/paperwork/bagakit-writing-de-ai-tone/scripts/bagakit-writing-de-ai-tone-cli.sh lint"],
+      "expected_tools": ["bash skills/paperwork/bagakit-writing-de-ai-tone/scripts/bagakit-writing-de-ai-tone-cli.sh lint"],
+      "tags": ["en", "business", "public-writing", "dehype"],
+      "risk_tags": ["metric-drift", "source-loss", "hype-retention"],
+      "dimensions": ["detection_precision", "protected_span_integrity", "scene_fit", "rewrite_quality", "evidence_preservation", "second_pass_audit"],
+      "reference_state": {
+        "profile": "business",
+        "scene": "public-writing",
+        "source_text": "# NovaFlow update\n\nIn today's rapidly evolving AI landscape, NovaFlow is a game-changer for modern teams. This is not a dashboard but a full ecosystem. Moreover, experts believe this marks a watershed moment for operational excellence.\n\nReleased on 2026-07-07, the workflow view reduced handoffs by 42% in the pilot. Details: https://example.com/novaflow/pilot.",
+        "expected_issue_codes": ["P0_VAGUE_AUTHORITY", "P0_SIGNIFICANCE_INFLATION", "P1_FORMULAIC_OPENING", "P1_LEXICON_ALWAYS", "P2_EN_FAKE_CONTRAST"],
+        "expected_protected_classes": ["date", "metric", "url"]
+      },
+      "metadata": {
+        "rubric": {
+          "detection_precision": "Finds the hype, vague authority, formulaic opening, and fake contrast without attacking the real pilot result.",
+          "protected_span_integrity": "Preserves NovaFlow, 2026-07-07, 42%, and https://example.com/novaflow/pilot exactly.",
+          "scene_fit": "Produces public product-update prose with clear scope and no internal-only shorthand.",
+          "rewrite_quality": "Replaces hype with concrete release value and keeps the paragraph readable.",
+          "evidence_preservation": "Keeps the pilot metric and link as the proof surface instead of replacing them with vague authority.",
+          "second_pass_audit": "Checks protected spans, hype removal, and whether claims remain source-bound."
+        },
+        "minimum_pass": ["dehyped rewrite", "metric and URL preserved", "source-bound claim", "second-pass audit"],
+        "red_flags": ["metric changed", "URL dropped", "new customer claim invented", "game-changer retained"]
+      }
+    },
+    {
+      "id": "conflict-bait-public-note",
+      "skill_id": "bagakit-writing-de-ai-tone",
+      "split": "baseline",
+      "prompt": "Run a de-AI-tone rewrite for reference_state.source_text. Use profile blog and scene public-writing. Remove conflict-bait binary framing and unsupported people-generalization. Preserve the concrete failure mode and turn the note into a useful decision boundary.",
+      "expected_outcome": "A strong answer removes staged binaries like old path versus new path and collapse versus dignity. It rewrites around the actual operational boundary: rollout should mean verified release readiness, not merely publishing. It should not sneer at vague groups.",
+      "notes_for_human_review": "This case tests whether the agent can keep useful tension without dunking on imaginary opponents. Penalize punchier but still binary rewrites.",
+      "allowed_tools": ["bash skills/paperwork/bagakit-writing-de-ai-tone/scripts/bagakit-writing-de-ai-tone-cli.sh lint"],
+      "expected_tools": ["bash skills/paperwork/bagakit-writing-de-ai-tone/scripts/bagakit-writing-de-ai-tone-cli.sh lint"],
+      "tags": ["zh", "public-writing", "conflict-bait", "rewrite"],
+      "risk_tags": ["conflict-bait-retention", "unsupported-generalization"],
+      "dimensions": ["detection_precision", "scene_fit", "rewrite_quality", "evidence_preservation", "second_pass_audit"],
+      "reference_state": {
+        "profile": "blog",
+        "scene": "public-writing",
+        "source_text": "# Rollout 的老路 vs 新路\n\n大多数团队会把 rollout 写成发布公告，这其实是塌方式还是体面的区别。不是流程问题，而是认知问题。\n\n真正的边界是：如果验证没有完成，发布只是在扩大未知；如果验证完成，发布才是在交付结果。",
+        "expected_issue_codes": ["P1_FAKE_CONTRAST", "P1_CONFLICT_BAIT_BINARY", "P1_UNSUPPORTED_PEOPLE_GENERALIZATION"],
+        "expected_protected_classes": []
+      },
+      "metadata": {
+        "rubric": {
+          "detection_precision": "Identifies fake contrast, binary conflict bait, and unsupported group generalization.",
+          "scene_fit": "Keeps a public-writing shape without turning the piece into a harsh dunk or bland SOP.",
+          "rewrite_quality": "Reframes the note around the actual rollout boundary rather than inventing a stronger conflict.",
+          "evidence_preservation": "Preserves the concrete verification-before-release idea.",
+          "second_pass_audit": "Checks that no staged binary or vague group dunk remains."
+        },
+        "minimum_pass": ["conflict-bait removed", "decision boundary preserved", "no vague group dunk", "second-pass audit"],
+        "red_flags": ["keeps vs frame", "adds harsher binary", "removes the verification boundary"]
+      }
+    },
+    {
+      "id": "already-human-minimal-edit",
+      "skill_id": "bagakit-writing-de-ai-tone",
+      "split": "holdout",
+      "prompt": "Run a de-AI-tone pass for reference_state.source_text. Use profile casual and scene chat. If the text is already strong, say so and avoid unnecessary edits. Preserve inline code, issue id, metric, and the two-step plan.",
+      "expected_outcome": "A strong answer does not force a rewrite. It may offer one tiny clarity edit, but it should explicitly say the text has no blocking AI-tone issue. It preserves `syncUser()`, #482, 3 requests, and the sequence of today versus tomorrow.",
+      "notes_for_human_review": "This case catches over-editing. Penalize agents that turn a clear short note into polished AI prose or remove the concrete debugging detail.",
+      "allowed_tools": ["bash skills/paperwork/bagakit-writing-de-ai-tone/scripts/bagakit-writing-de-ai-tone-cli.sh lint"],
+      "expected_tools": ["bash skills/paperwork/bagakit-writing-de-ai-tone/scripts/bagakit-writing-de-ai-tone-cli.sh lint"],
+      "tags": ["chat", "minimal-edit", "holdout"],
+      "risk_tags": ["over-editing", "protected-span-breakage", "voice-flattening"],
+      "dimensions": ["minimal_edit_judgment", "protected_span_integrity", "scene_fit", "evidence_preservation", "second_pass_audit"],
+      "reference_state": {
+        "profile": "casual",
+        "scene": "chat",
+        "source_text": "我倾向先不改 API。现在的失败点很具体：`syncUser()` 在 #482 的回放里会把 3 requests 合成 1 条日志。今天先补 fixture，明天再讨论抽象。",
+        "expected_issue_codes": [],
+        "expected_protected_classes": ["inline_code", "issue_or_id", "metric"],
+        "expected_clean": true
+      },
+      "metadata": {
+        "rubric": {
+          "minimal_edit_judgment": "Correctly says the note is already usable and avoids rewriting for its own sake.",
+          "protected_span_integrity": "Preserves `syncUser()`, #482, and 3 requests exactly.",
+          "scene_fit": "Keeps the short chat-note shape and direct coordination tone.",
+          "evidence_preservation": "Keeps the concrete failure mode and the today/tomorrow plan.",
+          "second_pass_audit": "Checks that any suggested edit did not introduce polish or lose technical detail."
+        },
+        "minimum_pass": ["says no blocking AI-tone", "no full rewrite", "protected spans preserved", "clean second-pass audit"],
+        "red_flags": ["turns into formal report", "removes #482", "changes the plan"]
+      }
+    }
+  ]
+}

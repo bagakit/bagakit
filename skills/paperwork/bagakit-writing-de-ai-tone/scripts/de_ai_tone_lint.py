@@ -24,6 +24,15 @@ PROFILES = {
     "casual",
 }
 
+SCENES = {
+    "auto",
+    "chat",
+    "status",
+    "docs",
+    "public-writing",
+    "technical",
+}
+
 TECHNICAL_EXEMPT_PROFILES = {"technical", "docs"}
 
 P0_PATTERNS = [
@@ -69,6 +78,39 @@ LIST_RE = re.compile(r"^\s*(?:[-*+]\s+|\d+\.\s+)", re.M)
 HEADING_RE = re.compile(r"^#{1,6}\s+", re.M)
 BOLD_RE = re.compile(r"\*\*[^*\n]{1,80}\*\*")
 DASH_RE = re.compile(r"——|—|--")
+PATH_SEP_PATTERN = re.escape(chr(47))
+
+PROTECTED_SPAN_PATTERNS = [
+    ("code_block", re.compile(r"```[\s\S]*?```")),
+    ("inline_code", re.compile(r"(?<!`)`([^`\n]{1,180})`(?!`)")),
+    ("url", re.compile(r"https?://[^\s)>\]，。！？；、]+")),
+    (
+        "command",
+        re.compile(
+            r"(?m)^\s*(?:\$ )?(?:bash|sh|python3?|node|npm|pnpm|yarn|git|make|curl|"
+            r"lark-cli|rg|sed|awk|jq)\b[^\n]{0,220}"
+        ),
+    ),
+    (
+        "file_path",
+        re.compile(
+            rf"(?<![\w{PATH_SEP_PATTERN}.-])(?:\.{{1,2}}{PATH_SEP_PATTERN}|[A-Za-z0-9_.-]+{PATH_SEP_PATTERN})"
+            rf"[A-Za-z0-9_.{PATH_SEP_PATTERN}-]*[A-Za-z0-9_.-](?::\d+)?"
+        ),
+    ),
+    ("version", re.compile(r"(?<![\w.])v?\d+\.\d+(?:\.\d+)?(?:[-+][A-Za-z0-9._-]+)?(?![\w.])")),
+    (
+        "metric",
+        re.compile(
+            r"(?<!\w)\d+(?:\.\d+)?\s?(?:%|ms|sec|seconds|MB|GB|KB|tokens?|rows?|"
+            r"requests?|QPS|RPS|fps|px|em|rem)(?!\w)",
+            re.I,
+        ),
+    ),
+    ("date", re.compile(r"20\d{2}(?:[-/年]\d{1,2}(?:[-/月]\d{1,2}日?)?)?")),
+    ("api_symbol", re.compile(r"(?<![\w.])(?:[A-Za-z_][\w]*\.)+[A-Za-z_][\w]*(?:\(\))?")),
+    ("issue_or_id", re.compile(r"(?<!\w)(?:[A-Z]{2,}-\d+|#[0-9]{2,}|[a-f0-9]{7,40})(?!\w)")),
+]
 
 
 @dataclass
@@ -121,10 +163,51 @@ def snippets(text: str, pattern: re.Pattern[str], limit: int = 8) -> list[str]:
     return found
 
 
+def normalize_sample(value: str) -> str:
+    return re.sub(r"\s+", " ", value).strip()[:160]
+
+
 def word_count(text: str, term: str) -> int:
     if re.search(r"[A-Za-z]", term):
         return len(re.findall(rf"\b{re.escape(term)}\b", text, re.I))
     return text.count(term)
+
+
+def protected_span_summary(text: str) -> dict:
+    classes: dict[str, dict] = {}
+    total = 0
+
+    for class_name, pattern in PROTECTED_SPAN_PATTERNS:
+        samples: list[str] = []
+        count = 0
+        for match in pattern.finditer(text):
+            raw = match.group(1) if class_name == "inline_code" and match.groups() else match.group(0)
+            sample = normalize_sample(raw)
+            if class_name == "api_symbol" and re.search(r"\.(?:com|org|net|io|md|py|sh|toml|json|yaml|yml|ts|js)$", sample):
+                continue
+            if not sample:
+                continue
+            count += 1
+            if sample not in samples and len(samples) < 8:
+                samples.append(sample)
+        if count:
+            classes[class_name] = {"count": count, "samples": samples}
+            total += count
+
+    return {
+        "total": total,
+        "classes": classes,
+    }
+
+
+def mask_protected_spans(text: str) -> str:
+    masked = list(text)
+    for _class_name, pattern in PROTECTED_SPAN_PATTERNS:
+        for match in pattern.finditer(text):
+            for index in range(match.start(), match.end()):
+                if masked[index] != "\n":
+                    masked[index] = " "
+    return "".join(masked)
 
 
 def lexicon_findings(text: str, profile: str, lexicon: dict) -> list[Finding]:
@@ -273,7 +356,7 @@ def pattern_findings(text: str) -> list[Finding]:
             )
         )
 
-    dash_count = len(DASH_RE.findall(text))
+    dash_count = len(DASH_RE.findall(mask_protected_spans(text)))
     if dash_count > max(1, len(text) // 1000):
         findings.append(
             Finding("WARN", "P1", "P1_DASH_OVERUSE", "Dash insertions are overused", {"count": dash_count})
@@ -299,11 +382,13 @@ def pattern_findings(text: str) -> list[Finding]:
     return findings
 
 
-def lint_text(text: str, path: Path, profile: str, lexicon: dict) -> dict:
+def lint_text(text: str, path: Path, profile: str, scene: str, lexicon: dict) -> dict:
     findings = lexicon_findings(text, profile, lexicon) + pattern_findings(text)
     return {
         "path": str(path),
         "profile": profile,
+        "scene": scene,
+        "protected_spans": protected_span_summary(text),
         "findings": [finding.as_dict() for finding in findings],
         "counts": {
             "fail": sum(1 for item in findings if item.level == "FAIL"),
@@ -317,13 +402,14 @@ def main(argv: list[str]) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("paths", nargs="+", help="Markdown file or directory")
     parser.add_argument("--profile", default="blog", choices=sorted(PROFILES))
+    parser.add_argument("--scene", default="auto", choices=sorted(SCENES))
     parser.add_argument("--fail-on", default="warn", choices=("warn", "fail", "none"))
     args = parser.parse_args(argv[1:])
 
     lexicon = load_lexicon()
     files = iter_input_files([Path(item) for item in args.paths])
     reports = [
-        lint_text(path.read_text(encoding="utf-8"), path, args.profile, lexicon)
+        lint_text(path.read_text(encoding="utf-8"), path, args.profile, args.scene, lexicon)
         for path in files
     ]
 
@@ -332,13 +418,16 @@ def main(argv: list[str]) -> int:
         "fail": sum(item["counts"]["fail"] for item in reports),
         "warn": sum(item["counts"]["warn"] for item in reports),
         "advisory": sum(item["counts"]["advisory"] for item in reports),
+        "protected_spans": sum(item["protected_spans"]["total"] for item in reports),
     }
     payload = {
         "schema": "bagakit.de_ai_tone_lint.v1",
         "profile": args.profile,
+        "scene": args.scene,
         "summary": summary,
         "files": reports,
         "findings": reports[0]["findings"] if len(reports) == 1 else [],
+        "protected_spans": reports[0]["protected_spans"] if len(reports) == 1 else {},
     }
     print(json.dumps(payload, ensure_ascii=False, indent=2))
 
