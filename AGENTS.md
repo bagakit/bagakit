@@ -329,6 +329,12 @@ reporting, the response footer may use:
 - See: `skills/design/bagakit-codex-webpage-design/SKILL.md`
 </bagakit-rule>
 
+<bagakit-rule skill="bagakit-coding-agent-principles">
+- Trigger: Codex must make a non-trivial coding or implementation change and should protect the user goal with the smallest project-native, behavior-proven change.
+- Do: State the protected-principle gate, walk the project-native proof-first ladder, keep the diff narrow, and prove public behavior or an owner-owned contract.
+- See: `skills/swe/bagakit-coding-agent-principles/SKILL.md`
+</bagakit-rule>
+
 <bagakit-rule skill="bagakit-consensus-ledger">
 - Trigger: A task needs an explicit agent-user shared-understanding ledger: confirmed consensus, known unknowns, inferred-but-unconfirmed understanding, blind spots, goal dimensions, decision items, or promotion boundaries.
 - Do: Create or update an embedded ledger in the owner run/session directory when one exists, otherwise use the standalone fallback; keep epistemic class, status, provenance, dimensions, snapshots, and promotion state explicit.
@@ -429,8 +435,8 @@ reporting, the response footer may use:
 </bagakit-rule>
 
 <bagakit-rule skill="bagakit-writing-de-ai-tone">
-- Trigger: A writing task needs AI-tone detection, de-AI rewrite, bilingual AI-smell lexicon checks, structural rhythm review, or publishable-prose polish without adopting a personal style profile.
-- Do: Detect the dominant language and profile, audit P0/P1/P2 AI-tone patterns, rewrite only when requested or needed, then run a second-pass audit.
+- Trigger: A writing task specifically needs AI-tone detection, de-AI rewrite protocol, protected-span handling, bilingual AI-smell lexicon checks, or structural rhythm review without adopting a personal style profile.
+- Do: Detect the dominant language, profile, and scene; preserve protected spans; audit P0/P1/P2 AI-tone patterns; rewrite only when requested or needed; mark evidence gaps instead of inventing facts; then run a second-pass audit.
 - See: `skills/paperwork/bagakit-writing-de-ai-tone/SKILL.md`
 </bagakit-rule>
 
