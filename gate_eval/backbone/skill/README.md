@@ -11,7 +11,7 @@ goal is maintainer confidence, not release blocking.
 - directory-protocol discovery ordering and selector resolution
 - family-name precedence over bare skill-id selectors
 - installable skill layout drift and safety checks
-- link creation, idempotence, and force-replace conflict handling
+- link creation, idempotence, force-replace conflict handling, and stale canonical symlink refresh
 - package archive generation, archive hygiene, and symlink retention
 
 ## What It Does Not Do

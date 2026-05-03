@@ -252,12 +252,21 @@ function checkOutputExpectation(probe, actual, tempRepo) {
 function applySetup(tempRepo, setup) {
   const applied = [];
   for (const action of setup ?? []) {
-    if (action.type !== "write_file") {
-      throw new Error(`unsupported setup action: ${action.type}`);
+    if (action.type === "write_file") {
+      const filePath = path.join(tempRepo, action.path);
+      writeTextFile(filePath, action.content);
+      applied.push(`write_file ${action.path}`);
+      continue;
     }
-    const filePath = path.join(tempRepo, action.path);
-    writeTextFile(filePath, action.content);
-    applied.push(`write_file ${action.path}`);
+    if (action.type === "symlink") {
+      const linkPath = path.join(tempRepo, action.path);
+      mkdirSync(path.dirname(linkPath), { recursive: true });
+      const target = action.mode === "repo-root-absolute" ? path.join(tempRepo, action.target) : action.target;
+      symlinkSync(target, linkPath, action.linkType ?? "dir");
+      applied.push(`symlink ${action.path} -> ${action.target}`);
+      continue;
+    }
+    throw new Error(`unsupported setup action: ${action.type}`);
   }
   return applied;
 }

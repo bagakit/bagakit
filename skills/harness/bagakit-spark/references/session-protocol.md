@@ -17,6 +17,9 @@ Maintain a compact visible state:
   - embedded ledger ref when shared understanding should persist beyond the
     current response; records epistemic classes, statuses, dimensions, and
     snapshot basis through `bagakit-consensus-ledger`
+- `ledger_excerpt`
+  - user-visible summary of active consensus-ledger state grouped by
+    `known_known`, `known_unknown`, `unknown_known`, and `unknown_unknown`
 - `user_model`
   - inferred knowledge, understanding, goals, values, constraints, and current
     practice level; mark this as inference
@@ -84,24 +87,46 @@ full consensus snapshot or ledger into the feature description.
    After the action finishes, return to the question rule unless the user has
    explicitly ended Spark.
 4. Read the current state.
-5. Decide whether the next move is:
+5. If shared understanding should persist beyond the current response, create
+   or update the embedded consensus ledger before asking or synthesizing.
+   Record confirmed user agreement as `known_known`, explicit gaps as
+   `known_unknown`, inferred-but-unconfirmed understanding as `unknown_known`,
+   and plausible blind spots as `unknown_unknown`.
+6. Decide whether the next move is:
    - ask the user
    - challenge a weak assumption
    - challenge the goal itself
    - run a trajectory check after repeated same-branch agreement
    - run the research sufficiency SOP
    - read local context
-   - create or update the embedded consensus ledger
    - open or update brainstorm
    - open or update researcher
    - run a small MVP experiment or thought experiment
    - synthesize
-6. If asking, pass the question quality gate first.
-7. If challenging, first show the current model that makes the challenge fair.
-8. If researching, state what claim or branch needs evidence.
-9. After the action, update the visible state.
-10. Stop when the next move is clear enough for the user to accept, reject, or
+7. If asking, pass the question quality gate first and show the compact ledger
+   excerpt when a ledger is active.
+8. If challenging, first show the current model that makes the challenge fair.
+9. If researching, state what claim or branch needs evidence.
+10. After the action, update the visible state and ledger excerpt.
+11. Stop when the next move is clear enough for the user to accept, reject, or
    redirect.
+
+## Ledger Excerpt Rule
+
+When `consensus_ledger` is active, every substantive Spark response should show
+a compact user-facing ledger excerpt before the next question or action:
+
+```text
+已确认 / known_known: <confirmed understanding or none>
+已知未知 / known_unknown: <open gap, risk, or missing decision>
+待确认推断 / unknown_known: <agent inference needing confirmation>
+可能盲区 / unknown_unknown: <unexplored dimension or none>
+```
+
+Keep the excerpt short. It is a shared-understanding checkpoint, not a full
+dump of the JSON ledger. If there is no embedded ledger yet but the response
+will create durable session state, create the ledger first or explicitly state
+which ledger updates would normally be recorded.
 
 ## Mandatory Question Rule
 

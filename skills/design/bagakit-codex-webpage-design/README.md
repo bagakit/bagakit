@@ -1,10 +1,10 @@
 # Bagakit Codex Webpage Design
 
-Design-led webpage implementation skill for Codex.
+Design-led webpage delivery skill for Codex.
 
 It binds requirements discussion, image2 design reference generation, frontend
 implementation, browser debugging, and visual parity iteration into one SWE
-workflow.
+proof surface for webpage design.
 
 The workflow is reference-context-first: image2 is the default reference
 generator when no stronger design reference exists, but Figma, screenshots,

@@ -47,7 +47,7 @@ function resolvePlanningWithFilesSkillDir(): string {
     }
   }
   throw new Error(
-    "planning-with-files skill not found; set PLANNING_WITH_FILES_SKILL_DIR or install it under ~/.codex/skills/planning-with-files",
+    "planning-with-files skill not found; set PLANNING_WITH_FILES_SKILL_DIR or install it under ~/.agents/skills/planning-with-files",
   );
 }
 

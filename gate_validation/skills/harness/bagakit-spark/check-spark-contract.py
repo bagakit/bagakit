@@ -19,6 +19,7 @@ REQUIRED_LOOP_RULE_IDS = {
     "execution-window-reopens-loop",
     "option-surface-preserves-meaningful-alternatives",
     "stress-test-option-audit-before-recommendation",
+    "ledger-first-before-question-or-snapshot",
 }
 
 REQUIRED_ARTIFACT_IDS = {
@@ -45,6 +46,7 @@ REQUIRED_BOUNDARY_IDS = {
 }
 
 REQUIRED_OUTPUT_FIELD_IDS = {
+    "ledger-excerpt",
     "current-frame",
     "research-judgment",
     "question-inventory",

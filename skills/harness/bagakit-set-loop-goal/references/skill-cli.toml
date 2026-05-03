@@ -4,7 +4,7 @@ cli_id = "bagakit-set-loop-goal"
 entrypoint = "scripts/bagakit-set-loop-goal-cli.sh"
 runner = "shell"
 usage = "sh scripts/bagakit-set-loop-goal-cli.sh <command>"
-summary = "Inspect and validate the set-loop-goal skill assets."
+summary = "Materialize and maintain loop-resumable Goal control planes."
 surface_refs = [
   ".bagakit/goal/",
 ]
@@ -20,3 +20,39 @@ summary = "List reference files shipped by this skill."
 [[command]]
 name = "validate"
 summary = "Check that required skill files exist."
+
+[[command]]
+name = "initialize-surface"
+summary = "Create the .bagakit/goal runtime surface and its entrypoint files."
+
+[[command]]
+name = "upsert-goal"
+summary = "Create or update a Goal file and sync it into the active registry."
+
+[[command]]
+name = "set-foreground"
+summary = "Select an incomplete Goal as the foreground execution target."
+
+[[command]]
+name = "set-supervision"
+summary = "Set supervision mode and materialize the supervisor contract when needed."
+
+[[command]]
+name = "relate-goals"
+summary = "Add or remove topology edges between Goal files."
+
+[[command]]
+name = "render-wrapper"
+summary = "Emit the fixed Goal invocation wrapper template."
+
+[[command]]
+name = "fresh-check"
+summary = "Run the fresh-executor quality check on the current Goal surface."
+
+[[command]]
+name = "archive-goal"
+summary = "Move a completed or abandoned Goal into archive/ and repair the registry."
+
+[[command]]
+name = "show-surface"
+summary = "Print the current Goal-surface summary."

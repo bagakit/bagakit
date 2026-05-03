@@ -24,6 +24,9 @@ function renderNext(node: GrillNode | undefined): string[] {
   if (node.risk_if_wrong) {
     lines.push(`- Risk if wrong: ${oneLine(node.risk_if_wrong)}`);
   }
+  if (node.ledger_refs.length > 0) {
+    lines.push(`- Ledger refs: ${node.ledger_refs.map((ref) => `\`${ref}\``).join(", ")}`);
+  }
   if (node.kind === "research_needed") {
     lines.push("- Action: run explicit selector/researcher composition, then attach evidence refs.");
   }
@@ -109,6 +112,20 @@ export function renderBrief(run: GrillRun): string {
     );
   } else {
     lines.push("- none");
+  }
+
+  lines.push(
+    "",
+    "## Ledger Coverage",
+    "",
+  );
+  const nodesWithLedgerRefs = run.question_nodes.filter((node) => node.ledger_refs.length > 0);
+  if (nodesWithLedgerRefs.length === 0) {
+    lines.push("- none");
+  } else {
+    for (const node of nodesWithLedgerRefs) {
+      lines.push(`- \`${node.id}\`: ${node.ledger_refs.map((ref) => `\`${ref}\``).join(", ")}`);
+    }
   }
 
   lines.push(

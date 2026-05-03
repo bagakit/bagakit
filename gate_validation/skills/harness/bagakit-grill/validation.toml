@@ -34,6 +34,7 @@ required_files = [
   "skills/harness/bagakit-grill/references/grill-run-contract.md",
   "skills/harness/bagakit-grill/scripts/grill.sh",
   "skills/harness/bagakit-grill/scripts/grill.ts",
+  "skills/harness/bagakit-grill/scripts/lib/ledger.ts",
   "skills/harness/bagakit-grill/scripts/lib/model.ts",
   "skills/harness/bagakit-grill/scripts/lib/io.ts",
   "skills/harness/bagakit-grill/scripts/lib/planner.ts",

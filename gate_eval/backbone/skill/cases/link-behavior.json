@@ -2,11 +2,12 @@
   "id": "link-behavior",
   "fixture": "link-behavior",
   "title": "Link Behavior",
-  "summary": "Measure link creation, idempotence, and conflict handling.",
+  "summary": "Measure link creation, idempotence, conflict handling, and stale canonical symlink refresh.",
   "focus": [
     "link-create",
     "link-idempotence",
-    "link-force-conflict"
+    "link-force-conflict",
+    "link-stale-canonical-refresh"
   ],
   "probes": [
     {
@@ -138,6 +139,50 @@
           "kind": "symlink",
           "path": "linked/alpha",
           "resolvesTo": "skills/harness/alpha"
+        }
+      ]
+    },
+    {
+      "id": "refresh-stale-same-repo-skill-link",
+      "title": "Refresh a stale same-repo skill-id symlink without force",
+      "setup": [
+        {
+          "type": "symlink",
+          "path": "linked/stale",
+          "mode": "repo-root-absolute",
+          "target": "skills/swe/stale",
+          "linkType": "dir"
+        }
+      ],
+      "argv": [
+        "link",
+        "--selector",
+        "stale",
+        "--dest",
+        "linked",
+        "--json"
+      ],
+      "expect": {
+        "exitCode": 0,
+        "stdoutJson": {
+          "selector": "stale",
+          "kind": "skill-id",
+          "destination": "linked",
+          "results": [
+            {
+              "selector": "paperwork/stale",
+              "status": "linked",
+              "destinationPath": "linked/stale",
+              "sourcePath": "skills/paperwork/stale"
+            }
+          ]
+        }
+      },
+      "assertFs": [
+        {
+          "kind": "symlink",
+          "path": "linked/stale",
+          "resolvesTo": "skills/paperwork/stale"
         }
       ]
     }

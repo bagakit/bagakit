@@ -94,6 +94,21 @@ understanding model. When a Spark session already has an owner directory, embed
 the ledger there as `consensus-ledger.json` and `consensus-ledger.md`. Use the
 standalone fallback only when no stronger owner surface exists.
 
+Ledger-first rule: when Spark uses `bagakit-consensus-ledger`, create or update
+the embedded ledger before asking the next decision-changing question or
+publishing a snapshot candidate. The user-facing response must include a compact
+ledger excerpt that separates:
+
+- known known: confirmed or directly available understanding
+- known unknown: explicit gaps, risks, or missing decisions
+- unknown known: inferred understanding that still needs confirmation
+- unknown unknown: plausible blind spots or unexplored dimensions
+
+Do not treat a rationale note, ordinary summary, or snapshot candidate as a
+substitute for this ledger excerpt. If a Spark turn creates a candidate
+inference, show it as `unknown_known` until the user confirms, corrects,
+contests, or defers it.
+
 When a Spark conclusion may later guide implementation, feature planning,
 knowledge, or skill evolution, follow `docs/specs/principle-layer-contract.md`.
 Accepted snapshots should preserve the principle under the decision, the user's
@@ -446,6 +461,7 @@ Eval acceptance: <accepted/corrected/rejected/incomplete plus acceptance activit
 Rationale: <principle/criteria/rejected alternative/portability boundary when relevant>
 Accepted snapshot: <accepted snapshot ref, candidate status, or none>
 Consensus ledger: <ledger ref, updated dimensions, or none>
+Ledger excerpt: <known_known / known_unknown / unknown_known / unknown_unknown when consensus-ledger is active>
 Next question or action: <one question or concrete action>
 Evidence used: <brainstorm/researcher refs when available>
 ```

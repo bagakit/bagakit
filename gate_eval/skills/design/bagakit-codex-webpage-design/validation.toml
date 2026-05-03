@@ -2,18 +2,18 @@ version = 2
 
 [[suite]]
 id = "bagakit-codex-webpage-design-historical-failures"
-owner = "gate_eval/skills/swe/bagakit-codex-webpage-design"
+owner = "gate_eval/skills/design/bagakit-codex-webpage-design"
 description = "Run non-gating historical failure bench for webpage design skill quality."
 default = true
 proof_mode = "runtime"
 protects = ["webpage-design historical failure bench covering visual parity, interaction readiness, implementation craft, and evidence artifact discipline"]
 oracle = ["shared dev/eval runner executes historical failure cases and checks guard-mapped evidence records, artifacts, and case outputs"]
-exercised_surface = ["gate_eval/skills/swe/bagakit-codex-webpage-design/suite.ts", "historical-failures.json and evidence cases", "dev/eval/src/cli.ts eval runner"]
+exercised_surface = ["gate_eval/skills/design/bagakit-codex-webpage-design/suite.ts", "historical-failures.json and evidence cases", "dev/eval/src/cli.ts eval runner"]
 proves = ["bagakit-codex-webpage-design-historical-failures proves historical webpage-design failure cases execute and map observations to structured guards."]
 does_not_prove = ["bagakit-codex-webpage-design-historical-failures does not prove live image generation quality, final aesthetic quality, browser parity, or release-blocking correctness."]
 timeout_seconds = 180
 validation_class = "quality"
-groups = ["skills", "swe", "webpage-design", "eval", "quality"]
+groups = ["skills", "design", "webpage-design", "eval", "quality"]
 
 [suite.runner]
 kind = "executable"
@@ -25,5 +25,5 @@ args = [
   "--root",
   "{repo_root}",
   "--suite",
-  "gate_eval/skills/swe/bagakit-codex-webpage-design/suite.ts",
+  "gate_eval/skills/design/bagakit-codex-webpage-design/suite.ts",
 ]

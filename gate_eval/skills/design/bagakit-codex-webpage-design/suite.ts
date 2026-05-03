@@ -17,8 +17,8 @@ interface HistoricalFailureBench {
   cases: HistoricalFailureCase[];
 }
 
-const CASES_PATH = "gate_eval/skills/swe/bagakit-codex-webpage-design/cases/historical-failures.json";
-const CONTRACT_PATH = "skills/swe/bagakit-codex-webpage-design/references/workflow-contract.toml";
+const CASES_PATH = "gate_eval/skills/design/bagakit-codex-webpage-design/cases/historical-failures.json";
+const CONTRACT_PATH = "skills/design/bagakit-codex-webpage-design/references/workflow-contract.toml";
 
 function readText(repoRoot: string, relativePath: string): string {
   return fs.readFileSync(path.join(repoRoot, relativePath), "utf8");
@@ -39,10 +39,10 @@ function contractCaseIds(contractText: string): Set<string> {
 
 export const SUITE: EvalSuiteDefinition = {
   id: "bagakit-codex-webpage-design-historical-failure-bench",
-  owner: "gate_eval/skills/swe/bagakit-codex-webpage-design",
+  owner: "gate_eval/skills/design/bagakit-codex-webpage-design",
   title: "Codex Webpage Design Historical Failure Bench",
   summary: "Historical failure bench for reference-led webpage design, visual parity, behavior honesty, canvas stability, and workflow/control review.",
-  defaultOutputDir: "gate_eval/skills/swe/bagakit-codex-webpage-design/results/runs",
+  defaultOutputDir: "gate_eval/skills/design/bagakit-codex-webpage-design/results/runs",
   cases: [
     {
       id: "historical-failures-are-covered-by-skill-contract",
@@ -106,7 +106,7 @@ export const SUITE: EvalSuiteDefinition = {
       summary: "The main SKILL.md should stay a concise protocol and route detailed rules to references and bench cases.",
       focus: ["progressive disclosure", "skill-maintainability"],
       run: (context) => {
-        const skillPath = "skills/swe/bagakit-codex-webpage-design/SKILL.md";
+        const skillPath = "skills/design/bagakit-codex-webpage-design/SKILL.md";
         const skillText = readText(context.repoRoot, skillPath);
         const lineCount = skillText.split(/\r?\n/).length;
 

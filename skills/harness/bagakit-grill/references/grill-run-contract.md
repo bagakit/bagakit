@@ -27,6 +27,12 @@ state. In that case the ledger owns epistemic classes, item statuses, goal
 dimensions, and promotion state, while Grill still owns the question DAG,
 answer events, and convergence state machine.
 
+The CLI creates an embedded `consensus-ledger.json` by default on `init` unless
+the caller supplies an explicit `--ledger-ref`. Planned questions should sync
+into the ledger's `questions` section, and answers should update the ledger
+question with an answer ref so Grill's generated brief and ledger view can be
+read together.
+
 Grill does not own:
 
 - deep dialogue and early framing
@@ -78,6 +84,7 @@ runtime root just because the skill is installed.
 - `render`: generated-view metadata
 - `ledger_ref`: optional repo-relative embedded consensus ledger ref when the
   run uses `bagakit-consensus-ledger`
+  - default: `.bagakit/grill/runs/<run-id>/consensus-ledger.json`
 
 ## Node Fields
 
@@ -134,6 +141,11 @@ node instead of closing the grill.
 If the adjacent branch is a shared-understanding gap rather than a research
 gap, update the embedded consensus ledger with `known_unknown` or
 `unknown_unknown` state instead of silently closing the branch.
+
+Before asking a user-facing question, Grill should know which ledger dimension,
+question, or item the question is trying to close. When the answer arrives,
+record the answer event in `grill-run.json` and sync an answer ref into the
+ledger.
 
 The CLI records this as `convergence_check`. When a run has at least two user
 answers and all current nodes are resolved, `refreshRun` may mark the run

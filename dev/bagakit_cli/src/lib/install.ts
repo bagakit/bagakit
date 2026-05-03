@@ -33,6 +33,17 @@ function targetStats(targetPath: string) {
   }
 }
 
+function isRepoSkillProjectionTarget(repoRoot: string, candidateTarget: string, skill: SkillSource): boolean {
+  const skillsRoot = path.join(path.resolve(repoRoot), "skills");
+  const relative = path.relative(skillsRoot, path.resolve(candidateTarget));
+  if (relative === "" || relative.startsWith("..") || path.isAbsolute(relative)) {
+    return false;
+  }
+
+  const parts = relative.split(path.sep);
+  return parts.length === 2 && parts[0] !== "" && parts[1] === skill.skillId;
+}
+
 function selectSkills(repoRoot: string, selector: string): SkillSource[] {
   const skills = discoverSkills(repoRoot);
   if (selector === "all") {
@@ -75,12 +86,16 @@ export function listInstallStatus(repoRoot: string, rawTargetRoot: string, selec
     const rawTarget = fs.readlinkSync(targetPath);
     const linkedTarget = path.resolve(path.dirname(targetPath), rawTarget);
     if (normalizeForCompare(linkedTarget) !== normalizeForCompare(skill.absoluteDir)) {
+      const canAutoReplace = isRepoSkillProjectionTarget(repoRoot, linkedTarget, skill);
       return {
         skill,
         targetPath,
         targetRelativePath,
         state: "wrong-link",
-        issue: "target symbolic link points somewhere else",
+        issue: canAutoReplace
+          ? "target symbolic link points to a previous canonical path for this skill id"
+          : "target symbolic link points somewhere else",
+        canAutoReplace,
       };
     }
     return {
@@ -131,7 +146,7 @@ export function linkSkills(
       continue;
     }
 
-    if (record.state === "wrong-link" && options.replace) {
+    if (record.state === "wrong-link" && (record.canAutoReplace || options.replace)) {
       if (!options.dryRun) {
         fs.rmSync(record.targetPath);
         fs.symlinkSync(record.skill.absoluteDir, record.targetPath, "dir");

@@ -16,8 +16,8 @@ import { scanSkillInstallStatus, type SkillInstallStatusResult } from "./lib/ski
 import { linkSkills } from "./lib/skill/linking.ts";
 import type { LinkResult, PackageResult, SkillResolution, SkillSource } from "./lib/skill/model.ts";
 import {
-  defaultCodexSkillsDir,
   defaultDistDir,
+  defaultGlobalSkillsDir,
   defaultHostHarnessDistDir,
   defaultRepoLocalCodexSkillsDir,
   defaultRepoRoot,
@@ -101,9 +101,9 @@ Selectors:
 
 Defaults:
   install --scope repo-local   <cwd>/.codex/skills
-  install --scope global       $CODEX_HOME/skills or ~/.codex/skills
+  install --scope global       $AGENTS_HOME/skills or ~/.agents/skills
   install-status --scope all   checks repo-local and global install roots
-  --dest  $CODEX_HOME/skills or ~/.codex/skills
+  --dest  $AGENTS_HOME/skills or ~/.agents/skills
   --dist  dist/skill-packages
   host-harness-distribute-package --dist  dist/host-harnesses
 
@@ -112,6 +112,7 @@ Notes:
   - install is the preferred distribution entrypoint; it resolves repo-local or global pickup paths for you.
   - install with no selector, or selector "all", installs every discovered installable skill source.
   - install-status reports installed, missing, stale, or conflict by comparing discovered sources with flat install roots.
+  - install and link refresh stale symlinks that still point to this repo's previous family path for the same skill id.
   - link is the low-level projection primitive when you need an explicit destination path.
   - Relative --dest and --dist paths resolve against --root.
   - list, install, install-status, link, and distribute-package discover skills directly from the directory protocol.
@@ -310,7 +311,7 @@ function cmdLink(argv: string[]): number {
     options: {
       ...commonOptions(),
       selector: { type: "string" as const },
-      dest: { type: "string" as const, default: defaultCodexSkillsDir() },
+      dest: { type: "string" as const, default: defaultGlobalSkillsDir() },
       force: { type: "boolean" as const, default: false },
     },
     strict: true,
@@ -379,7 +380,7 @@ function resolveInstallDestination(scope: InstallScope, rawRepo?: string): Reado
     return {
       scope,
       consumerRepoRoot: null,
-      destDir: defaultCodexSkillsDir(),
+      destDir: defaultGlobalSkillsDir(),
     };
   }
 
@@ -508,7 +509,7 @@ function cmdInstallStatus(argv: string[]): number {
   const targets = resolveInstallStatusTargets(repoRoot, values.scope, values.repo, values.dest);
   const scans = targets.map((target) => ({
     target,
-    results: scanSkillInstallStatus(resolution.skills, target.destDir),
+    results: scanSkillInstallStatus(resolution.skills, target.destDir, repoRoot),
   }));
   const ok = scans.every((scan) => scan.results.every((result) => result.status === "installed"));
 

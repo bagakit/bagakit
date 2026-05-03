@@ -25,6 +25,9 @@ Bagakit-specific rules:
 - Use `bagakit-consensus-ledger` when the target's shared-understanding state
   should be recoverable. Embed `consensus-ledger.json` inside the Grill run
   directory and keep Grill's own run file focused on the DAG and lifecycle.
+- Grill CLI `init` creates the embedded ledger by default. Do not postpone
+  ledger creation until brief rendering; the next question should already be
+  attached to a shared-understanding dimension or item when possible.
 - Never ask a Grill question with only a recommended answer. Every user-facing
   Grill question must show two to four options considered, then mark the
   recommended answer. If one path is clearly dominant, include the main rejected
@@ -43,13 +46,15 @@ Bagakit-specific rules:
 Minimal loop:
 
 1. Initialize or resume one grill run.
-2. Initialize or update the embedded consensus ledger when the target has
-   decision-bearing dimensions, unknowns, or inferred assumptions.
+2. Initialize or update the embedded consensus ledger. Treat the target snapshot
+   as `known_known`, unresolved success/risk/evidence branches as
+   `known_unknown`, inferred assumptions as `unknown_known`, and suspected
+   blind spots as `unknown_unknown`.
 3. Plan the next dependency-ready question node.
 4. Ask one question with options considered, a recommended answer, and risk if
    wrong.
-5. Record the user's answer and update the ledger item or dimension it closes,
-   contests, or defers.
+5. Record the user's answer and update the ledger question, item, or dimension
+   it closes, contests, or defers.
 6. If repeated answers create no new branch, run the convergence check.
 7. Render the read-only brief.
 

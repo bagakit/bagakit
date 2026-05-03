@@ -55,7 +55,7 @@ A peer address is one of:
 
 - an installed skill id such as `agent-reach` or `imagegen`
 - a canonical Bagakit skill path such as
-  `skills/swe/bagakit-codex-webpage-design/SKILL.md`
+  `skills/design/bagakit-codex-webpage-design/SKILL.md`
 - an optional CLI command only when that peer declares or documents one
 - a host capability described by adapter name when no skill or CLI exists
 

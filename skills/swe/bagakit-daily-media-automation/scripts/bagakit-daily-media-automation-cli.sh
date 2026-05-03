@@ -103,7 +103,7 @@ agent_reach_capability_exists() {
 }
 
 webpage_design_capability_exists() {
-  [[ -f "skills/swe/bagakit-codex-webpage-design/SKILL.md" ]] \
+  [[ -f "skills/design/bagakit-codex-webpage-design/SKILL.md" ]] \
     || [[ -f ".codex/skills/bagakit-codex-webpage-design/SKILL.md" ]] \
     || [[ -f "$(join_path "$codex_home" "skills" "bagakit-codex-webpage-design" "SKILL.md")" ]] \
     || command_exists bagakit-codex-webpage-design
@@ -1184,7 +1184,7 @@ EOF
   case "$web_adapter" in
     bagakit-codex-webpage-design)
       skill_path_exists "webpage-design" \
-        "skills/swe/bagakit-codex-webpage-design/SKILL.md" \
+        "skills/design/bagakit-codex-webpage-design/SKILL.md" \
         ".codex/skills/bagakit-codex-webpage-design/SKILL.md" \
         "$(join_path "$codex_home" "skills" "bagakit-codex-webpage-design" "SKILL.md")" || true
       command_status "webpage cli" "bagakit-codex-webpage-design" "optional" || true

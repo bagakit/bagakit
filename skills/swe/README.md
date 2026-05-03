@@ -5,5 +5,4 @@ commits, reviewability, and day-to-day engineering execution surfaces.
 
 Representative skills in this family include:
 
-- `bagakit-codex-webpage-design`
 - `bagakit-git-message-craft`

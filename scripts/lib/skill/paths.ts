@@ -28,9 +28,9 @@ export function resolvePathFrom(baseDir: string, value: string): string {
   return path.isAbsolute(expanded) ? path.normalize(expanded) : path.resolve(baseDir, expanded);
 }
 
-export function defaultCodexSkillsDir(): string {
-  const codexHome = process.env.CODEX_HOME ? expandHome(process.env.CODEX_HOME) : path.join(os.homedir(), ".codex");
-  return path.join(codexHome, "skills");
+export function defaultGlobalSkillsDir(): string {
+  const agentsHome = process.env.AGENTS_HOME ? expandHome(process.env.AGENTS_HOME) : path.join(os.homedir(), ".agents");
+  return path.join(agentsHome, "skills");
 }
 
 export function defaultRepoLocalCodexSkillsDir(consumerRepoRoot: string): string {

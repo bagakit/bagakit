@@ -1,0 +1,155 @@
+version = 1
+skill_id = "bagakit-hitl-webutil-design"
+contract_kind = "skill_workflow_contract"
+owner = "skills/design/bagakit-hitl-webutil-design"
+
+[entry]
+skill = "SKILL.md"
+required_reference_links = [
+  "references/mechanisms/README.md",
+  "references/styles/README.md",
+  "references/artifacts/README.md",
+  "references/composition-crosswalk.md",
+  "references/workflow-contract.toml",
+]
+optional_peer_contracts = [
+  "skills/design/bagakit-codex-webpage-design/references/workflow-contract.toml",
+]
+
+[[stage]]
+id = "design-brief"
+phase = "before_scene_selection"
+artifact = "design-brief.md"
+blocks_completion = true
+
+[[stage]]
+id = "operator-mode"
+phase = "before_scene_selection"
+artifact = "operator-mode.md"
+blocks_completion = true
+
+[[stage]]
+id = "scene-crosswalk-selection"
+phase = "before_scene_selection"
+artifact = "scene-crosswalk-selection.md"
+blocks_completion = true
+
+[[stage]]
+id = "mechanism-selection"
+phase = "before_design_handoff"
+artifact = "mechanism-selection.md"
+blocks_completion = true
+
+[[stage]]
+id = "style-selection"
+phase = "before_design_handoff"
+artifact = "style-selection.md"
+blocks_completion = true
+
+[[stage]]
+id = "artifact-selection"
+phase = "before_design_handoff"
+artifact = "artifact-selection.md"
+blocks_completion = true
+
+[[stage]]
+id = "hardening-audit"
+phase = "before_design_handoff"
+artifact = "hardening-audit.md"
+blocks_completion = true
+
+[[stage]]
+id = "implementation-route"
+phase = "handoff"
+artifact = "implementation-route.md"
+required_when = "the page should be built as a frontend surface rather than left as a design packet"
+
+[[artifact]]
+id = "page-manifest"
+owner = "references/artifacts/page-manifest.md"
+required_when = "every designed HITL page route"
+
+[[artifact]]
+id = "agent-handoff-packet"
+owner = "references/artifacts/agent-handoff-packet.md"
+required_when = "the human must return conclusions, observations, or blockers to an agent"
+
+[[artifact]]
+id = "report-export"
+owner = "references/artifacts/report-export.md"
+required_when = "the scene captures case-by-case verification or review results"
+
+[[eval_gate]]
+id = "minimum-transfer-proof"
+decision = "manual-test-execution plus repository-understanding"
+use_when = "validating this skill scaffold or a major crosswalk refactor"
+
+[[eval_gate]]
+id = "lightweight-hardening-audit"
+decision = "status/error semantics, provenance labeling, local persistence lifetime/reset, information-load budget, audience mismatch"
+use_when = "snapshot acceptance or route validation after the minimum transfer proof"
+
+[shared_guard.status_and_error]
+status_vocabulary = [
+  "not_started",
+  "in_progress",
+  "passed",
+  "failed",
+  "blocked",
+  "needs_review",
+]
+required_signals = [
+  "copy/export success is visible",
+  "validation errors are specific",
+  "save or restore state is visible",
+  "blocked state has next action text",
+]
+
+[shared_guard.provenance]
+labels = [
+  "observed",
+  "user_entered",
+  "agent_generated",
+  "inferred",
+  "source_backed",
+  "stale",
+]
+rule = "Do not mix observations, inferences, and generated summaries without visible labels."
+
+[shared_guard.local_session_state]
+requirements = [
+  "tell the user whether state is local only",
+  "provide reset or clear behavior",
+  "avoid persisting sensitive detail longer than needed",
+  "treat private or unavailable storage as a recoverable limitation",
+]
+
+[shared_guard.information_load]
+bands = [
+  "essential",
+  "supporting",
+  "deferable",
+  "export_only",
+]
+rule = "High density should reduce extraneous load, not merely increase visible text."
+
+[shared_guard.audience_mismatch]
+rule = "Crosswalk rows should state the operator mode and avoid silently overfitting expert workflows to beginner users."
+
+[[composition_boundary]]
+id = "hitl-design-vs-webpage-implementation"
+peer = "bagakit-codex-webpage-design"
+skill_owns = "HITL decomposition, mechanisms, styles, artifacts, hardening audit, and crosswalk choice"
+peer_owns = "frontend implementation, reference-first workflow, browser evidence, and parity review"
+
+[[composition_boundary]]
+id = "hitl-design-vs-design-review"
+peer = "bagakit-design-core"
+skill_owns = "HITL page job model and crosswalk"
+peer_owns = "design-rule coverage, tone review, and design packet critique"
+
+[[composition_boundary]]
+id = "hitl-design-vs-spark"
+peer = "bagakit-spark"
+skill_owns = "design route after scope is clear enough"
+peer_owns = "open-ended shaping when scene, goal, or eval meaning is still unstable"

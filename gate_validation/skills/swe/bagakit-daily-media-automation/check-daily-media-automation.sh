@@ -248,7 +248,7 @@ run_ok bash "$CMD" doctor \
   --notify none \
   --scheduler manual \
   --write-root "$TMP_DIR"
-grep -Fq "webpage-design skill ok        skills/swe/bagakit-codex-webpage-design/SKILL.md" "$TMP_DIR/out"
+grep -Fq "webpage-design skill ok        skills/design/bagakit-codex-webpage-design/SKILL.md" "$TMP_DIR/out"
 grep -Fq "doctor result: no required route dependency is missing" "$TMP_DIR/out"
 
 run_fail 1 bash "$CMD" doctor \

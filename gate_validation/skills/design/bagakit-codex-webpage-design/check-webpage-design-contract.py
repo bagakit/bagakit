@@ -12,8 +12,8 @@ except ModuleNotFoundError:  # pragma: no cover
     tomllib = None
 
 
-CONTRACT_PATH = "skills/swe/bagakit-codex-webpage-design/references/workflow-contract.toml"
-BENCH_PATH = "gate_eval/skills/swe/bagakit-codex-webpage-design/cases/historical-failures.json"
+CONTRACT_PATH = "skills/design/bagakit-codex-webpage-design/references/workflow-contract.toml"
+BENCH_PATH = "gate_eval/skills/design/bagakit-codex-webpage-design/cases/historical-failures.json"
 
 REQUIRED_STAGE_IDS = {
     "design-brief",
@@ -332,10 +332,10 @@ def main() -> int:
             if not isinstance(rel_link, str):
                 failures.append("entry.required_reference_links must contain strings")
                 continue
-            if not (root / "skills/swe/bagakit-codex-webpage-design" / rel_link).is_file():
+            if not (root / "skills/design/bagakit-codex-webpage-design" / rel_link).is_file():
                 failures.append(f"entry required reference missing: {rel_link}")
 
-        skill_path = root / "skills/swe/bagakit-codex-webpage-design/SKILL.md"
+        skill_path = root / "skills/design/bagakit-codex-webpage-design/SKILL.md"
         skill_text = skill_path.read_text(encoding="utf-8")
         if "references/workflow-contract.toml" not in skill_text:
             failures.append("SKILL.md must link references/workflow-contract.toml")

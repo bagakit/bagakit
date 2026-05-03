@@ -1,0 +1,5 @@
+version = 1
+skill = "bagakit-hitl-webutil-design"
+trigger = "Codex should design a human-in-the-loop web utility page or skill route for understanding, testing, comparison, or agent handoff."
+do = "Clarify the HITL page brief, select mechanisms, one style route, and artifacts, choose or extend a crosswalk row, run the hardening audit, and hand frontend implementation to bagakit-codex-webpage-design when needed."
+see = "skills/design/bagakit-hitl-webutil-design/SKILL.md"

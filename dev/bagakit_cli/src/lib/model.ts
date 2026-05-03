@@ -41,6 +41,7 @@ export interface SkillInstallRecord {
   targetRelativePath: string;
   state: SkillInstallState;
   issue?: string;
+  canAutoReplace?: boolean;
 }
 
 export type SkillInstallAction = "link" | "already-linked" | "replace-link" | "skip-conflict" | "unlink" | "missing";

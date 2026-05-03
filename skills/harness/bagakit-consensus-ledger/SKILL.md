@@ -19,6 +19,9 @@ Core contract:
 - Use the standalone fallback only when no stronger owner exists.
 - Record epistemic class separately from lifecycle status.
 - Organize understanding through goal dimensions and skill lenses.
+- When a user-facing peer flow uses the ledger, surface a compact excerpt of
+  `known_known`, `known_unknown`, `unknown_known`, and `unknown_unknown` before
+  asking the next decision-changing question or accepting a snapshot.
 - Keep raw dialogue, source evidence, question DAGs, and durable shared
   knowledge in their owning skills.
 - Promote only accepted snapshots or handoffs, not the whole working ledger.

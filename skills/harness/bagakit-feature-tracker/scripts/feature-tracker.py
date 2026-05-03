@@ -44,7 +44,7 @@ WORKSPACE_MODES = {"worktree", "current_tree", "proposal_only"}
 CLOSED_FEAT_STATUS = {"archived", "discarded"}
 FEATURE_SCOPES = {"active", "archived", "discarded"}
 DEFAULT_FEATURE_SCOPES = frozenset({"active"})
-RUNTIME_ROLES = {"standalone", "frontdoor_context", "execution_owner"}
+RUNTIME_ROLES = {"standalone", "frontdoor_context", "execution_owner", "foreground_owner"}
 BLOCKED_REASON_CLASSES = {"none", "external_blocker", "internal_blocker", "parked_context"}
 RUNTIME_RELATION_TYPES = {"frontdoor_for", "handoff_from"}
 RUNTIME_RELATION_REVERSE = {
@@ -3681,11 +3681,11 @@ def validate_feat(paths: HarnessPaths, root: Path, feat_id: str) -> list[str]:
             errors.append(
                 f"{feat_id}: frontdoor_context may only declare runtime_relations with relation=frontdoor_for"
             )
-    if state_runtime_role == "execution_owner":
+    if state_runtime_role in {"execution_owner", "foreground_owner"}:
         invalid = [item["relation"] for item in state_runtime_relations if item["relation"] != "handoff_from"]
         if invalid:
             errors.append(
-                f"{feat_id}: execution_owner may only declare runtime_relations with relation=handoff_from"
+                f"{feat_id}: {state_runtime_role} may only declare runtime_relations with relation=handoff_from"
             )
     if state_blocked_reason == "parked_context" and state_runtime_role != "frontdoor_context":
         errors.append(f"{feat_id}: blocked_reason_class parked_context requires runtime_role=frontdoor_context")
@@ -3872,9 +3872,9 @@ def validate_runtime_relation_consistency(paths: HarnessPaths, feat_ids: list[st
                     f"{feat_id}: runtime relation `{relation}` to {target} is missing reverse `{expected_reverse}` relation"
                 )
             target_role = roles_by_feat.get(target)
-            if relation == "frontdoor_for" and target_role not in {"execution_owner", "standalone"}:
+            if relation == "frontdoor_for" and target_role not in {"execution_owner", "foreground_owner", "standalone"}:
                 errors.append(
-                    f"{feat_id}: frontdoor_for target {target} must stay execution_owner or standalone, found {target_role or '<missing>'}"
+                    f"{feat_id}: frontdoor_for target {target} must stay execution_owner, foreground_owner, or standalone, found {target_role or '<missing>'}"
                 )
             if relation == "handoff_from" and target_role != "frontdoor_context":
                 errors.append(

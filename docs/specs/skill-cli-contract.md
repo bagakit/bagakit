@@ -249,8 +249,10 @@ Mutation rules:
 
 - `install link` creates missing symlinks
 - `install link` leaves existing correct symlinks unchanged
+- `install link` refreshes stale symlinks that still point to this repository's
+  previous `skills/<family>/<same-skill-id>/` path for the selected skill
 - `install link` does not overwrite conflicts
-- `install link --replace` may replace a wrong symlink, but not a real
+- `install link --replace` may replace other wrong symlinks, but not a real
   directory or file conflict
 - `install unlink` removes only symlinks that point back to the selected
   canonical skill

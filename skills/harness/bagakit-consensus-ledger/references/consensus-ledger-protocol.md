@@ -68,6 +68,23 @@ Rule:
 - unconfirmed inferred items must remain visible as `inferred` or `proposed`
   until the user confirms, corrects, contests, or defers them.
 
+## User-Facing Excerpt
+
+Peer skills that use a consensus ledger in a live user conversation should show
+a compact excerpt before asking the next decision-changing question, publishing
+a snapshot candidate, or closing a run:
+
+```text
+known_known: <confirmed or directly available understanding>
+known_unknown: <explicit gap, risk, or missing decision>
+unknown_known: <agent inference that still needs confirmation>
+unknown_unknown: <possible blind spot or unexplored dimension>
+```
+
+The excerpt is not the full ledger. It is the shared checkpoint that lets the
+user correct what the agent is treating as confirmed, unknown, inferred, or
+possibly missing.
+
 ## Dimensions
 
 Each dimension records:

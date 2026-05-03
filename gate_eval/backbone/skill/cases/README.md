@@ -10,6 +10,6 @@ Current cases:
 - `layout-safety`
   - directory-protocol drift, forbidden payload manifest detection, and symlink safety
 - `link-behavior`
-  - link creation, idempotence, conflict detection, and force replacement
+  - link creation, idempotence, conflict detection, force replacement, and stale canonical symlink refresh
 - `packaging-policy`
   - archive generation, archive hygiene, and explicit selector handling

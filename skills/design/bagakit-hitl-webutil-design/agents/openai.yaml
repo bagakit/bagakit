@@ -1,0 +1,4 @@
+interface:
+  display_name: "HITL Webutil Design"
+  short_description: "Design HITL web utility pages"
+  default_prompt: "Use $bagakit-hitl-webutil-design to design a human-in-the-loop web utility page using mechanism, style, artifact, and crosswalk contracts."

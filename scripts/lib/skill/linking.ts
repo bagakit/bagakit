@@ -6,6 +6,11 @@ import { displayPath } from "./paths.ts";
 
 type PlannedAction = "create" | "replace" | "unchanged";
 
+type ExistingLinkInspection = Readonly<{
+  action: PlannedAction;
+  replaceRequiresForce: boolean;
+}>;
+
 type PlannedLink = Readonly<{
   skill: SkillSource;
   linkPath: string;
@@ -38,7 +43,23 @@ function destinationCollisionError(skills: SkillSource[]): Error {
   );
 }
 
-function inspectExistingLink(linkPath: string, targetPath: string): PlannedAction {
+function isRepoSkillProjectionTarget(repoRoot: string, candidateTarget: string, skill: SkillSource): boolean {
+  const skillsRoot = path.join(path.resolve(repoRoot), "skills");
+  const relative = path.relative(skillsRoot, path.resolve(candidateTarget));
+  if (relative === "" || relative.startsWith("..") || path.isAbsolute(relative)) {
+    return false;
+  }
+
+  const parts = relative.split(path.sep);
+  return parts.length === 2 && parts[0] !== "" && parts[1] === skill.skillId;
+}
+
+function inspectExistingLink(
+  linkPath: string,
+  targetPath: string,
+  repoRoot: string,
+  skill: SkillSource,
+): ExistingLinkInspection {
   try {
     const stat = lstatSync(linkPath);
     if (stat.isSymbolicLink()) {
@@ -48,17 +69,25 @@ function inspectExistingLink(linkPath: string, targetPath: string): PlannedActio
       try {
         const existingTarget = realpathSync.native(resolvedTarget);
         if (existingTarget === canonicalTarget) {
-          return "unchanged";
+          return { action: "unchanged", replaceRequiresForce: false };
         }
       } catch {
-        return "replace";
+        return {
+          action: "replace",
+          replaceRequiresForce: !isRepoSkillProjectionTarget(repoRoot, resolvedTarget, skill),
+        };
       }
+
+      return {
+        action: "replace",
+        replaceRequiresForce: !isRepoSkillProjectionTarget(repoRoot, resolvedTarget, skill),
+      };
     }
-    return "replace";
+    return { action: "replace", replaceRequiresForce: true };
   } catch (error) {
     const code = (error as NodeJS.ErrnoException).code;
     if (code === "ENOENT") {
-      return "create";
+      return { action: "create", replaceRequiresForce: false };
     }
     throw error;
   }
@@ -77,12 +106,12 @@ function planLinkOperations(skills: SkillSource[], options: LinkOptions): Planne
   const conflicts: string[] = [];
   for (const skill of skills) {
     const linkPath = path.join(options.destDir, skill.skillId);
-    const action = inspectExistingLink(linkPath, skill.absoluteDir);
-    if (action === "replace" && !options.force) {
+    const inspection = inspectExistingLink(linkPath, skill.absoluteDir, options.repoRoot, skill);
+    if (inspection.action === "replace" && inspection.replaceRequiresForce && !options.force) {
       conflicts.push(`- ${displayPath(options.repoRoot, linkPath)} already exists and does not point to ${skill.selector}`);
       continue;
     }
-    plan.push({ skill, linkPath, action });
+    plan.push({ skill, linkPath, action: inspection.action });
   }
 
   if (conflicts.length > 0) {

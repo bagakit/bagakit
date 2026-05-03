@@ -2,4 +2,4 @@ version = 1
 skill = "bagakit-codex-webpage-design"
 trigger = "Codex should create a high-craft webpage or landing page from visual direction through image-generation design reference, frontend implementation, browser debugging, and visual parity iteration."
 do = "Clarify the design brief, record reference intent, create an image-generation design reference when no stronger reference exists, implement in the host or light mainstream frontend stack, and verify with browser screenshots and visual parity review."
-see = "skills/swe/bagakit-codex-webpage-design/SKILL.md"
+see = "skills/design/bagakit-codex-webpage-design/SKILL.md"

@@ -26,6 +26,8 @@ Core contract:
 - Maintain `.bagakit/goal/current.md` as the agent-facing entrypoint and
   `.bagakit/goal/state.yaml` as the Goal registry/topology when the Goal surface
   exists.
+- Maintain `.bagakit/goal/state.yaml` as the machine-readable registry and
+  topology cache for incomplete Goals and the foreground cursor.
 - When supervision is active, maintain `.bagakit/goal/supervisor.md` as the
   supervisor contract; do not create a separate supervisor skill or schema fork.
 - Keep exactly one foreground Goal for execution, but allow multiple incomplete

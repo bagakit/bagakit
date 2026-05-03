@@ -49,7 +49,7 @@
     {
       "id": "skill-quality-fallback-implementation-without-reference",
       "source_refs": [
-        "gate_eval/skills/swe/bagakit-codex-webpage-design/cases/evidence/riftboard-material-asset-retry.md"
+        "gate_eval/skills/design/bagakit-codex-webpage-design/cases/evidence/riftboard-material-asset-retry.md"
       ],
       "failure": "A skill-quality validation experiment has no Image2 filesystem artifact or external strong reference, but the executor continues into implementation and reports partial or conditional success from fallback browser exploration.",
       "contract_guard_ids": [
@@ -257,7 +257,7 @@
     {
       "id": "clean-automation-visual-ledger-misses-screenshot-bugs",
       "source_refs": [
-        "gate_eval/skills/swe/bagakit-codex-webpage-design/cases/evidence/riftboard-material-asset-retry.md"
+        "gate_eval/skills/design/bagakit-codex-webpage-design/cases/evidence/riftboard-material-asset-retry.md"
       ],
       "failure": "The visual bug ledger claims no open visual bugs because console, overflow, and interaction checks are clean, while parent screenshot review still finds visible defects.",
       "contract_guard_ids": [
@@ -268,7 +268,7 @@
     {
       "id": "self-reported-strict-pass-with-parent-visible-blockers",
       "source_refs": [
-        "gate_eval/skills/swe/bagakit-codex-webpage-design/cases/evidence/mythic-signal-desk-real-reference.md"
+        "gate_eval/skills/design/bagakit-codex-webpage-design/cases/evidence/mythic-signal-desk-real-reference.md"
       ],
       "failure": "A quiet-room run reports strict pass after clean browser checks and self-authored ledgers, but parent full-page screenshot review still finds concrete first-viewport blockers.",
       "contract_guard_ids": [
@@ -280,7 +280,7 @@
     {
       "id": "map-label-overlap-hidden-by-state-checks",
       "source_refs": [
-        "gate_eval/skills/swe/bagakit-codex-webpage-design/cases/evidence/riftboard-material-asset-retry.md"
+        "gate_eval/skills/design/bagakit-codex-webpage-design/cases/evidence/riftboard-material-asset-retry.md"
       ],
       "failure": "A graph or map passes selected-state and node-count checks, but screenshot review shows labels overlapping or clustering into unreadable text.",
       "contract_guard_ids": [
@@ -321,7 +321,7 @@
     {
       "id": "asset-kit-without-pipeline-creates-halos-and-seams",
       "source_refs": [
-        "gate_eval/skills/swe/bagakit-codex-webpage-design/cases/evidence/riftboard-material-asset-retry.md"
+        "gate_eval/skills/design/bagakit-codex-webpage-design/cases/evidence/riftboard-material-asset-retry.md"
       ],
       "failure": "A generated asset kit is integrated, but black-background sheet crops, missing alpha or mask semantics, missing crop manifests, and unverified slice behavior leave halos, seams, or dirty UI edges while the run still claims material parity.",
       "contract_guard_ids": [
@@ -333,7 +333,7 @@
     {
       "id": "reference-glyph-sprites-regressed-to-generic-icons",
       "source_refs": [
-        "gate_eval/skills/swe/bagakit-codex-webpage-design/cases/evidence/riftboard-material-asset-retry.md"
+        "gate_eval/skills/design/bagakit-codex-webpage-design/cases/evidence/riftboard-material-asset-retry.md"
       ],
       "failure": "A later iteration replaces accepted reference-specific glyph icons that already matched the visual language with generic library icons, font symbols, or visibly rescaled sheet crops, losing the custom asset success.",
       "contract_guard_ids": [
@@ -345,7 +345,7 @@
     {
       "id": "panel-frame-background-stretch-without-nine-slice-renderer",
       "source_refs": [
-        "gate_eval/skills/swe/bagakit-codex-webpage-design/cases/evidence/riftboard-material-asset-retry.md"
+        "gate_eval/skills/design/bagakit-codex-webpage-design/cases/evidence/riftboard-material-asset-retry.md"
       ],
       "failure": "A generated parchment, card, inspector, or frame asset is applied as a normal stretched background, so corners deform, edge texture warps, center fill muddies text, or component sizes violate the frame's slice-safe minimum while material parity still passes.",
       "contract_guard_ids": [
@@ -357,7 +357,7 @@
     {
       "id": "frame-specimen-existence-hides-low-contrast-content",
       "source_refs": [
-        "gate_eval/skills/swe/bagakit-codex-webpage-design/cases/evidence/riftboard-material-asset-retry.md"
+        "gate_eval/skills/design/bagakit-codex-webpage-design/cases/evidence/riftboard-material-asset-retry.md"
       ],
       "failure": "A frame specimen sheet passes because each specimen exists and has a minimum size, but the screenshot shows low-contrast foreground text, helper labels, or dense content on the rendered material.",
       "contract_guard_ids": [
@@ -369,7 +369,7 @@
     {
       "id": "asset-rich-desktop-pass-mobile-clips-ui",
       "source_refs": [
-        "gate_eval/skills/swe/bagakit-codex-webpage-design/cases/evidence/riftboard-material-asset-retry.md"
+        "gate_eval/skills/design/bagakit-codex-webpage-design/cases/evidence/riftboard-material-asset-retry.md"
       ],
       "failure": "Desktop material richness improves, but mobile screenshots show clipped board content, over-dense desktop compression, or asset overlays that break controls; structured browser checks still pass because they do not judge responsive asset parity.",
       "contract_guard_ids": [
@@ -381,7 +381,7 @@
     {
       "id": "mobile-board-miniaturized-desktop-density",
       "source_refs": [
-        "gate_eval/skills/swe/bagakit-codex-webpage-design/cases/evidence/riftboard-material-asset-retry.md"
+        "gate_eval/skills/design/bagakit-codex-webpage-design/cases/evidence/riftboard-material-asset-retry.md"
       ],
       "failure": "A dense board or pin-wall has no horizontal overflow on mobile, but it is still a shrunken desktop layout: cards, labels, and controls become too small or fragmented to operate as a deliberate mobile product state.",
       "contract_guard_ids": [
@@ -393,7 +393,7 @@
     {
       "id": "quiet-room-stalls-after-reference-and-assets",
       "source_refs": [
-        "gate_eval/skills/swe/bagakit-codex-webpage-design/cases/evidence/riftboard-material-asset-retry.md"
+        "gate_eval/skills/design/bagakit-codex-webpage-design/cases/evidence/riftboard-material-asset-retry.md"
       ],
       "failure": "A quiet-room executor completes design references, asset references, and crop manifests, but stalls before producing a working URL, screenshots, browser checks, and handoff, leaving the parent to infer state from partial files.",
       "contract_guard_ids": [

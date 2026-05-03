@@ -47,7 +47,18 @@ function conflict(pathToCheck: string, skill: SkillSource, detail: string): Skil
   };
 }
 
-export function scanSkillInstallStatus(skills: SkillSource[], destDir: string): SkillInstallStatusResult[] {
+function isRepoSkillProjectionTarget(repoRoot: string, candidateTarget: string, skill: SkillSource): boolean {
+  const skillsRoot = path.join(path.resolve(repoRoot), "skills");
+  const relative = path.relative(skillsRoot, path.resolve(candidateTarget));
+  if (relative === "" || relative.startsWith("..") || path.isAbsolute(relative)) {
+    return false;
+  }
+
+  const parts = relative.split(path.sep);
+  return parts.length === 2 && parts[0] !== "" && parts[1] === skill.skillId;
+}
+
+export function scanSkillInstallStatus(skills: SkillSource[], destDir: string, repoRoot?: string): SkillInstallStatusResult[] {
   return skills.map((skill) => {
     const destinationPath = path.join(destDir, skill.skillId);
     let stat;
@@ -71,10 +82,16 @@ export function scanSkillInstallStatus(skills: SkillSource[], destDir: string): 
     try {
       existingCanonicalPath = realpathSync.native(existingTargetPath);
     } catch {
+      if (repoRoot && isRepoSkillProjectionTarget(repoRoot, existingTargetPath, skill)) {
+        return stale(destinationPath, skill, existingTargetPath, "destination symlink points to a previous canonical path for this skill id");
+      }
       return stale(destinationPath, skill, existingTargetPath, "destination symlink target cannot be resolved");
     }
 
     if (existingCanonicalPath !== sourceCanonicalPath) {
+      if (repoRoot && isRepoSkillProjectionTarget(repoRoot, existingTargetPath, skill)) {
+        return stale(destinationPath, skill, existingTargetPath, "destination symlink points to a previous canonical path for this skill id");
+      }
       return stale(destinationPath, skill, existingTargetPath, "destination symlink points to a different skill source");
     }
 

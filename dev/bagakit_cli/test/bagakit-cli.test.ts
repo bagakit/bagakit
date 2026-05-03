@@ -291,6 +291,18 @@ test("install link replace updates only wrong symbolic links", () => {
   assert.equal(fs.realpathSync(path.join(target, "demo-skill")), fs.realpathSync(path.join(root, "skills/harness/demo-skill")));
 });
 
+test("install link auto-replaces stale same-repo skill symlinks", () => {
+  const root = tempRepo();
+  const target = fs.mkdtempSync(path.join(os.tmpdir(), "bagakit-cli-install-"));
+  makeSkill(root);
+  fs.symlinkSync(path.join(root, "skills/swe/demo-skill"), path.join(target, "demo-skill"), "dir");
+
+  const result = runCli(["install", "link", "demo-skill", "--root", root, "--target", target, "--json"]);
+  assert.equal(result.status, 0, stderr(result));
+  assert.equal(JSON.parse(stdout(result))[0].action, "replace-link");
+  assert.equal(fs.realpathSync(path.join(target, "demo-skill")), fs.realpathSync(path.join(root, "skills/harness/demo-skill")));
+});
+
 test("install unlink removes only links to selected repository skills", () => {
   const root = tempRepo();
   const target = fs.mkdtempSync(path.join(os.tmpdir(), "bagakit-cli-install-"));

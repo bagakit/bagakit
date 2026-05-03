@@ -68,6 +68,7 @@ independently distributable.
 skills/
 ├── skills/
 │   ├── harness/
+│   ├── design/
 │   ├── swe/
 │   ├── paperwork/
 │   ├── gamemaker/
@@ -78,8 +79,11 @@ skills/
 │   ├── specs/
 │   └── stewardship/
 ├── .bagakit/              # local runtime state, ignored by default
-├── dev/
+├── dev/                   # one tool project per child; split truth in dev/README.md
 │   ├── eval/
+│   ├── bagakit_cli/
+│   ├── agent_runner/
+│   ├── agent_loop/
 │   ├── validator/
 │   ├── skill_quality/
 │   ├── release_projection/
@@ -87,9 +91,12 @@ skills/
 ├── gate_validation/
 │   ├── backbone/
 │   ├── dev/
+│   ├── host-harnesses/
 │   └── skills/
 ├── gate_eval/
-│   └── backbone/
+│   ├── backbone/
+│   ├── dev/
+│   └── skills/
 ├── mem/
 ├── catalog/
 ├── scripts/
@@ -109,17 +116,9 @@ skills/
   - Bagakit-authored stable specifications and shared semantics
 - `docs/stewardship/`
   - maintainer-facing repository stewardship guidance
-- `dev/skill_quality/`
-  - maintainer-only validation and eval assets
-- `dev/eval/`
-  - shared maintainer-only eval runner mechanics and research references
-- `dev/release_projection/`
-  - tooling and notes for projecting canonical monorepo content into legacy
-    distribution targets
-- `dev/host_tools/`
-  - maintainer-only host-side tooling
-- `dev/validator/`
-  - generic repository validation framework
+- `dev/`
+  - maintainer-only tool projects, one independent tool per child directory
+  - the authoritative tool split lives in `dev/README.md`
 - `gate_validation/`
   - repo-owned and owner-local validation registration
 - `gate_eval/`
@@ -253,8 +252,8 @@ bash <bagakit-skills-clone>/scripts/skill.sh install \
 
 ### Global Install
 
-Install into the global pickup directory, usually `$CODEX_HOME/skills` or
-`~/.codex/skills`.
+Install into the global Agent pickup directory, usually `$AGENTS_HOME/skills`
+or `~/.agents/skills`.
 
 Use this when one local clone should feed many repos.
 

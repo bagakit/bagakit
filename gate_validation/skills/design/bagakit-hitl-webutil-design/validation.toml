@@ -1,0 +1,88 @@
+version = 2
+
+[[suite]]
+id = "bagakit-hitl-webutil-design-layout"
+owner = "skills/design/bagakit-hitl-webutil-design"
+description = "Require the canonical runtime layout for bagakit-hitl-webutil-design."
+default = true
+proof_mode = "structural"
+protects = ["bagakit-hitl-webutil-design installable runtime layout, mechanism/style/artifact reference sets, CLI declaration, and validation registration"]
+oracle = ["fs runner checks required HITL design skill files, reference directories, script, and gate registration"]
+exercised_surface = ["skills/design/bagakit-hitl-webutil-design runtime directory", "HITL webutil design references", "gate_validation/skills/design/bagakit-hitl-webutil-design registration"]
+proves = ["bagakit-hitl-webutil-design-layout proves required skill files and reference sets are present."]
+does_not_prove = ["bagakit-hitl-webutil-design-layout does not prove live page usability, visual quality, or implementation behavior."]
+validation_class = "structure"
+groups = ["skills", "design", "hitl-webutil-design", "structure"]
+
+[suite.runner]
+kind = "fs"
+required_dirs = [
+  "skills/design/bagakit-hitl-webutil-design",
+  "skills/design/bagakit-hitl-webutil-design/agents",
+  "skills/design/bagakit-hitl-webutil-design/references",
+  "skills/design/bagakit-hitl-webutil-design/references/mechanisms",
+  "skills/design/bagakit-hitl-webutil-design/references/styles",
+  "skills/design/bagakit-hitl-webutil-design/references/artifacts",
+  "skills/design/bagakit-hitl-webutil-design/scripts",
+  "gate_validation/skills/design/bagakit-hitl-webutil-design",
+]
+required_files = [
+  "skills/design/bagakit-hitl-webutil-design/SKILL.md",
+  "skills/design/bagakit-hitl-webutil-design/agents/openai.yaml",
+  "skills/design/bagakit-hitl-webutil-design/references/frontdoor-rule.toml",
+  "skills/design/bagakit-hitl-webutil-design/references/bagakit-driver.toml",
+  "skills/design/bagakit-hitl-webutil-design/references/skill-cli.toml",
+  "skills/design/bagakit-hitl-webutil-design/references/workflow-contract.toml",
+  "skills/design/bagakit-hitl-webutil-design/references/composition-crosswalk.md",
+  "skills/design/bagakit-hitl-webutil-design/references/mechanisms/README.md",
+  "skills/design/bagakit-hitl-webutil-design/references/mechanisms/case-inventory.md",
+  "skills/design/bagakit-hitl-webutil-design/references/mechanisms/copyable-reproduction.md",
+  "skills/design/bagakit-hitl-webutil-design/references/mechanisms/evidence-context.md",
+  "skills/design/bagakit-hitl-webutil-design/references/mechanisms/interaction-result-packet.md",
+  "skills/design/bagakit-hitl-webutil-design/references/mechanisms/knowledge-transfer.md",
+  "skills/design/bagakit-hitl-webutil-design/references/mechanisms/local-session-state.md",
+  "skills/design/bagakit-hitl-webutil-design/references/mechanisms/procedure-runbook.md",
+  "skills/design/bagakit-hitl-webutil-design/references/mechanisms/result-capture.md",
+  "skills/design/bagakit-hitl-webutil-design/references/styles/README.md",
+  "skills/design/bagakit-hitl-webutil-design/references/styles/dense-test-report.md",
+  "skills/design/bagakit-hitl-webutil-design/references/styles/ide-verification-console.md",
+  "skills/design/bagakit-hitl-webutil-design/references/styles/intelligence-briefing-desk.md",
+  "skills/design/bagakit-hitl-webutil-design/references/styles/learning-atlas.md",
+  "skills/design/bagakit-hitl-webutil-design/references/styles/repo-reading-workbench.md",
+  "skills/design/bagakit-hitl-webutil-design/references/artifacts/README.md",
+  "skills/design/bagakit-hitl-webutil-design/references/artifacts/agent-handoff-packet.md",
+  "skills/design/bagakit-hitl-webutil-design/references/artifacts/page-manifest.md",
+  "skills/design/bagakit-hitl-webutil-design/references/artifacts/report-export.md",
+  "skills/design/bagakit-hitl-webutil-design/scripts/bagakit-hitl-webutil-design-cli.sh",
+  "gate_validation/skills/design/bagakit-hitl-webutil-design/validation.toml",
+  "gate_validation/skills/design/bagakit-hitl-webutil-design/check-hitl-webutil-design.py",
+]
+forbidden_paths = [
+  "skills/design/bagakit-hitl-webutil-design/SKILL_PAYLOAD.json",
+  "skills/design/bagakit-hitl-webutil-design/docs",
+  "skills/design/bagakit-hitl-webutil-design/gate",
+  "skills/design/bagakit-hitl-webutil-design/scripts_dev",
+]
+
+[[suite]]
+id = "bagakit-hitl-webutil-design-contract"
+owner = "skills/design/bagakit-hitl-webutil-design"
+description = "Require the structured HITL web utility design workflow contract."
+default = true
+proof_mode = "structural"
+protects = ["HITL webutil design stage, artifact, eval, shared-guard, crosswalk, and peer-boundary contract"]
+oracle = ["parsed workflow-contract.toml plus crosswalk and SKILL.md anchor checks"]
+exercised_surface = ["skills/design/bagakit-hitl-webutil-design/references/workflow-contract.toml", "composition-crosswalk.md", "SKILL.md"]
+proves = ["bagakit-hitl-webutil-design-contract proves required contract stages, artifacts, hardening gates, shared guards, and composition boundaries are aligned."]
+does_not_prove = ["bagakit-hitl-webutil-design-contract does not prove final page usability, frontend implementation quality, or stochastic agent compliance."]
+timeout_seconds = 120
+validation_class = "contract"
+groups = ["skills", "design", "hitl-webutil-design", "contract"]
+
+[suite.runner]
+kind = "python_script"
+script = "gate_validation/skills/design/bagakit-hitl-webutil-design/check-hitl-webutil-design.py"
+args = [
+  "--root",
+  "{repo_root}",
+]

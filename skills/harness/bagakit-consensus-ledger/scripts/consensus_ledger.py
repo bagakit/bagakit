@@ -303,8 +303,26 @@ def render_markdown(data: dict) -> str:
                 "",
             ]
         )
+    lines.extend(["## Shared Understanding", ""])
+    groups = [
+        ("known_known", "Known known", "Confirmed or directly available understanding."),
+        ("known_unknown", "Known unknown", "Explicit gaps, risks, or missing decisions."),
+        ("unknown_known", "Unknown known", "Inferred or latent understanding that needs confirmation."),
+        ("unknown_unknown", "Unknown unknown", "Possible blind spots or unexplored dimensions."),
+    ]
+    items = data.get("epistemic_items", [])
+    for ep_class, title, note in groups:
+        lines.extend([f"### {title}", "", f"- Meaning: {note}"])
+        matched = [item for item in items if item.get("epistemic_class") == ep_class]
+        if matched:
+            for item in matched:
+                lines.append(f"- `{item.get('id', '')}` {item.get('status', '')}: {item.get('statement', '')}")
+        else:
+            lines.append("- none")
+        lines.append("")
+
     lines.extend(["## Epistemic Items", ""])
-    for item in data.get("epistemic_items", []):
+    for item in items:
         lines.extend(
             [
                 f"- `{item.get('id', '')}` {item.get('epistemic_class', '')}/{item.get('status', '')}: {item.get('statement', '')}",

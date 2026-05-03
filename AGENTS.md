@@ -20,10 +20,8 @@ monorepo.
 - `docs/stewardship/` contains maintainer-facing stewardship guidance
 - `gate_validation/` contains repo-owned and owner-local validation registration
 - `gate_eval/` contains non-gating eval and benchmark assets
-- `dev/skill_quality/` contains maintainer-only validation and eval assets
-- `dev/release_projection/` contains projection and release tooling
-- `dev/host_tools/` contains maintainer-only host-side tooling
-- `dev/validator/` contains the generic validation framework
+- `dev/` contains maintainer-only tool projects; the authoritative tool split
+  lives in `dev/README.md`
 - `.bagakit/` contains host-local Bagakit runtime state and may be ignored;
   materialized top-level runtime surfaces still require `surface.toml`
 - `mem/` contains durable repository memory that is still evolving and should
@@ -49,6 +47,8 @@ Install split:
 
 - installable skill directories are directly installable
 - `link` expands families or skills into the target skills directory by symlink
+- use `scripts/skill.sh install` or the Make install targets for install and
+  update; do not manually create or repair skill links outside the installer
 - distribution packaging is a separate concern from installability
 - skill identity should come directly from the directory protocol under
   `skills/<family>/<skill-id>/` with `SKILL.md`
@@ -323,17 +323,18 @@ reporting, the response footer may use:
 - See: `skills/harness/bagakit-brainstorm/SKILL.md`
 </bagakit-rule>
 
-<bagakit-rule skill="bagakit-consensus-ledger">
-- Trigger: Task-local shared understanding needs recoverable state: confirmed consensus, known unknowns, inferred-but-unconfirmed understanding, blind spots, goal dimensions, decision items, snapshots, or promotion boundaries.
-- Do: Prefer an embedded ledger in the owner run/session directory; use standalone fallback only when no stronger owner exists.
-- See: `skills/harness/bagakit-consensus-ledger/SKILL.md`
-- Spec: `docs/specs/consensus-ledger-contract.md`
-</bagakit-rule>
-
 <bagakit-rule skill="bagakit-codex-webpage-design">
 - Trigger: Codex should create a high-craft webpage or landing page from visual direction through image-generation design reference, frontend implementation, browser debugging, and visual parity iteration.
 - Do: Clarify the design brief, record reference intent, create an image-generation design reference when no stronger reference exists, implement in the host or light mainstream frontend stack, and verify with browser screenshots and visual parity review.
-- See: `skills/swe/bagakit-codex-webpage-design/SKILL.md`
+- See: `skills/design/bagakit-codex-webpage-design/SKILL.md`
+</bagakit-rule>
+
+<bagakit-rule skill="bagakit-consensus-ledger">
+- Trigger: A task needs an explicit agent-user shared-understanding ledger: confirmed consensus, known unknowns, inferred-but-unconfirmed understanding, blind spots, goal dimensions, decision items, or promotion boundaries.
+- Do: Create or update an embedded ledger in the owner run/session directory when one exists, otherwise use the standalone fallback; keep epistemic class, status, provenance, dimensions, snapshots, and promotion state explicit.
+- See: `skills/harness/bagakit-consensus-ledger/SKILL.md`
+- Surface: `<owner-dir>/consensus-ledger.json or .bagakit/consensus-ledger/ledgers/<ledger-id>/ledger.json`
+- Fallback: For tiny one-turn tasks, a concise prose note may be enough; for durable shared knowledge use bagakit-living-knowledge after explicit promotion.
 </bagakit-rule>
 
 <bagakit-rule skill="bagakit-daily-media-automation">
@@ -377,6 +378,12 @@ reporting, the response footer may use:
 - Fallback: If the target is too vague to grill, use `bagakit-spark` for early framing first.
 </bagakit-rule>
 
+<bagakit-rule skill="bagakit-hitl-webutil-design">
+- Trigger: Codex should design a human-in-the-loop web utility page or skill route for understanding, testing, comparison, or agent handoff.
+- Do: Clarify the HITL page brief, select mechanisms, one style route, and artifacts, choose or extend a crosswalk row, run the hardening audit, and hand frontend implementation to bagakit-codex-webpage-design when needed.
+- See: `skills/design/bagakit-hitl-webutil-design/SKILL.md`
+</bagakit-rule>
+
 <bagakit-rule skill="bagakit-living-knowledge">
 - Trigger: A repository needs shared checked-in knowledge, deterministic recall, managed bootstrap guidance, or path protocol.
 - Do: Use the living-knowledge operator for indexing, recall, ingestion, and managed guidebook surfaces.
@@ -393,6 +400,14 @@ reporting, the response footer may use:
 - Trigger: A repository needs a local-first research loop with topic charter, source cards, summaries, claims, or drift checks.
 - Do: Create a topic workspace, preserve source-bound evidence, and synthesize only after quality checks.
 - See: `skills/harness/bagakit-researcher/SKILL.md`
+</bagakit-rule>
+
+<bagakit-rule skill="bagakit-set-loop-goal">
+- Trigger: A long-running agent task needs a high-quality Goal file that can survive restart, compact, handoff, sidecar analysis, or loop supervision.
+- Do: Create or update a compact Goal control file, route details into owning planning/spec/research/runner surfaces, and preserve enough state for a fresh executor to continue safely.
+- See: `skills/harness/bagakit-set-loop-goal/SKILL.md`
+- Surface: `.bagakit/goal/current.md, .bagakit/goal/state.yaml, optional .bagakit/goal/supervisor.md, .bagakit/goal/<goal-id>.md, and .bagakit/goal/archive/`
+- Fallback: If the target itself is still unclear, use bagakit-spark first; if execution truth is missing, use the owning planning or runner skill before writing a control-plane Goal.
 </bagakit-rule>
 
 <bagakit-rule skill="bagakit-skill-evolver">

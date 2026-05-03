@@ -1,0 +1,19 @@
+version = 1
+skill = "bagakit-hitl-webutil-design"
+cli_id = "bagakit-hitl-webutil-design"
+entrypoint = "scripts/bagakit-hitl-webutil-design-cli.sh"
+runner = "shell"
+usage = "sh scripts/bagakit-hitl-webutil-design-cli.sh <command>"
+summary = "Inspect and validate the HITL webutil design skill assets."
+
+[[command]]
+name = "describe"
+summary = "Print a short skill description."
+
+[[command]]
+name = "list-references"
+summary = "List reference files shipped by this skill."
+
+[[command]]
+name = "validate"
+summary = "Check that required skill files and reference sets exist."

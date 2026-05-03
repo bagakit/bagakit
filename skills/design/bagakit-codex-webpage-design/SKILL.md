@@ -3,7 +3,7 @@ name: bagakit-codex-webpage-design
 description: Use when Codex should create a high-craft webpage or landing page from discussion through image-generation design reference to frontend implementation, browser debugging, and visual parity iteration. Use for strongly styled pages, design-led frontend work, image2 prompt drafting, screenshot-to-implementation loops, and visual polish; not for backend-heavy app features or purely textual design advice.
 metadata:
   bagakit:
-    swe_layer: design-engineering
+    design_layer: webpage-design
 ---
 
 # Bagakit Codex Webpage Design
@@ -222,7 +222,7 @@ When a task exposes a repeated or decision-changing failure:
 
 1. record the failure in the task-local selector log or Spark state
 2. route long-lived skill-quality decisions through `bagakit-skill-evolver`
-3. add or update a non-gating bench case under `gate_eval/skills/swe/`
+3. add or update a non-gating bench case under `gate_eval/skills/design/`
 4. promote only the smallest stable rule into this skill or its references
 
 Use bench cases for failures such as:
@@ -248,7 +248,6 @@ Use bench cases for failures such as:
   discipline, surface-led composition, or copy/icon economy
 
 ## References
-Load the relevant reference:
 
 - `references/image-prompt-guide.md` - image2 prompt structure, state boards, reference-drift checks
 - `references/implementation-loop.md` - stack choice, workflow/control gates, affordance evidence, canvas stability, browser loop

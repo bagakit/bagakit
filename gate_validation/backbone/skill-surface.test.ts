@@ -266,11 +266,11 @@ test("install resolves explicit repo-local targets and global scope", () => {
   const repoRoot = makeTempRepo();
   const consumerRepo = makeTempRepo();
   const anotherRepo = makeTempRepo();
-  const codexHome = makeTempRepo();
+  const agentsHome = makeTempRepo();
   mkdirSync(path.join(repoRoot, "skills"), { recursive: true });
   mkdirSync(consumerRepo, { recursive: true });
   mkdirSync(anotherRepo, { recursive: true });
-  mkdirSync(codexHome, { recursive: true });
+  mkdirSync(agentsHome, { recursive: true });
   writeSkill(repoRoot, "harness", "alpha");
   writeSkill(repoRoot, "paperwork", "beta");
 
@@ -289,11 +289,11 @@ test("install resolves explicit repo-local targets and global scope", () => {
       cwd: consumerRepo,
       env: {
         ...process.env,
-        CODEX_HOME: codexHome,
+        AGENTS_HOME: agentsHome,
       },
     });
     assert.equal(globalRun.status, 0, globalRun.stderr);
-    assert.equal(readlinkSync(path.join(codexHome, "skills", "alpha")), path.join(repoRoot, "skills", "harness", "alpha"));
+    assert.equal(readlinkSync(path.join(agentsHome, "skills", "alpha")), path.join(repoRoot, "skills", "harness", "alpha"));
 
     const invalidGlobalRun = runCli(
       ["install", "--root", repoRoot, "--selector", "alpha", "--scope", "global", "--repo", anotherRepo],
@@ -301,7 +301,7 @@ test("install resolves explicit repo-local targets and global scope", () => {
         cwd: consumerRepo,
         env: {
           ...process.env,
-          CODEX_HOME: codexHome,
+          AGENTS_HOME: agentsHome,
         },
       },
     );
@@ -311,30 +311,30 @@ test("install resolves explicit repo-local targets and global scope", () => {
     rmSync(repoRoot, { recursive: true, force: true });
     rmSync(consumerRepo, { recursive: true, force: true });
     rmSync(anotherRepo, { recursive: true, force: true });
-    rmSync(codexHome, { recursive: true, force: true });
+    rmSync(agentsHome, { recursive: true, force: true });
   }
 });
 
 test("install-status compares canonical skill sources with flat install roots", () => {
   const repoRoot = makeTempRepo();
   const consumerRepo = makeTempRepo();
-  const codexHome = makeTempRepo();
+  const agentsHome = makeTempRepo();
   const staleTarget = makeTempRepo();
   mkdirSync(path.join(repoRoot, "skills"), { recursive: true });
-  mkdirSync(path.join(codexHome, "skills"), { recursive: true });
+  mkdirSync(path.join(agentsHome, "skills"), { recursive: true });
   mkdirSync(consumerRepo, { recursive: true });
   mkdirSync(staleTarget, { recursive: true });
   writeSkill(repoRoot, "harness", "alpha");
   writeSkill(repoRoot, "paperwork", "beta");
-  symlinkSync(path.join(repoRoot, "skills", "harness", "alpha"), path.join(codexHome, "skills", "alpha"), "dir");
-  symlinkSync(staleTarget, path.join(codexHome, "skills", "beta"), "dir");
+  symlinkSync(path.join(repoRoot, "skills", "harness", "alpha"), path.join(agentsHome, "skills", "alpha"), "dir");
+  symlinkSync(staleTarget, path.join(agentsHome, "skills", "beta"), "dir");
 
   try {
     const globalRun = runCli(["install-status", "--root", repoRoot, "--scope", "global", "--json"], {
       cwd: consumerRepo,
       env: {
         ...process.env,
-        CODEX_HOME: codexHome,
+        AGENTS_HOME: agentsHome,
       },
     });
     assert.equal(globalRun.status, 0, globalRun.stderr);
@@ -360,7 +360,7 @@ test("install-status compares canonical skill sources with flat install roots", 
       cwd: consumerRepo,
       env: {
         ...process.env,
-        CODEX_HOME: codexHome,
+        AGENTS_HOME: agentsHome,
       },
     });
     assert.equal(strictRun.status, 1);
@@ -368,7 +368,7 @@ test("install-status compares canonical skill sources with flat install roots", 
   } finally {
     rmSync(repoRoot, { recursive: true, force: true });
     rmSync(consumerRepo, { recursive: true, force: true });
-    rmSync(codexHome, { recursive: true, force: true });
+    rmSync(agentsHome, { recursive: true, force: true });
     rmSync(staleTarget, { recursive: true, force: true });
   }
 });

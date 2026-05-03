@@ -1,7 +1,7 @@
 version = 1
 skill_id = "bagakit-codex-webpage-design"
 contract_kind = "skill_workflow_contract"
-owner = "skills/swe/bagakit-codex-webpage-design"
+owner = "skills/design/bagakit-codex-webpage-design"
 
 [entry]
 skill = "SKILL.md"

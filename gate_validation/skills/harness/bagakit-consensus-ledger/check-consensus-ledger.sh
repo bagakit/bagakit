@@ -53,6 +53,10 @@ assert standalone["status"] == "snapshot_ready"
 assert standalone["goal_dimensions"][0]["item_refs"] == ["i001"]
 assert standalone["questions"][0]["id"] == "q001"
 assert "Consensus Ledger" in view
+assert "Known known" in view
+assert "Known unknown" in view
+assert "Unknown known" in view
+assert "Unknown unknown" in view
 assert 'owner_id = "bagakit-consensus-ledger"' in surface
 assert embedded["owner"]["mode"] == "embedded"
 assert embedded["owner"]["owner_skill"] == "bagakit-grill"

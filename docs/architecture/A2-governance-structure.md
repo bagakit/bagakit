@@ -68,7 +68,7 @@ This means:
   the Bagakit system itself
 - install and link distribution should project directly from those skill
   directories into runtime pickup directories such as repo-local `.codex/skills/`
-  or global `$CODEX_HOME/skills` or `~/.codex/skills`
+  or global `$AGENTS_HOME/skills` or `~/.agents/skills`
 
 So a system-owned runtime unit is not "internal only".
 It is part of the system and still allowed to travel as a standalone runtime

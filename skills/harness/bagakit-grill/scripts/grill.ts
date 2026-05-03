@@ -2,6 +2,7 @@ import path from "node:path";
 import { parseArgs } from "node:util";
 
 import { briefPath, ensureGrillSurface, readRun, repoRelative, runPath, writeBrief, writeRun } from "./lib/io.ts";
+import { embeddedLedgerRef, ensureEmbeddedLedger, renderLedgerSummary, syncAnswerToLedger, syncQuestionToLedger } from "./lib/ledger.ts";
 import { slugify, utcNow } from "./lib/model.ts";
 import { attachEvidence, createRun, nextNode, progressCounts, recordAnswer, recordConvergenceCheck, refreshRun, upsertNode } from "./lib/planner.ts";
 import { renderBrief } from "./lib/render.ts";
@@ -52,6 +53,7 @@ function commandInit(argv: string[]): number {
   const target = requireString(values.target, "--target");
   const compactTime = new Date().toISOString().replace(new RegExp("[-:.TZ]", "g"), "").slice(0, 14);
   const runId = values["run-id"] ? slugify(values["run-id"]) : `${compactTime}-${slugify(target).slice(0, 32)}`;
+  const ledgerRef = values["ledger-ref"] || embeddedLedgerRef(repoRoot, runId);
   const file = runPath(repoRoot, runId);
   if (!values.force) {
     try {
@@ -69,10 +71,13 @@ function commandInit(argv: string[]): number {
     runId,
     target,
     targetRef: values["target-ref"],
-    ledgerRef: values["ledger-ref"],
+    ledgerRef,
     briefPath: repoRelative(repoRoot, briefPath(repoRoot, runId)),
   });
   writeRun(repoRoot, run);
+  if (!values["ledger-ref"]) {
+    ensureEmbeddedLedger(repoRoot, run, Boolean(values.force));
+  }
   console.log(`ok: initialized ${repoRelative(repoRoot, file)}`);
   return 0;
 }
@@ -113,6 +118,10 @@ function commandPlan(argv: string[]): number {
     dependsOn: values["depends-on"] ?? [],
   });
   writeRun(repoRoot, updated);
+  const node = updated.question_nodes.find((item) => item.id === values.node);
+  if (node) {
+    syncQuestionToLedger(repoRoot, updated, node);
+  }
   console.log(`ok: planned node ${values.node}`);
   return 0;
 }
@@ -147,6 +156,9 @@ function commandNext(argv: string[]): number {
     if (node.risk_if_wrong) {
       console.log(`risk_if_wrong=${node.risk_if_wrong}`);
     }
+    for (const ledgerRef of node.ledger_refs) {
+      console.log(`ledger_ref=${ledgerRef}`);
+    }
   } else {
     console.log(`next=none`);
     console.log(`status=${run.status}`);
@@ -170,6 +182,10 @@ function commandAnswer(argv: string[]): number {
   const runId = requireString(values.run, "--run");
   const run = recordAnswer(readRun(repoRoot, runId), requireString(values.node, "--node"), requireString(values.answer, "--answer"));
   writeRun(repoRoot, run);
+  const lastEvent = run.qa_events[run.qa_events.length - 1];
+  if (lastEvent) {
+    syncAnswerToLedger(repoRoot, run, lastEvent);
+  }
   console.log(`ok: answered node ${values.node}`);
   return 0;
 }
@@ -245,6 +261,7 @@ function commandRender(argv: string[]): number {
   const rel = writeBrief(repoRoot, runId, renderBrief(run));
   run.render.brief_path = rel;
   writeRun(repoRoot, run);
+  renderLedgerSummary(repoRoot, run);
   console.log(`ok: rendered ${rel}`);
   return 0;
 }

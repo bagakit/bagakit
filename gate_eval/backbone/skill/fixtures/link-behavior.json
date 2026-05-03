@@ -6,6 +6,9 @@
     },
     {
       "selector": "human-improvement/solo"
+    },
+    {
+      "selector": "paperwork/stale"
     }
   ]
 }

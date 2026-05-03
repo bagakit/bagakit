@@ -1,0 +1,8 @@
+version = 1
+insert_target = "bagakit_footer"
+summary_line = "- HitlWebutilDesign: Brief=<design brief ref or none>; Scene=<crosswalk row or none>; OperatorMode=<operator mode or none>; Mechanisms=<selected mechanism ids>; Style=<selected style id>; Artifacts=<selected artifact ids>; Hardening=<passed|partial|blocked>; ImplementationRoute=<hitl_only|compose_webpage_design|blocked>; Next=<one deterministic next action>"
+
+[[directive]]
+id = "HITL_WEBUTIL_DESIGN"
+when = "bagakit-hitl-webutil-design materially shaped a HITL page brief, crosswalk choice, hardening audit, or implementation handoff"
+instruction = "cite the design brief, selected scene row, operator mode, selected mechanisms, selected style, selected artifacts, hardening audit result, implementation route, residual risks, and next action"

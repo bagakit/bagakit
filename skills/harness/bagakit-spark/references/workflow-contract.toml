@@ -40,6 +40,11 @@ protects = "Spark plan/design stress-test questions do not produce one-option gr
 proof_surface = "branch-protected option-surface audit before the recommended default"
 
 [[loop_rule]]
+id = "ledger-first-before-question-or-snapshot"
+protects = "when consensus-ledger is active, Spark updates shared-understanding state before asking the next decision question or publishing a snapshot candidate"
+proof_surface = "embedded consensus-ledger plus user-visible known_known/known_unknown/unknown_known/unknown_unknown excerpt"
+
+[[loop_rule]]
 id = "trajectory-check-before-convergence"
 protects = "repeated same-branch agreement creates convergence pressure but cannot close a branch before checking the underlying goal, principle, and adjacent direction"
 proof_surface = "trajectory check with branch-width question before closure or another same-direction question"
@@ -167,6 +172,10 @@ peer_owns = "independent execution, review observations, produced artifacts, and
 [[output_field]]
 id = "consensus-ledger"
 required_when = "shared-understanding state materially shapes the Spark route, snapshot, handoff, or reentry"
+
+[[output_field]]
+id = "ledger-excerpt"
+required_when = "consensus-ledger is active or ledger updates would normally be recorded"
 
 [[output_field]]
 id = "current-frame"
