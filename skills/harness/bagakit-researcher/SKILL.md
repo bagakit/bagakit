@@ -43,6 +43,9 @@ Do not use this skill when:
 
 Use the smallest researcher route that protects the task:
 
+- Clarification gate:
+  - if the blocking unknown is user intent or local context rather than source
+    landscape, ask or record a handback condition before broad retrieval.
 - Quick lookup:
   - do not open a researcher topic unless durable evidence is needed.
 - Survey:
@@ -95,6 +98,10 @@ synthesized into Bagakit-facing guidance.
 - create a survey packet before non-trivial broad source collection when the field, source landscape, or unknowns are still unclear
 - keep source summaries source-bound; promote only claim-backed conclusions
 - record counterevidence or confidence limits for recommendations
+- distinguish source-landscape unknowns from user-goal or local-context
+  unknowns before starting broad retrieval
+- before synthesis or handoff, check that recommendations and citations trace
+  back to source cards, summaries, or claim refs instead of floating prose
 - use `doctor --quality --drift` before synthesis or downstream handoff
 - turn recurring research drift into warnings or checks, not hidden heuristics
 - keep `SKILL.md` as the concise route and trigger surface; put field-level
@@ -200,21 +207,23 @@ The normal workflow is:
 
 1. Before new research, refresh or inspect the researcher frontdoor and read
    relevant existing topic, question, and claim links.
-2. Create or update `charter.md`.
-3. If the question needs field mapping before retrieval, create one survey
+2. Separate source-landscape unknowns from user-goal or local-context unknowns;
+   ask or record a handback condition when search cannot resolve the gap.
+3. Create or update `charter.md`.
+4. If the question needs field mapping before retrieval, create one survey
    packet under `surveys/`.
-4. Plan one bounded pass under `passes/`.
-5. Split the pass into track contracts under `tracks/`.
-6. Execute track work outside researcher; parallel workers should write only their owned track files, source ids, and summaries.
-7. Add source cards under `originals/` and reusable summaries under `summaries/`.
-8. Record sourced claims in `claims.md`, cross-source insights under `insights/`, and active-mining leads in `leads.md`.
-9. Run `doctor --quality` and `doctor --drift` before synthesis or handoff.
-10. Refresh the managed sections of `index.md` without overwriting curated notes.
-11. Refresh the researcher-local wiki/frontdoor when cross-topic discovery
+5. Plan one bounded pass under `passes/`.
+6. Split the pass into track contracts under `tracks/`.
+7. Execute track work outside researcher; parallel workers should write only their owned track files, source ids, and summaries.
+8. Add source cards under `originals/` and reusable summaries under `summaries/`.
+9. Record sourced claims in `claims.md`, cross-source insights under `insights/`, and active-mining leads in `leads.md`.
+10. Run `doctor --quality` and `doctor --drift` before synthesis or handoff.
+11. Refresh the managed sections of `index.md` without overwriting curated notes.
+12. Refresh the researcher-local wiki/frontdoor when cross-topic discovery
    matters.
-12. If the loop read the wiki and changed topic evidence, close the maintenance
+13. If the loop read the wiki and changed topic evidence, close the maintenance
     duty with `doctor --wiki` before final response or handoff.
-13. Optionally render a handoff artifact under `handoffs/`.
+14. Optionally render a handoff artifact under `handoffs/`.
 
 Researcher may generate retrieval plans and query sketches, but provider
 execution belongs outside this skill.
@@ -254,6 +263,7 @@ sh scripts/bagakit-researcher.sh plan-survey \
   --charter-question "How should researcher support field survey before broad source collection?" \
   --question "How should researcher survey a field before broad source collection?" \
   --why-needed "The source landscape and blind spots are not yet clear" \
+  --clarification-gate "ask or hand back if the missing input is user intent or local project context" \
   --problem-dimension "question decomposition" \
   --known-known "The topic charter exists" \
   --known-unknown "The best source classes are not yet known" \

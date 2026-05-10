@@ -280,6 +280,7 @@ run_researcher plan-survey \
   --charter-question "How should integrated-plan preserve survey and pass planning?" \
   --question "Where should this field be surveyed before broad search?" \
   --why-needed "source classes and blind spots are unclear" \
+  --clarification-gate "ask or hand back if the missing input is user intent or local project context" \
   --problem-dimension "source landscape" \
   --known-known "the topic charter exists" \
   --known-unknown "the best source classes are unclear" \
@@ -300,6 +301,7 @@ assert_file "$INTEGRATED_WS/surveys/survey-001.md"
 assert_file "$INTEGRATED_WS/passes/pass-001.md"
 assert_file "$INTEGRATED_WS/tracks/track-alpha.md"
 assert_file "$INTEGRATED_WS/tracks/track-beta.md"
+assert_contains "$INTEGRATED_WS/surveys/survey-001.md" 'Clarification Or Handback Gate'
 
 run_researcher add-track \
   --root "$TMP_DIR" \
@@ -354,6 +356,16 @@ run_researcher add-insight \
   --source-claim cl-ungrounded \
   --confidence high >/dev/null
 
+run_researcher new-synthesis \
+  --root "$TMP_DIR" \
+  --topic-class frontier \
+  --topic integrated-plan \
+  --synthesis-id weak-synthesis \
+  --what "weak parentage fixture" \
+  --claim-ref cl-ungrounded \
+  --finding "ungrounded recommendations should not pass parentage review" \
+  --next-action "repair evidence parentage" >/dev/null
+
 assert_command_succeeds_with_warning "$TMP_DIR/quality.out" run_researcher doctor \
   --root "$TMP_DIR" \
   --topic-class frontier \
@@ -369,6 +381,7 @@ assert_command_succeeds_with_warning "$TMP_DIR/drift.out" run_researcher doctor 
 assert_contains "$TMP_DIR/drift.out" 'cl-ungrounded'
 assert_contains "$TMP_DIR/drift.out" 'lead-loose'
 assert_contains "$TMP_DIR/drift.out" 'insight-one'
+assert_contains "$TMP_DIR/drift.out" 'lacks source-bound evidence parentage'
 
 run_researcher refresh-index \
   --root "$TMP_DIR" \

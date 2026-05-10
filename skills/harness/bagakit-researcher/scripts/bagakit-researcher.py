@@ -393,6 +393,9 @@ def survey_text(args: argparse.Namespace) -> str:
         "",
         args.why_needed or "<why this survey is needed before broad search>",
         "",
+        "## Clarification Or Handback Gate",
+        *bullet_lines(args.clarification_gate, "<user-goal or local-context unknown that requires ask or handback before broad retrieval>"),
+        "",
         "## Problem Decomposition",
         *bullet_lines(args.problem_dimension, "<problem dimension, decision branch, or sub-question>"),
         "",
@@ -1191,6 +1194,7 @@ def collect_quality_warnings(root: Path, workspace: Path) -> list[str]:
         rel_survey = repo_rel(root, survey)
         required_sections = [
             "Why Survey Is Needed",
+            "Clarification Or Handback Gate",
             "Problem Decomposition",
             "Source Landscape",
             "Ranking And Seed List Strategy",
@@ -1261,6 +1265,88 @@ def normalized_ref_tokens(refs: str) -> set[str]:
             tokens.add(path_token.name)
             tokens.add(path_token.stem)
     return tokens
+
+
+def section_ref_values(text: str, heading: str, level: int = 2) -> list[str]:
+    refs: list[str] = []
+    for raw_line in markdown_section(text, heading, level=level).splitlines():
+        value = normalize_markdown_value(raw_line)
+        if value and not placeholder_line(value):
+            refs.append(value)
+    return refs
+
+
+def ref_aliases(raw: str) -> set[str]:
+    value = normalize_markdown_value(raw)
+    if not value or placeholder_line(value):
+        return set()
+    aliases = {value, slugify(value)}
+    if "#" in value:
+        _path_part, fragment = value.rsplit("#", 1)
+        if fragment:
+            aliases.add(fragment)
+            aliases.add(slugify(fragment))
+    path_part = value.split("#", 1)[0]
+    path_token = PurePosixPath(path_part)
+    if path_part:
+        aliases.add(path_part)
+        aliases.add(path_token.name)
+        aliases.add(path_token.stem)
+        aliases.add(slugify(path_token.stem))
+    return {alias for alias in aliases if alias}
+
+
+def source_evidence_aliases(root: Path, workspace: Path) -> set[str]:
+    aliases: set[str] = set()
+    rel_workspace = repo_rel(root, workspace)
+    for dirname in ("originals", "summaries"):
+        for artifact in markdown_file_list(workspace, dirname):
+            rel = posix_join(dirname, artifact.name)
+            full_rel = posix_join(rel_workspace, dirname, artifact.name)
+            for value in (artifact.stem, artifact.name, rel, full_rel):
+                aliases.update(ref_aliases(value))
+    return aliases
+
+
+def claim_body_by_alias(workspace: Path) -> dict[str, tuple[str, str]]:
+    aliases: dict[str, tuple[str, str]] = {}
+    for claim_id, body in claim_sections(workspace / "claims.md"):
+        for value in (claim_id, slugify(claim_id), f"claims.md#{slugify(claim_id)}"):
+            for alias in ref_aliases(value):
+                aliases[alias] = (claim_id, body)
+    return aliases
+
+
+def resolve_claim_ref(ref: str, claims: dict[str, tuple[str, str]]) -> tuple[str, str] | None:
+    for alias in ref_aliases(ref):
+        if alias in claims:
+            return claims[alias]
+    return None
+
+
+def claim_has_source_parentage(
+    claim_ref: str,
+    claims: dict[str, tuple[str, str]],
+    source_aliases: set[str],
+    seen: set[str] | None = None,
+) -> bool:
+    resolved = resolve_claim_ref(claim_ref, claims)
+    if not resolved:
+        return False
+    claim_id, body = resolved
+    seen = seen or set()
+    claim_key = slugify(claim_id)
+    if claim_key in seen:
+        return False
+    seen.add(claim_key)
+    evidence_refs = section_ref_values(body, "Evidence Refs", level=3)
+    for evidence_ref in evidence_refs:
+        if ref_aliases(evidence_ref) & source_aliases:
+            return True
+    for evidence_ref in evidence_refs:
+        if resolve_claim_ref(evidence_ref, claims) and claim_has_source_parentage(evidence_ref, claims, source_aliases, seen):
+            return True
+    return False
 
 
 def topic_rel(root: Path, workspace: Path, relpath: str) -> str:
@@ -1595,6 +1681,36 @@ def collect_drift_warnings(root: Path, workspace: Path) -> list[str]:
             warnings.append(f"{rel_lead}: lead has no stop rule")
         if status == "pursued" and not section_has_content(body, "Outcome", level=3):
             warnings.append(f"{rel_lead}: pursued lead has no outcome")
+    warnings.extend(collect_synthesis_parentage_warnings(root, workspace))
+    return warnings
+
+
+def collect_synthesis_parentage_warnings(root: Path, workspace: Path) -> list[str]:
+    warnings: list[str] = []
+    claims = claim_body_by_alias(workspace)
+    if not claims:
+        return warnings
+    source_aliases = source_evidence_aliases(root, workspace)
+    synthesis_files = [
+        path
+        for path in markdown_file_list(workspace, "summaries")
+        if "synthesis" in path.stem or "synthesis" in title_of(path).lower()
+    ]
+    for synthesis in synthesis_files:
+        text = synthesis.read_text(encoding="utf-8", errors="replace")
+        if "## Claim Refs" not in text:
+            continue
+        rel = repo_rel(root, synthesis)
+        claim_refs = section_ref_values(text, "Claim Refs")
+        if not claim_refs:
+            warnings.append(f"{rel}: synthesis has no claim refs")
+            continue
+        for claim_ref in claim_refs:
+            if not resolve_claim_ref(claim_ref, claims):
+                warnings.append(f"{rel}: synthesis claim ref `{claim_ref}` not found in claims.md")
+                continue
+            if not claim_has_source_parentage(claim_ref, claims, source_aliases):
+                warnings.append(f"{rel}: synthesis claim ref `{claim_ref}` lacks source-bound evidence parentage")
     return warnings
 
 
@@ -1740,6 +1856,7 @@ def build_parser() -> argparse.ArgumentParser:
     survey_p.add_argument("--source-priority", action="append", default=[])
     survey_p.add_argument("--evidence-threshold")
     survey_p.add_argument("--why-needed")
+    survey_p.add_argument("--clarification-gate", action="append", default=[])
     survey_p.add_argument("--problem-dimension", action="append", default=[])
     survey_p.add_argument("--known-known", action="append", default=[])
     survey_p.add_argument("--known-unknown", action="append", default=[])

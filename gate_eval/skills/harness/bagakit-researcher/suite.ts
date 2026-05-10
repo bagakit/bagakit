@@ -259,6 +259,8 @@ function plannedSurveyArgs(tempRepo: string, topic: string): string[] {
     "Where should this field be surveyed before broad search?",
     "--why-needed",
     "source classes and blind spots are unclear",
+    "--clarification-gate",
+    "ask or hand back if the missing input is user intent or local project context",
     "--problem-dimension",
     "source landscape",
     "--known-known",
@@ -715,6 +717,7 @@ export const SUITE: EvalSuiteDefinition = {
           const surveyText = fs.readFileSync(surveyPath, "utf8");
           const indexText = fs.readFileSync(indexPath, "utf8");
           assert.ok(surveyText.includes("## Consensus Quadrant Map"));
+          assert.ok(surveyText.includes("## Clarification Or Handback Gate"));
           assert.ok(surveyText.includes("### known_unknown"));
           assert.ok(surveyText.includes("## Source Landscape"));
           assert.ok(surveyText.includes("## Ranking And Seed List Strategy"));
@@ -762,6 +765,7 @@ export const SUITE: EvalSuiteDefinition = {
           expectOk(runResearcher(fixture, refreshArgs, repoRoot), "refresh-index after incomplete survey");
           const incompleteQuality = runResearcher(fixture, qualityArgs, repoRoot);
           expectWarnOk(incompleteQuality, "doctor quality incomplete survey", [
+            "clarification or handback gate",
             "unknown_unknown",
             "retrieval plan sketch",
           ]);
@@ -844,6 +848,100 @@ export const SUITE: EvalSuiteDefinition = {
             outputs: {
               quality_warning: `${qualityDoctor.stdout}\n${qualityDoctor.stderr}`.trim(),
               drift_warning: `${driftDoctor.stdout}\n${driftDoctor.stderr}`.trim(),
+            },
+            replacements: fixture.replacements,
+          };
+        } finally {
+          cleanupTempDir(fixture.tempRepo, context.keepTemp);
+        }
+      },
+    },
+    {
+      id: "synthesis-parentage-warns-on-floating-claim-refs",
+      title: "Synthesis Parentage Warns On Floating Claim Refs",
+      summary: "doctor --drift should warn when a synthesis cites missing claims or claims that do not trace back to source-bound evidence.",
+      focus: ["citation-parentage", "synthesis", "warning-only-drift"],
+      run: (context): EvalCaseResult => {
+        const { repoRoot } = context;
+        const fixture = withFixture(context);
+        const topic = "parentage-warning";
+        try {
+          initTopic(fixture, repoRoot, topic, "Parentage Warning");
+          expectOk(runResearcher(fixture, plannedPassArgs(fixture.tempRepo, topic), repoRoot), "plan-pass");
+          addSource(fixture, repoRoot, topic, "c001", "Grounded Source");
+          addSummary(fixture, repoRoot, topic, "c001", "Grounded Source Summary");
+
+          const claimArgs = [
+            "add-claim",
+            "--root",
+            fixture.tempRepo,
+            "--topic-class",
+            TOPIC_CLASS,
+            "--topic",
+            topic,
+            "--claim-id",
+            "floating-claim",
+            "--kind",
+            "observation",
+            "--statement",
+            "A claim can have a ref that still does not reach a source card.",
+            "--evidence-ref",
+            "claims.md#missing-source-claim",
+            "--confidence",
+            "medium",
+          ];
+          expectOk(runResearcher(fixture, claimArgs, repoRoot), "add floating claim");
+
+          const synthesisArgs = [
+            "new-synthesis",
+            "--root",
+            fixture.tempRepo,
+            "--topic-class",
+            TOPIC_CLASS,
+            "--topic",
+            topic,
+            "--synthesis-id",
+            "parentage-synthesis",
+            "--what",
+            "parentage warning fixture",
+            "--claim-ref",
+            "floating-claim",
+            "--claim-ref",
+            "missing-claim",
+            "--finding",
+            "floating claim refs should warn before handoff",
+            "--next-action",
+            "repair claim parentage",
+          ];
+          expectOk(runResearcher(fixture, synthesisArgs, repoRoot), "new synthesis parentage fixture");
+
+          const driftArgs = ["doctor", "--root", fixture.tempRepo, "--topic-class", TOPIC_CLASS, "--topic", topic, "--drift"];
+          const drift = runResearcher(fixture, driftArgs, repoRoot);
+          expectWarnOk(drift, "doctor drift parentage", [
+            "floating-claim",
+            "missing-claim",
+            "lacks source-bound evidence parentage",
+          ]);
+
+          const workspace = topicRoot(fixture.tempRepo, topic);
+          return {
+            assertions: [
+              "drift doctor warns for a synthesis claim ref that does not resolve",
+              "drift doctor warns when a resolved claim lacks source-bound evidence parentage",
+              "parentage warnings stay warning-only",
+            ],
+            commands: [
+              commandLine(plannedPassArgs(fixture.tempRepo, topic)),
+              commandLine(claimArgs),
+              commandLine(synthesisArgs),
+              commandLine(driftArgs),
+            ],
+            artifacts: [
+              { label: "claims", path: path.join(workspace, "claims.md") },
+              { label: "synthesis", path: path.join(workspace, "summaries", "parentage-synthesis.md") },
+            ],
+            outputs: {
+              drift_warning: `${drift.stdout}\n${drift.stderr}`.trim(),
             },
             replacements: fixture.replacements,
           };

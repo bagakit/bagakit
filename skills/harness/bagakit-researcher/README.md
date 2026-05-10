@@ -57,6 +57,7 @@ sh scripts/bagakit-researcher.sh plan-survey \
   --charter-question "How should researcher support field survey before broad source collection?" \
   --question "Where should this field be surveyed before broad search?" \
   --why-needed "source classes and blind spots are unclear" \
+  --clarification-gate "ask or hand back if the missing input is user intent or local project context" \
   --problem-dimension "source landscape" \
   --known-known "the topic charter exists" \
   --known-unknown "the best source classes are unclear" \

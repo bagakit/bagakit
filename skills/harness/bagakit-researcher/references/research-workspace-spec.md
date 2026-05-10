@@ -82,21 +82,24 @@ The preferred workflow is:
 
 1. Refresh or inspect the researcher frontdoor and read relevant existing
    topic, question, and claim links.
-2. Anchor the topic in `charter.md`.
-3. If broad source collection would be premature, write one pre-retrieval
+2. Before broad retrieval, separate source-landscape unknowns from user-goal or
+   local-context unknowns. Ask or hand back when search cannot resolve the
+   blocking unknown.
+3. Anchor the topic in `charter.md`.
+4. If broad source collection would be premature, write one pre-retrieval
    survey packet under `surveys/`.
-4. Plan a bounded pass in `passes/`.
-5. Split parallel work into track contracts under `tracks/`.
-6. Preserve source cards under `originals/`.
-7. Write source-bound summaries under `summaries/`.
-8. Record claims, insights, and active-mining leads.
-9. Run quality and drift checks.
-10. Refresh managed sections in `index.md`.
-11. Refresh the researcher-local wiki/frontdoor when cross-topic discovery
+5. Plan a bounded pass in `passes/`.
+6. Split parallel work into track contracts under `tracks/`.
+7. Preserve source cards under `originals/`.
+8. Write source-bound summaries under `summaries/`.
+9. Record claims, insights, and active-mining leads.
+10. Run quality and drift checks.
+11. Refresh managed sections in `index.md`.
+12. Refresh the researcher-local wiki/frontdoor when cross-topic discovery
    matters.
-12. If the loop read the wiki and changed topic evidence, run `doctor --wiki`
+13. If the loop read the wiki and changed topic evidence, run `doctor --wiki`
     before final response or handoff.
-13. Optionally render a handoff under `handoffs/`.
+14. Optionally render a handoff under `handoffs/`.
 
 The skill may prepare retrieval plans, but provider execution happens outside
 researcher.
@@ -107,6 +110,10 @@ Choose the smallest route that preserves enough evidence for the next operator:
 
 - Quick lookup:
   - no researcher workspace unless the result must be reusable or auditable.
+- Clarification gate:
+  - if the blocking unknown is user intent, project preference, or local
+    context rather than source landscape, ask or write a handback condition
+    before broad retrieval.
 - Survey:
   - create one `surveys/` packet when the field, source landscape, ranking or
     benchmark sources, seed queries, or blind spots are unclear.
@@ -151,6 +158,7 @@ Each survey should include:
 - parent charter
 - survey question
 - why survey is needed before broad search
+- clarification or handback gate
 - problem decomposition
 - four-quadrant uncertainty map:
   - known known
@@ -176,6 +184,10 @@ The four-quadrant map borrows the consensus-ledger lens as local survey fields.
 It does not create a mandatory consensus-ledger runtime dependency. A survey
 packet does not execute search, call providers, replace source cards, or decide
 promotion.
+
+Survey handback conditions should distinguish search-resolvable unknowns from
+unknowns that require user, project, or local context. Do not fill that gap by
+expanding retrieval.
 
 ## Pass And Track Rule
 
@@ -321,12 +333,19 @@ Rules:
 ## Doctor Rule
 
 `doctor --quality` checks structural completeness, including required topic
-files, source-card shape, summary shape, track outputs, and index references.
+files, source-card shape, summary shape, survey clarification gates, track
+outputs, and index references.
 
 `doctor --drift` checks research integrity, including missing charter anchors,
 track scope drift, ungrounded claims, recommendation without counterevidence,
 context-only sources used as decision evidence, unchecked leads, and pursued
 leads without outcomes.
+
+Before synthesis or downstream handoff, the operator should also review
+citation and evidence parentage: recommendations should trace to claim refs,
+and claim refs should trace back to source-bound summaries or source cards.
+This is a warning-first review rule unless a future gate exposes a stable proof
+surface.
 
 Quality and drift checks are warning-first unless a gate explicitly raises the
 bar for a release or migration.
