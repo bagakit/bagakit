@@ -9,6 +9,7 @@ by an outer supervisor loop or by a self-supervised executor checkpoint.
 - Invocation Wrapper
 - Supervisor File
 - Supervisor Cycle
+- Evolver Review Checkpoints
 - Drift Classes
 - Supervisor Packet
 - Relationship To bagakit-loop-supervisor
@@ -20,6 +21,8 @@ by an outer supervisor loop or by a self-supervised executor checkpoint.
   or next instruction.
 - Goal surface: `current.md`, `state.yaml`, optional `supervisor.md`, and the
   foreground Goal file.
+- Event surface: Goal steering events use Goal JSONL; inner execution events
+  stay in the Runner, evaluator, or tool-owned stream.
 
 The supervisor should correct the control plane, not become a second executor.
 
@@ -92,6 +95,29 @@ Do not put run logs, raw sidecar output, or task details in `supervisor.md`.
    - next inner-loop instruction
    - stop recommendation
 5. Update the Goal only when the update changes execution direction or recovery.
+6. Append the steering observation as a Goal control event. Reconcile the Goal
+   before more execution when that event changes current state, next action,
+   status, or a user gate.
+
+## Evolver Review Checkpoints
+
+Request an Evolver review when a bounded execution event may reveal a reusable
+repository lesson:
+
+- `before_round`: evidence or a known risk should influence the next round
+- `after_round`: the round produced comparison, retry, failure, or feedback
+  evidence
+- `risk`: privacy, cost, publication, reversibility, or repeated failure may
+  reveal a reusable control rule
+- `stale`: expected checkpoint, validation, decision, or feedback evidence is
+  missing
+- `pre_closeout`: review reusable lessons before final Goal archive
+- `session_end`: opportunistic review when session-end evidence is available
+
+Write the request or receipt under `.bagakit/goal/reviews/`. The Goal surface
+does not run a timer service and does not own Evolver topic, adoption, routing,
+or promotion state. A `signal_candidate` disposition emits a deterministic next
+instruction to pass the receipt path to Evolver's session-review intake.
 
 ## Drift Classes
 
@@ -131,6 +157,8 @@ Rules:
   delegated the change.
 - `blocked` names the missing evidence or decision.
 - `ready_to_stop` names acceptance evidence.
+- Store repeated packets as JSONL control events, not appended Markdown in
+  `supervisor.md`. Keep raw execution telemetry in the execution owner.
 
 ## Relationship To bagakit-loop-supervisor
 

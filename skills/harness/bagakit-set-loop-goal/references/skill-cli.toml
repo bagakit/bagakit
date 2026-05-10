@@ -42,6 +42,22 @@ name = "relate-goals"
 summary = "Add or remove topology edges between Goal files."
 
 [[command]]
+name = "request-evolver-review"
+summary = "Idempotently request an event-bound Evolver review for a Goal."
+
+[[command]]
+name = "record-evolver-review"
+summary = "Record the compact outcome of a requested Evolver review."
+
+[[command]]
+name = "append-goal-event"
+summary = "Append one structured Goal control event to the Goal-owned JSONL stream."
+
+[[command]]
+name = "reconcile-goal"
+summary = "Replace stale current truth, record reconciliation, and advance the Goal event cursor."
+
+[[command]]
 name = "render-wrapper"
 summary = "Emit the fixed Goal invocation wrapper template."
 

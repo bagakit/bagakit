@@ -19,15 +19,15 @@ Core contract:
 - Preserve only direction-changing context: final objective, execution
   principles, constraints, acceptance criteria, current state, key refs, next
   strategy, stop rules, risks, and open questions.
+- Keep current control truth in Markdown and append-only Goal control events in
+  JSONL. Route execution logs to their Runner, evaluator, or tool owner.
 - Route detailed work into the owning Feature, Plan, Spec, Research, Runner, or
   Handoff file; keep compact pointers and summaries in the Goal.
 - Use Goal frontmatter `status` as the machine-readable lifecycle marker;
   completion means `status: complete` plus concise completion evidence.
 - Maintain `.bagakit/goal/current.md` as the agent-facing entrypoint and
-  `.bagakit/goal/state.yaml` as the Goal registry/topology when the Goal surface
-  exists.
-- Maintain `.bagakit/goal/state.yaml` as the machine-readable registry and
-  topology cache for incomplete Goals and the foreground cursor.
+  `.bagakit/goal/state.yaml` as the machine-readable registry, incomplete-Goal
+  topology cache, reconciliation cursor, and foreground selector.
 - When supervision is active, maintain `.bagakit/goal/supervisor.md` as the
   supervisor contract; do not create a separate supervisor skill or schema fork.
 - Keep exactly one foreground Goal for execution, but allow multiple incomplete
@@ -38,9 +38,16 @@ Core contract:
   `.bagakit/goal/archive/` so they do not interfere with the active work set.
 - Treat new user ideas as proposed Goal deltas before implementation. Sidecar
   analysis such as Grok may inform deltas, but must not directly execute.
+- After nontrivial Goal creation or direction-changing updates, give the user a
+  plain-language alignment recap; route corrections back into Goal deltas,
+  owner files, or open questions rather than creating a second truth surface.
+- Reconcile after material milestones, before compact or handoff, or whenever
+  newer evidence makes Current State or Next Execution Instruction stale.
 - Support loop-off-loop control: the outer loop observes inner execution,
   updates the Goal when alignment drifts, and sends corrections without taking
   over implementation.
+- Schedule event-bound Evolver reviews through compact request/receipts. Goal
+  owns review scheduling and receipts; Evolver owns intake and promotion.
 - When the user asks for text to set as an Agent Goal, write a short Goal
   wrapper that uses file references for `current.md`, and also `supervisor.md`
   when present. Use the fixed wrapper templates in
@@ -57,18 +64,28 @@ Minimal workflow:
 2. Read `current.md`, `state.yaml`, the foreground Goal, and all indexed owner
    files before editing.
 3. Classify each new fact as Goal material, owner-file material, sidecar input,
-   open question, or discard.
-4. Update the Goal and state registry with a compact delta and pointers to owner
-   files.
-5. Run a fresh-executor check: a new agent should know why, where, current
+   Goal control event, open question, or discard.
+4. Write repeated execution records to their owner stream. Append only
+   steering-relevant events to the Goal JSONL stream.
+5. Reconcile the Goal by replacing current state and the one next instruction,
+   folding accepted deltas into their owning sections, and advancing the event
+   cursor.
+6. Run a fresh-executor check: a new agent should know why, where, current
    state, principles, acceptance, risks, and next action from the Goal.
-6. If supervision is active, emit or update the next supervisor instruction
-   instead of directly changing implementation.
+7. For nontrivial creation or direction-changing updates, show a concise
+   alignment recap to the user before activation or continued execution.
+8. If supervision is active, append its checkpoint as a Goal control event and
+   reconcile any direction-changing effect before the next execution round.
+9. When a checkpoint can expose reusable repository learning, request an
+   Evolver review and later record its compact disposition without copying
+   Evolver state into the Goal surface.
 
 Read references only when needed:
 
 - `references/goal-file-contract.md`: required Goal structure, quality bar,
-  placement rules, Goal wrapper, and template.
+  placement rules, alignment recap, Goal wrapper, and template.
+- `references/event-stream-contract.md`: JSONL Goal control events, execution
+  log routing, reconciliation, cursor semantics, and archive rules.
 - `references/tool-orchestration.md`: Team mode, Grok sidecar, OpenSpec,
   Brainstorm, Feature Tracker, Flow Runner, and related surfaces.
 - `references/loop-off-loop.md`: supervisor.md contract, Goal or Loop command

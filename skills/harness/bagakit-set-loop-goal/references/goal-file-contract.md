@@ -8,6 +8,8 @@ file.
 - Quality Bar
 - Placement
 - Goal Surface State
+- Event Streams And Reconciliation
+- Evolver Review Receipts
 - Supervisor Contract
 - Frontmatter Lifecycle
 - Goal Wrapper
@@ -15,6 +17,7 @@ file.
 - What Belongs In The Goal
 - What Belongs Elsewhere
 - Fresh-Executor Check
+- Alignment Recap
 
 ## Quality Bar
 
@@ -39,6 +42,9 @@ Default durable placement is the target project's local Goal surface:
 - `.bagakit/goal/current.md`
 - `.bagakit/goal/state.yaml`
 - `.bagakit/goal/supervisor.md` when supervision is active
+- `.bagakit/goal/events/<goal-id>.jsonl` for append-only Goal control events
+- `.bagakit/goal/reviews/<review-id>.json` for event-bound Evolver review
+  request/receipt records
 - `.bagakit/goal/archive/`
 
 This path is relative to the project or host repository whose agent will execute
@@ -71,6 +77,9 @@ agent entrypoint, the machine-readable work set, and inactive history:
 - `state.yaml`: registry and topology for incomplete or reviewable Goals.
 - `supervisor.md`: optional supervision contract for checkpoint cadence, drift
   handling, sidecar rules, and packet shape.
+- `events/`: append-only Goal control events; execution logs stay with their
+  Runner, evaluator, or tool owner.
+- `reviews/`: compact idempotent Evolver review requests and receipts.
 - `<goal-id>.md`: one Goal control plane.
 - `archive/`: completed, abandoned, or otherwise inactive Goal files that should
   not affect the current work set.
@@ -109,6 +118,8 @@ goals:
     file: .bagakit/goal/<goal-id>.md
     status: active
     role: foreground
+    event_log: .bagakit/goal/events/<goal-id>.jsonl
+    reconciled_through: 1
   <paused-goal-id>:
     file: .bagakit/goal/<paused-goal-id>.md
     status: paused
@@ -146,6 +157,83 @@ Rules:
   affects the foreground Goal as a short historical pointer.
 - If `foreground_goal` or its file is missing or contradicts the target Goal's
   frontmatter, repair the state before execution or stop and ask.
+
+## Event Streams And Reconciliation
+
+Keep the Goal Markdown as current control truth. Store append-only Goal control
+events in `.bagakit/goal/events/<goal-id>.jsonl`; store execution rounds,
+retries, process output, case progress, and validation logs in the owning
+Runner, evaluator, or tool surface.
+
+Do not require normal recovery to replay JSONL. Reconcile after a material
+milestone, before compact or handoff, when current instructions conflict with
+newer evidence, or when checkpoint history starts accumulating:
+
+1. read owner truth and unreconciled Goal events
+2. replace `Current State`
+3. replace the single `Next Execution Instruction`
+4. fold accepted deltas into their owning Goal sections
+5. keep only future-relevant `Recent Decisions`
+6. remove resolved questions and stale directions
+7. advance the registry `reconciled_through` cursor
+
+Read `references/event-stream-contract.md` for format ownership, the JSONL
+schema, control effects, cursor behavior, and archive rules.
+
+## Evolver Review Receipts
+
+Use `.bagakit/goal/reviews/<review-id>.json` when a bounded Goal checkpoint may
+contain reusable repository learning. The caller supplies a stable `review_id`;
+requesting the same id for the same Goal and trigger is idempotent and must not
+reset a completed receipt. Exact request replay is allowed; a different request
+payload under the same id is rejected and must use a new review id.
+
+```json
+{
+  "schema": "bagakit.goal-evolver-review.v1",
+  "goal_id": "<goal-id>",
+  "review_id": "<review-id>",
+  "trigger": "after_round",
+  "status": "requested",
+  "evidence_refs": [".bagakit/flow-runner/runs/<run-id>/checkpoint.json"],
+  "drift": [],
+  "next_instruction": "Run an Evolver review over the referenced evidence and record the disposition.",
+  "approval": "not_required",
+  "evolver_disposition": "pending"
+}
+```
+
+Contract:
+
+- `trigger`: `before_round`, `after_round`, `risk`, `stale`, `pre_closeout`, or
+  `session_end`.
+- `status`: `requested`, `completed`, `blocked`, or `skipped`.
+- `approval`: `not_required`, `pending`, `approved`, or `rejected`. This field
+  records the applicable gate; it does not grant new permission to read private
+  session evidence.
+- `evolver_disposition`: `pending`, `no_signal`, `signal_candidate`, or
+  `deferred`.
+- State pairs are fixed: `requested/pending`, `completed/no_signal`,
+  `completed/signal_candidate`, `blocked/deferred`, or `skipped/no_signal`.
+  `signal_candidate` also requires `approval` to be `not_required` or
+  `approved`.
+- `evidence_refs` contains repo-relative source or result references. Raw
+  transcript content does not belong in this receipt. Absolute paths and refs
+  that escape the repository root are invalid.
+- `drift` contains compact observed drift or the expected evidence missing at a
+  `stale` checkpoint.
+- `next_instruction` is the next Goal-side action, not Evolver topic or routing
+  state.
+- A `signal_candidate` receipt hands the repo-relative receipt path to
+  Evolver's session-review intake. Goal must not create or update Evolver
+  topics, adoption, route, or promotion state.
+- Once a receipt leaves `requested`, the same `review_id` is immutable. A
+  materially different outcome or evidence packet requires a new review id.
+
+Review scheduling is event-bound. Do not add a daemon or timer service merely
+to generate review files. `session_end` is opportunistic only; failure to run
+it must not invalidate otherwise complete Goal evidence. `stale` means expected
+evidence is absent, not that wall-clock time alone elapsed.
 
 ## Supervisor Contract
 
@@ -193,6 +281,13 @@ next_instruction = ""
 stop_rule = ""
 user_question = ""
 ```
+
+## Evolver Review Checkpoints
+- Use event-bound review triggers: `before_round`, `after_round`, `risk`,
+  `stale`, `pre_closeout`, or opportunistic `session_end`.
+- `stale` means expected evidence is missing; do not add a timer or daemon.
+- Store request/receipt state under `.bagakit/goal/reviews/`; Goal does not own
+  Evolver topic, adoption, routing, or promotion state.
 
 ## Rules
 - Patch the Goal only when new information changes execution direction or
@@ -347,6 +442,8 @@ goals:
     file: .bagakit/goal/<goal-id>.md
     status: active
     role: foreground
+    event_log: .bagakit/goal/events/<goal-id>.jsonl
+    reconciled_through: 1
 
 edges: []
 
@@ -407,8 +504,8 @@ completion_evidence: []
 ## Next Execution Instruction
 <one concrete next instruction for the executor>
 
-## Goal Delta Log
-- <accepted delta, source, and why it changes execution>
+## Recent Decisions
+- <only a few accepted decisions that still affect future execution>
 
 ## Open Questions
 - <question, owner, and what changes based on the answer>
@@ -438,9 +535,11 @@ Do not turn the Goal into a storage bin.
 | formal requirements and change lifecycle | OpenSpec or equivalent spec tool |
 | raw discussion, options, expert review | Brainstorm |
 | source notes, claims, evidence | Researcher or evidence files |
-| repeated execution checkpoints, incidents, retry history | Flow Runner or session logs |
+| repeated execution checkpoints, incidents, retry history | Flow Runner or owner JSONL/session state |
+| append-only steering events and reconciliation history | Goal JSONL event stream |
 | raw Grok/sidecar output | sidecar log; Goal keeps distilled delta or pointer |
 | supervisor protocol and checkpoint cadence | `.bagakit/goal/supervisor.md` |
+| Evolver signals, topics, adoption, routing, promotion | `bagakit-skill-evolver`; Goal keeps only the review request/receipt |
 | completed or abandoned Goal history | `.bagakit/goal/archive/` |
 
 When unsure, add a one-line pointer in the Goal and put the detail in the owner
@@ -459,3 +558,31 @@ Before handing off, ask:
 5. Would adding the prior chat materially change the executor's next move?
 
 If answer 5 is yes, the Goal is missing key control-plane information.
+
+## Alignment Recap
+
+After nontrivial Goal creation or a direction-changing Goal update, give the
+user a short plain-language recap before activation or continued execution. This
+recap proves user-agent agreement, not executor recovery.
+
+Include only decision-bearing points:
+
+- Goal: <what outcome the Goal is steering toward>
+- Why it matters: <why this outcome is worth completing>
+- Scope: <in scope and out of scope>
+- Execution mode: <current/state/supervisor, CodexL, Team mode, sidecar, or
+  owner tools when relevant>
+- Risks or assumptions: <what could change the Goal, acceptance bar, or next
+  move>
+- Please correct: <only the points where a user answer changes execution>
+
+Rules:
+
+- Generate the recap from the Goal and indexed owner refs.
+- Do not store the recap as a second source of truth.
+- Distill user corrections into Goal deltas, owner-file updates, or open
+  questions before activation.
+- If the correction changes the promised outcome, acceptance bar, or execution
+  mode, update the Goal and run the fresh-executor check again.
+- For tiny mechanical updates where the user already delegated execution, the
+  recap may be informational and need not block progress.

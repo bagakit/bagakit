@@ -78,6 +78,10 @@ def main() -> None:
         "set-foreground",
         "set-supervision",
         "relate-goals",
+        "request-evolver-review",
+        "record-evolver-review",
+        "append-goal-event",
+        "reconcile-goal",
         "render-wrapper",
         "fresh-check",
         "archive-goal",
@@ -85,10 +89,17 @@ def main() -> None:
     ]:
         require(f'name = "{command}"' in skill_cli_text, f"skill-cli.toml missing command entry: {command}")
 
-    require("Maintain `.bagakit/goal/current.md`" in skill_text, "SKILL.md must reference current.md ownership")
-    require("Maintain `.bagakit/goal/state.yaml`" in skill_text, "SKILL.md must reference state.yaml ownership")
+    require(".bagakit/goal/current.md" in skill_text, "SKILL.md must reference current.md ownership")
+    require(".bagakit/goal/state.yaml" in skill_text, "SKILL.md must reference state.yaml ownership")
     require("references/loop-off-loop.md" in skill_text, "SKILL.md must route to loop-off-loop reference")
     require("references/goal-file-contract.md" in skill_text, "SKILL.md must route to goal-file-contract reference")
+    require("session-review intake" in loop_text, "loop-off-loop must define the Evolver handoff route")
+    require("`session_end` is opportunistic only" in contract_text, "goal contract must keep session_end opportunistic")
+    require(
+        re.search(r"`stale` means expected\s+evidence is absent", contract_text) is not None,
+        "goal contract must define stale as missing evidence",
+    )
+    require(".bagakit/goal/reviews/<review-id>.json" in frontdoor_text, "frontdoor rule must reference review receipts")
 
     print("bagakit-set-loop-goal contract passed")
 
