@@ -40,6 +40,28 @@ for proving this skill. Do not continue into implementation to collect partial
 workflow credit, and do not report `conditional_pass` from a fallback browser
 exploration. Retry reference generation or stop with `invalid_no_reference`.
 
+## Existing Project Redesign Gate
+
+Before editing an existing route, app, or page, write
+`redesign-preservation-audit.md`.
+
+Record:
+
+- current stack, router, build command, component system, icon library, style
+  method, token/theme source, and asset locations
+- current IA, content blocks, routes, data fixtures, empty/error states, and
+  analytics, tests, or labels that may be sensitive to renaming
+- accessibility behavior worth preserving: landmarks, focus order, keyboard
+  paths, disabled states, reduced motion, and readable contrast
+- reusable host components or mature components that should be kept before
+  custom work is justified
+- what should be preserved, what should be deliberately upgraded, what can be
+  removed, and which changes should land first to reduce risk
+
+The audit is not a command to keep the old design. It is the record that lets a
+redesign exceed the current page without accidentally losing product meaning,
+working behavior, brand tokens, or host conventions.
+
 Do not enter this loop until `visual-decomposition.md` and
 `design-spec-ledger.md` exist. The decomposition must translate the reference
 image into concrete targets for layout proportions, toolbar/nav structure,
@@ -48,14 +70,37 @@ and signature details. The design spec ledger must turn those targets into
 implementable tokens and geometry standards instead of leaving the agent to
 eyeball small details during CSS work.
 
+When the implementation source is a screenshot, Figma frame, generated mockup,
+state board, or other image-like reference, also write
+`image-extraction-checklist.md` before coding. Extract:
+
+- visible text, labels, icon intent, and content hierarchy
+- typography scale, weight, line height, letter spacing, and role boundaries
+- layout grid, region proportions, gutters, spacing, section rhythm, and
+  density
+- button, input, tab, card, list, toolbar, and navigation geometry
+- palette roles, material treatment, border, radius, elevation, and state
+  colors
+- image treatment: subject, crop, lighting, overlay, texture, and focal anchor
+- unclear details that need a crop, zoom, generated detail frame, or accepted
+  uncertainty
+
+If a micro-detail materially affects craft or interaction and cannot be read
+from the available reference, resolve it before CSS guessing: inspect a crop,
+generate a detail frame, ask for the missing source, or record the accepted
+uncertainty in `design-spec-ledger.md`.
+
 For high-craft work, or when no stronger provided reference exists, write
 `reference-survey-ledger.md` before producing the final design reference. It
 should inspect at least three comparable product or page references and record
 what each one proves about information density, navigation model, surface
 composition, copy economy, icon language, material system, responsive treatment,
-and signature craft. Image2 can synthesize a direction from this survey, but it
-does not replace the survey. If comparable references cannot be found, record
-the search gap and lower confidence instead of inventing a design tier.
+component behavior, interaction conventions, and signature craft. Record the
+cannot-lose user expectations and the one or two qualities the new design
+should exceed rather than imitate. Image2 can synthesize a direction from this
+survey, but it does not replace the survey. If comparable references cannot be
+found, record the search gap and lower confidence instead of inventing a design
+tier.
 
 The survey should name the closest page archetype, such as editorial,
 workbench, dashboard, studio/editor, map/atlas, catalog/commerce,
@@ -144,6 +189,22 @@ If there is a strong original reference, generated state frames must be derived
 from that reference, not from the current implementation. Reject a state board
 that makes current implementation drift look intentional.
 
+For multi-section generated references, do not prompt or implement from vague
+section names alone. `section-reference-plan.md` must name each section's
+composition anchor, background mode, concept spine, second-read detail, CTA
+role, density level, responsive implication, and frame label. The
+`section-frame-continuity-ledger.md` then keeps palette, type, spacing, CTA
+family, material language, imagery grade, icon style, and voice in one brand
+world while allowing each section to vary rhythm deliberately.
+
+Generic-output tells are risks, not universal bans. In `ambition-bar.md`,
+`design-core-design-packet.toml`, or the local review artifacts, record each
+anti-default risk with evidence, mitigation, and `override_reason` when kept.
+Do not accept default card stacks, split heroes, one-note palettes, decorative
+icon noise, vague copy, or library-default controls merely because they are
+common; also do not forbid them when the target register and user task give a
+clear reason.
+
 ## Design Spec Gate
 
 Before implementation, write `design-spec-ledger.md` from the reference image
@@ -175,9 +236,11 @@ Record concrete standards for:
 Treat the ledger as the visual-system and token source of truth before CSS.
 For repeated UI or high-craft work, the ledger must name typography, color,
 spacing, hierarchy, border, elevation, radius, state, density, motion, and brand
-tone decisions before implementation uses them. Low-risk static sketches may
-record a smaller token set, but repeated components should still consume shared
-variables, theme tokens, component props, or equivalent constants.
+tone decisions before implementation uses them. For repeated values, also name
+their source cue and intended usage so later fixes can trace from reference to
+token to component. Low-risk static sketches may record a smaller token set,
+but repeated components should still consume shared variables, theme tokens,
+component props, or equivalent constants.
 
 Use the ledger while implementing. Define CSS variables, theme tokens,
 component props, or equivalent constants from it before styling repeated UI.
@@ -394,6 +457,9 @@ Record:
   `design-spec-ledger.md`
 - post-parity refactor targets that should wait until visual behavior is
   proven
+- style-system standard: where font sizes, palette, hierarchy, spacing,
+  borders, radius, elevation, motion, and brand-tone values will live before
+  repeated UI consumes them
 
 Do not start with pasted one-off markup for repeated UI unless the plan
 classifies the page as `not_needed_simple_static_page` or explains why a small
@@ -426,6 +492,12 @@ widgets, then domain libraries for complex behavior. Custom components are
 valid when reference craft, host constraints, or simple low-risk behavior
 justify them. Do not force React, Storybook, a component library, or a UI kit
 when the host stack or page scope does not need it.
+
+For each reusable component family, record the intended variants and states,
+which design-spec tokens it consumes, its accessibility hooks, and the
+replacement rule for when a host or mature component should be preferred over a
+custom implementation. This keeps componentization grounded in the design
+system instead of turning it into extra files for their own sake.
 
 ## MVP Experiment Gate
 
@@ -667,55 +739,62 @@ when Playwright interactions pass.
    a self-referential implementation sketch. If no stronger reference exists,
    retry Image2 until it produces a saved artifact or stop with
    `reference_blocked`.
-2. Establish `design-spec-ledger.md` and convert it into shared CSS or theme
+2. For an existing project or route, establish
+   `redesign-preservation-audit.md` before changing files.
+3. Establish `visual-decomposition.md`, `image-extraction-checklist.md` when
+   an image-like reference exists, and `design-spec-ledger.md`; convert the
+   ledger into shared CSS or theme
    tokens.
-3. Establish page shell, dimensions, typography scale, and color tokens from
+4. Establish page shell, dimensions, typography scale, and color tokens from
    the ledger.
-4. Establish the ambition-bar signature detail for high-craft work.
-5. Establish the information architecture map and semantic visual ownership map
+5. Establish the ambition-bar signature detail and anti-default risk scan for
+   high-craft work.
+6. Establish the information architecture map and semantic visual ownership map
    for complex product surfaces.
-6. Match the decomposed page regions and focal composition.
-7. Establish stack selection, frontend architecture plan, component source
+7. For multi-section generated references, establish section art-direction
+   controls and continuity before generation or implementation.
+8. Match the decomposed page regions and focal composition.
+9. Establish stack selection, frontend architecture plan, component source
    ledger, and capability route.
-8. Establish the workflow model, control surface map, interaction model,
+10. Establish the workflow model, control surface map, interaction model,
    interaction intuition pass, and mobile interaction plan.
-9. Place primary layout blocks and real content.
-10. Implement repeated UI through components, data arrays, and shared tokens.
-11. Integrate media, icons, and signature assets through the asset pipeline.
-12. Add responsive behavior from the mobile interaction plan.
-13. Add interactions and states from the state reference set.
-14. Complete the reference coverage matrix, affordance inventory, and behavior
+11. Place primary layout blocks and real content.
+12. Implement repeated UI through components, data arrays, and shared tokens.
+13. Integrate media, icons, and signature assets through the asset pipeline.
+14. Add responsive behavior from the mobile interaction plan.
+15. Add interactions and states from the state reference set.
+16. Complete the reference coverage matrix, affordance inventory, and behavior
     matrix.
-15. Run browser screenshot and interaction checks. Save structured interaction,
+17. Run browser screenshot and interaction checks. Save structured interaction,
     console, and overflow results as named artifacts before claiming pass.
-16. Create an implementation checkpoint before long visual iteration: working
+18. Create an implementation checkpoint before long visual iteration: working
     URL, files created, latest screenshot refs, current blocker count, and next
     action. If the run stalls after reference or asset setup, stop with
     `blocked_in_implementation` rather than silently waiting.
-17. Run `full-page-structural-parity-ledger.md` against the reference and the
+19. Run `full-page-structural-parity-ledger.md` against the reference and the
     latest full-page/first-viewport screenshots. Fix high-severity structure
     drift before crop or micro-parity review.
-18. Run a pre-judge information-architecture sanity check: what objects exist,
+20. Run a pre-judge information-architecture sanity check: what objects exist,
     how navigation is organized, which region owns each object/action, and
     whether the user can infer the product model without explanation.
-19. Run a pre-judge interaction-logic sanity check: what does the user do
+21. Run a pre-judge interaction-logic sanity check: what does the user do
     first, what changes next, which control owns each mode, and whether any
     duplicate control is redundant or conflicting.
-20. Run a pre-judge screenshot sanity check. If screenshots visibly contain
+22. Run a pre-judge screenshot sanity check. If screenshots visibly contain
     blocker defects, update the ledgers and keep iterating before using judge
     passes.
-21. Run `material-parity-checklist.md` when assets are required. Check crop
+23. Run `material-parity-checklist.md` when assets are required. Check crop
     manifests, alpha/mask integrity, nine-slice behavior, tiling seams,
     responsive asset behavior, fallback, desktop screenshots, and mobile
     screenshots before visual judging.
-22. Run `micro-parity-checklist.md` against reference crops for topbar,
+24. Run `micro-parity-checklist.md` against reference crops for topbar,
     navigation, primary content, repeated components, controls, and responsive
     states. Fix high-severity spacing, typography, border, shadow, icon, and
     control-geometry mismatches before judge review.
-23. Iterate on visible mismatches, blocker bugs, fake controls, unclear
+25. Iterate on visible mismatches, blocker bugs, fake controls, unclear
     information architecture, unclear workflow, duplicate controls, and
     insufficient ambition.
-24. Refactor after visual parity so the implementation is maintainable rather
+26. Refactor after visual parity so the implementation is maintainable rather
     than a pasted one-off prototype.
 
 ## Browser Loop

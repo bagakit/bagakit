@@ -32,22 +32,28 @@ early ambiguous ideation that still needs `bagakit-spark`.
 
 ## Operating Spine
 
-1. `target-register`
+1. `design-read`
+   - record surface kind, audience, task, vibe, reference/system family,
+     constraints, and unknowns
+2. `target-register`
    - classify the surface as brand, product, editorial, tool, game, data, or
      mixed; state what design should optimize
-2. `source-evidence`
-   - inspect provided sites, screenshots, generated references, code tokens,
-     assets, or user direction before asking for style opinions
-3. `brand-tonality`
+3. `source-evidence`
+   - inspect the strongest available context: brand, design-system, code,
+     screenshots, comparable references, assets, or explicit greenfield intent
+     before choosing an aesthetic direction
+4. `brand-tonality`
    - map adjectives to observable axes: palette temperature, chroma, density,
-     typography, surface depth, radii, motion, icon geometry, and voice
-4. `design-rule-coverage`
+     typography, surface depth, radii, motion, icon geometry, and voice; for
+     high-craft work also record variance, motion, and density dials
+5. `design-rule-coverage`
    - review hierarchy, information architecture, typography, layout, color,
-     interaction states, accessibility, motion, copy, and generic-output tells
-5. `design-packet`
+     interaction states, accessibility, motion, copy, semantic economy,
+     reference-tier fit, and generic-output risks with override reasons
+6. `design-packet`
    - write one structured packet as the task SSOT; Markdown reviews are
      narrative projections, not duplicate state
-6. checkpoint reviews
+7. checkpoint reviews
    - review the draft, the concrete design plan, and the final result against
      the same packet before accepting completion
 

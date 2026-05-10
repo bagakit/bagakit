@@ -10,6 +10,11 @@ Files:
 
 - `design-brief.md`
   - goal, audience, content, brand/assets, visual direction, constraints
+- `redesign-preservation-audit.md`
+  - required before editing an existing project or page; records current
+    stack, styling method, brand tokens, IA, content blocks, reusable
+    components, accessibility wins, analytics-sensitive labels, routes, risky
+    dependencies, and low-risk upgrade order
 - `reference-intent.md`
   - strongest available reference context, intent class, why image2 is needed
     or why a provided reference is stronger
@@ -18,8 +23,9 @@ Files:
     reference review status
 - `reference-survey-ledger.md`
   - comparable product/page references, source class, inspected strengths,
-    information density, composition model, copy/icon language, responsive
-    treatment, signature craft, and cannot-lose comparison points
+    information density, composition model, copy/icon language, component and
+    interaction conventions, responsive treatment, signature craft, cannot-lose
+    comparison points, and where the design should exceed the archetype
 - `design-core-design-packet.toml`
   - optional peer packet from `bagakit-design-core`; target register, source
     evidence refs, tone axes, rule coverage, observed/derived/fallback split,
@@ -31,6 +37,11 @@ Files:
   - reference image reading: page frame, region proportions, toolbar,
     navigation, focal object, typography, palette, materials, component shapes,
     spacing rhythm, and signature details
+- `image-extraction-checklist.md`
+  - required when implementing from an image, screenshot, Figma frame,
+    generated reference, or state board; records visible text, typography,
+    spacing, buttons/components, color roles, section rhythm, density, image
+    treatment, unclear details, and detail-frame or accepted-uncertainty needs
 - `semantic-visual-map.md`
   - major visual regions mapped to the user question, object, state, action,
     risk, visual expression, and merge/demote decision each region owns
@@ -52,7 +63,8 @@ Files:
   - token and visual-system source of truth inferred from the reference:
     typography, color palette, spacing, hierarchy, borders/elevation/radius,
     state styling, density, motion, brand tone, page grid, control geometry,
-    component density, and accepted uncertainty
+    component density, source/usage for repeated values, gaps or
+    inconsistencies, and accepted uncertainty
 - `design-core-plan-review.md`
   - concrete design plan review that maps packet tone and design rules into
     CSS tokens, assets, component geometry, states, and responsive behavior
@@ -83,9 +95,9 @@ Files:
 - `section-reference-plan.md`
   - required for multi-section generated landing, marketing, product,
     portfolio, or full-site references; records section count, ordered section
-    names, section job, frame label, canvas ratio, frame anchor,
-    background/material treatment, image role, CTA role, density level, and
-    responsive implication
+    names, section job, frame label, canvas ratio, composition anchor,
+    background mode/material treatment, concept spine, image role, second-read
+    detail, CTA role, density level, and responsive implication
 - `section-frame-continuity-ledger.md`
   - required when generated references are split across multiple section
     frames; records shared palette, type scale, spacing cadence, CTA family,
@@ -118,13 +130,15 @@ Files:
   - stack and library choices mapped to required effects such as graph,
     search, charting, rich text, animation, canvas, or 3D
 - `frontend-architecture-plan.md`
-  - component hierarchy, repeated data structures, state ownership, file/style
-    organization, shared token usage, and post-parity refactor targets before
+  - component hierarchy, repeated data structures, state ownership,
+    file/style organization, mapping from the design-spec ledger to CSS or
+    theme tokens, shared token usage, and post-parity refactor targets before
     code; simple static pages may record `not_needed_simple_static_page`
 - `component-source-ledger.md`
   - source status for major components and widgets: `host_component`,
     `accessible_primitive`, `domain_library`, `custom_reference_craft`,
-    `custom_simple`, or `blocked`, with rationale and owner
+    `custom_simple`, or `blocked`, with rationale, owner, variants, states,
+    token usage, accessibility hooks, do/don't rules, and replacement rule
 - `affordance-inventory.md`
   - every visible interactive affordance classified exactly once as `working`,
     `disabled`, `hidden`, or `explicitly_out_of_scope`
@@ -138,7 +152,8 @@ Files:
   - overlap, clipping, malformed controls, accidental scrollbars, layout jumps,
     unreadable text, state inconsistencies, spatial label collisions, material
     readability defects, mobile first-viewport defects, screenshot-review
-    findings, and blocker status
+    findings, blocker status, and finding bucket: `blocker`,
+    `quality_issue`, or `polish_recommendation`
 - `full-page-structural-parity-ledger.md`
   - whole-page and first-viewport comparison of reference versus
     implementation for page frame, section order, region proportions, control
@@ -174,7 +189,9 @@ Files:
     action
 - `judge-aggregation.md`
   - median/minimum scores, disagreement notes, blocker list, decision, and
-    iteration actions from the visual gate protocol
+    iteration actions from the visual gate protocol; aggregate accessibility,
+    hierarchy/rhythm, interaction-state, anti-default, token, component, and
+    visual defects before prioritizing fixes
 - `image-prompt.md`
   - exact prompt, reference inputs, negative constraints, revision notes
 - `design-reference.md`
@@ -229,6 +246,24 @@ coding directly from text or HTML.
 For skill-quality experiments, `blocked_no_reference` means the experiment is
 `invalid_no_reference`, not a partial implementation score. Stop before app
 implementation and preserve the prompt, retry evidence, and blocker handoff.
+
+`redesign-preservation-audit.md` is blocking before editing an existing
+project, route, or page. It protects continuity without freezing the old
+design. Record what should be preserved, what should be intentionally improved,
+what is risky to rename or move, and the order of low-risk changes. The audit
+should cover host stack, routing, styling approach, token/theme sources,
+component and asset reuse, content and IA, accessibility behavior, analytics or
+test-sensitive labels, and dependencies. A redesign may exceed the old UI, but
+it should know what it is replacing.
+
+`image-extraction-checklist.md` is blocking when visual implementation starts
+from an image-like reference. Extract the reference into buildable facts before
+writing CSS: exact or approximate text, type scale, line height, spacing,
+layout proportions, component geometry, button/input states, color roles,
+background and image treatment, density, section rhythm, and signature details.
+When important details are too small or ambiguous, generate or request a
+detail frame, inspect a crop, or record accepted uncertainty before guessing in
+code.
 
 `design-spec-ledger.md` must be concrete enough to implement from and is the
 token and visual-system source of truth. It must cover typography, color
@@ -320,6 +355,11 @@ The continuity ledger should summarize one shared brand system rather than
 duplicate per-frame state. Use it to prevent palette, typography, CTA,
 material, imagery, icon, or copy drift across generated frames while allowing
 composition, density, and background treatment to vary deliberately.
+
+The section plan should also prevent vague section generation. Each section
+frame needs a composition anchor, background mode, concept spine, second-read
+detail, CTA role, and density level. If a section cannot name these controls,
+it is not ready for image generation or implementation.
 
 If there is a strong original reference, state frames must preserve that
 reference. Do not derive state boards from a failed or under-review

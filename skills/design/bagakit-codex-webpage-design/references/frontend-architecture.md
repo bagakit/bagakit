@@ -90,6 +90,18 @@ Minimum schema:
 - Asset owner: <asset-generation-ledger refs or host assets>
 - Integration notes: <routing/build/dev-server notes>
 
+## Design Standards
+
+| Standard | Source in design-spec ledger | Implementation owner |
+| --- | --- | --- |
+| Type scale and line height | <ref> | <theme/css variable/component prop> |
+| Color roles and contrast | <ref> | <theme/css variable/component prop> |
+| Hierarchy and density | <ref> | <layout/component rule> |
+| Spacing and gutters | <ref> | <spacing tokens/component props> |
+| Border, radius, elevation | <ref> | <surface/control tokens> |
+| Motion and state treatment | <ref> | <component/state styles> |
+| Brand tone and imagery | <ref> | <assets/components/copy rules> |
+
 ## Accessibility Hooks
 
 - Landmarks/headings:
@@ -192,6 +204,11 @@ route-oriented layout:
 The plan should list repo-relative files or logical host slots, not absolute
 paths. Keep generated artifacts, screenshots, and ledgers out of runtime skill
 payloads unless the owning reference says they are runtime assets.
+
+Design standards belong in the plan before code when repeated UI exists. The
+standard is not a second design spec; it maps `design-spec-ledger.md` values
+into the concrete implementation owner: host theme, CSS variables, component
+props, data constants, or an asset-backed renderer.
 
 ## CSS And Token Integration
 

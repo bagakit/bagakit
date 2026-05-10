@@ -24,6 +24,29 @@ Start by classifying what the surface should optimize:
 
 Mixed surfaces should name which register wins in conflict.
 
+## Reference And Industry Bar
+
+Before accepting a direction, name the relevant reference family or industry
+archetype and what strong work in that family tends to do well. Keep this as
+transferable practice, not imitation:
+
+- what information density, navigation, controls, and mobile behavior users
+  already expect
+- which best-in-class qualities must not be lost, such as comparison speed,
+  editorial rhythm, canvas manipulation, brand memorability, or purchase
+  confidence
+- which qualities are unsafe to borrow because they depend on a different
+  product model, brand promise, content source, legal boundary, or audience
+- what the proposed design should exceed rather than merely match
+
+If no good comparison is available, record the search gap and lower confidence
+instead of pretending the design is frontier.
+
+Use this bar as a user-experience contract. A strong design may depart from
+the reference family, but it should be able to explain which user expectation
+it preserves, which convention it improves, and why the departure helps the
+task.
+
 ## Coverage Dimensions
 
 Review every serious design across these dimensions:
@@ -42,6 +65,22 @@ Review every serious design across these dimensions:
 - originality, signature detail, and reference-tier comparison
 - implementation readiness and drift from the design packet
 
+## Semantic Economy
+
+Every major visual expression should own a distinct job. During review, ask:
+
+- what object, state, action, decision, risk, or relationship this region
+  represents
+- whether repeated cards, icons, labels, metrics, panels, or CTAs duplicate
+  the same concept
+- whether a visual motif clarifies meaning or only decorates
+- what can be merged, demoted, hidden, or moved into progressive disclosure
+- whether the first screen exposes the core object, current state, first
+  action, and next step without repeating prose
+
+A design can be visually polished and still fail if its regions cannot explain
+why they exist.
+
 ## Rule Governance
 
 Design rules should be register-aware:
@@ -54,6 +93,26 @@ Design rules should be register-aware:
 Avoid eternal taste bans. Time-sensitive generic-output tells should be
 recorded with evidence and retired when the pattern no longer predicts weak
 work.
+
+## Anti-Default Risk Scan
+
+Use `anti-default-risk-scan.md` when the work is high-craft, generated,
+reference-light, premium, frontier, or especially opinionated. This scan
+should not say that a pattern is always forbidden. Each row should record:
+
+- risk pattern, such as generic hero rhythm, repeated rounded cards, one-note
+  palette, decorative icon noise, vague copy, stock-like image treatment, or
+  pasted component defaults
+- evidence in the brief, reference, draft, or implementation
+- likely user harm: lower comprehension, weaker trust, slower workflow,
+  brand drift, inaccessible state, or reduced memorability
+- mitigation or redesign move
+- `override_reason` when the pattern is intentionally kept
+- checkpoint owner: draft, plan, or result review
+
+Rules with no evidence become vibes. Risks with no override path become dogma.
+Keep the scan sharp enough to catch weak default output while still allowing a
+good designer to break the pattern deliberately.
 
 ## Review Method
 

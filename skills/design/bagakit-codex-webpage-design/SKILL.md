@@ -55,11 +55,13 @@ adapt to the project:
 
 1. `design-brief`
    - goal, audience, content, constraints, viewport, and success bar
+   - for existing projects, add `redesign-preservation-audit` before edits
 2. `reference-intent`
    - strongest reference source and intent class:
      `exact`, `style_reference`, `asset`, `content_context`, or `data_context`
 3. `reference-provenance-ledger` and `reference-survey-ledger`
-   - source class, comparison tier, archetype route, and non-substitution constraints
+   - source class, comparison tier, archetype route, transferable best
+     practices, and non-substitution constraints
 4. `image-prompt` and `design-reference`
    - required when no stronger reference exists; missing Image2 output is a blocker handoff
 5. `state-reference-set`
@@ -67,19 +69,24 @@ adapt to the project:
 6. `visual-decomposition`, optional design-core packet, and design-draft passes
    - page frame, regions, typography, palette, material, component treatment,
      information compression, surface composition, density, copy/icon budget,
-     semantic visual ownership, hierarchy, and signature details
+     semantic visual ownership, hierarchy, signature details, and
+     image-extraction checklist when implementing from screenshots, Figma,
+     generated references, or state boards
 7. `design-spec-ledger`
-   - visual-system source of truth for grid, type, color, hierarchy, control,
-     material, density, motion, brand tone, and state tokens
+   - visual-system source of truth for grid, type, color, hierarchy, spacing,
+     control geometry, borders, material, density, motion, brand tone, and
+     state tokens, with source and usage for repeated values
 8. `asset-requirement-pass` and `asset-generation-ledger`
    - required when CSS alone cannot carry texture, masks, glyphs, or craft
 9. `ambition-bar`
-   - required for high-craft work; names the reference tier, delight moment, signature detail, and anti-generic risks
+   - required for high-craft work; names the reference tier, delight moment,
+     signature detail, and anti-generic risks with mitigation or override reasons
 10. `information-architecture-map`, `workflow-model`,
     `control-surface-map`, `interaction-model`, `interaction-intuition-pass`, and `mobile-interaction-plan`
    - required for interactive pages before implementation
 11. `frontend-architecture-plan`, `component-source-ledger`, and `capability-route`
-   - host stack, component structure, source decisions, and libraries matched to graph, search, editing, canvas, or 3D
+   - host stack, component structure, design-standard mapping, source
+     decisions, and libraries matched to graph, search, editing, canvas, or 3D
 12. implementation and browser loop
    - run, capture screenshots, exercise interactions, and iterate
 13. completion ledgers
@@ -167,6 +174,11 @@ Before final handoff, verify:
   agent-authored browser page is not reference authority
 - `design-spec-ledger` exists and the implementation uses its token and
   geometry standards instead of ad hoc visual guesses
+- existing-project redesigns have a preservation audit for host stack, routes,
+  tokens, components, IA, content, accessibility, and sensitive labels
+- image-like references have an extraction checklist; important unclear
+  details are resolved through crop/detail-frame/source inspection or recorded
+  accepted uncertainty before CSS guessing
 - product-like, high-craft, component-heavy, or content-heavy pages account for semantic visual ownership before implementation
 - interactive or componentized work has a frontend architecture plan, component source decisions, interaction-intuition pass, and mobile interaction plan when required
 - required material assets exist and `material-parity-checklist` has no
@@ -246,6 +258,11 @@ Use bench cases for failures such as:
   sellable product MVP
 - design drafts without comparable references, information compression, density
   discipline, surface-led composition, or copy/icon economy
+- existing-project redesigns that accidentally discard host conventions,
+  tokens, content structure, accessibility behavior, or route semantics
+- screenshot/image-to-code work that begins styling before extracting type,
+  spacing, color, component geometry, density, image treatment, and unclear
+  detail needs
 
 ## References
 

@@ -28,11 +28,14 @@ def design_memory_rel(name: str) -> str:
     return POSIX_SEP.join([DESIGN_MEMORY_ROOT, name])
 
 REQUIRED_STAGE_IDS = {
+    "design-read",
     "target-register",
     "source-evidence",
     "brand-tonality",
+    "brand-system-board",
     "first-frame-composition",
     "design-rule-coverage",
+    "anti-default-risk-scan",
     "design-packet",
     "draft-checkpoint-review",
     "plan-checkpoint-review",
@@ -44,12 +47,17 @@ REQUIRED_COMPLETION_ARTIFACT_IDS = {
 }
 
 REQUIRED_GUARD_IDS = {
+    "design-read-before-taste",
     "evidence-before-taste",
     "tone-axis-concreteness",
+    "taste-dial-explicitness",
     "observed-derived-split",
     "target-register-fit",
     "first-frame-fit",
+    "semantic-economy",
     "full-surface-rule-coverage",
+    "anti-default-risk-overrides",
+    "brand-system-board-transfer",
     "three-checkpoint-review",
     "reference-tier-honesty",
     "rights-boundary",

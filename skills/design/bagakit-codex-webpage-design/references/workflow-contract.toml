@@ -27,6 +27,12 @@ artifact = "design-brief.md"
 blocks_completion = true
 
 [[stage]]
+id = "redesign-preservation-audit"
+phase = "before_implementation"
+artifact = "redesign-preservation-audit.md"
+required_when = "existing project, route, app, or page is being redesigned or materially modified"
+
+[[stage]]
 id = "reference-intent"
 phase = "before_implementation"
 artifact = "reference-intent.md"
@@ -109,6 +115,12 @@ id = "visual-decomposition"
 phase = "before_implementation"
 artifact = "visual-decomposition.md"
 blocks_completion = true
+
+[[stage]]
+id = "image-extraction-checklist"
+phase = "before_implementation"
+artifact = "image-extraction-checklist.md"
+required_when = "implementation is driven by screenshot, image, Figma frame, generated reference, or state board"
 
 [[stage]]
 id = "design-spec-ledger"
@@ -302,6 +314,11 @@ protects = "implementation must not begin from text alone when a stronger or gen
 proof_surface = "reference-intent plus design-reference artifact"
 
 [[guard]]
+id = "redesign-preservation-before-edit"
+protects = "existing project redesign must inspect host stack, routing, tokens, components, content, IA, accessibility, and sensitive labels before edits"
+proof_surface = "redesign-preservation-audit plus frontend-architecture-plan plus code-quality-review"
+
+[[guard]]
 id = "reference-provenance"
 protects = "generated or provided references must have auditable source class and must not be replaced by agent-authored browser HTML"
 proof_surface = "reference-provenance-ledger plus design-reference artifact"
@@ -377,6 +394,11 @@ protects = "split generated frames must still read as one brand world across pal
 proof_surface = "section-frame-continuity-ledger plus design-reference plus visual-parity-ledger"
 
 [[guard]]
+id = "section-art-direction-controls"
+protects = "each generated section frame must declare composition anchor, background mode, concept spine, second-read detail, CTA role, density, and responsive implication before generation or implementation"
+proof_surface = "section-reference-plan plus design-reference plus visual-decomposition"
+
+[[guard]]
 id = "affordance-honesty"
 protects = "visible live-looking controls must be implemented, disabled, hidden, or explicitly out of scope"
 proof_surface = "affordance-inventory plus behavior-matrix"
@@ -423,7 +445,7 @@ proof_surface = "frontend-architecture-plan plus information-architecture-map pl
 
 [[guard]]
 id = "component-source-discipline"
-protects = "generated, adapted, library, and custom components must record source class, owner, allowed modification, and replacement rule before use"
+protects = "generated, adapted, library, and custom components must record source class, owner, variants, states, token usage, accessibility hooks, allowed modification, and replacement rule before use"
 proof_surface = "component-source-ledger plus frontend-architecture-plan plus code-quality-review"
 
 [[guard]]
@@ -440,6 +462,16 @@ proof_surface = "information-compression-pass plus information-architecture-map 
 id = "surface-composition"
 protects = "advanced design drafts must avoid wireframe-like stacks of outlined boxes by using surface, density, hierarchy, material, and state treatment deliberately"
 proof_surface = "surface-composition-pass plus visual-decomposition plus design-spec-ledger"
+
+[[guard]]
+id = "image-extraction-before-code"
+protects = "image, screenshot, Figma, and generated-reference implementation must extract text, type, spacing, component geometry, color, density, image treatment, and unclear details before CSS work"
+proof_surface = "image-extraction-checklist plus design-spec-ledger plus micro-parity-checklist"
+
+[[guard]]
+id = "detail-frame-before-guessing"
+protects = "important unreadable reference details must be resolved by crop, detail frame, source inspection, or accepted uncertainty instead of hidden CSS guessing"
+proof_surface = "image-extraction-checklist plus design-spec-ledger plus micro-parity-checklist"
 
 [[guard]]
 id = "density-and-signal"
@@ -492,13 +524,18 @@ protects = "high-craft requests must not stop at clean but generic output"
 proof_surface = "ambition-bar plus judge-aggregation"
 
 [[guard]]
+id = "anti-default-risk-overrides"
+protects = "generic-output patterns must be recorded as evidence-bound risks with mitigation or override reason, not ignored or enforced as universal bans"
+proof_surface = "ambition-bar plus visual-quality-rubric plus judge-aggregation"
+
+[[guard]]
 id = "design-spec-fidelity"
 protects = "micro details must be derived from concrete tokens and geometry, not ad hoc guesses"
 proof_surface = "design-spec-ledger plus micro-parity-checklist"
 
 [[guard]]
 id = "visual-system-token-integrity"
-protects = "CSS tokens, component variants, and state styles must preserve the design spec ledger instead of drifting into scattered one-off values"
+protects = "CSS tokens, component variants, and state styles must preserve source-traceable design-spec values instead of drifting into scattered one-off values"
 proof_surface = "design-spec-ledger plus frontend-architecture-plan plus code-quality-review"
 
 [[guard]]

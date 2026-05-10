@@ -13,6 +13,12 @@ required_reference_links = [
 ]
 
 [[stage]]
+id = "design-read"
+phase = "before_design"
+artifact = "design-read.md"
+blocks_completion = true
+
+[[stage]]
 id = "target-register"
 phase = "before_design"
 artifact = "target-register.md"
@@ -31,6 +37,12 @@ artifact = "tone-axis-map.toml"
 required_when = "brand, product, website, screenshot, generated design, or named visual direction exists"
 
 [[stage]]
+id = "brand-system-board"
+phase = "before_design"
+artifact = "brand-system-board.md"
+required_when = "brand identity, visual-system, logo, campaign, or multi-surface transfer matters"
+
+[[stage]]
 id = "first-frame-composition"
 phase = "before_design"
 artifact = "first-frame-composition.md"
@@ -41,6 +53,12 @@ id = "design-rule-coverage"
 phase = "before_design"
 artifact = "rule-coverage-map.md"
 blocks_completion = true
+
+[[stage]]
+id = "anti-default-risk-scan"
+phase = "before_design"
+artifact = "anti-default-risk-scan.md"
+required_when = "high-craft, generated-reference, reference-light, frontier, premium, or opinionated taste work"
 
 [[stage]]
 id = "design-packet"
@@ -71,13 +89,23 @@ artifact = "handoff.md"
 blocks_completion = true
 
 [[guard]]
+id = "design-read-before-taste"
+protects = "design judgment must record surface kind, audience, user task, vibe, reference family, constraints, and unknowns before style choices"
+proof_surface = "design-read plus source-evidence"
+
+[[guard]]
 id = "evidence-before-taste"
-protects = "design judgment should start from inspected source evidence rather than freeform taste"
-proof_surface = "source-evidence plus target-register"
+protects = "design judgment should start from inspected source evidence, existing visual-system context, or explicit greenfield intent rather than freeform taste"
+proof_surface = "source-evidence plus target-register plus visual-language-profile when existing system evidence matters"
 
 [[guard]]
 id = "tone-axis-concreteness"
 protects = "brand adjectives must map to concrete visual, motion, copy, icon, and density decisions"
+proof_surface = "tone-axis-map plus design-packet"
+
+[[guard]]
+id = "taste-dial-explicitness"
+protects = "variance, motion, and density should be chosen deliberately with rationale and override reasons when they bend register expectations"
 proof_surface = "tone-axis-map plus design-packet"
 
 [[guard]]
@@ -96,9 +124,24 @@ protects = "the first viewport or first screen must express the intended visual 
 proof_surface = "first-frame-composition plus draft-checkpoint-review"
 
 [[guard]]
+id = "semantic-economy"
+protects = "major visual expressions should own distinct object, state, action, risk, or relationship meaning instead of duplicating concepts"
+proof_surface = "rule-coverage-map plus design-packet plus checkpoint reviews"
+
+[[guard]]
 id = "full-surface-rule-coverage"
 protects = "review must cover hierarchy, information architecture, typography, layout, color, interaction states, accessibility, motion, copy, and generic-output risks"
 proof_surface = "rule-coverage-map plus checkpoint reviews"
+
+[[guard]]
+id = "anti-default-risk-overrides"
+protects = "generic-output tells must be handled as evidence-bound risks with mitigation or override reasons instead of eternal taste bans"
+proof_surface = "anti-default-risk-scan plus checkpoint reviews"
+
+[[guard]]
+id = "brand-system-board-transfer"
+protects = "identity and visual-system work must explain strategy, metaphor, logo logic, palette, type, application examples, image direction, and transfer limits"
+proof_surface = "brand-system-board plus design-packet"
 
 [[guard]]
 id = "three-checkpoint-review"

@@ -17,6 +17,7 @@ BENCH_PATH = "gate_eval/skills/design/bagakit-codex-webpage-design/cases/histori
 
 REQUIRED_STAGE_IDS = {
     "design-brief",
+    "redesign-preservation-audit",
     "reference-intent",
     "reference-survey-ledger",
     "design-core-packet",
@@ -24,6 +25,7 @@ REQUIRED_STAGE_IDS = {
     "design-reference",
     "state-reference-set",
     "visual-decomposition",
+    "image-extraction-checklist",
     "information-compression-pass",
     "surface-composition-pass",
     "density-budget",
@@ -67,6 +69,7 @@ REQUIRED_COMPLETION_ARTIFACT_IDS = {
 
 REQUIRED_GUARD_IDS = {
     "reference-first",
+    "redesign-preservation-before-edit",
     "reference-survey-before-design",
     "comparative-reference-tier",
     "design-core-optional-composition",
@@ -78,6 +81,7 @@ REQUIRED_GUARD_IDS = {
     "section-reference-count",
     "section-frame-rhythm",
     "section-frame-continuity",
+    "section-art-direction-controls",
     "frontend-architecture-before-code",
     "component-source-discipline",
     "visual-system-token-integrity",
@@ -90,6 +94,8 @@ REQUIRED_GUARD_IDS = {
     "information-architecture",
     "information-compression",
     "surface-composition",
+    "image-extraction-before-code",
+    "detail-frame-before-guessing",
     "density-and-signal",
     "copy-icon-economy",
     "motion-frame-stability",
@@ -98,6 +104,7 @@ REQUIRED_GUARD_IDS = {
     "screenshot-review-integrity",
     "reviewer-screenshot-override",
     "ambition-bar",
+    "anti-default-risk-overrides",
     "design-spec-fidelity",
     "material-asset-parity",
     "asset-pipeline-integrity",
