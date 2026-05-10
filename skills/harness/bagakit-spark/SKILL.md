@@ -14,6 +14,8 @@ iterative conversation.
 It is not a chat style. It is a dialogue loop that:
 
 - asks questions only when the answer changes a real downstream decision
+- classifies what evidence can resolve a decision before deciding to ask the
+  user
 - keeps a visible thinking state instead of hiding the evolving frame
 - treats user replies as feedback signals for improving the current Spark
   process
@@ -63,7 +65,8 @@ It may coordinate peers, but ownership remains separate:
 - `bagakit-consensus-ledger`
   - owns task-local shared-understanding state, including confirmed consensus,
     open unknowns, inferred-but-unconfirmed understanding, blind spots, goal
-    dimensions, provenance, and handoff snapshots
+    dimensions, provenance, tool-neutral evidence requirements, and handoff
+    snapshots
 - `bagakit-brainstorm`
   - owns raw discussion logs, option analysis, expert forum, and handoff
     artifacts
@@ -128,8 +131,8 @@ For each meaningful discussion turn, run this loop:
    - infer the user's current knowledge, understanding, goals, values,
      constraints, and likely blind spots
 3. Ask
-   - ask the smallest question or question cluster that most changes the next
-     decision
+   - classify the resolution route, then ask the smallest question or question
+     cluster only when `user_answer` is the right route
 4. Challenge
    - after basic understanding is clear, test weak assumptions, hidden
      trade-offs, neglected possibilities, and the goal itself when needed
@@ -144,6 +147,20 @@ For each meaningful discussion turn, run this loop:
      failed path
 8. Synthesize
    - summarize what changed, what remains uncertain, and the next move
+
+Before asking, classify the smallest sufficient resolution route:
+
+- `user_answer`
+- `local_inspection`
+- `external_research`
+- `prototype_observation`
+- `runtime_experiment`
+
+Do not ask the user to imagine an answer when seeing, trying, or executing a
+bounded artifact would materially change the decision. When consensus-ledger is
+active, record the tool-neutral evidence requirement first. Spark owns the
+route decision and interpretation; the evidence-producing peer owns only its
+artifact or observation.
 
 When the user wants to stress-test a plan or design, enter a plan/design
 stress-test submode. Map the dependent decision branches, resolve them in
@@ -317,8 +334,11 @@ Before asking the user, name internally:
   confirmation
 - whether the challenge targets the path or the goal
 - why the user is the right source for this answer
+- which resolution route is sufficient, and why lower-fidelity routes are not
+  enough
 - what changes if the answer is A versus B
-- whether the agent can resolve it by local reading or research instead
+- whether the agent can resolve it by local inspection, external research,
+  prototype observation, or a runtime experiment instead
 - whether local code, project documents, brainstorm state, or existing
   researcher evidence already answers it well enough for the current decision
 - whether the user needs a visible option set before the recommendation, or
@@ -354,6 +374,8 @@ Bad spark questions include:
 - bundled unrelated questions
 - questions whose answers would not change the plan
 - questions answerable from existing context or researcher evidence
+- questions that require a prototype or runtime observation but ask the user to
+  decide from prose alone
 
 Question guidance details live in:
 
@@ -371,7 +393,7 @@ different places:
 
 - consensus-ledger owns the current shared-understanding ledger, including
   epistemic classes, statuses, dimensions, inferred-knowns, unknowns, and
-  snapshot basis
+  snapshot basis, and tool-neutral evidence requirements
 - brainstorm owns raw discussion preservation, option analysis, expert forum,
   and broad handoff artifacts
 
@@ -452,6 +474,7 @@ Open branches: <only meaningful alternatives>
 Option-surface audit: <shown/rejected/collapsed options when stress-testing or choosing>
 Goal challenge: <only when needed; evidence, uncertainty, alternatives, trade-off>
 Research judgment: <research_now|research_later|research_not_needed plus rationale>
+Resolution route: <user_answer|local_inspection|external_research|prototype_observation|runtime_experiment plus sufficiency rationale>
 Question inventory: <answered/pending/deferred/lead status for high-impact questions>
 Feedback signals: <positive/negative/mixed/neutral process signals when relevant>
 Trajectory check: <none|convergence_pressure|branch_narrowing plus branch-width action>

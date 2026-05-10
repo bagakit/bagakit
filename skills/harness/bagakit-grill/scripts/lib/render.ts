@@ -7,10 +7,10 @@ function oneLine(value: string): string {
 
 function renderNext(node: GrillNode | undefined): string[] {
   if (!node) {
-    return ["- Next: no ready question or research-needed node."];
+    return ["- Next: no ready decision node."];
   }
   const lines = [
-    `- Next node: \`${node.id}\` (${node.kind}, ${node.status})`,
+    `- Next node: \`${node.id}\` (${node.resolution_route}, ${node.status})`,
     `- Question: ${oneLine(node.question)}`,
   ];
   const options = node.options_considered ?? [];
@@ -20,15 +20,23 @@ function renderNext(node: GrillNode | undefined): string[] {
       lines.push(`  - ${oneLine(option)}`);
     }
   }
-  lines.push(`- Recommended answer: ${oneLine(node.recommended_answer)}`);
+  lines.push(`- Recommended resolution: ${oneLine(node.recommended_resolution)}`);
+  lines.push(`- Acceptance criteria: ${oneLine(node.acceptance_criteria)}`);
   if (node.risk_if_wrong) {
     lines.push(`- Risk if wrong: ${oneLine(node.risk_if_wrong)}`);
   }
   if (node.ledger_refs.length > 0) {
     lines.push(`- Ledger refs: ${node.ledger_refs.map((ref) => `\`${ref}\``).join(", ")}`);
   }
-  if (node.kind === "research_needed") {
-    lines.push("- Action: run explicit selector/researcher composition, then attach evidence refs.");
+  const actions: Record<GrillNode["resolution_route"], string> = {
+    user_answer: "Ask the user one decision-bearing question and record the answer.",
+    local_inspection: "Inspect local code, documents, artifacts, or tool state, then attach evidence refs.",
+    external_research: "Run explicit selector/researcher composition, then attach source-bound evidence refs.",
+    prototype_observation: "Produce a bounded prototype through an appropriate owner, collect observation or user-trial evidence, then attach refs.",
+    runtime_experiment: "Run a bounded execution experiment, record observations, then attach evidence refs.",
+  };
+  if (node.resolution_route !== "user_answer") {
+    lines.push(`- Action: ${actions[node.resolution_route]}`);
   }
   return lines;
 }
@@ -60,7 +68,7 @@ export function renderBrief(run: GrillRun): string {
     `- total_nodes: ${run.question_nodes.length}`,
     `- ready: ${counts.ready ?? 0}`,
     `- answered: ${counts.answered ?? 0}`,
-    `- research_needed: ${counts.research_needed ?? 0}`,
+    `- evidence_needed: ${counts.evidence_needed ?? 0}`,
     `- evidence_attached: ${counts.evidence_attached ?? 0}`,
     `- convergence_check: ${run.convergence_check.status}`,
     "",

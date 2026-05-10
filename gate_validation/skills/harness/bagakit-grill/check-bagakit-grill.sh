@@ -31,24 +31,30 @@ done
 
 bash "$cli" init --root "$tmp" --run-id demo --target "Implement bagakit-grill as a compact L1 questioning skill" --target-ref "skills/harness/bagakit-grill/SKILL.md"
 test -f "$tmp/.bagakit/grill/runs/demo/consensus-ledger.json"
-if bash "$cli" plan --root "$tmp" --run demo --node bad001 --question "Can Grill ask without options?" --decision "option surface" --recommended-answer "No." --rationale "Questions need an option surface." 2> "$tmp/missing-options.err"; then
+if bash "$cli" plan --root "$tmp" --run demo --node bad001 --question "Can Grill ask without options?" --decision "option surface" --route user_answer --recommended-resolution "No." --acceptance-criteria "The user confirms one visible option." --rationale "Questions need an option surface." 2> "$tmp/missing-options.err"; then
   printf 'plan unexpectedly accepted a question without options\n' >&2
   exit 1
 fi
 grep -q 'at least two --option values' "$tmp/missing-options.err"
-bash "$cli" plan --root "$tmp" --run demo --node q001 --question "Should the first implementation use a structured SSOT?" --option "Use grill-run.json as the only run truth." --option "Let grill-brief.md become editable run truth." --decision "runtime state boundary" --recommended-answer "Use grill-run.json as the only run truth." --rationale "The generated brief must not become a second source of truth." --risk "Manual markdown edits would drift from the DAG." --ledger-ref success_criteria
+bash "$cli" plan --root "$tmp" --run demo --node q001 --question "Should the first implementation use a structured SSOT?" --option "Use grill-run.json as the only run truth." --option "Let grill-brief.md become editable run truth." --decision "runtime state boundary" --route user_answer --recommended-resolution "Use grill-run.json as the only run truth." --acceptance-criteria "The user chooses or corrects the runtime truth boundary." --rationale "The generated brief must not become a second source of truth." --risk "Manual markdown edits would drift from the DAG." --ledger-ref success_criteria
 bash "$cli" next --root "$tmp" --run demo > "$tmp/next-q001.txt"
 grep -q '^next=q001$' "$tmp/next-q001.txt"
 bash "$cli" answer --root "$tmp" --run demo --node q001 --answer "Yes, use grill-run.json plus a read-only brief."
-bash "$cli" plan --root "$tmp" --run demo --node q002 --depends-on q001 --question "Should completion require a branch-width check after multi-round agreement?" --option "Record close/switch/correct before completing." --option "Complete automatically once all nodes are answered." --decision "convergence boundary" --recommended-answer "Yes, record close/switch/correct before completing." --rationale "Repeated agreement can hide a narrow question path." --risk "The run may complete while an adjacent branch remains untested." --ledger-ref convergence_conditions
+bash "$cli" plan --root "$tmp" --run demo --node q002 --depends-on q001 --question "Should completion require a branch-width check after multi-round agreement?" --option "Record close/switch/correct before completing." --option "Complete automatically once all nodes are answered." --decision "convergence boundary" --route user_answer --recommended-resolution "Yes, record close/switch/correct before completing." --acceptance-criteria "The user chooses the convergence boundary." --rationale "Repeated agreement can hide a narrow question path." --risk "The run may complete while an adjacent branch remains untested." --ledger-ref convergence_conditions
 bash "$cli" next --root "$tmp" --run demo > "$tmp/next-q002.txt"
 grep -q '^next=q002$' "$tmp/next-q002.txt"
 bash "$cli" answer --root "$tmp" --run demo --node q002 --answer "Yes, close only after checking adjacent branches."
-bash "$cli" plan --root "$tmp" --run demo --node r001 --kind research_needed --depends-on q002 --question "Which prior art should shape the next grill question?" --decision "question quality evidence" --recommended-answer "Run bagakit-researcher through selector composition." --rationale "Grill should identify research gaps without owning research execution." --risk "The next question may copy shallow prior art."
+bash "$cli" plan --root "$tmp" --run demo --node l001 --depends-on q002 --question "What does the local contract already prove?" --decision "local behavior evidence" --route local_inspection --recommended-resolution "Inspect the local contract and validation surfaces." --acceptance-criteria "A repo-relative contract or command result answers the node." --rationale "Local facts should not be delegated to the user." --ledger-ref evidence_gaps
+bash "$cli" attach-evidence --root "$tmp" --run demo --node l001 --evidence-ref "skills/harness/bagakit-grill/SKILL.md" --summary "The local skill contract owns decision routing."
+bash "$cli" plan --root "$tmp" --run demo --node r001 --depends-on q002 --question "Which prior art should shape the next grill question?" --decision "question quality evidence" --route external_research --recommended-resolution "Run bagakit-researcher through selector composition." --acceptance-criteria "Source-bound evidence identifies the relevant prior-art constraint." --rationale "Grill should identify research gaps without owning research execution." --risk "The next question may copy shallow prior art."
 bash "$cli" next --root "$tmp" --run demo > "$tmp/next-r001.txt"
 grep -q '^next=r001$' "$tmp/next-r001.txt"
-grep -q '^kind=research_needed$' "$tmp/next-r001.txt"
+grep -q '^resolution_route=external_research$' "$tmp/next-r001.txt"
 bash "$cli" attach-evidence --root "$tmp" --run demo --node r001 --evidence-ref ".bagakit/researcher/topics/frontier/grill/claims.md#c001" --summary "Prior art favors one question at a time with recommended answers."
+bash "$cli" plan --root "$tmp" --run demo --node p001 --depends-on q002 --question "Which interaction layout is usable in practice?" --decision "interaction fidelity" --route prototype_observation --recommended-resolution "Build a bounded prototype and collect observation evidence." --acceptance-criteria "A user-visible prototype is tried and the interaction trade-off is observed." --rationale "Dialogue alone cannot establish interaction feel."
+bash "$cli" attach-evidence --root "$tmp" --run demo --node p001 --evidence-ref ".bagakit/prototypes/grill-demo/report.md" --summary "The prototype trial exposed the preferred interaction flow."
+bash "$cli" plan --root "$tmp" --run demo --node x001 --depends-on q002 --question "Does the workflow behave correctly under execution?" --decision "runtime behavior" --route runtime_experiment --recommended-resolution "Run a bounded workflow experiment." --acceptance-criteria "Observed runtime behavior covers the protected success and failure paths." --rationale "Execution behavior cannot be confirmed from prose."
+bash "$cli" attach-evidence --root "$tmp" --run demo --node x001 --evidence-ref ".bagakit/experiments/grill-demo/result.json" --summary "The bounded run covered the expected behavior."
 bash "$cli" status --root "$tmp" --run demo --json > "$tmp/status-pending.json"
 bash "$cli" convergence-check --root "$tmp" --run demo --goal "Protect the skill's plan-questioning boundary." --signal "Two accepted answers left no current DAG branch open." --adjacent-branch "Whether the target model itself needs correction before closure." --decision close --note "User chose to close the current branch."
 bash "$cli" render --root "$tmp" --run demo
@@ -73,7 +79,7 @@ brief = brief_path.read_text()
 ledger_view = ledger_view_path.read_text()
 surface = surface_path.read_text()
 
-assert run["schema"] == "bagakit/grill-run/v1"
+assert run["schema"] == "bagakit/grill-run/v2"
 assert run["ledger_ref"] == ".bagakit/grill/runs/demo/consensus-ledger.json"
 assert ledger["schema"] == "bagakit/consensus-ledger/v1"
 assert ledger["owner"]["owner_skill"] == "bagakit-grill"
@@ -86,14 +92,30 @@ assert {item["epistemic_class"] for item in ledger["epistemic_items"]} == {
 }
 assert ledger["questions"][0]["id"] == "q001"
 assert ledger["questions"][0]["answer_ref"] == "grill-run.json#qa-001"
+assert len(ledger["evidence_requirements"]) == 6
+assert {item["evidence_kind"] for item in ledger["evidence_requirements"]} == {
+    "user_confirmation",
+    "local_artifact",
+    "source_evidence",
+    "prototype_observation",
+    "runtime_observation",
+}
+assert {item["status"] for item in ledger["evidence_requirements"]} == {"satisfied"}
 assert "Known unknown" in ledger_view
 assert "Unknown known" in ledger_view
 assert pending_status["status"] == "convergence_pending"
 assert run["status"] == "complete"
-assert len(run["question_nodes"]) == 3
+assert len(run["question_nodes"]) == 6
 assert run["question_nodes"][0]["status"] == "answered"
 assert run["question_nodes"][1]["status"] == "answered"
-assert run["question_nodes"][2]["status"] == "evidence_attached"
+assert {node["resolution_route"] for node in run["question_nodes"]} == {
+    "user_answer",
+    "local_inspection",
+    "external_research",
+    "prototype_observation",
+    "runtime_experiment",
+}
+assert all(node["status"] in {"answered", "evidence_attached"} for node in run["question_nodes"])
 assert len(run["question_nodes"][0]["options_considered"]) == 2
 assert run["question_nodes"][0]["ledger_refs"] == ["success_criteria"]
 assert len(run["qa_events"][0]["options_considered"]) == 2

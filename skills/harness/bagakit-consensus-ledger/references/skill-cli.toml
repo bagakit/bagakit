@@ -27,6 +27,14 @@ name = "add-question"
 summary = "Add or update one decision-changing question."
 
 [[command]]
+name = "add-evidence-requirement"
+summary = "Add or update one tool-neutral evidence requirement."
+
+[[command]]
+name = "satisfy-evidence"
+summary = "Attach evidence refs and mark one evidence requirement satisfied."
+
+[[command]]
 name = "snapshot"
 summary = "Record one candidate or accepted snapshot."
 

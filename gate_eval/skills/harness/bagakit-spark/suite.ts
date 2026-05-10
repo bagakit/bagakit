@@ -65,8 +65,8 @@ export const SUITE: EvalSuiteDefinition = {
     {
       id: "recommendation-keeps-option-surface",
       title: "Recommendation Keeps Option Surface",
-      summary: "Spark recommendation rules should preserve meaningful alternatives before naming a default.",
-      focus: ["question-quality", "option-surface", "stress-test"],
+      summary: "Spark recommendation rules should preserve meaningful alternatives and route non-conversational uncertainty to sufficient evidence.",
+      focus: ["question-quality", "option-surface", "stress-test", "evidence-routing", "prototype-observation"],
       run: (context): EvalCaseResult => {
         const skillRel = "skills/harness/bagakit-spark/SKILL.md";
         const questionRel = "skills/harness/bagakit-spark/references/question-quality.md";
@@ -83,6 +83,11 @@ export const SUITE: EvalSuiteDefinition = {
         assertIncludes(protocol, "Single-default branch questions are allowed only", "session protocol");
         assertIncludes(contract, "option-surface-preserves-meaningful-alternatives", "spark workflow contract");
         assertIncludes(contract, "option-surface", "spark workflow contract");
+        assertIncludes(skill, "prototype_observation", "spark skill");
+        assertIncludes(questionQuality, "Use the lowest-fidelity route that can produce sufficient evidence", "question quality");
+        assertIncludes(protocol, "Classify the resolution route", "session protocol");
+        assertIncludes(contract, "evidence-route-before-question", "spark workflow contract");
+        assertIncludes(contract, 'id = "resolution-route"', "spark workflow contract");
 
         return {
           assertions: [
@@ -90,6 +95,8 @@ export const SUITE: EvalSuiteDefinition = {
             "question-quality reference defines when single-default questions are allowed",
             "session protocol carries the option-surface rule into stress-test output shape",
             "workflow contract exposes option-surface as protected behavior",
+            "Spark classifies prototype and runtime evidence routes before asking the user",
+            "workflow contract exposes resolution routing as protected behavior",
           ],
           artifacts: [
             { label: "spark-skill", path: skillRel },

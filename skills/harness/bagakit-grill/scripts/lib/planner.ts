@@ -1,13 +1,13 @@
 import {
   CONVERGENCE_DECISIONS,
   GRILL_SCHEMA,
-  NODE_KINDS,
+  RESOLUTION_ROUTES,
   type ConvergenceCheck,
   type ConvergenceDecision,
   type EvidenceRef,
   type GrillNode,
   type GrillRun,
-  type NodeKind,
+  type ResolutionRoute,
   assertKnown,
   utcNow,
 } from "./model.ts";
@@ -79,8 +79,8 @@ export function refreshRun(run: GrillRun): GrillRun {
     const depsReady = node.depends_on.every((dep) => answered.has(dep));
     if (!depsReady) {
       node.status = "pending";
-    } else if (node.kind === "research_needed") {
-      node.status = "research_needed";
+    } else if (node.resolution_route !== "user_answer") {
+      node.status = "evidence_needed";
     } else {
       node.status = "ready";
     }
@@ -90,8 +90,8 @@ export function refreshRun(run: GrillRun): GrillRun {
   const hasMultiRoundAnswers = run.qa_events.length >= 2;
   const convergenceCoversCurrentAnswers = convergence.answer_count === run.qa_events.length;
 
-  if (run.question_nodes.some((node) => node.status === "research_needed")) {
-    run.status = "research_blocked";
+  if (run.question_nodes.some((node) => node.status === "evidence_needed")) {
+    run.status = "evidence_blocked";
   } else if (allNodesResolved && hasMultiRoundAnswers) {
     if (convergence.status === "resolved" && convergence.decision === "close" && convergenceCoversCurrentAnswers) {
       run.status = "complete";
@@ -119,31 +119,37 @@ export function refreshRun(run: GrillRun): GrillRun {
 
 export function upsertNode(run: GrillRun, input: {
   id: string;
-  kind: string;
+  resolutionRoute: string;
   question: string;
   options: string[];
   decision: string;
-  recommendedAnswer: string;
+  recommendedResolution: string;
+  acceptanceCriteria: string;
   rationale: string;
   risk: string;
   ledgerRefs: string[];
   dependsOn: string[];
 }): GrillRun {
   const now = utcNow();
-  const kind = assertKnown(NODE_KINDS, input.kind, "node kind") as NodeKind;
-  if (kind === "question" && input.options.length < 2) {
-    throw new Error("question nodes require at least two --option values");
+  const resolutionRoute = assertKnown(
+    RESOLUTION_ROUTES,
+    input.resolutionRoute,
+    "resolution route",
+  ) as ResolutionRoute;
+  if (resolutionRoute === "user_answer" && input.options.length < 2) {
+    throw new Error("user_answer nodes require at least two --option values");
   }
   const existing = run.question_nodes.find((node) => node.id === input.id);
   const base: GrillNode = existing ?? {
     id: input.id,
-    kind,
+    resolution_route: resolutionRoute,
     status: "pending",
     depends_on: [],
     question: "",
     options_considered: [],
     decision_protected: "",
-    recommended_answer: "",
+    recommended_resolution: "",
+    acceptance_criteria: "",
     rationale: "",
     risk_if_wrong: "",
     evidence_refs: [],
@@ -151,11 +157,12 @@ export function upsertNode(run: GrillRun, input: {
     created_at: now,
     updated_at: now,
   };
-  base.kind = kind;
+  base.resolution_route = resolutionRoute;
   base.question = input.question;
   base.options_considered = input.options;
   base.decision_protected = input.decision;
-  base.recommended_answer = input.recommendedAnswer;
+  base.recommended_resolution = input.recommendedResolution;
+  base.acceptance_criteria = input.acceptanceCriteria;
   base.rationale = input.rationale;
   base.risk_if_wrong = input.risk;
   base.ledger_refs = input.ledgerRefs;
@@ -170,7 +177,7 @@ export function upsertNode(run: GrillRun, input: {
 
 export function nextNode(run: GrillRun): GrillNode | undefined {
   return run.question_nodes.find((node) => node.status === "ready")
-    ?? run.question_nodes.find((node) => node.status === "research_needed");
+    ?? run.question_nodes.find((node) => node.status === "evidence_needed");
 }
 
 export function recordAnswer(run: GrillRun, nodeId: string, answer: string): GrillRun {
@@ -178,8 +185,8 @@ export function recordAnswer(run: GrillRun, nodeId: string, answer: string): Gri
   if (!node) {
     throw new Error(`unknown node: ${nodeId}`);
   }
-  if (node.kind !== "question") {
-    throw new Error(`cannot answer non-question node: ${nodeId}`);
+  if (node.resolution_route !== "user_answer") {
+    throw new Error(`cannot answer node with route ${node.resolution_route}: ${nodeId}`);
   }
   if (node.status !== "ready" && node.status !== "answered") {
     throw new Error(`node is not ready to answer: ${nodeId} (${node.status})`);
@@ -192,7 +199,7 @@ export function recordAnswer(run: GrillRun, nodeId: string, answer: string): Gri
     node_id: node.id,
     question: node.question,
     options_considered: node.options_considered,
-    recommended_answer: node.recommended_answer,
+    recommended_answer: node.recommended_resolution,
     raw_answer: answer,
     answered_at: now,
   });
@@ -204,8 +211,8 @@ export function attachEvidence(run: GrillRun, nodeId: string, evidence: Evidence
   if (!node) {
     throw new Error(`unknown node: ${nodeId}`);
   }
-  if (node.kind !== "research_needed") {
-    throw new Error(`cannot attach research evidence to non-research node: ${nodeId}`);
+  if (node.resolution_route === "user_answer") {
+    throw new Error(`cannot attach evidence to user_answer node: ${nodeId}`);
   }
   node.evidence_refs.push(evidence);
   node.status = "evidence_attached";

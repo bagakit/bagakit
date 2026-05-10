@@ -1,19 +1,25 @@
-export const GRILL_SCHEMA = "bagakit/grill-run/v1";
+export const GRILL_SCHEMA = "bagakit/grill-run/v2";
 
-export const NODE_KINDS = ["question", "research_needed"] as const;
+export const RESOLUTION_ROUTES = [
+  "user_answer",
+  "local_inspection",
+  "external_research",
+  "prototype_observation",
+  "runtime_experiment",
+] as const;
 export const NODE_STATUSES = [
   "pending",
   "ready",
   "answered",
-  "research_needed",
+  "evidence_needed",
   "evidence_attached",
   "skipped",
 ] as const;
-export const RUN_STATUSES = ["planning", "active", "research_blocked", "convergence_pending", "complete"] as const;
+export const RUN_STATUSES = ["planning", "active", "evidence_blocked", "convergence_pending", "complete"] as const;
 export const CONVERGENCE_STATUSES = ["not_needed", "pending", "resolved"] as const;
 export const CONVERGENCE_DECISIONS = ["close", "switch", "correct"] as const;
 
-export type NodeKind = (typeof NODE_KINDS)[number];
+export type ResolutionRoute = (typeof RESOLUTION_ROUTES)[number];
 export type NodeStatus = (typeof NODE_STATUSES)[number];
 export type RunStatus = (typeof RUN_STATUSES)[number];
 export type ConvergenceStatus = (typeof CONVERGENCE_STATUSES)[number];
@@ -27,13 +33,14 @@ export interface EvidenceRef {
 
 export interface GrillNode {
   id: string;
-  kind: NodeKind;
+  resolution_route: ResolutionRoute;
   status: NodeStatus;
   depends_on: string[];
   question: string;
   options_considered: string[];
   decision_protected: string;
-  recommended_answer: string;
+  recommended_resolution: string;
+  acceptance_criteria: string;
   rationale: string;
   risk_if_wrong: string;
   evidence_refs: EvidenceRef[];

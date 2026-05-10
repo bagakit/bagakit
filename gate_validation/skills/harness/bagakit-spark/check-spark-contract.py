@@ -20,6 +20,7 @@ REQUIRED_LOOP_RULE_IDS = {
     "option-surface-preserves-meaningful-alternatives",
     "stress-test-option-audit-before-recommendation",
     "ledger-first-before-question-or-snapshot",
+    "evidence-route-before-question",
 }
 
 REQUIRED_ARTIFACT_IDS = {
@@ -56,6 +57,7 @@ REQUIRED_OUTPUT_FIELD_IDS = {
     "next-question-or-action",
     "option-surface",
     "option-surface-audit",
+    "resolution-route",
 }
 
 

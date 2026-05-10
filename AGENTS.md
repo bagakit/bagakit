@@ -336,8 +336,8 @@ reporting, the response footer may use:
 </bagakit-rule>
 
 <bagakit-rule skill="bagakit-consensus-ledger">
-- Trigger: A task needs an explicit agent-user shared-understanding ledger: confirmed consensus, known unknowns, inferred-but-unconfirmed understanding, blind spots, goal dimensions, decision items, or promotion boundaries.
-- Do: Create or update an embedded ledger in the owner run/session directory when one exists, otherwise use the standalone fallback; keep epistemic class, status, provenance, dimensions, snapshots, and promotion state explicit.
+- Trigger: A task needs an explicit agent-user shared-understanding ledger: confirmed consensus, known unknowns, inferred-but-unconfirmed understanding, blind spots, goal dimensions, decision items, evidence requirements, or promotion boundaries.
+- Do: Create or update an embedded ledger in the owner run/session directory when one exists, otherwise use the standalone fallback; keep epistemic class, status, provenance, dimensions, tool-neutral evidence requirements, snapshots, and promotion state explicit without owning route execution.
 - See: `skills/harness/bagakit-consensus-ledger/SKILL.md`
 - Surface: `<owner-dir>/consensus-ledger.json or .bagakit/consensus-ledger/ledgers/<ledger-id>/ledger.json`
 - Fallback: For tiny one-turn tasks, a concise prose note may be enough; for durable shared knowledge use bagakit-living-knowledge after explicit promotion.
@@ -378,7 +378,7 @@ reporting, the response footer may use:
 
 <bagakit-rule skill="bagakit-grill">
 - Trigger: A concrete plan, design, goal snapshot, or implementation direction needs dependency-ordered grilling before execution.
-- Do: Create or resume a grill run, preserve the protected goal or principle, inspect local context before asking, ask one decision-bearing question at a time with options considered plus a recommended answer, and treat multi-round no-branch as convergence pressure before completion.
+- Do: Create or resume a grill run, preserve the protected goal or principle, classify each decision as user answer, local inspection, external research, prototype observation, or runtime experiment, ask only user-answer nodes with options plus a recommendation, attach evidence for other routes, and treat multi-round no-branch as convergence pressure before completion.
 - See: `skills/harness/bagakit-grill/SKILL.md`
 - Surface: `.bagakit/grill/runs/<run-id>/`
 - Fallback: If the target is too vague to grill, use `bagakit-spark` for early framing first.
@@ -424,7 +424,7 @@ reporting, the response footer may use:
 
 <bagakit-rule skill="bagakit-spark">
 - Trigger: The user wants a thinking partner, deep topic discussion, Socratic exploration, evidence-grounded conceptual exploration, or a discussion that should become an accepted snapshot, MVP eval, or thought experiment.
-- Do: Run the spark dialogue loop, ask only decision-changing questions, track research sufficiency, question inventory, feedback signals, and rationale, show option-surface audits before grill-like stress-test recommendations, and use brainstorm or researcher only when their owned artifacts are needed.
+- Do: Run the spark dialogue loop, classify the sufficient resolution route before asking, route local facts, research, prototype observations, and runtime experiments to evidence-producing actions, ask only decision-changing user-answer questions, track research sufficiency, question inventory, feedback signals, and rationale, and show option-surface audits before grill-like recommendations.
 - See: `skills/harness/bagakit-spark/SKILL.md`
 </bagakit-rule>
 

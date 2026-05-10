@@ -58,14 +58,14 @@ forbidden_paths = [
 [[suite]]
 id = "bagakit-grill-cli-smoke"
 owner = "skills/harness/bagakit-grill"
-description = "Run a deterministic grill lifecycle over option-surfaced questions, one research-needed node, and the convergence check."
+description = "Run a deterministic Grill lifecycle over option-surfaced user questions, five resolution routes, ledger evidence requirements, and the convergence check."
 default = true
 proof_mode = "runtime"
-protects = ["bagakit-grill structured SSOT lifecycle, generated brief projection, question option-surface behavior, research-needed handoff node behavior, and convergence-before-completion behavior"]
+protects = ["bagakit-grill structured SSOT lifecycle, generated brief projection, user-question option-surface behavior, local/research/prototype/runtime evidence routes, ledger requirement satisfaction, and convergence-before-completion behavior"]
 oracle = ["smoke script runs the skill-owned CLI in a temporary repo and inspects grill-run.json plus grill-brief.md"]
 exercised_surface = ["bagakit-grill CLI", ".bagakit/grill/runs/<run-id>/grill-run.json", ".bagakit/grill/runs/<run-id>/grill-brief.md"]
 proves = ["bagakit-grill-cli-smoke proves init, plan with options, next, answer, attach-evidence, convergence-check, render, and status update the structured run truth and generated summary view coherently."]
-does_not_prove = ["bagakit-grill-cli-smoke does not prove stochastic question quality, live research quality, or user acceptance."]
+does_not_prove = ["bagakit-grill-cli-smoke does not prove stochastic route judgment, live research or prototype quality, or user acceptance."]
 timeout_seconds = 120
 validation_class = "smoke"
 groups = ["skills", "harness", "grill", "smoke"]

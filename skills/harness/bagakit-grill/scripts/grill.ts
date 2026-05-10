@@ -2,7 +2,7 @@ import path from "node:path";
 import { parseArgs } from "node:util";
 
 import { briefPath, ensureGrillSurface, readRun, repoRelative, runPath, writeBrief, writeRun } from "./lib/io.ts";
-import { embeddedLedgerRef, ensureEmbeddedLedger, renderLedgerSummary, syncAnswerToLedger, syncQuestionToLedger } from "./lib/ledger.ts";
+import { embeddedLedgerRef, ensureEmbeddedLedger, renderLedgerSummary, syncAnswerToLedger, syncEvidenceToLedger, syncQuestionToLedger } from "./lib/ledger.ts";
 import { slugify, utcNow } from "./lib/model.ts";
 import { attachEvidence, createRun, nextNode, progressCounts, recordAnswer, recordConvergenceCheck, refreshRun, upsertNode } from "./lib/planner.ts";
 import { renderBrief } from "./lib/render.ts";
@@ -12,7 +12,7 @@ function printHelp(): void {
 
 Commands:
   init --root <repo-root> [--run-id <id>] --target <text> [--target-ref <ref>] [--ledger-ref <ref>] [--force]
-  plan --root <repo-root> --run <id> --node <id> --question <text> --decision <text> --recommended-answer <text> --rationale <text> [--risk <text>] [--kind <question|research_needed>] [--option <text> ...] [--depends-on <id> ...] [--ledger-ref <ref> ...]
+  plan --root <repo-root> --run <id> --node <id> --question <text> --decision <text> --route <user_answer|local_inspection|external_research|prototype_observation|runtime_experiment> --recommended-resolution <text> --acceptance-criteria <text> --rationale <text> [--risk <text>] [--option <text> ...] [--depends-on <id> ...] [--ledger-ref <ref> ...]
   next --root <repo-root> --run <id> [--json]
   answer --root <repo-root> --run <id> --node <id> --answer <text>
   attach-evidence --root <repo-root> --run <id> --node <id> --evidence-ref <ref> --summary <text>
@@ -89,10 +89,11 @@ function commandPlan(argv: string[]): number {
       ...commonOptions(),
       run: { type: "string" as const },
       node: { type: "string" as const },
-      kind: { type: "string" as const, default: "question" },
+      route: { type: "string" as const, default: "user_answer" },
       question: { type: "string" as const },
       decision: { type: "string" as const },
-      "recommended-answer": { type: "string" as const },
+      "recommended-resolution": { type: "string" as const },
+      "acceptance-criteria": { type: "string" as const },
       rationale: { type: "string" as const },
       risk: { type: "string" as const, default: "" },
       option: { type: "string" as const, multiple: true, default: [] },
@@ -107,11 +108,12 @@ function commandPlan(argv: string[]): number {
   const run = readRun(repoRoot, runId);
   const updated = upsertNode(run, {
     id: requireString(values.node, "--node"),
-    kind: requireString(values.kind, "--kind"),
+    resolutionRoute: requireString(values.route, "--route"),
     question: requireString(values.question, "--question"),
     options: values.option ?? [],
     decision: requireString(values.decision, "--decision"),
-    recommendedAnswer: requireString(values["recommended-answer"], "--recommended-answer"),
+    recommendedResolution: requireString(values["recommended-resolution"], "--recommended-resolution"),
+    acceptanceCriteria: requireString(values["acceptance-criteria"], "--acceptance-criteria"),
     rationale: requireString(values.rationale, "--rationale"),
     risk: values.risk ?? "",
     ledgerRefs: values["ledger-ref"] ?? [],
@@ -146,13 +148,14 @@ function commandNext(argv: string[]): number {
     console.log(JSON.stringify({ run_id: runId, status: run.status, next: node ?? null }, null, 2));
   } else if (node) {
     console.log(`next=${node.id}`);
-    console.log(`kind=${node.kind}`);
+    console.log(`resolution_route=${node.resolution_route}`);
     console.log(`status=${node.status}`);
     console.log(`question=${node.question}`);
     for (const option of node.options_considered) {
       console.log(`option=${option}`);
     }
-    console.log(`recommended_answer=${node.recommended_answer}`);
+    console.log(`recommended_resolution=${node.recommended_resolution}`);
+    console.log(`acceptance_criteria=${node.acceptance_criteria}`);
     if (node.risk_if_wrong) {
       console.log(`risk_if_wrong=${node.risk_if_wrong}`);
     }
@@ -211,6 +214,10 @@ function commandAttachEvidence(argv: string[]): number {
     attached_at: utcNow(),
   });
   writeRun(repoRoot, run);
+  const node = run.question_nodes.find((item) => item.id === values.node);
+  if (node) {
+    syncEvidenceToLedger(repoRoot, run, node);
+  }
   console.log(`ok: attached evidence to ${values.node}`);
   return 0;
 }

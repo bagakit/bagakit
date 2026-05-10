@@ -45,13 +45,13 @@ forbidden_paths = [
 [[suite]]
 id = "bagakit-spark-contract"
 owner = "skills/harness/bagakit-spark"
-description = "Require the structured spark dialogue, research, eval, and composition workflow contract."
+description = "Require the structured Spark dialogue, evidence-routing, research, eval, and composition workflow contract."
 default = true
 proof_mode = "structural"
-protects = ["spark structured dialogue loop, research decision SOP, MVP eval endpoint, composition boundaries, and required output fields"]
+protects = ["spark structured dialogue loop, sufficient resolution-route judgment, research decision SOP, MVP eval endpoint, composition boundaries, and required output fields"]
 oracle = ["contract checker parses workflow-contract.toml and verifies linked spark references and shipped skill instructions"]
 exercised_surface = ["skills/harness/bagakit-spark/references/workflow-contract.toml", "spark session protocol references", "bagakit-spark SKILL.md"]
-proves = ["bagakit-spark-contract proves: structured loop rules, artifacts, research decisions, composition boundaries, and output fields are schema-valid and linked from the shipped skill."]
+proves = ["bagakit-spark-contract proves: structured loop rules, evidence-route requirements, artifacts, research decisions, composition boundaries, and output fields are schema-valid and linked from the shipped skill."]
 does_not_prove = ["bagakit-spark-contract does not prove actual agent compliance, live discussion depth, brainstorm execution, researcher execution, or stochastic output quality."]
 timeout_seconds = 120
 validation_class = "contract"

@@ -23,6 +23,7 @@ This contract owns:
 - the embeddable ledger placement protocol
 - epistemic item classes and lifecycle statuses
 - goal-dimension and skill-lens semantics
+- generic evidence requirements and satisfaction state
 - promotion boundaries from working ledger to durable knowledge
 
 It does not own:
@@ -85,6 +86,9 @@ A ledger should contain these conceptual sections:
   - optional question/option/criteria/rationale records for decisions
 - `skill_lenses`
   - skill-specific mappings over the common dimensions
+- `evidence_requirements`
+  - tool-neutral statements of what evidence is needed, what would satisfy it,
+    and whether it has been satisfied
 - `evidence_refs`
   - pointers to user answers, artifacts, source summaries, or tool output
 - `snapshots`
@@ -184,6 +188,26 @@ Lens rule:
 - a lens should point back to shared dimensions and items instead of copying
   understanding into a separate local format
 
+## Evidence Requirement Boundary
+
+The ledger owns the declarative requirement, not the route that produces it.
+
+Common evidence kinds are:
+
+- `user_confirmation`
+- `local_artifact`
+- `source_evidence`
+- `prototype_observation`
+- `runtime_observation`
+
+Each requirement should preserve its subject, acceptance criteria, lifecycle
+status, linked dimensions, and evidence refs. Owner workflows may map these
+kinds to their own resolution routes, but the ledger must not invoke research,
+prototype, implementation, validation, or other tools.
+
+This keeps the ledger reusable outside Spark and Grill while still letting
+both skills share one explicit evidence-sufficiency model.
+
 ## Decision Items
 
 For decision-bearing questions, use a compact rationale shape inspired by
@@ -219,6 +243,8 @@ Grill should use the ledger to:
 - map question nodes to target dimensions
 - record which gaps each question closes or defers
 - support branch-width and convergence checks
+- record the evidence requirement behind each non-conversational resolution
+  route and mark it satisfied when evidence returns
 
 Grill should keep its own files for the question DAG, answer events, lifecycle
 status, and generated brief.

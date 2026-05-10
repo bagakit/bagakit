@@ -5,10 +5,11 @@
 It keeps one compact runtime loop:
 
 1. initialize a grill run from a concrete target
-2. add a dependency-ordered question DAG
-3. ask one ready question at a time with options considered plus a recommendation
-4. record raw answers in the structured run truth
-5. attach research evidence when a question needs background grounding
+2. add a dependency-ordered decision DAG
+3. classify each node as user answer, local inspection, external research,
+   prototype observation, or runtime experiment
+4. ask only user-answer nodes, one at a time, with options and a recommendation
+5. attach evidence for every non-conversational route
 6. record the close/switch/correct convergence check when multi-round answers
    leave no active branch
 7. render a short read-only brief for human review

@@ -26,6 +26,8 @@ standalone="$tmp/.bagakit/consensus-ledger/ledgers/demo/ledger.json"
 bash "$cli" add-dimension --root "$tmp" --ledger .bagakit/consensus-ledger/ledgers/demo/ledger.json --dimension-id success --name "Success Criteria" --why "The task cannot close without a success bar" --current-state partial --risk "False completion" --next-probe "Ask for success boundary"
 bash "$cli" add-item --root "$tmp" --ledger .bagakit/consensus-ledger/ledgers/demo/ledger.json --item-id i001 --epistemic-class known_unknown --status proposed --statement "Success criteria need confirmation" --source agent_inference --dimension success --confidence medium
 bash "$cli" add-question --root "$tmp" --ledger .bagakit/consensus-ledger/ledgers/demo/ledger.json --question-id q001 --question "Is this the success bar?" --dimension success --decision-protected "closure boundary"
+bash "$cli" add-evidence-requirement --root "$tmp" --ledger .bagakit/consensus-ledger/ledgers/demo/ledger.json --requirement-id er001 --subject-ref question:q001 --evidence-kind user_confirmation --acceptance-criteria "The user confirms or corrects the proposed success bar" --dimension success
+bash "$cli" satisfy-evidence --root "$tmp" --ledger .bagakit/consensus-ledger/ledgers/demo/ledger.json --requirement-id er001 --evidence-ref conversation#answer-q001 --note "User confirmed the success boundary."
 bash "$cli" snapshot --root "$tmp" --ledger .bagakit/consensus-ledger/ledgers/demo/ledger.json --snapshot-id s001 --title "Candidate Consensus" --summary "The success bar is ready for confirmation." --status candidate
 bash "$cli" render --root "$tmp" --ledger .bagakit/consensus-ledger/ledgers/demo/ledger.json
 bash "$cli" validate --root "$tmp" --ledger .bagakit/consensus-ledger/ledgers/demo/ledger.json
@@ -52,11 +54,15 @@ assert standalone["owner"]["mode"] == "standalone"
 assert standalone["status"] == "snapshot_ready"
 assert standalone["goal_dimensions"][0]["item_refs"] == ["i001"]
 assert standalone["questions"][0]["id"] == "q001"
+assert standalone["evidence_requirements"][0]["evidence_kind"] == "user_confirmation"
+assert standalone["evidence_requirements"][0]["status"] == "satisfied"
+assert standalone["evidence_requirements"][0]["evidence_refs"] == ["conversation#answer-q001"]
 assert "Consensus Ledger" in view
 assert "Known known" in view
 assert "Known unknown" in view
 assert "Unknown known" in view
 assert "Unknown unknown" in view
+assert "Evidence Requirements" in view
 assert 'owner_id = "bagakit-consensus-ledger"' in surface
 assert embedded["owner"]["mode"] == "embedded"
 assert embedded["owner"]["owner_skill"] == "bagakit-grill"

@@ -41,6 +41,8 @@ Top-level fields:
 - `questions`: decision-changing questions
 - `decision_items`: optional rationale records
 - `skill_lenses`: Spark, Grill, or other skill mappings
+- `evidence_requirements`: tool-neutral descriptions of evidence still needed
+  to resolve an item, question, or decision
 - `evidence_refs`: reusable refs
 - `snapshots`: candidate or accepted handoff summaries
 - `promotion_state`: promotion target, status, and refs
@@ -138,6 +140,28 @@ Use `decision_items` when a question has an option surface:
 - status
 
 Minor clarifications can stay as simple items or answer evidence.
+
+## Evidence Requirements
+
+Use an evidence requirement when the current ledger can name the gap but does
+not yet contain enough evidence to resolve it.
+
+Each requirement records:
+
+- `id`
+- `subject_ref`: the item, question, decision, or dimension being protected
+- `evidence_kind`: `user_confirmation`, `local_artifact`, `source_evidence`,
+  `prototype_observation`, or `runtime_observation`
+- `status`: `proposed`, `required`, `satisfied`, `waived`, or `superseded`
+- `acceptance_criteria`: what would make the evidence sufficient
+- `dimension_refs`
+- `evidence_refs`
+- `note`
+
+Evidence requirements are declarative. They do not name the skill, tool,
+session, or command that must produce the evidence. Spark, Grill, or another
+owner workflow chooses the resolution route and returns evidence refs to the
+ledger.
 
 ## Promotion
 

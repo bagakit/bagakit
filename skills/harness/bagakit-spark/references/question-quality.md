@@ -11,14 +11,16 @@ Before asking, answer these privately:
 3. If this is a challenge, is it challenging the path or the goal itself?
 4. Why is the user the best source?
 5. What changes if the answer is one way versus another?
-6. Can local context or researcher evidence answer this instead?
+6. Which resolution route is sufficient: `user_answer`, `local_inspection`,
+   `external_research`, `prototype_observation`, or `runtime_experiment`?
 7. Has the current discussion group passed a reviewable "should we research
    this?" judgment?
 8. If a new idea appeared, could background disciplines, best practices, prior
    art, frontier comparisons, or failure patterns change this question?
 9. Is this the smallest question that unlocks the next step?
-10. Can local code, project documents, brainstorm state, or existing researcher
-    evidence answer this with enough confidence for the current decision?
+10. Can local code, project documents, brainstorm state, existing researcher
+    evidence, a bounded prototype, or a runtime experiment answer this with
+    enough confidence for the current decision?
 11. If asking the user to choose or stress-test a branch, what visible option
     set should Spark offer before the recommended default?
 12. If Spark is offering only one default, which alternative was rejected or
@@ -28,6 +30,27 @@ Before asking, answer these privately:
 15. Is this hard enough that it should be asked alone?
 
 Ask only if the answers are concrete.
+
+## Resolution Route Gate
+
+Use the lowest-fidelity route that can produce sufficient evidence, not the
+lowest-effort route.
+
+- `user_answer`: goals, preferences, trade-offs, authorization, or final human
+  judgment
+- `local_inspection`: repository facts, documents, artifacts, or current tool
+  state
+- `external_research`: source-bound facts, prior art, comparisons, or frontier
+  evidence
+- `prototype_observation`: visual, interaction, comprehension, workflow, or
+  experiential questions that require seeing or trying something
+- `runtime_experiment`: behavior, performance, integration, or operational
+  questions that require execution
+
+If the route is not `user_answer`, do not format the node as a question for the
+user. Record the evidence requirement when a consensus ledger is active, run or
+handoff the bounded evidence-producing action, and return with observations.
+Independent branches may continue while that evidence is pending.
 
 ## Question Ladder
 
@@ -146,6 +169,11 @@ evidence can answer a question with enough confidence, do that work before
 asking the user. Then present the inferred answer and ask only for the
 remaining judgment, correction, or trade-off.
 
+When visual or interaction fidelity can change the answer, build or request a
+bounded prototype and ask the user to judge the observed artifact, not an
+imagined description. When execution behavior can change the answer, run a
+bounded experiment first.
+
 If the question asks the user to choose among options, include the evidence or
 reason each option exists, the main risk, and a recommended default. A question
 that only names labels without context is not answerable enough.
@@ -235,6 +263,8 @@ surface instruction.
   audit
 - asking the user to answer questions that local code, project documents,
   brainstorm state, or existing researcher evidence can answer well enough
+- asking the user to imagine an interaction, visual result, or runtime behavior
+  that needs prototype or execution evidence
 - stress-testing a plan through a broad interview batch instead of resolving
   dependency-bearing branches one at a time
 - challenging with intensity that does not protect a decision or shared

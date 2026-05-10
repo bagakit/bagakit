@@ -23,6 +23,14 @@ SOURCES = {"user", "agent_inference", "source_evidence", "tool_observation", "ar
 CONFIDENCE = {"high", "medium", "low", "unknown"}
 LEDGER_STATUSES = {"active", "snapshot_ready", "promoted", "archived"}
 SNAPSHOT_STATUSES = {"candidate", "accepted", "corrected", "rejected", "superseded"}
+EVIDENCE_KINDS = {
+    "user_confirmation",
+    "local_artifact",
+    "source_evidence",
+    "prototype_observation",
+    "runtime_observation",
+}
+EVIDENCE_REQUIREMENT_STATUSES = {"proposed", "required", "satisfied", "waived", "superseded"}
 
 
 def now() -> str:
@@ -132,6 +140,7 @@ def command_init(args: argparse.Namespace) -> int:
         "questions": [],
         "decision_items": [],
         "skill_lenses": [],
+        "evidence_requirements": [],
         "evidence_refs": [],
         "snapshots": [],
         "promotion_state": {"status": "none", "target": "none", "refs": []},
@@ -245,6 +254,62 @@ def command_add_question(args: argparse.Namespace) -> int:
     return 0
 
 
+def command_add_evidence_requirement(args: argparse.Namespace) -> int:
+    root = Path(args.root).resolve()
+    path = resolve_ledger_path(args)
+    if args.evidence_kind not in EVIDENCE_KINDS:
+        raise SystemExit(f"invalid evidence kind: {args.evidence_kind}")
+    if args.status not in EVIDENCE_REQUIREMENT_STATUSES:
+        raise SystemExit(f"invalid evidence requirement status: {args.status}")
+    data = read_ledger(path)
+    requirements = data.setdefault("evidence_requirements", [])
+    requirement = find_or_create(
+        requirements,
+        args.requirement_id,
+        {"id": args.requirement_id, "created_at": now()},
+    )
+    requirement.update(
+        {
+            "subject_ref": args.subject_ref,
+            "evidence_kind": args.evidence_kind,
+            "status": args.status,
+            "acceptance_criteria": args.acceptance_criteria,
+            "dimension_refs": split_values(args.dimension),
+            "evidence_refs": split_values(args.evidence_ref),
+            "note": args.note,
+            "updated_at": now(),
+        }
+    )
+    write_ledger(path, data)
+    print(f"ok: evidence requirement {args.requirement_id} in {repo_rel(root, path)}")
+    return 0
+
+
+def command_satisfy_evidence(args: argparse.Namespace) -> int:
+    root = Path(args.root).resolve()
+    path = resolve_ledger_path(args)
+    data = read_ledger(path)
+    requirement = next(
+        (item for item in data.setdefault("evidence_requirements", []) if item.get("id") == args.requirement_id),
+        None,
+    )
+    if requirement is None:
+        raise SystemExit(f"unknown evidence requirement: {args.requirement_id}")
+    refs = requirement.setdefault("evidence_refs", [])
+    for ref in split_values(args.evidence_ref):
+        if ref not in refs:
+            refs.append(ref)
+    if not refs:
+        raise SystemExit("satisfy-evidence requires at least one --evidence-ref")
+    requirement["status"] = "satisfied"
+    if args.note:
+        requirement["note"] = args.note
+    requirement["updated_at"] = now()
+    write_ledger(path, data)
+    print(f"ok: satisfied evidence requirement {args.requirement_id} in {repo_rel(root, path)}")
+    return 0
+
+
 def command_snapshot(args: argparse.Namespace) -> int:
     root = Path(args.root).resolve()
     path = resolve_ledger_path(args)
@@ -336,6 +401,17 @@ def render_markdown(data: dict) -> str:
         lines.append(f"- `{question.get('id', '')}` {question.get('status', '')}: {question.get('question', '')}")
     if not data.get("questions"):
         lines.append("- none")
+    lines.extend(["", "## Evidence Requirements", ""])
+    for requirement in data.get("evidence_requirements", []):
+        lines.extend(
+            [
+                f"- `{requirement.get('id', '')}` {requirement.get('evidence_kind', '')}/{requirement.get('status', '')}: {requirement.get('subject_ref', '')}",
+                f"  - acceptance: {requirement.get('acceptance_criteria', '')}",
+                f"  - evidence: {', '.join(requirement.get('evidence_refs', [])) or 'none'}",
+            ]
+        )
+    if not data.get("evidence_requirements"):
+        lines.append("- none")
     lines.extend(["", "## Snapshots", ""])
     for snap in data.get("snapshots", []):
         lines.append(f"- `{snap.get('id', '')}` {snap.get('status', '')}: {snap.get('title', '')}")
@@ -375,6 +451,21 @@ def validate_data(data: dict) -> list[str]:
                 errors.append(f"{item.get('id')}: unknown dimension ref {dim}")
         if item.get("status") in {"inferred", "contested", "promoted"} and not item.get("evidence_refs"):
             errors.append(f"{item.get('id')}: {item.get('status')} item needs evidence_refs")
+    for requirement in data.get("evidence_requirements", []):
+        requirement_id = requirement.get("id")
+        if requirement.get("evidence_kind") not in EVIDENCE_KINDS:
+            errors.append(f"{requirement_id}: invalid evidence kind")
+        if requirement.get("status") not in EVIDENCE_REQUIREMENT_STATUSES:
+            errors.append(f"{requirement_id}: invalid evidence requirement status")
+        if not requirement.get("subject_ref"):
+            errors.append(f"{requirement_id}: missing subject_ref")
+        if not requirement.get("acceptance_criteria"):
+            errors.append(f"{requirement_id}: missing acceptance_criteria")
+        for dim in requirement.get("dimension_refs", []):
+            if dim not in dim_ids:
+                errors.append(f"{requirement_id}: unknown dimension ref {dim}")
+        if requirement.get("status") == "satisfied" and not requirement.get("evidence_refs"):
+            errors.append(f"{requirement_id}: satisfied requirement needs evidence_refs")
     return errors
 
 
@@ -398,6 +489,7 @@ def command_status(args: argparse.Namespace) -> int:
     print(f"dimensions={len(data.get('goal_dimensions', []))}")
     print(f"items={len(data.get('epistemic_items', []))}")
     print(f"questions={len(data.get('questions', []))}")
+    print(f"evidence_requirements={len(data.get('evidence_requirements', []))}")
     print(f"snapshots={len(data.get('snapshots', []))}")
     return 0
 
@@ -454,6 +546,25 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--decision-protected", default="")
     p.add_argument("--answer-ref", default="")
     p.set_defaults(func=command_add_question)
+
+    p = sub.add_parser("add-evidence-requirement")
+    common(p)
+    p.add_argument("--requirement-id", required=True)
+    p.add_argument("--subject-ref", required=True)
+    p.add_argument("--evidence-kind", required=True)
+    p.add_argument("--status", default="required")
+    p.add_argument("--acceptance-criteria", required=True)
+    p.add_argument("--dimension", action="append", default=[])
+    p.add_argument("--evidence-ref", action="append", default=[])
+    p.add_argument("--note", default="")
+    p.set_defaults(func=command_add_evidence_requirement)
+
+    p = sub.add_parser("satisfy-evidence")
+    common(p)
+    p.add_argument("--requirement-id", required=True)
+    p.add_argument("--evidence-ref", action="append", default=[])
+    p.add_argument("--note", default="")
+    p.set_defaults(func=command_satisfy_evidence)
 
     p = sub.add_parser("snapshot")
     common(p)

@@ -7,13 +7,16 @@ runtime ownership.
 
 | Surface | Owner | Spark Use |
 | --- | --- | --- |
-| `<spark-session>/consensus-ledger.json` or `.bagakit/consensus-ledger/` | `bagakit-consensus-ledger` | shared-understanding state, epistemic item status, dimensions, snapshot basis |
+| `<spark-session>/consensus-ledger.json` or `.bagakit/consensus-ledger/` | `bagakit-consensus-ledger` | shared-understanding state, epistemic item status, dimensions, tool-neutral evidence requirements, snapshot basis |
 | `.bagakit/brainstorm/` | `bagakit-brainstorm` | durable discussion records, option analysis, forum, handoff |
 | `.bagakit/researcher/` | `bagakit-researcher` | source cards, summaries, claims, insights, leads, wiki |
 | `.bagakit/spark/` | `bagakit-spark` | session state, phase labels, publish consensus snapshots |
 | `.bagakit/skill-selector/` | `bagakit-skill-selector` | explicit composition planning and usage evidence |
 
 Spark may cite these surfaces. It should not redefine their schemas.
+Spark chooses the resolution route and interprets returned evidence. The ledger
+records what evidence is required and whether it is satisfied; it does not
+select or invoke the producer.
 
 ## Composition Triggers
 
@@ -90,6 +93,7 @@ If a peer skill is unavailable:
 
 - treating spark as the owner of brainstorm raw logs
 - treating spark as the owner of consensus-ledger schema or status vocabulary
+- making consensus-ledger choose or execute Spark resolution routes
 - treating spark as the owner of researcher source cards
 - copying consensus snapshots into feature text where later updates can drift
 - promoting researcher evidence into shared knowledge without an explicit outer

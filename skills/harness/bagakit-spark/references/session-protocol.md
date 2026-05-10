@@ -103,12 +103,17 @@ full consensus snapshot or ledger into the feature description.
    - open or update researcher
    - run a small MVP experiment or thought experiment
    - synthesize
-7. If asking, pass the question quality gate first and show the compact ledger
+7. Classify the resolution route as `user_answer`, `local_inspection`,
+   `external_research`, `prototype_observation`, or `runtime_experiment`. If a
+   ledger is active, record the tool-neutral evidence requirement before the
+   action.
+8. If asking, pass the question quality gate first and show the compact ledger
    excerpt when a ledger is active.
-8. If challenging, first show the current model that makes the challenge fair.
-9. If researching, state what claim or branch needs evidence.
-10. After the action, update the visible state and ledger excerpt.
-11. Stop when the next move is clear enough for the user to accept, reject, or
+9. If challenging, first show the current model that makes the challenge fair.
+10. If producing evidence, state what decision it protects and what acceptance
+    criteria make the evidence sufficient.
+11. After the action, update the visible state and ledger excerpt.
+12. Stop when the next move is clear enough for the user to accept, reject, or
    redirect.
 
 ## Ledger Excerpt Rule
@@ -148,6 +153,8 @@ Allowed exceptions:
 - local code, documents, brainstorm state, or researcher evidence fully answer
   the next question; in that case state the inferred answer and ask the next
   remaining decision question
+- prototype or runtime evidence is required; in that case suspend the branch,
+  produce the bounded evidence, and return with an observed question or result
 
 These exceptions allow execution before another Spark question. They do not
 allow a final Spark response with no question while the loop remains open. After
@@ -192,15 +199,18 @@ Procedure:
    and existing researcher evidence before asking the user a question.
 4. If local context answers a branch with enough confidence, record the
    inferred answer and move to the next unresolved branch.
-5. Ask one hard dependency-bearing branch question at a time.
-6. For each such question, include:
+5. If a branch requires external research, prototype observation, or runtime
+   execution, record and run that evidence route instead of asking the user to
+   answer from imagination.
+6. Ask one hard dependency-bearing `user_answer` branch question at a time.
+7. For each such question, include:
    - the branch being protected
    - a compact option set when unresolved alternatives remain meaningful
    - Spark's recommended default
    - rationale and evidence for the visible options
    - risk if the recommendation is wrong
    - what changes after the user confirms, rejects, or modifies it
-7. Stop the stress-test only through the normal Spark convergence and snapshot
+8. Stop the stress-test only through the normal Spark convergence and snapshot
    rules.
 
 Single-default branch questions are allowed only for confirm/reject checks,

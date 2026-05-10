@@ -14,6 +14,20 @@ interface LedgerQuestion {
   dimension_refs: string[];
   decision_protected: string;
   answer_ref: string;
+  evidence_requirement_refs: string[];
+  created_at: string;
+  updated_at: string;
+}
+
+interface EvidenceRequirement {
+  id: string;
+  subject_ref: string;
+  evidence_kind: string;
+  status: string;
+  acceptance_criteria: string;
+  dimension_refs: string[];
+  evidence_refs: string[];
+  note: string;
   created_at: string;
   updated_at: string;
 }
@@ -39,6 +53,7 @@ interface ConsensusLedger {
   questions: LedgerQuestion[];
   decision_items: Array<Record<string, unknown>>;
   skill_lenses: Array<Record<string, unknown>>;
+  evidence_requirements: EvidenceRequirement[];
   evidence_refs: Array<Record<string, unknown>>;
   snapshots: Array<Record<string, unknown>>;
   promotion_state: { status: string; target: string; refs: string[] };
@@ -72,6 +87,21 @@ function dimension(id: string, name: string, why: string, now: string): Record<s
     created_at: now,
     updated_at: now,
   };
+}
+
+function evidenceRequirementId(nodeId: string): string {
+  return `evidence-${nodeId}`;
+}
+
+function evidenceKind(node: GrillNode): string {
+  const kinds: Record<GrillNode["resolution_route"], string> = {
+    user_answer: "user_confirmation",
+    local_inspection: "local_artifact",
+    external_research: "source_evidence",
+    prototype_observation: "prototype_observation",
+    runtime_experiment: "runtime_observation",
+  };
+  return kinds[node.resolution_route];
 }
 
 export function ensureEmbeddedLedger(repoRoot: string, run: GrillRun, force = false): void {
@@ -125,7 +155,7 @@ export function ensureEmbeddedLedger(repoRoot: string, run: GrillRun, force = fa
     id: "skipped-branch-risk",
     epistemic_class: "unknown_unknown",
     status: "proposed",
-    statement: "There may be an adjacent risk branch not yet represented in the question DAG.",
+    statement: "There may be an adjacent risk branch not yet represented in the decision DAG.",
     source: "agent_inference",
     confidence: "low",
     dimension_refs: ["risk_branches"],
@@ -156,7 +186,7 @@ export function ensureEmbeddedLedger(repoRoot: string, run: GrillRun, force = fa
       dimension("success_criteria", "Success Criteria", "Completion needs a shared success bar.", now),
       dimension("dependency_chain", "Dependency Chain", "Questions should resolve upstream dependencies first.", now),
       dimension("risk_branches", "Risk Branches", "Skipped branches can create false convergence.", now),
-      dimension("evidence_gaps", "Evidence Gaps", "Research-needed nodes must stay visible.", now),
+      dimension("evidence_gaps", "Evidence Gaps", "Unresolved evidence requirements must stay visible.", now),
       dimension("convergence_conditions", "Convergence Conditions", "Multi-round no-branch still needs close/switch/correct.", now),
     ],
     questions: [],
@@ -174,6 +204,7 @@ export function ensureEmbeddedLedger(repoRoot: string, run: GrillRun, force = fa
         ],
       },
     ],
+    evidence_requirements: [],
     evidence_refs: run.target_ref ? [{ id: "target-ref", ref: run.target_ref, summary: "Grill target reference." }] : [],
     snapshots: [],
     promotion_state: { status: "none", target: "none", refs: [] },
@@ -236,6 +267,7 @@ export function syncQuestionToLedger(repoRoot: string, run: GrillRun, node: Gril
     dimension_refs: [],
     decision_protected: "",
     answer_ref: "",
+    evidence_requirement_refs: [],
     created_at: now,
     updated_at: now,
   };
@@ -243,11 +275,37 @@ export function syncQuestionToLedger(repoRoot: string, run: GrillRun, node: Gril
   question.status = node.status === "answered" ? "answered" : node.status;
   question.dimension_refs = node.ledger_refs;
   question.decision_protected = node.decision_protected;
+  question.evidence_requirement_refs = [evidenceRequirementId(node.id)];
   question.updated_at = now;
   if (!existing) {
     data.questions.push(question);
   }
   linkQuestionToDimensions(data, node.id, node.ledger_refs);
+  const requirements = data.evidence_requirements ?? (data.evidence_requirements = []);
+  const requirementId = evidenceRequirementId(node.id);
+  const existingRequirement = requirements.find((item) => item.id === requirementId);
+  const requirement: EvidenceRequirement = existingRequirement ?? {
+    id: requirementId,
+    subject_ref: `question:${node.id}`,
+    evidence_kind: evidenceKind(node),
+    status: "required",
+    acceptance_criteria: node.acceptance_criteria,
+    dimension_refs: node.ledger_refs,
+    evidence_refs: [],
+    note: "",
+    created_at: now,
+    updated_at: now,
+  };
+  requirement.subject_ref = `question:${node.id}`;
+  requirement.evidence_kind = evidenceKind(node);
+  requirement.status = node.status === "answered" || node.status === "evidence_attached" ? "satisfied" : "required";
+  requirement.acceptance_criteria = node.acceptance_criteria;
+  requirement.dimension_refs = node.ledger_refs;
+  requirement.evidence_refs = node.evidence_refs.map((item) => item.ref);
+  requirement.updated_at = now;
+  if (!existingRequirement) {
+    requirements.push(requirement);
+  }
   writeLedger(repoRoot, run, data);
 }
 
@@ -262,11 +320,49 @@ export function syncAnswerToLedger(repoRoot: string, run: GrillRun, event: QAEve
     question.answer_ref = `grill-run.json#${event.event_id}`;
     question.updated_at = utcNow();
   }
+  const requirement = data.evidence_requirements?.find((item) => item.id === evidenceRequirementId(event.node_id));
+  if (requirement) {
+    requirement.status = "satisfied";
+    const ref = `grill-run.json#${event.event_id}`;
+    if (!requirement.evidence_refs.includes(ref)) {
+      requirement.evidence_refs.push(ref);
+    }
+    requirement.updated_at = utcNow();
+  }
   data.evidence_refs.push({
     id: event.event_id,
     ref: `grill-run.json#${event.event_id}`,
     summary: `User answered ${event.node_id}.`,
   });
+  writeLedger(repoRoot, run, data);
+}
+
+export function syncEvidenceToLedger(repoRoot: string, run: GrillRun, node: GrillNode): void {
+  const data = readLedger(repoRoot, run);
+  if (!data) {
+    return;
+  }
+  const now = utcNow();
+  const question = data.questions.find((item) => item.id === node.id);
+  if (question) {
+    question.status = "evidence_attached";
+    question.updated_at = now;
+  }
+  const requirement = data.evidence_requirements?.find((item) => item.id === evidenceRequirementId(node.id));
+  if (requirement) {
+    requirement.status = "satisfied";
+    requirement.evidence_refs = node.evidence_refs.map((item) => item.ref);
+    requirement.updated_at = now;
+  }
+  for (const evidence of node.evidence_refs) {
+    if (!data.evidence_refs.some((item) => item.id === `${node.id}:${evidence.ref}`)) {
+      data.evidence_refs.push({
+        id: `${node.id}:${evidence.ref}`,
+        ref: evidence.ref,
+        summary: evidence.summary,
+      });
+    }
+  }
   writeLedger(repoRoot, run, data);
 }
 
@@ -307,6 +403,16 @@ export function renderLedgerSummary(repoRoot: string, run: GrillRun): void {
   } else {
     for (const question of data.questions) {
       lines.push(`- \`${question.id}\` ${question.status}: ${question.question}`);
+    }
+  }
+  lines.push("", "## Evidence Requirements", "");
+  if (!data.evidence_requirements || data.evidence_requirements.length === 0) {
+    lines.push("- none");
+  } else {
+    for (const requirement of data.evidence_requirements) {
+      lines.push(
+        `- \`${requirement.id}\` kind=${requirement.evidence_kind} status=${requirement.status}: ${requirement.acceptance_criteria}`,
+      );
     }
   }
   data.render.last_rendered_at = utcNow();
