@@ -242,6 +242,50 @@ function plannedPassArgs(tempRepo: string, topic: string): string[] {
   ];
 }
 
+function plannedSurveyArgs(tempRepo: string, topic: string): string[] {
+  return [
+    "plan-survey",
+    "--root",
+    tempRepo,
+    "--topic-class",
+    TOPIC_CLASS,
+    "--topic",
+    topic,
+    "--survey-id",
+    "survey-001",
+    "--charter-question",
+    "How should this topic preserve survey and pass planning?",
+    "--question",
+    "Where should this field be surveyed before broad search?",
+    "--why-needed",
+    "source classes and blind spots are unclear",
+    "--problem-dimension",
+    "source landscape",
+    "--known-known",
+    "the topic charter exists",
+    "--known-unknown",
+    "the best source classes are unclear",
+    "--unknown-known",
+    "rankings or curated lists may be useful",
+    "--unknown-unknown",
+    "the field may have hidden benchmark sources",
+    "--source-landscape",
+    "official docs, curated lists, benchmarks, indexes",
+    "--ranking-lead",
+    "field rankings or benchmark leaderboards",
+    "--quality-heuristic",
+    "prefer primary or owner-maintained sources",
+    "--seed-query",
+    "field survey best sources benchmark list",
+    "--stop-condition",
+    "enough routes exist to plan one bounded pass",
+    "--drift-check",
+    "survey still answers the charter question",
+    "--handoff-target",
+    "passes/pass-001.md",
+  ];
+}
+
 function addTrackArgs(tempRepo: string, topic: string): string[] {
   return [
     "add-track",
@@ -616,6 +660,136 @@ export const SUITE: EvalSuiteDefinition = {
             artifacts: expectedFiles.map((rel) => ({ label: rel, path: path.join(workspace, rel) })),
             outputs: {
               listed_tracks: listTracks.stdout.trim().split("\n"),
+            },
+            replacements: fixture.replacements,
+          };
+        } finally {
+          cleanupTempDir(fixture.tempRepo, context.keepTemp);
+        }
+      },
+    },
+    {
+      id: "survey-packet-captures-pre-retrieval-map",
+      title: "Survey Packet Captures Pre Retrieval Map",
+      summary: "plan-survey should create a survey packet with question decomposition, four-quadrant uncertainty, source-landscape, ranking, quality, stop, and handoff fields.",
+      focus: ["survey-planning", "source-landscape", "pre-retrieval-drift"],
+      run: (context): EvalCaseResult => {
+        const { repoRoot } = context;
+        const fixture = withFixture(context);
+        const topic = "survey-map";
+        try {
+          initTopic(fixture, repoRoot, topic, "Survey Map");
+
+          const surveyArgs = plannedSurveyArgs(fixture.tempRepo, topic);
+          expectOk(runResearcher(fixture, surveyArgs, repoRoot), "plan-survey");
+
+          const refreshArgs = [
+            "refresh-index",
+            "--root",
+            fixture.tempRepo,
+            "--topic-class",
+            TOPIC_CLASS,
+            "--topic",
+            topic,
+            "--title",
+            "Survey Map",
+          ];
+          expectOk(runResearcher(fixture, refreshArgs, repoRoot), "refresh-index");
+
+          const qualityArgs = [
+            "doctor",
+            "--root",
+            fixture.tempRepo,
+            "--topic-class",
+            TOPIC_CLASS,
+            "--topic",
+            topic,
+            "--quality",
+          ];
+          expectOk(runResearcher(fixture, qualityArgs, repoRoot), "doctor quality");
+
+          const workspace = topicRoot(fixture.tempRepo, topic);
+          const surveyPath = path.join(workspace, "surveys", "survey-001.md");
+          const indexPath = path.join(workspace, "index.md");
+          assert.ok(fs.existsSync(surveyPath), "expected survey packet to exist");
+          const surveyText = fs.readFileSync(surveyPath, "utf8");
+          const indexText = fs.readFileSync(indexPath, "utf8");
+          assert.ok(surveyText.includes("## Consensus Quadrant Map"));
+          assert.ok(surveyText.includes("### known_unknown"));
+          assert.ok(surveyText.includes("## Source Landscape"));
+          assert.ok(surveyText.includes("## Ranking And Seed List Strategy"));
+          assert.ok(surveyText.includes("## Source Quality Heuristics"));
+          assert.ok(surveyText.includes("## Stop Or Handback Conditions"));
+          assert.ok(indexText.includes("## Surveys"));
+          assert.ok(indexText.includes("surveys/survey-001.md"));
+
+          const incompleteSurveyArgs = [
+            "plan-survey",
+            "--root",
+            fixture.tempRepo,
+            "--topic-class",
+            TOPIC_CLASS,
+            "--topic",
+            topic,
+            "--survey-id",
+            "survey-missing-fields",
+            "--question",
+            "What should an incomplete survey warn about?",
+            "--why-needed",
+            "regression fixture",
+            "--problem-dimension",
+            "missing required fields",
+            "--known-known",
+            "some context exists",
+            "--known-unknown",
+            "one gap exists",
+            "--unknown-known",
+            "one inference exists",
+            "--source-landscape",
+            "official docs",
+            "--ranking-lead",
+            "ranked list",
+            "--quality-heuristic",
+            "prefer primary sources",
+            "--stop-condition",
+            "stop after warning fixture",
+            "--drift-check",
+            "stay on the warning fixture",
+            "--handoff-target",
+            "none",
+          ];
+          expectOk(runResearcher(fixture, incompleteSurveyArgs, repoRoot), "plan-survey incomplete");
+          expectOk(runResearcher(fixture, refreshArgs, repoRoot), "refresh-index after incomplete survey");
+          const incompleteQuality = runResearcher(fixture, qualityArgs, repoRoot);
+          expectWarnOk(incompleteQuality, "doctor quality incomplete survey", [
+            "unknown_unknown",
+            "retrieval plan sketch",
+          ]);
+
+          return {
+            assertions: [
+              "plan-survey creates a survey packet before broad retrieval",
+              "survey packet records four-quadrant uncertainty and source-landscape fields",
+              "refresh-index surfaces the survey packet in managed sections",
+              "doctor quality warns when unknown_unknown or retrieval plan sketch is missing",
+            ],
+            commands: [
+              commandLine(surveyArgs),
+              commandLine(refreshArgs),
+              commandLine(qualityArgs),
+              commandLine(incompleteSurveyArgs),
+            ],
+            artifacts: [
+              { label: "survey-packet", path: surveyPath },
+              { label: "topic-index", path: indexPath },
+            ],
+            outputs: {
+              survey_sections: [
+                "Consensus Quadrant Map",
+                "Source Landscape",
+                "Ranking And Seed List Strategy",
+                "Source Quality Heuristics",
+              ],
             },
             replacements: fixture.replacements,
           };

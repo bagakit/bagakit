@@ -1,6 +1,6 @@
 version = 1
 insert_target = "bagakit_footer"
-summary_line = "- Researcher: Topic=<topic-class/topic>; Evidence=<index + summaries + source refs>; Next=<one deterministic next action>"
+summary_line = "- Researcher: Topic=<topic-class/topic>; Evidence=<index + surveys/summaries/source refs>; Next=<one deterministic next action>"
 
 [[directive]]
 id = "EVIDENCE"

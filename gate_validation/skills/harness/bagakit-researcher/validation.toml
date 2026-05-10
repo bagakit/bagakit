@@ -54,13 +54,13 @@ forbidden_paths = [
 [[suite]]
 id = "bagakit-researcher-smoke"
 owner = "skills/harness/bagakit-researcher"
-description = "Run a minimal researcher lifecycle: initialize a topic, list it, and validate workspace shape."
+description = "Run a minimal researcher lifecycle: initialize a topic, plan a survey and pass, list it, and validate workspace shape."
 default = true
 proof_mode = "runtime"
-protects = ["researcher public operator lifecycle for topic creation, source cards, summaries, passes, tracks, claims, insights, leads, synthesis, wiki refresh, and leak hygiene"]
+protects = ["researcher public operator lifecycle for topic creation, survey packets, source cards, summaries, passes, tracks, claims, insights, leads, synthesis, wiki refresh, and leak hygiene"]
 oracle = ["smoke script drives the researcher CLI in temporary workspaces and checks generated topic files, doctor warnings, wiki indexes, and absence of local path leaks"]
 exercised_surface = ["bagakit-researcher.sh CLI", ".bagakit/researcher topic workspaces", "topic index/wiki files", "doctor output"]
-proves = ["bagakit-researcher-smoke proves: Run a minimal researcher lifecycle: initialize a topic, list it, and validate workspace shape."]
+proves = ["bagakit-researcher-smoke proves: Run a minimal researcher lifecycle across topic creation, survey packets, pass and track planning, source and summary capture, warning checks, wiki refresh, and handoff isolation."]
 does_not_prove = ["bagakit-researcher-smoke does not prove live service behavior, stochastic agent quality, or unrelated repository surfaces."]
 timeout_seconds = 300
 validation_class = "smoke"

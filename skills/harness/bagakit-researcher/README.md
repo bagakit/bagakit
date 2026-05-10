@@ -3,6 +3,7 @@
 Standalone local-first research workflow for repositories that need:
 
 - topic-scoped research workspaces
+- pre-retrieval survey packets
 - source cards
 - reusable summaries
 - topic indexes
@@ -29,6 +30,8 @@ Standalone local-first research workflow for repositories that need:
   - `originals/`
   - `summaries/`
   - `index.md`
+- optional pre-retrieval planning:
+  - `surveys/`
 - optional derived frontdoor:
   - `.bagakit/researcher/index.md`
   - `.bagakit/researcher/wiki/`
@@ -45,6 +48,27 @@ sh scripts/bagakit-researcher.sh init-topic \
   --topic-class frontier \
   --topic researcher-skill \
   --title "Researcher Skill"
+
+sh scripts/bagakit-researcher.sh plan-survey \
+  --root . \
+  --topic-class frontier \
+  --topic researcher-skill \
+  --survey-id survey-001 \
+  --charter-question "How should researcher support field survey before broad source collection?" \
+  --question "Where should this field be surveyed before broad search?" \
+  --why-needed "source classes and blind spots are unclear" \
+  --problem-dimension "source landscape" \
+  --known-known "the topic charter exists" \
+  --known-unknown "the best source classes are unclear" \
+  --unknown-known "rankings or curated lists may be useful" \
+  --unknown-unknown "the field may have hidden benchmark sources" \
+  --source-landscape "official docs, curated lists, benchmarks, indexes" \
+  --ranking-lead "field rankings or benchmark leaderboards" \
+  --quality-heuristic "prefer primary or owner-maintained sources" \
+  --seed-query "field survey best sources benchmark list" \
+  --stop-condition "enough routes exist to plan one bounded pass" \
+  --drift-check "survey still answers the charter question" \
+  --handoff-target "passes/pass-001.md"
 
 sh scripts/bagakit-researcher.sh add-source-card \
   --root . \
@@ -77,6 +101,8 @@ sh scripts/bagakit-researcher.sh doctor --root . --wiki
 
 - `bagakit-researcher` is the evidence-production surface, not the promotion surface.
 - `topics/` is the evidence source of truth; `wiki/` is a derived navigation layer.
+- `surveys/` is a pre-retrieval planning surface; it does not execute search,
+  call providers, or replace source cards, summaries, claims, and passes.
 - New research should read the wiki/frontdoor first when prior topics exist.
 - A loop that reads the wiki and changes topic evidence should refresh the
   relevant topic index, refresh the wiki, and run `doctor --wiki` before

@@ -1,6 +1,6 @@
 ---
 name: bagakit-researcher
-description: Use when a repository needs a standalone local-first research workflow with topic workspaces, charters, parallel research passes, source cards, summaries, claims, insights, leads, quality or drift checks, managed indexes, and optional handoff artifacts that can later feed living-knowledge or evolver without becoming a hard dependency.
+description: Use for durable local-first research evidence when a task needs more than a quick lookup: topic charter, optional survey, bounded pass or track contracts, source cards, summaries, claims, insights, leads, warning checks, and explicit handoff. Not for provider execution, report generation, subagent orchestration, or automatic promotion.
 metadata:
   bagakit:
     harness_layer: l2-behavior
@@ -24,6 +24,7 @@ Use this skill when a repository needs:
 
 - one local-first research loop instead of repeated ad hoc searching
 - a topic charter that anchors the question before search starts
+- a survey packet that decomposes the question and source landscape before broad retrieval
 - a bounded research pass that can be split into parallel tracks
 - preserved source cards for important material
 - reusable per-source summaries
@@ -38,12 +39,32 @@ Do not use this skill when:
 - the work is already mature shared knowledge that belongs directly in the shared knowledge root
 - the work is a repository-evolution decision topic that should live in `evolver`
 
+## Route Ladder
+
+Use the smallest researcher route that protects the task:
+
+- Quick lookup:
+  - do not open a researcher topic unless durable evidence is needed.
+- Survey:
+  - use `plan-survey` when the question, source landscape, rankings, seed
+    queries, or blind spots must be mapped before broad retrieval.
+- Bounded pass:
+  - use `plan-pass` when the scope is clear enough to collect and preserve
+    evidence.
+- Parallel tracks:
+  - use track contracts only when the topic genuinely decomposes into disjoint
+    work packages.
+- Synthesis or handoff:
+  - use claims, insights, leads, synthesis, and handoff files to compress
+    evidence for the next owner without promoting it automatically.
+
 ## Boundary
 
 This skill does:
 
 - create and maintain topic-scoped research workspaces
 - create a topic charter, research passes, and track contracts
+- create survey packets for pre-retrieval question decomposition, source-landscape mapping, and provider-agnostic retrieval planning
 - keep local-first research behavior explicit
 - preserve important source cards
 - write reusable summaries
@@ -71,10 +92,16 @@ Follow `docs/specs/principle-layer-contract.md` when research evidence is
 synthesized into Bagakit-facing guidance.
 
 - charter the question before broad search
+- create a survey packet before non-trivial broad source collection when the field, source landscape, or unknowns are still unclear
 - keep source summaries source-bound; promote only claim-backed conclusions
 - record counterevidence or confidence limits for recommendations
 - use `doctor --quality --drift` before synthesis or downstream handoff
 - turn recurring research drift into warnings or checks, not hidden heuristics
+- keep `SKILL.md` as the concise route and trigger surface; put field-level
+  contracts in references
+- treat external research-agent products and skill specs as source evidence:
+  preserve what to borrow, what to avoid, and the Bagakit implication before
+  changing researcher behavior
 - separate observed source claims from Bagakit-facing inferences, and record
   the inference's `why`, intended generalization, limitations, and transfer
   checks before handoff
@@ -134,10 +161,13 @@ Base topic members:
 
 Extended workflow members are created by the command that needs them.
 `init-topic --extended` creates optional directories and empty ledgers only;
-`plan-pass` creates the charter, pass file, and initial tracks.
+`plan-survey` creates a survey packet, and `plan-pass` creates the charter,
+pass file, and initial tracks.
 
 - `charter.md`
   - stable topic anchor: question, scope, non-goals, evidence threshold, stop rule
+- `surveys/`
+  - pre-retrieval survey packets for question decomposition, four-quadrant uncertainty, source landscape, ranking or seed-list strategy, source-quality heuristics, stop rules, and handback conditions
 - `passes/`
   - bounded research-pass plans that can be reviewed before execution
 - `tracks/`
@@ -171,18 +201,20 @@ The normal workflow is:
 1. Before new research, refresh or inspect the researcher frontdoor and read
    relevant existing topic, question, and claim links.
 2. Create or update `charter.md`.
-3. Plan one bounded pass under `passes/`.
-4. Split the pass into track contracts under `tracks/`.
-5. Execute track work outside researcher; parallel workers should write only their owned track files, source ids, and summaries.
-6. Add source cards under `originals/` and reusable summaries under `summaries/`.
-7. Record sourced claims in `claims.md`, cross-source insights under `insights/`, and active-mining leads in `leads.md`.
-8. Run `doctor --quality` and `doctor --drift` before synthesis or handoff.
-9. Refresh the managed sections of `index.md` without overwriting curated notes.
-10. Refresh the researcher-local wiki/frontdoor when cross-topic discovery
+3. If the question needs field mapping before retrieval, create one survey
+   packet under `surveys/`.
+4. Plan one bounded pass under `passes/`.
+5. Split the pass into track contracts under `tracks/`.
+6. Execute track work outside researcher; parallel workers should write only their owned track files, source ids, and summaries.
+7. Add source cards under `originals/` and reusable summaries under `summaries/`.
+8. Record sourced claims in `claims.md`, cross-source insights under `insights/`, and active-mining leads in `leads.md`.
+9. Run `doctor --quality` and `doctor --drift` before synthesis or handoff.
+10. Refresh the managed sections of `index.md` without overwriting curated notes.
+11. Refresh the researcher-local wiki/frontdoor when cross-topic discovery
    matters.
-11. If the loop read the wiki and changed topic evidence, close the maintenance
+12. If the loop read the wiki and changed topic evidence, close the maintenance
     duty with `doctor --wiki` before final response or handoff.
-12. Optionally render a handoff artifact under `handoffs/`.
+13. Optionally render a handoff artifact under `handoffs/`.
 
 Researcher may generate retrieval plans and query sketches, but provider
 execution belongs outside this skill.
@@ -211,7 +243,40 @@ sh scripts/bagakit-researcher.sh init-topic \
   --title "Researcher Skill"
 ```
 
-2. Plan one bounded research pass:
+2. Plan a pre-retrieval survey when broad source collection is not yet ready:
+
+```bash
+sh scripts/bagakit-researcher.sh plan-survey \
+  --root . \
+  --topic-class frontier \
+  --topic researcher-skill \
+  --survey-id survey-001 \
+  --charter-question "How should researcher support field survey before broad source collection?" \
+  --question "How should researcher survey a field before broad source collection?" \
+  --why-needed "The source landscape and blind spots are not yet clear" \
+  --problem-dimension "question decomposition" \
+  --known-known "The topic charter exists" \
+  --known-unknown "The best source classes are not yet known" \
+  --unknown-known "The agent suspects ranking pages may be useful" \
+  --unknown-unknown "The field may have hidden benchmark or practitioner sources" \
+  --source-landscape "official docs, curated lists, benchmarks, indexes" \
+  --ranking-lead "field rankings or benchmark leaderboards" \
+  --quality-heuristic "prefer primary or owner-maintained sources" \
+  --seed-query "field survey best sources benchmark list" \
+  --stop-condition "enough routes exist to plan one bounded pass" \
+  --drift-check "survey still answers the charter question" \
+  --handoff-target "passes/pass-001.md"
+```
+
+`plan-survey` writes a pre-retrieval packet under `surveys/`. It creates or
+replaces `charter.md` only when `--charter-question` is provided, because the
+survey-routing question is often narrower than the topic anchor. The packet
+does not execute search, call providers, or replace source cards, summaries,
+claims, or pass planning.
+The four-quadrant fields borrow the consensus-ledger lens as local survey
+fields; they do not create a mandatory `bagakit-consensus-ledger` dependency.
+
+3. Plan one bounded research pass:
 
 ```bash
 sh scripts/bagakit-researcher.sh plan-pass \
@@ -227,7 +292,7 @@ sh scripts/bagakit-researcher.sh plan-pass \
 `plan-pass` creates or updates the charter scaffolding, one pass file, track
 contracts, and supporting ledgers without launching workers.
 
-3. Add or list track contracts:
+4. Add or list track contracts:
 
 ```bash
 sh scripts/bagakit-researcher.sh add-track \
@@ -248,7 +313,7 @@ Track files are concurrency contracts. They should identify the question,
 owned output files, source-id range, evidence threshold, lead policy, and drift
 check for one worker or subagent.
 
-4. Add one source card:
+5. Add one source card:
 
 ```bash
 sh scripts/bagakit-researcher.sh add-source-card \
@@ -269,7 +334,7 @@ sh scripts/bagakit-researcher.sh add-source-card \
 Source cards should preserve source role, authority, scope fit, limitations,
 and why the source was kept.
 
-5. Add one reusable summary:
+6. Add one reusable summary:
 
 ```bash
 sh scripts/bagakit-researcher.sh add-summary \
@@ -287,7 +352,7 @@ sh scripts/bagakit-researcher.sh add-summary \
 Summaries stay source-bound. Do not turn a source summary into a Bagakit
 decision unless the claim is also recorded in `claims.md`.
 
-6. Record claims, insights, and leads:
+7. Record claims, insights, and leads:
 
 ```bash
 sh scripts/bagakit-researcher.sh add-claim \
@@ -322,7 +387,7 @@ sh scripts/bagakit-researcher.sh add-lead \
 Claims distinguish observation, inference, and recommendation. Insights should
 name supporting claims and counterclaims. Leads keep proactive mining bounded.
 
-7. Run warning-first checks:
+8. Run warning-first checks:
 
 ```bash
 sh scripts/bagakit-researcher.sh doctor \
@@ -338,7 +403,7 @@ ungrounded claims, weak recommendations, context-only evidence used as a
 decision basis, unchecked leads, and track scope drift. These checks should warn
 before they become hard gates.
 
-8. Refresh the topic index:
+9. Refresh the topic index:
 
 ```bash
 sh scripts/bagakit-researcher.sh refresh-index \
@@ -351,7 +416,7 @@ sh scripts/bagakit-researcher.sh refresh-index \
 `refresh-index` owns only managed artifact sections. It must not overwrite
 operator-written topic goals, reading order, conclusions, or open questions.
 
-9. Refresh the researcher-local wiki/frontdoor:
+10. Refresh the researcher-local wiki/frontdoor:
 
 ```bash
 sh scripts/bagakit-researcher.sh refresh-wiki \
@@ -366,13 +431,13 @@ knowledge root.
 If this loop read the wiki and changed topic evidence, this refresh is a
 required closeout step, not an optional cleanup.
 
-10. Confirm the wiki maintenance closeout:
+11. Confirm the wiki maintenance closeout:
 
 ```bash
 sh scripts/bagakit-researcher.sh doctor --root . --wiki
 ```
 
-11. Optionally render one handoff artifact:
+12. Optionally render one handoff artifact:
 
 ```bash
 sh scripts/bagakit-researcher.sh render-handoff \
@@ -386,7 +451,7 @@ Supported handoff kinds are `selector`, `evolver`, and `living-knowledge`.
 Rendering a handoff writes a file under `handoffs/`; it does not mutate the
 target system.
 
-12. Before another new search, inspect what already exists:
+13. Before another new search, inspect what already exists:
 
 ```bash
 sh scripts/bagakit-researcher.sh list-topics --root .
@@ -415,7 +480,7 @@ When the surrounding workflow explicitly asks for research-task reporting, it ma
 
 ```text
 [[BAGAKIT]]
-- Researcher: Topic=<topic-class/topic>; Evidence=<index + source cards + summaries>; Next=<one deterministic next action>
+- Researcher: Topic=<topic-class/topic>; Evidence=<index + surveys/source cards/summaries>; Next=<one deterministic next action>
 ```
 
 ## References

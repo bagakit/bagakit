@@ -11,11 +11,12 @@ from pathlib import Path, PurePosixPath
 
 DEFAULT_RESEARCHER_ROOT = ".bagakit/researcher"
 KNOWLEDGE_CONFIG_PATH = "docs/.bagakit-knowledge.toml"
-OPTIONAL_DIRS = ("passes", "tracks", "insights", "handoffs")
+OPTIONAL_DIRS = ("surveys", "passes", "tracks", "insights", "handoffs")
 
 MANAGED_SECTION_ORDER = (
     "SOURCE-CARDS",
     "SUMMARIES",
+    "SURVEYS",
     "PASSES",
     "TRACKS",
     "CLAIMS",
@@ -181,7 +182,7 @@ def placeholder_line(raw: str) -> bool:
 def markdown_section(text: str, heading: str, level: int = 2) -> str:
     hashes = "#" * level
     pattern = re.compile(
-        rf"^{re.escape(hashes)} {re.escape(heading)}\s*$\n(.*?)(?=^{re.escape(hashes)} |\Z)",
+        rf"^{re.escape(hashes)} {re.escape(heading)}\s*$\n(.*?)(?=^#{{1,{level}}}\s+|\Z)",
         re.MULTILINE | re.DOTALL,
     )
     match = pattern.search(text)
@@ -254,14 +255,19 @@ def topic_index_text(root: Path, workspace: Path, title: str) -> str:
         f"{repo_rel(root, workspace)}/",
         "├── originals/",
         "├── summaries/",
+        "├── surveys/        # optional pre-retrieval packets",
+        "├── passes/         # optional bounded pass plans",
+        "├── tracks/         # optional parallel work contracts",
         "└── index.md",
         "```",
         "",
         "## Current Read Order",
         "",
-        "1. `summaries/`",
-        "2. preserved source cards under `originals/`",
-        "3. update this index after every meaningful research pass",
+        "1. `charter.md` and `surveys/` when present",
+        "2. `passes/` and `tracks/` when present",
+        "3. `summaries/`",
+        "4. preserved source cards under `originals/`",
+        "5. update this index after every meaningful research pass",
         "",
         "## Source Cards",
     ]
@@ -367,6 +373,67 @@ def pass_text(args: argparse.Namespace, planned_tracks: list[tuple[str, str, str
             "",
         ]
     )
+    return "\n".join(lines)
+
+
+def survey_text(args: argparse.Namespace) -> str:
+    lines = [
+        f"# {args.title or args.survey_id}",
+        "",
+        "## Survey Contract",
+        "",
+        f"- survey id: `{args.survey_id}`",
+        f"- parent charter: `{args.charter_ref}`",
+        "",
+        "## Survey Question",
+        "",
+        args.question,
+        "",
+        "## Why Survey Is Needed",
+        "",
+        args.why_needed or "<why this survey is needed before broad search>",
+        "",
+        "## Problem Decomposition",
+        *bullet_lines(args.problem_dimension, "<problem dimension, decision branch, or sub-question>"),
+        "",
+        "## Consensus Quadrant Map",
+        "",
+        "### known_known",
+        *bullet_lines(args.known_known, "<confirmed or directly available context>"),
+        "",
+        "### known_unknown",
+        *bullet_lines(args.known_unknown, "<explicit gap, risk, or missing decision>"),
+        "",
+        "### unknown_known",
+        *bullet_lines(args.unknown_known, "<agent inference that still needs confirmation>"),
+        "",
+        "### unknown_unknown",
+        *bullet_lines(args.unknown_unknown, "<possible blind spot or unexplored dimension>"),
+        "",
+        "## Source Landscape",
+        *bullet_lines(args.source_landscape, "<where excellent sources, indexes, rankings, benchmark lists, or expert references likely live>"),
+        "",
+        "## Ranking And Seed List Strategy",
+        *bullet_lines(args.ranking_lead, "<ranking, curated list, benchmark set, or seed source to inspect>"),
+        "",
+        "## Source Quality Heuristics",
+        *bullet_lines(args.quality_heuristic, "<authority, scope-fit, recency, traceability, or counterevidence heuristic>"),
+        "",
+        "## Retrieval Plan Sketch",
+        *bullet_lines(args.seed_query, "<query sketch, index route, or provider-agnostic retrieval path>"),
+        "",
+        "## Stop Or Handback Conditions",
+        *bullet_lines(args.stop_condition, "<condition for stopping survey or handing back to pass planning>"),
+        "",
+        "## Drift Check",
+        "",
+        args.drift_check or "<how to detect that the survey is no longer answering the question>",
+        "",
+        "## Handoff Target",
+        "",
+        args.handoff_target or "<pass, track, source-card, or downstream artifact this survey should feed>",
+        "",
+    ]
     return "\n".join(lines)
 
 
@@ -660,6 +727,8 @@ def managed_section_body(root: Path, workspace: Path, section: str) -> str:
         return render_file_section("Source Cards", "originals", markdown_file_list(workspace, "originals"))
     if section == "SUMMARIES":
         return render_file_section("Summaries", "summaries", markdown_file_list(workspace, "summaries"))
+    if section == "SURVEYS":
+        return render_file_section("Surveys", "surveys", markdown_file_list(workspace, "surveys"))
     if section == "PASSES":
         return render_file_section("Passes", "passes", markdown_file_list(workspace, "passes"))
     if section == "TRACKS":
@@ -843,6 +912,29 @@ def plan_pass(args: argparse.Namespace) -> int:
         )
 
     print(f"ok: wrote {repo_rel(root, pass_path)}")
+    return 0
+
+
+def plan_survey(args: argparse.Namespace) -> int:
+    root = resolve_root(args.root)
+    workspace = require_workspace(root, args.topic_class, args.topic)
+    target = workspace / "surveys" / f"{slugify(args.survey_id)}.md"
+    if target.exists() and not args.force:
+        raise SystemExit(f"error: already exists: {target}")
+
+    ensure_base_workspace(workspace)
+    (workspace / "surveys").mkdir(parents=True, exist_ok=True)
+
+    charter = workspace / "charter.md"
+    if (not charter.exists() or args.force_charter) and args.charter_question:
+        charter.write_text(charter_text(args), encoding="utf-8")
+    elif args.force_charter:
+        raise SystemExit("error: --force-charter with plan-survey requires --charter-question")
+    elif not charter.exists():
+        print("warning: charter.md missing; plan-survey did not create one without --charter-question", file=sys.stderr)
+
+    write_file(target, survey_text(args), force=args.force)
+    print(f"ok: wrote {repo_rel(root, target)}")
     return 0
 
 
@@ -1094,6 +1186,29 @@ def collect_quality_warnings(root: Path, workspace: Path) -> list[str]:
 
     index = workspace / "index.md"
     index_text = index.read_text(encoding="utf-8", errors="replace") if index.is_file() else ""
+    for survey in markdown_file_list(workspace, "surveys"):
+        survey_text_content = survey.read_text(encoding="utf-8", errors="replace")
+        rel_survey = repo_rel(root, survey)
+        required_sections = [
+            "Why Survey Is Needed",
+            "Problem Decomposition",
+            "Source Landscape",
+            "Ranking And Seed List Strategy",
+            "Source Quality Heuristics",
+            "Retrieval Plan Sketch",
+            "Stop Or Handback Conditions",
+            "Drift Check",
+            "Handoff Target",
+        ]
+        for heading in required_sections:
+            if not section_has_content(survey_text_content, heading):
+                warnings.append(f"{rel_survey}: survey missing {heading.lower()}")
+        for quadrant in ("known_known", "known_unknown", "unknown_known", "unknown_unknown"):
+            if not section_has_content(survey_text_content, quadrant, level=3):
+                warnings.append(f"{rel_survey}: survey missing consensus quadrant {quadrant}")
+        if survey.name not in index_text and f"surveys/{survey.name}" not in index_text:
+            warnings.append(f"{rel_survey}: survey missing from index")
+
     for research_pass in markdown_file_list(workspace, "passes"):
         if research_pass.name not in index_text and f"passes/{research_pass.name}" not in index_text:
             warnings.append(f"{repo_rel(root, research_pass)}: pass missing from index")
@@ -1171,6 +1286,7 @@ def collect_topic_record(root: Path, topic_class: str, workspace: Path) -> dict[
     ]
     source_count = len(markdown_file_list(workspace, "originals"))
     summary_count = len(markdown_file_list(workspace, "summaries"))
+    survey_count = len(markdown_file_list(workspace, "surveys"))
     claim_ids = second_level_ids(workspace / "claims.md")
     insight_count = len(markdown_file_list(workspace, "insights"))
     lead_count = len(second_level_ids(workspace / "leads.md"))
@@ -1184,6 +1300,7 @@ def collect_topic_record(root: Path, topic_class: str, workspace: Path) -> dict[
         "synthesis": posix_join(rel_workspace, "summaries", synthesis_files[0].name) if synthesis_files else "",
         "source_count": source_count,
         "summary_count": summary_count,
+        "survey_count": survey_count,
         "claim_count": len(claim_ids),
         "insight_count": insight_count,
         "lead_count": lead_count,
@@ -1231,6 +1348,7 @@ def render_researcher_frontdoor(root: Path, records: list[dict[str, object]], ti
                 line += f"; synthesis: [{Path(str(record['synthesis'])).name}]({record['synthesis']})"
             counts = (
                 f"sources={record['source_count']}, summaries={record['summary_count']}, "
+                f"surveys={record['survey_count']}, "
                 f"claims={record['claim_count']}"
             )
             line += f" ({counts})"
@@ -1299,7 +1417,7 @@ def render_research_topics_page(records: list[dict[str, object]]) -> str:
                     f"- topic: `{record['class']}/{record['slug']}`",
                     f"- evidence: `{record['index']}`",
                     f"- synthesis: `{record['synthesis'] or 'none recorded'}`",
-                    f"- counts: sources={record['source_count']}, summaries={record['summary_count']}, claims={record['claim_count']}",
+                    f"- counts: sources={record['source_count']}, summaries={record['summary_count']}, surveys={record['survey_count']}, claims={record['claim_count']}",
                     "",
                 ]
             )
@@ -1607,6 +1725,37 @@ def build_parser() -> argparse.ArgumentParser:
     pass_p.add_argument("--force", action="store_true")
     pass_p.add_argument("--force-charter", action="store_true")
     pass_p.set_defaults(func=plan_pass)
+
+    survey_p = sub.add_parser("plan-survey", help="create one pre-retrieval survey packet")
+    add_topic_args(survey_p)
+    survey_p.add_argument("--survey-id", required=True)
+    survey_p.add_argument("--question", required=True)
+    survey_p.add_argument("--title")
+    survey_p.add_argument("--charter-ref", default="charter.md")
+    survey_p.add_argument("--charter-question")
+    survey_p.add_argument("--decision-use")
+    survey_p.add_argument("--output-shape")
+    survey_p.add_argument("--in-scope", action="append", default=[])
+    survey_p.add_argument("--out-of-scope", action="append", default=[])
+    survey_p.add_argument("--source-priority", action="append", default=[])
+    survey_p.add_argument("--evidence-threshold")
+    survey_p.add_argument("--why-needed")
+    survey_p.add_argument("--problem-dimension", action="append", default=[])
+    survey_p.add_argument("--known-known", action="append", default=[])
+    survey_p.add_argument("--known-unknown", action="append", default=[])
+    survey_p.add_argument("--unknown-known", action="append", default=[])
+    survey_p.add_argument("--unknown-unknown", action="append", default=[])
+    survey_p.add_argument("--source-landscape", action="append", default=[])
+    survey_p.add_argument("--ranking-lead", action="append", default=[])
+    survey_p.add_argument("--quality-heuristic", action="append", default=[])
+    survey_p.add_argument("--seed-query", action="append", default=[])
+    survey_p.add_argument("--stop-condition", action="append", default=[])
+    survey_p.add_argument("--drift-sentinel", action="append", default=[])
+    survey_p.add_argument("--drift-check")
+    survey_p.add_argument("--handoff-target")
+    survey_p.add_argument("--force", action="store_true")
+    survey_p.add_argument("--force-charter", action="store_true")
+    survey_p.set_defaults(func=plan_survey)
 
     track_p = sub.add_parser("add-track", help="write one parallel research track contract")
     add_topic_args(track_p)

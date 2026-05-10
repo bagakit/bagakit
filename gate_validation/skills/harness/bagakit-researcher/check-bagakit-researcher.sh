@@ -272,9 +272,31 @@ run_researcher plan-pass \
   --lead-policy "defer off-topic leads" \
   --drift-check "must answer the charter question" >/dev/null
 
+run_researcher plan-survey \
+  --root "$TMP_DIR" \
+  --topic-class frontier \
+  --topic integrated-plan \
+  --survey-id survey-001 \
+  --charter-question "How should integrated-plan preserve survey and pass planning?" \
+  --question "Where should this field be surveyed before broad search?" \
+  --why-needed "source classes and blind spots are unclear" \
+  --problem-dimension "source landscape" \
+  --known-known "the topic charter exists" \
+  --known-unknown "the best source classes are unclear" \
+  --unknown-known "rankings or curated lists may be useful" \
+  --unknown-unknown "the field may have hidden benchmark sources" \
+  --source-landscape "official docs, curated lists, benchmarks, indexes" \
+  --ranking-lead "field rankings or benchmark leaderboards" \
+  --quality-heuristic "prefer primary or owner-maintained sources" \
+  --seed-query "field survey best sources benchmark list" \
+  --stop-condition "enough routes exist to plan one bounded pass" \
+  --drift-check "survey still answers the charter question" \
+  --handoff-target "passes/pass-001.md" >/dev/null
+
 assert_file "$INTEGRATED_WS/charter.md"
 assert_file "$INTEGRATED_WS/claims.md"
 assert_file "$INTEGRATED_WS/leads.md"
+assert_file "$INTEGRATED_WS/surveys/survey-001.md"
 assert_file "$INTEGRATED_WS/passes/pass-001.md"
 assert_file "$INTEGRATED_WS/tracks/track-alpha.md"
 assert_file "$INTEGRATED_WS/tracks/track-beta.md"
@@ -360,11 +382,14 @@ run_researcher refresh-index \
   --title "Integrated Plan" >/dev/null
 assert_contains "$INTEGRATED_WS/index.md" 'Keep this curation intact'
 assert_contains "$INTEGRATED_WS/index.md" 'pass-001.md'
+assert_contains "$INTEGRATED_WS/index.md" 'survey-001.md'
 assert_contains "$INTEGRATED_WS/index.md" 'track-gamma.md'
 assert_count "$INTEGRATED_WS/index.md" '<!-- BAGAKIT:RESEARCHER:SOURCE-CARDS:START -->' 1
 assert_count "$INTEGRATED_WS/index.md" '<!-- BAGAKIT:RESEARCHER:SOURCE-CARDS:END -->' 1
 assert_count "$INTEGRATED_WS/index.md" '<!-- BAGAKIT:RESEARCHER:SUMMARIES:START -->' 1
 assert_count "$INTEGRATED_WS/index.md" '<!-- BAGAKIT:RESEARCHER:SUMMARIES:END -->' 1
+assert_count "$INTEGRATED_WS/index.md" '<!-- BAGAKIT:RESEARCHER:SURVEYS:START -->' 1
+assert_count "$INTEGRATED_WS/index.md" '<!-- BAGAKIT:RESEARCHER:SURVEYS:END -->' 1
 assert_count "$INTEGRATED_WS/index.md" '<!-- BAGAKIT:RESEARCHER:PASSES:START -->' 1
 assert_count "$INTEGRATED_WS/index.md" '<!-- BAGAKIT:RESEARCHER:PASSES:END -->' 1
 assert_count "$INTEGRATED_WS/index.md" '<!-- BAGAKIT:RESEARCHER:TRACKS:START -->' 1

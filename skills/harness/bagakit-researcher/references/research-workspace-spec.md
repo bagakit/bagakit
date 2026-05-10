@@ -35,6 +35,7 @@ Extended workflow members are added only when a command needs them:
 ```text
 <topic-workspace>/
 ├── charter.md
+├── surveys/
 ├── passes/
 ├── tracks/
 ├── claims.md
@@ -82,21 +83,45 @@ The preferred workflow is:
 1. Refresh or inspect the researcher frontdoor and read relevant existing
    topic, question, and claim links.
 2. Anchor the topic in `charter.md`.
-3. Plan a bounded pass in `passes/`.
-4. Split parallel work into track contracts under `tracks/`.
-5. Preserve source cards under `originals/`.
-6. Write source-bound summaries under `summaries/`.
-7. Record claims, insights, and active-mining leads.
-8. Run quality and drift checks.
-9. Refresh managed sections in `index.md`.
-10. Refresh the researcher-local wiki/frontdoor when cross-topic discovery
+3. If broad source collection would be premature, write one pre-retrieval
+   survey packet under `surveys/`.
+4. Plan a bounded pass in `passes/`.
+5. Split parallel work into track contracts under `tracks/`.
+6. Preserve source cards under `originals/`.
+7. Write source-bound summaries under `summaries/`.
+8. Record claims, insights, and active-mining leads.
+9. Run quality and drift checks.
+10. Refresh managed sections in `index.md`.
+11. Refresh the researcher-local wiki/frontdoor when cross-topic discovery
    matters.
-11. If the loop read the wiki and changed topic evidence, run `doctor --wiki`
+12. If the loop read the wiki and changed topic evidence, run `doctor --wiki`
     before final response or handoff.
-12. Optionally render a handoff under `handoffs/`.
+13. Optionally render a handoff under `handoffs/`.
 
 The skill may prepare retrieval plans, but provider execution happens outside
 researcher.
+
+## Route Ladder Rule
+
+Choose the smallest route that preserves enough evidence for the next operator:
+
+- Quick lookup:
+  - no researcher workspace unless the result must be reusable or auditable.
+- Survey:
+  - create one `surveys/` packet when the field, source landscape, ranking or
+    benchmark sources, seed queries, or blind spots are unclear.
+- Bounded pass:
+  - create one `passes/` file when the scope and evidence threshold are clear.
+- Parallel tracks:
+  - create `tracks/` only when the pass decomposes into disjoint work packages.
+- Synthesis or handoff:
+  - compress evidence into claims, insights, leads, summaries, and optional
+    handoff files without promoting it automatically.
+
+External research-agent products, agent-skill specs, and benchmark writeups are
+source evidence, not Bagakit capability proof. Before using them to change
+researcher behavior, preserve the source-bound `borrow`, `avoid`, and Bagakit
+implication in a summary or claim.
 
 ## Charter Rule
 
@@ -112,6 +137,45 @@ researcher.
 
 The charter is the anchor for later pass, track, claim, insight, and lead
 review.
+
+## Survey Rule
+
+A survey packet under `surveys/` captures pre-retrieval field mapping before a
+broad search starts. Use it when the question is still too open, the best source
+classes are unclear, ranking or benchmark lists may matter, or blind spots could
+change retrieval.
+
+Each survey should include:
+
+- survey id
+- parent charter
+- survey question
+- why survey is needed before broad search
+- problem decomposition
+- four-quadrant uncertainty map:
+  - known known
+  - known unknown
+  - unknown known
+  - unknown unknown
+- source landscape:
+  - official or primary sources
+  - curated lists, rankings, benchmark sets, indexes, or field-specific directories
+  - likely weak or misleading source classes
+- ranking and seed-list strategy
+- source-quality heuristics
+- provider-agnostic retrieval plan sketch
+- stop or handback conditions
+- drift check
+- handoff target into passes, tracks, source cards, or downstream work
+
+`plan-survey` may create `charter.md` only when the operator provides
+`--charter-question`. The survey question may be a routing or source-landscape
+question, so it must not silently become the topic charter.
+
+The four-quadrant map borrows the consensus-ledger lens as local survey fields.
+It does not create a mandatory consensus-ledger runtime dependency. A survey
+packet does not execute search, call providers, replace source cards, or decide
+promotion.
 
 ## Pass And Track Rule
 
