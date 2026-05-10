@@ -27,6 +27,7 @@ import {
   appendUsageLog,
   buildEvolverSignalContract,
   buildValidationSummary,
+  closeSkillUsage,
   createSkillUsageDoc,
   loadBagakitDrivers,
   readSkillUsageDoc,
@@ -45,6 +46,7 @@ import {
   CANDIDATE_RESULT_STATUSES,
   COMPOSITION_ROLES,
   EVALUATION_OVERALL,
+  EPISODE_DISPOSITIONS,
   EVOLVER_SCOPE_HINTS,
   EVOLVER_BRIDGEABLE_SIGNAL_STATUSES,
   EVOLVER_SIGNAL_KINDS,
@@ -128,6 +130,7 @@ Commands:
   preferences-init --file <path> [--force]
   daily --root <repo-root> [--date <yyyy-mm-dd>] [--force] [--print-path]
   evaluate --file <path> --quality-score <n> --evidence-score <n> --feedback-score <n> --overall <pass|conditional_pass|fail|pending> --summary <text> [--status <task-status>] [--needs-feedback-confirmation <true|false>] [--needs-new-search <true|false>] [--next-search-query <text>] [--notes <text>]
+  close --file <path> [--disposition <receipt_only|full_episode|audit_sample>]
   validate --file <path> [--strict]
   drivers --file <path> [--root <repo-root>] [--output <path>] [--include-unselected]
   doctor --root <repo-root> [--tasks-dir <path>] [--json] [--strict]
@@ -281,6 +284,7 @@ function addDoctorFinding(
 function inspectSelectorTaskDoc(doc: SkillUsageDoc, file: string, findings: DoctorFinding[]): void {
   const selectedSkillIds = new Set(doc.skill_plan.filter((plan) => plan.selected).map((plan) => plan.skill_id));
   const usedSkillIds = new Set(doc.usage_log.map((usage) => usage.skill_id));
+  const isReceiptOnly = doc.episode_disposition?.value === "receipt_only";
 
   if (doc.status !== "completed") {
     addDoctorFinding(findings, "warning", "open-task", doc.task_id, file, `status is ${doc.status}`);
@@ -288,20 +292,21 @@ function inspectSelectorTaskDoc(doc: SkillUsageDoc, file: string, findings: Doct
   if (doc.preflight.answer === "pending" || doc.preflight.decision === "pending") {
     addDoctorFinding(findings, "warning", "pending-preflight", doc.task_id, file, "preflight is still pending");
   }
-  if (doc.evaluation.overall === "pending") {
+  if (!isReceiptOnly && doc.evaluation.overall === "pending") {
     addDoctorFinding(findings, "warning", "pending-evaluation", doc.task_id, file, "evaluation is still pending");
   }
   if (
+    !isReceiptOnly &&
     doc.evaluation.quality_score === 0 &&
     doc.evaluation.evidence_score === 0 &&
     doc.evaluation.feedback_score === 0
   ) {
     addDoctorFinding(findings, "warning", "zero-evaluation", doc.task_id, file, "evaluation scores are all zero");
   }
-  if (doc.skill_plan.length > 0 && doc.usage_log.length === 0) {
+  if (!isReceiptOnly && doc.skill_plan.length > 0 && doc.usage_log.length === 0) {
     addDoctorFinding(findings, "warning", "missing-usage", doc.task_id, file, "planned skills have no usage log");
   }
-  if (doc.status === "completed") {
+  if (!isReceiptOnly && doc.status === "completed") {
     for (const skillId of selectedSkillIds) {
       if (!usedSkillIds.has(skillId)) {
         addDoctorFinding(
@@ -315,7 +320,7 @@ function inspectSelectorTaskDoc(doc: SkillUsageDoc, file: string, findings: Doct
       }
     }
   }
-  if (doc.usage_log.length > 0 && doc.candidate_result_log.length === 0) {
+  if (!isReceiptOnly && doc.usage_log.length > 0 && doc.candidate_result_log.length === 0) {
     addDoctorFinding(
       findings,
       "warning",
@@ -992,6 +997,29 @@ function cmdValidate(flags: Map<string, string | boolean>): number {
   return 0;
 }
 
+function cmdClose(flags: Map<string, string | boolean>): number {
+  const filePath = resolvePathFromCwd(requiredString(flags, "file"));
+  const doc = readSkillUsageDoc(filePath);
+  const rawDisposition = readStringFlag(flags, "disposition");
+  const result = closeSkillUsage(
+    doc,
+    rawDisposition ? assertEnum(EPISODE_DISPOSITIONS, rawDisposition, "episode disposition") : undefined,
+  );
+  const issues = validateSkillUsage(doc, true);
+  if (issues.length > 0) {
+    for (const issue of issues) {
+      console.error(`issue: ${issue}`);
+    }
+    console.error(`fail: close validation failed for ${filePath}`);
+    return 1;
+  }
+  writeSkillUsageDoc(filePath, doc);
+  console.log(
+    `ok: closed ${filePath} disposition=${result.selected_disposition} reason=${doc.episode_disposition!.reason}`,
+  );
+  return 0;
+}
+
 function cmdDoctor(flags: Map<string, string | boolean>): number {
   const repoRoot = resolvePathFromCwd(requiredString(flags, "root"));
   const tasksDir = resolveFromRepoRoot(
@@ -1083,6 +1111,8 @@ function main(argv: string[]): number {
       return cmdDaily(flags);
     case "evaluate":
       return cmdEvaluate(flags);
+    case "close":
+      return cmdClose(flags);
     case "validate":
       return cmdValidate(flags);
     case "drivers":

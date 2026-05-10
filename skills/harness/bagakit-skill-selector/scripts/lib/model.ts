@@ -33,6 +33,7 @@ export const LESSON_UPDATE_ACTIONS = ["confirm", "weaken", "invalidate", "supers
 export const SEARCH_SOURCE_SCOPES = ["local", "external", "hybrid"] as const;
 export const SEARCH_STATUSES = ["open", "done", "discarded"] as const;
 export const EVALUATION_OVERALL = ["pass", "conditional_pass", "fail", "pending"] as const;
+export const EPISODE_DISPOSITIONS = ["receipt_only", "full_episode", "audit_sample"] as const;
 export const RECIPE_STATUSES = ["considered", "selected", "used", "skipped", "rejected"] as const;
 export const PLANNING_ENTRY_RECIPE_IDS = [
   "planning-entry-brainstorm-only",
@@ -73,6 +74,7 @@ export type LessonUpdateAction = (typeof LESSON_UPDATE_ACTIONS)[number];
 export type SearchSourceScope = (typeof SEARCH_SOURCE_SCOPES)[number];
 export type SearchStatus = (typeof SEARCH_STATUSES)[number];
 export type EvaluationOverall = (typeof EVALUATION_OVERALL)[number];
+export type EpisodeDisposition = (typeof EPISODE_DISPOSITIONS)[number];
 export type RecipeStatus = (typeof RECIPE_STATUSES)[number];
 export type PlanningEntryRecipeId = (typeof PLANNING_ENTRY_RECIPE_IDS)[number];
 export type ProjectPreferenceValue = (typeof PROJECT_PREFERENCE_VALUES)[number];
@@ -127,6 +129,12 @@ export interface EpisodeRefsSection {
   source_prompt_ref: string;
   final_artifact_ref: string;
   verification_ref: string;
+}
+
+export interface EpisodeDispositionSection {
+  value: EpisodeDisposition;
+  closed_at: string;
+  reason: string;
 }
 
 export interface SkillPlanEntry {
@@ -321,6 +329,7 @@ export interface SkillUsageDoc {
   attempt_policy: AttemptPolicySection;
   evolver_handoff_policy: EvolverHandoffPolicySection;
   episode_refs: EpisodeRefsSection;
+  episode_disposition?: EpisodeDispositionSection;
   skill_plan: SkillPlanEntry[];
   usage_log: UsageLogEntry[];
   feedback_log: FeedbackLogEntry[];

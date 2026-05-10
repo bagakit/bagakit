@@ -412,7 +412,7 @@ reporting, the response footer may use:
 - Trigger: A long-running agent task needs a high-quality Goal file that can survive restart, compact, handoff, sidecar analysis, or loop supervision.
 - Do: Create or update a compact Goal control file, route details into owning planning/spec/research/runner surfaces, and preserve enough state for a fresh executor to continue safely.
 - See: `skills/harness/bagakit-set-loop-goal/SKILL.md`
-- Surface: `.bagakit/goal/current.md, .bagakit/goal/state.yaml, optional .bagakit/goal/supervisor.md, .bagakit/goal/<goal-id>.md, and .bagakit/goal/archive/`
+- Surface: `.bagakit/goal/current.md, .bagakit/goal/state.yaml, optional .bagakit/goal/supervisor.md, .bagakit/goal/<goal-id>.md, .bagakit/goal/reviews/<review-id>.json, and .bagakit/goal/archive/`
 - Fallback: If the target itself is still unclear, use bagakit-spark first; if execution truth is missing, use the owning planning or runner skill before writing a control-plane Goal.
 </bagakit-rule>
 

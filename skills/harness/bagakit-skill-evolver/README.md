@@ -29,6 +29,8 @@ Common intake commands:
 
 - `node --experimental-strip-types skills/harness/bagakit-skill-evolver/scripts/evolver.ts capture-signal ...`
 - `node --experimental-strip-types skills/harness/bagakit-skill-evolver/scripts/evolver.ts import-signals ...`
+- `node --experimental-strip-types skills/harness/bagakit-skill-evolver/scripts/evolver.ts validate-session-review ...`
+- `node --experimental-strip-types skills/harness/bagakit-skill-evolver/scripts/evolver.ts bridge-session-review ...`
 - `node --experimental-strip-types skills/harness/bagakit-skill-evolver/scripts/evolver.ts adopt-signal ...`
 - `node --experimental-strip-types skills/harness/bagakit-skill-evolver/scripts/evolver.ts dismiss-signal ...`
 
@@ -36,6 +38,8 @@ Current capability set:
 
 - optional `.mem_inbox/` evidence intake buffer
 - signal capture, import, export, and validation
+- reviewed session-evidence compression into existing pending signals without
+  raw transcript persistence
 - explicit signal adoption or dismissal before topic-state routing
 - topic lifecycle
 - preflight
@@ -63,3 +67,6 @@ Important rule:
 
 - intake confidence may prioritize review
 - intake confidence must not auto-promote repository learning
+- only accepted session-review candidates with passing coverage, preservation,
+  and faithfulness checks may enter intake
+- session-review intake does not auto-create topics, routes, or promotions

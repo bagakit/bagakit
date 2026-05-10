@@ -91,6 +91,41 @@ Mandatory preflight therefore does not mean:
 - every task must compare multiple candidates
 - every task must compose multiple skills
 - every task must enter one planning-entry recipe
+- every routine `direct_execute` task must manufacture a full planning, usage,
+  and evaluation episode after the required preflight receipt exists
+
+## Post-Run Disposition Rule
+
+Selector keeps mandatory entry evidence cheap and makes deeper persistence
+signal-driven.
+
+Every selector task that reaches post-run close should persist one typed
+disposition in its task-local `skill-usage.toml`:
+
+- `receipt_only`
+  - routine `direct_execute`
+  - no comparison, composition, review, failure, retry, feedback, benchmark,
+    learning, or other material selector signal
+- `full_episode`
+  - mandatory when any material selector signal exists
+  - specifically mandatory for `compare_then_execute`,
+    `compose_then_execute`, and `review_loop`
+- `audit_sample`
+  - deliberate full-record sampling of an otherwise routine direct route
+
+The mandatory minimum is still the preflight receipt created before major
+implementation. `receipt_only` reduces post-run ceremony; it does not weaken
+the frontdoor rule.
+
+`audit_sample` is not an escape from evidence requirements. It satisfies the
+same complete-record and strict close checks as `full_episode`. If material
+signals are present, the disposition must be exactly `full_episode` so the
+reason for retention remains explicit.
+
+The per-task field contract and deterministic close command live in:
+
+- `skills/harness/bagakit-skill-selector/references/skill-usage-file-spec.md`
+- `skills/harness/bagakit-skill-selector/scripts/skill_selector.ts`
 
 ## Candidate States
 

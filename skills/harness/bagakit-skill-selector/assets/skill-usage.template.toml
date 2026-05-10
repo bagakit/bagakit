@@ -40,6 +40,12 @@ source_prompt_ref = ""
 final_artifact_ref = ""
 verification_ref = ""
 
+# Written by the public `close` command after the run:
+# [episode_disposition]
+# value = "receipt_only" | "full_episode" | "audit_sample"
+# closed_at = "<event marker>"
+# reason = "<deterministic disposition reason>"
+
 # Append records below with [[recipe_log]], [[task_signal_log]],
 # [[selection_lesson_log]], [[lesson_update_log]], [[evolver_signal_log]],
 # [[skill_plan]], [[candidate_result_log]], [[usage_log]], [[feedback_log]],

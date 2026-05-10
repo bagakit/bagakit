@@ -55,6 +55,8 @@ import type {
   TopicStatus,
   CandidateKind,
   CandidateStatus,
+  EvolverSessionReviewContract,
+  EvolverSessionSignalCandidate,
   FeedbackSignal,
   NoteKind,
   PreflightDecision,
@@ -74,6 +76,7 @@ import {
   validatePromotionRefSurface,
   validateSignalContract,
   validateSignalShape,
+  validateSessionReviewContract,
   validateRoutingShape,
   validateTopicShape,
 } from "./lib/validate.ts";
@@ -95,6 +98,8 @@ Commands:
   init-topic --slug <slug> [--title <title>] [--root <repo-root>]
   capture-signal --signal <id> --kind <kind> --title <title> --summary <text> --producer <name> --channel <name> [--topic-hint <slug>] [--confidence <0..1>] [--evidence <text>] [--local-refs <repo-relative[,repo-relative...]>] [--root <repo-root>]
   validate-signals --contract <json> [--root <repo-root>]
+  validate-session-review --contract <json> [--root <repo-root>]
+  bridge-session-review --contract <json> [--root <repo-root>]
   bridge-signals --contract <json> [--root <repo-root>]
   import-signals --contract <json> [--root <repo-root>]
   export-signals [--status <pending|adopted|dismissed|all>] [--output <json>] [--root <repo-root>]
@@ -236,6 +241,91 @@ function readSignalContract(file: string, root: string): IntakeSignalContract {
   return raw as IntakeSignalContract;
 }
 
+function readSessionReviewContract(file: string, root: string): EvolverSessionReviewContract {
+  const contractPath = path.resolve(root, file);
+  const raw = JSON.parse(fs.readFileSync(contractPath, "utf8")) as unknown;
+  validateSessionReviewContract(raw, root);
+  return raw as EvolverSessionReviewContract;
+}
+
+function sessionCandidateEvidence(
+  contract: EvolverSessionReviewContract,
+  candidate: EvolverSessionSignalCandidate,
+): string[] {
+  const review = contract.reviews.find((item) => item.signal_id === candidate.signal_id)!;
+  const evidence = contract.session_evidence;
+  return [
+    `session_id: ${evidence.session_id}`,
+    `run_id: ${evidence.run_id}`,
+    `captured_at: ${evidence.captured_at}`,
+    `operation: ${candidate.operation}`,
+    `statement: ${candidate.statement}`,
+    `observed_outcome: ${candidate.observed_outcome}`,
+    `proposed_generalization: ${candidate.proposed_generalization}`,
+    `scope: ${candidate.scope}`,
+    ...candidate.source_refs.map((ref) => `source_ref: ${ref}`),
+    ...candidate.source_spans.map((span) => `source_span: ${span.ref} @ ${span.locator}`),
+    ...candidate.counterevidence_refs.map((ref) => `counterevidence_ref: ${ref}`),
+    ...candidate.supersedes.map((signalId) => `supersedes: ${signalId}`),
+    ...candidate.conflicts_with.map((signalId) => `conflicts_with: ${signalId}`),
+    ...candidate.limitations.map((limitation) => `limitation: ${limitation}`),
+    `sensitivity: ${evidence.sensitivity}`,
+    `privacy_disposition: ${evidence.privacy_disposition}`,
+    `retention_disposition: ${evidence.retention_disposition}`,
+    ...(evidence.retention_until ? [`retention_until: ${evidence.retention_until}`] : []),
+    `redaction_policy: ${evidence.redaction_policy}`,
+    `review_coverage: ${review.coverage}`,
+    `review_preservation: ${review.preservation}`,
+    `review_faithfulness: ${review.faithfulness}`,
+    `review_disposition: ${review.disposition}`,
+    `reviewer: ${review.reviewer}`,
+    `reviewed_at: ${review.reviewed_at}`,
+    `review_rationale: ${review.rationale}`,
+  ];
+}
+
+function sessionReviewSignalContract(
+  contract: EvolverSessionReviewContract,
+  root: string,
+): IntakeSignalContract {
+  const acceptedSignals = contract.candidates.filter((candidate) => {
+    const review = contract.reviews.find((item) => item.signal_id === candidate.signal_id)!;
+    return review.disposition === "accepted" && candidate.operation !== "noop";
+  });
+  return {
+    schema: "bagakit.evolver.signal.v1",
+    producer: contract.producer,
+    generated_at: contract.generated_at,
+    signals: acceptedSignals.map((candidate) => {
+      const review = contract.reviews.find((item) => item.signal_id === candidate.signal_id)!;
+      const localRefs = [
+        ...contract.session_evidence.source_refs,
+        ...candidate.source_refs,
+        ...candidate.counterevidence_refs,
+      ]
+        .map((ref) => normalizeLocalContextRef(root, ref))
+        .filter((ref, index, refs) => refs.indexOf(ref) === index)
+        .sort((left, right) => left.localeCompare(right));
+      return {
+        version: 1,
+        id: candidate.signal_id,
+        kind: candidate.kind,
+        title: candidate.title,
+        summary: candidate.proposed_generalization,
+        producer: contract.producer,
+        source_channel: contract.session_evidence.source_channel,
+        topic_hint: candidate.topic_hint,
+        confidence: candidate.confidence,
+        evidence: sessionCandidateEvidence(contract, candidate),
+        local_refs: localRefs,
+        status: "pending",
+        created_at: review.reviewed_at,
+        updated_at: review.reviewed_at,
+      };
+    }),
+  };
+}
+
 function buildSignalFileRecord(
   signal: IntakeSignalRecord,
   override: Partial<IntakeSignalRecord> = {},
@@ -366,6 +456,24 @@ function cmdValidateSignals(flags: Map<string, string | boolean>): void {
   console.log("signal contract is valid");
 }
 
+function cmdValidateSessionReview(flags: Map<string, string | boolean>): void {
+  const root = readStringFlag(flags, "root") ?? defaultRoot;
+  const contractFile = readStringFlag(flags, "contract", true)!;
+  readSessionReviewContract(contractFile, root);
+  console.log("session review contract is valid");
+}
+
+function cmdBridgeSessionReview(flags: Map<string, string | boolean>): void {
+  const root = readStringFlag(flags, "root") ?? defaultRoot;
+  const contractFile = readStringFlag(flags, "contract", true)!;
+  const reviewContract = readSessionReviewContract(contractFile, root);
+  const signalContract = sessionReviewSignalContract(reviewContract, root);
+  const paths = resolvePaths(root);
+  ensureBaseLayout(paths);
+  const imported = applySignalContract(paths, signalContract, root);
+  console.log(`bridged ${imported} accepted session review signal(s) into .mem_inbox`);
+}
+
 function applySignalContract(
   paths: ReturnType<typeof resolvePaths>,
   contract: IntakeSignalContract,
@@ -391,7 +499,7 @@ function applySignalContract(
         throw new Error(`signal already resolved: ${signalId}`);
       }
     }
-    pendingSignals.push(buildSignalFileRecord(input, {
+    const candidate = buildSignalFileRecord(input, {
       id: signalId,
       topic_hint: input.topic_hint ? toSlug(input.topic_hint) : undefined,
       local_refs: input.local_refs.map((ref) => normalizeLocalContextRef(root, ref)),
@@ -401,7 +509,31 @@ function applySignalContract(
       adopted_topic: undefined,
       resolution_note: undefined,
       producer: input.producer || contract.producer,
-    }));
+    });
+    if (existing) {
+      const semanticRecord = (signal: IntakeSignalRecord) => ({
+        version: signal.version,
+        id: signal.id,
+        kind: signal.kind,
+        title: signal.title,
+        summary: signal.summary,
+        producer: signal.producer,
+        source_channel: signal.source_channel,
+        topic_hint: signal.topic_hint,
+        confidence: signal.confidence,
+        evidence: signal.evidence,
+        local_refs: signal.local_refs,
+        status: signal.status,
+      });
+      if (JSON.stringify(semanticRecord(existing)) !== JSON.stringify(semanticRecord(candidate))) {
+        throw new Error(
+          `pending signal collision would rewrite existing intake: ${signalId}; use a new signal id with explicit supersedes or conflicts_with evidence`,
+        );
+      }
+      pendingSignals.push(existing);
+      continue;
+    }
+    pendingSignals.push(candidate);
   }
   for (const signal of pendingSignals) {
     persistSignal(paths, signal);
@@ -1268,6 +1400,12 @@ function main(): void {
       return;
     case "validate-signals":
       cmdValidateSignals(flags);
+      return;
+    case "validate-session-review":
+      cmdValidateSessionReview(flags);
+      return;
+    case "bridge-session-review":
+      cmdBridgeSessionReview(flags);
       return;
     case "bridge-signals":
       cmdBridgeSignals(flags);

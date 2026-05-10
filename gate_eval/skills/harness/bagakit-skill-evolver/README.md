@@ -6,6 +6,7 @@ This slice contains deterministic non-gating eval for
 It exists to measure closure quality beyond validation structure:
 
 - evidence ingest behavior
+- reviewed session-evidence compression and accepted-only intake behavior
 - report and handoff quality surfaces
 - promotion-readiness behavior
 - repository-level routing behavior

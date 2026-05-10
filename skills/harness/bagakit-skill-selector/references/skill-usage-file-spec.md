@@ -107,6 +107,44 @@ gold-ready evidence layers such as `[[task_signal_log]]`,
 `[[candidate_result_log]]`, `[[selection_lesson_log]]`, or
 `[[lesson_update_log]]`.
 
+## Episode disposition section
+
+`close` writes the post-run persistence decision:
+
+```toml
+[episode_disposition]
+value = "receipt_only"
+closed_at = "<event marker>"
+reason = "routine_direct_execute"
+```
+
+- `value`
+  - `receipt_only | full_episode | audit_sample`
+- `receipt_only`
+  - valid only for `direct_execute` with no material selector signals
+  - the task file remains the mandatory preflight receipt
+  - `[[skill_plan]]`, `[[usage_log]]`, and completed `[evaluation]` are not
+    required merely to prove that the frontdoor gate ran
+- `full_episode`
+  - required for `compare_then_execute`, `compose_then_execute`, or
+    `review_loop`
+  - also required for coverage gaps, comparison evidence, composition,
+    failure or partial use, retry, feedback, search, benchmark, error patterns,
+    candidate results, lesson changes, evolver signals, or open
+    follow-up actions
+- `audit_sample`
+  - operator-selected sampling for an otherwise routine direct route
+  - requires the same complete record and strict validation as `full_episode`
+- `closed_at`
+  - close event marker written by the operator
+- `reason`
+  - deterministic comma-separated material-signal tokens, or the stable
+    routine/audit reason emitted by `close`
+
+Files without this section remain readable as open or older full episodes.
+New close behavior must not infer a lightweight receipt merely because an old
+file omitted evidence.
+
 ## Selector evidence layers
 
 `skill-usage.toml` represents one `selection_episode`.
@@ -814,11 +852,19 @@ notes = "candidate has lower p95 latency"
 - for multi-skill or multi-variant comparisons, each benchmark run should use a
   fresh agent session to avoid cross-run context contamination
 
-## Minimal completion checklist
+## Receipt-only completion checklist
 
-Before a task is considered complete:
+For a routine `direct_execute` task with no material selector signals:
 
 1. `preflight.answer` is not `pending`
+2. `preflight.decision = "direct_execute"`
+3. run `close` and persist `[episode_disposition].value = "receipt_only"`
+
+## Full episode completion checklist
+
+Before a full episode or audit sample is considered complete:
+
+1. `preflight.answer` and the typed route decision are no longer `pending`
 2. at least one `[[skill_plan]]` exists
 3. at least one `[[usage_log]]` exists
 4. `[evaluation].overall` is not `pending`
@@ -832,9 +878,9 @@ Before a task is considered complete:
 
 ## Strict completion checklist
 
-Use strict mode as the close gate for higher-quality tasks:
+`close` applies strict mode to `full_episode` and `audit_sample`:
 
-1. all minimal checklist items pass
+1. all full episode checklist items pass
 2. if any candidate has `kind = "research"`, at least one `[[benchmark_log]]`
    exists
 3. if there is failed usage, negative feedback, or failed benchmark, at least

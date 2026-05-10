@@ -26,6 +26,43 @@ export type SignalKind = (typeof SIGNAL_KINDS)[number];
 export const SIGNAL_STATUSES = ["pending", "adopted", "dismissed"] as const;
 export type SignalStatus = (typeof SIGNAL_STATUSES)[number];
 
+export const SESSION_REVIEW_CHANNELS = ["session-review", "goal-review"] as const;
+export type SessionReviewChannel = (typeof SESSION_REVIEW_CHANNELS)[number];
+
+export const SESSION_SENSITIVITIES = ["public", "internal", "confidential", "restricted"] as const;
+export type SessionSensitivity = (typeof SESSION_SENSITIVITIES)[number];
+
+export const SESSION_PRIVACY_DISPOSITIONS = [
+  "metadata_only",
+  "approved_slices",
+  "redacted",
+  "restricted",
+] as const;
+export type SessionPrivacyDisposition = (typeof SESSION_PRIVACY_DISPOSITIONS)[number];
+
+export const SESSION_RETENTION_DISPOSITIONS = [
+  "retained",
+  "expires",
+  "expired",
+  "deleted",
+  "external",
+] as const;
+export type SessionRetentionDisposition = (typeof SESSION_RETENTION_DISPOSITIONS)[number];
+
+export const SESSION_SIGNAL_OPERATIONS = ["add", "revise", "retire", "noop"] as const;
+export type SessionSignalOperation = (typeof SESSION_SIGNAL_OPERATIONS)[number];
+
+export const SESSION_REVIEW_CHECKS = ["pass", "fail", "unclear"] as const;
+export type SessionReviewCheck = (typeof SESSION_REVIEW_CHECKS)[number];
+
+export const SESSION_REVIEW_DISPOSITIONS = [
+  "accepted",
+  "rejected",
+  "needs_more_evidence",
+  "conflict_open",
+] as const;
+export type SessionReviewDisposition = (typeof SESSION_REVIEW_DISPOSITIONS)[number];
+
 export const SOURCE_KINDS = ["article", "paper", "repo", "doc", "note"] as const;
 export type SourceKind = (typeof SOURCE_KINDS)[number];
 
@@ -136,6 +173,63 @@ export interface IntakeSignalContract {
   producer: string;
   generated_at: string;
   signals: IntakeSignalRecord[];
+}
+
+export interface SessionEvidenceRef {
+  session_id: string;
+  run_id: string;
+  source_channel: SessionReviewChannel;
+  source_refs: string[];
+  captured_at: string;
+  sensitivity: SessionSensitivity;
+  privacy_disposition: SessionPrivacyDisposition;
+  retention_disposition: SessionRetentionDisposition;
+  retention_until?: string;
+  redaction_policy: string;
+}
+
+export interface SessionSourceSpan {
+  ref: string;
+  locator: string;
+}
+
+export interface EvolverSessionSignalCandidate {
+  signal_id: string;
+  operation: SessionSignalOperation;
+  kind: SignalKind;
+  title: string;
+  statement: string;
+  observed_outcome: string;
+  proposed_generalization: string;
+  scope: string;
+  confidence: number;
+  source_refs: string[];
+  source_spans: SessionSourceSpan[];
+  counterevidence_refs: string[];
+  supersedes: string[];
+  conflicts_with: string[];
+  limitations: string[];
+  topic_hint?: string;
+}
+
+export interface SessionSignalReviewReceipt {
+  signal_id: string;
+  coverage: SessionReviewCheck;
+  preservation: SessionReviewCheck;
+  faithfulness: SessionReviewCheck;
+  disposition: SessionReviewDisposition;
+  reviewer: string;
+  reviewed_at: string;
+  rationale: string;
+}
+
+export interface EvolverSessionReviewContract {
+  schema: "bagakit.evolver.session-review.v1";
+  producer: string;
+  generated_at: string;
+  session_evidence: SessionEvidenceRef;
+  candidates: EvolverSessionSignalCandidate[];
+  reviews: SessionSignalReviewReceipt[];
 }
 
 export interface TopicRecord {

@@ -6,8 +6,8 @@ slice for `skills/harness/bagakit-skill-selector/`.
 It reuses the shared `dev/eval` runner to capture deterministic evidence around
 explicit composition logging, retry backoff, task-local evolver review
 signals, explicit bridge into evolver intake, planning-entry route logging,
-gold-ready daily collection fields, real-episode eval scaffolding, and derived
-reports.
+selective persistence disposition, gold-ready daily collection fields,
+real-episode eval scaffolding, and derived reports.
 
 Primary entrypoint:
 

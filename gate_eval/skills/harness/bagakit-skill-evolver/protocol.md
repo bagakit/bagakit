@@ -13,6 +13,7 @@ commands, inspects generated artifacts, and writes normalized reports.
 The minimum case families in this slice are:
 
 - evidence ingest
+- reviewed session-evidence intake
 - report quality
 - promotion readiness
 - routing

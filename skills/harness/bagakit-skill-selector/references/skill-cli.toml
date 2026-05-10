@@ -102,6 +102,10 @@ name = "evaluate"
 summary = "Record task-local evaluation before closeout."
 
 [[command]]
+name = "close"
+summary = "Derive or validate and persist the post-run episode disposition."
+
+[[command]]
 name = "validate"
 summary = "Validate one selector episode file."
 

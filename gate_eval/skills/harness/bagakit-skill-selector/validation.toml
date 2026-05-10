@@ -3,10 +3,10 @@ version = 2
 [[suite]]
 id = "bagakit-skill-selector-shared-runner-eval"
 owner = "gate_eval/skills/harness/bagakit-skill-selector"
-description = "Run deterministic non-gating eval for selector composition logging and retry-backoff behavior."
+description = "Run deterministic non-gating eval for selector selective persistence, composition logging, and retry-backoff behavior."
 default = true
 proof_mode = "runtime"
-protects = ["skill-selector eval cases for composition logging, retry backoff, candidate ranking, and handoff evidence"]
+protects = ["skill-selector eval cases for selective persistence, composition logging, retry backoff, candidate ranking, and handoff evidence"]
 oracle = ["shared dev/eval runner executes selector suite cases and checks structured outputs from deterministic selector task workspaces"]
 exercised_surface = ["gate_eval/skills/harness/bagakit-skill-selector/suite.ts", "dev/eval/src/cli.ts eval runner", "selector CLI and .bagakit/skill-selector task artifacts"]
 proves = ["bagakit-skill-selector-shared-runner-eval proves deterministic selector eval cases execute and record composition/retry findings."]

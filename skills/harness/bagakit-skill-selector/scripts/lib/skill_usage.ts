@@ -6,6 +6,7 @@ import {
   ACTIVATION_MODES,
   CANDIDATE_RESULT_STATUSES,
   COMPOSITION_ROLES,
+  EPISODE_DISPOSITIONS,
   EVALUATION_OVERALL,
   EVOLVER_SCOPE_HINTS,
   EVOLVER_SIGNAL_KINDS,
@@ -41,6 +42,7 @@ import {
   type EvolverSignalTrigger,
   type EvolverScopeHint,
   type ErrorPatternLogEntry,
+  type EpisodeDisposition,
   type EvaluationOverall,
   type FeedbackChannel,
   type FeedbackLogEntry,
@@ -571,6 +573,9 @@ export function readSkillUsageDoc(filePath: string): SkillUsageDoc {
     throw new Error(`invalid skill usage file: ${filePath}`);
   }
 
+  const episodeDispositionRecord = readRecord(raw, "episode_disposition");
+  const episodeDispositionValue = readOptionalString(episodeDispositionRecord, "value");
+
   return {
     schema_version: readString(raw, "schema_version", "1.0"),
     task_id: requireStableToken(readString(raw, "task_id"), "task_id"),
@@ -617,6 +622,17 @@ export function readSkillUsageDoc(filePath: string): SkillUsageDoc {
       final_artifact_ref: readString(readRecord(raw, "episode_refs"), "final_artifact_ref"),
       verification_ref: readString(readRecord(raw, "episode_refs"), "verification_ref"),
     },
+    episode_disposition: episodeDispositionValue
+      ? {
+          value: assertEnumValue(
+            EPISODE_DISPOSITIONS,
+            episodeDispositionValue,
+            "episode_disposition.value",
+          ),
+          closed_at: readString(episodeDispositionRecord, "closed_at"),
+          reason: readString(episodeDispositionRecord, "reason"),
+        }
+      : undefined,
     skill_plan: readRecordArray(raw, "skill_plan").map(parseSkillPlanEntry),
     usage_log: readRecordArray(raw, "usage_log").map(parseUsageLogEntry),
     feedback_log: readRecordArray(raw, "feedback_log").map(parseFeedbackLogEntry),
@@ -676,6 +692,13 @@ export function renderSkillUsageDoc(doc: SkillUsageDoc): string {
   pushKeyValue(lines, "source_prompt_ref", doc.episode_refs.source_prompt_ref);
   pushKeyValue(lines, "final_artifact_ref", doc.episode_refs.final_artifact_ref);
   pushKeyValue(lines, "verification_ref", doc.episode_refs.verification_ref);
+  if (doc.episode_disposition) {
+    lines.push("");
+    lines.push("[episode_disposition]");
+    pushKeyValue(lines, "value", doc.episode_disposition.value);
+    pushKeyValue(lines, "closed_at", doc.episode_disposition.closed_at);
+    pushKeyValue(lines, "reason", doc.episode_disposition.reason);
+  }
   lines.push("");
   lines.push(
     "# Append records below with [[recipe_log]], [[task_signal_log]], [[selection_lesson_log]], [[lesson_update_log]], [[evolver_signal_log]], [[skill_plan]], [[candidate_result_log]], [[usage_log]], [[feedback_log]], [[search_log]], [[benchmark_log]], and [[error_pattern_log]].",
@@ -1743,6 +1766,122 @@ export function updateEvaluation(
   doc.updated_at = nowIso();
 }
 
+export interface EpisodeDispositionDecision {
+  disposition: "receipt_only" | "full_episode";
+  material_signals: string[];
+}
+
+export function deriveEpisodeDisposition(doc: SkillUsageDoc): EpisodeDispositionDecision {
+  const signals = new Set<string>();
+
+  if (doc.preflight.decision !== "direct_execute" && doc.preflight.decision !== "pending") {
+    signals.add(`route_${doc.preflight.decision}`);
+  }
+  if (doc.preflight.answer === "no" || doc.preflight.answer === "partial" || doc.preflight.gap_summary.trim() !== "") {
+    signals.add("coverage_gap");
+  }
+  if (doc.skill_plan.length > 1) {
+    signals.add("multiple_candidates");
+  }
+  if (doc.skill_plan.some((entry) => !entry.selected || entry.kind === "research")) {
+    signals.add("candidate_comparison");
+  }
+  if (doc.skill_plan.some((entry) => entry.composition_role !== "standalone" || entry.activation_mode === "composed")) {
+    signals.add("composition");
+  }
+  if (doc.usage_log.some((entry) => entry.result !== "success")) {
+    signals.add("usage_failure_or_partial");
+  }
+  if (doc.usage_log.some((entry) => entry.attempt_index > 1 || entry.backoff_required)) {
+    signals.add("retry");
+  }
+  if (doc.feedback_log.length > 0) {
+    signals.add("explicit_feedback");
+  }
+  if (doc.recipe_log.length > 0) {
+    signals.add("recipe_evidence");
+  }
+  if (doc.search_log.length > 0) {
+    signals.add("search_follow_up");
+  }
+  if (doc.benchmark_log.length > 0) {
+    signals.add("benchmark_evidence");
+  }
+  if (doc.error_pattern_log.length > 0) {
+    signals.add("error_pattern");
+  }
+  if (doc.task_signal_log.length > 0) {
+    signals.add("task_signal");
+  }
+  if (doc.candidate_result_log.length > 0) {
+    signals.add("candidate_result");
+  }
+  if (doc.selection_lesson_log.length > 0) {
+    signals.add("selection_lesson");
+  }
+  if (doc.lesson_update_log.length > 0) {
+    signals.add("lesson_update");
+  }
+  if (doc.evolver_signal_log.length > 0) {
+    signals.add("evolver_signal");
+  }
+  if (doc.evaluation.overall === "conditional_pass" || doc.evaluation.overall === "fail") {
+    signals.add("non_passing_evaluation");
+  }
+  if (
+    doc.next_actions.needs_feedback_confirmation ||
+    doc.next_actions.needs_new_search ||
+    doc.next_actions.next_search_query.trim() !== ""
+  ) {
+    signals.add("open_next_action");
+  }
+  const materialSignals = [...signals].sort();
+  return {
+    disposition: materialSignals.length > 0 ? "full_episode" : "receipt_only",
+    material_signals: materialSignals,
+  };
+}
+
+export function closeSkillUsage(
+  doc: SkillUsageDoc,
+  requestedDisposition?: EpisodeDisposition,
+): EpisodeDispositionDecision & { selected_disposition: EpisodeDisposition } {
+  const decision = deriveEpisodeDisposition(doc);
+  if (doc.episode_disposition && doc.status === "completed") {
+    if (requestedDisposition && requestedDisposition !== doc.episode_disposition.value) {
+      throw new Error(
+        `selector episode is already closed as ${doc.episode_disposition.value}; use a new episode instead of rewriting the terminal disposition`,
+      );
+    }
+    return { ...decision, selected_disposition: doc.episode_disposition.value };
+  }
+  if (decision.disposition === "full_episode" && requestedDisposition && requestedDisposition !== "full_episode") {
+    throw new Error(
+      `episode requires full_episode because material signals are present: ${decision.material_signals.join(",")}`,
+    );
+  }
+
+  const selectedDisposition = decision.disposition === "full_episode"
+    ? "full_episode"
+    : requestedDisposition ?? doc.episode_disposition?.value ?? "receipt_only";
+  const reason = decision.material_signals.length > 0
+    ? decision.material_signals.join(",")
+    : selectedDisposition === "audit_sample"
+      ? "operator_selected_audit_sample"
+      : selectedDisposition === "full_episode"
+        ? "operator_requested_full_episode"
+        : "routine_direct_execute";
+  const timestamp = nowIso();
+  doc.episode_disposition = {
+    value: selectedDisposition,
+    closed_at: timestamp,
+    reason,
+  };
+  doc.status = "completed";
+  doc.updated_at = timestamp;
+  return { ...decision, selected_disposition: selectedDisposition };
+}
+
 export function validateSkillUsage(doc: SkillUsageDoc, strict: boolean): string[] {
   const issues: string[] = [];
 
@@ -1756,14 +1895,48 @@ export function validateSkillUsage(doc: SkillUsageDoc, strict: boolean): string[
   if (doc.status !== "planning" && (normalizedPreflightDecision === "" || normalizedPreflightDecision === "pending")) {
     issues.push("preflight.decision must not remain pending once execution has started");
   }
-  if (doc.skill_plan.length < 1) {
-    issues.push("missing [[skill_plan]] entries");
+  const disposition = doc.episode_disposition?.value;
+  const requiresFullEpisode = disposition === undefined || disposition === "full_episode" || disposition === "audit_sample";
+  if (doc.episode_disposition) {
+    if (doc.episode_disposition.closed_at.trim() === "") {
+      issues.push("episode_disposition.closed_at must not be empty");
+    }
+    if (doc.episode_disposition.reason.trim() === "") {
+      issues.push("episode_disposition.reason must not be empty");
+    }
+    if (doc.status !== "completed") {
+      issues.push("closed selector episodes must use status=completed");
+    }
+    const derivedDisposition = deriveEpisodeDisposition(doc);
+    if (derivedDisposition.disposition === "full_episode" && disposition !== "full_episode") {
+      issues.push(
+        `episode_disposition must be full_episode for material signals (${derivedDisposition.material_signals.join(",")})`,
+      );
+    }
+    if (disposition === "receipt_only" && doc.preflight.decision !== "direct_execute") {
+      issues.push("receipt_only requires preflight.decision=direct_execute");
+    }
+    const expectedReason = derivedDisposition.material_signals.length > 0
+      ? derivedDisposition.material_signals.join(",")
+      : disposition === "audit_sample"
+        ? "operator_selected_audit_sample"
+        : disposition === "full_episode"
+          ? "operator_requested_full_episode"
+          : "routine_direct_execute";
+    if (doc.episode_disposition.reason !== expectedReason) {
+      issues.push(`episode_disposition.reason must equal deterministic close reason: ${expectedReason}`);
+    }
   }
-  if (doc.usage_log.length < 1) {
-    issues.push("missing [[usage_log]] entries");
-  }
-  if (doc.evaluation.overall === "pending") {
-    issues.push("evaluation.overall is pending or missing");
+  if (requiresFullEpisode) {
+    if (doc.skill_plan.length < 1) {
+      issues.push("missing [[skill_plan]] entries");
+    }
+    if (doc.usage_log.length < 1) {
+      issues.push("missing [[usage_log]] entries");
+    }
+    if (doc.evaluation.overall === "pending") {
+      issues.push("evaluation.overall is pending or missing");
+    }
   }
   for (const [label, value] of [
     ["evaluation.quality_score", doc.evaluation.quality_score],
@@ -1969,7 +2142,7 @@ export function validateSkillUsage(doc: SkillUsageDoc, strict: boolean): string[
     }
   }
 
-  if (!strict) {
+  if (!strict || disposition === "receipt_only") {
     return issues;
   }
 
@@ -2097,6 +2270,7 @@ export function validateSkillUsage(doc: SkillUsageDoc, strict: boolean): string[
 export function buildValidationSummary(doc: SkillUsageDoc): string {
   return [
     "summary:",
+    `disposition=${doc.episode_disposition?.value ?? "open"}`,
     `recipe=${doc.recipe_log.length}`,
     `skill_plan=${doc.skill_plan.length}`,
     `usage=${doc.usage_log.length}`,

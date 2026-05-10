@@ -16,6 +16,11 @@ This spec defines:
 - the signal exchange contract used to import and export intake items
 - the rule for adopting one intake signal into evolver topic state
 
+Reviewed operational sessions may feed this intake only through the separate
+compression gate in:
+
+- `docs/specs/evolver-session-review.md`
+
 It does not define:
 
 - host knowledge substrate behavior
@@ -71,6 +76,10 @@ It is also not the raw home of selector task logs.
 
 Selector logs stay in `.bagakit/skill-selector/tasks/...`.
 Only explicit exported or bridged review suggestions may enter `.mem_inbox/`.
+
+Session evidence follows the same rule. Raw transcripts and traces do not
+enter `.mem_inbox/`; only accepted candidates from a validated
+`bagakit.evolver.session-review.v1` contract become pending signals.
 
 ## Runtime Surface
 
@@ -188,6 +197,9 @@ Rules:
 - import must normalize repo-relative refs and signal ids
 - bridge or import must preserve the first accepted signal identity and must
   not regress a repeated pending re-bridge into a weaker intake record
+- identical pending replays are idempotent; semantically different pending
+  collisions must fail and use a new signal id with explicit supersession or
+  conflict evidence
 - `import-signals` only accepts `pending` signals
 - export must not invent route or promotion state that is not present
 

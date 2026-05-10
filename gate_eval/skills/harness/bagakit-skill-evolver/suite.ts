@@ -66,6 +66,178 @@ export const SUITE: EvalSuiteDefinition = {
   defaultOutputDir: "gate_eval/skills/harness/bagakit-skill-evolver/results/runs",
   cases: [
     {
+      id: "session-review-intake",
+      title: "Session Review Intake",
+      summary: "Only independently accepted session candidates should become pending Evolver signals.",
+      focus: ["session-review", "accepted-only-intake", "provenance"],
+      run: (context) => {
+        const tempRepo = createFixtureRepo();
+        const replacements = registerTempReplacements(context, tempRepo);
+        const commands: string[] = [];
+        try {
+          const run = (argv: string[]): CommandResult => {
+            commands.push(
+              `node --experimental-strip-types ${EVOLVER_CLI} ${argv.join(" ")} --root <temp-repo>`,
+            );
+            return runEvolver(context, tempRepo, argv);
+          };
+
+          writeTextFile(path.join(tempRepo, "docs", "session-evidence.md"), "approved slice\n");
+          writeTextFile(path.join(tempRepo, "docs", "counterevidence.md"), "counterevidence\n");
+          writeTextFile(
+            path.join(tempRepo, ".bagakit", "goal", "reviews", "review.json"),
+            `${JSON.stringify({
+              schema: "bagakit.goal-evolver-review.v1",
+              goal_id: "eval-goal",
+              review_id: "review",
+              trigger: "after_round",
+              status: "completed",
+              evidence_refs: ["docs/session-evidence.md", "docs/counterevidence.md"],
+              drift: [],
+              next_instruction: "Let Evolver review the bounded evidence.",
+              approval: "approved",
+              evolver_disposition: "signal_candidate",
+            }, null, 2)}\n`,
+          );
+          const contract = {
+            schema: "bagakit.evolver.session-review.v1",
+            producer: "goal-reviewer",
+            generated_at: "2001-01-02T00:05:00Z",
+            session_evidence: {
+              session_id: "session-eval",
+              run_id: "run-eval",
+              source_channel: "goal-review",
+              source_refs: [
+                ".bagakit/goal/reviews/review.json",
+                "docs/session-evidence.md",
+                "docs/counterevidence.md",
+              ],
+              captured_at: "2001-01-02T00:00:00Z",
+              sensitivity: "internal",
+              privacy_disposition: "approved_slices",
+              retention_disposition: "expires",
+              retention_until: "2001-02-02T00:00:00Z",
+              redaction_policy: "metadata and approved slices only",
+            },
+            candidates: [
+              {
+                signal_id: "accepted-review",
+                operation: "add",
+                kind: "gotcha",
+                title: "Accepted review",
+                statement: "One repeated omission was observed.",
+                observed_outcome: "The goal review reproduced the omission.",
+                proposed_generalization: "Require review evidence before Evolver intake.",
+                scope: "harness sessions",
+                confidence: 0.8,
+                source_refs: ["docs/session-evidence.md"],
+                source_spans: [{ ref: "docs/session-evidence.md", locator: "lines:1-1" }],
+                counterevidence_refs: ["docs/counterevidence.md"],
+                supersedes: [],
+                conflicts_with: ["older-guidance"],
+                limitations: ["bounded evidence set"],
+              },
+              {
+                signal_id: "open-conflict",
+                operation: "revise",
+                kind: "decision",
+                title: "Open conflict",
+                statement: "Two outcomes disagree.",
+                observed_outcome: "The conflict remains unresolved.",
+                proposed_generalization: "Choose one session policy.",
+                scope: "session policy",
+                confidence: 0.5,
+                source_refs: ["docs/session-evidence.md"],
+                source_spans: [{ ref: "docs/session-evidence.md", locator: "lines:1-1" }],
+                counterevidence_refs: ["docs/counterevidence.md"],
+                supersedes: [],
+                conflicts_with: ["session-policy-a"],
+                limitations: ["conflict remains open"],
+              },
+            ],
+            reviews: [
+              {
+                signal_id: "accepted-review",
+                coverage: "pass",
+                preservation: "pass",
+                faithfulness: "pass",
+                disposition: "accepted",
+                reviewer: "maintainer",
+                reviewed_at: "2001-01-02T00:04:00Z",
+                rationale: "Supporting and counter evidence remain visible.",
+              },
+              {
+                signal_id: "open-conflict",
+                coverage: "pass",
+                preservation: "pass",
+                faithfulness: "unclear",
+                disposition: "conflict_open",
+                reviewer: "maintainer",
+                reviewed_at: "2001-01-02T00:04:00Z",
+                rationale: "Do not collapse the conflict.",
+              },
+            ],
+          };
+          writeTextFile(path.join(tempRepo, "session-review.json"), JSON.stringify(contract, null, 2) + "\n");
+
+          assert.equal(run(["validate-session-review", "--contract", "session-review.json"]).status, 0);
+          assert.equal(run(["bridge-session-review", "--contract", "session-review.json"]).status, 0);
+
+          const signalPath = path.join(tempRepo, ".mem_inbox", "signals", "accepted-review.json");
+          const signal = JSON.parse(fs.readFileSync(signalPath, "utf8")) as Record<string, unknown>;
+          const localRefs = signal.local_refs as string[];
+          const evidence = signal.evidence as string[];
+          assert.equal(signal.status, "pending");
+          assert.equal(signal.source_channel, "goal-review");
+          assert.ok(localRefs.includes(".bagakit/goal/reviews/review.json"));
+          assert.ok(localRefs.includes("docs/counterevidence.md"));
+          assert.ok(evidence.includes("privacy_disposition: approved_slices"));
+          assert.ok(evidence.includes("retention_disposition: expires"));
+          assert.ok(evidence.includes("review_disposition: accepted"));
+          assert.ok(evidence.includes("source_span: docs/session-evidence.md @ lines:1-1"));
+          assert.ok(evidence.includes("conflicts_with: older-guidance"));
+          assert.equal(
+            fs.existsSync(path.join(tempRepo, ".mem_inbox", "signals", "open-conflict.json")),
+            false,
+          );
+          assert.deepEqual(fs.readdirSync(path.join(tempRepo, ".bagakit", "evolver", "topics")), []);
+
+          const invalidContract = structuredClone(contract);
+          invalidContract.reviews[0].faithfulness = "fail";
+          writeTextFile(
+            path.join(tempRepo, "invalid-session-review.json"),
+            JSON.stringify(invalidContract, null, 2) + "\n",
+          );
+          const invalid = run(["validate-session-review", "--contract", "invalid-session-review.json"]);
+          assert.equal(invalid.status, 1);
+          assert.ok(invalid.stderr.includes("accepted session review requires passing coverage"));
+
+          return {
+            assertions: [
+              "only accepted reviewed candidates enter pending signal intake",
+              "Goal receipt, supporting refs, counterevidence, conflicts, privacy, and retention metadata survive normalization",
+              "session review does not create Evolver topics",
+              "accepted candidates fail validation when a review quality check does not pass",
+            ],
+            commands,
+            outputs: {
+              signal,
+              rejectedValidation: invalid.stderr.trim(),
+            },
+            artifacts: [
+              {
+                label: "accepted-signal",
+                path: signalPath,
+              },
+            ],
+            replacements,
+          };
+        } finally {
+          cleanupTempDir(tempRepo, context.keepTemp);
+        }
+      },
+    },
+    {
       id: "evidence-ingest",
       title: "Evidence Ingest",
       summary: "Structured evidence records should accumulate before routing is set.",

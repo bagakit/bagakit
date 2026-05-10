@@ -238,8 +238,15 @@ Recommended path:
 Required behavior:
 
 - the file must exist before major implementation starts
-- it must be append-updated during execution
-- it must include explicit evaluation before task close
+- it must preserve the typed preflight decision even when the task later closes
+  as a minimal receipt
+- it must be append-updated during execution when comparison, composition,
+  review, failure, retry, feedback, benchmark, or reusable learning makes the
+  task a full episode
+- full episodes and audit samples must include explicit evaluation before task
+  close
+- close must persist one typed disposition:
+  `receipt_only | full_episode | audit_sample`
 - when an episode may later seed selector eval cases, set `episode_refs` for
   source prompt, final artifact, and verification evidence
 - it should preserve decision-relevant task signals, candidate reasoning,
@@ -423,7 +430,14 @@ node --experimental-strip-types scripts/skill_selector.ts evaluate \
   --feedback-score 0.72 \
   --overall pass \
   --summary "usable with minor follow-up" \
-  --status completed
+  --status review
+
+node --experimental-strip-types scripts/skill_selector.ts close \
+  --file .bagakit/skill-selector/tasks/<task-slug>/skill-usage.toml
+
+node --experimental-strip-types scripts/skill_selector.ts close \
+  --file .bagakit/skill-selector/tasks/<task-slug>/skill-usage.toml \
+  --disposition audit_sample
 
 node --experimental-strip-types scripts/skill_selector.ts validate \
   --file .bagakit/skill-selector/tasks/<task-slug>/skill-usage.toml \
@@ -579,10 +593,38 @@ review:
 
 ### 6) Close gate
 
-Before task close, run:
+Before task close, run `close`:
 
-- `validate` for the minimum contract
-- `validate --strict` for the recommended close gate
+```bash
+node --experimental-strip-types scripts/skill_selector.ts close \
+  --file .bagakit/skill-selector/tasks/<task-slug>/skill-usage.toml
+```
+
+`close` derives and persists one post-run disposition:
+
+- `receipt_only`
+  - routine `direct_execute` with no material selector signal
+  - preserves the mandatory preflight receipt without requiring empty planning,
+    usage, and evaluation ceremony
+- `full_episode`
+  - required for compare, compose, or review routes
+  - required for failure, partial use, retry, explicit feedback, search,
+    benchmark, candidate results, lessons, evolver signals, or other material
+    selector evidence
+- `audit_sample`
+  - an operator-selected full episode sampled from an otherwise routine direct
+    route
+  - must satisfy the same full record and strict close checks as
+    `full_episode`
+
+Pass `--disposition` only to request or validate an explicit disposition.
+`close` rejects `receipt_only` or `audit_sample` when material signals require
+`full_episode`, and it does not mutate the task file on rejection.
+
+The standalone validation commands remain available:
+
+- `validate` for contract diagnostics
+- `validate --strict` for full-episode diagnostics
 
 Strict mode enforces:
 

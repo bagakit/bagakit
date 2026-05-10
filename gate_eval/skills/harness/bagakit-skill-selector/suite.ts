@@ -6,6 +6,8 @@ import { runCommand, type CommandResult } from "../../../../dev/eval/src/lib/com
 import type { EvalSuiteDefinition } from "../../../../dev/eval/src/lib/model.ts";
 import { cleanupTempDir, createTempDir, registerTempRepo } from "../../../../dev/eval/src/lib/temp.ts";
 import {
+  createSkillUsageDoc,
+  deriveEpisodeDisposition,
   readSkillUsageDoc,
   selectorEvalCaseScaffoldFromDoc,
 } from "../../../../skills/harness/bagakit-skill-selector/scripts/lib/skill_usage.ts";
@@ -21,6 +23,125 @@ export const SUITE: EvalSuiteDefinition = {
   summary: "Measure deterministic composition logging, retry-backoff evidence, and explicit selector->evolver bridge behavior for bagakit-skill-selector.",
   defaultOutputDir: "gate_eval/skills/harness/bagakit-skill-selector/results/runs",
   cases: [
+    {
+      id: "selective-persistence-disposition",
+      title: "Selective Persistence Disposition",
+      summary: "Selector should keep routine direct execution as a minimal receipt and deterministically escalate material routes or signals to a full episode.",
+      focus: ["selective-persistence", "episode-disposition", "preflight-receipt"],
+      run: () => {
+        const baseline = createSkillUsageDoc("disposition-eval", "classify selector persistence", "eval");
+        baseline.preflight.answer = "yes";
+        baseline.preflight.decision = "direct_execute";
+        baseline.status = "in_progress";
+        assert.deepEqual(deriveEpisodeDisposition(baseline), {
+          disposition: "receipt_only",
+          material_signals: [],
+        });
+
+        const expectedSignals: Record<string, string> = {};
+        for (const route of ["compare_then_execute", "compose_then_execute", "review_loop"] as const) {
+          const doc = structuredClone(baseline);
+          doc.preflight.decision = route;
+          const decision = deriveEpisodeDisposition(doc);
+          assert.equal(decision.disposition, "full_episode");
+          assert.ok(decision.material_signals.includes(`route_${route}`));
+          expectedSignals[route] = `route_${route}`;
+        }
+
+        const failed = structuredClone(baseline);
+        failed.usage_log.push({
+          timestamp: "eval",
+          skill_id: "selector",
+          phase: "execution",
+          action: "failed route",
+          result: "failed",
+          evidence: "",
+          metric_hint: "",
+          attempt_key: "failed-route",
+          attempt_index: 1,
+          backoff_required: false,
+          notes: "",
+        });
+        const failedDecision = deriveEpisodeDisposition(failed);
+        assert.equal(failedDecision.disposition, "full_episode");
+        assert.ok(failedDecision.material_signals.includes("usage_failure_or_partial"));
+
+        const retry = structuredClone(baseline);
+        retry.usage_log.push({
+          timestamp: "eval",
+          skill_id: "selector",
+          phase: "execution",
+          action: "retried route",
+          result: "success",
+          evidence: "",
+          metric_hint: "",
+          attempt_key: "retried-route",
+          attempt_index: 2,
+          backoff_required: false,
+          notes: "",
+        });
+        assert.ok(deriveEpisodeDisposition(retry).material_signals.includes("retry"));
+
+        const feedback = structuredClone(baseline);
+        feedback.feedback_log.push({
+          timestamp: "eval",
+          skill_id: "selector",
+          channel: "user",
+          signal: "positive",
+          detail: "explicit feedback",
+          impact_scope: "task",
+          confidence: "high",
+        });
+        assert.ok(deriveEpisodeDisposition(feedback).material_signals.includes("explicit_feedback"));
+
+        const learning = structuredClone(baseline);
+        learning.candidate_result_log.push({
+          timestamp: "eval",
+          result_id: "candidate-result",
+          candidate_id: "selector",
+          task_signal_id: "",
+          action_ref: "usage",
+          result_status: "success",
+          verification_ref: "verification",
+          feedback_ref: "",
+          cost_hint: "",
+          latency_hint: "",
+          notes: "",
+        });
+        learning.selection_lesson_log.push({
+          timestamp: "eval",
+          lesson_id: "selection-lesson",
+          task_signal_kind: "opportunity",
+          task_cluster: "selector",
+          candidate_id: "selector",
+          recommendation: "retain material learning",
+          confidence: "high",
+          support_ref: "candidate-result",
+          limitation: "",
+          invalidates_ref: "",
+          notes: "",
+        });
+        const learningDecision = deriveEpisodeDisposition(learning);
+        assert.equal(learningDecision.disposition, "full_episode");
+        assert.ok(learningDecision.material_signals.includes("candidate_result"));
+        assert.ok(learningDecision.material_signals.includes("selection_lesson"));
+
+        return {
+          assertions: [
+            "routine direct_execute derives receipt_only",
+            "compare, compose, and review routes derive full_episode",
+            "failure, retry, explicit feedback, candidate results, and lessons derive full_episode",
+          ],
+          commands: [],
+          artifacts: [],
+          outputs: {
+            baseline: "receipt_only",
+            route_signals: expectedSignals,
+            learning_signals: learningDecision.material_signals,
+          },
+        };
+      },
+    },
     {
       id: "gold-ready-evidence-scaffold-from-daily-selector-log",
       title: "Gold-Ready Evidence Scaffold From Daily Selector Log",

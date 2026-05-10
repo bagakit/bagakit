@@ -32,6 +32,8 @@ It does:
 - decide when evolver tracking is worth using
 - manage the optional `.mem_inbox/` intake buffer for provisional learning
   signals
+- review structured session-evidence candidates through a compression gate
+  before accepted candidates enter `.mem_inbox/`
 - record `preflight` decisions before a topic grows
 - record repository-level route decisions:
   - `host`
@@ -52,6 +54,7 @@ It does not:
 - run the repository's research workflow itself
 - treat `bagakit-researcher` workspaces as required inputs
 - own raw per-task selector logs
+- persist raw transcripts, traces, checkpoints, or opaque session payloads
 - own task-local evaluation
 - replace ordinary docs or straightforward execution
 - auto-promote repository learning by confidence alone
@@ -189,12 +192,31 @@ Common intake sequence:
 - `bridge-signals`
   - canonical intake command for validated external bridge contracts such as
     selector-exported `bagakit.evolver.signal.v1`
+- `validate-session-review`
+  - validate session evidence metadata, candidate provenance, counterevidence,
+    conflicts, and independent review receipts without writing Evolver state
+- `bridge-session-review`
+  - convert only accepted, non-`noop` reviewed candidates into pending
+    `bagakit.evolver.signal.v1` intake; preserve bounded source spans and refs,
+    privacy/retention disposition without copying raw session content
 - `import-signals`
   - low-level raw batch import when no external bridge choreography is needed
 - `adopt-signal`
   - move one pending signal into structured topic evidence
 - `dismiss-signal`
   - explicitly close one pending signal without topic adoption
+
+Session-review bridge rules:
+
+- use `docs/specs/evolver-session-review.md` as the public contract
+- `goal-review` may cite a repo-relative Goal review receipt in
+  `session_evidence.source_refs[]`
+- accepted candidates require resolvable source files, at least one bounded
+  source span, in-window retention, and `approved_slices` or `redacted` privacy
+  disposition
+- `rejected`, `needs_more_evidence`, and `conflict_open` candidates never enter
+  intake
+- bridging never creates topics, routes, decisions, or promotions
 
 If the operator cannot be used:
 

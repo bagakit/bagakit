@@ -183,6 +183,9 @@ Current operator status:
 - the canonical operator is now `scripts/skill_selector.ts`
 - it can record `episode_refs` for source prompt, final artifact, and
   verification evidence when an episode should become eval-set material
+- it can close routine `direct_execute` work as a minimal preflight receipt,
+  retain material work as a full episode, or explicitly sample a complete
+  direct-route episode for audit
 - it can append `[[task_signal_log]]`, `[[candidate_result_log]]`,
   `[[selection_lesson_log]]`, and `[[lesson_update_log]]` entries for
   gold-ready selector evidence

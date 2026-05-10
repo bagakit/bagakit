@@ -58,10 +58,34 @@ required_files = [
   "gate_eval/skills/harness/bagakit-skill-selector/results/README.md",
   "gate_eval/skills/harness/bagakit-skill-selector/results/runs/.gitkeep",
   "gate_validation/skills/harness/bagakit-skill-selector/check-selector-policy-alignment.py",
+  "gate_validation/skills/harness/bagakit-skill-selector/check-selector-disposition.sh",
   "gate_validation/skills/harness/bagakit-skill-selector/check-selector-planning-entry.sh",
   "gate_validation/skills/harness/bagakit-skill-selector/check-selector-recipes.sh",
   "gate_validation/skills/harness/bagakit-skill-selector/check-skill-selector.sh",
   "gate_validation/skills/harness/bagakit-skill-selector/validation.toml",
+]
+
+[[suite]]
+id = "bagakit-skill-selector-disposition"
+owner = "skills/harness/bagakit-skill-selector"
+description = "Validate selector close disposition, including minimal receipts, audit samples, and mandatory full episodes for material signals."
+default = true
+proof_mode = "runtime"
+protects = ["selector selective-persistence close behavior and mandatory full-episode escalation"]
+oracle = ["disposition script executes the public close command and inspects persisted episode_disposition receipts and rejected shallow closes"]
+exercised_surface = ["skill_selector.ts close command", "skill-usage.toml episode_disposition section"]
+proves = ["bagakit-skill-selector-disposition proves: routine direct execution can close with a minimal receipt while comparison, composition, review, failures, retries, feedback, candidate results, and learning signals require full episodes."]
+does_not_prove = ["bagakit-skill-selector-disposition does not prove stochastic skill quality, external service behavior, or selector adoption frequency."]
+timeout_seconds = 120
+validation_class = "contract"
+groups = ["skills", "harness", "usage-loop", "close", "contract"]
+
+[suite.runner]
+kind = "bash_script"
+script = "gate_validation/skills/harness/bagakit-skill-selector/check-selector-disposition.sh"
+args = [
+  "--root",
+  "{repo_root}",
 ]
 
 [[suite]]

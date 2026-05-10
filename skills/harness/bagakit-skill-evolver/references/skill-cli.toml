@@ -22,6 +22,14 @@ name = "validate-signals"
 summary = "Validate a signal contract."
 
 [[command]]
+name = "validate-session-review"
+summary = "Validate reviewed session evidence without writing Evolver state."
+
+[[command]]
+name = "bridge-session-review"
+summary = "Bridge accepted reviewed session candidates into pending intake signals."
+
+[[command]]
 name = "bridge-signals"
 summary = "Bridge external signals into evolver intake."
 
