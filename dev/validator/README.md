@@ -12,6 +12,9 @@ Scope:
 - run built-in validation runners
 - dispatch explicit command-based validation extensions
 - aggregate one default repository gate
+- derive universal, affected, and full-sweep execution plans from changed paths
+- explain selected and skipped suites with disposition, cost, proof, and failure
+  boundaries
 - report non-blocking validation and eval imbalance signals
 
 Non-goals:
@@ -38,6 +41,7 @@ Config support:
 - v2 runner tables with `validation_class`, `groups`, `params`, and
   `default_params`
 - root-level `[[skip_alias]]` selectors for grouped skipping
+- root-level `[execution_policy]` plus narrow `[[impact_rule]]` entries
 
 Design rule:
 
@@ -95,6 +99,7 @@ CLI examples:
 
 ```bash
 bash scripts/gate.sh validate-plan
+bash scripts/gate.sh validate-fast
 bash scripts/gate.sh validate-audit
 bash scripts/gate.sh validate --skip-group slow
 bash scripts/gate.sh validate-all
@@ -103,6 +108,7 @@ bash scripts/gate.sh eval-audit
 bash scripts/gate.sh eval-all
 node --experimental-strip-types dev/validator/src/cli.ts check-config --root . --config gate_validation/validation.toml
 node --experimental-strip-types dev/validator/src/cli.ts plan --root . --config gate_validation/validation.toml
+node --experimental-strip-types dev/validator/src/cli.ts impact-plan --root . --config gate_validation/validation.toml --mode affected --changed-path skills/harness/bagakit-spark/SKILL.md
 node --experimental-strip-types dev/validator/src/cli.ts audit --root . --config gate_validation/validation.toml
 node --experimental-strip-types dev/validator/src/cli.ts run-default --root . --config gate_validation/validation.toml --skip-group slow --fail-fast
 node --experimental-strip-types dev/validator/src/cli.ts run-suite validator-framework-config --root . --config gate_validation/validation.toml
@@ -111,9 +117,12 @@ node --experimental-strip-types dev/validator/src/cli.ts run-default --root . --
 
 Default entrypoint note:
 
-- `scripts/gate.sh validate` and `scripts/gate.sh eval` pass `--fail-fast`
-- use `validate-all` or `eval-all` when a full inventory is more useful than
-  bounded feedback
+- `scripts/gate.sh validate-fast` runs the universal preflight only
+- `scripts/gate.sh validate` runs universal plus affected blocking suites and
+  fails safe to all suites for global, unknown, or unresolvable changes
+- `scripts/gate.sh validate-all` runs the complete default inventory
+- `scripts/gate.sh validate-plan` explains every selected and skipped suite
+- `scripts/gate.sh eval` remains a non-gating full eval entrypoint
 - default process suites must declare `timeout_seconds`
 - default suites must not install packages through registry-backed `npx -p`
 
@@ -126,7 +135,7 @@ Audit note:
 
 Execution summary note:
 
-- `run-default` emits one timing summary after suite execution
+- `run-default` and `run-impact` emit one timing summary after suite execution
 - the summary reports:
   - total wall-clock duration for the command
   - per-suite duration
@@ -139,6 +148,16 @@ Execution summary note:
 - this is intentionally not called a lane summary, because the current
   validator does not yet model lanes as a first-class owned concept
 
+Impact policy note:
+
+- the root policy names only universal suites, scheduled-full-sweep suites,
+  fail-safe global paths, and exceptional shared dependency rules
+- all other blocking suites default to affected scope
+- owner, config, runner/fs, and path-like exercised surfaces are the primary
+  impact evidence
+- cost classes are derived from runner kind and timeout rather than maintained
+  as another suite field
+
 Minimal v2 example:
 
 ```toml
@@ -147,9 +166,11 @@ version = 2
 [project]
 discovery_roots = ["gate_validation/dev"]
 
-[[skip_alias]]
-id = "local-fast"
-selectors = ["group:slow"]
+[execution_policy]
+default_base_ref = "main"
+universal_suites = ["validator-self-check"]
+scheduled_full_sweep_suites = []
+global_paths = ["dev/validator", "gate_validation/validation.toml"]
 
 [[suite]]
 id = "validator-self-check"

@@ -10,6 +10,7 @@ usage() {
   cat <<'EOF'
 usage:
   scripts/gate.sh validate [validator args...]
+  scripts/gate.sh validate-fast [validator args...]
   scripts/gate.sh validate-all [validator args...]
   scripts/gate.sh validate-plan [validator args...]
   scripts/gate.sh validate-audit [validator args...]
@@ -34,24 +35,36 @@ case "$MODE" in
   validate)
     exec node --experimental-strip-types \
       "$ROOT/dev/validator/src/cli.ts" \
-      run-default \
+      run-impact \
       --root "$ROOT" \
       --config gate_validation/validation.toml \
+      --mode affected \
+      --fail-fast \
+      "$@"
+    ;;
+  validate-fast)
+    exec node --experimental-strip-types \
+      "$ROOT/dev/validator/src/cli.ts" \
+      run-impact \
+      --root "$ROOT" \
+      --config gate_validation/validation.toml \
+      --mode universal \
       --fail-fast \
       "$@"
     ;;
   validate-all)
     exec node --experimental-strip-types \
       "$ROOT/dev/validator/src/cli.ts" \
-      run-default \
+      run-impact \
       --root "$ROOT" \
       --config gate_validation/validation.toml \
+      --mode all \
       "$@"
     ;;
   validate-plan)
     exec node --experimental-strip-types \
       "$ROOT/dev/validator/src/cli.ts" \
-      plan \
+      impact-plan \
       --root "$ROOT" \
       --config gate_validation/validation.toml \
       "$@"

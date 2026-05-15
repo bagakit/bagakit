@@ -8,9 +8,65 @@ discovery_roots = [
   "gate_validation/host-harnesses",
 ]
 
-[[skip_alias]]
-id = "local-fast"
-description = "Skip non-essential tool-quality suites for quick local iteration."
-selectors = [
-  "group:quality",
+[execution_policy]
+default_base_ref = "main"
+universal_suites = [
+  "repo-structure",
+  "repo-legacy-cut",
+  "canonical-skill-layout",
+  "validator-framework-config",
 ]
+scheduled_full_sweep_suites = [
+  "skill-surface-tests",
+]
+global_paths = [
+  "gate_validation/validation.toml",
+  "dev/validator",
+  "dev/bagakit_cli",
+  "scripts/gate.sh",
+  "scripts/skill.sh",
+  "scripts/skill.ts",
+  "Makefile",
+  "package.json",
+  "package-lock.json",
+  "pnpm-lock.yaml",
+  "yarn.lock",
+  "docs/specs/validation-system.md",
+  "docs/specs/runtime-surface-contract.md",
+  "docs/specs/skill-cli-contract.md",
+  "docs/specs/directory-protocol.md",
+]
+
+[[impact_rule]]
+id = "skill-inventory-consumers"
+description = "Skill payload changes affect discovery, packaging, CLI coverage, and current-repository checks."
+paths = ["skills"]
+selectors = [
+  "suite:canonical-packaging-smoke",
+  "suite:bagakit-cli-coverage",
+  "suite:bagakit-cli-current-repo-check",
+]
+
+[[impact_rule]]
+id = "host-harness-inventory-consumers"
+description = "Host harness source changes affect shared discovery and current-repository checks."
+paths = ["host-harnesses"]
+selectors = [
+  "suite:bagakit-cli-current-repo-check",
+]
+
+[[impact_rule]]
+id = "frontdoor-bootstrap"
+description = "Bootstrap guidance changes affect the frontdoor and validation policy alignment checks."
+paths = ["AGENTS.md"]
+selectors = [
+  "suite:frontdoor-contract",
+  "suite:validation-proof-discipline",
+  "suite:bagakit-skill-selector-policy-alignment",
+]
+
+[[impact_rule]]
+id = "non-gating-eval-only"
+description = "Eval assets are measured by gate_eval and do not select extra release-blocking owner suites."
+paths = ["gate_eval", "mem/benchmarks"]
+selectors = []

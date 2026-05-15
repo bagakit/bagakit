@@ -7,13 +7,14 @@ SELECTOR ?=
 INSTALL_SELECTOR = $(or $(SELECTOR),all)
 SCOPE ?= all
 
-.PHONY: help install-global update-global install-repo update-repo install-status install-check link-skills update-link package-all package-one validate validate-fast validate-repo clean
+.PHONY: help install-global update-global install-repo update-repo install-status install-check link-skills update-link package-all package-one validate validate-fast validate-repo validate-all clean
 
 help:
 	@echo "Targets:"
 	@echo "  make validate-repo               # gate validate (primary)"
-	@echo "  make validate                    # alias of validate-repo"
-	@echo "  make validate-fast               # same as validate-repo for now"
+	@echo "  make validate                    # affected validation plan (alias of validate-repo)"
+	@echo "  make validate-fast               # universal preflight only"
+	@echo "  make validate-all                # full validation sweep"
 	@echo "  make install-global [SELECTOR=all]       # link skills into global pickup dir"
 	@echo "  make update-global [SELECTOR=all]        # force-refresh global skill links"
 	@echo "  make install-repo REPO=<dir> [SELECTOR=all]   # link skills into one repo .codex/skills"
@@ -80,10 +81,13 @@ validate:
 	cd scripts && bash gate.sh validate
 
 validate-fast:
-	cd scripts && bash gate.sh validate
+	cd scripts && bash gate.sh validate-fast
 
 validate-repo:
 	cd scripts && bash gate.sh validate
+
+validate-all:
+	cd scripts && bash gate.sh validate-all
 
 clean:
 	rm -rf .tmp dist dist_* .dist-* site tmp

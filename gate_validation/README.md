@@ -20,3 +20,8 @@ Rules:
   `gate_eval/`
 - prefer config-first suite registration through `validation.toml`
 - use script extensions only when built-in validator runners are not enough
+- keep the root execution policy small: universal ids, scheduled-full-sweep
+  ids, fail-safe global paths, and exceptional shared dependency rules
+- let owner, config, runner/fs, and exercised-surface paths drive ordinary
+  affected selection
+- use `bash scripts/gate.sh validate-plan` to inspect every selection decision
