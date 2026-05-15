@@ -915,17 +915,40 @@ export const SUITE: EvalSuiteDefinition = {
           ];
           expectOk(runResearcher(fixture, synthesisArgs, repoRoot), "new synthesis parentage fixture");
 
+          const workspace = topicRoot(fixture.tempRepo, topic);
+          const synthesisPath = path.join(workspace, "summaries", "parentage-synthesis.md");
+          const generatedSynthesis = fs.readFileSync(synthesisPath, "utf8");
+          assert.ok(generatedSynthesis.includes("## Synthesis Contract"));
+          assert.ok(generatedSynthesis.includes("- parent charter: `charter.md`"));
+
+          fs.writeFileSync(
+            synthesisPath,
+            generatedSynthesis.replace("- parent charter: `charter.md`", "- parent charter: `missing-charter.md`"),
+          );
+
           const driftArgs = ["doctor", "--root", fixture.tempRepo, "--topic-class", TOPIC_CLASS, "--topic", topic, "--drift"];
           const drift = runResearcher(fixture, driftArgs, repoRoot);
           expectWarnOk(drift, "doctor drift parentage", [
             "floating-claim",
             "missing-claim",
             "lacks source-bound evidence parentage",
+            "synthesis parent charter `missing-charter.md` not found",
           ]);
 
-          const workspace = topicRoot(fixture.tempRepo, topic);
+          fs.writeFileSync(
+            synthesisPath,
+            generatedSynthesis.replace("- parent charter: `charter.md`\n", ""),
+          );
+          const missingAnchorDrift = runResearcher(fixture, driftArgs, repoRoot);
+          expectWarnOk(missingAnchorDrift, "doctor drift missing synthesis charter", [
+            "synthesis has no parent charter",
+          ]);
+          fs.writeFileSync(synthesisPath, generatedSynthesis);
+
           return {
             assertions: [
+              "new synthesis artifacts retain a topic-relative parent charter anchor",
+              "drift doctor warns for missing or unresolved synthesis charter anchors",
               "drift doctor warns for a synthesis claim ref that does not resolve",
               "drift doctor warns when a resolved claim lacks source-bound evidence parentage",
               "parentage warnings stay warning-only",
@@ -938,10 +961,11 @@ export const SUITE: EvalSuiteDefinition = {
             ],
             artifacts: [
               { label: "claims", path: path.join(workspace, "claims.md") },
-              { label: "synthesis", path: path.join(workspace, "summaries", "parentage-synthesis.md") },
+              { label: "synthesis", path: synthesisPath },
             ],
             outputs: {
               drift_warning: `${drift.stdout}\n${drift.stderr}`.trim(),
+              missing_anchor_warning: `${missingAnchorDrift.stdout}\n${missingAnchorDrift.stderr}`.trim(),
             },
             replacements: fixture.replacements,
           };
@@ -1142,6 +1166,7 @@ Keep this curation intact.
           assert.ok(claimsText.includes("Counterevidence Refs"));
           assert.ok(claimsText.includes("summaries/c001.md#avoid"));
           assert.ok(synthesisText.includes("clean-claim"));
+          assert.ok(synthesisText.includes("- parent charter: `charter.md`"));
           assert.ok(handoffText.includes("claims.md#clean-claim"));
           assert.ok(handoffText.includes("summaries/pass-001-synthesis.md"));
           assertNoPathLeaks(fixture.tempRepo, [claimsPath, synthesisPath, handoffPath]);

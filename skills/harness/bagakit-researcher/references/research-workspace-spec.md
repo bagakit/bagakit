@@ -176,6 +176,12 @@ Each survey should include:
 - drift check
 - handoff target into passes, tracks, source cards, or downstream work
 
+Write each material problem dimension so its evidence need is visible: what
+must be learned, which decision it affects, and what source class could verify
+it. This is guidance, not a fixed field schema. If a material dimension remains
+unsupported after retrieval, preserve it as an evidence-coverage gap in the
+final synthesis instead of silently dropping it.
+
 `plan-survey` may create `charter.md` only when the operator provides
 `--charter-question`. The survey question may be a routing or source-landscape
 question, so it must not silently become the topic charter.
@@ -228,6 +234,18 @@ source card with:
 - limitations
 - URL
 - one short note on why it was kept
+
+Authority is contextual to the claim. Owner or vendor documentation is primary
+evidence for that owner's API, product behavior, or stated policy. It is not
+independent evidence for comparative superiority, broad field consensus, or
+real-world effectiveness unless the source directly supports that narrower
+claim.
+
+Treat rankings and benchmarks as capability-bounded evidence. Preserve the
+task setup, metric, version or date when available, and the capability actually
+tested. A browsing benchmark can support a claim about browsing persistence or
+retrieval under its setup; it does not by itself establish source judgment,
+synthesis quality, citation correctness, or end-to-end research quality.
 
 ## Summary Rule
 
@@ -343,9 +361,11 @@ leads without outcomes.
 
 Before synthesis or downstream handoff, the operator should also review
 citation and evidence parentage: recommendations should trace to claim refs,
-and claim refs should trace back to source-bound summaries or source cards.
-This is a warning-first review rule unless a future gate exposes a stable proof
-surface.
+claim refs should trace back to source-bound summaries or source cards, and a
+new synthesis should retain a topic-relative parent-charter anchor. Material
+survey dimensions without adequate evidence should remain visible under open
+risks. These are warning-first review rules unless a future gate exposes a
+stable proof surface.
 
 Quality and drift checks are warning-first unless a gate explicitly raises the
 bar for a release or migration.

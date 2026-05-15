@@ -604,6 +604,11 @@ def synthesis_text(args: argparse.Namespace) -> str:
     lines = [
         f"# {args.title or args.synthesis_id}",
         "",
+        "## Synthesis Contract",
+        "",
+        f"- synthesis id: `{args.synthesis_id}`",
+        f"- parent charter: `{args.charter_ref}`",
+        "",
         "## What This Synthesizes",
         "",
         args.what or "<what this synthesis covers>",
@@ -1688,8 +1693,6 @@ def collect_drift_warnings(root: Path, workspace: Path) -> list[str]:
 def collect_synthesis_parentage_warnings(root: Path, workspace: Path) -> list[str]:
     warnings: list[str] = []
     claims = claim_body_by_alias(workspace)
-    if not claims:
-        return warnings
     source_aliases = source_evidence_aliases(root, workspace)
     synthesis_files = [
         path
@@ -1698,9 +1701,20 @@ def collect_synthesis_parentage_warnings(root: Path, workspace: Path) -> list[st
     ]
     for synthesis in synthesis_files:
         text = synthesis.read_text(encoding="utf-8", errors="replace")
+        rel = repo_rel(root, synthesis)
+        contract = markdown_section(text, "Synthesis Contract")
+        if contract:
+            charter_ref = field_value(contract, "parent charter")
+            if missing_value(charter_ref):
+                warnings.append(f"{rel}: synthesis has no parent charter")
+            else:
+                charter_path = Path(charter_ref)
+                if charter_path.is_absolute() or ".." in charter_path.parts:
+                    warnings.append(f"{rel}: synthesis parent charter must stay topic-relative")
+                elif not (workspace / charter_path).is_file():
+                    warnings.append(f"{rel}: synthesis parent charter `{charter_ref}` not found")
         if "## Claim Refs" not in text:
             continue
-        rel = repo_rel(root, synthesis)
         claim_refs = section_ref_values(text, "Claim Refs")
         if not claim_refs:
             warnings.append(f"{rel}: synthesis has no claim refs")
@@ -1949,6 +1963,7 @@ def build_parser() -> argparse.ArgumentParser:
     add_topic_args(synthesis_p)
     synthesis_p.add_argument("--synthesis-id", required=True)
     synthesis_p.add_argument("--title")
+    synthesis_p.add_argument("--charter-ref", default="charter.md")
     synthesis_p.add_argument("--what")
     synthesis_p.add_argument("--claim-ref", action="append", default=[])
     synthesis_p.add_argument("--insight-ref", action="append", default=[])

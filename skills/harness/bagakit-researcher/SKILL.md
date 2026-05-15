@@ -100,8 +100,14 @@ synthesized into Bagakit-facing guidance.
 - record counterevidence or confidence limits for recommendations
 - distinguish source-landscape unknowns from user-goal or local-context
   unknowns before starting broad retrieval
+- keep each synthesis anchored to its parent charter, and carry material
+  evidence-coverage gaps forward as open risks instead of dropping them
 - before synthesis or handoff, check that recommendations and citations trace
   back to source cards, summaries, or claim refs instead of floating prose
+- judge source authority against the claim being supported; owner documentation
+  is primary for its own behavior, not independent proof of superiority
+- treat benchmark results as evidence for the capability and setup actually
+  measured, not as proof of full survey or research quality
 - use `doctor --quality --drift` before synthesis or downstream handoff
 - turn recurring research drift into warnings or checks, not hidden heuristics
 - keep `SKILL.md` as the concise route and trigger surface; put field-level

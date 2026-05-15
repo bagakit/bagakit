@@ -365,6 +365,20 @@ run_researcher new-synthesis \
   --claim-ref cl-ungrounded \
   --finding "ungrounded recommendations should not pass parentage review" \
   --next-action "repair evidence parentage" >/dev/null
+WEAK_SYNTHESIS="$(join_path "$(topic_path frontier integrated-plan)" "summaries/weak-synthesis.md")"
+assert_contains "$WEAK_SYNTHESIS" '## Synthesis Contract'
+assert_contains "$WEAK_SYNTHESIS" '- parent charter: `charter.md`'
+
+run_researcher new-synthesis \
+  --root "$TMP_DIR" \
+  --topic-class frontier \
+  --topic integrated-plan \
+  --synthesis-id missing-charter-synthesis \
+  --charter-ref "missing-charter.md" \
+  --what "missing charter fixture" \
+  --claim-ref cl-ungrounded \
+  --finding "a synthesis should remain anchored to its root question" \
+  --next-action "repair the charter anchor" >/dev/null
 
 assert_command_succeeds_with_warning "$TMP_DIR/quality.out" run_researcher doctor \
   --root "$TMP_DIR" \
@@ -382,6 +396,7 @@ assert_contains "$TMP_DIR/drift.out" 'cl-ungrounded'
 assert_contains "$TMP_DIR/drift.out" 'lead-loose'
 assert_contains "$TMP_DIR/drift.out" 'insight-one'
 assert_contains "$TMP_DIR/drift.out" 'lacks source-bound evidence parentage'
+assert_contains "$TMP_DIR/drift.out" 'synthesis parent charter `missing-charter.md` not found'
 
 run_researcher refresh-index \
   --root "$TMP_DIR" \
@@ -515,6 +530,7 @@ run_researcher new-synthesis \
   --insight-ref clean-insight \
   --finding "evidence and counterevidence are explicit" \
   --next-action "no action" >/dev/null
+assert_contains "$CLEAN_WS/summaries/pass-001-synthesis.md" '- parent charter: `charter.md`'
 run_researcher refresh-index \
   --root "$TMP_DIR" \
   --topic-class frontier \
