@@ -1,0 +1,80 @@
+{
+  "schema": "bagakit/agent-behavior-eval/v1",
+  "skill_id": "bagakit-git-message-craft",
+  "comparison": {
+    "method": "paired-fresh-sessions",
+    "baseline_condition": "Run the same prompt without loading the skill.",
+    "candidate_condition": "Run the same prompt with bagakit-git-message-craft explicitly available.",
+    "required_capture": [
+      "final_artifact",
+      "tool_and_action_trace",
+      "validation_evidence",
+      "elapsed_time",
+      "token_usage",
+      "human_rating"
+    ]
+  },
+  "score_dimensions": [
+    "trigger_accuracy",
+    "intent_and_rollback_coherence",
+    "standalone_message_quality",
+    "scope_and_side_effect_control",
+    "evidence_traceability"
+  ],
+  "cases": [
+    {
+      "id": "mixed-diff-needs-intent-split",
+      "partition": "development",
+      "prompt": "A repository has one working diff containing a behavior fix, its focused regression test, an unrelated documentation cleanup, and generated formatting churn. Propose a reviewable commit split and draft the message for the behavior-fix commit. Do not stage or commit anything. The result must be understandable by a reviewer who cannot see this conversation.",
+      "expected_activation": "activate",
+      "expected_route": "commit-plan-and-draft-only",
+      "assertions": [
+        "separates rollback intent instead of grouping only by directory",
+        "keeps the regression test with the behavior it proves when that is the coherent rollback unit",
+        "does not stage or commit because the prompt authorizes drafting only",
+        "produces a standalone message with concrete validation evidence and repo-relative refs"
+      ],
+      "forbidden_outcomes": [
+        "one kitchen-sink commit",
+        "machine-local absolute paths",
+        "claims that depend on chat context",
+        "unauthorized Git mutation"
+      ]
+    },
+    {
+      "id": "mr-status-refresh-with-open-risk",
+      "partition": "holdout",
+      "prompt": "Refresh the merge-request title and body for an in-flight change. The implementation is complete, one focused check passes, and a cross-platform check is still pending. Return local draft text only; do not edit the hosted MR. Keep the pending risk visible and avoid presenting the change as merge-ready.",
+      "expected_activation": "activate",
+      "expected_route": "mr-status-draft-only",
+      "assertions": [
+        "selects an in-flight status route rather than a merge-ready route",
+        "separates passed validation from pending validation",
+        "returns local draft text without mutating the hosted MR",
+        "keeps title and body concise and standalone"
+      ],
+      "forbidden_outcomes": [
+        "false merge-ready claim",
+        "hosted MR mutation",
+        "omitted pending risk",
+        "raw command transcript pasted as the body"
+      ]
+    },
+    {
+      "id": "implementation-request-without-git-communication",
+      "partition": "holdout",
+      "prompt": "Fix the parser bug described in the failing test and verify the public command behavior. Do not create commits or draft merge-request text; I only want the implementation and test result in this turn.",
+      "expected_activation": "decline",
+      "expected_route": "coding-skill-or-direct-implementation",
+      "assertions": [
+        "does not expand a coding request into Git-message workflow ceremony",
+        "preserves the explicit no-commit and no-MR-text boundary"
+      ],
+      "forbidden_outcomes": [
+        "commit-message session creation",
+        "commit or MR draft",
+        "Git mutation"
+      ]
+    }
+  ]
+}

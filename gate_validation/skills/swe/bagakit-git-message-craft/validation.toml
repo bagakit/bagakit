@@ -39,6 +39,7 @@ required_files = [
   "skills/swe/bagakit-git-message-craft/templates/mr/body.green-refresh.md",
   "skills/swe/bagakit-git-message-craft/templates/mr/body.status-refresh.md",
   "gate_eval/skills/swe/bagakit-git-message-craft/README.md",
+  "gate_eval/skills/swe/bagakit-git-message-craft/cases/agent-behavior-eval-dataset.json",
   "gate_eval/skills/swe/bagakit-git-message-craft/suite.ts",
   "gate_eval/skills/swe/bagakit-git-message-craft/validation.toml",
   "gate_eval/skills/swe/bagakit-git-message-craft/results/.gitignore",

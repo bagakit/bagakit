@@ -16,6 +16,19 @@ function extractInitializedDir(output: string): string {
   return line.slice("initialized: ".length);
 }
 
+function loadBehaviorDataset(repoRoot: string): Record<string, unknown> {
+  const datasetPath = path.join(
+    repoRoot,
+    "gate_eval",
+    "skills",
+    "swe",
+    "bagakit-git-message-craft",
+    "cases",
+    "agent-behavior-eval-dataset.json",
+  );
+  return JSON.parse(fs.readFileSync(datasetPath, "utf8")) as Record<string, unknown>;
+}
+
 export const SUITE: EvalSuiteDefinition = {
   id: "bagakit-git-message-craft-shared-runner-eval",
   owner: "gate_eval/skills/swe/bagakit-git-message-craft",
@@ -23,6 +36,92 @@ export const SUITE: EvalSuiteDefinition = {
   summary: "Measure deterministic message drafting and archive quality for bagakit-git-message-craft.",
   defaultOutputDir: "gate_eval/skills/swe/bagakit-git-message-craft/results/runs",
   cases: [
+    {
+      id: "paired-agent-behavior-contract-is-runnable",
+      title: "Paired Agent Behavior Contract Is Runnable",
+      summary: "The manual forward-test dataset should support fair baseline and with-skill runs for activation, message quality, and side-effect control.",
+      focus: ["agent-behavior", "activation-routing", "paired-baseline"],
+      run: (context) => {
+        const dataset = loadBehaviorDataset(context.repoRoot) as {
+          schema: string;
+          skill_id: string;
+          comparison: {
+            method: string;
+            baseline_condition: string;
+            candidate_condition: string;
+            required_capture: string[];
+          };
+          score_dimensions: string[];
+          cases: Array<{
+            id: string;
+            partition: string;
+            prompt: string;
+            expected_activation: string;
+            expected_route: string;
+            assertions: string[];
+            forbidden_outcomes: string[];
+          }>;
+        };
+        assert.equal(dataset.schema, "bagakit/agent-behavior-eval/v1");
+        assert.equal(dataset.skill_id, "bagakit-git-message-craft");
+        assert.equal(dataset.comparison.method, "paired-fresh-sessions");
+        assert.ok(dataset.comparison.baseline_condition.trim().length > 0);
+        assert.ok(dataset.comparison.candidate_condition.trim().length > 0);
+        for (const capture of [
+          "final_artifact",
+          "tool_and_action_trace",
+          "validation_evidence",
+          "elapsed_time",
+          "token_usage",
+          "human_rating",
+        ]) {
+          assert.ok(dataset.comparison.required_capture.includes(capture), `missing required capture: ${capture}`);
+        }
+        assert.ok(dataset.score_dimensions.includes("trigger_accuracy"));
+        assert.ok(dataset.score_dimensions.includes("scope_and_side_effect_control"));
+        assert.ok(dataset.cases.some((item) => item.expected_activation === "activate"));
+        assert.ok(dataset.cases.some((item) => item.expected_activation === "decline"));
+        assert.ok(dataset.cases.some((item) => item.partition === "development"));
+        assert.ok(dataset.cases.some((item) => item.partition === "holdout"));
+        assert.equal(new Set(dataset.cases.map((item) => item.id)).size, dataset.cases.length, "case ids must be unique");
+        for (const item of dataset.cases) {
+          assert.ok(item.id.trim().length > 0, "case id must be non-empty");
+          assert.ok(["development", "holdout"].includes(item.partition), `${item.id} has invalid partition`);
+          assert.ok(item.prompt.trim().length > 0, `${item.id} prompt must be non-empty`);
+          assert.ok(["activate", "decline"].includes(item.expected_activation), `${item.id} has invalid expected_activation`);
+          assert.ok(item.expected_route.length > 0, `${item.id} needs an expected route`);
+          assert.ok(item.assertions.length >= 2, `${item.id} needs observable success assertions`);
+          assert.ok(item.forbidden_outcomes.length >= 2, `${item.id} needs failure boundaries`);
+        }
+
+        return {
+          assertions: [
+            "the dataset defines paired fresh-session baseline and with-skill conditions",
+            "the dataset covers both correct activation and correct decline behavior",
+            "every case names observable success assertions and forbidden side effects",
+          ],
+          commands: ["manual: run each dataset prompt in paired fresh sessions"],
+          artifacts: [
+            {
+              label: "agent-behavior-dataset",
+              path: path.join(
+                context.repoRoot,
+                "gate_eval",
+                "skills",
+                "swe",
+                "bagakit-git-message-craft",
+                "cases",
+                "agent-behavior-eval-dataset.json",
+              ),
+            },
+          ],
+          outputs: {
+            case_count: dataset.cases.length,
+            activation_routes: [...new Set(dataset.cases.map((item) => item.expected_activation))],
+          },
+        };
+      },
+    },
     {
       id: "draft-and-archive-keep-git-facing-evidence-clean",
       title: "Draft And Archive Keep Git Facing Evidence Clean",

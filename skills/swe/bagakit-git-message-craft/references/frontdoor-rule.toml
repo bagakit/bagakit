@@ -1,5 +1,5 @@
 version = 1
 skill = "bagakit-git-message-craft"
-trigger = "Git changes need clearer commit splitting, review-quality commit messages, or merge request text."
-do = "Plan the Git-facing message from the diff, lint it against the message contract, and preserve validation facts."
+trigger = "Git changes need intent-based commit splitting, review-quality commit messages, or merge request text; the task is not merely coding, debugging, review, or raw Git operation."
+do = "Choose draft-only, commit, or MR-refresh authority; plan the Git-facing message from the diff, lint it against the message contract, and preserve validation facts without unauthorized Git or host mutation."
 see = "skills/swe/bagakit-git-message-craft/SKILL.md"

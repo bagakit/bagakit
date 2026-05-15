@@ -1,6 +1,6 @@
 version = 1
 skill = "bagakit-daily-media-automation"
-trigger = "Codex should run or design a recurring research-to-publication automation with source evidence, generated media assets, webpage deployment, and mobile or team notification."
-do = "Compose peer skills and tools by adapter without vendoring internals; plan dependency preflight, source and asset ledgers, webpage and deploy evidence, notification result, archive, and no-publish gates."
+trigger = "Codex should run or design a recurring multi-stage research-to-publication golden path; one-off research, design, deployment, notification, or generic CI/CD should route to its owned peer instead."
+do = "Compose peers through briefs and receipts without vendoring internals; keep no-publish gates and deployment/notification status explicit, and do not perform live publication side effects from planning-only authority."
 see = "skills/swe/bagakit-daily-media-automation/SKILL.md"
 evidence = ".bagakit/daily-media-automation/runs/<run-id>/archive.md"

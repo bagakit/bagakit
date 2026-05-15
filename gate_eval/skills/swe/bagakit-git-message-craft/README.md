@@ -4,7 +4,13 @@
 for `skills/swe/bagakit-git-message-craft/`.
 
 It reuses the shared `dev/eval` runner to capture deterministic evidence around
-message drafting, linting, and archive output.
+message drafting, linting, archive output, and the completeness of a paired
+fresh-session agent-behavior dataset.
+
+The deterministic suite validates that the behavior dataset is runnable and
+contains observable routing, quality, and side-effect boundaries. It does not
+claim that skill activation improves model behavior until maintainers execute
+the paired baseline and with-skill sessions and review their captured outputs.
 
 Primary entrypoint:
 

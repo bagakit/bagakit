@@ -34,6 +34,7 @@ required_files = [
   "skills/swe/bagakit-daily-media-automation/scripts/bagakit-daily-media-automation-cli.sh",
   "gate_validation/skills/swe/bagakit-daily-media-automation/check-daily-media-automation.sh",
   "gate_validation/skills/swe/bagakit-daily-media-automation/validation.toml",
+  "gate_eval/skills/swe/bagakit-daily-media-automation/cases/agent-behavior-eval-dataset.json",
 ]
 forbidden_paths = [
   "skills/swe/bagakit-daily-media-automation/SKILL_PAYLOAD.json",

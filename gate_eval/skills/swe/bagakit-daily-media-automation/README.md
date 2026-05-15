@@ -4,7 +4,13 @@
 slice for `skills/swe/bagakit-daily-media-automation/`.
 
 It exercises deterministic fixture runs for domain-pack initialization,
-ledger completion, no-publish blockers, status separation, and run validation.
+ledger completion, no-publish blockers, status separation, run validation, and
+the completeness of a paired fresh-session agent-behavior dataset.
+
+The deterministic suite validates that the behavior dataset can test
+golden-path activation, direct component routing, and side-effect control. It
+does not claim an agent-quality improvement until maintainers execute the
+paired baseline and with-skill sessions and review their captured outputs.
 
 Primary entrypoint:
 

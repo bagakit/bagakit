@@ -344,8 +344,8 @@ reporting, the response footer may use:
 </bagakit-rule>
 
 <bagakit-rule skill="bagakit-daily-media-automation">
-- Trigger: Codex should run or design a recurring research-to-publication automation with source evidence, generated media assets, webpage deployment, and mobile or team notification.
-- Do: Compose peer skills and tools by adapter without vendoring internals; plan dependency preflight, source and asset ledgers, webpage and deploy evidence, notification result, archive, and no-publish gates.
+- Trigger: Codex should run or design a recurring multi-stage research-to-publication golden path; one-off research, design, deployment, notification, or generic CI/CD should route to its owned peer instead.
+- Do: Compose peers through briefs and receipts without vendoring internals; keep no-publish gates and deployment/notification status explicit, and do not perform live publication side effects from planning-only authority.
 - See: `skills/swe/bagakit-daily-media-automation/SKILL.md`
 - Evidence: `.bagakit/daily-media-automation/runs/<run-id>/archive.md`
 </bagakit-rule>
@@ -371,8 +371,8 @@ reporting, the response footer may use:
 </bagakit-rule>
 
 <bagakit-rule skill="bagakit-git-message-craft">
-- Trigger: Git changes need clearer commit splitting, review-quality commit messages, or merge request text.
-- Do: Plan the Git-facing message from the diff, lint it against the message contract, and preserve validation facts.
+- Trigger: Git changes need intent-based commit splitting, review-quality commit messages, or merge request text; the task is not merely coding, debugging, review, or raw Git operation.
+- Do: Choose draft-only, commit, or MR-refresh authority; plan the Git-facing message from the diff, lint it against the message contract, and preserve validation facts without unauthorized Git or host mutation.
 - See: `skills/swe/bagakit-git-message-craft/SKILL.md`
 </bagakit-rule>
 

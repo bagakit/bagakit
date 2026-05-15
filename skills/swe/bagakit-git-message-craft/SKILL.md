@@ -1,16 +1,31 @@
 ---
 name: bagakit-git-message-craft
-description: Plan and write high-signal Git-facing messages for commits and merge requests. Use when changes need clearer, shorter, standalone-first commit history or MR text that survives without chat memory.
+description: Plan and write high-signal Git-facing messages for commits and merge requests. Use when changes need intent-based commit splitting, review-quality commit messages, or MR text that survives without chat memory. Do not use for general coding, causal debugging, code review, or raw Git operations when Git-facing communication is not the requested outcome.
 ---
 
 # Bagakit Git Message Craft
 
+This is a delivery-communication skill. It improves the explanation and
+rollback structure of an already understood change; it does not own coding,
+debugging, review, release orchestration, or repository policy.
+
 Two bounded surfaces:
 
 - `commit surface`
-  - `working diff -> split by intent -> draft one commit file -> lint -> commit -> archive`
+  - `working diff -> split by intent -> draft one commit file -> lint -> optional commit -> archive`
 - `mr surface`
   - `pick title/body template -> draft MR text -> hand off via local file or host tool`
+
+Choose the requested authority before acting:
+
+- `plan or draft only`
+  - inspect and write proposed split/message artifacts without staging,
+    committing, pushing, or editing an MR
+- `execute commit`
+  - commit only when the user or owning workflow authorized the commit action
+- `refresh MR text`
+  - draft locally by default; mutate the hosted MR only when that external
+    write is in scope
 
 ## Purpose
 
@@ -36,9 +51,11 @@ Two bounded surfaces:
 
 ## When NOT to Use This Skill
 
-- User explicitly says not to commit yet.
+- The user explicitly says not to draft Git-facing communication yet.
 - The work is still exploratory and the intent boundary is unstable.
 - A one-line local checkpoint is enough and no review-quality history is needed.
+- The task is primarily implementation, diagnosis, or review and does not ask
+  for commit splitting, a commit message, or MR text.
 
 ## Output Discipline
 
@@ -245,6 +262,8 @@ git commit -F <message-file>
 If the current repository defines a higher-level commit wrapper, use that
 wrapper with the drafted message file instead of raw `git commit`.
 
+Skip this step when the selected authority is `plan or draft only`.
+
 7. Archive completion evidence.
 
 ```bash
@@ -346,11 +365,13 @@ Archive is complete only when:
 
 ## References
 
-- `references/meta-schema.md`
-- `references/commit-message-spec-guide.md`
-- `references/split-strategy-guide.md`
-- `references/hook-install-guide.md`
-- `templates/mr/README.md`
+Load only the material needed for the selected surface:
+
+- commit body and lint semantics: `references/commit-message-spec-guide.md`
+- mixed-diff rollback boundaries: `references/split-strategy-guide.md`
+- optional hook installation: `references/hook-install-guide.md`
+- metadata and footer placement: `references/meta-schema.md`
+- MR title/body variants: `templates/mr/README.md`
 
 ## `[[BAGAKIT]]` Footer Contract
 

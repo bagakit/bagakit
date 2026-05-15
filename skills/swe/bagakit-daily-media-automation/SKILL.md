@@ -1,6 +1,6 @@
 ---
 name: bagakit-daily-media-automation
-description: Use when Codex should run or design a recurring media-publication automation that researches sources, verifies evidence, generates shareable image assets, builds a webpage, deploys it, sends a mobile notification, and archives the run. Use for daily AI news briefs, market watches, release radars, community pulse pages, research digests, and similar scheduled research-to-publication workflows that need source provenance, no-publish gates, dependency checks, and adapter-based scheduling, deployment, or notification. Do not use for one-off research, pure image generation, pure webpage design, or a single deployment when the owned peer skill or tool is enough.
+description: Design or run a recurring research-to-publication workflow that coordinates source evidence, editorial synthesis, media assets, a web or message output, deployment or delivery, notification, and run archival. Use for daily AI briefs, market watches, release radars, community pulse pages, research digests, and similar repeatable golden paths that need provenance, no-publish gates, dependency checks, and adapter receipts across multiple component capabilities. Do not use for one-off research, pure image generation, pure webpage design, a single deployment, generic CI/CD, or another task where one owned peer skill or tool is sufficient.
 metadata:
   bagakit:
     swe_layer: automation-orchestration
@@ -8,8 +8,9 @@ metadata:
 
 # Bagakit Daily Media Automation
 
-`bagakit-daily-media-automation` is an orchestration skill for recurring
-research-to-publication runs.
+`bagakit-daily-media-automation` is a workflow/golden-path orchestration skill
+for recurring research-to-publication runs. It is not a primitive media,
+research, design, deployment, notification, or scheduling capability.
 
 It turns a smooth daily workflow into a repeatable contract:
 
@@ -25,6 +26,15 @@ It owns the run contract, ledgers, dependency checks, adapter choices, and
 no-publish gates. It does not own the platform internals for social search,
 image generation, webpage design, deployment providers, schedulers, or mobile
 messaging.
+
+Use it only when coordination across multiple stages is the product. If one
+peer can satisfy the request directly, route to that peer and do not create a
+daily-media run surface.
+
+Planning the workflow does not authorize live publication side effects.
+Deploying, notifying recipients, installing a schedule, or changing provider
+configuration requires that action to be explicitly in scope. Otherwise stop
+at a plan, draft, dry-run, or human-review handoff.
 
 ## When To Use
 
@@ -62,6 +72,16 @@ A peer address is one of:
 Do not assume a skill id is also an executable command. If a peer skill is
 visible but has no usable CLI, use its `SKILL.md` as instructions and record
 manual or host-tool execution in the run ledger.
+
+Keep the component boundary receipt-based:
+
+- the workflow passes a brief or owned input packet to the peer
+- the peer owns its internal execution and component-quality checks
+- the workflow records the returned artifact, status, and evidence reference
+- the workflow decides whether the whole run advances, blocks, or retries
+
+Do not vendor peer prompts, provider logic, or component-specific validation
+into this skill merely to make the golden path look self-contained.
 
 Default peer routes:
 
@@ -133,6 +153,9 @@ Every live or planned run should make these stages explicit:
 
 For a planned but not executed run, produce the same ledgers as a checklist
 with unresolved items marked `blocked` or `not_applicable`.
+
+For a design-only request, the run spine is a planning contract, not permission
+to call live adapters.
 
 ## No-Publish Gates
 
@@ -284,3 +307,7 @@ Before calling the workflow complete, verify:
 Use `references/runbook.md` for the operator runbook and
 `references/adapter-matrix.md` for adapter selection. Use
 `references/run-artifacts.md` for compatible run ledgers.
+
+Load `references/domain-packs.md` only when choosing or extending a starter
+publication domain. The core workflow does not require loading every domain
+pack or adapter description into context.

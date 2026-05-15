@@ -33,6 +33,19 @@ function replaceInFile(filePath: string, replacements: Array<[string, string]>):
   fs.writeFileSync(filePath, text, "utf8");
 }
 
+function loadBehaviorDataset(repoRoot: string): Record<string, unknown> {
+  const datasetPath = path.join(
+    repoRoot,
+    "gate_eval",
+    "skills",
+    "swe",
+    "bagakit-daily-media-automation",
+    "cases",
+    "agent-behavior-eval-dataset.json",
+  );
+  return JSON.parse(fs.readFileSync(datasetPath, "utf8")) as Record<string, unknown>;
+}
+
 function completePublishableRun(runRoot: string, runId: string): void {
   appendRows(
     runRoot,
@@ -104,6 +117,92 @@ export const SUITE: EvalSuiteDefinition = {
   summary: "Measure deterministic orchestration fixtures for domain packs, ledgers, no-publish blockers, and validation outcomes.",
   defaultOutputDir: "gate_eval/skills/swe/bagakit-daily-media-automation/results/runs",
   cases: [
+    {
+      id: "paired-agent-behavior-contract-is-runnable",
+      title: "Paired Agent Behavior Contract Is Runnable",
+      summary: "The manual forward-test dataset should distinguish golden-path orchestration from direct component routing and unauthorized publication side effects.",
+      focus: ["agent-behavior", "golden-path-boundary", "paired-baseline"],
+      run: (context) => {
+        const dataset = loadBehaviorDataset(context.repoRoot) as {
+          schema: string;
+          skill_id: string;
+          comparison: {
+            method: string;
+            baseline_condition: string;
+            candidate_condition: string;
+            required_capture: string[];
+          };
+          score_dimensions: string[];
+          cases: Array<{
+            id: string;
+            partition: string;
+            prompt: string;
+            expected_activation: string;
+            expected_route: string;
+            assertions: string[];
+            forbidden_outcomes: string[];
+          }>;
+        };
+        assert.equal(dataset.schema, "bagakit/agent-behavior-eval/v1");
+        assert.equal(dataset.skill_id, "bagakit-daily-media-automation");
+        assert.equal(dataset.comparison.method, "paired-fresh-sessions");
+        assert.ok(dataset.comparison.baseline_condition.trim().length > 0);
+        assert.ok(dataset.comparison.candidate_condition.trim().length > 0);
+        for (const capture of [
+          "final_artifact",
+          "tool_and_action_trace",
+          "validation_evidence",
+          "elapsed_time",
+          "token_usage",
+          "human_rating",
+        ]) {
+          assert.ok(dataset.comparison.required_capture.includes(capture), `missing required capture: ${capture}`);
+        }
+        assert.ok(dataset.score_dimensions.includes("workflow_and_component_boundary"));
+        assert.ok(dataset.score_dimensions.includes("publication_safety"));
+        assert.ok(dataset.cases.some((item) => item.expected_activation === "activate"));
+        assert.ok(dataset.cases.filter((item) => item.expected_activation === "decline").length >= 2);
+        assert.ok(dataset.cases.some((item) => item.partition === "development"));
+        assert.ok(dataset.cases.some((item) => item.partition === "holdout"));
+        assert.equal(new Set(dataset.cases.map((item) => item.id)).size, dataset.cases.length, "case ids must be unique");
+        for (const item of dataset.cases) {
+          assert.ok(item.id.trim().length > 0, "case id must be non-empty");
+          assert.ok(["development", "holdout"].includes(item.partition), `${item.id} has invalid partition`);
+          assert.ok(item.prompt.trim().length > 0, `${item.id} prompt must be non-empty`);
+          assert.ok(["activate", "decline"].includes(item.expected_activation), `${item.id} has invalid expected_activation`);
+          assert.ok(item.expected_route.length > 0, `${item.id} needs an expected route`);
+          assert.ok(item.assertions.length >= 2, `${item.id} needs observable success assertions`);
+          assert.ok(item.forbidden_outcomes.length >= 2, `${item.id} needs failure boundaries`);
+        }
+
+        return {
+          assertions: [
+            "the dataset defines paired fresh-session baseline and with-skill conditions",
+            "the dataset distinguishes recurring golden-path activation from direct peer routing",
+            "the workflow case forbids live deployment, notification, and scheduling during planning",
+          ],
+          commands: ["manual: run each dataset prompt in paired fresh sessions"],
+          artifacts: [
+            {
+              label: "agent-behavior-dataset",
+              path: path.join(
+                context.repoRoot,
+                "gate_eval",
+                "skills",
+                "swe",
+                "bagakit-daily-media-automation",
+                "cases",
+                "agent-behavior-eval-dataset.json",
+              ),
+            },
+          ],
+          outputs: {
+            case_count: dataset.cases.length,
+            activation_routes: [...new Set(dataset.cases.map((item) => item.expected_activation))],
+          },
+        };
+      },
+    },
     {
       id: "domain-pack-draft-stays-nonpublishable",
       title: "Domain Pack Draft Stays Nonpublishable",
