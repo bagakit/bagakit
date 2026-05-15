@@ -1,7 +1,7 @@
 # Runbook
 
 This runbook describes a practical execution sequence for
-`bagakit-daily-media-automation`.
+`bagakit-daily-media-production`.
 
 ## 1. Define The Brief
 
@@ -32,7 +32,7 @@ draft. Do not publish with thresholds invented by the agent.
 For starter thresholds, read `references/domain-packs.md` or list the built-ins:
 
 ```bash
-bash skills/swe/bagakit-daily-media-automation/scripts/bagakit-daily-media-automation-cli.sh list-domain-packs
+bash skills/media-production/bagakit-daily-media-production/scripts/bagakit-daily-media-production-cli.sh list-domain-packs
 ```
 
 Built-in domain packs are only defaults. Review the generated brief before
@@ -52,7 +52,7 @@ Check:
 Use the skill CLI:
 
 ```bash
-bash skills/swe/bagakit-daily-media-automation/scripts/bagakit-daily-media-automation-cli.sh doctor \
+bash skills/media-production/bagakit-daily-media-production/scripts/bagakit-daily-media-production-cli.sh doctor \
   --source agent-reach \
   --image imagegen \
   --web bagakit-codex-webpage-design \
@@ -227,7 +227,7 @@ shape.
 Then validate the run:
 
 ```bash
-bash skills/swe/bagakit-daily-media-automation/scripts/bagakit-daily-media-automation-cli.sh validate-run \
+bash skills/media-production/bagakit-daily-media-production/scripts/bagakit-daily-media-production-cli.sh validate-run \
   --run-id <domain-pack-yyyymmdd-slug> \
   --intent publish
 ```
@@ -245,7 +245,7 @@ Use exact production scheduling only after a manual dry-run.
 Codex non-interactive runs can be launched with:
 
 ```bash
-codex exec -C <repo> "<automation prompt>"
+codex exec -C <repo> "<production workflow prompt>"
 ```
 
 For GitHub Actions schedules, keep secrets in GitHub secrets and assume the

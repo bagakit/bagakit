@@ -7,6 +7,7 @@ The required layout is family-based:
 - `skills/harness/`
 - `skills/design/`
 - `skills/swe/`
+- `skills/media-production/`
 - `skills/paperwork/`
 - `skills/gamemaker/`
 - `skills/human-improvement/`

@@ -1,7 +1,7 @@
 # Run Artifacts
 
 Use this reference when a host repository materializes
-`.bagakit/daily-media-automation/` or when an agent needs compatible run
+`.bagakit/daily-media-production/` or when an agent needs compatible run
 ledgers.
 
 ## Run Ids
@@ -21,21 +21,21 @@ Do not encode usernames, machine paths, raw source names, or secrets.
 
 ## Surface Marker
 
-When `.bagakit/daily-media-automation/` exists, it must include:
+When `.bagakit/daily-media-production/` exists, it must include:
 
 ```toml
 schema_version = 1
-surface_id = "daily-media-automation-runtime"
-surface_root = ".bagakit/daily-media-automation"
+surface_id = "daily-media-production-runtime"
+surface_root = ".bagakit/daily-media-production"
 owner_kind = "skill"
-owner_id = "bagakit-daily-media-automation"
+owner_id = "bagakit-daily-media-production"
 lifecycle_class = "durable_state"
 edit_policy = "mixed"
 cleanup_safe = false
 source_of_truth = [
   "docs/specs/runtime-surface-contract.md",
-  "skills/swe/bagakit-daily-media-automation/SKILL.md",
-  "skills/swe/bagakit-daily-media-automation/references/run-artifacts.md",
+  "skills/media-production/bagakit-daily-media-production/SKILL.md",
+  "skills/media-production/bagakit-daily-media-production/references/run-artifacts.md",
 ]
 reviewable_outputs = [
   "runs/<run-id>/archive.md",
@@ -234,7 +234,7 @@ The archive is the final handoff. If a stage is out of scope, mark it
 Use the skill CLI to validate a materialized run before publication or handoff:
 
 ```bash
-bash skills/swe/bagakit-daily-media-automation/scripts/bagakit-daily-media-automation-cli.sh validate-run \
+bash skills/media-production/bagakit-daily-media-production/scripts/bagakit-daily-media-production-cli.sh validate-run \
   --run-id <domain-pack-yyyymmdd-slug> \
   --intent publish
 ```

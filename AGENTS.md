@@ -188,6 +188,7 @@ Current family boundary target:
 - `skills/harness/<skill-id>/`
 - `skills/design/<skill-id>/`
 - `skills/swe/<skill-id>/`
+- `skills/media-production/<skill-id>/`
 - `skills/paperwork/<skill-id>/`
 - `skills/gamemaker/<skill-id>/`
 - `skills/human-improvement/<skill-id>/`
@@ -343,11 +344,11 @@ reporting, the response footer may use:
 - Fallback: For tiny one-turn tasks, a concise prose note may be enough; for durable shared knowledge use bagakit-living-knowledge after explicit promotion.
 </bagakit-rule>
 
-<bagakit-rule skill="bagakit-daily-media-automation">
+<bagakit-rule skill="bagakit-daily-media-production">
 - Trigger: Codex should run or design a recurring multi-stage research-to-publication golden path; one-off research, design, deployment, notification, or generic CI/CD should route to its owned peer instead.
 - Do: Compose peers through briefs and receipts without vendoring internals; keep no-publish gates and deployment/notification status explicit, and do not perform live publication side effects from planning-only authority.
-- See: `skills/swe/bagakit-daily-media-automation/SKILL.md`
-- Evidence: `.bagakit/daily-media-automation/runs/<run-id>/archive.md`
+- See: `skills/media-production/bagakit-daily-media-production/SKILL.md`
+- Evidence: `.bagakit/daily-media-production/runs/<run-id>/archive.md`
 </bagakit-rule>
 
 <bagakit-rule skill="bagakit-design-core">

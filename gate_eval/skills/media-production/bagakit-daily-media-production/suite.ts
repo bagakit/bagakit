@@ -6,7 +6,7 @@ import { runCommand, type CommandResult } from "../../../../dev/eval/src/lib/com
 import type { EvalSuiteDefinition } from "../../../../dev/eval/src/lib/model.ts";
 import { cleanupTempDir, createTempDir, registerTempRepo } from "../../../../dev/eval/src/lib/temp.ts";
 
-const CLI_REL = "skills/swe/bagakit-daily-media-automation/scripts/bagakit-daily-media-automation-cli.sh";
+const CLI_REL = "skills/media-production/bagakit-daily-media-production/scripts/bagakit-daily-media-production-cli.sh";
 
 function expectStatus(result: CommandResult, status: number, label: string): void {
   assert.equal(
@@ -17,7 +17,7 @@ function expectStatus(result: CommandResult, status: number, label: string): voi
 }
 
 function runDir(tempRepo: string, runId: string): string {
-  return path.join(tempRepo, ".bagakit", "daily-media-automation", "runs", runId);
+  return path.join(tempRepo, ".bagakit", "daily-media-production", "runs", runId);
 }
 
 function appendRows(runRoot: string, fileName: string, rows: string): void {
@@ -38,8 +38,8 @@ function loadBehaviorDataset(repoRoot: string): Record<string, unknown> {
     repoRoot,
     "gate_eval",
     "skills",
-    "swe",
-    "bagakit-daily-media-automation",
+    "media-production",
+    "bagakit-daily-media-production",
     "cases",
     "agent-behavior-eval-dataset.json",
   );
@@ -111,11 +111,11 @@ function completeNotificationFailureRun(runRoot: string, runId: string): void {
 }
 
 export const SUITE: EvalSuiteDefinition = {
-  id: "bagakit-daily-media-automation-shared-runner-eval",
-  owner: "gate_eval/skills/swe/bagakit-daily-media-automation",
-  title: "Daily Media Automation Shared Runner Eval",
+  id: "bagakit-daily-media-production-shared-runner-eval",
+  owner: "gate_eval/skills/media-production/bagakit-daily-media-production",
+  title: "Daily Media Production Shared Runner Eval",
   summary: "Measure deterministic orchestration fixtures for domain packs, ledgers, no-publish blockers, and validation outcomes.",
-  defaultOutputDir: "gate_eval/skills/swe/bagakit-daily-media-automation/results/runs",
+  defaultOutputDir: "gate_eval/skills/media-production/bagakit-daily-media-production/results/runs",
   cases: [
     {
       id: "paired-agent-behavior-contract-is-runnable",
@@ -144,7 +144,7 @@ export const SUITE: EvalSuiteDefinition = {
           }>;
         };
         assert.equal(dataset.schema, "bagakit/agent-behavior-eval/v1");
-        assert.equal(dataset.skill_id, "bagakit-daily-media-automation");
+        assert.equal(dataset.skill_id, "bagakit-daily-media-production");
         assert.equal(dataset.comparison.method, "paired-fresh-sessions");
         assert.ok(dataset.comparison.baseline_condition.trim().length > 0);
         assert.ok(dataset.comparison.candidate_condition.trim().length > 0);
@@ -189,8 +189,8 @@ export const SUITE: EvalSuiteDefinition = {
                 context.repoRoot,
                 "gate_eval",
                 "skills",
-                "swe",
-                "bagakit-daily-media-automation",
+                "media-production",
+                "bagakit-daily-media-production",
                 "cases",
                 "agent-behavior-eval-dataset.json",
               ),

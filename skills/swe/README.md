@@ -142,4 +142,3 @@ Current skill sources in this family include:
 
 - `bagakit-coding-agent-principles`
 - `bagakit-git-message-craft`
-- `bagakit-daily-media-automation`

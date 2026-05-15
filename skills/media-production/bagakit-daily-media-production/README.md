@@ -1,4 +1,4 @@
-# Bagakit Daily Media Automation
+# Bagakit Daily Media Production
 
 Installable orchestration skill for recurring research-to-publication runs.
 
@@ -12,7 +12,7 @@ Primary runtime doc:
 ## Runtime Surface Declaration
 
 - top-level runtime surface root when materialized:
-  - `.bagakit/daily-media-automation/`
+  - `.bagakit/daily-media-production/`
 - stable contract:
   - `docs/specs/runtime-surface-contract.md`
 - if the top-level root exists in a host repo, it should carry `surface.toml`
