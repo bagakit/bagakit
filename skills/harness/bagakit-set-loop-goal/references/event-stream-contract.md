@@ -44,7 +44,7 @@ Required fields:
 - `seq`: positive contiguous integer within one Goal stream
 - `event_id`: `e-` plus the zero-padded sequence number
 - `goal_id`: owning Goal id
-- `kind`: `goal_created`, `goal_updated`, `goal_reconciled`,
+- `kind`: `goal_created`, `goal_updated`, `goal_reconciled`, `goal_upgraded`,
   `supervisor_checkpoint`, `delta_proposed`, `delta_applied`, or
   `status_changed`
 - `owner`: logical producer id, never a username or hostname

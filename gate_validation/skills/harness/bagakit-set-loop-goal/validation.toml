@@ -29,6 +29,9 @@ required_files = [
   "skills/harness/bagakit-set-loop-goal/references/skill-cli.toml",
   "skills/harness/bagakit-set-loop-goal/references/frontdoor-rule.toml",
   "skills/harness/bagakit-set-loop-goal/references/goal-file-contract.md",
+  "skills/harness/bagakit-set-loop-goal/references/event-stream-contract.md",
+  "skills/harness/bagakit-set-loop-goal/references/protocol-upgrade-contract.md",
+  "skills/harness/bagakit-set-loop-goal/references/bagakit-driver.toml",
   "skills/harness/bagakit-set-loop-goal/references/tool-orchestration.md",
   "skills/harness/bagakit-set-loop-goal/references/loop-off-loop.md",
   "skills/harness/bagakit-set-loop-goal/references/design-origin.md",
@@ -37,6 +40,8 @@ required_files = [
   "gate_validation/skills/harness/bagakit-set-loop-goal/validation.toml",
   "gate_validation/skills/harness/bagakit-set-loop-goal/check-set-loop-goal-contract.py",
   "gate_validation/skills/harness/bagakit-set-loop-goal/check-set-loop-goal.sh",
+  "gate_validation/skills/harness/bagakit-set-loop-goal/check-goal-protocol-upgrade.sh",
+  "gate_validation/skills/harness/bagakit-set-loop-goal/check-goal-driver-report.sh",
 ]
 forbidden_paths = [
   "skills/harness/bagakit-set-loop-goal/SKILL_PAYLOAD.json",
@@ -49,10 +54,10 @@ forbidden_paths = [
 [[suite]]
 id = "bagakit-set-loop-goal-contract"
 owner = "skills/harness/bagakit-set-loop-goal"
-description = "Require the fixed wrapper, event-stream commands, review receipt boundary, and goal-surface contract anchors to stay aligned across shipped references."
+description = "Require the fixed wrapper, protocol-upgrade commands, event-stream commands, review receipt boundary, and Goal-surface contract anchors to stay aligned across shipped references."
 default = true
 proof_mode = "structural"
-protects = ["set-loop-goal fixed wrapper template, Goal event and reconciliation command discovery, event-bound Evolver review receipt boundary, goal-surface refs, and frontdoor alignment"]
+protects = ["set-loop-goal fixed wrapper template, bagakit.goal.v.0.1 upgrade discovery, Goal event and reconciliation command discovery, event-bound Evolver review receipt boundary, goal-surface refs, and frontdoor alignment"]
 oracle = ["contract checker parses wrapper blocks and surface anchors from shipped references and skill metadata"]
 exercised_surface = ["set-loop-goal SKILL.md", "goal-file-contract.md", "loop-off-loop.md", "frontdoor-rule.toml", "skill-cli.toml"]
 proves = ["bagakit-set-loop-goal-contract proves: wrapper templates and shipped contract anchors stay aligned with the runtime skill."]
@@ -87,6 +92,52 @@ groups = ["skills", "harness", "set-loop-goal", "smoke"]
 [suite.runner]
 kind = "bash_script"
 script = "gate_validation/skills/harness/bagakit-set-loop-goal/check-set-loop-goal.sh"
+args = [
+  "--root",
+  "{repo_root}",
+]
+
+[[suite]]
+id = "bagakit-set-loop-goal-driver-report"
+owner = "skills/harness/bagakit-set-loop-goal"
+description = "Render evidence-backed Goal checkpoint feedback and aggregate decision-bearing Goal alerts into the shared Bagakit footer."
+default = true
+proof_mode = "runtime"
+protects = ["Goal Driver progress, drift, budget, discovery, status-transition, and unified Alert projection behavior"]
+oracle = ["runtime fixture invokes the public driver-report command over current and unreconciled Goal surfaces, checks structured fields and the single shared Alert aggregate, and proves the command does not mutate Goal truth"]
+exercised_surface = ["driver-report", "references/bagakit-driver.toml", "[[BAGAKIT]] footer", "shared Alert aggregate"]
+proves = ["driver-report smoke proves: evidence-backed acceptance progress, explicit time and token budget assessment, material discovery reporting, status transitions, unified P0/P1/P2 Goal alert candidates, and read-only projection."]
+does_not_prove = ["driver-report smoke does not prove that every host agent emits the footer at every semantic checkpoint or that external token counters are available."]
+timeout_seconds = 180
+validation_class = "smoke"
+groups = ["skills", "harness", "set-loop-goal", "smoke", "driver"]
+
+[suite.runner]
+kind = "bash_script"
+script = "gate_validation/skills/harness/bagakit-set-loop-goal/check-goal-driver-report.sh"
+args = [
+  "--root",
+  "{repo_root}",
+]
+
+[[suite]]
+id = "bagakit-set-loop-goal-protocol-upgrade"
+owner = "skills/harness/bagakit-set-loop-goal"
+description = "Inspect and upgrade legacy or incomplete Goal surfaces under the current protocol without guessing semantic conflicts."
+default = true
+proof_mode = "runtime"
+protects = ["Goal protocol version detection, deterministic legacy upgrade, multi-Goal foreground conflict routing, explicit resolution, future-version refusal, and upgrade idempotency"]
+oracle = ["runtime fixture creates unversioned single and multi-Goal surfaces, checks read-only plans, applies deterministic repairs, verifies blocked plans remain unmodified, resolves one topology conflict explicitly, and rejects future protocol downgrade"]
+exercised_surface = ["inspect-upgrade", "upgrade-surface", "automatic mutating-command upgrade", ".bagakit/goal/upgrade.json", "Goal protocol metadata", "fresh-check"]
+proves = ["protocol-upgrade smoke proves: missing and older Goal metadata upgrades to bagakit.goal.v.0.1, semantic ambiguity routes to Grill without partial mutation, explicit foreground and pause resolutions apply, future versions fail closed, and repeat upgrade is stable."]
+does_not_prove = ["protocol-upgrade smoke does not prove Grill dialogue quality or infer user intent for arbitrary legacy Goal content."]
+timeout_seconds = 300
+validation_class = "smoke"
+groups = ["skills", "harness", "set-loop-goal", "smoke", "upgrade"]
+
+[suite.runner]
+kind = "bash_script"
+script = "gate_validation/skills/harness/bagakit-set-loop-goal/check-goal-protocol-upgrade.sh"
 args = [
   "--root",
   "{repo_root}",

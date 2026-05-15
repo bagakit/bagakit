@@ -1,0 +1,33 @@
+version = 1
+insert_target = "bagakit_footer"
+summary_line = "- Goal: ID=<foreground goal or none>; Status=<previous→current or current>; Event=<latest material event>; Progress=<evidence-backed gates or unknown>; Drift=<none or decision-bearing drift>; Budget=<time/token assessment or unknown>; Discovery=<decision-bearing discovery or none>; Evidence=<Goal and owner refs>; Next=<one deterministic action>"
+
+[[directive]]
+id = "CHECKPOINT"
+when = "a bounded round, material milestone, lifecycle change, foreground switch, restart recovery, or pre-closeout check completes"
+instruction = "update and reconcile Goal truth first, then render one Goal summary with `driver-report`; do not use the conversation footer as a second source of truth"
+
+[[directive]]
+id = "INPUT_DRIFT"
+when = "new user input arrives during Goal execution"
+instruction = "assess whether it changes the protected outcome, acceptance, scope, risk, budget, or next action; emit a new summary only when it creates a Goal delta, alert, or material checkpoint"
+
+[[directive]]
+id = "PROGRESS"
+when = "reporting overall progress"
+instruction = "prefer passed acceptance gates over intuitive percentages; report `unknown` when no evidence-backed denominator exists"
+
+[[directive]]
+id = "BUDGET"
+when = "reporting execution time or token use"
+instruction = "compare only against an explicit baseline; report `unknown` when counters or budgets are unavailable"
+
+[[directive]]
+id = "DISCOVERY"
+when = "execution reveals new information"
+instruction = "surface only discoveries that may change Goal direction, acceptance, risk, orchestration, or the next bounded action"
+
+[[directive]]
+id = "ALERT_CANDIDATE"
+when = "Goal drift, blocking, unreconciled truth, protocol incompatibility, or budget risk can change the next action"
+instruction = "contribute a P0, P1, or P2 candidate to the shared `👩🏻‍🚒 ALERTS !!` aggregate; never create a Goal-specific alert heading"

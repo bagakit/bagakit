@@ -1,4 +1,4 @@
 interface:
   display_name: "Bagakit Set Loop Goal"
-  short_description: "Create loop-resumable goal files"
-  default_prompt: "Use $bagakit-set-loop-goal to create or update a loop-resumable Goal file for this long-running agent task."
+  short_description: "Create and upgrade loop-resumable goals"
+  default_prompt: "Use $bagakit-set-loop-goal to inspect, upgrade, create, update, or report the loop-resumable Goal surface for this long-running agent task."

@@ -26,6 +26,14 @@ name = "initialize-surface"
 summary = "Create the .bagakit/goal runtime surface and its entrypoint files."
 
 [[command]]
+name = "inspect-upgrade"
+summary = "Inspect Goal protocol versions, completeness, deterministic repairs, and semantic conflicts without mutation."
+
+[[command]]
+name = "upgrade-surface"
+summary = "Upgrade a legacy or incomplete Goal surface when the plan contains no unresolved semantic conflicts."
+
+[[command]]
 name = "upsert-goal"
 summary = "Create or update a Goal file and sync it into the active registry."
 
@@ -72,3 +80,7 @@ summary = "Move a completed or abandoned Goal into archive/ and repair the regis
 [[command]]
 name = "show-surface"
 summary = "Print the current Goal-surface summary."
+
+[[command]]
+name = "driver-report"
+summary = "Render a read-only Bagakit Goal footer or structured report from current Goal truth and checkpoint evidence."

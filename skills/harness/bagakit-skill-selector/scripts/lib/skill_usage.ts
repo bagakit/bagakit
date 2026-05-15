@@ -2373,6 +2373,14 @@ export function renderDriverPack(taskFile: string, drivers: BagakitDriverPayload
     return lines.join("\n");
   }
 
+  lines.push("## Shared Footer Rules");
+  lines.push("Render one `[[BAGAKIT]]` block containing all active Driver summary lines.");
+  lines.push(
+    "When decision-bearing alert candidates exist, append exactly one `- 👩🏻‍🚒 ALERTS !! <severity-sorted candidates>` line after the normal summaries; omit it when there are no alerts.",
+  );
+  lines.push("Individual skills contribute alert candidates and must not create separate Alert headings.");
+  lines.push("");
+
   for (const driver of drivers) {
     lines.push(`## ${driver.skill_name}`);
     lines.push(`Skill source: \`${driver.skill_source}\``);

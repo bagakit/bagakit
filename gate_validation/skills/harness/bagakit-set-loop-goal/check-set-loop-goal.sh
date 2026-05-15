@@ -414,12 +414,14 @@ goal_root_text = "\n".join(
 )
 
 assert state["schema"] == "bagakit.goal-state.v1"
+assert state["protocol_version"] == "bagakit.goal.v.0.1"
 assert state["foreground_goal"] == "paused-goal"
 assert "demo-goal" not in state["goals"]
 assert state["goals"]["paused-goal"]["role"] == "foreground"
 assert state["goals"]["paused-goal"]["status"] == "active"
 assert state["edges"] == []
 assert "truth_surface: .bagakit/goal/archive/demo-goal.md" in archived
+assert "protocol_version: bagakit.goal.v.0.1" in archived
 assert "status: complete" in archived
 assert "smoke archive proof" in archived
 assert archived_events.exists()
@@ -427,6 +429,7 @@ assert not (goal_root / "events" / "demo-goal.jsonl").exists()
 assert "status: active" in paused
 assert "No foreground Goal is currently selected" not in current
 assert 'owner_id = "bagakit-set-loop-goal"' in surface
+assert 'protocol_version = "bagakit.goal.v.0.1"' in surface
 assert str(tmp) not in goal_root_text
 PY
 

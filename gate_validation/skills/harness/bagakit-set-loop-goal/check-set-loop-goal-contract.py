@@ -48,15 +48,19 @@ def main() -> None:
     root = Path(args.root)
     skill = root / "skills/harness/bagakit-set-loop-goal/SKILL.md"
     contract = root / "skills/harness/bagakit-set-loop-goal/references/goal-file-contract.md"
+    upgrade_contract = root / "skills/harness/bagakit-set-loop-goal/references/protocol-upgrade-contract.md"
     loop_off = root / "skills/harness/bagakit-set-loop-goal/references/loop-off-loop.md"
     frontdoor = root / "skills/harness/bagakit-set-loop-goal/references/frontdoor-rule.toml"
     skill_cli = root / "skills/harness/bagakit-set-loop-goal/references/skill-cli.toml"
+    driver = root / "skills/harness/bagakit-set-loop-goal/references/bagakit-driver.toml"
 
     skill_text = skill.read_text(encoding="utf-8")
     contract_text = contract.read_text(encoding="utf-8")
+    upgrade_text = upgrade_contract.read_text(encoding="utf-8")
     loop_text = loop_off.read_text(encoding="utf-8")
     frontdoor_text = frontdoor.read_text(encoding="utf-8")
     skill_cli_text = skill_cli.read_text(encoding="utf-8")
+    driver_text = driver.read_text(encoding="utf-8")
 
     contract_with = extract_code_block(contract_text, "With supervisor:")
     contract_without = extract_code_block(contract_text, "Without supervisor:")
@@ -74,6 +78,8 @@ def main() -> None:
 
     for command in [
         "initialize-surface",
+        "inspect-upgrade",
+        "upgrade-surface",
         "upsert-goal",
         "set-foreground",
         "set-supervision",
@@ -86,6 +92,7 @@ def main() -> None:
         "fresh-check",
         "archive-goal",
         "show-surface",
+        "driver-report",
     ]:
         require(f'name = "{command}"' in skill_cli_text, f"skill-cli.toml missing command entry: {command}")
 
@@ -93,6 +100,10 @@ def main() -> None:
     require(".bagakit/goal/state.yaml" in skill_text, "SKILL.md must reference state.yaml ownership")
     require("references/loop-off-loop.md" in skill_text, "SKILL.md must route to loop-off-loop reference")
     require("references/goal-file-contract.md" in skill_text, "SKILL.md must route to goal-file-contract reference")
+    require("references/protocol-upgrade-contract.md" in skill_text, "SKILL.md must route to protocol-upgrade-contract reference")
+    require("bagakit.goal.v.0.1" in upgrade_text, "upgrade contract must declare the current Goal protocol")
+    require("insert_target = \"bagakit_footer\"" in driver_text, "Goal Driver must target the Bagakit footer")
+    require("👩🏻‍🚒 ALERTS !!" in driver_text, "Goal Driver must contribute to the shared Alert aggregate")
     require("session-review intake" in loop_text, "loop-off-loop must define the Evolver handoff route")
     require("`session_end` is opportunistic only" in contract_text, "goal contract must keep session_end opportunistic")
     require(

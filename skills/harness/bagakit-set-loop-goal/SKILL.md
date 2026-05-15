@@ -1,6 +1,6 @@
 ---
 name: bagakit-set-loop-goal
-description: Create or update a high-quality Goal file that can be set as an agent's goal for long-running work. Use when a task needs restart, compact, handoff, loop supervision, sidecar analysis, or execution control through a compact steering index rather than a chat transcript, full plan, or log bucket.
+description: Create, upgrade, or update high-quality Goal control files for long-running agent work. Use when a task needs restart, compact, handoff, loop supervision, sidecar analysis, multiple coexisting Goals, legacy or incomplete Goal recovery, protocol migration, or execution control through a compact steering index rather than a chat transcript, full plan, or log bucket.
 metadata:
   bagakit:
     harness_layer: l1-execution
@@ -25,6 +25,9 @@ Core contract:
   Handoff file; keep compact pointers and summaries in the Goal.
 - Use Goal frontmatter `status` as the machine-readable lifecycle marker;
   completion means `status: complete` plus concise completion evidence.
+- Lock the Goal protocol to `bagakit.goal.v.0.1`. Inspect and upgrade missing,
+  older, or incomplete Goal surfaces before normal mutation; route semantic
+  conflicts to Grill instead of guessing.
 - Maintain `.bagakit/goal/current.md` as the agent-facing entrypoint and
   `.bagakit/goal/state.yaml` as the machine-readable registry, incomplete-Goal
   topology cache, reconciliation cursor, and foreground selector.
@@ -41,6 +44,9 @@ Core contract:
 - After nontrivial Goal creation or direction-changing updates, give the user a
   plain-language alignment recap; route corrections back into Goal deltas,
   owner files, or open questions rather than creating a second truth surface.
+- After material checkpoints, render the Goal's Bagakit Driver projection from
+  reconciled truth; aggregate decision-bearing problems under the shared Alert
+  line rather than inventing Goal-specific warning formats.
 - Reconcile after material milestones, before compact or handoff, or whenever
   newer evidence makes Current State or Next Execution Instruction stale.
 - Support loop-off-loop control: the outer loop observes inner execution,
@@ -61,22 +67,24 @@ Minimal workflow:
    user-supplied pasted text file reference.
    Durable Goal files default to the target project's `.bagakit/goal/`, not the
    installed skill directory or a global agent directory.
-2. Read `current.md`, `state.yaml`, the foreground Goal, and all indexed owner
+2. Inspect protocol version and surface completeness. Apply deterministic
+   upgrades; stop with a Grill conflict packet when user intent is required.
+3. Read `current.md`, `state.yaml`, the foreground Goal, and all indexed owner
    files before editing.
-3. Classify each new fact as Goal material, owner-file material, sidecar input,
+4. Classify each new fact as Goal material, owner-file material, sidecar input,
    Goal control event, open question, or discard.
-4. Write repeated execution records to their owner stream. Append only
+5. Write repeated execution records to their owner stream. Append only
    steering-relevant events to the Goal JSONL stream.
-5. Reconcile the Goal by replacing current state and the one next instruction,
+6. Reconcile the Goal by replacing current state and the one next instruction,
    folding accepted deltas into their owning sections, and advancing the event
    cursor.
-6. Run a fresh-executor check: a new agent should know why, where, current
+7. Run a fresh-executor check: a new agent should know why, where, current
    state, principles, acceptance, risks, and next action from the Goal.
-7. For nontrivial creation or direction-changing updates, show a concise
+8. For nontrivial creation or direction-changing updates, show a concise
    alignment recap to the user before activation or continued execution.
-8. If supervision is active, append its checkpoint as a Goal control event and
+9. If supervision is active, append its checkpoint as a Goal control event and
    reconcile any direction-changing effect before the next execution round.
-9. When a checkpoint can expose reusable repository learning, request an
+10. When a checkpoint can expose reusable repository learning, request an
    Evolver review and later record its compact disposition without copying
    Evolver state into the Goal surface.
 
@@ -86,6 +94,10 @@ Read references only when needed:
   placement rules, alignment recap, Goal wrapper, and template.
 - `references/event-stream-contract.md`: JSONL Goal control events, execution
   log routing, reconciliation, cursor semantics, and archive rules.
+- `references/protocol-upgrade-contract.md`: version detection, legacy and
+  incomplete-surface upgrades, conflict packets, and Grill routing.
+- `references/bagakit-driver.toml`: event-driven Goal reporting, evidence-backed
+  progress and budget checks, discoveries, and shared Alert candidates.
 - `references/tool-orchestration.md`: Team mode, Grok sidecar, OpenSpec,
   Brainstorm, Feature Tracker, Flow Runner, and related surfaces.
 - `references/loop-off-loop.md`: supervisor.md contract, Goal or Loop command

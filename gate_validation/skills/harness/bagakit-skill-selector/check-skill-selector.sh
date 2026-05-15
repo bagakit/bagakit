@@ -427,6 +427,8 @@ grep -q 'bagakit-living-knowledge' "$DRIVER_PACK"
 grep -q 'bagakit-researcher' "$DRIVER_PACK"
 grep -q 'RetryBackoffThreshold: `3`' "$DRIVER_PACK"
 grep -q 'EvolverReview=<pending review signals or none>' "$DRIVER_PACK"
+test "$(grep -c '👩🏻‍🚒 ALERTS !!' "$DRIVER_PACK")" -eq 1
+grep -q 'Individual skills contribute alert candidates and must not create separate Alert headings.' "$DRIVER_PACK"
 grep -q 'Skill Ranking Report' "$RANKING_REPORT"
 grep -q 'bagakit-skill-selector' "$RANKING_REPORT"
 grep -q '| 1 | bagakit-skill-selector | 3 | 0.17 | 1.00 | 2 | 0.43 | at_risk |' "$RANKING_REPORT"

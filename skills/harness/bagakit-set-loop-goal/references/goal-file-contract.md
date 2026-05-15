@@ -7,6 +7,7 @@ file.
 
 - Quality Bar
 - Placement
+- Protocol Version
 - Goal Surface State
 - Event Streams And Reconciliation
 - Evolver Review Receipts
@@ -45,6 +46,7 @@ Default durable placement is the target project's local Goal surface:
 - `.bagakit/goal/events/<goal-id>.jsonl` for append-only Goal control events
 - `.bagakit/goal/reviews/<review-id>.json` for event-bound Evolver review
   request/receipt records
+- `.bagakit/goal/upgrade.json` only while a protocol upgrade is blocked
 - `.bagakit/goal/archive/`
 
 This path is relative to the project or host repository whose agent will execute
@@ -67,6 +69,15 @@ Accepted temporary placement:
 Use repo-relative paths or logical ids. Do not write machine-local absolute
 paths into durable Goal files.
 
+## Protocol Version
+
+The current Goal protocol is `bagakit.goal.v.0.1`. Store it as
+`protocol_version` in `surface.toml`, `state.yaml`, and every Goal frontmatter.
+Missing, older, or incomplete surfaces require upgrade before normal mutation;
+future versions must not be downgraded. Read
+`references/protocol-upgrade-contract.md` for inspection, deterministic repair,
+conflict packets, and Grill routing.
+
 ## Goal Surface State
 
 When a project materializes `.bagakit/goal/`, keep separate surfaces for the
@@ -80,6 +91,8 @@ agent entrypoint, the machine-readable work set, and inactive history:
 - `events/`: append-only Goal control events; execution logs stay with their
   Runner, evaluator, or tool owner.
 - `reviews/`: compact idempotent Evolver review requests and receipts.
+- `upgrade.json`: temporary blocked-upgrade packet and Grill handoff; remove it
+  after a successful upgrade.
 - `<goal-id>.md`: one Goal control plane.
 - `archive/`: completed, abandoned, or otherwise inactive Goal files that should
   not affect the current work set.
@@ -106,6 +119,7 @@ known incomplete Goals, and relation edges:
 
 ```yaml
 schema: bagakit.goal-state.v1
+protocol_version: bagakit.goal.v.0.1
 foreground_goal: <goal-id>
 
 supervision:
@@ -148,6 +162,9 @@ Rules:
 - Creating or switching to a new Goal must not mark the previous Goal
   `abandoned` unless the user explicitly says it is abandoned. Use `paused`,
   `blocked`, or `ready_for_review` as appropriate.
+- Creating a second incomplete Goal while another Goal is foreground defaults
+  the new Goal to `paused`. Explicit foreground switching pauses the previous
+  active foreground Goal and preserves it in the registry.
 - Keep lifecycle state in each Goal file's frontmatter. Mirror status in
   `state.yaml` only as a registry cache; repair it from the Goal frontmatter if
   they conflict.
@@ -306,6 +323,7 @@ status field as the lifecycle source of truth.
 ```yaml
 ---
 schema: bagakit.loop-goal.v1
+protocol_version: bagakit.goal.v.0.1
 goal_id: <goal-id>
 status: draft # draft | active | paused | blocked | ready_for_review | complete | abandoned
 truth_surface: .bagakit/goal/<goal-id>.md
@@ -430,6 +448,7 @@ State file:
 
 ```yaml
 schema: bagakit.goal-state.v1
+protocol_version: bagakit.goal.v.0.1
 foreground_goal: <goal-id>
 
 supervision:
@@ -466,6 +485,7 @@ Goal file:
 ```markdown
 ---
 schema: bagakit.loop-goal.v1
+protocol_version: bagakit.goal.v.0.1
 goal_id: <goal-id>
 status: active
 truth_surface: .bagakit/goal/<goal-id>.md
@@ -586,3 +606,47 @@ Rules:
   mode, update the Goal and run the fresh-executor check again.
 - For tiny mechanical updates where the user already delegated execution, the
   recap may be informational and need not block progress.
+
+## Event-Driven Driver Feedback
+
+Use the Goal Driver as a read-only feedback tool after owner truth has been
+updated. The fixed summary shape is:
+
+```text
+[[BAGAKIT]]
+- Goal: ID=<goal-id>; Status=<previous→current or current>; Event=<latest material event>; Progress=<passed gates/total gates or unknown>; Drift=<none or summary>; Budget=<time/token assessment or unknown>; Discovery=<decision-bearing discovery or none>; Evidence=<refs>; Next=<one deterministic action>
+```
+
+Run the full report after:
+
+- restart, compact recovery, or execution handoff
+- a bounded execution round or material milestone
+- status, foreground, acceptance, or next-action changes
+- drift, blocking, retry backoff, or budget risk
+- a discovery that changes scope, risk, acceptance, or orchestration
+- pre-closeout and completion
+
+For every new user input, assess drift internally. Do not emit another full
+report unless the input creates a Goal delta, an alert candidate, or a material
+checkpoint. This keeps the reinforcement loop active without turning the
+conversation into a log stream.
+
+Progress and resource rules:
+
+- prefer checked acceptance gates and explicit counts over guessed percentages
+- report `unknown` when no denominator, timer baseline, token counter, or token
+  budget exists
+- surface discoveries only when they can change the Goal or next execution move
+- generate the report from Goal and indexed owner evidence; never write the
+  rendered footer back into the Goal
+
+Use the shared Bagakit alert aggregate for decision-bearing exceptions:
+
+```text
+- 👩🏻‍🚒 ALERTS !! P1[Goal/<id>] Signal=<what changed>; Impact=<why it matters>; Response=<one corrective action>; Evidence=<refs>
+```
+
+Goal contributes alert candidates for protocol incompatibility, unreconciled
+truth, blocking, material drift, and budget risk. It must not create a separate
+Goal Alert section. Run `driver-report` to render the projection or obtain its
+structured JSON form.

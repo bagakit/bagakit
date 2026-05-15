@@ -78,6 +78,66 @@ Rules:
 - `retry_backoff_threshold` remains reserved for `bagakit-skill-selector`
   because selector owns retry/backoff control
 
+## Event-Driven Feedback
+
+A Driver may be used as a lightweight feedback tool, not only as final-response
+decoration. Skill-owned operators may render a deterministic `[[BAGAKIT]]`
+projection from current owner truth after a meaningful event.
+
+Useful events include:
+
+- task start, restart, compact recovery, or handoff
+- one bounded execution round or material milestone completing
+- lifecycle, foreground, acceptance, or next-action state changing
+- drift, blocking, retry backoff, or resource risk appearing
+- a discovery changing scope, risk, acceptance, or execution direction
+- pre-closeout and completion
+
+Every user input may trigger an internal drift assessment, but it should not
+force a verbose footer when no decision-bearing state changed. A rendered
+Driver report must follow this order:
+
+1. update the owning truth surface and evidence first
+2. reconcile stale control state when the owning protocol requires it
+3. render the footer as a read-only projection
+
+The footer is not a second source of truth. Driver tools must report `unknown`
+when progress, time, token, or cost baselines are unavailable rather than
+inventing precision.
+
+## Unified Alerts
+
+All loaded Drivers share one alert area inside the same `[[BAGAKIT]]` block.
+Individual skills may contribute alert candidates, but must not create their
+own alert headings or incompatible alert formats.
+
+Render the aggregate only when at least one decision-bearing alert exists:
+
+```text
+[[BAGAKIT]]
+- <normal Driver summary lines>
+- 👩🏻‍🚒 ALERTS !! P1[<source>/<id>] Signal=<what changed>; Impact=<why it matters>; Response=<one corrective action>; Evidence=<refs>
+```
+
+Alert severities are:
+
+- `P0`: execution must stop because continuing may violate the protected goal,
+  safety boundary, compatibility contract, or irreversible-action gate
+- `P1`: execution should pause or change method before the next bounded round
+- `P2`: noteworthy risk or uncertainty that may continue under observation
+
+Aggregation rules:
+
+- emit one `👩🏻‍🚒 ALERTS !!` line for the whole footer, not one per skill
+- sort candidates by severity and then stable source id
+- deduplicate candidates that share the same source, id, and corrective action
+- include only alerts that can change the next action, user decision, or stop
+  condition
+- omit the aggregate line when no alerts exist
+- keep routine progress, evidence, and discoveries in normal summary lines
+- route semantic conflicts to the owning decision process instead of encoding a
+  guessed resolution in the alert
+
 ## Consumer Loading Rule
 
 Consumers may load Bagakit driver files only as runtime guidance.
