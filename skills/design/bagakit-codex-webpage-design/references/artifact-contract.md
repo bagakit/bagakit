@@ -28,8 +28,9 @@ Files:
     comparison points, and where the design should exceed the archetype
 - `design-core-design-packet.toml`
   - optional peer packet from `bagakit-design-core`; target register, source
-    evidence refs, tone axes, rule coverage, observed/derived/fallback split,
-    accepted uncertainty, and downstream hints
+    evidence refs, product-model ref when applicable, tone axes, rule
+    coverage, observed/derived/fallback split, accepted uncertainty, and
+    downstream hints
 - `design-core-draft-review.md`
   - draft review against the design packet's tonality, reference tier, and
     full-surface rule coverage before implementation
@@ -130,10 +131,11 @@ Files:
   - stack and library choices mapped to required effects such as graph,
     search, charting, rich text, animation, canvas, or 3D
 - `frontend-architecture-plan.md`
-  - component hierarchy, repeated data structures, state ownership,
-    file/style organization, mapping from the design-spec ledger to CSS or
-    theme tokens, shared token usage, and post-parity refactor targets before
-    code; simple static pages may record `not_needed_simple_static_page`
+  - component hierarchy, product object and workflow ownership, repeated data
+    structures, state ownership, file/style organization, mapping from the
+    design-spec ledger to CSS or theme tokens, shared token usage, and
+    post-parity refactor targets before code; simple static pages may record
+    `not_needed_simple_static_page`
 - `component-source-ledger.md`
   - source status for major components and widgets: `host_component`,
     `accessible_primitive`, `domain_library`, `custom_reference_craft`,
@@ -427,9 +429,9 @@ responsive typography and content order instead of a separate plan.
 
 `frontend-architecture-plan.md` must be written before code for componentized or
 stateful work. It should name component hierarchy, repeated data structures,
-state ownership, file/style organization, shared token usage from
-`design-spec-ledger.md`, and post-parity refactor targets. Simple static pages
-may record `not_needed_simple_static_page`.
+state ownership, product object or workflow ownership, file/style organization,
+shared token usage from `design-spec-ledger.md`, and post-parity refactor
+targets. Simple static pages may record `not_needed_simple_static_page`.
 
 `component-source-ledger.md` must prefer host components first, mature
 accessible primitives for common widgets, domain libraries for complex tables,

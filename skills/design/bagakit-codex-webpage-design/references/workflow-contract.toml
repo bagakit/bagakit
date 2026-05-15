@@ -439,6 +439,11 @@ protects = "complex product screens must expose object taxonomy, region ownershi
 proof_surface = "information-architecture-map"
 
 [[guard]]
+id = "product-model-before-pixels"
+protects = "product-like screens must model product outcome, user need, primary objects, workflow, state changes, feedback, recovery, and completion before visual polish or component coding"
+proof_surface = "information-architecture-map plus workflow-model plus frontend-architecture-plan"
+
+[[guard]]
 id = "frontend-architecture-before-code"
 protects = "state, data, layout, and component boundaries must be planned before code edits create brittle one-off UI"
 proof_surface = "frontend-architecture-plan plus information-architecture-map plus capability-route"

@@ -32,6 +32,13 @@ the chosen direction. For opinionated work, also check that variance, motion,
 and density were chosen deliberately rather than inherited from a default
 template.
 
+Visual judging is advisory. A judge score, image-aesthetic benchmark, or
+single screenshot impression cannot override product-model evidence,
+accessibility criteria, browser behavior, domain/reference fit, or the chosen
+design-system constraints. If these evidence layers disagree, record the
+conflict in the review packet or judge aggregation instead of averaging it into
+one taste verdict.
+
 If generated references are split into section frames, treat the ordered frame
 set as the design authority. First verify that the frame count equals the
 planned section count and that each frame is one focused horizontal section.
@@ -87,9 +94,13 @@ For interactive pages and product-like work, add deeper checks:
      responsibilities, and progressive disclosure understandable from the UI?
    - Do labels, counts, status, grouping, and previews give enough
      information scent for the user to choose the next path?
+   - Does the page expose the primary product object, its current state, and
+     the relationship between global, local, and contextual controls?
 9. Workflow Legibility
    - What does the user do first, what object is being changed, what happens
      next, and how does the page show progress or completion?
+   - Are state changes, feedback, recovery, and completion signals visible
+     without external narration?
 10. Control Architecture
    - Does each mode switch, tab group, toolbar, inspector action, footer
      control, and floating control have clear ownership and scope without

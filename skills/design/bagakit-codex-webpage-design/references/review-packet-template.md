@@ -19,11 +19,37 @@ This packet follows `docs/specs/review-packet-contract.md`.
 
 - review_scope:
   - design reference:
+  - product/model artifacts:
   - screenshots:
   - browser evidence:
   - parity ledgers:
   - implementation refs:
 - out_of_scope:
+
+## Context And Product Model
+
+- target_register:
+- user_or_audience:
+- product_outcome:
+- primary_object:
+- first_action:
+- state_change:
+- feedback_and_recovery:
+- completion_signal:
+- reference_or_domain_bar:
+
+## Layered Review
+
+- context_alignment:
+- product_model_fit:
+- usability_and_interaction:
+- accessibility:
+- interaction_states:
+- content_and_copy:
+- design_system_or_component_fit:
+- domain_reference_fit:
+- visual_craft:
+- implementation_evidence:
 
 ## Visual Counterevidence
 
@@ -36,6 +62,21 @@ This packet follows `docs/specs/review-packet-contract.md`.
 
 - evidence_refs:
 - counterevidence:
+
+## Findings
+
+| Severity | Layer | Location | Evidence | Impact | Fix |
+| --- | --- | --- | --- | --- | --- |
+| `blocker|quality_issue|polish` |  |  |  |  |  |
+
+## Keep What Works
+
+- strengths_to_preserve:
+
+## Design Debt
+
+- deferred_items:
+- owner_or_followup:
 
 ## Deviation Decisions
 

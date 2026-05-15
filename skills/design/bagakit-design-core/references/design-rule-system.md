@@ -11,7 +11,8 @@ Start by classifying what the surface should optimize:
   - memorability, point of view, distinctive first impression, and narrative
     fit
 - `product`
-  - task clarity, trust, state visibility, workflow speed, and repeat use
+  - user outcome, object clarity, task flow, trust, state visibility, workflow
+    speed, recovery, and repeat use
 - `tool`
   - density, low friction, predictable controls, keyboard/mouse ergonomics,
     and recoverability
@@ -23,6 +24,27 @@ Start by classifying what the surface should optimize:
   - comparison, precision, scale, filtering, drilldown, and uncertainty
 
 Mixed surfaces should name which register wins in conflict.
+
+## Product Model Before Pixels
+
+For product-like surfaces, app shells, dashboards, settings, tools, and
+stateful workflows, do not start from visual polish. First name:
+
+- user need and product outcome
+- primary object, secondary objects, and evidence or metadata objects
+- current user context and first plausible action
+- state-changing action, feedback, recovery path, and completion signal
+- business, safety, accessibility, or domain constraint that changes the UI
+
+This is the transferable part of "Product Design" for agents: it narrows the
+design problem before style choices. A product UI can be beautiful, but it
+fails if the user cannot tell what object is live, what state changed, what
+happens next, or how to recover.
+
+Brand surfaces may optimize memorability and point of view. Product surfaces
+usually optimize earned familiarity, consistent components, readable density,
+fast workflows, and confidence under repeated use. If a product surface uses a
+surprising visual move, record the product value it creates.
 
 ## Reference And Industry Bar
 
@@ -51,6 +73,7 @@ task.
 
 Review every serious design across these dimensions:
 
+- product outcome, user task, primary object, workflow, and success signal
 - information architecture and object ownership
 - visual hierarchy and first action
 - typography scale, line length, rhythm, and contrast
@@ -119,13 +142,15 @@ good designer to break the pattern deliberately.
 Run the same rule system at three checkpoints:
 
 1. draft review
-   - Is the direction strong enough before implementation starts?
+   - Is the direction strong enough, and does any product model precede the
+     visual choices?
 2. concrete design plan
    - Are tokens, geometry, components, states, assets, and responsive behavior
-     specific enough to build without visual guessing?
+     specific enough to build without visual guessing, and do they preserve
+     the product objects and workflow?
 3. result review
    - Did the rendered or generated result preserve tone, rules, reference tier,
-     and accepted uncertainty?
+     product-model commitments, and accepted uncertainty?
 
 A clean implementation cannot pass result review when the design packet's tone
 or rule coverage regressed.

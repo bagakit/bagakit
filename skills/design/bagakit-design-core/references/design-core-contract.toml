@@ -25,6 +25,12 @@ artifact = "target-register.md"
 blocks_completion = true
 
 [[stage]]
+id = "product-model"
+phase = "before_design"
+artifact = "product-model-map.md"
+required_when = "product-like, tool-like, data-heavy, workflow-heavy, or interactive surface"
+
+[[stage]]
 id = "source-evidence"
 phase = "before_design"
 artifact = "source-evidence.md"
@@ -117,6 +123,11 @@ proof_surface = "source-evidence plus design-packet"
 id = "target-register-fit"
 protects = "brand, product, tool, editorial, game, and data surfaces should be judged against the right optimization target"
 proof_surface = "target-register plus rule-coverage-map"
+
+[[guard]]
+id = "product-model-before-pixels"
+protects = "product-like design must model users, outcome, primary objects, workflow, state changes, feedback, recovery, and completion before visual polish"
+proof_surface = "product-model-map plus target-register plus rule-coverage-map"
 
 [[guard]]
 id = "first-frame-fit"

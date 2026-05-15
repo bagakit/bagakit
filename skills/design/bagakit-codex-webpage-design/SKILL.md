@@ -83,7 +83,9 @@ adapt to the project:
      signature detail, and anti-generic risks with mitigation or override reasons
 10. `information-architecture-map`, `workflow-model`,
     `control-surface-map`, `interaction-model`, `interaction-intuition-pass`, and `mobile-interaction-plan`
-   - required for interactive pages before implementation
+   - required for product-like and interactive pages before implementation;
+     interaction-specific passes apply when live controls, state changes,
+     gestures, or responsive interaction modes exist
 11. `frontend-architecture-plan`, `component-source-ledger`, and `capability-route`
    - host stack, component structure, design-standard mapping, source
      decisions, and libraries matched to graph, search, editing, canvas, or 3D
@@ -119,8 +121,8 @@ state boards, or checking reference drift.
 
 ### Product Model Before Pixels
 
-For interactive pages, visual composition is not enough. Before coding, write
-or inspect:
+For interactive or product-like pages, visual composition is not enough.
+Before coding, write or inspect:
 
 - `information-architecture-map`: content/object taxonomy, navigation
   hierarchy, page regions, global/local/contextual surfaces, object
@@ -132,6 +134,10 @@ or inspect:
   floating control, footer control, canvas control, and global navigation item
 - `interaction-model`: user goals, object states, task flow, feedback,
   branch states, and accessibility expectations
+
+These artifacts are the product-design contract. They should name the product
+outcome, primary objects, user need, state changes, recovery path, and success
+signal before the page becomes a visual styling exercise.
 
 Unexplained duplicate controls block acceptance. If two controls perform the
 same mode switch or workflow action, one must be a justified mirrored shortcut
@@ -179,7 +185,9 @@ Before final handoff, verify:
 - image-like references have an extraction checklist; important unclear
   details are resolved through crop/detail-frame/source inspection or recorded
   accepted uncertainty before CSS guessing
-- product-like, high-craft, component-heavy, or content-heavy pages account for semantic visual ownership before implementation
+- product-like, high-craft, component-heavy, or content-heavy pages account
+  for product-model artifacts and semantic visual ownership before
+  implementation
 - interactive or componentized work has a frontend architecture plan, component source decisions, interaction-intuition pass, and mobile interaction plan when required
 - required material assets exist and `material-parity-checklist` has no
   unresolved blocker when CSS-only rendering cannot carry the reference craft

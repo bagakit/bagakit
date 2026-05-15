@@ -33,8 +33,8 @@ state as an independently editable source of truth.
     geometry, copy voice, and fallback confidence
 - `rule-coverage-map.md`
   - coverage across hierarchy, information architecture, typography, layout,
-    color, interaction states, accessibility, motion, copy, and generic-output
-    risks
+    color, product-model fit, interaction states, accessibility, motion, copy,
+    and generic-output risks
 - `design-packet.toml`
   - structured SSOT for design decisions, evidence refs, confidence, accepted
     uncertainty, blockers, and downstream consumption hints
@@ -49,6 +49,12 @@ state as an independently editable source of truth.
 
 ## Optional Files
 
+- `product-model-map.md`
+  - required when the surface is product-like, tool-like, data-heavy,
+    workflow-heavy, or interactive; records users, product outcome, primary and
+    secondary objects, current context, first action, state-changing action,
+    feedback, recovery, completion signal, and constraints that should shape
+    the interface before visual style
 - `first-frame-composition.md`
   - first viewport background field, focal subject, relation layer, safe text
     zone, motion, responsive behavior, and asset honesty
@@ -79,6 +85,9 @@ state as an independently editable source of truth.
 - `schema_version = 1`
 - `design_read_ref`
 - `target_register`
+- `product_model_ref`
+  - use `not_needed` only when the surface is not product-like, tool-like,
+    data-heavy, workflow-heavy, or interactive
 - `source_evidence_refs`
 - `tone_axis_ref`
 - `taste_dials`

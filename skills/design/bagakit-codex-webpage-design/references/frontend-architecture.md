@@ -21,8 +21,10 @@ are true:
   tokens, or state ownership
 
 The plan belongs after `design-spec-ledger.md`, `visual-decomposition.md`, and
-the required product-model artifacts for interactive work. It belongs before
-creating or reorganizing frontend files.
+the required product-model artifacts for product-like or interactive work. It
+belongs before creating or reorganizing frontend files. For product-like pages,
+architecture is the bridge from product design to code: components should own
+product objects, states, and workflow steps, not just visual boxes.
 
 ## When Not Needed
 
@@ -60,6 +62,7 @@ Minimum schema:
 - Route reason: <why this route is the smallest adequate route>
 - Host inspection: <existing stack, router, components, style system, assets>
 - Source artifacts:
+  - product model: <information-architecture/workflow/design-core ref or not_needed>
   - design spec: <ref>
   - component sourcing ledger: <ref or not_needed>
   - token source: <design-spec-ledger ref>
@@ -68,8 +71,14 @@ Minimum schema:
 ## Component Tree
 
 - <PageOrRoute>
-  - <Region owner and job>
-    - <Component: data source, states, controls>
+  - <Region owner, product job, and semantic visual role>
+    - <Component: owned object, data source, states, controls>
+
+## Product Model Mapping
+
+| Product object or workflow step | UI owner | State changes | Feedback/recovery | Completion proof |
+| --- | --- | --- | --- | --- |
+| <object/step> | <component/route> | <state> | <feedback> | <browser proof> |
 
 ## Repeated Data Structures
 
@@ -101,6 +110,7 @@ Minimum schema:
 | Border, radius, elevation | <ref> | <surface/control tokens> |
 | Motion and state treatment | <ref> | <component/state styles> |
 | Brand tone and imagery | <ref> | <assets/components/copy rules> |
+| Product density and affordance vocabulary | <ref> | <component/layout rule> |
 
 ## Accessibility Hooks
 
@@ -159,7 +169,7 @@ page shell, then list regions from `visual-decomposition.md`,
 
 For each component, record:
 
-- job: what object, action, or state it owns
+- job: what product object, action, workflow step, or state it owns
 - data: the structure it renders and the key field for repeated instances
 - controls: live, disabled, hidden, or out-of-scope affordances it contains
 - variants: default, selected, hover/focus, empty, loading, error, modal,
@@ -170,6 +180,10 @@ For each component, record:
 Repeated UI should come from arrays, maps, fixtures, or host data. Do not paste
 parallel card, row, tab, badge, or control markup unless the repetition is too
 small to hide drift.
+
+If a component only exists because a visual region looked balanced, revisit the
+product model. Either assign it a user question, object, state, action, or risk
+from the semantic map, or remove/demote it before implementation hardens it.
 
 ## State And Data Model
 

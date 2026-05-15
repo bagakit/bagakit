@@ -1,6 +1,6 @@
 ---
 name: bagakit-design-core
-description: Use when a design task needs brand-tonality extraction, design-rule coverage, reference-tier reasoning, or review of a design draft, concrete design plan, or final result. Compose with web, Figma, image-generation, or implementation skills; do not use it alone to claim shipped code.
+description: Use when a design task needs brand-tonality extraction, product-model reasoning, design-rule coverage, reference-tier reasoning, or review of a design draft, concrete design plan, or final result. Compose with web, Figma, image-generation, or implementation skills; do not use it alone to claim shipped code.
 metadata:
   bagakit:
     design_layer: core
@@ -21,6 +21,8 @@ reviews. Implementation skills own code, browser evidence, and delivery.
 Use this skill when a task needs:
 
 - brand or product tonality translated into concrete design axes
+- product-like work shaped by users, outcomes, objects, workflow, states, and
+  success signals before visual choices
 - comparable-reference inspection before a draft is accepted
 - design-rule review beyond taste, including hierarchy, density, copy,
   interaction states, accessibility, and generic-output risks
@@ -38,22 +40,27 @@ early ambiguous ideation that still needs `bagakit-spark`.
 2. `target-register`
    - classify the surface as brand, product, editorial, tool, game, data, or
      mixed; state what design should optimize
-3. `source-evidence`
+3. `product-model`
+   - for product-like work, record users, product outcome, primary objects,
+     workflow, state changes, feedback, recovery, and completion signal before
+     choosing pixels
+4. `source-evidence`
    - inspect the strongest available context: brand, design-system, code,
      screenshots, comparable references, assets, or explicit greenfield intent
      before choosing an aesthetic direction
-4. `brand-tonality`
+5. `brand-tonality`
    - map adjectives to observable axes: palette temperature, chroma, density,
      typography, surface depth, radii, motion, icon geometry, and voice; for
      high-craft work also record variance, motion, and density dials
-5. `design-rule-coverage`
+6. `design-rule-coverage`
    - review hierarchy, information architecture, typography, layout, color,
-     interaction states, accessibility, motion, copy, semantic economy,
-     reference-tier fit, and generic-output risks with override reasons
-6. `design-packet`
+     product model fit, interaction states, accessibility, motion, copy,
+     semantic economy, reference-tier fit, and generic-output risks with
+     override reasons
+7. `design-packet`
    - write one structured packet as the task SSOT; Markdown reviews are
      narrative projections, not duplicate state
-7. checkpoint reviews
+8. checkpoint reviews
    - review the draft, the concrete design plan, and the final result against
      the same packet before accepting completion
 
