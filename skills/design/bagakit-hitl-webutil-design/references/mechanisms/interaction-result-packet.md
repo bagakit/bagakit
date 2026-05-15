@@ -19,7 +19,7 @@
 
 ## Outputs Or Evidence
 
-- Copy or export controls plus a normalized handoff payload.
+- Required copy/export affordance plus a normalized handoff payload.
 
 ## Failure Signals
 
