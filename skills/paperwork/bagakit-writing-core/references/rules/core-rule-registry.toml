@@ -111,3 +111,17 @@ exempt_when = ["none"]
 good_example = "A rule deviation is accepted only with boundary, reason, and next action."
 bad_example = "The agent explains away a weak opening, title, evidence gap, or list-heavy section."
 non_goal = "Do not remove legitimate variation when the boundary is explicit."
+
+[[rule]]
+id = "object-before-short-judgment"
+source = "bagakit-core"
+scope = ["prose_mechanics", "sentence_rhythm"]
+severity = "advisory"
+enforcement_tier = "lint"
+proof_mode = "lint_json"
+owner = "bagakit-writing-core"
+applies_when = ["chinese_prose", "rewrite", "longform", "technical_article"]
+exempt_when = ["commands", "reference_table", "deliberate_parallelism"]
+good_example = "A long or qualified object carries the sentence first, and the short judgment lands at the end."
+bad_example = "A short judgment verb opens the sentence, then drags a long object behind it."
+non_goal = "Do not overturn claim-first structure or force every Chinese sentence into a `把` construction."

@@ -58,6 +58,7 @@ export const SUITE: EvalSuiteDefinition = {
               "## First Claim",
               "",
               "本文将通过多个步骤从而进而说明这个问题。",
+              "管住了一个开放、长期、容易跑偏的任务。",
               "",
               "- one",
               "- two",
@@ -130,7 +131,7 @@ export const SUITE: EvalSuiteDefinition = {
           expectOk(rules, "rules validate");
           const rulesJson = JSON.parse(rules.stdout);
           assert.equal(rulesJson.ok, true, "rule registry should validate");
-          assert.ok(rulesJson.count >= 8, "rule registry should expose initial Core rules");
+          assert.ok(rulesJson.count >= 9, "rule registry should expose expanded Core rules");
 
           const ruleShow = runCommand("bash", [cli, "rules", "show", "title-promise-topic-label"], {
             cwd: context.repoRoot,
@@ -140,6 +141,15 @@ export const SUITE: EvalSuiteDefinition = {
           const ruleShowJson = JSON.parse(ruleShow.stdout);
           assert.equal(ruleShowJson.owner, "bagakit-writing-core");
           assert.ok(ruleShowJson.proof_mode, "shown rule should expose proof_mode");
+
+          const rhythmRuleShow = runCommand("bash", [cli, "rules", "show", "object-before-short-judgment"], {
+            cwd: context.repoRoot,
+            replacements: fixture.replacements,
+          });
+          expectOk(rhythmRuleShow, "rules show object-before-short-judgment");
+          const rhythmRuleShowJson = JSON.parse(rhythmRuleShow.stdout);
+          assert.equal(rhythmRuleShowJson.owner, "bagakit-writing-core");
+          assert.equal(rhythmRuleShowJson.proof_mode, "lint_json");
 
           const inventory = runCommand("bash", [cli, "inventory", "compare", sourcePath, rewritePath, "--fail-on", "risk"], {
             cwd: context.repoRoot,
@@ -162,6 +172,7 @@ export const SUITE: EvalSuiteDefinition = {
           const lintJson = JSON.parse(lint.stdout);
           const codes = new Set((lintJson.findings ?? []).map((item: { code?: string }) => item.code));
           assert.ok(codes.has("AI_PATTERNS") || codes.has("LIST_BLOCK_CLUSTER"), "lint should expose at least one writing signal");
+          assert.ok(codes.has("OBJECT_JUDGMENT_TAIL_ADVISORY"), "lint should expose object/judgment sentence-rhythm advisory");
           assert.ok(lintJson.proseMechanics, "lint should expose proseMechanics metrics");
 
           const deAiTone = runCommand("bash", [cli, "de-ai-tone", "lint", "--profile", "blog", "--fail-on", "none", draftPath], {
@@ -193,8 +204,9 @@ export const SUITE: EvalSuiteDefinition = {
               "route check marks a complete route memo stable",
               "foundation review emits stable structured dimensions for a complete route artifact",
               "rule registry validates and exposes individual rule metadata",
+              "object-before-short-judgment is exposed as lint-backed Core rule metadata",
               "inventory compare flags dropped evidence, actions, risks, or protected-like tokens",
-              "lint emits structured writing signals and prose mechanics",
+              "lint emits structured writing signals, sentence-rhythm advisory, and prose mechanics",
               "de-AI-tone primitive is reachable through writing-core",
               "review packet exposes the generic writing-core skill id",
               "anti-rationalization table is reachable through the public CLI",
@@ -204,6 +216,7 @@ export const SUITE: EvalSuiteDefinition = {
               `bash ${cliRel} route review-foundation <temp-repo>/foundation.md`,
               `bash ${cliRel} rules validate`,
               `bash ${cliRel} rules show title-promise-topic-label`,
+              `bash ${cliRel} rules show object-before-short-judgment`,
               `bash ${cliRel} inventory compare <temp-repo>/source.md <temp-repo>/rewrite.md --fail-on risk`,
               `bash ${cliRel} lint --fail-on none <temp-repo>/draft.md`,
               `bash ${cliRel} de-ai-tone lint --profile blog --fail-on none <temp-repo>/draft.md`,

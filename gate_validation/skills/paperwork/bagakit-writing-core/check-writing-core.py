@@ -166,13 +166,19 @@ def main() -> int:
     require(rules_validate.returncode == 0, f"rules validate failed: {rules_validate.stderr}", failures)
     rules_payload = load_json(rules_validate.stdout, "rules validate", failures)
     require(rules_payload.get("ok") is True, "rules validate should report ok", failures)
-    require(int(rules_payload.get("count", 0)) >= 8, "rules registry should expose the initial Core rule set", failures)
+    require(int(rules_payload.get("count", 0)) >= 9, "rules registry should expose the expanded Core rule set", failures)
 
     rule_show = run(["bash", str(cli), "rules", "show", "title-promise-topic-label"], root)
     require(rule_show.returncode == 0, "rules show should find title-promise-topic-label", failures)
     rule_payload = load_json(rule_show.stdout, "rules show", failures)
     require(rule_payload.get("owner") == "bagakit-writing-core", "shown rule should keep Core ownership", failures)
     require("proof_mode" in rule_payload, "shown rule should expose proof_mode", failures)
+
+    rhythm_rule_show = run(["bash", str(cli), "rules", "show", "object-before-short-judgment"], root)
+    require(rhythm_rule_show.returncode == 0, "rules show should find object-before-short-judgment", failures)
+    rhythm_rule_payload = load_json(rhythm_rule_show.stdout, "object-before-short-judgment rule", failures)
+    require(rhythm_rule_payload.get("owner") == "bagakit-writing-core", "object-before-short-judgment should keep Core ownership", failures)
+    require(rhythm_rule_payload.get("proof_mode") == "lint_json", "object-before-short-judgment should use lint_json proof", failures)
 
     de_ai_proc = run(["bash", str(cli), "de-ai-tone", "describe"], root)
     require(de_ai_proc.returncode == 0, "writing-core de-ai-tone dispatch failed", failures)
@@ -318,6 +324,7 @@ def main() -> int:
                     "## First Claim",
                     "",
                     "本文将通过多个步骤从而进而说明这个问题。",
+                    "管住了一个开放、长期、容易跑偏的任务。",
                     "",
                     "- one",
                     "- two",
@@ -345,6 +352,11 @@ def main() -> int:
         require(
             "AI_PATTERNS" in codes or "LIST_BLOCK_CLUSTER" in codes,
             "lint fixture should produce a writing signal",
+            failures,
+        )
+        require(
+            "OBJECT_JUDGMENT_TAIL_ADVISORY" in codes,
+            "lint fixture should expose object/judgment sentence-rhythm advisory",
             failures,
         )
 

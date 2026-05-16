@@ -173,6 +173,36 @@ READER_OBJECT_RE = re.compile(
     r"(对象|读者|用户|系统|文档|任务|状态|协议|证据|surface|state|protocol|evidence|reader|user)",
     re.IGNORECASE,
 )
+OBJECT_JUDGMENT_OPENERS = (
+    "定义清了",
+    "固定住了",
+    "控制住了",
+    "解释清了",
+    "说明白了",
+    "讲清楚了",
+    "讲清了",
+    "说清了",
+    "管住了",
+    "压住了",
+    "收住了",
+    "稳住了",
+    "收束了",
+    "解决了",
+    "守住了",
+    "打通了",
+    "跑通了",
+)
+OBJECT_JUDGMENT_OPEN_RE = re.compile(
+    r"^(?P<opener>"
+    + "|".join(re.escape(item) for item in sorted(OBJECT_JUDGMENT_OPENERS, key=len, reverse=True))
+    + r")(?P<object>[^。！？!?；;，,\n]{12,100})$"
+)
+OBJECT_JUDGMENT_CONNECTOR_RE = re.compile(
+    r"^(?:因此|所以|但是|但|同时|接着|然后|于是|这时|这里|这意味着|换句话说)[，,：:\s]*"
+)
+OBJECT_JUDGMENT_NOUN_RE = re.compile(
+    r"(任务|问题|目标|判断|机制|结构|流程|系统|文档|段落|句子|规则|路径|边界|对象|关系|信号|闭环|约束|经验|方法|文章|主题|矛盾|风险|材料|主线)"
+)
 
 
 @dataclass
@@ -951,6 +981,46 @@ def semantic_repetition_stats(md: str):
     }
 
 
+def normalize_object_judgment_segment(text: str) -> str:
+    segment = text.strip()
+    segment = re.sub(r"^[>*_\s\"'“”‘’]+", "", segment)
+    segment = re.sub(r"[*_\s\"'“”‘’]+$", "", segment)
+    return OBJECT_JUDGMENT_CONNECTOR_RE.sub("", segment).strip()
+
+
+def object_judgment_tail_stats(md: str):
+    hits = []
+    for line_no, line in iter_non_code_lines(md, strip_inline=True):
+        stripped = line.strip()
+        if not stripped or is_list_line(line) or HEADING_LINE_RE.match(stripped):
+            continue
+        for raw_segment in re.split(r"[。！？!?；;]\s*", stripped):
+            segment = normalize_object_judgment_segment(raw_segment)
+            if not segment:
+                continue
+            match = OBJECT_JUDGMENT_OPEN_RE.match(segment)
+            if not match:
+                continue
+            obj = match.group("object").strip()
+            compact_obj = re.sub(r"[\s，,、：:；;\"“”'‘’`*_]", "", obj)
+            if len(compact_obj) < 12 or not OBJECT_JUDGMENT_NOUN_RE.search(obj):
+                continue
+            opener = match.group("opener")
+            hits.append({
+                "line": line_no,
+                "opener": opener,
+                "object": compact_preview(obj, limit=70),
+                "text": compact_preview(segment),
+                "suggestedPattern": compact_preview(f"把{obj}{opener}", limit=90),
+            })
+            break
+
+    return {
+        "hitCount": len(hits),
+        "hits": hits[:10],
+    }
+
+
 def prose_mechanics_stats(md: str):
     return {
         "cohesion": cohesion_stats(md),
@@ -958,6 +1028,7 @@ def prose_mechanics_stats(md: str):
         "metaWriting": meta_writing_stats(md),
         "readerMovement": reader_movement_stats(md),
         "semanticRepetition": semantic_repetition_stats(md),
+        "objectJudgmentTail": object_judgment_tail_stats(md),
     }
 
 
@@ -1422,6 +1493,16 @@ def score(md: str):
                 "SEMANTIC_REPETITION_ADVISORY",
                 "Repeated statements or near-repeated starts may be padding; review whether each section adds new information",
                 semantic_repetition,
+            )
+        )
+    object_judgment_tail = prose_mechanics["objectJudgmentTail"]
+    if object_judgment_tail["hitCount"]:
+        findings.append(
+            Finding(
+                "ADVISORY",
+                "OBJECT_JUDGMENT_TAIL_ADVISORY",
+                "Short judgment opens a long Chinese object; review whether the object should come first and the judgment should land at the sentence end",
+                object_judgment_tail,
             )
         )
     if stats["avgSentPerPara"] and stats["avgSentPerPara"] < 1.3:

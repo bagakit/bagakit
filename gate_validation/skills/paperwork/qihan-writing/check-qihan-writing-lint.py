@@ -21,6 +21,7 @@ PROSE_MECHANICS_CODES = {
     "COHESION_DEBT_ADVISORY",
     "CUE_FLATNESS_ADVISORY",
     "META_WRITING_ADVISORY",
+    "OBJECT_JUDGMENT_TAIL_ADVISORY",
     "READER_MOVEMENT_ADVISORY",
     "SEMANTIC_REPETITION_ADVISORY",
 }
@@ -181,6 +182,7 @@ def assert_mechanics_shape(report: dict) -> None:
         "cohesion",
         "cueFlatness",
         "metaWriting",
+        "objectJudgmentTail",
         "readerMovement",
         "semanticRepetition",
     }
@@ -194,6 +196,8 @@ def assert_mechanics_shape(report: dict) -> None:
         raise AssertionError("missing cue flatness runs")
     if "hits" not in mechanics["metaWriting"]:
         raise AssertionError("missing meta-writing hits")
+    if "hits" not in mechanics["objectJudgmentTail"]:
+        raise AssertionError("missing object-judgment-tail hits")
     if "missingSignals" not in mechanics["readerMovement"]:
         raise AssertionError("missing reader movement signals")
     if "nearRepeats" not in mechanics["semanticRepetition"]:
@@ -355,6 +359,7 @@ def main() -> int:
         "cohesion-debt.md": "COHESION_DEBT_ADVISORY",
         "cue-flatness.md": "CUE_FLATNESS_ADVISORY",
         "meta-writing.md": "META_WRITING_ADVISORY",
+        "object-judgment-tail.md": "OBJECT_JUDGMENT_TAIL_ADVISORY",
         "reader-movement.md": "READER_MOVEMENT_ADVISORY",
         "semantic-repetition.md": "SEMANTIC_REPETITION_ADVISORY",
         "semantic-near-repeat.md": "SEMANTIC_REPETITION_ADVISORY",
