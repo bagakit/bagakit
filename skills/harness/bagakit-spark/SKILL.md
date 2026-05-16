@@ -263,6 +263,9 @@ protocol, do not ask whether to fix the failure. Reflect, rerun the missed
 research, summary, option, or question-quality step, and present the corrected
 action in the same turn when feasible.
 
+If a correction exposes conflated decision dimensions, separate them and
+update the frame before continuing.
+
 Classify each substantive user reply as a feedback signal for the current Spark
 process: agreement, elaboration, trigger-for-thinking, follow-up question,
 correction, objection, protocol-failure report, or completion signal. Mark
