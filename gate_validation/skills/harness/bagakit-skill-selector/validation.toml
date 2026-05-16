@@ -51,6 +51,7 @@ required_files = [
   "skills/harness/bagakit-skill-selector/scripts/lib/project_preferences.ts",
   "skills/harness/bagakit-skill-selector/scripts/lib/skill_catalog.ts",
   "skills/harness/bagakit-skill-selector/scripts/lib/reports.ts",
+  "skills/harness/bagakit-skill-selector/scripts/lib/transaction.ts",
   "gate_eval/skills/harness/bagakit-skill-selector/README.md",
   "gate_eval/skills/harness/bagakit-skill-selector/suite.ts",
   "gate_eval/skills/harness/bagakit-skill-selector/validation.toml",
@@ -59,10 +60,34 @@ required_files = [
   "gate_eval/skills/harness/bagakit-skill-selector/results/runs/.gitkeep",
   "gate_validation/skills/harness/bagakit-skill-selector/check-selector-policy-alignment.py",
   "gate_validation/skills/harness/bagakit-skill-selector/check-selector-disposition.sh",
+  "gate_validation/skills/harness/bagakit-skill-selector/check-selector-transaction.sh",
   "gate_validation/skills/harness/bagakit-skill-selector/check-selector-planning-entry.sh",
   "gate_validation/skills/harness/bagakit-skill-selector/check-selector-recipes.sh",
   "gate_validation/skills/harness/bagakit-skill-selector/check-skill-selector.sh",
   "gate_validation/skills/harness/bagakit-skill-selector/validation.toml",
+]
+
+[[suite]]
+id = "bagakit-skill-selector-transaction"
+owner = "skills/harness/bagakit-skill-selector"
+description = "Prove task-resource serialization, atomic replacement, operation replay, and typed conflict behavior through the public Selector CLI."
+default = true
+proof_mode = "runtime"
+protects = ["selector task mutations do not lose concurrent updates, publish truncated TOML, or duplicate operation-id retries"]
+oracle = ["multiple independent CLI processes mutate one task resource; persisted TOML table counts, parseable public reports, exit codes, and operation receipts distinguish complete commit, replay, and conflict"]
+exercised_surface = ["skill_selector.ts init, preflight, plan, and skill-ranking commands", "skill-usage.toml mutation_log and task state"]
+proves = ["bagakit-skill-selector-transaction proves: concurrent writers serialize per task, same-directory atomic replacement preserves the previous or next complete document across injected crashes, and operation-id replay is idempotent with typed semantic conflicts."]
+does_not_prove = ["bagakit-skill-selector-transaction does not prove distributed-filesystem locking, multi-host coordination, or Evolver transaction behavior."]
+timeout_seconds = 120
+validation_class = "contract"
+groups = ["skills", "harness", "usage-loop", "transaction", "contract"]
+
+[suite.runner]
+kind = "bash_script"
+script = "gate_validation/skills/harness/bagakit-skill-selector/check-selector-transaction.sh"
+args = [
+  "--root",
+  "{repo_root}",
 ]
 
 [[suite]]

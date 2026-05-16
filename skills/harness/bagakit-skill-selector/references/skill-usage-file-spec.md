@@ -145,6 +145,45 @@ Files without this section remain readable as open or older full episodes.
 New close behavior must not infer a lightweight receipt merely because an old
 file omitted evidence.
 
+## Transaction And Replay Contract
+
+Every public command that mutates one task `skill-usage.toml` uses a short lock
+scoped to that task resource. The operator acquires the lock, rereads the
+current TOML inside the lock, applies the semantic mutation, and publishes the
+complete next document through a same-directory atomic replacement.
+
+Mutation commands may also accept:
+
+```text
+--operation-id <stable-lowercase-token>
+```
+
+When supplied, the committed document contains an operator-owned receipt:
+
+```toml
+[[mutation_log]]
+operation_id = "plan-bagakit-researcher"
+command = "plan"
+request_hash = "<sha256>"
+applied_at = "<event marker>"
+```
+
+Rules:
+
+- replaying the same operation id with the same command and semantic flags is
+  idempotent and must not append the task record again
+- reusing the operation id with different semantics is a typed
+  `operation_id_reused` conflict
+- the receipt is committed in the same atomic replacement as the task change,
+  so a crash after replacement is distinguishable from a crash before it
+- callers that need crash-safe retry should provide an operation id; commands
+  without it remain serialized and atomic but cannot distinguish a deliberate
+  repeated append from a retry
+- lock directories and temporary replacement files are ephemeral runtime
+  artifacts and are removed or reclaimed after a dead writer
+- `[[mutation_log]]` is transaction evidence, not a selector learning signal
+  and not a reason to retain a `full_episode`
+
 ## Selector evidence layers
 
 `skill-usage.toml` represents one `selection_episode`.
@@ -875,6 +914,8 @@ Before a full episode or audit sample is considered complete:
    entry instead of hiding the composition only in prose
 8. if one prior selection lesson was used or contradicted, record the relevant
    lesson update or explain why no update is needed
+9. for mutation calls that may be retried by an orchestrator, use a stable
+   `--operation-id`
 
 ## Strict completion checklist
 

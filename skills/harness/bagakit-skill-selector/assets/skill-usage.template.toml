@@ -50,6 +50,8 @@ verification_ref = ""
 # [[selection_lesson_log]], [[lesson_update_log]], [[evolver_signal_log]],
 # [[skill_plan]], [[candidate_result_log]], [[usage_log]], [[feedback_log]],
 # [[search_log]], [[benchmark_log]], and [[error_pattern_log]].
+# The operator may also append [[mutation_log]] receipts when --operation-id is
+# supplied. Do not hand-edit or copy those receipts between task files.
 #
 # Historical note:
 # - [[skill_plan]] and skill_id remain the field names

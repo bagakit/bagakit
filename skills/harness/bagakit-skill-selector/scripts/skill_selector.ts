@@ -42,6 +42,11 @@ import {
 } from "./lib/skill_usage.ts";
 import { buildSkillRankingData, buildSkillRankingReport } from "./lib/reports.ts";
 import {
+  SelectorMutationConflict,
+  mutationRequestHash,
+  withTaskResourceLock,
+} from "./lib/transaction.ts";
+import {
   ACTIVATION_MODES,
   CANDIDATE_RESULT_STATUSES,
   COMPOSITION_ROLES,
@@ -75,6 +80,99 @@ import {
 const scriptRoot = path.dirname(fileURLToPath(import.meta.url));
 const defaultEvolverCli = path.resolve(scriptRoot, "../../bagakit-skill-evolver/scripts/evolver.ts");
 
+interface TaskMutationResult<T> {
+  filePath: string;
+  doc: SkillUsageDoc;
+  value?: T;
+  idempotent: boolean;
+  operationId?: string;
+}
+
+function operationId(flags: Map<string, string | boolean>): string | undefined {
+  const value = readStringFlag(flags, "operation-id");
+  if (value === undefined) {
+    return undefined;
+  }
+  if (!new RegExp("^[a-z0-9][a-z0-9._:-]{0,127}$").test(value)) {
+    throw new Error(`operation-id must be a stable lowercase token: ${value}`);
+  }
+  return value;
+}
+
+function appendMutationReceipt(
+  doc: SkillUsageDoc,
+  operation_id: string | undefined,
+  command: string,
+  request_hash: string,
+): void {
+  if (!operation_id) {
+    return;
+  }
+  doc.mutation_log.push({
+    operation_id,
+    command,
+    request_hash,
+    applied_at: new Date().toISOString(),
+  });
+}
+
+function mutateTask<T>(
+  flags: Map<string, string | boolean>,
+  command: string,
+  mutator: (doc: SkillUsageDoc) => T,
+): TaskMutationResult<T> {
+  const filePath = resolvePathFromCwd(requiredString(flags, "file"));
+  const opId = operationId(flags);
+  const requestHash = mutationRequestHash(command, flags);
+  return withTaskResourceLock(filePath, () => {
+    const doc = readSkillUsageDoc(filePath);
+    if (opId) {
+      const existing = doc.mutation_log.find((entry) => entry.operation_id === opId);
+      if (existing) {
+        if (existing.command !== command || existing.request_hash !== requestHash) {
+          throw new SelectorMutationConflict(opId);
+        }
+        return { filePath, doc, idempotent: true, operationId: opId };
+      }
+    }
+    const value = mutator(doc);
+    appendMutationReceipt(doc, opId, command, requestHash);
+    writeSkillUsageDoc(filePath, doc);
+    return { filePath, doc, value, idempotent: false, operationId: opId };
+  });
+}
+
+function operationAlreadyApplied(
+  flags: Map<string, string | boolean>,
+  command: string,
+): boolean {
+  const opId = operationId(flags);
+  if (!opId) {
+    return false;
+  }
+  const filePath = resolvePathFromCwd(requiredString(flags, "file"));
+  const requestHash = mutationRequestHash(command, flags);
+  return withTaskResourceLock(filePath, () => {
+    const doc = readSkillUsageDoc(filePath);
+    const existing = doc.mutation_log.find((entry) => entry.operation_id === opId);
+    if (!existing) {
+      return false;
+    }
+    if (existing.command !== command || existing.request_hash !== requestHash) {
+      throw new SelectorMutationConflict(opId);
+    }
+    return true;
+  });
+}
+
+function logMutationResult(result: TaskMutationResult<unknown>, message: string): void {
+  if (result.idempotent) {
+    console.log(`ok: idempotent replay operation-id=${result.operationId ?? "unknown"}`);
+    return;
+  }
+  console.log(message);
+}
+
 function existingFile(filePath: string): string | undefined {
   return fs.existsSync(filePath) && fs.statSync(filePath).isFile() ? filePath : undefined;
 }
@@ -107,7 +205,7 @@ function printHelp(): void {
   console.log(`bagakit skill selector
 
 Commands:
-  init --file <path> --task-id <id> --objective <text> [--owner <name>] [--force]
+  init --file <path> --task-id <id> --objective <text> [--owner <name>] [--force] [--operation-id <id>]
   preflight --file <path> --answer <yes|no|partial|pending> --decision <direct_execute|compare_then_execute|compose_then_execute|review_loop|pending> [--gap-summary <text>] [--status <task-status>]
   episode-refs --file <path> [--source-prompt-ref <path>] [--final-artifact-ref <path>] [--verification-ref <path>]
   task-signal --file <path> --signal-id <id> --kind <error|capability_gap|workflow_friction|benchmark_gap|user_preference|opportunity|stale_lesson|abstention> --summary <text> --evidence-ref <path> [--task-cluster <id>] [--confidence <low|medium|high>] [--notes <text>]
@@ -134,6 +232,10 @@ Commands:
   validate --file <path> [--strict]
   drivers --file <path> [--root <repo-root>] [--output <path>] [--include-unselected]
   doctor --root <repo-root> [--tasks-dir <path>] [--json] [--strict]
+
+Task mutations accept optional --operation-id <stable-token>. Replaying the
+same operation is idempotent; reusing an id with different semantics is a typed
+conflict.
 `);
 }
 
@@ -469,67 +571,78 @@ function readUnitScoreFlag(flags: Map<string, string | boolean>, key: string): n
 function cmdInit(flags: Map<string, string | boolean>): number {
   const filePath = resolvePathFromCwd(requiredString(flags, "file"));
   const force = readBooleanFlag(flags, "force", false);
-  if (fs.existsSync(filePath) && !force) {
-    throw new Error(`file already exists: ${filePath}. use --force to overwrite`);
-  }
-  const doc = createSkillUsageDoc(
-    requiredString(flags, "task-id"),
-    requiredString(flags, "objective"),
-    readStringFlag(flags, "owner") ?? "",
-  );
-  writeSkillUsageDoc(filePath, doc);
-  console.log(`ok: initialized ${filePath}`);
+  const opId = operationId(flags);
+  const requestHash = mutationRequestHash("init", flags);
+  const result = withTaskResourceLock(filePath, () => {
+    if (fs.existsSync(filePath)) {
+      const existing = readSkillUsageDoc(filePath);
+      const receipt = opId ? existing.mutation_log.find((entry) => entry.operation_id === opId) : undefined;
+      if (receipt) {
+        if (receipt.command !== "init" || receipt.request_hash !== requestHash) {
+          throw new SelectorMutationConflict(opId!);
+        }
+        return { doc: existing, idempotent: true };
+      }
+      if (!force) {
+        throw new Error(`file already exists: ${filePath}. use --force to overwrite`);
+      }
+    }
+    const doc = createSkillUsageDoc(
+      requiredString(flags, "task-id"),
+      requiredString(flags, "objective"),
+      readStringFlag(flags, "owner") ?? "",
+    );
+    appendMutationReceipt(doc, opId, "init", requestHash);
+    writeSkillUsageDoc(filePath, doc);
+    return { doc, idempotent: false };
+  });
+  console.log(result.idempotent ? `ok: idempotent replay operation-id=${opId}` : `ok: initialized ${filePath}`);
   return 0;
 }
 
 function cmdPreflight(flags: Map<string, string | boolean>): number {
-  const filePath = resolvePathFromCwd(requiredString(flags, "file"));
-  const doc = readSkillUsageDoc(filePath);
-  updatePreflight(doc, {
-    answer: assertEnum(PREFLIGHT_ANSWERS, requiredString(flags, "answer"), "preflight.answer"),
-    gap_summary: readStringFlag(flags, "gap-summary") ?? "",
-    decision: normalizePreflightDecisionToken(requiredString(flags, "decision")),
-    status: assertEnum(TASK_STATUSES, readStringFlag(flags, "status") ?? "in_progress", "status"),
+  const result = mutateTask(flags, "preflight", (doc) => {
+    updatePreflight(doc, {
+      answer: assertEnum(PREFLIGHT_ANSWERS, requiredString(flags, "answer"), "preflight.answer"),
+      gap_summary: readStringFlag(flags, "gap-summary") ?? "",
+      decision: normalizePreflightDecisionToken(requiredString(flags, "decision")),
+      status: assertEnum(TASK_STATUSES, readStringFlag(flags, "status") ?? "in_progress", "status"),
+    });
   });
-  writeSkillUsageDoc(filePath, doc);
-  console.log(`ok: updated preflight in ${filePath}`);
+  logMutationResult(result, `ok: updated preflight in ${result.filePath}`);
   return 0;
 }
 
 function cmdEpisodeRefs(flags: Map<string, string | boolean>): number {
-  const filePath = resolvePathFromCwd(requiredString(flags, "file"));
-  const doc = readSkillUsageDoc(filePath);
-  updateEpisodeRefs(doc, {
-    source_prompt_ref: readStringFlag(flags, "source-prompt-ref") ?? undefined,
-    final_artifact_ref: readStringFlag(flags, "final-artifact-ref") ?? undefined,
-    verification_ref: readStringFlag(flags, "verification-ref") ?? undefined,
+  const result = mutateTask(flags, "episode-refs", (doc) => {
+    updateEpisodeRefs(doc, {
+      source_prompt_ref: readStringFlag(flags, "source-prompt-ref") ?? undefined,
+      final_artifact_ref: readStringFlag(flags, "final-artifact-ref") ?? undefined,
+      verification_ref: readStringFlag(flags, "verification-ref") ?? undefined,
+    });
   });
-  writeSkillUsageDoc(filePath, doc);
-  console.log(`ok: updated episode_refs in ${filePath}`);
+  logMutationResult(result, `ok: updated episode_refs in ${result.filePath}`);
   return 0;
 }
 
 function cmdTaskSignal(flags: Map<string, string | boolean>): number {
-  const filePath = resolvePathFromCwd(requiredString(flags, "file"));
-  const doc = readSkillUsageDoc(filePath);
-  appendTaskSignalLog(doc, {
-    signal_id: requiredString(flags, "signal-id"),
-    kind: assertEnum(TASK_SIGNAL_KINDS, requiredString(flags, "kind"), "task_signal_log.kind"),
-    summary: requiredString(flags, "summary"),
-    task_cluster: readStringFlag(flags, "task-cluster") ?? "",
-    evidence_ref: requiredString(flags, "evidence-ref"),
-    confidence: assertEnum(PLAN_CONFIDENCE, readStringFlag(flags, "confidence") ?? "medium", "task_signal_log.confidence"),
-    notes: readStringFlag(flags, "notes") ?? "",
+  const result = mutateTask(flags, "task-signal", (doc) => {
+    appendTaskSignalLog(doc, {
+      signal_id: requiredString(flags, "signal-id"),
+      kind: assertEnum(TASK_SIGNAL_KINDS, requiredString(flags, "kind"), "task_signal_log.kind"),
+      summary: requiredString(flags, "summary"),
+      task_cluster: readStringFlag(flags, "task-cluster") ?? "",
+      evidence_ref: requiredString(flags, "evidence-ref"),
+      confidence: assertEnum(PLAN_CONFIDENCE, readStringFlag(flags, "confidence") ?? "medium", "task_signal_log.confidence"),
+      notes: readStringFlag(flags, "notes") ?? "",
+    });
   });
-  writeSkillUsageDoc(filePath, doc);
-  console.log(`ok: appended task_signal_log to ${filePath}`);
+  logMutationResult(result, `ok: appended task_signal_log to ${result.filePath}`);
   return 0;
 }
 
 function cmdPlan(flags: Map<string, string | boolean>): number {
-  const filePath = resolvePathFromCwd(requiredString(flags, "file"));
-  const doc = readSkillUsageDoc(filePath);
-  appendSkillPlan(doc, {
+  const result = mutateTask(flags, "plan", (doc) => appendSkillPlan(doc, {
     skill_id: requiredString(flags, "skill-id"),
     kind: assertEnum(PLAN_KINDS, requiredString(flags, "kind"), "skill_plan.kind"),
     source: requiredString(flags, "source"),
@@ -560,16 +673,13 @@ function cmdPlan(flags: Map<string, string | boolean>): number {
     expected_failure_mode: readStringFlag(flags, "expected-failure-mode") ?? "",
     evidence_needed: readStringFlag(flags, "evidence-needed") ?? "",
     notes: readStringFlag(flags, "notes") ?? "",
-  });
-  writeSkillUsageDoc(filePath, doc);
-  console.log(`ok: appended skill_plan to ${filePath}`);
+  }));
+  logMutationResult(result, `ok: appended skill_plan to ${result.filePath}`);
   return 0;
 }
 
 function cmdCandidateResult(flags: Map<string, string | boolean>): number {
-  const filePath = resolvePathFromCwd(requiredString(flags, "file"));
-  const doc = readSkillUsageDoc(filePath);
-  appendCandidateResultLog(doc, {
+  const result = mutateTask(flags, "candidate-result", (doc) => appendCandidateResultLog(doc, {
     result_id: requiredString(flags, "result-id"),
     candidate_id: requiredString(flags, "candidate-id"),
     task_signal_id: readStringFlag(flags, "task-signal-id") ?? "",
@@ -585,16 +695,13 @@ function cmdCandidateResult(flags: Map<string, string | boolean>): number {
     cost_hint: readStringFlag(flags, "cost-hint") ?? "",
     latency_hint: readStringFlag(flags, "latency-hint") ?? "",
     notes: readStringFlag(flags, "notes") ?? "",
-  });
-  writeSkillUsageDoc(filePath, doc);
-  console.log(`ok: appended candidate_result_log to ${filePath}`);
+  }));
+  logMutationResult(result, `ok: appended candidate_result_log to ${result.filePath}`);
   return 0;
 }
 
 function cmdSelectionLesson(flags: Map<string, string | boolean>): number {
-  const filePath = resolvePathFromCwd(requiredString(flags, "file"));
-  const doc = readSkillUsageDoc(filePath);
-  appendSelectionLessonLog(doc, {
+  const result = mutateTask(flags, "selection-lesson", (doc) => appendSelectionLessonLog(doc, {
     lesson_id: requiredString(flags, "lesson-id"),
     task_signal_kind: assertEnum(
       TASK_SIGNAL_KINDS,
@@ -613,32 +720,26 @@ function cmdSelectionLesson(flags: Map<string, string | boolean>): number {
     limitation: readStringFlag(flags, "limitation") ?? "",
     invalidates_ref: readStringFlag(flags, "invalidates-ref") ?? "",
     notes: readStringFlag(flags, "notes") ?? "",
-  });
-  writeSkillUsageDoc(filePath, doc);
-  console.log(`ok: appended selection_lesson_log to ${filePath}`);
+  }));
+  logMutationResult(result, `ok: appended selection_lesson_log to ${result.filePath}`);
   return 0;
 }
 
 function cmdLessonUpdate(flags: Map<string, string | boolean>): number {
-  const filePath = resolvePathFromCwd(requiredString(flags, "file"));
-  const doc = readSkillUsageDoc(filePath);
-  appendLessonUpdateLog(doc, {
+  const result = mutateTask(flags, "lesson-update", (doc) => appendLessonUpdateLog(doc, {
     lesson_id: requiredString(flags, "lesson-id"),
     action: assertEnum(LESSON_UPDATE_ACTIONS, requiredString(flags, "action"), "lesson_update_log.action"),
     target_ref: requiredString(flags, "target-ref"),
     reason: requiredString(flags, "reason"),
     evidence_ref: requiredString(flags, "evidence-ref"),
     notes: readStringFlag(flags, "notes") ?? "",
-  });
-  writeSkillUsageDoc(filePath, doc);
-  console.log(`ok: appended lesson_update_log to ${filePath}`);
+  }));
+  logMutationResult(result, `ok: appended lesson_update_log to ${result.filePath}`);
   return 0;
 }
 
 function cmdAvailability(flags: Map<string, string | boolean>): number {
-  const filePath = resolvePathFromCwd(requiredString(flags, "file"));
-  const doc = readSkillUsageDoc(filePath);
-  updatePlanAvailability(doc, {
+  const result = mutateTask(flags, "availability", (doc) => updatePlanAvailability(doc, {
     skill_id: requiredString(flags, "skill-id"),
     availability: assertEnum(
       PLAN_AVAILABILITY,
@@ -646,32 +747,26 @@ function cmdAvailability(flags: Map<string, string | boolean>): number {
       "skill_plan.availability",
     ),
     availability_detail: readStringFlag(flags, "availability-detail") ?? "",
-  });
-  writeSkillUsageDoc(filePath, doc);
-  console.log(`ok: updated skill_plan availability in ${filePath}`);
+  }));
+  logMutationResult(result, `ok: updated skill_plan availability in ${result.filePath}`);
   return 0;
 }
 
 function cmdRecipe(flags: Map<string, string | boolean>): number {
-  const filePath = resolvePathFromCwd(requiredString(flags, "file"));
-  const doc = readSkillUsageDoc(filePath);
-  appendRecipeLog(doc, {
+  const result = mutateTask(flags, "recipe", (doc) => appendRecipeLog(doc, {
     recipe_id: requiredString(flags, "recipe-id"),
     source: requiredString(flags, "source"),
     why: requiredString(flags, "why"),
     status: assertEnum(RECIPE_STATUSES, readStringFlag(flags, "status") ?? "selected", "recipe_log.status"),
     synthesis_artifact: readStringFlag(flags, "synthesis-artifact"),
     notes: readStringFlag(flags, "notes") ?? "",
-  });
-  writeSkillUsageDoc(filePath, doc);
-  console.log(`ok: appended recipe_log to ${filePath}`);
+  }));
+  logMutationResult(result, `ok: appended recipe_log to ${result.filePath}`);
   return 0;
 }
 
 function cmdUsage(flags: Map<string, string | boolean>): number {
-  const filePath = resolvePathFromCwd(requiredString(flags, "file"));
-  const doc = readSkillUsageDoc(filePath);
-  const messages = appendUsageLog(doc, {
+  const result = mutateTask(flags, "usage", (doc) => appendUsageLog(doc, {
     skill_id: requiredString(flags, "skill-id"),
     phase: assertEnum(USAGE_PHASES, requiredString(flags, "phase"), "usage_log.phase"),
     action: requiredString(flags, "action"),
@@ -680,19 +775,20 @@ function cmdUsage(flags: Map<string, string | boolean>): number {
     metric_hint: readStringFlag(flags, "metric-hint") ?? "",
     attempt_key: readStringFlag(flags, "attempt-key") ?? "",
     notes: readStringFlag(flags, "notes") ?? "",
-  });
-  writeSkillUsageDoc(filePath, doc);
-  for (const message of messages) {
+  }));
+  if (result.idempotent) {
+    logMutationResult(result, "");
+    return 0;
+  }
+  for (const message of result.value ?? []) {
     console.log(message);
   }
-  console.log(`ok: appended usage_log to ${filePath}`);
+  console.log(`ok: appended usage_log to ${result.filePath}`);
   return 0;
 }
 
 function cmdFeedback(flags: Map<string, string | boolean>): number {
-  const filePath = resolvePathFromCwd(requiredString(flags, "file"));
-  const doc = readSkillUsageDoc(filePath);
-  appendFeedbackLog(doc, {
+  const result = mutateTask(flags, "feedback", (doc) => appendFeedbackLog(doc, {
     skill_id: requiredString(flags, "skill-id"),
     channel: assertEnum(FEEDBACK_CHANNELS, requiredString(flags, "channel"), "feedback_log.channel"),
     signal: assertEnum(FEEDBACK_SIGNALS, requiredString(flags, "signal"), "feedback_log.signal"),
@@ -703,16 +799,13 @@ function cmdFeedback(flags: Map<string, string | boolean>): number {
       readStringFlag(flags, "confidence") ?? "medium",
       "feedback_log.confidence",
     ),
-  });
-  writeSkillUsageDoc(filePath, doc);
-  console.log(`ok: appended feedback_log to ${filePath}`);
+  }));
+  logMutationResult(result, `ok: appended feedback_log to ${result.filePath}`);
   return 0;
 }
 
 function cmdSearch(flags: Map<string, string | boolean>): number {
-  const filePath = resolvePathFromCwd(requiredString(flags, "file"));
-  const doc = readSkillUsageDoc(filePath);
-  appendSearchLog(doc, {
+  const result = mutateTask(flags, "search", (doc) => appendSearchLog(doc, {
     reason: requiredString(flags, "reason"),
     query: requiredString(flags, "query"),
     source_scope: assertEnum(
@@ -722,40 +815,42 @@ function cmdSearch(flags: Map<string, string | boolean>): number {
     ),
     status: assertEnum(SEARCH_STATUSES, readStringFlag(flags, "status") ?? "open", "search_log.status"),
     notes: readStringFlag(flags, "notes") ?? "",
-  });
-  writeSkillUsageDoc(filePath, doc);
-  console.log(`ok: appended search_log to ${filePath}`);
+  }));
+  logMutationResult(result, `ok: appended search_log to ${result.filePath}`);
   return 0;
 }
 
 function cmdBenchmark(flags: Map<string, string | boolean>): number {
-  const filePath = resolvePathFromCwd(requiredString(flags, "file"));
-  const doc = readSkillUsageDoc(filePath);
-  const { passed, delta } = appendBenchmarkLog(doc, {
+  const result = mutateTask(flags, "benchmark", (doc) => appendBenchmarkLog(doc, {
     benchmark_id: requiredString(flags, "benchmark-id"),
     metric: requiredString(flags, "metric"),
     baseline: readNumberFlag(flags, "baseline", true)!,
     candidate: readNumberFlag(flags, "candidate", true)!,
     higher_is_better: readBooleanFlag(flags, "higher-is-better", true),
     notes: readStringFlag(flags, "notes") ?? "",
-  });
-  writeSkillUsageDoc(filePath, doc);
-  console.log(`ok: appended benchmark_log to ${filePath} (${passed ? "pass" : "fail"}, delta=${delta})`);
+  }));
+  if (result.idempotent) {
+    logMutationResult(result, "");
+  } else {
+    const { passed, delta } = result.value!;
+    console.log(`ok: appended benchmark_log to ${result.filePath} (${passed ? "pass" : "fail"}, delta=${delta})`);
+  }
   return 0;
 }
 
 function cmdErrorPattern(flags: Map<string, string | boolean>): number {
-  const filePath = resolvePathFromCwd(requiredString(flags, "file"));
-  const doc = readSkillUsageDoc(filePath);
-  const { occurrenceIndex } = appendErrorPatternLog(doc, {
+  const result = mutateTask(flags, "error-pattern", (doc) => appendErrorPatternLog(doc, {
     error_type: requiredString(flags, "error-type"),
     message_pattern: requiredString(flags, "message-pattern"),
     skill_id: requiredString(flags, "skill-id"),
     resolution: readStringFlag(flags, "resolution") ?? "",
     notes: readStringFlag(flags, "notes") ?? "",
-  });
-  writeSkillUsageDoc(filePath, doc);
-  console.log(`ok: appended error_pattern_log to ${filePath} (occurrence=${occurrenceIndex})`);
+  }));
+  if (result.idempotent) {
+    logMutationResult(result, "");
+  } else {
+    console.log(`ok: appended error_pattern_log to ${result.filePath} (occurrence=${result.value!.occurrenceIndex})`);
+  }
   return 0;
 }
 
@@ -795,8 +890,7 @@ function selectedEvolverSignalIds(
 
 function cmdEvolverSignal(flags: Map<string, string | boolean>): number {
   const filePath = resolvePathFromCwd(requiredString(flags, "file"));
-  const doc = readSkillUsageDoc(filePath);
-  appendEvolverSignal(doc, {
+  const result = mutateTask(flags, "evolver-signal", (doc) => appendEvolverSignal(doc, {
     signal_id: requiredString(flags, "signal-id"),
     kind: assertEnum(EVOLVER_SIGNAL_KINDS, requiredString(flags, "kind"), "evolver_signal_log.kind"),
     trigger: assertEnum(EVOLVER_SIGNAL_TRIGGERS, requiredString(flags, "trigger"), "evolver_signal_log.trigger"),
@@ -822,26 +916,33 @@ function cmdEvolverSignal(flags: Map<string, string | boolean>): number {
       ? normalizeTaskArtifactRef(filePath, readStringFlag(flags, "evidence-ref")!)
       : undefined,
     notes: readStringFlag(flags, "notes") ?? "",
-  });
-  writeSkillUsageDoc(filePath, doc);
-  console.log(`ok: upserted evolver_signal_log in ${filePath}`);
+  }));
+  logMutationResult(result, `ok: upserted evolver_signal_log in ${result.filePath}`);
   return 0;
 }
 
 function cmdEvolverExport(flags: Map<string, string | boolean>): number {
   const filePath = resolvePathFromCwd(requiredString(flags, "file"));
-  const doc = readSkillUsageDoc(filePath);
   const outputPath = resolveEvolverOutputPath(filePath, readStringFlag(flags, "output") ?? undefined);
+  if (readBooleanFlag(flags, "mark-exported", false)) {
+    const result = mutateTask(flags, "evolver-export", (doc) => {
+      const statuses = readEvolverBridgeableStatuses(flags);
+      const signalIds = selectedEvolverSignalIds(doc, statuses);
+      const contract = buildEvolverSignalContract(doc, filePath, { statuses });
+      ensureSignalsPresent(contract, `status=${statuses.join(",")}`);
+      fs.mkdirSync(path.dirname(outputPath), { recursive: true });
+      fs.writeFileSync(outputPath, JSON.stringify(contract, null, 2) + "\n", "utf-8");
+      updateEvolverSignalStatuses(doc, signalIds, "exported");
+    });
+    logMutationResult(result, `ok: exported evolver signals to ${outputPath}`);
+    return 0;
+  }
+  const doc = readSkillUsageDoc(filePath);
   const statuses = readEvolverBridgeableStatuses(flags);
-  const signalIds = selectedEvolverSignalIds(doc, statuses);
   const contract = buildEvolverSignalContract(doc, filePath, { statuses });
   ensureSignalsPresent(contract, `status=${statuses.join(",")}`);
   fs.mkdirSync(path.dirname(outputPath), { recursive: true });
   fs.writeFileSync(outputPath, JSON.stringify(contract, null, 2) + "\n", "utf-8");
-  if (readBooleanFlag(flags, "mark-exported", false)) {
-    updateEvolverSignalStatuses(doc, signalIds, "exported");
-    writeSkillUsageDoc(filePath, doc);
-  }
   console.log(`ok: exported evolver signals to ${outputPath}`);
   return 0;
 }
@@ -851,6 +952,10 @@ function cmdEvolverBridge(flags: Map<string, string | boolean>): number {
   const filePath = resolvePathFromCwd(requiredString(flags, "file"));
   const outputPath = resolveEvolverOutputPath(filePath, readStringFlag(flags, "output") ?? undefined);
   const evolverCli = resolveEvolverCli(readStringFlag(flags, "evolver-cli") ?? undefined, repoRoot);
+  if (operationAlreadyApplied(flags, "evolver-bridge")) {
+    console.log(`ok: idempotent replay operation-id=${operationId(flags)}`);
+    return 0;
+  }
   const doc = readSkillUsageDoc(filePath);
   const statuses = readEvolverBridgeableStatuses(flags);
   const signalIds = selectedEvolverSignalIds(doc, statuses);
@@ -868,9 +973,10 @@ function cmdEvolverBridge(flags: Map<string, string | boolean>): number {
     throw new Error(bridgeResult.stderr.trim() || bridgeResult.stdout.trim() || "evolver bridge-signals failed");
   }
 
-  updateEvolverSignalStatuses(doc, signalIds, "imported");
-  writeSkillUsageDoc(filePath, doc);
-  console.log("ok: bridged evolver signals into evolver intake (.mem_inbox)");
+  const result = mutateTask(flags, "evolver-bridge", (latest) => {
+    updateEvolverSignalStatuses(latest, signalIds, "imported");
+  });
+  logMutationResult(result, "ok: bridged evolver signals into evolver intake (.mem_inbox)");
   return 0;
 }
 
@@ -958,9 +1064,7 @@ function cmdDaily(flags: Map<string, string | boolean>): number {
 }
 
 function cmdEvaluate(flags: Map<string, string | boolean>): number {
-  const filePath = resolvePathFromCwd(requiredString(flags, "file"));
-  const doc = readSkillUsageDoc(filePath);
-  updateEvaluation(doc, {
+  const result = mutateTask(flags, "evaluate", (doc) => updateEvaluation(doc, {
     quality_score: readUnitScoreFlag(flags, "quality-score"),
     evidence_score: readUnitScoreFlag(flags, "evidence-score"),
     feedback_score: readUnitScoreFlag(flags, "feedback-score"),
@@ -975,9 +1079,8 @@ function cmdEvaluate(flags: Map<string, string | boolean>): number {
     needs_new_search: flags.has("needs-new-search") ? readBooleanFlag(flags, "needs-new-search") : undefined,
     next_search_query: readStringFlag(flags, "next-search-query"),
     notes: readStringFlag(flags, "notes"),
-  });
-  writeSkillUsageDoc(filePath, doc);
-  console.log(`ok: updated evaluation in ${filePath}`);
+  }));
+  logMutationResult(result, `ok: updated evaluation in ${result.filePath}`);
   return 0;
 }
 
@@ -998,24 +1101,24 @@ function cmdValidate(flags: Map<string, string | boolean>): number {
 }
 
 function cmdClose(flags: Map<string, string | boolean>): number {
-  const filePath = resolvePathFromCwd(requiredString(flags, "file"));
-  const doc = readSkillUsageDoc(filePath);
   const rawDisposition = readStringFlag(flags, "disposition");
-  const result = closeSkillUsage(
-    doc,
-    rawDisposition ? assertEnum(EPISODE_DISPOSITIONS, rawDisposition, "episode disposition") : undefined,
-  );
-  const issues = validateSkillUsage(doc, true);
-  if (issues.length > 0) {
-    for (const issue of issues) {
-      console.error(`issue: ${issue}`);
+  const mutation = mutateTask(flags, "close", (doc) => {
+    const result = closeSkillUsage(
+      doc,
+      rawDisposition ? assertEnum(EPISODE_DISPOSITIONS, rawDisposition, "episode disposition") : undefined,
+    );
+    const closeIssues = validateSkillUsage(doc, true);
+    if (closeIssues.length > 0) {
+      throw new Error(`close_validation_failed: ${closeIssues.join(" | ")}`);
     }
-    console.error(`fail: close validation failed for ${filePath}`);
-    return 1;
+    return result;
+  });
+  if (mutation.idempotent) {
+    logMutationResult(mutation, "");
+    return 0;
   }
-  writeSkillUsageDoc(filePath, doc);
   console.log(
-    `ok: closed ${filePath} disposition=${result.selected_disposition} reason=${doc.episode_disposition!.reason}`,
+    `ok: closed ${mutation.filePath} disposition=${mutation.value!.selected_disposition} reason=${mutation.doc.episode_disposition!.reason}`,
   );
   return 0;
 }

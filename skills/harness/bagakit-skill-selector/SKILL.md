@@ -297,6 +297,14 @@ Low-level operator:
 
 - `scripts/skill_selector.ts`
 
+Task mutations are serialized per `skill-usage.toml`, reread inside the short
+resource lock, and committed through same-directory atomic replacement. Pass a
+stable `--operation-id` when an orchestrator may retry the command: an exact
+replay is idempotent, while reuse with different semantic flags returns a typed
+conflict. The operator records that receipt in `[[mutation_log]]` inside the
+same primary document; the receipt is transaction evidence, not selector
+learning evidence.
+
 Examples:
 
 ```bash
@@ -319,6 +327,7 @@ node --experimental-strip-types scripts/skill_selector.ts preflight \
 
 node --experimental-strip-types scripts/skill_selector.ts plan \
   --file .bagakit/skill-selector/tasks/<task-slug>/skill-usage.toml \
+  --operation-id plan-primary-candidate \
   --skill-id "<skill-or-reference-id>" \
   --kind local \
   --source "<path-or-url>" \

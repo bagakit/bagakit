@@ -186,6 +186,9 @@ Current operator status:
 - it can close routine `direct_execute` work as a minimal preflight receipt,
   retain material work as a full episode, or explicitly sample a complete
   direct-route episode for audit
+- task mutations use a short per-resource lock and same-directory atomic
+  replacement; optional operation ids make orchestrator retries idempotent and
+  reject semantic reuse as a typed conflict
 - it can append `[[task_signal_log]]`, `[[candidate_result_log]]`,
   `[[selection_lesson_log]]`, and `[[lesson_update_log]]` entries for
   gold-ready selector evidence
