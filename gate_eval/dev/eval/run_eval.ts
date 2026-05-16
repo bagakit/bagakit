@@ -122,6 +122,20 @@ function main(): void {
               tags: ["core"],
               risk_tags: [],
               notes_for_human_review: "-",
+              goal_dimensions: ["task_fidelity"],
+              polarity: "should",
+              success_evidence: ["the expected state is produced"],
+              guard_ids: ["demo-success"],
+              provenance: { source_class: "synthetic" },
+              privacy: { class: "public", sanitized: true, raw_transcript_included: false },
+              grader: {
+                type: "state",
+                rubric_id: "demo-state-v1",
+                calibration_status: "not_required",
+                transfer_limit: "demo only",
+              },
+              lifecycle: { stage: "capability" },
+              trials: { count: 1, min_pass_rate: 1 },
             },
             {
               id: "row-2",
@@ -134,6 +148,20 @@ function main(): void {
               tags: ["core"],
               risk_tags: ["high-risk"],
               notes_for_human_review: "-",
+              goal_dimensions: ["risk_handling"],
+              polarity: "should_not",
+              success_evidence: ["the risky path is not silently accepted"],
+              guard_ids: ["demo-risk"],
+              provenance: { source_class: "synthetic" },
+              privacy: { class: "public", sanitized: true, raw_transcript_included: false },
+              grader: {
+                type: "outcome",
+                rubric_id: "demo-outcome-v1",
+                calibration_status: "not_required",
+                transfer_limit: "demo only",
+              },
+              lifecycle: { stage: "regression_candidate" },
+              trials: { count: 2, min_pass_rate: 1 },
             },
           ],
         },
@@ -162,6 +190,15 @@ function main(): void {
     assert.equal(items[0]?.split, "baseline");
     assert.equal(items[1]?.split, "holdout");
 
+    const strictCheckRun = runEvalCli([
+      "dataset-check",
+      "--file",
+      builtDataset,
+      "--strict-goal-contract",
+    ]);
+    assert.equal(strictCheckRun.status, 0, strictCheckRun.stderr);
+    assert.equal((JSON.parse(strictCheckRun.stdout) as { strict_goal_contract: boolean }).strict_goal_contract, true);
+
     const exportRun = runEvalCli([
       "dataset-export",
       "--file",
@@ -183,6 +220,8 @@ function main(): void {
     assert.equal(reportRun.status, 0);
     const report = JSON.parse(reportRun.stdout) as Record<string, unknown>;
     assert.equal((report.totals as Record<string, unknown>).items, 2);
+    assert.equal((report.polarities as Array<unknown>).length, 2);
+    assert.equal((report.lifecycle_stages as Array<unknown>).length, 2);
 
     const baselineSummaryFile = path.join(datasetTemp, "baseline-summary.json");
     const candidateSummaryFile = path.join(datasetTemp, "candidate-summary.json");

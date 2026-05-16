@@ -89,6 +89,8 @@ acceptance criteria, risk, ledger refs, evidence refs, and run refs.
 Read references only when needed:
 
 - `references/grill-run-contract.md`: run schema, CLI loop, boundary details.
+- `references/decision-quality-contract.toml`: serious-moment behavior guards
+  used by non-gating capability cases.
 - `references/skill-cli.toml`: CLI registration.
 - `references/frontdoor-rule.toml`: project frontdoor declaration.
 - `docs/specs/consensus-ledger-contract.md`: shared-understanding ledger

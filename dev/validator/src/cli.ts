@@ -6,6 +6,13 @@ import { fileURLToPath } from "node:url";
 import { loadProject } from "./lib/loader.ts";
 import type { LoadedProject, SuiteConfig, ValidationClass } from "./lib/model.ts";
 import { VALIDATION_CLASSES } from "./lib/model.ts";
+import {
+  buildImpactPlan,
+  IMPACT_MODES,
+  validateExecutionPolicy,
+  type ImpactMode,
+  type ImpactPlan,
+} from "./lib/impact.ts";
 import { describeProcessSuite, hasProcessRunner, runFileSystemSuite, runProcessSuite, validateProcessSuiteShape } from "./lib/runners.ts";
 import { filterSuites, resolveSelectorList, validateSkipAliases } from "./lib/selection.ts";
 import { elapsedMs, nowTick, renderTimingSummary, suiteTimingRecord, type SuiteRunOutcome } from "./lib/timing.ts";
@@ -72,8 +79,10 @@ Commands:
   check-config [--root <repo-root>] [--config <path>]
   list [--root <repo-root>] [--config <path>] [--default-only] [--group <name>] [--validation-class <label>]
   plan [--root <repo-root>] [--config <path>] [--group <name>] [--validation-class <label>] [--skip-suite <id>] [--skip-group <name>] [--skip-alias <id>]
+  impact-plan [--root <repo-root>] [--config <path>] [--mode universal|affected|all] [--base-ref <ref>] [--changed-path <path>] [--json] [--out <file>]
   audit [--root <repo-root>] [--config <path>]
   run-default [--root <repo-root>] [--config <path>] [--group <name>] [--validation-class <label>] [--skip-suite <id>] [--skip-group <name>] [--skip-alias <id>] [--fail-fast]
+  run-impact [--root <repo-root>] [--config <path>] [--mode universal|affected|all] [--base-ref <ref>] [--changed-path <path>] [--skip-suite <id>] [--skip-group <name>] [--skip-alias <id>] [--fail-fast]
   run-suite <suite-id> [--root <repo-root>] [--config <path>] [--param <name>]
 `);
 }
@@ -133,11 +142,81 @@ function selectedSuites(
 
 function checkConfig(project: LoadedProject, suites: SuiteConfig[] = project.suites): void {
   validateSkipAliases(project);
+  validateExecutionPolicy(project);
   for (const suite of suites) {
     if (hasProcessRunner(suite)) {
       validateProcessSuiteShape(suite, project.repoRoot);
     }
   }
+}
+
+function normalizeImpactMode(value: string): ImpactMode {
+  if (!IMPACT_MODES.includes(value as ImpactMode)) {
+    throw new Error(`unknown impact mode ${JSON.stringify(value)} (expected one of ${IMPACT_MODES.join(", ")})`);
+  }
+  return value as ImpactMode;
+}
+
+function impactOptions() {
+  return {
+    mode: { type: "string" as const, default: "affected" },
+    "base-ref": { type: "string" as const },
+    "changed-path": { type: "string" as const, multiple: true },
+  };
+}
+
+function renderImpactPlan(plan: ImpactPlan): void {
+  console.log(`Validation impact plan (mode=${plan.mode})`);
+  console.log(`- changed path source: ${plan.changedPathSource}`);
+  console.log(`- base ref: ${plan.baseRef ?? "-"}`);
+  console.log(`- fallback: ${plan.fallback}${plan.fallbackDetail ? ` (${plan.fallbackDetail})` : ""}`);
+  console.log(`- changed paths: ${plan.changedPaths.length}`);
+  for (const changedPath of plan.changedPaths) {
+    console.log(`  - ${changedPath}`);
+  }
+  console.log(`- suites: ${plan.selectedSuiteIds.length} selected, ${plan.skippedSuiteIds.length} skipped`);
+  for (const entry of plan.entries) {
+    console.log(
+      `${entry.selected ? "SELECT" : "SKIP"}\t${entry.suiteId}\tdisposition=${entry.disposition}\tcost=${entry.costClass}\towner=${entry.owner}`,
+    );
+    console.log(`  reason: ${entry.reasons.join("; ") || "-"}`);
+    console.log(`  protects: ${entry.protects.join("; ") || "-"}`);
+    console.log(`  failure boundary: ${entry.failureBoundary.join("; ") || "-"}`);
+  }
+}
+
+function cmdImpactPlan(argv: string[]): number {
+  const { values } = parseArgs({
+    args: argv,
+    options: {
+      ...commonOptions(),
+      ...impactOptions(),
+      json: { type: "boolean" as const, default: false },
+      out: { type: "string" as const },
+    },
+    strict: true,
+    allowPositionals: false,
+  });
+  const project = loadFrom(values as { root: string; config: string });
+  checkConfig(project);
+  const plan = buildImpactPlan(project, {
+    mode: normalizeImpactMode(values.mode),
+    baseRef: values["base-ref"],
+    changedPaths: values["changed-path"],
+  });
+  if (values.out) {
+    const outputPath = path.resolve(project.repoRoot, values.out);
+    fs.mkdirSync(path.dirname(outputPath), { recursive: true });
+    fs.writeFileSync(outputPath, `${JSON.stringify(plan, null, 2)}\n`, "utf8");
+    console.log(`wrote impact plan: ${repoRelative(project, outputPath)}`);
+    return 0;
+  }
+  if (values.json) {
+    console.log(JSON.stringify(plan, null, 2));
+  } else {
+    renderImpactPlan(plan);
+  }
+  return 0;
 }
 
 function suiteSummary(suite: SuiteConfig): string {
@@ -604,6 +683,100 @@ function cmdRunDefault(argv: string[]): number {
   return 0;
 }
 
+function cmdRunImpact(argv: string[]): number {
+  const { values } = parseArgs({
+    args: argv,
+    options: {
+      ...commonOptions(),
+      ...filterOptions(),
+      ...impactOptions(),
+      "skip-suite": { type: "string" as const, multiple: true, default: [] },
+      "skip-group": { type: "string" as const, multiple: true, default: [] },
+      "skip-alias": { type: "string" as const, multiple: true, default: [] },
+      "fail-fast": { type: "boolean" as const, default: false },
+    },
+    strict: true,
+    allowPositionals: false,
+  });
+  const project = loadFrom(values as { root: string; config: string });
+  const filteredIds = new Set(selectedSuites(project, values, true).map((suite) => suite.id));
+  const plan = buildImpactPlan(project, {
+    mode: normalizeImpactMode(values.mode),
+    baseRef: values["base-ref"],
+    changedPaths: values["changed-path"],
+  });
+  const skipSelectors = [
+    ...(values["skip-suite"] ?? []).map((suiteId) => `suite:${suiteId}`),
+    ...(values["skip-group"] ?? []).map((group) => `group:${group}`),
+    ...(values["skip-alias"] ?? []),
+  ];
+  const skipIds = new Set(resolveSelectorList(project, skipSelectors).map((suite) => suite.id));
+  const selectedIds = new Set(
+    plan.selectedSuiteIds.filter((suiteId) => filteredIds.has(suiteId) && !skipIds.has(suiteId)),
+  );
+  checkConfig(project, [...selectedIds].map((suiteId) => suiteById(project, suiteId)));
+
+  console.log(
+    `Impact selection: mode=${plan.mode} changed=${plan.changedPaths.length} selected=${selectedIds.size} fallback=${plan.fallback}`,
+  );
+  console.log(`Selected suites: ${[...selectedIds].sort().join(", ") || "none"}`);
+  if (plan.fallbackDetail) {
+    console.log(`Impact fallback detail: ${plan.fallbackDetail}`);
+  }
+  let passed = 0;
+  let failed = 0;
+  let skipped = 0;
+  const gateStartedAt = nowTick();
+  const timingRecords = [];
+  for (const entry of plan.entries) {
+    const suite = suiteById(project, entry.suiteId);
+    let skipReason = "";
+    if (!filteredIds.has(entry.suiteId)) {
+      skipReason = "filtered";
+    } else if (skipIds.has(entry.suiteId)) {
+      skipReason = "disabled";
+    } else if (!selectedIds.has(entry.suiteId)) {
+      skipReason = `impact disposition=${entry.disposition}`;
+    }
+    if (skipReason) {
+      skipped += 1;
+      if (skipReason === "disabled") {
+        console.log(
+          `==> SKIP [${suite.runner.kind}] ${suite.id} (class=${suite.validationClass} owner=${suite.owner} reason=${skipReason})`,
+        );
+      }
+      continue;
+    }
+    const result = runSuiteWithTiming(project, suite);
+    timingRecords.push(suiteTimingRecord(suite, result.outcome, result.durationMs));
+    if (result.exitCode === 0) {
+      passed += 1;
+    } else {
+      failed += 1;
+      if (values["fail-fast"]) {
+        console.error(`Fail-fast stopping after failed suite: ${suite.id}`);
+        break;
+      }
+    }
+  }
+  console.log(`Summary: ${passed} passed, ${failed} failed, ${skipped} skipped`);
+  if (skipped > 0) {
+    console.log("Skipped suites are explained by scripts/gate.sh validate-plan.");
+  }
+  for (const line of renderTimingSummary(timingRecords, {
+    totalWallMs: elapsedMs(gateStartedAt),
+    executionModeLabel: `impact ${plan.mode}`,
+  })) {
+    console.log(line);
+  }
+  if (failed > 0) {
+    console.error(`Repository validation failed: ${failed} suite(s)`);
+    return 1;
+  }
+  console.log("Repository validation passed");
+  return 0;
+}
+
 function cmdRunSuite(argv: string[]): number {
   const { values, positionals } = parseArgs({
     args: argv,
@@ -647,10 +820,14 @@ function main(argv: string[]): number {
       return cmdList(rest);
     case "plan":
       return cmdPlan(rest);
+    case "impact-plan":
+      return cmdImpactPlan(rest);
     case "audit":
       return cmdAudit(rest);
     case "run-default":
       return cmdRunDefault(rest);
+    case "run-impact":
+      return cmdRunImpact(rest);
     case "run-suite":
       return cmdRunSuite(rest);
     default:

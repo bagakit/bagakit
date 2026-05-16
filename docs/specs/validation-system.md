@@ -74,7 +74,9 @@ Root validation entrypoint:
 
 - `gate_validation/validation.toml`
 
-This root file declares discovery roots.
+This root file declares discovery roots and the small repository execution
+policy. Owner-local suite truth remains distributed under the matching gate
+subtree.
 
 Owner-local validation is registered by adding one `validation.toml` under the
 matching `gate_validation/` subtree.
@@ -87,6 +89,81 @@ Examples:
 
 This keeps validation registration explicit without requiring every surface to
 invent a private gate model.
+
+## Gate Admission
+
+A release-blocking suite is admitted only when all of these are true:
+
+- failure can violate a stable public behavior, data or security invariant,
+  schema, state machine, directory protocol, or owner-defined contract
+- the oracle is deterministic enough to reproduce and debug
+- the exercised surface is public or owner-owned rather than private
+  implementation shape
+- the suite has a bounded failure message and timeout when it launches a
+  process
+
+Capability quality, preference, open-ended dialogue quality, broad phrase
+coverage, and uncalibrated model judgment belong in `gate_eval/`.
+
+## Execution Policy
+
+Blocking meaning and execution frequency are separate decisions.
+
+Every default `gate_validation/` suite receives one derived disposition:
+
+- `universal`
+  - tiny repository preflight that runs for every validation invocation
+- `affected_blocking`
+  - deterministic release proof selected when an owned or dependent surface
+    changes
+- `scheduled_full_sweep`
+  - blocking proof retained for explicit full, merge-queue, nightly, or release
+    sweeps instead of ordinary affected runs
+
+The broader review vocabulary also includes `capability_eval`, `duplicate`,
+and `retire`. Those are review outcomes, not an invitation to keep duplicate or
+retired suites in the active default graph. Capability eval truth belongs under
+`gate_eval/`; duplicate and retired checks should be removed after their
+replacement or rationale is recorded.
+
+The root `[execution_policy]` owns only:
+
+- explicit universal suite ids
+- explicit scheduled-full-sweep suite ids
+- fail-safe global paths
+- small shared dependency rules that cannot be derived safely
+
+All other default blocking suites are `affected_blocking`. Do not create a
+second central suite catalog.
+
+Affected ownership is derived from existing owner-local truth:
+
+- suite `owner`
+- suite config location
+- runner and filesystem paths
+- path-like `exercised_surface` entries
+- explicit root impact rules only where derivation is insufficient
+
+Unknown paths, unavailable base refs, validator changes, installer/discovery
+changes, root execution-policy changes, and named shared-contract changes must
+fail safe to the full default graph. A known non-gating path may be recognized
+by an impact rule with no blocking selectors.
+
+Public command meaning:
+
+- `validate-fast`: universal preflight only
+- `validate` and `validate-repo`: universal plus affected blocking suites, with
+  fail-safe expansion
+- `validate-all`: every default suite, including scheduled-full-sweep suites
+- `validate-plan`: read-only explanation for every selected and skipped suite
+
+The impact plan must state changed paths, fallback behavior, disposition,
+derived cost class, protected invariant, proof surface, and failure boundary for
+every default suite.
+
+Cost class is scheduler evidence, not manually maintained suite truth. The
+validator derives it from runner kind and declared timeout until a real
+consumer requires a stronger measured-cost model.
 
 ## Built-In Suite Vocabulary
 
@@ -176,9 +253,9 @@ Authoring rule:
 configured default eval suites. Eval suites may use the same metadata over time,
 but this default-gate proof contract is enforced for `gate_validation/`.
 
-Default gate entrypoints should fail fast. Full inventory runs are useful for
-maintenance sweeps, but the normal release-blocking entrypoint should stop on
-the first failed suite to keep feedback bounded and actionable.
+Default fast and affected gate entrypoints should fail fast. Full inventory
+runs are useful for maintenance sweeps and may continue to expose the complete
+failure set.
 
 ## Report-Only Audit
 

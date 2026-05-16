@@ -52,6 +52,17 @@ Examples:
 - `archive-integrity`
 - `trace-safety`
 
+Serious skill-goal case packs should also declare:
+
+- final-goal dimensions
+- `should` or `should_not` polarity
+- success evidence
+- sanitized provenance and privacy class
+- grader type, rubric, calibration state, and transfer limit
+- capability or regression lifecycle state
+- trial count and reliability threshold
+- structured skill guard ids
+
 ## Maturity Direction
 
 Skill-owned eval slices may start from deterministic runtime quality probes.

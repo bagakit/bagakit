@@ -9,6 +9,10 @@ It runs deterministic checks over the first-version grill lifecycle:
 - generated read-only brief
 - one-question progression
 - research-needed handoff behavior
+- sanitized protected-principle, route, false-binary, and convergence cases
+
+The pilot comparison measures structured guard coverage. It does not claim
+three-trial live-agent reliability.
 
 Primary entrypoint:
 

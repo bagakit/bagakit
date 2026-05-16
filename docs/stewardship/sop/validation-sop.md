@@ -17,6 +17,17 @@ tool semantics, skill semantics, and framework mechanics into one place.
 5. Prefer built-in validator runners first.
 6. Only add a script extension when the built-in runners are clearly not enough.
 
+Before admission, write down:
+
+- protected failure
+- deterministic oracle
+- affected owner or shared dependency
+- expected disposition: universal, affected blocking, or scheduled full sweep
+- why a non-gating eval is insufficient
+
+Universal admission is exceptional. Prefer affected blocking unless the check
+is both tiny and required to trust every later selection decision.
+
 ## Path Selection
 
 Use these path rules:
@@ -170,6 +181,41 @@ Historical failures should be represented as cases with:
 Do not use case fields such as `must_find` to require arbitrary text in the
 skill surface. If a case needs exact wording, classify that case as a wording
 contract and state what behavior it does not prove.
+
+## Impact Rule
+
+Do not add suite-local scope metadata when owner, config, runner, filesystem,
+or exercised-surface paths already prove impact.
+
+Add a root impact rule only for a shared dependency that cannot be derived
+reliably. Each rule should be narrow enough to explain:
+
+- which changed path matched
+- which suite selector expanded
+- why the expansion is required
+
+Unknown changed paths must expand to the full graph. Do not weaken this fallback
+to improve a timing number.
+
+## Eval Graduation Rule
+
+A capability case may become release protection only after:
+
+1. the failure recurs or represents a severity that warrants blocking
+2. the case has reviewed provenance and a stable transfer boundary
+3. the grader has human calibration evidence
+4. the blocking oracle is deterministic
+5. the regression is registered under the affected owner in
+   `gate_validation/`
+
+Do not turn a model score into a release gate. Graduation means extracting a
+deterministic fixture, state assertion, command boundary, or narrow wording
+contract from the capability failure. Keep the richer capability case in
+`gate_eval/` when it still measures useful quality beyond the regression.
+
+Retire a regression when its protected behavior is removed, its replacement is
+strictly stronger, or the failure can no longer be reproduced. Record the
+replacement or retirement rationale before deleting the old check.
 
 Reference anchors:
 

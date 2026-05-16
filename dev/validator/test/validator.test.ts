@@ -7,6 +7,7 @@ import test from "node:test";
 import { fileURLToPath } from "node:url";
 
 import { loadProject } from "../src/lib/loader.ts";
+import { buildImpactPlan } from "../src/lib/impact.ts";
 import { runProcessSuite, validateProcessSuiteShape } from "../src/lib/runners.ts";
 import { filterSuites, validateSkipAliases } from "../src/lib/selection.ts";
 
@@ -57,6 +58,58 @@ function proofLines(proofMode = "runtime", timeoutSeconds = 5): string[] {
     lines.push(`timeout_seconds = ${timeoutSeconds}`);
   }
   return lines;
+}
+
+function writeImpactFixture(repoRoot: string): void {
+  writeFile(
+    repoRoot,
+    "gate_validation/validation.toml",
+    [
+      "version = 2",
+      "",
+      "[project]",
+      'discovery_roots = ["gate_validation/skills"]',
+      "",
+      "[execution_policy]",
+      'default_base_ref = "main"',
+      'universal_suites = ["repo-universal"]',
+      'scheduled_full_sweep_suites = ["repo-scheduled"]',
+      'global_paths = ["dev/validator"]',
+      "",
+      "[[impact_rule]]",
+      'id = "eval-only"',
+      'paths = ["gate_eval"]',
+      "selectors = []",
+      "",
+    ].join("\n"),
+  );
+  const suite = (id: string, owner: string) => [
+    "[[suite]]",
+    `id = "${id}"`,
+    `owner = "${owner}"`,
+    `description = "${id}"`,
+    "default = true",
+    ...proofLines("structural"),
+    'validation_class = "structure"',
+    "",
+    "[suite.runner]",
+    'kind = "fs"',
+    'required_files = ["README.md"]',
+    "",
+  ];
+  writeFile(
+    repoRoot,
+    "gate_validation/skills/example/validation.toml",
+    [
+      "version = 2",
+      "",
+      ...suite("repo-universal", "gate_validation/backbone"),
+      ...suite("alpha-contract", "skills/harness/alpha"),
+      ...suite("beta-contract", "skills/harness/beta"),
+      ...suite("repo-scheduled", "gate_validation/backbone"),
+    ].join("\n"),
+  );
+  writeFile(repoRoot, "README.md", "# fixture\n");
 }
 
 test("loadProject rejects configs that do not explicitly declare version 2", () => {
@@ -1481,6 +1534,140 @@ test("loadProject rejects unknown default params in v2 suites", () => {
         return true;
       },
     );
+  } finally {
+    rmSync(repoRoot, { recursive: true, force: true });
+  }
+});
+
+test("impact planner selects universal plus affected owner suites for isolated skill changes", () => {
+  const repoRoot = makeTempRepo();
+  writeImpactFixture(repoRoot);
+  try {
+    const project = loadProject(repoRoot, "gate_validation/validation.toml");
+    const plan = buildImpactPlan(project, {
+      mode: "affected",
+      changedPaths: ["skills/harness/alpha/SKILL.md"],
+    });
+    assert.equal(plan.fallback, "none");
+    assert.deepEqual(plan.selectedSuiteIds, ["alpha-contract", "repo-universal"]);
+    assert.deepEqual(plan.skippedSuiteIds, ["beta-contract", "repo-scheduled"]);
+    assert.equal(plan.entries.find((entry) => entry.suiteId === "alpha-contract")?.disposition, "affected_blocking");
+    assert.equal(plan.entries.find((entry) => entry.suiteId === "repo-scheduled")?.disposition, "scheduled_full_sweep");
+  } finally {
+    rmSync(repoRoot, { recursive: true, force: true });
+  }
+});
+
+test("impact planner fail-safe expands global, unknown, and deleted-owner paths", () => {
+  const repoRoot = makeTempRepo();
+  writeImpactFixture(repoRoot);
+  try {
+    const project = loadProject(repoRoot, "gate_validation/validation.toml");
+    const globalPlan = buildImpactPlan(project, {
+      mode: "affected",
+      changedPaths: ["dev/validator/src/cli.ts"],
+    });
+    assert.equal(globalPlan.fallback, "global_path");
+    assert.equal(globalPlan.selectedSuiteIds.length, 4);
+
+    const unknownPlan = buildImpactPlan(project, {
+      mode: "affected",
+      changedPaths: ["new-root/control-plane.json"],
+    });
+    assert.equal(unknownPlan.fallback, "unknown_path");
+    assert.equal(unknownPlan.selectedSuiteIds.length, 4);
+
+    const deletedOwnerPlan = buildImpactPlan(project, {
+      mode: "affected",
+      changedPaths: ["skills/harness/beta/removed-file.md"],
+    });
+    assert.equal(deletedOwnerPlan.fallback, "none");
+    assert.deepEqual(deletedOwnerPlan.selectedSuiteIds, ["beta-contract", "repo-universal"]);
+  } finally {
+    rmSync(repoRoot, { recursive: true, force: true });
+  }
+});
+
+test("impact planner recognizes non-gating eval paths and keeps scheduled suites for all mode", () => {
+  const repoRoot = makeTempRepo();
+  writeImpactFixture(repoRoot);
+  try {
+    const project = loadProject(repoRoot, "gate_validation/validation.toml");
+    const evalPlan = buildImpactPlan(project, {
+      mode: "affected",
+      changedPaths: ["gate_eval/skills/harness/alpha/cases/example.json"],
+    });
+    assert.equal(evalPlan.fallback, "none");
+    assert.deepEqual(evalPlan.selectedSuiteIds, ["repo-universal"]);
+
+    const fullPlan = buildImpactPlan(project, { mode: "all", changedPaths: [] });
+    assert.equal(fullPlan.selectedSuiteIds.length, 4);
+    assert.ok(fullPlan.selectedSuiteIds.includes("repo-scheduled"));
+  } finally {
+    rmSync(repoRoot, { recursive: true, force: true });
+  }
+});
+
+test("cli impact-plan emits a disposition and failure boundary for every default suite", () => {
+  const repoRoot = makeTempRepo();
+  writeImpactFixture(repoRoot);
+  try {
+    const result = runCli(repoRoot, [
+      "impact-plan",
+      "--root",
+      repoRoot,
+      "--config",
+      "gate_validation/validation.toml",
+      "--mode",
+      "affected",
+      "--changed-path",
+      "skills/harness/alpha/SKILL.md",
+      "--json",
+    ]);
+    assert.equal(result.status, 0, result.stderr);
+    const plan = JSON.parse(result.stdout);
+    assert.equal(plan.entries.length, 4);
+    assert.ok(plan.entries.every((entry: { disposition?: string }) => !!entry.disposition));
+    assert.ok(plan.entries.every((entry: { failureBoundary?: string[] }) => (entry.failureBoundary?.length ?? 0) > 0));
+  } finally {
+    rmSync(repoRoot, { recursive: true, force: true });
+  }
+});
+
+test("cli run-impact keeps universal execution small and affected execution owner-scoped", () => {
+  const repoRoot = makeTempRepo();
+  writeImpactFixture(repoRoot);
+  try {
+    const universal = runCli(repoRoot, [
+      "run-impact",
+      "--root",
+      repoRoot,
+      "--config",
+      "gate_validation/validation.toml",
+      "--mode",
+      "universal",
+      "--fail-fast",
+    ]);
+    assert.equal(universal.status, 0, universal.stderr);
+    assert.ok(universal.stdout.includes("selected=1"));
+    assert.ok(universal.stdout.includes("Summary: 1 passed, 0 failed, 3 skipped"));
+    assert.equal(universal.stdout.includes("==> SKIP"), false);
+
+    const affected = runCli(repoRoot, [
+      "run-impact",
+      "--root",
+      repoRoot,
+      "--config",
+      "gate_validation/validation.toml",
+      "--mode",
+      "affected",
+      "--changed-path",
+      "skills/harness/alpha/SKILL.md",
+    ]);
+    assert.equal(affected.status, 0, affected.stderr);
+    assert.ok(affected.stdout.includes("selected=2"));
+    assert.ok(affected.stdout.includes("alpha-contract, repo-universal"));
+    assert.ok(affected.stdout.includes("Summary: 2 passed, 0 failed, 2 skipped"));
   } finally {
     rmSync(repoRoot, { recursive: true, force: true });
   }

@@ -116,6 +116,10 @@ durable handoff.
 Follow `docs/specs/principle-layer-contract.md` when a brainstorm handoff may
 shape later feature, skill, knowledge, or implementation work.
 
+Use `references/decision-quality-contract.toml` as the stable guard map for
+serious-moment capability cases. Keep raw correction evidence local; shared
+eval rows reference sanitized behavior meaning and guard ids.
+
 - keep input facts, open gaps, and derived recommendations separate
 - generate distinct options only when they imply different decisions
 - mark unsupported assumptions instead of smoothing them into the conclusion

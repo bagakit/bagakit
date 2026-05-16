@@ -95,9 +95,7 @@ def main() -> int:
     ]:
         require(token in report_text, f"review report template missing token: {token}", failures)
 
-    tmp_parent = root / ".bagakit" / "tmp"
-    tmp_parent.mkdir(parents=True, exist_ok=True)
-    with tempfile.TemporaryDirectory(prefix="paperwork-gate-", dir=tmp_parent) as tmp_dir:
+    with tempfile.TemporaryDirectory(prefix="paperwork-gate-") as tmp_dir:
         valid_report = Path(tmp_dir) / "valid-report.md"
         valid_proc = run(
             [

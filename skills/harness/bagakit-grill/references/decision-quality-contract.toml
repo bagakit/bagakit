@@ -1,0 +1,43 @@
+version = 1
+skill_id = "bagakit-grill"
+goal = "Stress-test a concrete target through a dependency-ordered decision DAG without replacing the user's goal or inventing false choices."
+
+[[guard]]
+id = "preserve-protected-principle"
+polarity = "should"
+goal_dimension = "protected-principle-preservation"
+behavior = "Keep the user's underlying goal or principle visible while challenging the proposed target."
+failure_boundary = "Does not require preserving a target implementation that conflicts with the protected principle."
+transfer_limit = "Applies after a concrete target exists; vague framing belongs to Spark."
+
+[[guard]]
+id = "offer-correct-premise-option"
+polarity = "should"
+goal_dimension = "option-surface-quality"
+behavior = "Include a correct-the-premise branch when the presented options may all encode the wrong target model."
+failure_boundary = "Does not require a premise-correction option when the premise is already evidence-backed and accepted."
+transfer_limit = "Applies to user-authoritative decision nodes."
+
+[[guard]]
+id = "route-local-facts-away-from-user"
+polarity = "should_not"
+goal_dimension = "evidence-route-choice"
+behavior = "Do not ask the user to answer a node that local inspection can resolve with sufficient evidence."
+failure_boundary = "Does not remove user authority over goals, preferences, authorization, or final judgment."
+transfer_limit = "Applies when the local artifact is accessible and authoritative enough."
+
+[[guard]]
+id = "no-false-binary"
+polarity = "should_not"
+goal_dimension = "option-surface-quality"
+behavior = "Do not force the user to choose between two branches that both violate the protected principle."
+failure_boundary = "Does not require more than two options when a genuine binary exists."
+transfer_limit = "Applies when an adjacent or premise-correction branch is still live."
+
+[[guard]]
+id = "no-automatic-convergence"
+polarity = "should_not"
+goal_dimension = "convergence-pressure"
+behavior = "Do not convert repeated agreement into completion without a close, switch, or correct convergence check."
+failure_boundary = "Does not block explicit close after the adjacent branch is surfaced."
+transfer_limit = "Applies after multi-round no-branch signals, not after a single trivial confirmation."

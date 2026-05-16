@@ -3,9 +3,10 @@
 `gate_eval/skills/harness/bagakit-spark/` is the non-gating eval slice for
 `skills/harness/bagakit-spark/`.
 
-It uses deterministic fixtures to check that Spark review artifacts preserve
-dialogue closure evidence, weak-question findings, and explicit next actions
-before a thinking session is treated as accepted.
+The serious-moment pilot uses five sanitized skill-goal cases with positive and
+negative polarity, provenance/privacy labels, calibration refs, trial targets,
+and structured guard ids. Its baseline/candidate score measures guard coverage,
+not live dialogue quality.
 
 Primary entrypoint:
 

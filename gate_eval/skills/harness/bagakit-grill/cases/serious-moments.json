@@ -1,0 +1,280 @@
+{
+  "schema": "bagakit.eval-dataset/v1",
+  "dataset_id": "bagakit-grill-serious-moments-v1",
+  "title": "Grill Serious-Moment Cases",
+  "description": "Sanitized correction-derived cases for Grill protected-principle, routing, option surface, and convergence behavior.",
+  "item_schema": "bagakit.skill-goal-eval-item/v1",
+  "items": [
+    {
+      "id": "grill-preserve-principle",
+      "skill_id": "bagakit-grill",
+      "prompt": "A concrete implementation plan optimizes the agent framework but may no longer serve the user's original product objective. Grill the plan.",
+      "expected_outcome": "Restate the protected objective and test the framework choice against it before optimizing framework mechanics.",
+      "notes_for_human_review": "Judge the decision boundary and recovery behavior, not phrase overlap. Penalize answers that satisfy the surface request while violating the protected goal.",
+      "tags": [
+        "serious-moment",
+        "sanitized",
+        "pilot"
+      ],
+      "risk_tags": [],
+      "dimensions": [
+        "protected-principle-preservation"
+      ],
+      "goal_dimensions": [
+        "protected-principle-preservation"
+      ],
+      "polarity": "should",
+      "success_evidence": [
+        "The decision DAG keeps the user objective as the protected principle."
+      ],
+      "guard_ids": [
+        "preserve-protected-principle"
+      ],
+      "provenance": {
+        "source_class": "sanitized_user_correction",
+        "evidence_ref": "local-research:skill-serious-moment-cases#grill-preserve-principle"
+      },
+      "privacy": {
+        "class": "internal_sanitized",
+        "sanitized": true,
+        "raw_transcript_included": false
+      },
+      "grader": {
+        "type": "outcome",
+        "rubric_id": "bagakit-grill-serious-moment-v1",
+        "calibration_status": "not_required",
+        "calibration_evidence": [
+          "gate_eval/skills/harness/bagakit-grill/cases/pilot-calibration.md"
+        ],
+        "transfer_limit": "Transfer only the decision boundary; do not require the original wording, project, or domain."
+      },
+      "lifecycle": {
+        "stage": "capability"
+      },
+      "trials": {
+        "count": 3,
+        "min_pass_rate": 0.67,
+        "reliability_metric": "case_pass_rate"
+      },
+      "split": "baseline"
+    },
+    {
+      "id": "grill-correct-premise",
+      "skill_id": "bagakit-grill",
+      "prompt": "A question offers only 'passive monitor' or 'daily report', but the real need may be active work management.",
+      "expected_outcome": "Include a correct-the-premise or active-management branch and recommend based on the protected outcome.",
+      "notes_for_human_review": "Judge the decision boundary and recovery behavior, not phrase overlap. Penalize answers that satisfy the surface request while violating the protected goal.",
+      "tags": [
+        "serious-moment",
+        "sanitized",
+        "pilot"
+      ],
+      "risk_tags": [],
+      "dimensions": [
+        "option-surface-quality"
+      ],
+      "goal_dimensions": [
+        "option-surface-quality"
+      ],
+      "polarity": "should",
+      "success_evidence": [
+        "The option surface contains a premise-correction branch."
+      ],
+      "guard_ids": [
+        "offer-correct-premise-option"
+      ],
+      "provenance": {
+        "source_class": "sanitized_user_correction",
+        "evidence_ref": "local-research:skill-serious-moment-cases#grill-correct-premise"
+      },
+      "privacy": {
+        "class": "internal_sanitized",
+        "sanitized": true,
+        "raw_transcript_included": false
+      },
+      "grader": {
+        "type": "outcome",
+        "rubric_id": "bagakit-grill-serious-moment-v1",
+        "calibration_status": "not_required",
+        "calibration_evidence": [
+          "gate_eval/skills/harness/bagakit-grill/cases/pilot-calibration.md"
+        ],
+        "transfer_limit": "Transfer only the decision boundary; do not require the original wording, project, or domain."
+      },
+      "lifecycle": {
+        "stage": "capability"
+      },
+      "trials": {
+        "count": 3,
+        "min_pass_rate": 0.67,
+        "reliability_metric": "case_pass_rate"
+      },
+      "split": "holdout"
+    },
+    {
+      "id": "grill-route-local-fact",
+      "skill_id": "bagakit-grill",
+      "prompt": "A repository file already states whether a command is supported. The draft Grill question asks the user to remember it.",
+      "expected_outcome": "Route the node to local inspection and attach the file evidence instead of asking the user.",
+      "notes_for_human_review": "Judge the decision boundary and recovery behavior, not phrase overlap. Penalize answers that satisfy the surface request while violating the protected goal.",
+      "tags": [
+        "serious-moment",
+        "sanitized",
+        "pilot"
+      ],
+      "risk_tags": [
+        "negative-case"
+      ],
+      "dimensions": [
+        "evidence-route-choice"
+      ],
+      "goal_dimensions": [
+        "evidence-route-choice"
+      ],
+      "polarity": "should_not",
+      "success_evidence": [
+        "The user is not asked to supply an inspectable local fact."
+      ],
+      "guard_ids": [
+        "route-local-facts-away-from-user"
+      ],
+      "provenance": {
+        "source_class": "sanitized_user_correction",
+        "evidence_ref": "local-research:skill-serious-moment-cases#grill-route-local-fact"
+      },
+      "privacy": {
+        "class": "internal_sanitized",
+        "sanitized": true,
+        "raw_transcript_included": false
+      },
+      "grader": {
+        "type": "outcome",
+        "rubric_id": "bagakit-grill-serious-moment-v1",
+        "calibration_status": "not_required",
+        "calibration_evidence": [
+          "gate_eval/skills/harness/bagakit-grill/cases/pilot-calibration.md"
+        ],
+        "transfer_limit": "Transfer only the decision boundary; do not require the original wording, project, or domain."
+      },
+      "lifecycle": {
+        "stage": "capability"
+      },
+      "trials": {
+        "count": 3,
+        "min_pass_rate": 0.67,
+        "reliability_metric": "case_pass_rate"
+      },
+      "split": "baseline"
+    },
+    {
+      "id": "grill-no-false-binary",
+      "skill_id": "bagakit-grill",
+      "prompt": "Both proposed options violate the protected principle, but the recommendation selects the less bad one.",
+      "expected_outcome": "Reject the false binary, expose the missing branch, and let the user correct the target model.",
+      "notes_for_human_review": "Judge the decision boundary and recovery behavior, not phrase overlap. Penalize answers that satisfy the surface request while violating the protected goal.",
+      "tags": [
+        "serious-moment",
+        "sanitized",
+        "pilot"
+      ],
+      "risk_tags": [
+        "negative-case"
+      ],
+      "dimensions": [
+        "option-surface-quality"
+      ],
+      "goal_dimensions": [
+        "option-surface-quality"
+      ],
+      "polarity": "should_not",
+      "success_evidence": [
+        "The answer refuses to force a choice between two invalid branches."
+      ],
+      "guard_ids": [
+        "no-false-binary"
+      ],
+      "provenance": {
+        "source_class": "sanitized_user_correction",
+        "evidence_ref": "local-research:skill-serious-moment-cases#grill-no-false-binary"
+      },
+      "privacy": {
+        "class": "internal_sanitized",
+        "sanitized": true,
+        "raw_transcript_included": false
+      },
+      "grader": {
+        "type": "outcome",
+        "rubric_id": "bagakit-grill-serious-moment-v1",
+        "calibration_status": "not_required",
+        "calibration_evidence": [
+          "gate_eval/skills/harness/bagakit-grill/cases/pilot-calibration.md"
+        ],
+        "transfer_limit": "Transfer only the decision boundary; do not require the original wording, project, or domain."
+      },
+      "lifecycle": {
+        "stage": "capability"
+      },
+      "trials": {
+        "count": 3,
+        "min_pass_rate": 0.67,
+        "reliability_metric": "case_pass_rate"
+      },
+      "split": "holdout"
+    },
+    {
+      "id": "grill-no-auto-close",
+      "skill_id": "bagakit-grill",
+      "prompt": "Two user answers agree with the recommendation and no planned nodes remain.",
+      "expected_outcome": "Create convergence pressure and ask close, switch, or correct after naming an adjacent branch.",
+      "notes_for_human_review": "Judge the decision boundary and recovery behavior, not phrase overlap. Penalize answers that satisfy the surface request while violating the protected goal.",
+      "tags": [
+        "serious-moment",
+        "sanitized",
+        "pilot"
+      ],
+      "risk_tags": [
+        "negative-case"
+      ],
+      "dimensions": [
+        "convergence-pressure"
+      ],
+      "goal_dimensions": [
+        "convergence-pressure"
+      ],
+      "polarity": "should_not",
+      "success_evidence": [
+        "The run does not become complete solely from repeated agreement."
+      ],
+      "guard_ids": [
+        "no-automatic-convergence"
+      ],
+      "provenance": {
+        "source_class": "sanitized_user_correction",
+        "evidence_ref": "local-research:skill-serious-moment-cases#grill-no-auto-close"
+      },
+      "privacy": {
+        "class": "internal_sanitized",
+        "sanitized": true,
+        "raw_transcript_included": false
+      },
+      "grader": {
+        "type": "outcome",
+        "rubric_id": "bagakit-grill-serious-moment-v1",
+        "calibration_status": "not_required",
+        "calibration_evidence": [
+          "gate_eval/skills/harness/bagakit-grill/cases/pilot-calibration.md"
+        ],
+        "transfer_limit": "Transfer only the decision boundary; do not require the original wording, project, or domain."
+      },
+      "lifecycle": {
+        "stage": "capability"
+      },
+      "trials": {
+        "count": 3,
+        "min_pass_rate": 0.67,
+        "reliability_metric": "case_pass_rate"
+      },
+      "split": "baseline"
+    }
+  ]
+}

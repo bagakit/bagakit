@@ -11,7 +11,9 @@ import type {
   ArgvRunner,
   BashScriptRunner,
   ExecutableRunner,
+  ExecutionPolicy,
   FileSystemRunner,
+  ImpactRule,
   LoadedProject,
   ProcessRunner,
   ProofMode,
@@ -179,6 +181,71 @@ function loadRootSkipAliases(rawPayload: Record<string, unknown>, configPath: st
   });
 }
 
+function loadImpactRules(rawPayload: Record<string, unknown>, configPath: string): ImpactRule[] {
+  const rawRules = rawPayload.impact_rule ?? [];
+  if (!Array.isArray(rawRules)) {
+    throw new Error(`${configPath}: [[impact_rule]] must decode to an array`);
+  }
+  return rawRules.map((rawRule, index) => {
+    const rule = assertRecord(rawRule, `${configPath} impact_rule[${index}]`);
+    const paths = uniqueStrings(
+      readStringArray(rule.paths, `${configPath} impact_rule.paths`),
+      `${configPath} impact_rule.paths`,
+    );
+    if (paths.length === 0) {
+      throw new Error(`${configPath}: impact_rule ${index} must declare at least one path`);
+    }
+    return {
+      id: readString(rule.id, `${configPath} impact_rule.id`),
+      description:
+        rule.description === undefined
+          ? ""
+          : readString(rule.description, `${configPath} impact_rule.description`),
+      paths,
+      selectors: uniqueStrings(
+        readStringArray(rule.selectors, `${configPath} impact_rule.selectors`),
+        `${configPath} impact_rule.selectors`,
+      ),
+      configPath,
+    };
+  });
+}
+
+function loadExecutionPolicy(
+  rawPayload: Record<string, unknown>,
+  configPath: string,
+): ExecutionPolicy | undefined {
+  if (rawPayload.execution_policy === undefined) {
+    if (rawPayload.impact_rule !== undefined) {
+      throw new Error(`${configPath}: [[impact_rule]] requires [execution_policy]`);
+    }
+    return undefined;
+  }
+  const policy = assertRecord(rawPayload.execution_policy, `${configPath} [execution_policy]`);
+  return {
+    defaultBaseRef:
+      policy.default_base_ref === undefined
+        ? "main"
+        : readString(policy.default_base_ref, `${configPath} execution_policy.default_base_ref`),
+    universalSuites: uniqueStrings(
+      readStringArray(policy.universal_suites, `${configPath} execution_policy.universal_suites`),
+      `${configPath} execution_policy.universal_suites`,
+    ),
+    scheduledFullSweepSuites: uniqueStrings(
+      readStringArray(
+        policy.scheduled_full_sweep_suites,
+        `${configPath} execution_policy.scheduled_full_sweep_suites`,
+      ),
+      `${configPath} execution_policy.scheduled_full_sweep_suites`,
+    ),
+    globalPaths: uniqueStrings(
+      readStringArray(policy.global_paths, `${configPath} execution_policy.global_paths`),
+      `${configPath} execution_policy.global_paths`,
+    ),
+    impactRules: loadImpactRules(rawPayload, configPath),
+  };
+}
+
 function loadRootConfig(configPath: string): RootConfig {
   const payload = assertRecord(parseTomlFile(configPath), configPath);
   const version = payload.version;
@@ -200,6 +267,7 @@ function loadRootConfig(configPath: string): RootConfig {
     configPath: path.resolve(configPath),
     discoveryRoots,
     skipAliases: loadRootSkipAliases(payload, configPath),
+    executionPolicy: loadExecutionPolicy(payload, configPath),
   };
 }
 
@@ -515,5 +583,6 @@ export function loadProject(repoRootArg: string, configPathArg: string): LoadedP
     defaultGate,
     skipAliases: [...rootConfig.skipAliases],
     skipAliasesById,
+    executionPolicy: rootConfig.executionPolicy,
   };
 }

@@ -3,7 +3,7 @@ import { parseArgs } from "node:util";
 import { pathToFileURL } from "node:url";
 
 import { compareRunSummaries } from "./lib/compare.ts";
-import { buildEvalDataset, exportEvalDatasetSplit, loadEvalDataset, reportEvalDataset, writeEvalDataset } from "./lib/dataset.ts";
+import { buildEvalDataset, exportEvalDatasetSplit, loadEvalDataset, reportEvalDataset, validateGoalCaseContracts, writeEvalDataset } from "./lib/dataset.ts";
 import type { EvalSuiteDefinition } from "./lib/model.ts";
 import { listCases, runSuite } from "./lib/run.ts";
 
@@ -13,7 +13,7 @@ function printHelp(): void {
 Commands:
   list --root <repo-root> --suite <suite-module>
   run --root <repo-root> --suite <suite-module> [--case <id>] [--out <dir>] [--keep-temp]
-  dataset-check --file <dataset-file>
+  dataset-check --file <dataset-file> [--strict-goal-contract]
   dataset-build --in <dataset-file> --out <dataset-file> [--baseline-split <name>] [--holdout-split <name>] [--holdout-ratio <n>] [--holdout-tag <tag> ...] [--seed <text>]
   dataset-export --file <dataset-file> --split <name> --out <dataset-file>
   dataset-report --file <dataset-file>
@@ -91,6 +91,7 @@ async function main(argv: string[]): Promise<number> {
         args: rest,
         options: {
           file: { type: "string" },
+          "strict-goal-contract": { type: "boolean", default: false },
         },
         strict: true,
         allowPositionals: false,
@@ -99,12 +100,16 @@ async function main(argv: string[]): Promise<number> {
         throw new Error("dataset-check requires --file");
       }
       const dataset = loadEvalDataset(path.resolve(values.file));
+      if (values["strict-goal-contract"]) {
+        validateGoalCaseContracts(dataset);
+      }
       console.log(
         JSON.stringify(
           {
             schema: dataset.schema,
             dataset_id: dataset.dataset_id,
             items: dataset.items.length,
+            strict_goal_contract: values["strict-goal-contract"],
           },
           null,
           2,

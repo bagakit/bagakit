@@ -20,6 +20,8 @@ required_dirs = [
   "skills/harness/bagakit-spark",
   "skills/harness/bagakit-spark/references",
   "gate_validation/skills/harness/bagakit-spark",
+  "gate_eval/skills/harness/bagakit-spark",
+  "gate_eval/skills/harness/bagakit-spark/cases",
 ]
 required_files = [
   "skills/harness/bagakit-spark/README.md",
@@ -31,8 +33,12 @@ required_files = [
   "skills/harness/bagakit-spark/references/question-inventory.md",
   "skills/harness/bagakit-spark/references/composition-boundary.md",
   "skills/harness/bagakit-spark/references/workflow-contract.toml",
+  "skills/harness/bagakit-spark/references/decision-quality-contract.toml",
   "gate_validation/skills/harness/bagakit-spark/validation.toml",
   "gate_validation/skills/harness/bagakit-spark/check-spark-contract.py",
+  "gate_eval/skills/harness/bagakit-spark/suite.ts",
+  "gate_eval/skills/harness/bagakit-spark/cases/serious-moments.json",
+  "gate_eval/skills/harness/bagakit-spark/cases/pilot-calibration.md",
 ]
 forbidden_paths = [
   "skills/harness/bagakit-spark/SKILL_PAYLOAD.json",

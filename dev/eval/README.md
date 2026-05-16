@@ -12,6 +12,8 @@ It exists to keep `gate_eval/` slices thin and consistent without turning
 - temp workspace lifecycle
 - optional shared agent-session launches through `dev/agent_runner/`
 - dataset validation, build, split export, and run comparison helpers
+- strict skill-goal case validation for polarity, provenance/privacy, grader,
+  lifecycle, trial, and structured guard fields
 - output sanitization
 - run-id and output-dir handling
 - normalized `summary.json` and `cases/*.json` packets
@@ -79,6 +81,9 @@ Mode split:
   `dev/agent_runner/`
 - dataset-centric workflows may build and export baseline or holdout splits
   before handing them to a runner or optimizer layer
+- serious-moment pilots may compare an explicit baseline guard set with the
+  current structured contract, but must label that as contract coverage rather
+  than live-agent quality
 
 Do not move case truth, fixture truth, or skill-owned protocol meaning into
 this tool just to reduce file count.

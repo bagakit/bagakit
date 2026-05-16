@@ -190,6 +190,9 @@ Sub-layout:
 - `selector-usage-guidance.md`
   - maintainer guidance for mandatory selector preflight on non-trivial
     Bagakit-shaped work
+- `validation-optimization-report.md`
+  - acceptance evidence and operator handoff for the small-universal,
+    affected-blocking, full-sweep, and skill-goal eval model
 - `feature-tracker-surface-sourcebook.md`
   - external reference study for deciding which durable feature-tracker files deserve to exist
 - `sop/`

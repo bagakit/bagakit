@@ -35,11 +35,43 @@ export const PROOF_MODES = [
 
 export type ProofMode = (typeof PROOF_MODES)[number];
 
+export const VALIDATION_DISPOSITIONS = [
+  "universal",
+  "affected_blocking",
+  "scheduled_full_sweep",
+  "capability_eval",
+  "duplicate",
+  "retire",
+] as const;
+
+export type ValidationDisposition = (typeof VALIDATION_DISPOSITIONS)[number];
+
+export const VALIDATION_COST_CLASSES = ["tiny", "small", "medium", "large"] as const;
+
+export type ValidationCostClass = (typeof VALIDATION_COST_CLASSES)[number];
+
+export interface ImpactRule {
+  id: string;
+  description: string;
+  paths: string[];
+  selectors: string[];
+  configPath: string;
+}
+
+export interface ExecutionPolicy {
+  defaultBaseRef: string;
+  universalSuites: string[];
+  scheduledFullSweepSuites: string[];
+  globalPaths: string[];
+  impactRules: ImpactRule[];
+}
+
 export interface RootConfig {
   version: 2;
   configPath: string;
   discoveryRoots: string[];
   skipAliases: SkipAlias[];
+  executionPolicy?: ExecutionPolicy;
 }
 
 export interface SkipAlias {
@@ -127,4 +159,5 @@ export interface LoadedProject {
   defaultGate: SuiteConfig[];
   skipAliases: SkipAlias[];
   skipAliasesById: Map<string, SkipAlias>;
+  executionPolicy?: ExecutionPolicy;
 }

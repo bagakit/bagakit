@@ -89,3 +89,12 @@ Read only the reference needed for the current decision:
   claims.
 - If a minimal patch drops required behavior or weakens proof, the ladder has
   failed even if the code volume decreases.
+
+## Operator
+
+Use `scripts/bagakit-coding-agent-principles.sh` for read-only inspection:
+
+- `describe`
+- `list-references`
+- `print-gate`
+- `validate`
