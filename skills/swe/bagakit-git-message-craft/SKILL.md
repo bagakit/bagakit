@@ -33,6 +33,7 @@ Choose the requested authority before acting:
 - Keep history reviewable and revertible.
 - Keep Git-facing messages short enough to read end-to-end.
 - Record only non-inferable facts; leave timestamps/authorship/hash to Git itself.
+- Reject known high-confidence credential patterns without echoing their values.
 - Force the message to resolve context, not rely on local conversational memory.
 
 ## Runtime Surface Declaration
@@ -74,6 +75,21 @@ Follow `docs/specs/output-discipline.md` for Git-facing text.
 Subject:
 
 `<type>(<scope>): <summary>`
+
+Allowed types:
+
+`build`, `chore`, `ci`, `docs`, `feat`, `fix`, `perf`, `refactor`, `revert`,
+`style`, `test`.
+
+Semantic meanings:
+
+- `feat`: add a user- or consumer-visible capability.
+- `fix`: correct a defect.
+- `refactor`: preserve external behavior while changing structure; use `feat`
+  or `fix` when behavior changes.
+- `docs`: documentation or specification-only work. Use `docs(spec)` for a
+  specification-only change; when code and specification change together, use
+  the type for the primary behavioral intent.
 
 Footer protocol marker:
 
@@ -150,6 +166,19 @@ Context bullets should be self-contained. Do not start them with vague English p
   project, omit that path or rewrite the evidence around the project-local
   command shape before drafting.
 - Long validation ledgers belong in archive, MR, or task/session artifacts.
+
+### Privacy And Enforcement Boundary
+
+- `draft-message` and `lint-message` hard-reject absolute paths and known
+  high-confidence credential patterns across the whole message, including
+  validation and trailers. Diagnostics name categories only and never echo a
+  matched credential.
+- This is a defense-in-depth gate, not an absolute no-leak guarantee. It does
+  not classify every secret, personal identifier, hostname, encoded value, or
+  raw Git commit path.
+- An installed `commit-msg` hook gives early local feedback. It is optional
+  and bypassable, so use the explicit lint step before the repository's commit
+  wrapper and protect delivery with repository CI when that policy is needed.
 
 ### MR Surface
 
@@ -240,13 +269,17 @@ Hard gates:
 - footer protocol must be `bagakit.git-message-craft/v1`
 - protocol markers must live in the `[[BAGAKIT]]` footer
 - frontmatter is not allowed
+- subject type must be in the supported semantic vocabulary
 - required sections present
-- 1-5 ranked facts only
+- 1-3 structured deltas or 1-5 ranked facts only
 - facts sorted by `P0 -> P2`
 - repo-relative `path:line` refs only
 - no absolute filesystem paths
+- no high-confidence credential patterns; findings are redacted to categories
 - no machine-local validation commands or references to external skill source
   paths; Git-facing text must stay meaningful from the current project root
+- validation must be one to three outcome digests, not long or transcript-like
+  command lines
 - no placeholder tokens
 
 Soft guidance:
@@ -345,7 +378,9 @@ Archive is complete only when:
   - Keep one default archive path and one default message structure.
   - Check: JSON inventory export and secondary memory artifacts remain opt-in.
 - `over-hard-validation` / 校验过硬:
-  - Hard-gate only objective invariants such as schema, section presence, fact count, ordering, refs, and placeholder/path safety.
+  - Hard-gate only objective invariants such as schema, section presence, type
+    vocabulary, fact/delta count, ordering, refs, sensitive-content/path
+    safety, and deterministic validation-digest limits.
   - Check: pronoun/discourse quality stays as warning-level review guidance instead of brittle blocking NLP.
 - `scattered constraints` / 约束分散:
   - Keep the commit contract in this SKILL as the single source, and keep runtime checks in one lint command.

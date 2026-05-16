@@ -12,7 +12,12 @@ instead of bloated, chat-dependent text.
 - `Key Deltas` replaces module-by-module dumping with before -> after -> why
   state transitions.
 - Legacy `Key Facts` remains available for expanded messages.
-- Validation is a short result digest, not a full command ledger.
+- Validation is a short result digest, not a full command ledger; transcript-
+  like or overlong validation is rejected.
+- Commit types use a finite semantic vocabulary; `refactor` means behavior-
+  preserving, and `docs(spec)` is for specification-only work.
+- Draft and lint reject absolute paths and known high-confidence credential
+  patterns without echoing the sensitive value.
 - `init` creates only the session directory; it no longer sprays empty
   template files.
 - `draft-message` writes one commit file per planned commit.
@@ -48,10 +53,11 @@ refactor(git-message-craft): collapse session scaffolding
 ```
 
 `lint-message` warns when `Context`, `Key Deltas`, or `Key Facts` start with
-vague English pronouns such as `This` or `It`. It also warns when `Validation`
-looks like a long command transcript. These warnings are non-blocking because
-reference resolution and prose density are qualitative, but the guidance is
-explicit.
+vague English pronouns such as `This` or `It`. It rejects more than three
+validation bullets, validation transcripts, overlong validation lines,
+unstructured delta/fact bullets, invalid types, absolute paths, and known
+high-confidence credential patterns. This is a draft and delivery guardrail,
+not an absolute guarantee against every secret or every raw Git commit path.
 
 ## Quick start
 
@@ -100,6 +106,10 @@ hook.
 
 If the current repository defines a higher-level commit wrapper, use that
 wrapper with the drafted message file after `lint-message` passes.
+
+The optional hook runs the same lint early, but `--no-verify` can bypass a
+client-side hook. Use CI to protect the delivery path when that policy is in
+scope.
 
 ## MR Drafts
 

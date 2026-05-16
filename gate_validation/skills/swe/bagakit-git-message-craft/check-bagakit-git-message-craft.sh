@@ -159,9 +159,136 @@ text = text.replace(
 )
 path.write_text(text, encoding="utf-8")
 PY
-"$CMD" lint-message --root "$TMP_DIR" --message "$NOISY_VALIDATION_MESSAGE" >"$TMP_DIR/noisy-validation.out" 2>"$TMP_DIR/noisy-validation.err"
-grep -q -- "Validation has more than 3 bullets" "$TMP_DIR/noisy-validation.err"
+if "$CMD" lint-message --root "$TMP_DIR" --message "$NOISY_VALIDATION_MESSAGE" >"$TMP_DIR/noisy-validation.out" 2>"$TMP_DIR/noisy-validation.err"; then
+  echo "lint-message unexpectedly accepted noisy validation" >&2
+  exit 1
+fi
+grep -q -- "Validation must include at most 3 result-digest bullets" "$TMP_DIR/noisy-validation.err"
 grep -q -- "Validation bullet looks like a command transcript" "$TMP_DIR/noisy-validation.err"
+
+BAD_TYPE_DRAFT="$SESSION_DIR/commit-invalid-type.txt"
+if "$CMD" draft-message \
+  --root "$TMP_DIR" \
+  --dir "$SESSION_DIR" \
+  --type release \
+  --scope commit \
+  --summary "reject arbitrary types" \
+  --why "arbitrary type prefixes weaken semantic retrieval" \
+  --delta "subject policy|any lower-case type was accepted|only defined semantic types are allowed|agents and humans can rely on type meaning|app.py:1" \
+  --check "pass: semantic type review" \
+  --output "$BAD_TYPE_DRAFT" >"$TMP_DIR/bad-type-draft.out" 2>"$TMP_DIR/bad-type-draft.err"; then
+  echo "draft-message unexpectedly accepted an arbitrary commit type" >&2
+  exit 1
+fi
+test ! -f "$BAD_TYPE_DRAFT"
+grep -q -- "commit type must be one of" "$TMP_DIR/bad-type-draft.err"
+
+BAD_TYPE_MESSAGE="$TMP_DIR/bad-type.txt"
+cp "$COMPACT_MESSAGE_FILE" "$BAD_TYPE_MESSAGE"
+python3 - <<'PY' "$BAD_TYPE_MESSAGE"
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+text = path.read_text(encoding="utf-8")
+text = text.replace("refactor(commit): compress commit body around deltas", "release(commit): compress commit body around deltas", 1)
+path.write_text(text, encoding="utf-8")
+PY
+if "$CMD" lint-message --root "$TMP_DIR" --message "$BAD_TYPE_MESSAGE" >"$TMP_DIR/bad-type.out" 2>"$TMP_DIR/bad-type.err"; then
+  echo "lint-message unexpectedly accepted an arbitrary commit type" >&2
+  exit 1
+fi
+grep -q -- "subject type must be one of" "$TMP_DIR/bad-type.err"
+
+FAKE_GITHUB_TOKEN="ghp_""abcdefghijklmnopqrstuvwxyz0123456789ABCD"
+BAD_SECRET_DRAFT="$SESSION_DIR/commit-secret.txt"
+if "$CMD" draft-message \
+  --root "$TMP_DIR" \
+  --dir "$SESSION_DIR" \
+  --type fix \
+  --scope commit \
+  --summary "reject credential text" \
+  --why "a credential must never enter durable Git text" \
+  --delta "draft policy|credential-like text could reach a commit|known credential patterns are blocked|durable history stays safer|app.py:1" \
+  --check "pass: credential guard $FAKE_GITHUB_TOKEN" \
+  --output "$BAD_SECRET_DRAFT" >"$TMP_DIR/bad-secret-draft.out" 2>"$TMP_DIR/bad-secret-draft.err"; then
+  echo "draft-message unexpectedly accepted credential text" >&2
+  exit 1
+fi
+test ! -f "$BAD_SECRET_DRAFT"
+grep -q -- "github-token" "$TMP_DIR/bad-secret-draft.err"
+if grep -q -- "$FAKE_GITHUB_TOKEN" "$TMP_DIR/bad-secret-draft.err"; then
+  echo "draft-message echoed a credential-like value" >&2
+  exit 1
+fi
+
+BAD_SECRET_MESSAGE="$TMP_DIR/bad-secret.txt"
+cp "$COMPACT_MESSAGE_FILE" "$BAD_SECRET_MESSAGE"
+python3 - <<'PY' "$BAD_SECRET_MESSAGE" "$FAKE_GITHUB_TOKEN"
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+token = sys.argv[2]
+text = path.read_text(encoding="utf-8")
+text = text.replace("pass: git-message-craft smoke", f"pass: credential guard {token}", 1)
+path.write_text(text, encoding="utf-8")
+PY
+if "$CMD" lint-message --root "$TMP_DIR" --message "$BAD_SECRET_MESSAGE" >"$TMP_DIR/bad-secret.out" 2>"$TMP_DIR/bad-secret.err"; then
+  echo "lint-message unexpectedly accepted credential text" >&2
+  exit 1
+fi
+grep -q -- "github-token" "$TMP_DIR/bad-secret.err"
+if grep -q -- "$FAKE_GITHUB_TOKEN" "$TMP_DIR/bad-secret.err"; then
+  echo "lint-message echoed a credential-like value" >&2
+  exit 1
+fi
+
+FAKE_GENERIC_SECRET="abcdefghijklmnopqrstuvwxyz0123456789ABCD"
+BAD_GENERIC_SECRET_MESSAGE="$TMP_DIR/bad-generic-secret.txt"
+cp "$COMPACT_MESSAGE_FILE" "$BAD_GENERIC_SECRET_MESSAGE"
+python3 - <<'PY' "$BAD_GENERIC_SECRET_MESSAGE" "$FAKE_GENERIC_SECRET"
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+secret = sys.argv[2]
+text = path.read_text(encoding="utf-8")
+text = text.replace("pass: git-message-craft smoke", f"pass: secret_access_key={secret}", 1)
+path.write_text(text, encoding="utf-8")
+PY
+if "$CMD" lint-message --root "$TMP_DIR" --message "$BAD_GENERIC_SECRET_MESSAGE" >"$TMP_DIR/bad-generic-secret.out" 2>"$TMP_DIR/bad-generic-secret.err"; then
+  echo "lint-message unexpectedly accepted generic credential text" >&2
+  exit 1
+fi
+grep -q -- "credential-assignment" "$TMP_DIR/bad-generic-secret.err"
+if grep -q -- "$FAKE_GENERIC_SECRET" "$TMP_DIR/bad-generic-secret.err"; then
+  echo "lint-message echoed a generic credential-like value" >&2
+  exit 1
+fi
+
+BAD_FILE_URI_MESSAGE="$TMP_DIR/bad-file-uri.txt"
+cp "$COMPACT_MESSAGE_FILE" "$BAD_FILE_URI_MESSAGE"
+FILE_URI_PATH="/""workspace/private-check.sh"
+python3 - <<'PY' "$BAD_FILE_URI_MESSAGE" "$FILE_URI_PATH"
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+file_uri_path = sys.argv[2]
+text = path.read_text(encoding="utf-8")
+text = text.replace("pass: git-message-craft smoke", f"pass: inspect file://{file_uri_path}", 1)
+path.write_text(text, encoding="utf-8")
+PY
+if "$CMD" lint-message --root "$TMP_DIR" --message "$BAD_FILE_URI_MESSAGE" >"$TMP_DIR/bad-file-uri.out" 2>"$TMP_DIR/bad-file-uri.err"; then
+  echo "lint-message unexpectedly accepted a file URI absolute path" >&2
+  exit 1
+fi
+grep -q -- "absolute filesystem path literals" "$TMP_DIR/bad-file-uri.err"
+if grep -q -- "$FILE_URI_PATH" "$TMP_DIR/bad-file-uri.err"; then
+  echo "lint-message echoed an absolute path literal" >&2
+  exit 1
+fi
 
 BAD_DRAFT_MESSAGE="$SESSION_DIR/commit-bad-external-validation.txt"
 if "$CMD" draft-message \

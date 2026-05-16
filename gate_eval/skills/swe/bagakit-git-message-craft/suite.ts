@@ -218,5 +218,69 @@ export const SUITE: EvalSuiteDefinition = {
         }
       },
     },
+    {
+      id: "policy-b-rejects-unsafe-or-unsemantic-message-text",
+      title: "Policy B Rejects Unsafe Or Unsemantic Message Text",
+      summary: "The public lint boundary should reject arbitrary types and known credential-shaped text without echoing the value.",
+      focus: ["semantic-types", "sensitive-content", "redacted-diagnostics"],
+      run: (context) => {
+        const { repoRoot } = context;
+        const tempRepo = createTempDir("bagakit-git-message-craft-policy-b-");
+        const replacements = registerTempRepo(context, tempRepo);
+        const fakeToken = ["ghp_", "abcdefghijklmnopqrstuvwxyz0123456789ABCD"].join("");
+        try {
+          expectOk(runCommand("git", ["init", "-q"], { cwd: tempRepo, replacements }), "git init");
+          expectOk(runCommand("git", ["config", "user.name", "Bagakit"], { cwd: tempRepo, replacements }), "git config user.name");
+          expectOk(runCommand("git", ["config", "user.email", "bagakit@example.com"], { cwd: tempRepo, replacements }), "git config user.email");
+          writeTextFile(path.join(tempRepo, "app.py"), "print('hello')\n");
+          expectOk(runCommand("git", ["add", "app.py"], { cwd: tempRepo, replacements }), "git add");
+          expectOk(runCommand("git", ["commit", "-q", "-m", "chore: init"], { cwd: tempRepo, replacements }), "git commit");
+
+          const messageFile = path.join(tempRepo, "blocked-message.txt");
+          writeTextFile(
+            messageFile,
+            [
+              "release(commit): reject unsafe text",
+              "",
+              "## Context",
+              "- Why: durable Git text must remain semantic and free of credentials.",
+              "",
+              "## Key Deltas",
+              "- policy: arbitrary text -> checked semantic draft; why: history remains trustworthy. Key refs: app.py:1",
+              "",
+              "## Validation",
+              `- pass: credential guard ${fakeToken}`,
+              "",
+              "[[BAGAKIT]]",
+              "- GitMessageCraft: Protocol=bagakit.git-message-craft/v1",
+              "",
+            ].join("\n"),
+          );
+          const script = path.join(repoRoot, "skills", "swe", "bagakit-git-message-craft", "scripts", "bagakit-git-message-craft.sh");
+          const lint = runCommand("sh", [script, "lint-message", "--root", tempRepo, "--message", messageFile], {
+            cwd: repoRoot,
+            replacements,
+          });
+          assert.notEqual(lint.status, 0, "lint should reject the unsafe, arbitrary-type message");
+          assert.ok(lint.stderr.includes("subject type must be one of"));
+          assert.ok(lint.stderr.includes("github-token"));
+          assert.ok(!lint.stderr.includes(fakeToken), "credential-like text must not be echoed in diagnostics");
+
+          return {
+            assertions: [
+              "lint rejects a subject outside the finite semantic type vocabulary",
+              "lint rejects a high-confidence credential pattern across the message body",
+              "the rejection reports a category without echoing the credential-like value",
+            ],
+            commands: ["lint-message against a deterministic unsafe-message fixture"],
+            artifacts: [{ label: "blocked-message", path: messageFile }],
+            outputs: { rejected: true, reported_category: "github-token" },
+            replacements,
+          };
+        } finally {
+          cleanupTempDir(tempRepo, context.keepTemp);
+        }
+      },
+    },
   ],
 };

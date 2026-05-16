@@ -13,6 +13,12 @@ Rules:
 - say what changed, not that something changed
 - keep the intent reversible
 - avoid vague summaries like `update stuff`
+- use only `build`, `chore`, `ci`, `docs`, `feat`, `fix`, `perf`, `refactor`,
+  `revert`, `style`, or `test`
+- use `feat` for a new capability and `fix` for a corrected defect
+- use `refactor` only when external behavior is preserved
+- use `docs(spec)` for a specification-only change; use the primary behavioral
+  type when code and specification change together
 
 ## 2) Footer Protocol Marker
 
@@ -58,6 +64,8 @@ Do not use frontmatter for protocol data.
   review statement
 - move shell loops, repeated gate checks, and machine-local commands to archive
   or task/session artifacts
+- treat more than three bullets, transcript-like commands, and lines longer
+  than 160 characters as invalid commit-body validation, not extra evidence
 
 ## 6) Expanded Fact Writing Rules
 
@@ -101,12 +109,18 @@ If there are no follow-ups, omit the section.
 - listing more than 5 facts instead of splitting the commit
 - using `This` / `It` when the subject can be named directly
 - using absolute filesystem paths anywhere in the durable message
+- recording credentials, tokens, private-key blocks, or bearer values; the
+  lint detects known high-confidence patterns and reports only their category
 - recording validation commands that depend on a symlink-source skill path or
   another checkout instead of the current project root
 - leaving placeholder tokens in the final message
 
 If the current repository defines a higher-level commit wrapper, use that
 wrapper with the drafted message file after `lint-message` passes.
+
+An optional `commit-msg` hook runs the same lint for local feedback. It is not
+an unavoidable security boundary: keep the explicit lint step in the Agent
+flow and use CI when delivery policy must be enforced.
 
 ## 9) Relation To MR Drafts
 

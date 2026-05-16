@@ -37,7 +37,17 @@ hook.
   sections
 - compact deltas or ranked facts with normalized refs
 - no absolute paths
+- only supported semantic commit types
+- no known high-confidence credential patterns; diagnostics name categories
+  without echoing matched values
 - no placeholder tokens
 
-Warnings about ambiguous pronouns and noisy validation ledgers remain
-non-blocking; hard invariants still block the commit.
+Warnings about ambiguous pronouns remain non-blocking. Validation transcript,
+length, and bullet-count limits are deterministic hard invariants.
+
+## Enforcement Boundary
+
+The hook is early local feedback, not a security boundary: Git can bypass
+client hooks with `--no-verify`. Keep `lint-message` in the Agent draft-and-
+commit flow and use CI when the repository needs delivery enforcement. Neither
+layer establishes an absolute guarantee against all sensitive content.

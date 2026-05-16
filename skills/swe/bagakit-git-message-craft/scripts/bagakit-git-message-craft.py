@@ -19,7 +19,21 @@ HOOK_MARKER = "BAGAKIT_GIT_MESSAGE_CRAFT_HOOK"
 FOOTER_PROTOCOL = "bagakit.git-message-craft/v1"
 FOOTER_HEADER = "[[BAGAKIT]]"
 FOOTER_PROTOCOL_LINE = f"- GitMessageCraft: Protocol={FOOTER_PROTOCOL}"
-SUBJECT_RE = re.compile(r"^[a-z][a-z0-9-]*(?:\([^)]+\))?: .+$")
+COMMIT_TYPES = (
+    "build",
+    "chore",
+    "ci",
+    "docs",
+    "feat",
+    "fix",
+    "perf",
+    "refactor",
+    "revert",
+    "style",
+    "test",
+)
+COMMIT_TYPE_SET = frozenset(COMMIT_TYPES)
+SUBJECT_RE = re.compile(r"^(?P<type>[a-z][a-z0-9-]*)(?:\([^)]+\))?: .+$")
 COMMIT_SHA_RE = re.compile(r"^[0-9a-f]{7,40}$")
 FACT_LINE_RE = re.compile(r"(?m)^- (?P<priority>P[0-2]): (?P<summary>.+?) Key refs: (?P<refs>.+)$")
 DELTA_LINE_RE = re.compile(
@@ -36,6 +50,34 @@ ARCHIVE_CLEANUP_SESSION = "session"
 ARCHIVE_CLEANUP_NONE = "none"
 ABSOLUTE_PATH_LITERAL_RE = re.compile(
     r"""(?:(?<=^)|(?<=[\s"'`(\[=]))(?P<path>(?:/(?!/)[^\s"'`)\],;]+|~[\\/][^\s"'`)\],;]+|[A-Za-z]:\\[^\s"'`)\],;]+|\\\\[^\s"'`)\],;]+))"""
+)
+FILE_URI_ABSOLUTE_PATH_RE = re.compile(r"file://(?:localhost)?(?P<path>/[^\s\"'`)\],;]+)", re.IGNORECASE)
+SENSITIVE_CONTENT_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
+    ("private-key", re.compile(r"-----BEGIN(?: [A-Z0-9]+)? PRIVATE KEY-----")),
+    ("aws-access-key-id", re.compile(r"\b(?:AKIA|ASIA)[A-Z0-9]{16}\b")),
+    ("github-token", re.compile(r"\b(?:gh[pousr]_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,})\b")),
+    ("gitlab-token", re.compile(r"\bglpat-[A-Za-z0-9_-]{20,}\b")),
+    ("slack-token", re.compile(r"\bxox[abprs]-[A-Za-z0-9-]{20,}\b")),
+    ("openai-api-key", re.compile(r"\bsk-(?:proj-)?[A-Za-z0-9_-]{20,}\b")),
+    ("bearer-token", re.compile(r"\bBearer\s+[A-Za-z0-9._-]{20,}\b", re.IGNORECASE)),
+    (
+        "credential-assignment",
+        re.compile(
+            r"""(?ix)
+            \b(?:
+                api[_-]?key|
+                access[_-]?(?:token|key)|
+                auth(?:entication)?[_-]?token|
+                client[_-]?secret|
+                (?:aws[_-]?)?secret(?:[_-]?access[_-]?key)?|
+                password
+            )\b
+            \s*[:=]\s*
+            (?![\"']?(?:<redacted>|redacted|example|dummy|placeholder)\b)
+            [\"']?[A-Za-z0-9_./+=-]{16,}
+            """
+        ),
+    ),
 )
 FACT_PRIORITY_ORDER = {"p0": 0, "p1": 1, "p2": 2}
 SESSION_GITIGNORE_TEXT = (
@@ -220,7 +262,28 @@ def find_absolute_path_literals(text: str) -> list[str]:
         if value not in seen:
             seen.add(value)
             matches.append(value)
+    for match in FILE_URI_ABSOLUTE_PATH_RE.finditer(text):
+        value = match.group("path").rstrip(".")
+        if value not in seen:
+            seen.add(value)
+            matches.append(value)
     return matches
+
+
+def sensitive_content_categories(text: str) -> list[str]:
+    return [category for category, pattern in SENSITIVE_CONTENT_PATTERNS if pattern.search(text)]
+
+
+def sensitive_content_error(categories: list[str]) -> str:
+    return "message contains high-confidence sensitive content categories: " + ", ".join(categories)
+
+
+def validate_commit_type(value: str) -> str:
+    ctype = value.strip()
+    if ctype not in COMMIT_TYPE_SET:
+        allowed = ", ".join(COMMIT_TYPES)
+        raise ValueError(f"commit type must be one of: {allowed}")
+    return ctype
 
 
 def normalize_durable_text(root: Path, text: str, field_label: str, *, allow_git_dir: bool) -> str:
@@ -231,13 +294,9 @@ def normalize_durable_text(root: Path, text: str, field_label: str, *, allow_git
     git_dir = git_dir_path(root)
     for literal in find_absolute_path_literals(normalized):
         if is_home_relative_path(literal):
-            raise ValueError(
-                f"{field_label} must not contain home-relative paths in durable output: {literal}"
-            )
+            raise ValueError(f"{field_label} must not contain home-relative paths in durable output")
         if is_windows_absolute_path(literal):
-            raise ValueError(
-                f"{field_label} must not contain Windows absolute paths in durable output: {literal}"
-            )
+            raise ValueError(f"{field_label} must not contain Windows absolute paths in durable output")
 
         literal_path = Path(literal).expanduser().absolute()
         if durable_path_within(literal_path, root):
@@ -245,9 +304,7 @@ def normalize_durable_text(root: Path, text: str, field_label: str, *, allow_git
         elif allow_git_dir and durable_path_within(literal_path, git_dir):
             replacement = f"git-dir/{durable_rel(git_dir, literal_path)}"
         else:
-            raise ValueError(
-                f"{field_label} must not contain absolute paths outside the repo root: {literal}"
-            )
+            raise ValueError(f"{field_label} must not contain absolute paths outside the repo root")
 
         normalized = normalized.replace(literal, replacement)
 
@@ -828,7 +885,10 @@ def cmd_draft_message(args: argparse.Namespace) -> int:
     if not session_dir.is_dir():
         raise SystemExit(f"error: session dir not found: {session_dir}")
 
-    ctype = args.type.strip()
+    try:
+        ctype = validate_commit_type(args.type)
+    except ValueError as exc:
+        raise SystemExit(f"error: {exc}")
     scope = args.scope.strip()
     summary = args.summary.strip()
     if not ctype or not summary:
@@ -923,7 +983,11 @@ def cmd_draft_message(args: argparse.Namespace) -> int:
 
     default_name = f"commit-{ctype}-{slugify(summary)}.txt"
     output = Path(args.output).resolve() if args.output else session_dir / default_name
-    write_text(output, "\n".join(lines).rstrip() + "\n")
+    message_text = "\n".join(lines).rstrip() + "\n"
+    categories = sensitive_content_categories(message_text)
+    if categories:
+        raise SystemExit(f"error: {sensitive_content_error(categories)}")
+    write_text(output, message_text)
     print(f"wrote: {output}")
     return 0
 
@@ -1033,8 +1097,11 @@ def cmd_lint_message(args: argparse.Namespace) -> int:
         errors.append("subject line is empty")
     if len(subject) > args.max_subject:
         errors.append(f"subject exceeds {args.max_subject} chars")
-    if subject and not SUBJECT_RE.match(subject):
+    subject_match = SUBJECT_RE.match(subject) if subject else None
+    if subject and not subject_match:
         errors.append("subject must match '<type>(<scope>): <summary>' or '<type>: <summary>'")
+    elif subject_match and subject_match.group("type") not in COMMIT_TYPE_SET:
+        errors.append("subject type must be one of: " + ", ".join(COMMIT_TYPES))
 
     body, footer, parse_errors = split_body_and_footer(text)
     errors.extend(parse_errors)
@@ -1054,8 +1121,10 @@ def cmd_lint_message(args: argparse.Namespace) -> int:
     absolute_literals = find_absolute_path_literals(text)
     if absolute_literals:
         errors.append("message must not contain absolute filesystem path literals; use repo-relative paths instead")
-        for sample in absolute_literals[:5]:
-            errors.append(f"absolute path literal found: {sample}")
+
+    categories = sensitive_content_categories(text)
+    if categories:
+        errors.append(sensitive_content_error(categories))
 
     if "## Context" not in body:
         errors.append("missing required GFM heading: ## Context")
@@ -1092,10 +1161,15 @@ def cmd_lint_message(args: argparse.Namespace) -> int:
     if has_key_deltas:
         deltas_section = extract_section(body, "Key Deltas")
         delta_entries = list(DELTA_LINE_RE.finditer(deltas_section))
+        delta_bullets = [
+            line for line in deltas_section.splitlines() if line.startswith("- ") and line[2:].strip()
+        ]
         if not delta_entries:
             errors.append("Key Deltas must include at least one before-after-why delta line")
+        if len(delta_bullets) != len(delta_entries):
+            errors.append("every Key Deltas bullet must use the before-after-why format with normalized Key refs")
         if len(delta_entries) > 3:
-            warnings.append("Key Deltas has more than 3 lines; move wider module maps to MR/archive")
+            errors.append("Key Deltas must include at most 3 lines; move wider module maps to MR/archive")
         for match in delta_entries:
             refs_text = match.group("refs")
             try:
@@ -1114,8 +1188,13 @@ def cmd_lint_message(args: argparse.Namespace) -> int:
     if has_key_facts:
         facts_section = extract_section(body, "Key Facts")
         fact_entries = list(FACT_LINE_RE.finditer(facts_section))
+        fact_bullets = [
+            line for line in facts_section.splitlines() if line.startswith("- ") and line[2:].strip()
+        ]
         if not fact_entries:
             errors.append("Key Facts must include at least one ranked fact line")
+        if len(fact_bullets) != len(fact_entries):
+            errors.append("every Key Facts bullet must be a ranked fact with normalized Key refs")
         if len(fact_entries) > 5:
             errors.append("Key Facts must include at most 5 ranked fact lines")
         previous_priority = -1
@@ -1154,12 +1233,12 @@ def cmd_lint_message(args: argparse.Namespace) -> int:
     if not validation_bullets:
         errors.append("Validation section must include at least one bullet")
     if len(validation_bullets) > 3:
-        warnings.append("Validation has more than 3 bullets; keep a result digest and move command ledgers to archive/MR")
+        errors.append("Validation must include at most 3 result-digest bullets; move command ledgers to archive/MR")
     for item in validation_bullets:
         if len(item) > 160:
-            warnings.append("Validation bullet is long; summarize the outcome and move the full command to archive/MR")
+            errors.append("Validation bullet exceeds 160 characters; summarize the outcome and move the full command to archive/MR")
         if VALIDATION_TRANSCRIPT_HINT_RE.search(item):
-            warnings.append("Validation bullet looks like a command transcript; keep only the check outcome in the commit body")
+            errors.append("Validation bullet looks like a command transcript; keep only the check outcome in the commit body")
 
     follow_up_section = extract_section(body, "Follow-ups")
     if "## Follow-ups" in body and not re.search(r"(?m)^- .+\S$", follow_up_section):
@@ -1332,7 +1411,7 @@ def build_parser() -> argparse.ArgumentParser:
     p_msg = sub.add_parser("draft-message", help="draft a GFM spec-style commit message with a footer protocol marker")
     p_msg.add_argument("--root", default=".", help="git repo root")
     p_msg.add_argument("--dir", required=True, help="session artifact directory")
-    p_msg.add_argument("--type", required=True, help="commit type (feat/fix/refactor/docs/test/chore)")
+    p_msg.add_argument("--type", required=True, help="commit type: " + "|".join(COMMIT_TYPES))
     p_msg.add_argument("--scope", default="", help="commit scope")
     p_msg.add_argument("--summary", required=True, help="short subject summary")
     p_msg.add_argument("--why", default="", help="compact commit rationale for Key Deltas mode")
