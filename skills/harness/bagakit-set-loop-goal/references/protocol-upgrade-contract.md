@@ -19,7 +19,7 @@ one executable topology.
 The current Goal protocol is:
 
 ```text
-bagakit.goal.v.0.1
+bagakit.goal.v.0.2
 ```
 
 Record it in three places:
@@ -41,7 +41,7 @@ whose version is newer than the installed skill.
 A Goal surface requires inspection or upgrade when any of these is true:
 
 - protocol metadata is missing
-- protocol version is lower than `bagakit.goal.v.0.1`
+- protocol version is lower than `bagakit.goal.v.0.2`
 - `current.md`, `state.yaml`, `surface.toml`, or a registered Goal is missing
 - a Goal frontmatter field is missing or invalid
 - required Goal sections are absent or empty
@@ -89,7 +89,10 @@ Do not guess when repair changes intent. Stop and emit an upgrade conflict for:
 - missing or contradictory objective, execution principles, acceptance, or next
   instruction
 - a completion claim without sufficient completion evidence
-- uncertainty between `paused`, `blocked`, `complete`, and `abandoned`
+- uncertainty between `waiting`, `paused`, `blocked`, `complete`, and
+  `abandoned`
+- `status: waiting` without a recoverable `resume_on`, task-specific
+  `loss_line`, phase, or valid no-progress count
 - owner truth that contradicts a user promise or another Goal
 - privacy, publication, cost, or irreversible-action implications
 
@@ -104,7 +107,7 @@ packet:
 ```json
 {
   "schema": "bagakit.goal-upgrade-report.v1",
-  "target_protocol": "bagakit.goal.v.0.1",
+  "target_protocol": "bagakit.goal.v.0.2",
   "status": "blocked",
   "deterministic_actions": [],
   "conflicts": [

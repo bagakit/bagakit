@@ -29,5 +29,5 @@ instruction = "surface only discoveries that may change Goal direction, acceptan
 
 [[directive]]
 id = "ALERT_CANDIDATE"
-when = "Goal drift, blocking, unreconciled truth, protocol incompatibility, or budget risk can change the next action"
+when = "Goal drift, post-loss-line waiting, blocking, unreconciled truth, protocol incompatibility, or budget risk can change the next action"
 instruction = "contribute a P0, P1, or P2 candidate to the shared `👩🏻‍🚒 ALERTS !!` aggregate; never create a Goal-specific alert heading"

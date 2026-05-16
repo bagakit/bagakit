@@ -101,7 +101,7 @@ def main() -> None:
     require("references/loop-off-loop.md" in skill_text, "SKILL.md must route to loop-off-loop reference")
     require("references/goal-file-contract.md" in skill_text, "SKILL.md must route to goal-file-contract reference")
     require("references/protocol-upgrade-contract.md" in skill_text, "SKILL.md must route to protocol-upgrade-contract reference")
-    require("bagakit.goal.v.0.1" in upgrade_text, "upgrade contract must declare the current Goal protocol")
+    require("bagakit.goal.v.0.2" in upgrade_text, "upgrade contract must declare the current Goal protocol")
     require("insert_target = \"bagakit_footer\"" in driver_text, "Goal Driver must target the Bagakit footer")
     require("👩🏻‍🚒 ALERTS !!" in driver_text, "Goal Driver must contribute to the shared Alert aggregate")
     require("session-review intake" in loop_text, "loop-off-loop must define the Evolver handoff route")

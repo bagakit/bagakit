@@ -25,7 +25,7 @@ Core contract:
   Handoff file; keep compact pointers and summaries in the Goal.
 - Use Goal frontmatter `status` as the machine-readable lifecycle marker;
   completion means `status: complete` plus concise completion evidence.
-- Lock the Goal protocol to `bagakit.goal.v.0.1`. Inspect and upgrade missing,
+- Lock the Goal protocol to `bagakit.goal.v.0.2`. Inspect and upgrade missing,
   older, or incomplete Goal surfaces before normal mutation; route semantic
   conflicts to Grill instead of guessing.
 - Maintain `.bagakit/goal/current.md` as the agent-facing entrypoint and
@@ -34,8 +34,11 @@ Core contract:
 - When supervision is active, maintain `.bagakit/goal/supervisor.md` as the
   supervisor contract; do not create a separate supervisor skill or schema fork.
 - Keep exactly one foreground Goal for execution, but allow multiple incomplete
-  Goals to remain registered with statuses such as `paused`, `blocked`, or
-  `ready_for_review`, and roles such as backlog or review work.
+  Goals to remain registered with statuses such as `waiting`, `paused`,
+  `blocked`, or `ready_for_review`, and roles such as backlog or review work.
+- Treat a known external recovery condition as `waiting`, not `blocked`. Let
+  the model set one task-specific loss line; do not count no-progress rounds
+  before it, and use task judgment rather than a fixed round threshold after it.
 - Never mark a previous incomplete Goal abandoned merely because a new Goal is
   created or selected; archive completed or explicitly abandoned Goals under
   `.bagakit/goal/archive/` so they do not interfere with the active work set.
@@ -78,13 +81,16 @@ Minimal workflow:
 6. Reconcile the Goal by replacing current state and the one next instruction,
    folding accepted deltas into their owning sections, and advancing the event
    cursor.
-7. Run a fresh-executor check: a new agent should know why, where, current
+7. When execution cannot proceed, classify `waiting` versus `blocked` using
+   `references/loop-off-loop.md`; keep waiting rounds at zero until its loss
+   line is crossed.
+8. Run a fresh-executor check: a new agent should know why, where, current
    state, principles, acceptance, risks, and next action from the Goal.
-8. For nontrivial creation or direction-changing updates, show a concise
+9. For nontrivial creation or direction-changing updates, show a concise
    alignment recap to the user before activation or continued execution.
-9. If supervision is active, append its checkpoint as a Goal control event and
+10. If supervision is active, append its checkpoint as a Goal control event and
    reconcile any direction-changing effect before the next execution round.
-10. When a checkpoint can expose reusable repository learning, request an
+11. When a checkpoint can expose reusable repository learning, request an
    Evolver review and later record its compact disposition without copying
    Evolver state into the Goal surface.
 

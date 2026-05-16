@@ -27,7 +27,7 @@ or handoff without reading the whole prior chat. It explains:
 
 - what outcome must be achieved
 - why the outcome matters and what principles protect it
-- what is already known, done, blocked, or deliberately out of scope
+- what is already known, done, waiting, blocked, or deliberately out of scope
 - where detailed truth lives
 - how to schedule the next execution round
 - how to know when to stop, ask, or correct drift
@@ -71,7 +71,7 @@ paths into durable Goal files.
 
 ## Protocol Version
 
-The current Goal protocol is `bagakit.goal.v.0.1`. Store it as
+The current Goal protocol is `bagakit.goal.v.0.2`. Store it as
 `protocol_version` in `surface.toml`, `state.yaml`, and every Goal frontmatter.
 Missing, older, or incomplete surfaces require upgrade before normal mutation;
 future versions must not be downgraded. Read
@@ -119,7 +119,7 @@ known incomplete Goals, and relation edges:
 
 ```yaml
 schema: bagakit.goal-state.v1
-protocol_version: bagakit.goal.v.0.1
+protocol_version: bagakit.goal.v.0.2
 foreground_goal: <goal-id>
 
 supervision:
@@ -161,10 +161,12 @@ Rules:
   Edges may be DAG-like, but they are not permission for parallel execution.
 - Creating or switching to a new Goal must not mark the previous Goal
   `abandoned` unless the user explicitly says it is abandoned. Use `paused`,
-  `blocked`, or `ready_for_review` as appropriate.
+  `waiting`, `blocked`, or `ready_for_review` as appropriate.
 - Creating a second incomplete Goal while another Goal is foreground defaults
   the new Goal to `paused`. Explicit foreground switching pauses the previous
   active foreground Goal and preserves it in the registry.
+- A foreground Goal may remain `waiting`; do not demote it to backlog merely
+  because its external recovery event has not arrived.
 - Keep lifecycle state in each Goal file's frontmatter. Mirror status in
   `state.yaml` only as a registry cache; repair it from the Goal frontmatter if
   they conflict.
@@ -288,7 +290,7 @@ Template:
 goal_state_file = ".bagakit/goal/state.yaml"
 goal_file = ".bagakit/goal/<goal-id>.md"
 foreground_goal = "<goal-id>"
-status = "on_track" # on_track | needs_correction | blocked | ready_to_stop
+status = "on_track" # on_track | needs_correction | waiting | blocked | ready_to_stop
 goal_delta = "none" # none | clarify | narrow | broaden | replace
 sidecar = "not_needed" # not_needed | dispatched | pending | unavailable | incorporated
 drift = []
@@ -323,9 +325,9 @@ status field as the lifecycle source of truth.
 ```yaml
 ---
 schema: bagakit.loop-goal.v1
-protocol_version: bagakit.goal.v.0.1
+protocol_version: bagakit.goal.v.0.2
 goal_id: <goal-id>
-status: draft # draft | active | paused | blocked | ready_for_review | complete | abandoned
+status: draft # draft | active | waiting | paused | blocked | ready_for_review | complete | abandoned
 truth_surface: .bagakit/goal/<goal-id>.md
 completion_evidence: []
 ---
@@ -335,9 +337,11 @@ Status meanings:
 
 - `draft`: the Goal is being shaped and should not drive execution yet.
 - `active`: execution should continue.
+- `waiting`: execution is paused on a known external recovery condition. The
+  Goal remains incomplete and may stay foreground.
 - `paused`: the Goal is intentionally not foreground but may be resumed.
-- `blocked`: execution needs a user decision, missing evidence, or unavailable
-  tooling.
+- `blocked`: no currently credible recovery path remains, or post-loss-line
+  reassessment shows that continuing to wait is no longer justified.
 - `ready_for_review`: acceptance likely holds, but review or user confirmation
   is still needed.
 - `complete`: acceptance and stop rules have been met.
@@ -351,6 +355,33 @@ the user explicitly requires them for a private runtime file.
 
 If the Goal is archived, update `truth_surface` to the archived path, usually
 `.bagakit/goal/archive/<goal-id>.md`.
+
+When `status: waiting`, add exactly one compact wait block:
+
+```yaml
+wait:
+  resume_on: user authorization is confirmed
+  loss_line: reassess after the authorization's expected response window
+  phase: grace # grace | assessing
+  no_progress_rounds: 0
+```
+
+The model chooses `loss_line` from the task's authorization lifetime, expected
+human response time, reversibility, urgency, observation cost, and available
+fallback work. It is not a universal duration or round count.
+
+- During `phase: grace`, suspend expensive execution and keep
+  `no_progress_rounds: 0`.
+- When the loss line is actually crossed, set `phase: assessing`; only then may
+  bounded no-progress reassessments increment `no_progress_rounds`.
+- A no-change observation before the loss line is not a failed round.
+- Crossing the loss line does not automatically mean `blocked`. Continue
+  waiting, switch method, pause observation, escalate once, or mark `blocked`
+  according to the task's remaining recovery path and cost.
+- Resume as `active` when `resume_on` occurs. Remove the wait block whenever the
+  status is no longer `waiting`.
+- Host-level automatic continuation counts are scheduling safeguards, not Goal
+  lifecycle evidence, and must not replace this task-specific judgment.
 
 ## Goal Wrapper
 
@@ -423,8 +454,8 @@ genuinely complete. After restart, compact, or handoff, recover state from the
 Goal file and its indexed owner files before acting. Before reporting final
 completion, update the Goal frontmatter to `status: complete`, add concise
 `completion_evidence`, and archive the Goal so it no longer interferes with the
-active work set. If the work is paused, blocked, needs review, or is abandoned,
-write that status instead of claiming completion.
+active work set. If the work is waiting, paused, blocked, needs review, or is
+abandoned, write that status instead of claiming completion.
 ```
 
 ## Minimum Structure
@@ -448,7 +479,7 @@ State file:
 
 ```yaml
 schema: bagakit.goal-state.v1
-protocol_version: bagakit.goal.v.0.1
+protocol_version: bagakit.goal.v.0.2
 foreground_goal: <goal-id>
 
 supervision:
@@ -476,7 +507,8 @@ Supervisor file when `supervision.mode` is not `off`:
 # Goal Supervisor
 
 Run a checkpoint before and after each bounded execution round. Classify
-alignment as `on_track`, `needs_correction`, `blocked`, or `ready_to_stop`.
+alignment as `on_track`, `needs_correction`, `waiting`, `blocked`, or
+`ready_to_stop`.
 Patch the Goal only when new information changes direction or recovery.
 ```
 
@@ -485,7 +517,7 @@ Goal file:
 ```markdown
 ---
 schema: bagakit.loop-goal.v1
-protocol_version: bagakit.goal.v.0.1
+protocol_version: bagakit.goal.v.0.2
 goal_id: <goal-id>
 status: active
 truth_surface: .bagakit/goal/<goal-id>.md

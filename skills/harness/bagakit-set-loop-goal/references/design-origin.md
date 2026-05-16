@@ -93,11 +93,11 @@ A: 默认放在目标项目自己的 `.bagakit/goal/<goal-id>.md`。这是 proje
 
 ### Q7: Goal 文件 frontmatter 里是否需要完成标记？
 
-A: 需要，但应使用单一 `status` 字段作为机器可读的生命周期真源，而不是另加一个容易冲突的 `complete: true`。生成 Goal 文件和 Goal wrapper 时，都应写明：完成后把 frontmatter 更新为 `status: complete`，并补充简短 `completion_evidence`；如果只是 paused、blocked、ready_for_review 或 abandoned，就写对应状态，不能假装完成。
+A: 需要，但应使用单一 `status` 字段作为机器可读的生命周期真源，而不是另加一个容易冲突的 `complete: true`。生成 Goal 文件和 Goal wrapper 时，都应写明：完成后把 frontmatter 更新为 `status: complete`，并补充简短 `completion_evidence`；如果只是 waiting、paused、blocked、ready_for_review 或 abandoned，就写对应状态，不能假装完成。
 
 ### Q8: `.bagakit/goal/` 目录里是否需要 `current.md`？
 
-A: 需要，但 `current.md` 应该是 agent-facing 入口，不应该承载完整状态。机器可读的当前前景 Goal、未完成 Goal 注册表和拓扑关系应放在 `.bagakit/goal/state.yaml`。一个 agent loop 同一时刻仍然只能推进一个 foreground Goal，但 registry 可以保留多个 paused、blocked、backlog 或 ready_for_review Goal。创建或切换新 Goal 不等于 abandon 旧 Goal。
+A: 需要，但 `current.md` 应该是 agent-facing 入口，不应该承载完整状态。机器可读的当前前景 Goal、未完成 Goal 注册表和拓扑关系应放在 `.bagakit/goal/state.yaml`。一个 agent loop 同一时刻仍然只能推进一个 foreground Goal，但 registry 可以保留多个 waiting、paused、blocked、backlog 或 ready_for_review Goal。创建或切换新 Goal 不等于 abandon 旧 Goal。
 
 ### Q9: Goal 拓扑应该是链还是 DAG？
 
@@ -118,6 +118,16 @@ A: 支持文件引用时，至少 `@./.bagakit/goal/current.md`，并附一句�
 ### Q13: Goal command 和 Loop command 的提示词是否允许自由发挥？
 
 A: 不允许。Goal command 和 Loop command 应使用固定 wrapper 模板。只允许替换 repo-relative 文件路径，或在没有 `supervisor.md` 时省略 supervisor block；文件说明句和 stale-context warning 必须保留。
+
+### Q14: 等待授权时，应该如何判断 waiting 和 blocked？
+
+原始要求：
+
+1. 「不要搞太复杂, 执行者有心智负担」
+2. 「应该要有等待止损线，比如等人授权，等待肯定是合理的, 现在的问题主要是 \"几次 block\" 作为标准不合理」
+3. 「可以到止损线开始允许记录 “无进展轮次”，然后止损线要求模型根据任务来看」
+
+A: 已知外部事件能够恢复执行时，应使用 `waiting`。模型根据任务的授权有效期、预期人工响应时间、紧迫度、可逆性、观察成本和可做的替代工作设置一个 `loss_line`。止损线之前不记录无进展轮次；越过止损线后才进入 bounded reassessment，并允许记录 `no_progress_rounds`。这个计数只帮助模型判断，不构成固定的自动 blocked 阈值。只有恢复路径已经不存在、失效、被拒绝，或者继续等待对当前任务已不合理时，才设为 `blocked`。
 
 ## Design Answers
 
@@ -162,3 +172,7 @@ A: 不允许。Goal command 和 Loop command 应使用固定 wrapper 模板。�
     fixed stale-context recovery warning.
 16. Goal and Loop prompts should use fixed templates rather than free-form agent
     prose; only paths and the supervisor block are variable.
+17. Known external recovery conditions use `waiting`. A task-specific loss line
+    protects cost without turning host continuation counts into lifecycle truth;
+    no-progress rounds begin only after that line and remain evidence for model
+    judgment rather than an automatic block threshold.

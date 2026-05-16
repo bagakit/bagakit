@@ -18,21 +18,23 @@ sys.dont_write_bytecode = True
 
 GOAL_SCHEMA = "bagakit.loop-goal.v1"
 STATE_SCHEMA = "bagakit.goal-state.v1"
-GOAL_PROTOCOL_VERSION = "bagakit.goal.v.0.1"
+GOAL_PROTOCOL_VERSION = "bagakit.goal.v.0.2"
 GOAL_UPGRADE_REPORT_SCHEMA = "bagakit.goal-upgrade-report.v1"
 EVOLVER_REVIEW_SCHEMA = "bagakit.goal-evolver-review.v1"
 GOAL_EVENT_SCHEMA = "bagakit.goal-event.v1"
 GOAL_STATUSES = {
     "draft",
     "active",
+    "waiting",
     "paused",
     "blocked",
     "ready_for_review",
     "complete",
     "abandoned",
 }
-OPEN_GOAL_STATUSES = {"draft", "active", "paused", "blocked", "ready_for_review"}
+OPEN_GOAL_STATUSES = {"draft", "active", "waiting", "paused", "blocked", "ready_for_review"}
 RESUMABLE_TO_ACTIVE = {"draft", "paused", "ready_for_review"}
+WAIT_PHASES = {"grace", "assessing"}
 SUPERVISION_MODES = {"off", "self", "external"}
 EVOLVER_REVIEW_TRIGGERS = {
     "before_round",
@@ -373,7 +375,7 @@ def supervisor_md_text() -> str:
 goal_state_file = ".bagakit/goal/state.yaml"
 goal_file = ".bagakit/goal/<goal-id>.md"
 foreground_goal = "<goal-id>"
-status = "on_track" # on_track | needs_correction | blocked | ready_to_stop
+status = "on_track" # on_track | needs_correction | waiting | blocked | ready_to_stop
 goal_delta = "none" # none | clarify | narrow | broaden | replace
 sidecar = "not_needed" # not_needed | dispatched | pending | unavailable | incorporated
 drift = []
@@ -392,6 +394,10 @@ user_question = ""
   Evolver topic, adoption, routing, or promotion state.
 
 ## Rules
+- Classify a known external recovery condition as `waiting`, not `blocked`.
+- Before the task-specific loss line, do not count no-progress rounds. After it
+  is crossed, use bounded reassessment and task judgment rather than a fixed
+  round threshold.
 - Patch the Goal only when new information changes execution direction or
   recovery.
 - Ask before changing the promised outcome, dropping a requirement, or taking
@@ -441,6 +447,96 @@ def goal_status(frontmatter: dict[str, Any], path: Path) -> str:
     if status not in GOAL_STATUSES:
         raise SystemExit(f"error: {path}: invalid goal status `{status}`")
     return str(status)
+
+
+def wait_contract_issues(frontmatter: dict[str, Any]) -> list[str]:
+    status = frontmatter.get("status")
+    wait = frontmatter.get("wait")
+    if status != "waiting":
+        return (
+            ["wait metadata is only valid when status=waiting"]
+            if wait is not None
+            else []
+        )
+    if not isinstance(wait, dict):
+        return ["status=waiting requires a wait mapping"]
+
+    issues: list[str] = []
+    for field in ("resume_on", "loss_line"):
+        value = wait.get(field)
+        if not isinstance(value, str) or not value.strip():
+            issues.append(f"wait.{field} must be a non-empty task-specific condition")
+    phase = wait.get("phase")
+    if phase not in WAIT_PHASES:
+        issues.append("wait.phase must be grace or assessing")
+    rounds = wait.get("no_progress_rounds")
+    if not isinstance(rounds, int) or isinstance(rounds, bool) or rounds < 0:
+        issues.append("wait.no_progress_rounds must be a non-negative integer")
+    elif phase == "grace" and rounds != 0:
+        issues.append("wait.no_progress_rounds must remain 0 before the loss line is crossed")
+    return issues
+
+
+def build_wait_contract(
+    args: argparse.Namespace,
+    seed: dict[str, Any],
+    existing_frontmatter: dict[str, Any],
+    status: str,
+    allow_absolute_paths: bool,
+) -> dict[str, Any] | None:
+    explicit_wait = any(
+        value is not None
+        for value in (
+            args.wait_resume_on,
+            args.wait_loss_line,
+            args.wait_phase,
+            args.wait_no_progress_rounds,
+        )
+    )
+    if status != "waiting":
+        if explicit_wait or seed.get("wait") is not None:
+            raise SystemExit("error: wait options require status=waiting")
+        return None
+
+    seed_wait = seed.get("wait") or {}
+    existing_wait = existing_frontmatter.get("wait") or {}
+    if not isinstance(seed_wait, dict):
+        raise SystemExit("error: from-json wait must be a mapping")
+    if not isinstance(existing_wait, dict):
+        raise SystemExit("error: existing wait metadata must be a mapping")
+
+    wait = {
+        "resume_on": (
+            args.wait_resume_on
+            or seed_wait.get("resume_on")
+            or existing_wait.get("resume_on")
+        ),
+        "loss_line": (
+            args.wait_loss_line
+            or seed_wait.get("loss_line")
+            or existing_wait.get("loss_line")
+        ),
+        "phase": (
+            args.wait_phase
+            or seed_wait.get("phase")
+            or existing_wait.get("phase")
+            or "grace"
+        ),
+        "no_progress_rounds": (
+            args.wait_no_progress_rounds
+            if args.wait_no_progress_rounds is not None
+            else seed_wait.get("no_progress_rounds", existing_wait.get("no_progress_rounds", 0))
+        ),
+    }
+    issues = wait_contract_issues({"status": status, "wait": wait})
+    if issues:
+        raise SystemExit("error: " + "; ".join(issues))
+    ensure_no_absolute_paths(
+        [str(wait["resume_on"]), str(wait["loss_line"])],
+        "wait contract",
+        allow_absolute_paths,
+    )
+    return wait
 
 
 def normalize_goal_id(goal_id: str | None, title: str | None) -> str:
@@ -678,9 +774,29 @@ def build_upgrade_plan(
                     "unknown_lifecycle",
                     [goal_id],
                     [rel],
-                    ["paused", "blocked", "complete", "abandoned", "correct the premise"],
+                    ["waiting", "paused", "blocked", "complete", "abandoned", "correct the premise"],
                     "Classify the Goal lifecycle from current owner evidence before upgrade.",
                     "A wrong lifecycle can hide unfinished work or falsely claim completion.",
+                )
+            )
+            continue
+        wait_issues = wait_contract_issues(frontmatter)
+        if wait_issues:
+            conflicts.append(
+                upgrade_conflict(
+                    f"wait-contract-{goal_id}",
+                    "incomplete_wait_contract",
+                    [goal_id],
+                    [rel],
+                    [
+                        "define the recovery event and task-specific loss line",
+                        "reclassify the Goal lifecycle",
+                    ],
+                    (
+                        "Use waiting only when a known external event can resume "
+                        "execution; otherwise classify the actual blocker."
+                    ),
+                    "; ".join(wait_issues),
                 )
             )
             continue
@@ -1516,6 +1632,8 @@ def create_or_update_goal(args: argparse.Namespace) -> None:
     if path.exists():
         existing_frontmatter, existing_title, existing_sections, existing_extras = read_goal_doc(path)
         existing_extras = drop_obsolete_append_only_sections(existing_extras)
+    previous_status = existing_frontmatter.get("status")
+    previous_wait = existing_frontmatter.get("wait")
 
     title = (args.title or seed.get("title") or existing_title or goal_id).strip()
     foreground_requested = args.foreground or bool(seed.get("foreground"))
@@ -1586,6 +1704,7 @@ def create_or_update_goal(args: argparse.Namespace) -> None:
     completion_evidence_arg = args.completion_evidence or seed.get("completion_evidence") or []
     allow_absolute_paths = args.allow_absolute_paths or bool(seed.get("allow_absolute_paths"))
     ensure_no_absolute_paths(all_lines + list(completion_evidence_arg), "goal content", allow_absolute_paths)
+    wait = build_wait_contract(args, seed, existing_frontmatter, status, allow_absolute_paths)
 
     truth_surface = f".bagakit/goal/{goal_id}.md"
     completion_evidence = list(completion_evidence_arg or existing_frontmatter.get("completion_evidence") or [])
@@ -1600,6 +1719,8 @@ def create_or_update_goal(args: argparse.Namespace) -> None:
         "truth_surface": truth_surface,
         "completion_evidence": completion_evidence,
     }
+    if wait is not None:
+        frontmatter["wait"] = wait
     sections = {
         "Prime Directive": prime_directive.strip(),
         "Current State": current_state.strip(),
@@ -1613,7 +1734,7 @@ def create_or_update_goal(args: argparse.Namespace) -> None:
     write_text(path, dump_frontmatter_markdown(frontmatter, render_goal_body(title, sections, existing_extras)))
 
     entry_role = args.role or seed.get("role")
-    foreground = foreground_requested
+    foreground = foreground_requested or state.get("foreground_goal") == goal_id
     paused_goal_ids: list[str] = []
     if foreground or not state.get("foreground_goal"):
         entry_role = "foreground"
@@ -1655,6 +1776,26 @@ def create_or_update_goal(args: argparse.Namespace) -> None:
             owner="bagakit-set-loop-goal",
             summary=f"Created Goal control plane: {title}",
             evidence_refs=[],
+            control_effect="none",
+        )
+    elif previous_status != status:
+        append_goal_event_record(
+            root,
+            goal_id,
+            kind="status_changed",
+            owner="bagakit-set-loop-goal",
+            summary=f"Changed Goal status from {previous_status} to {status}.",
+            evidence_refs=[f".bagakit/goal/{goal_id}.md", ".bagakit/goal/state.yaml"],
+            control_effect="none",
+        )
+    elif previous_wait != wait:
+        append_goal_event_record(
+            root,
+            goal_id,
+            kind="goal_updated",
+            owner="bagakit-set-loop-goal",
+            summary="Updated the task-specific waiting control state.",
+            evidence_refs=[f".bagakit/goal/{goal_id}.md", ".bagakit/goal/state.yaml"],
             control_effect="none",
         )
     elif args.decision_line:
@@ -2163,6 +2304,28 @@ def driver_report(args: argparse.Namespace) -> None:
                         entry["file"],
                     )
                 )
+            if (
+                frontmatter.get("status") == "waiting"
+                and frontmatter.get("wait", {}).get("phase") == "assessing"
+            ):
+                rounds = frontmatter["wait"]["no_progress_rounds"]
+                alerts.append(
+                    make_driver_alert(
+                        "P1",
+                        "wait_loss_line_crossed",
+                        f"Waiting crossed its loss line; no-progress rounds={rounds}.",
+                        (
+                            "The external recovery event has not arrived within "
+                            "the task-specific grace policy."
+                        ),
+                        (
+                            "Reassess the recovery path, observation cost, and "
+                            "fallback work before deciding whether to keep waiting "
+                            "or mark blocked."
+                        ),
+                        entry["file"],
+                    )
+                )
             budget_states = {time_status, token_status}
             if "exceeded" in budget_states:
                 alerts.append(
@@ -2317,6 +2480,7 @@ def fresh_check(args: argparse.Namespace) -> None:
                         issues.append(f"foreground goal section missing: {heading}")
                 if frontmatter.get("status") == "complete" and not frontmatter.get("completion_evidence"):
                     issues.append("complete goal requires completion_evidence")
+                issues.extend(f"foreground goal {issue}" for issue in wait_contract_issues(frontmatter))
                 if goals[foreground_goal].get("status") != frontmatter.get("status"):
                     issues.append("state.yaml goal status does not match foreground goal frontmatter")
                 if goals[foreground_goal].get("role") != "foreground":
@@ -2338,6 +2502,7 @@ def fresh_check(args: argparse.Namespace) -> None:
             issues.append(f"{goal_id}: truth_surface does not match registry file")
         if entry.get("status") != frontmatter.get("status"):
             issues.append(f"{goal_id}: registry status does not match frontmatter")
+        issues.extend(f"{goal_id}: {issue}" for issue in wait_contract_issues(frontmatter))
         expected_event_log = f".bagakit/goal/events/{goal_id}.jsonl"
         if entry.get("event_log") != expected_event_log:
             issues.append(f"{goal_id}: registry event_log must be {expected_event_log}")
@@ -2509,6 +2674,10 @@ def build_parser() -> argparse.ArgumentParser:
     upsert.add_argument("--decision-line", action="append", default=[])
     upsert.add_argument("--question-line", action="append", default=[])
     upsert.add_argument("--completion-evidence", action="append", default=[])
+    upsert.add_argument("--wait-resume-on")
+    upsert.add_argument("--wait-loss-line")
+    upsert.add_argument("--wait-phase", choices=sorted(WAIT_PHASES))
+    upsert.add_argument("--wait-no-progress-rounds", type=int)
     upsert.add_argument("--role")
     upsert.add_argument("--foreground", action="store_true")
     upsert.add_argument("--allow-absolute-paths", action="store_true")

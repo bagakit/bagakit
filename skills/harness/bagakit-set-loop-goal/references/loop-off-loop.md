@@ -87,7 +87,8 @@ Do not put run logs, raw sidecar output, or task details in `supervisor.md`.
    explicit Goal file.
 2. Read inner-loop evidence: checkpoint, diff, validation, incident, or user
    discussion.
-3. Classify whether execution is aligned, drifting, blocked, or ready to stop.
+3. Classify whether execution is aligned, drifting, waiting, blocked, or ready
+   to stop.
 4. Distill new information into one of:
    - Goal patch
    - owner-file pointer
@@ -130,6 +131,35 @@ instruction to pass the receipt path to Evolver's session-review intake.
 - context drift: a compact/restart/handoff would lose the reason behind current
   choices
 
+## Waiting And Loss Lines
+
+Use this three-question decision tree:
+
+1. Can safe, valuable work still advance now? Keep the Goal `active`.
+2. If not, is there a known external event that can resume execution? Set the
+   Goal to `waiting` and record `resume_on` plus one task-specific `loss_line`.
+3. If no credible recovery event exists, or post-loss-line reassessment shows
+   waiting is no longer justified, set the Goal to `blocked` and name the
+   missing recovery path.
+
+Waiting rules:
+
+- `phase: grace`: do not count no-progress rounds and do not spend full model
+  turns merely checking whether the event happened.
+- Choose the loss line from task evidence, including authorization expiry,
+  expected human latency, urgency, reversibility, observation cost, and useful
+  fallback work. Do not use one global duration or round threshold.
+- After the loss line is crossed, set `phase: assessing`. Each bounded,
+  materially distinct reassessment that still finds no recovery may increment
+  `no_progress_rounds`.
+- The count is evidence for model judgment, not an automatic block trigger.
+  Repeating the same no-change check does not make the blocker more severe.
+- Prefer event delivery or suspension. If polling is necessary, use bounded
+  backoff and stop expensive observation when its cost is no longer justified.
+- Resume `active` when the recovery event occurs. Use `blocked` only when the
+  recovery path is absent, invalid, expired, rejected, or no longer reasonable
+  for this task.
+
 ## Supervisor Packet
 
 When useful, emit a concise packet:
@@ -138,7 +168,7 @@ When useful, emit a concise packet:
 goal_state_file = ".bagakit/goal/state.yaml"
 goal_file = ".bagakit/goal/<goal-id>.md"
 foreground_goal = "<goal-id>"
-status = "on_track" # on_track | needs_correction | blocked | ready_to_stop
+status = "on_track" # on_track | needs_correction | waiting | blocked | ready_to_stop
 goal_delta = "none" # none | clarify | narrow | broaden | replace
 sidecar = "not_needed" # not_needed | dispatched | pending | unavailable | incorporated
 drift = []
@@ -155,7 +185,8 @@ Rules:
 - `goal_patch` changes the Goal before further execution.
 - `goal_delta = "replace"` requires user confirmation unless the user already
   delegated the change.
-- `blocked` names the missing evidence or decision.
+- `waiting` names the external recovery event and reads the Goal's wait block.
+- `blocked` names why no credible recovery path remains.
 - `ready_to_stop` names acceptance evidence.
 - Store repeated packets as JSONL control events, not appended Markdown in
   `supervisor.md`. Keep raw execution telemetry in the execution owner.

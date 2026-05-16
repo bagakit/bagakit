@@ -67,11 +67,16 @@ Do not write these into the Goal event stream:
 
 - per-case progress and score details
 - command stdout or stderr
-- process heartbeats and routine waits
+- process heartbeats and routine waits before a task-specific loss line
 - retry attempts and stack traces
 - raw sidecar analysis
 - full validation output
 - repeated snapshots that do not change direction
+
+After a waiting Goal crosses its loss line, a bounded supervisor reassessment
+may be recorded as `supervisor_checkpoint` when it increments the compact
+`no_progress_rounds` count or changes waiting strategy. Do not append events for
+identical polling observations that have no control effect.
 
 Write them to the execution owner's structured stream or artifact. The Goal
 keeps one compact pointer and only the conclusion that changes objective,

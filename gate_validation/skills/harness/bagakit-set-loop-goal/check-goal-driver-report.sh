@@ -85,6 +85,42 @@ test "$(printf '%s\n' "$alert_text" | grep -c '👩🏻‍🚒 ALERTS !!')" -eq 
 printf '%s\n' "$alert_text" | grep -q 'P1\[Goal/budget_at_risk\]'
 printf '%s\n' "$alert_text" | grep -q 'P1\[Goal/drift\]'
 
+sh "$cli" upsert-goal \
+  --root "$fixture" \
+  --goal-id driver-goal \
+  --status waiting \
+  --wait-resume-on "authorization receipt is available" \
+  --wait-loss-line "reassess after the expected authorization response window" >/dev/null
+
+grace_json="$(sh "$cli" driver-report --root "$fixture" --event waiting --json)"
+python3 - "$grace_json" <<'PY'
+import json
+import sys
+
+report = json.loads(sys.argv[1])
+assert report["status"] == "waiting"
+assert report["alerts"] == []
+PY
+
+sh "$cli" upsert-goal \
+  --root "$fixture" \
+  --goal-id driver-goal \
+  --status waiting \
+  --wait-phase assessing \
+  --wait-no-progress-rounds 2 >/dev/null
+
+wait_alert_json="$(sh "$cli" driver-report --root "$fixture" --event wait_reassessment --json)"
+python3 - "$wait_alert_json" <<'PY'
+import json
+import sys
+
+report = json.loads(sys.argv[1])
+assert report["status"] == "waiting"
+assert [alert["id"] for alert in report["alerts"]] == ["wait_loss_line_crossed"]
+assert "no-progress rounds=2" in report["alerts"][0]["signal"]
+assert "P1[Goal/wait_loss_line_crossed]" in report["footer"]
+PY
+
 sh "$cli" append-goal-event \
   --root "$fixture" \
   --goal-id driver-goal \

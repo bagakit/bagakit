@@ -128,6 +128,81 @@ PY
 fresh_ok_output="$(sh "$cli" fresh-check --root "$tmp")"
 test "$fresh_ok_output" = "fresh-executor check passed"
 
+sh "$cli" upsert-goal \
+  --root "$tmp" \
+  --goal-id demo-goal \
+  --status waiting \
+  --wait-resume-on "user authorization is confirmed" \
+  --wait-loss-line "reassess after the expected authorization response window"
+
+python3 - "$tmp" <<'PY'
+from pathlib import Path
+import sys
+
+import yaml
+
+root = Path(sys.argv[1])
+goal = yaml.safe_load((root / ".bagakit/goal/demo-goal.md").read_text(encoding="utf-8").split("---", 2)[1])
+state = yaml.safe_load((root / ".bagakit/goal/state.yaml").read_text(encoding="utf-8"))
+
+assert goal["status"] == "waiting"
+assert goal["wait"] == {
+    "resume_on": "user authorization is confirmed",
+    "loss_line": "reassess after the expected authorization response window",
+    "phase": "grace",
+    "no_progress_rounds": 0,
+}
+assert state["goals"]["demo-goal"]["status"] == "waiting"
+PY
+
+if sh "$cli" upsert-goal \
+  --root "$tmp" \
+  --goal-id demo-goal \
+  --status waiting \
+  --wait-phase grace \
+  --wait-no-progress-rounds 1 >/dev/null 2>"$tmp/pre-loss-round.err"; then
+  printf 'upsert-goal unexpectedly counted a no-progress round before the loss line\n' >&2
+  exit 1
+fi
+grep -q 'must remain 0 before the loss line is crossed' "$tmp/pre-loss-round.err"
+
+sh "$cli" upsert-goal \
+  --root "$tmp" \
+  --goal-id demo-goal \
+  --status waiting \
+  --wait-phase assessing \
+  --wait-no-progress-rounds 1
+
+python3 - "$tmp/.bagakit/goal/demo-goal.md" <<'PY'
+from pathlib import Path
+import sys
+
+import yaml
+
+frontmatter = yaml.safe_load(Path(sys.argv[1]).read_text(encoding="utf-8").split("---", 2)[1])
+assert frontmatter["status"] == "waiting"
+assert frontmatter["wait"]["phase"] == "assessing"
+assert frontmatter["wait"]["no_progress_rounds"] == 1
+PY
+
+fresh_ok_output="$(sh "$cli" fresh-check --root "$tmp")"
+test "$fresh_ok_output" = "fresh-executor check passed"
+
+sh "$cli" upsert-goal --root "$tmp" --goal-id demo-goal --status active
+python3 - "$tmp/.bagakit/goal/demo-goal.md" <<'PY'
+from pathlib import Path
+import sys
+
+import yaml
+
+frontmatter = yaml.safe_load(Path(sys.argv[1]).read_text(encoding="utf-8").split("---", 2)[1])
+assert frontmatter["status"] == "active"
+assert "wait" not in frontmatter
+PY
+
+fresh_ok_output="$(sh "$cli" fresh-check --root "$tmp")"
+test "$fresh_ok_output" = "fresh-executor check passed"
+
 review_path="$(sh "$cli" request-evolver-review \
   --root "$tmp" \
   --goal-id demo-goal \
@@ -414,14 +489,14 @@ goal_root_text = "\n".join(
 )
 
 assert state["schema"] == "bagakit.goal-state.v1"
-assert state["protocol_version"] == "bagakit.goal.v.0.1"
+assert state["protocol_version"] == "bagakit.goal.v.0.2"
 assert state["foreground_goal"] == "paused-goal"
 assert "demo-goal" not in state["goals"]
 assert state["goals"]["paused-goal"]["role"] == "foreground"
 assert state["goals"]["paused-goal"]["status"] == "active"
 assert state["edges"] == []
 assert "truth_surface: .bagakit/goal/archive/demo-goal.md" in archived
-assert "protocol_version: bagakit.goal.v.0.1" in archived
+assert "protocol_version: bagakit.goal.v.0.2" in archived
 assert "status: complete" in archived
 assert "smoke archive proof" in archived
 assert archived_events.exists()
@@ -429,7 +504,7 @@ assert not (goal_root / "events" / "demo-goal.jsonl").exists()
 assert "status: active" in paused
 assert "No foreground Goal is currently selected" not in current
 assert 'owner_id = "bagakit-set-loop-goal"' in surface
-assert 'protocol_version = "bagakit.goal.v.0.1"' in surface
+assert 'protocol_version = "bagakit.goal.v.0.2"' in surface
 assert str(tmp) not in goal_root_text
 PY
 
