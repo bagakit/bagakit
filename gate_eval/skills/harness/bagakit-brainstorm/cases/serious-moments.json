@@ -1,0 +1,276 @@
+{
+  "schema": "bagakit.eval-dataset/v1",
+  "dataset_id": "bagakit-brainstorm-serious-moments-v1",
+  "title": "Brainstorm Serious-Moment Cases",
+  "description": "Sanitized correction-derived cases for Brainstorm clarification, principle quality, expert review, correction traceability, and handoff.",
+  "item_schema": "bagakit.skill-goal-eval-item/v1",
+  "items": [
+    {
+      "id": "brainstorm-clarify-first",
+      "skill_id": "bagakit-brainstorm",
+      "prompt": "Notes ask for a new team tool but omit audience, success bar, and whether the output is a prototype or production system.",
+      "expected_outcome": "Close or explicitly defer the high-impact clarification gaps before final option generation.",
+      "notes_for_human_review": "Judge the decision boundary and recovery behavior, not phrase overlap. Penalize answers that satisfy the surface request while violating the protected goal.",
+      "tags": [
+        "serious-moment",
+        "sanitized",
+        "pilot"
+      ],
+      "risk_tags": [],
+      "dimensions": [
+        "clarification-sufficiency"
+      ],
+      "goal_dimensions": [
+        "clarification-sufficiency"
+      ],
+      "polarity": "should",
+      "success_evidence": [
+        "The option set is not finalized while decision-changing gaps remain implicit."
+      ],
+      "guard_ids": [
+        "clarify-before-option-generation"
+      ],
+      "provenance": {
+        "source_class": "sanitized_user_correction",
+        "evidence_ref": "local-research:skill-serious-moment-cases#brainstorm-clarify-first"
+      },
+      "privacy": {
+        "class": "internal_sanitized",
+        "sanitized": true,
+        "raw_transcript_included": false
+      },
+      "grader": {
+        "type": "outcome",
+        "rubric_id": "bagakit-brainstorm-serious-moment-v1",
+        "calibration_status": "not_required",
+        "calibration_evidence": [
+          "gate_eval/skills/harness/bagakit-brainstorm/cases/pilot-calibration.md"
+        ],
+        "transfer_limit": "Transfer only the decision boundary; do not require the original wording, project, or domain."
+      },
+      "lifecycle": {
+        "stage": "capability"
+      },
+      "trials": {
+        "count": 3,
+        "min_pass_rate": 0.67,
+        "reliability_metric": "case_pass_rate"
+      },
+      "split": "baseline"
+    },
+    {
+      "id": "brainstorm-principle-before-features",
+      "skill_id": "bagakit-brainstorm",
+      "prompt": "A draft recommendation jumps directly into a feature checklist after the user corrected the product philosophy.",
+      "expected_outcome": "State the corrected product principle, then derive features and tasks from it with traceable refs.",
+      "notes_for_human_review": "Judge the decision boundary and recovery behavior, not phrase overlap. Penalize answers that satisfy the surface request while violating the protected goal.",
+      "tags": [
+        "serious-moment",
+        "sanitized",
+        "pilot"
+      ],
+      "risk_tags": [],
+      "dimensions": [
+        "principle-quality"
+      ],
+      "goal_dimensions": [
+        "principle-quality"
+      ],
+      "polarity": "should",
+      "success_evidence": [
+        "The recommendation explains why the option wins before enumerating features."
+      ],
+      "guard_ids": [
+        "principle-before-feature-list"
+      ],
+      "provenance": {
+        "source_class": "sanitized_user_correction",
+        "evidence_ref": "local-research:skill-serious-moment-cases#brainstorm-principle-before-features"
+      },
+      "privacy": {
+        "class": "internal_sanitized",
+        "sanitized": true,
+        "raw_transcript_included": false
+      },
+      "grader": {
+        "type": "outcome",
+        "rubric_id": "bagakit-brainstorm-serious-moment-v1",
+        "calibration_status": "not_required",
+        "calibration_evidence": [
+          "gate_eval/skills/harness/bagakit-brainstorm/cases/pilot-calibration.md"
+        ],
+        "transfer_limit": "Transfer only the decision boundary; do not require the original wording, project, or domain."
+      },
+      "lifecycle": {
+        "stage": "capability"
+      },
+      "trials": {
+        "count": 3,
+        "min_pass_rate": 0.67,
+        "reliability_metric": "case_pass_rate"
+      },
+      "split": "holdout"
+    },
+    {
+      "id": "brainstorm-distinct-experts",
+      "skill_id": "bagakit-brainstorm",
+      "prompt": "The expert forum has three personas that all use the same product-management frame and reach immediate agreement.",
+      "expected_outcome": "Replace or reframe the panel so at least three genuinely different judgment frames challenge the recommendation.",
+      "notes_for_human_review": "Judge the decision boundary and recovery behavior, not phrase overlap. Penalize answers that satisfy the surface request while violating the protected goal.",
+      "tags": [
+        "serious-moment",
+        "sanitized",
+        "pilot"
+      ],
+      "risk_tags": [],
+      "dimensions": [
+        "expert-review-usefulness"
+      ],
+      "goal_dimensions": [
+        "expert-review-usefulness"
+      ],
+      "polarity": "should",
+      "success_evidence": [
+        "The forum preserves material cross-frame disagreement before convergence."
+      ],
+      "guard_ids": [
+        "distinct-expert-stances"
+      ],
+      "provenance": {
+        "source_class": "sanitized_user_correction",
+        "evidence_ref": "local-research:skill-serious-moment-cases#brainstorm-distinct-experts"
+      },
+      "privacy": {
+        "class": "internal_sanitized",
+        "sanitized": true,
+        "raw_transcript_included": false
+      },
+      "grader": {
+        "type": "outcome",
+        "rubric_id": "bagakit-brainstorm-serious-moment-v1",
+        "calibration_status": "not_required",
+        "calibration_evidence": [
+          "gate_eval/skills/harness/bagakit-brainstorm/cases/pilot-calibration.md"
+        ],
+        "transfer_limit": "Transfer only the decision boundary; do not require the original wording, project, or domain."
+      },
+      "lifecycle": {
+        "stage": "capability"
+      },
+      "trials": {
+        "count": 3,
+        "min_pass_rate": 0.67,
+        "reliability_metric": "case_pass_rate"
+      },
+      "split": "baseline"
+    },
+    {
+      "id": "brainstorm-trace-correction",
+      "skill_id": "bagakit-brainstorm",
+      "prompt": "The user corrects a key assumption after the finding stage is drafted.",
+      "expected_outcome": "Preserve the correction locally in raw evidence and update the derived recommendation and handoff references.",
+      "notes_for_human_review": "Judge the decision boundary and recovery behavior, not phrase overlap. Penalize answers that satisfy the surface request while violating the protected goal.",
+      "tags": [
+        "serious-moment",
+        "sanitized",
+        "pilot"
+      ],
+      "risk_tags": [],
+      "dimensions": [
+        "approval-traceability"
+      ],
+      "goal_dimensions": [
+        "approval-traceability"
+      ],
+      "polarity": "should",
+      "success_evidence": [
+        "Raw and derived layers both show the decision-changing correction without publishing private wording."
+      ],
+      "guard_ids": [
+        "trace-correction-into-handoff"
+      ],
+      "provenance": {
+        "source_class": "sanitized_user_correction",
+        "evidence_ref": "local-research:skill-serious-moment-cases#brainstorm-trace-correction"
+      },
+      "privacy": {
+        "class": "internal_sanitized",
+        "sanitized": true,
+        "raw_transcript_included": false
+      },
+      "grader": {
+        "type": "outcome",
+        "rubric_id": "bagakit-brainstorm-serious-moment-v1",
+        "calibration_status": "not_required",
+        "calibration_evidence": [
+          "gate_eval/skills/harness/bagakit-brainstorm/cases/pilot-calibration.md"
+        ],
+        "transfer_limit": "Transfer only the decision boundary; do not require the original wording, project, or domain."
+      },
+      "lifecycle": {
+        "stage": "capability"
+      },
+      "trials": {
+        "count": 3,
+        "min_pass_rate": 0.67,
+        "reliability_metric": "case_pass_rate"
+      },
+      "split": "holdout"
+    },
+    {
+      "id": "brainstorm-no-unapproved-handoff",
+      "skill_id": "bagakit-brainstorm",
+      "prompt": "The artifacts are complete, but the user has not approved the expert-forum conclusion.",
+      "expected_outcome": "Keep completion and planning-entry export blocked while allowing a clearly labeled draft handoff.",
+      "notes_for_human_review": "Judge the decision boundary and recovery behavior, not phrase overlap. Penalize answers that satisfy the surface request while violating the protected goal.",
+      "tags": [
+        "serious-moment",
+        "sanitized",
+        "pilot"
+      ],
+      "risk_tags": [
+        "negative-case"
+      ],
+      "dimensions": [
+        "handoff-fidelity"
+      ],
+      "goal_dimensions": [
+        "handoff-fidelity"
+      ],
+      "polarity": "should_not",
+      "success_evidence": [
+        "No complete/archive/export claim is made before explicit approval."
+      ],
+      "guard_ids": [
+        "no-unapproved-handoff"
+      ],
+      "provenance": {
+        "source_class": "sanitized_user_correction",
+        "evidence_ref": "local-research:skill-serious-moment-cases#brainstorm-no-unapproved-handoff"
+      },
+      "privacy": {
+        "class": "internal_sanitized",
+        "sanitized": true,
+        "raw_transcript_included": false
+      },
+      "grader": {
+        "type": "outcome",
+        "rubric_id": "bagakit-brainstorm-serious-moment-v1",
+        "calibration_status": "not_required",
+        "calibration_evidence": [
+          "gate_eval/skills/harness/bagakit-brainstorm/cases/pilot-calibration.md"
+        ],
+        "transfer_limit": "Transfer only the decision boundary; do not require the original wording, project, or domain."
+      },
+      "lifecycle": {
+        "stage": "capability"
+      },
+      "trials": {
+        "count": 3,
+        "min_pass_rate": 0.67,
+        "reliability_metric": "case_pass_rate"
+      },
+      "split": "baseline"
+    }
+  ]
+}

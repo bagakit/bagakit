@@ -3,6 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 
 import { runCommand, type CommandResult } from "../../../../dev/eval/src/lib/command.ts";
+import { evaluateGoalCasePilot } from "../../../../dev/eval/src/lib/goal_cases.ts";
 import type { EvalSuiteDefinition } from "../../../../dev/eval/src/lib/model.ts";
 import { cleanupTempDir, createTempDir, registerTempRepo } from "../../../../dev/eval/src/lib/temp.ts";
 
@@ -116,6 +117,38 @@ export const SUITE: EvalSuiteDefinition = {
             stderr_line_count: stderrLines,
             emitted_traceback: result.stderr.includes("Traceback"),
           },
+        };
+      },
+    },
+    {
+      id: "serious-moment-goal-case-pilot",
+      title: "Serious-Moment Goal Case Pilot",
+      summary: "Compare lifecycle-oriented baseline coverage with clarification, principle, expert-frame, correction, and approval cases.",
+      focus: ["skill-goal", "serious-moment", "baseline-candidate", "privacy", "negative-case"],
+      run: (context) => {
+        const datasetRel = "gate_eval/skills/harness/bagakit-brainstorm/cases/serious-moments.json";
+        const contractRel = "skills/harness/bagakit-brainstorm/references/decision-quality-contract.toml";
+        const result = evaluateGoalCasePilot({
+          repoRoot: context.repoRoot,
+          datasetRel,
+          contractRel,
+          baselineGuardIds: ["clarify-before-option-generation", "no-unapproved-handoff"],
+        });
+        assert.equal(result.candidate.coverage, 1);
+        assert.ok(result.deltaCoverage > 0);
+        assert.ok(result.shouldCases > 0 && result.shouldNotCases > 0);
+        return {
+          assertions: [
+            "all sanitized Brainstorm cases map to structured behavior guards",
+            "the candidate guard map adds principle, expert-frame, and correction-trace coverage",
+            "the pilot includes positive and negative cases plus calibration evidence",
+          ],
+          artifacts: [
+            { label: "serious-moment-dataset", path: datasetRel },
+            { label: "decision-quality-contract", path: contractRel },
+            { label: "pilot-calibration", path: result.calibrationRefs[0] },
+          ],
+          outputs: result,
         };
       },
     },

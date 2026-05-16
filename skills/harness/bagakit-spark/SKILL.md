@@ -123,6 +123,11 @@ When paired or independent review can change snapshot or eval acceptance, fill
 Record reviewer scope, dialogue counterevidence, accepted deviations, and the
 next question or action instead of accepting a reviewer verdict from chat alone.
 
+Use `references/decision-quality-contract.toml` as the structured guard map for
+serious-moment eval cases. The contract does not replace this workflow; it gives
+cases stable behavior ids without turning private correction phrases into gate
+text.
+
 For each meaningful discussion turn, run this loop:
 
 1. Frame

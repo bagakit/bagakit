@@ -1,0 +1,43 @@
+version = 1
+skill_id = "bagakit-spark"
+goal = "Help the user reach a better decision through decision-changing questions, sufficient evidence routes, visible alternatives, and explicit convergence."
+
+[[guard]]
+id = "clarify-before-execute"
+polarity = "should"
+goal_dimension = "decision-changing-question-quality"
+behavior = "Resolve the product or decision boundary before entering execution when the boundary would change the work."
+failure_boundary = "Does not require another question after the user has confirmed the exact scope and requested execution."
+transfer_limit = "Applies to open shaping work, not tiny execution-only requests with settled scope."
+
+[[guard]]
+id = "preserve-option-surface"
+polarity = "should"
+goal_dimension = "option-surface-preservation"
+behavior = "Show live alternatives, rejected branches, or the reason a branch collapsed before recommending a default."
+failure_boundary = "Does not require artificial alternatives when evidence has already eliminated them."
+transfer_limit = "Applies only when alternatives would materially change the decision."
+
+[[guard]]
+id = "repair-protocol-failure-directly"
+polarity = "should"
+goal_dimension = "protocol-recovery"
+behavior = "When the user identifies a weak question or missed protocol step, perform the feasible repair in the same turn."
+failure_boundary = "Does not authorize unrelated changes or external side effects."
+transfer_limit = "Applies when the repair is local, safe, and already authorized by the discussion."
+
+[[guard]]
+id = "no-premature-closure"
+polarity = "should_not"
+goal_dimension = "premature-closure"
+behavior = "Do not treat agent-perceived sufficiency or thin repeated agreement as completion."
+failure_boundary = "Does not prevent closure after explicit acceptance or a proper end-check."
+transfer_limit = "Applies to open Spark sessions, not standalone factual answers."
+
+[[guard]]
+id = "no-performative-user-model"
+polarity = "should_not"
+goal_dimension = "user-model-utility"
+behavior = "Do not display a user model unless it changes the next decision, challenge, explanation, or feedback."
+failure_boundary = "Does not forbid a visible model when the user needs to correct it."
+transfer_limit = "Applies to user-facing output; internal reasoning may still track a model."

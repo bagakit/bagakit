@@ -1,0 +1,43 @@
+version = 1
+skill_id = "bagakit-brainstorm"
+goal = "Turn source context into distinct options, a principle-bearing decision, reviewed trade-offs, and an approved execution handoff."
+
+[[guard]]
+id = "clarify-before-option-generation"
+polarity = "should"
+goal_dimension = "clarification-sufficiency"
+behavior = "Resolve high-impact goal, audience, success, scope, and constraint gaps before generating the final option set."
+failure_boundary = "Does not require questions for dimensions already answered or explicitly not needed."
+transfer_limit = "Applies before decision-bearing option generation, not exploratory note capture."
+
+[[guard]]
+id = "principle-before-feature-list"
+polarity = "should"
+goal_dimension = "principle-quality"
+behavior = "State the product or decision principle that explains why the recommended option wins before expanding features or tasks."
+failure_boundary = "Does not replace concrete implementation detail in the downstream handoff."
+transfer_limit = "Applies when the brainstorm will guide future feature or implementation work."
+
+[[guard]]
+id = "distinct-expert-stances"
+polarity = "should"
+goal_dimension = "expert-review-usefulness"
+behavior = "Use genuinely different judgment frames in expert review and preserve material disagreement before convergence."
+failure_boundary = "Does not require theatrical personas or disagreement when evidence genuinely converges."
+transfer_limit = "Applies to expert-forum routes, not lightweight single-review tasks."
+
+[[guard]]
+id = "trace-correction-into-handoff"
+polarity = "should"
+goal_dimension = "approval-traceability"
+behavior = "Preserve user corrections in raw evidence and update the derived recommendation and handoff refs."
+failure_boundary = "Does not publish raw private wording outside the local brainstorm runtime."
+transfer_limit = "Applies when a correction changes the decision or downstream action."
+
+[[guard]]
+id = "no-unapproved-handoff"
+polarity = "should_not"
+goal_dimension = "handoff-fidelity"
+behavior = "Do not mark the brainstorm complete or export execution truth before explicit user approval."
+failure_boundary = "Does not block draft handoff preparation labeled pending review."
+transfer_limit = "Applies to completion and planning-entry export, not intermediate analysis."

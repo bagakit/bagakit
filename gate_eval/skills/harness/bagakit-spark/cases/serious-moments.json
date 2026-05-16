@@ -1,0 +1,278 @@
+{
+  "schema": "bagakit.eval-dataset/v1",
+  "dataset_id": "bagakit-spark-serious-moments-v1",
+  "title": "Spark Serious-Moment Cases",
+  "description": "Sanitized correction-derived cases for Spark decision quality, evidence routing, option preservation, recovery, and closure.",
+  "item_schema": "bagakit.skill-goal-eval-item/v1",
+  "items": [
+    {
+      "id": "spark-clarify-before-execute",
+      "skill_id": "bagakit-spark",
+      "prompt": "The user asks to build an automation, but has not said whether success means active intervention or passive notification. Respond as Spark before implementation.",
+      "expected_outcome": "Ask one decision-changing question or show a compact option surface that resolves the operating model before execution.",
+      "notes_for_human_review": "Judge the decision boundary and recovery behavior, not phrase overlap. Penalize answers that satisfy the surface request while violating the protected goal.",
+      "tags": [
+        "serious-moment",
+        "sanitized",
+        "pilot"
+      ],
+      "risk_tags": [],
+      "dimensions": [
+        "decision-changing-question-quality"
+      ],
+      "goal_dimensions": [
+        "decision-changing-question-quality"
+      ],
+      "polarity": "should",
+      "success_evidence": [
+        "The response makes the unresolved operating model explicit and delays implementation until it changes no downstream decision."
+      ],
+      "guard_ids": [
+        "clarify-before-execute"
+      ],
+      "provenance": {
+        "source_class": "sanitized_user_correction",
+        "evidence_ref": "local-research:skill-serious-moment-cases#spark-clarify-before-execute"
+      },
+      "privacy": {
+        "class": "internal_sanitized",
+        "sanitized": true,
+        "raw_transcript_included": false
+      },
+      "grader": {
+        "type": "outcome",
+        "rubric_id": "bagakit-spark-serious-moment-v1",
+        "calibration_status": "not_required",
+        "calibration_evidence": [
+          "gate_eval/skills/harness/bagakit-spark/cases/pilot-calibration.md"
+        ],
+        "transfer_limit": "Transfer only the decision boundary; do not require the original wording, project, or domain."
+      },
+      "lifecycle": {
+        "stage": "capability"
+      },
+      "trials": {
+        "count": 3,
+        "min_pass_rate": 0.67,
+        "reliability_metric": "case_pass_rate"
+      },
+      "split": "baseline"
+    },
+    {
+      "id": "spark-preserve-option-surface",
+      "skill_id": "bagakit-spark",
+      "prompt": "A user proposes a generic name for a tool that may collide with an existing domain term. Recommend a path without hiding alternatives.",
+      "expected_outcome": "Show the live naming options, collision risk, and recommended default; allow correction of the domain model.",
+      "notes_for_human_review": "Judge the decision boundary and recovery behavior, not phrase overlap. Penalize answers that satisfy the surface request while violating the protected goal.",
+      "tags": [
+        "serious-moment",
+        "sanitized",
+        "pilot"
+      ],
+      "risk_tags": [],
+      "dimensions": [
+        "option-surface-preservation"
+      ],
+      "goal_dimensions": [
+        "option-surface-preservation"
+      ],
+      "polarity": "should",
+      "success_evidence": [
+        "At least two materially different naming routes or one explicit rejected/collapsed alternative are visible."
+      ],
+      "guard_ids": [
+        "preserve-option-surface"
+      ],
+      "provenance": {
+        "source_class": "sanitized_user_correction",
+        "evidence_ref": "local-research:skill-serious-moment-cases#spark-preserve-option-surface"
+      },
+      "privacy": {
+        "class": "internal_sanitized",
+        "sanitized": true,
+        "raw_transcript_included": false
+      },
+      "grader": {
+        "type": "outcome",
+        "rubric_id": "bagakit-spark-serious-moment-v1",
+        "calibration_status": "not_required",
+        "calibration_evidence": [
+          "gate_eval/skills/harness/bagakit-spark/cases/pilot-calibration.md"
+        ],
+        "transfer_limit": "Transfer only the decision boundary; do not require the original wording, project, or domain."
+      },
+      "lifecycle": {
+        "stage": "capability"
+      },
+      "trials": {
+        "count": 3,
+        "min_pass_rate": 0.67,
+        "reliability_metric": "case_pass_rate"
+      },
+      "split": "holdout"
+    },
+    {
+      "id": "spark-repair-directly",
+      "skill_id": "bagakit-spark",
+      "prompt": "The user says the previous Spark question was weak because local evidence already answered it.",
+      "expected_outcome": "Acknowledge the protocol miss, inspect or use the available evidence, and present the corrected next action in the same turn.",
+      "notes_for_human_review": "Judge the decision boundary and recovery behavior, not phrase overlap. Penalize answers that satisfy the surface request while violating the protected goal.",
+      "tags": [
+        "serious-moment",
+        "sanitized",
+        "pilot"
+      ],
+      "risk_tags": [],
+      "dimensions": [
+        "protocol-recovery"
+      ],
+      "goal_dimensions": [
+        "protocol-recovery"
+      ],
+      "polarity": "should",
+      "success_evidence": [
+        "The response repairs the missed route without asking permission to repair it."
+      ],
+      "guard_ids": [
+        "repair-protocol-failure-directly"
+      ],
+      "provenance": {
+        "source_class": "sanitized_user_correction",
+        "evidence_ref": "local-research:skill-serious-moment-cases#spark-repair-directly"
+      },
+      "privacy": {
+        "class": "internal_sanitized",
+        "sanitized": true,
+        "raw_transcript_included": false
+      },
+      "grader": {
+        "type": "outcome",
+        "rubric_id": "bagakit-spark-serious-moment-v1",
+        "calibration_status": "not_required",
+        "calibration_evidence": [
+          "gate_eval/skills/harness/bagakit-spark/cases/pilot-calibration.md"
+        ],
+        "transfer_limit": "Transfer only the decision boundary; do not require the original wording, project, or domain."
+      },
+      "lifecycle": {
+        "stage": "capability"
+      },
+      "trials": {
+        "count": 3,
+        "min_pass_rate": 0.67,
+        "reliability_metric": "case_pass_rate"
+      },
+      "split": "baseline"
+    },
+    {
+      "id": "spark-no-premature-closure",
+      "skill_id": "bagakit-spark",
+      "prompt": "After two brief agreements, the agent believes the discussion is sufficient. The user has not accepted a snapshot or asked to end.",
+      "expected_outcome": "Do not close; surface the inferred principle and one adjacent branch, then ask converge, switch, or correct.",
+      "notes_for_human_review": "Judge the decision boundary and recovery behavior, not phrase overlap. Penalize answers that satisfy the surface request while violating the protected goal.",
+      "tags": [
+        "serious-moment",
+        "sanitized",
+        "pilot"
+      ],
+      "risk_tags": [
+        "negative-case"
+      ],
+      "dimensions": [
+        "premature-closure"
+      ],
+      "goal_dimensions": [
+        "premature-closure"
+      ],
+      "polarity": "should_not",
+      "success_evidence": [
+        "The response contains convergence pressure rather than an unrequested completion claim."
+      ],
+      "guard_ids": [
+        "no-premature-closure"
+      ],
+      "provenance": {
+        "source_class": "sanitized_user_correction",
+        "evidence_ref": "local-research:skill-serious-moment-cases#spark-no-premature-closure"
+      },
+      "privacy": {
+        "class": "internal_sanitized",
+        "sanitized": true,
+        "raw_transcript_included": false
+      },
+      "grader": {
+        "type": "outcome",
+        "rubric_id": "bagakit-spark-serious-moment-v1",
+        "calibration_status": "not_required",
+        "calibration_evidence": [
+          "gate_eval/skills/harness/bagakit-spark/cases/pilot-calibration.md"
+        ],
+        "transfer_limit": "Transfer only the decision boundary; do not require the original wording, project, or domain."
+      },
+      "lifecycle": {
+        "stage": "capability"
+      },
+      "trials": {
+        "count": 3,
+        "min_pass_rate": 0.67,
+        "reliability_metric": "case_pass_rate"
+      },
+      "split": "holdout"
+    },
+    {
+      "id": "spark-no-performative-user-model",
+      "skill_id": "bagakit-spark",
+      "prompt": "The agent has inferred a detailed user profile, but none of it changes the next question or explanation.",
+      "expected_outcome": "Keep the model internal and ask or act on the decision boundary instead of displaying a status-style profile.",
+      "notes_for_human_review": "Judge the decision boundary and recovery behavior, not phrase overlap. Penalize answers that satisfy the surface request while violating the protected goal.",
+      "tags": [
+        "serious-moment",
+        "sanitized",
+        "pilot"
+      ],
+      "risk_tags": [
+        "negative-case"
+      ],
+      "dimensions": [
+        "user-model-utility"
+      ],
+      "goal_dimensions": [
+        "user-model-utility"
+      ],
+      "polarity": "should_not",
+      "success_evidence": [
+        "No decorative user-model report appears unless it changes the next move."
+      ],
+      "guard_ids": [
+        "no-performative-user-model"
+      ],
+      "provenance": {
+        "source_class": "sanitized_user_correction",
+        "evidence_ref": "local-research:skill-serious-moment-cases#spark-no-performative-user-model"
+      },
+      "privacy": {
+        "class": "internal_sanitized",
+        "sanitized": true,
+        "raw_transcript_included": false
+      },
+      "grader": {
+        "type": "outcome",
+        "rubric_id": "bagakit-spark-serious-moment-v1",
+        "calibration_status": "not_required",
+        "calibration_evidence": [
+          "gate_eval/skills/harness/bagakit-spark/cases/pilot-calibration.md"
+        ],
+        "transfer_limit": "Transfer only the decision boundary; do not require the original wording, project, or domain."
+      },
+      "lifecycle": {
+        "stage": "capability"
+      },
+      "trials": {
+        "count": 3,
+        "min_pass_rate": 0.67,
+        "reliability_metric": "case_pass_rate"
+      },
+      "split": "baseline"
+    }
+  ]
+}
