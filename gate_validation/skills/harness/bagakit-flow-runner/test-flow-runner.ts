@@ -11,6 +11,7 @@ import {
   appendCheckpoint,
   applyFlowRunner,
   archiveItem,
+  captureSnapshot,
   computeNextAction,
   computeResumeCandidates,
   createManualItem,
@@ -40,6 +41,10 @@ function initGitRepo(root: string): void {
   fs.writeFileSync(path.join(root, "README.md"), "# demo\n", "utf8");
   run(["add", "README.md"]);
   run(["commit", "-q", "-m", "init"]);
+}
+
+function writeExecutable(filePath: string, content: string): void {
+  fs.writeFileSync(filePath, content, { encoding: "utf8", mode: 0o755 });
 }
 
 function writeJson(filePath: string, value: unknown): void {
@@ -91,6 +96,10 @@ test("manual item next/checkpoint/archive flow stays coherent", () => {
   try {
     initGitRepo(root);
     applyFlowRunner(root, skillDir);
+    const surfaceText = fs.readFileSync(path.join(root, ".bagakit", "flow-runner", "surface.toml"), "utf8");
+    assert.match(surfaceText, new RegExp("^schema_version = 1$", "m"));
+    assert.match(surfaceText, new RegExp('^surface_root = "\\.bagakit/flow-runner"$', "m"));
+    assert.match(surfaceText, new RegExp('^owner_id = "bagakit-flow-runner"$', "m"));
     createManualItem(root, skillDir, "demo", "Demo item", "manual", "manual:demo", 100, 0.8);
 
     const nextPayload = computeNextAction(root);
@@ -159,6 +168,70 @@ test("manual item next/checkpoint/archive flow stays coherent", () => {
     assert.equal(receipts.at(-1)?.authority, "runner_local");
     assert.deepEqual(validateFlowRunner(root), []);
   } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("snapshot archives stable untracked paths when a listed path vanishes", () => {
+  const root = makeTempRepo();
+  const originalPath = process.env.PATH;
+  try {
+    initGitRepo(root);
+    applyFlowRunner(root, skillDir);
+    createManualItem(root, skillDir, "snapshot-demo", "Snapshot demo", "manual", "manual:snapshot", 100, 0.8);
+
+    fs.writeFileSync(path.join(root, "kept file.txt"), "kept\n", "utf8");
+    fs.writeFileSync(path.join(root, "line\nbreak.txt"), "newline\n", "utf8");
+    fs.writeFileSync(path.join(root, "vanishing.txt"), "transient\n", "utf8");
+    fs.symlinkSync("kept file.txt", path.join(root, "kept-link"));
+
+    const shimDir = path.join(root, ".snapshot-command-shims");
+    fs.mkdirSync(shimDir);
+    const realGit = spawnSync("sh", ["-c", "command -v git"], { encoding: "utf8" }).stdout.trim();
+    const realTar = spawnSync("sh", ["-c", "command -v tar"], { encoding: "utf8" }).stdout.trim();
+    assert.ok(realGit);
+    assert.ok(realTar);
+    writeExecutable(path.join(shimDir, "git"), `#!/bin/sh
+"$SNAPSHOT_REAL_GIT" "$@"
+exit_code=$?
+for arg in "$@"; do
+  if [ "$arg" = "ls-files" ]; then
+    rm -f "$SNAPSHOT_DELETE_PATH"
+    break
+  fi
+done
+exit "$exit_code"
+`);
+    writeExecutable(path.join(shimDir, "tar"), `#!/bin/sh
+if [ "\${COPYFILE_DISABLE:-}" != "1" ]; then
+  echo "COPYFILE_DISABLE was not set" >&2
+  exit 42
+fi
+exec "$SNAPSHOT_REAL_TAR" "$@"
+`);
+    process.env.PATH = `${shimDir}${path.delimiter}${originalPath ?? ""}`;
+    process.env.SNAPSHOT_REAL_GIT = realGit;
+    process.env.SNAPSHOT_REAL_TAR = realTar;
+    process.env.SNAPSHOT_DELETE_PATH = path.join(root, "vanishing.txt");
+
+    const metadata = captureSnapshot(root, "snapshot-demo", "race-safe");
+    assert.equal(metadata.has_untracked_archive, true);
+    assert.equal(fs.existsSync(path.join(root, "vanishing.txt")), false);
+
+    const archivePath = path.join(root, ".bagakit", "flow-runner", "backups", metadata.snapshot_id, "untracked.tar");
+    const extractDir = path.join(root, ".snapshot-extract");
+    fs.mkdirSync(extractDir);
+    const extract = spawnSync(realTar, ["-xf", archivePath, "-C", extractDir], { encoding: "utf8" });
+    assert.equal(extract.status, 0, extract.stderr || extract.stdout);
+    assert.equal(fs.readFileSync(path.join(extractDir, "kept file.txt"), "utf8"), "kept\n");
+    assert.equal(fs.readFileSync(path.join(extractDir, "line\nbreak.txt"), "utf8"), "newline\n");
+    assert.equal(fs.readlinkSync(path.join(extractDir, "kept-link")), "kept file.txt");
+    assert.equal(fs.existsSync(path.join(extractDir, "vanishing.txt")), false);
+  } finally {
+    process.env.PATH = originalPath;
+    delete process.env.SNAPSHOT_REAL_GIT;
+    delete process.env.SNAPSHOT_REAL_TAR;
+    delete process.env.SNAPSHOT_DELETE_PATH;
     fs.rmSync(root, { recursive: true, force: true });
   }
 });

@@ -15,6 +15,10 @@ export class FlowRunnerPaths {
     return path.join(this.runnerDir, "policy.json");
   }
 
+  get surfaceFile(): string {
+    return path.join(this.runnerDir, "surface.toml");
+  }
+
   get recipeFile(): string {
     return path.join(this.runnerDir, "recipe.json");
   }

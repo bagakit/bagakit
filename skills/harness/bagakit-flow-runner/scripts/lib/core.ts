@@ -60,6 +60,29 @@ import {
 } from "./io.ts";
 import { FlowRunnerPaths } from "./paths.ts";
 
+const FLOW_RUNNER_SURFACE_TOML = `schema_version = 1
+surface_id = "flow-runner-runtime"
+surface_root = ".bagakit/flow-runner"
+owner_kind = "skill"
+owner_id = "bagakit-flow-runner"
+lifecycle_class = "durable_state"
+edit_policy = "mixed"
+cleanup_safe = false
+source_of_truth = [
+  "docs/specs/runtime-surface-contract.md",
+  "docs/specs/flow-runner-contract.md",
+  "skills/harness/bagakit-flow-runner/SKILL.md",
+  "skills/harness/bagakit-flow-runner/README.md",
+]
+reviewable_outputs = [
+  "items/<item-id>/state.json",
+  "items/<item-id>/checkpoints.ndjson",
+  "items/<item-id>/progress.ndjson",
+  "items/<item-id>/mutation-receipts.ndjson",
+  "archive/<item-id>/",
+]
+`;
+
 function assertBoolean(value: unknown, label: string): boolean {
   if (typeof value !== "boolean") {
     throw new Error(`${label} must be a boolean`);
@@ -251,6 +274,9 @@ export function applyFlowRunner(root: string, skillDir: string): string {
   fs.mkdirSync(paths.itemsDir, { recursive: true });
   fs.mkdirSync(paths.archiveDir, { recursive: true });
   fs.mkdirSync(paths.backupsDir, { recursive: true });
+  if (!fs.existsSync(paths.surfaceFile)) {
+    writeText(paths.surfaceFile, FLOW_RUNNER_SURFACE_TOML);
+  }
   copyTemplateIfMissing(skillDir, "runner-policy-template.json", paths.policyFile);
   copyTemplateIfMissing(skillDir, "loop-recipe-template.json", paths.recipeFile);
   if (!fs.existsSync(path.join(paths.runnerDir, ".gitignore"))) {
@@ -663,6 +689,86 @@ export function listItemSummaries(root: string): ResumeCandidate[] {
   return listItemStates(paths).map((state) => resumeCandidateFromState(paths, state));
 }
 
+function isVanishedPathError(error: unknown): boolean {
+  if (!error || typeof error !== "object" || !("code" in error)) {
+    return false;
+  }
+  return error.code === "ENOENT" || error.code === "ENOTDIR";
+}
+
+function assertSnapshotRelativePath(root: string, relativePath: string): void {
+  const resolvedRoot = path.resolve(root);
+  const resolvedPath = path.resolve(root, relativePath);
+  if (resolvedPath === resolvedRoot || !resolvedPath.startsWith(`${resolvedRoot}${path.sep}`)) {
+    throw new Error(`git returned an unsafe untracked path: ${relativePath}`);
+  }
+}
+
+function stageUntrackedPath(root: string, stagingDir: string, relativePath: string): boolean {
+  assertSnapshotRelativePath(root, relativePath);
+  const sourcePath = path.join(root, relativePath);
+  const stagedPath = path.join(stagingDir, relativePath);
+  try {
+    const sourceStat = fs.lstatSync(sourcePath);
+    fs.mkdirSync(path.dirname(stagedPath), { recursive: true });
+    if (sourceStat.isSymbolicLink()) {
+      fs.symlinkSync(fs.readlinkSync(sourcePath), stagedPath);
+    } else if (sourceStat.isDirectory()) {
+      fs.cpSync(sourcePath, stagedPath, {
+        dereference: false,
+        preserveTimestamps: true,
+        recursive: true,
+        verbatimSymlinks: true,
+      });
+    } else if (sourceStat.isFile()) {
+      fs.copyFileSync(sourcePath, stagedPath, fs.constants.COPYFILE_FICLONE);
+      fs.chmodSync(stagedPath, sourceStat.mode);
+      fs.utimesSync(stagedPath, sourceStat.atime, sourceStat.mtime);
+    } else {
+      throw new Error(`unsupported untracked path type: ${relativePath}`);
+    }
+    return true;
+  } catch (error) {
+    if (!isVanishedPathError(error)) {
+      throw error;
+    }
+    fs.rmSync(stagedPath, { recursive: true, force: true });
+    return false;
+  }
+}
+
+function archiveUntrackedPaths(root: string, snapshotDir: string, untracked: string[]): boolean {
+  if (untracked.length === 0) {
+    return false;
+  }
+  const stagingDir = path.join(snapshotDir, ".untracked-stage");
+  fs.mkdirSync(stagingDir, { recursive: false });
+  try {
+    const stagedCount = untracked.reduce(
+      (count, relativePath) => count + (stageUntrackedPath(root, stagingDir, relativePath) ? 1 : 0),
+      0,
+    );
+    if (stagedCount === 0) {
+      return false;
+    }
+    const tarPath = path.join(snapshotDir, "untracked.tar");
+    const result = spawnSync("tar", ["-cf", tarPath, "-C", stagingDir, "."], {
+      cwd: root,
+      encoding: "utf8",
+      env: {
+        ...process.env,
+        COPYFILE_DISABLE: "1",
+      },
+    });
+    if (result.status !== 0) {
+      throw new Error((result.stderr || result.stdout || "tar failed").trim());
+    }
+    return true;
+  } finally {
+    fs.rmSync(stagingDir, { recursive: true, force: true });
+  }
+}
+
 export function captureSnapshot(root: string, itemId: string, label: string): SnapshotMetadata {
   ensureGitRepo(root);
   const paths = new FlowRunnerPaths(root);
@@ -681,17 +787,10 @@ export function captureSnapshot(root: string, itemId: string, label: string): Sn
   writeText(path.join(snapshotDir, "diff.patch"), runGit(root, ["diff"]));
   writeText(path.join(snapshotDir, "staged.patch"), runGit(root, ["diff", "--staged"]));
 
-  const untracked = runGit(root, ["ls-files", "--others", "--exclude-standard"])
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter((line) => line.length > 0);
-  if (untracked.length > 0) {
-    const tarPath = path.join(snapshotDir, "untracked.tar");
-    const result = spawnSync("tar", ["-cf", tarPath, ...untracked], { cwd: root, encoding: "utf8" });
-    if (result.status !== 0) {
-      throw new Error((result.stderr || result.stdout || "tar failed").trim());
-    }
-  }
+  const untracked = runGit(root, ["ls-files", "-z", "--others", "--exclude-standard"])
+    .split("\0")
+    .filter((entry) => entry.length > 0);
+  const hasUntrackedArchive = archiveUntrackedPaths(root, snapshotDir, untracked);
 
   const metadata: SnapshotMetadata = {
     schema: SNAPSHOT_SCHEMA,
@@ -701,7 +800,7 @@ export function captureSnapshot(root: string, itemId: string, label: string): Sn
     label: safeLabel,
     branch,
     head,
-    has_untracked_archive: untracked.length > 0,
+    has_untracked_archive: hasUntrackedArchive,
   };
   writeJsonFile(path.join(snapshotDir, "metadata.json"), metadata);
 
@@ -1050,6 +1149,9 @@ export function validateFlowRunner(root: string): string[] {
   const paths = new FlowRunnerPaths(root);
   ensureRunnerExists(paths);
   const issues: string[] = [];
+  if (!fs.existsSync(paths.surfaceFile)) {
+    issues.push(`missing flow-runner surface marker: ${paths.surfaceFile}`);
+  }
   try {
     loadPolicy(paths);
   } catch (error) {
