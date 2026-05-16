@@ -2,6 +2,9 @@
   "name": "bagakit-skills-monorepo",
   "private": true,
   "type": "module",
+  "engines": {
+    "node": ">=22.6.0"
+  },
   "devDependencies": {
     "typescript": "6.0.3"
   }

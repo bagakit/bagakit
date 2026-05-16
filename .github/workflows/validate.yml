@@ -27,4 +27,4 @@ jobs:
           node-version: "22"
 
       - name: Validate repository skeleton
-        run: bash ./scripts/validate-repo.sh
+        run: bash ./scripts/gate.sh validate

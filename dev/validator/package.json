@@ -4,6 +4,9 @@
   "version": "0.1.0",
   "type": "module",
   "description": "Config-first validation framework for the Bagakit skills monorepo.",
+  "engines": {
+    "node": ">=22.6.0"
+  },
   "scripts": {
     "check-config": "node --experimental-strip-types src/cli.ts check-config --root ../.. --config ../../gate_validation/validation.toml",
     "plan": "node --experimental-strip-types src/cli.ts plan --root ../.. --config ../../gate_validation/validation.toml",
