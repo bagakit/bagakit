@@ -1,6 +1,6 @@
 ---
 name: bagakit-researcher
-description: Use for durable local-first research evidence when a task needs more than a quick lookup: topic charter, optional survey, bounded pass or track contracts, source cards, summaries, claims, insights, leads, warning checks, and explicit handoff. Not for provider execution, report generation, subagent orchestration, or automatic promotion.
+description: "Use for durable local-first research evidence when a task needs more than a quick lookup: topic charter, optional survey, bounded pass or track contracts, source cards, summaries, claims, insights, leads, warning checks, and explicit handoff. Not for provider execution, report generation, subagent orchestration, or automatic promotion."
 metadata:
   bagakit:
     harness_layer: l2-behavior
