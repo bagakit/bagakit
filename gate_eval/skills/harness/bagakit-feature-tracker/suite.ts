@@ -93,6 +93,62 @@ function configureWorktreeSentinelGate(tempRepo: string, sentinelPath: string): 
   });
 }
 
+function writeReviewedTaskPlan(tempRepo: string, objective: string): string {
+  const planPath = path.join(tempRepo, ".bagakit", "feature-tracker", "artifacts", "reviewed-task-plan.json");
+  writeTextFile(
+    planPath,
+    `${JSON.stringify({
+      schema: "bagakit.feature-task-plan.v1",
+      review: {
+        status: "approved",
+        evidence_ref: "gate_eval/skills/harness/bagakit-feature-tracker/validation.toml",
+      },
+      source_refs: ["gate_eval/skills/harness/bagakit-feature-tracker/suite.ts"],
+      tasks: [
+        {
+          id: "T-001",
+          title: "Execute reviewed eval task",
+          objective,
+          outcome: "The eval exercises public lifecycle behavior from reviewed task truth.",
+          acceptance: ["The case reaches its expected public lifecycle state."],
+          verification: [
+            {
+              kind: "command",
+              ref: "gate_eval/skills/harness/bagakit-feature-tracker/validation.toml",
+              proves: "The deterministic eval case exercises the intended public boundary.",
+            },
+          ],
+          source_refs: ["gate_eval/skills/harness/bagakit-feature-tracker/suite.ts"],
+          supersedes: [],
+        },
+      ],
+    }, null, 2)}\n`,
+  );
+  return planPath;
+}
+
+function completeReviewedFeature(
+  script: string,
+  repoRoot: string,
+  tempRepo: string,
+  replacements: { from: string; to: string }[],
+  featId: string,
+  planPath: string,
+): void {
+  expectOk(runCommand("bash", [script, "set-task-plan", "--root", tempRepo, "--feature", featId, "--tasks-file", planPath, "--expected-revision", "0"], { cwd: repoRoot, replacements }), "set-task-plan");
+  expectOk(runCommand("bash", [script, "assign-feature-workspace", "--root", tempRepo, "--feature", featId, "--workspace-mode", "current_tree"], { cwd: repoRoot, replacements }), "assign-feature-workspace");
+  writeRuntimePolicy(tempRepo, (policy) => {
+    const gate = (policy.gate && typeof policy.gate === "object" ? policy.gate : {}) as Record<string, unknown>;
+    gate.project_type = "non_ui";
+    gate.verification_policy = "never";
+    gate.non_ui_commands = ["true"];
+    policy.gate = gate;
+  });
+  expectOk(runCommand("bash", [script, "start-task", "--root", tempRepo, "--feature", featId, "--task", "T-001"], { cwd: repoRoot, replacements }), "start-task");
+  expectOk(runCommand("bash", [script, "run-task-gate", "--root", tempRepo, "--feature", featId, "--task", "T-001"], { cwd: repoRoot, replacements }), "run-task-gate");
+  expectOk(runCommand("bash", [script, "finish-task", "--root", tempRepo, "--feature", featId, "--task", "T-001", "--result", "done"], { cwd: repoRoot, replacements }), "finish-task");
+}
+
 export const SUITE: EvalSuiteDefinition = {
   id: "bagakit-feature-tracker-shared-runner-eval",
   owner: "gate_eval/skills/harness/bagakit-feature-tracker",
@@ -124,6 +180,8 @@ export const SUITE: EvalSuiteDefinition = {
             "create-feature",
           );
           const featId = featureId(tempRepo);
+          const planPath = writeReviewedTaskPlan(tempRepo, "Project the active eval task from reviewed semantic truth.");
+          expectOk(runCommand("bash", [script, "set-task-plan", "--root", tempRepo, "--feature", featId, "--tasks-file", planPath, "--expected-revision", "0"], { cwd: repoRoot, replacements }), "set-task-plan");
           expectOk(runCommand("bash", [script, "assign-feature-workspace", "--root", tempRepo, "--feature", featId, "--workspace-mode", "current_tree"], { cwd: repoRoot, replacements }), "assign-feature-workspace");
           expectOk(runCommand("bash", [script, "start-task", "--root", tempRepo, "--feature", featId, "--task", "T-001"], { cwd: repoRoot, replacements }), "start-task");
           expectOk(runCommand("bash", [script, "replan-features", "--root", tempRepo, "--json"], { cwd: repoRoot, replacements }), "replan-features");
@@ -221,10 +279,11 @@ export const SUITE: EvalSuiteDefinition = {
 
           expectOk(runCommand("bash", [script, "check-reference-readiness", "--root", tempRepo], { cwd: repoRoot, replacements }), "check-reference-readiness");
           expectOk(runCommand("bash", [script, "initialize-tracker", "--root", tempRepo], { cwd: repoRoot, replacements }), "initialize-tracker");
+          const planPath = writeReviewedTaskPlan(tempRepo, "Exercise worktree execution from reviewed semantic task truth.");
           expectOk(
             runCommand(
               "bash",
-              [script, "create-feature", "--root", tempRepo, "--title", "Worktree gate feature", "--slug", "worktree-gate-feature", "--goal", "Run gate from the feature worktree", "--workspace-mode", "worktree"],
+              [script, "create-feature", "--root", tempRepo, "--title", "Worktree gate feature", "--slug", "worktree-gate-feature", "--goal", "Run gate from the feature worktree", "--workspace-mode", "worktree", "--tasks-file", planPath],
               { cwd: repoRoot, replacements },
             ),
             "create worktree gate feature",
@@ -250,7 +309,7 @@ export const SUITE: EvalSuiteDefinition = {
           expectOk(
             runCommand(
               "bash",
-              [script, "create-feature", "--root", tempRepo, "--title", "Worktree commit feature", "--slug", "worktree-commit-feature", "--goal", "Commit from the feature worktree branch", "--workspace-mode", "worktree"],
+              [script, "create-feature", "--root", tempRepo, "--title", "Worktree commit feature", "--slug", "worktree-commit-feature", "--goal", "Commit from the feature worktree branch", "--workspace-mode", "worktree", "--tasks-file", planPath],
               { cwd: repoRoot, replacements },
             ),
             "create worktree commit feature",
@@ -420,9 +479,9 @@ export const SUITE: EvalSuiteDefinition = {
                 ".bagakit/brainstorm/archive/eval/outcome_and_handoff.md",
               ],
               source_refs: [
-                "input_and_qa.md#Q-001",
-                "expert_forum.md#Decision-Target-And-Exit",
-                "outcome_and_handoff.md#Outcome-Summary",
+                ".bagakit/brainstorm/archive/eval/input_and_qa.md#Q-001",
+                ".bagakit/brainstorm/archive/eval/expert_forum.md#Decision-Target-And-Exit",
+                ".bagakit/brainstorm/archive/eval/outcome_and_handoff.md#Outcome-Summary",
               ],
             }, null, 2)}\n`,
           );
@@ -488,6 +547,7 @@ export const SUITE: EvalSuiteDefinition = {
           const script = path.join(repoRoot, "skills", "harness", "bagakit-feature-tracker", "scripts", "feature-tracker.sh");
           expectOk(runCommand("bash", [script, "check-reference-readiness", "--root", tempRepo], { cwd: repoRoot, replacements }), "check-reference-readiness");
           expectOk(runCommand("bash", [script, "initialize-tracker", "--root", tempRepo], { cwd: repoRoot, replacements }), "initialize-tracker");
+          const planPath = writeReviewedTaskPlan(tempRepo, "Exercise graph-mutation preflight from reviewed task truth.");
           expectOk(runCommand("bash", [script, "create-feature", "--root", tempRepo, "--title", "Boundary feature", "--slug", "boundary-feature", "--goal", "Block graph changes", "--workspace-mode", "proposal_only"], { cwd: repoRoot, replacements }), "create-feature boundary");
           expectOk(runCommand("bash", [script, "create-feature", "--root", tempRepo, "--title", "Archive blocked feature", "--slug", "archive-blocked-feature", "--goal", "Archive should preflight graph", "--workspace-mode", "proposal_only"], { cwd: repoRoot, replacements }), "create-feature archive target");
           expectOk(runCommand("bash", [script, "create-feature", "--root", tempRepo, "--title", "Discard blocked feature", "--slug", "discard-blocked-feature", "--goal", "Discard should preflight graph", "--workspace-mode", "proposal_only"], { cwd: repoRoot, replacements }), "create-feature discard target");
@@ -495,9 +555,7 @@ export const SUITE: EvalSuiteDefinition = {
           const boundaryId = featureIdByTitle(tempRepo, "Boundary feature");
           const archiveBlockedId = featureIdByTitle(tempRepo, "Archive blocked feature");
           const discardBlockedId = featureIdByTitle(tempRepo, "Discard blocked feature");
-          updateFeatureState(tempRepo, archiveBlockedId, (state) => {
-            state.status = "done";
-          });
+          completeReviewedFeature(script, repoRoot, tempRepo, replacements, archiveBlockedId, planPath);
           updateFeatureState(tempRepo, boundaryId, (state) => {
             state.depends_on = [boundaryId];
           });
@@ -505,7 +563,7 @@ export const SUITE: EvalSuiteDefinition = {
           const featureCountBefore = featureCount(tempRepo);
           const worktreesBefore = gitWorktreeCount(tempRepo, replacements);
 
-          const failedCreate = runCommand("bash", [script, "create-feature", "--root", tempRepo, "--title", "Blocked create feature", "--slug", "blocked-create-feature", "--goal", "Create should preflight graph", "--workspace-mode", "worktree"], { cwd: repoRoot, replacements });
+          const failedCreate = runCommand("bash", [script, "create-feature", "--root", tempRepo, "--title", "Blocked create feature", "--slug", "blocked-create-feature", "--goal", "Create should preflight graph", "--workspace-mode", "worktree", "--tasks-file", planPath], { cwd: repoRoot, replacements });
           expectFail(failedCreate, "create-feature preflight");
           assert.ok(failedCreate.stderr.includes("feat cannot depend on itself"));
           assert.equal(featureCount(tempRepo), featureCountBefore);
@@ -524,7 +582,7 @@ export const SUITE: EvalSuiteDefinition = {
           assert.equal(fs.existsSync(path.join(tempRepo, ".bagakit", "feature-tracker", "features-discarded", discardBlockedId)), false);
 
           updateFeatureState(tempRepo, boundaryId, (state) => {
-            state.depends_on = [];
+            delete state.depends_on;
           });
           expectOk(runCommand("bash", [script, "replan-features", "--root", tempRepo], { cwd: repoRoot, replacements }), "replan after invalid graph");
 
@@ -533,7 +591,7 @@ export const SUITE: EvalSuiteDefinition = {
           const featureCountBeforeMissingDag = featureCount(tempRepo);
           const worktreesBeforeMissingDag = gitWorktreeCount(tempRepo, replacements);
 
-          const missingDagCreate = runCommand("bash", [script, "create-feature", "--root", tempRepo, "--title", "Blocked create by missing dag", "--slug", "blocked-create-by-missing-dag", "--goal", "Create should fail before mutation when dag is missing", "--workspace-mode", "worktree"], { cwd: repoRoot, replacements });
+          const missingDagCreate = runCommand("bash", [script, "create-feature", "--root", tempRepo, "--title", "Blocked create by missing dag", "--slug", "blocked-create-by-missing-dag", "--goal", "Create should fail before mutation when dag is missing", "--workspace-mode", "worktree", "--tasks-file", planPath], { cwd: repoRoot, replacements });
           expectFail(missingDagCreate, "create-feature missing dag");
           assert.ok(missingDagCreate.stderr.includes("dag file missing"));
           assert.equal(featureCount(tempRepo), featureCountBeforeMissingDag);
@@ -556,7 +614,7 @@ export const SUITE: EvalSuiteDefinition = {
           const featureCountBeforeUnwritableDag = featureCount(tempRepo);
           const worktreesBeforeUnwritableDag = gitWorktreeCount(tempRepo, replacements);
 
-          const unwritableDagCreate = runCommand("bash", [script, "create-feature", "--root", tempRepo, "--title", "Blocked create by unwritable dag", "--slug", "blocked-create-by-unwritable-dag", "--goal", "Create should fail before mutation when dag is not writable", "--workspace-mode", "worktree"], { cwd: repoRoot, replacements });
+          const unwritableDagCreate = runCommand("bash", [script, "create-feature", "--root", tempRepo, "--title", "Blocked create by unwritable dag", "--slug", "blocked-create-by-unwritable-dag", "--goal", "Create should fail before mutation when dag is not writable", "--workspace-mode", "worktree", "--tasks-file", planPath], { cwd: repoRoot, replacements });
           expectFail(unwritableDagCreate, "create-feature unwritable dag");
           assert.ok(unwritableDagCreate.stderr.includes("dag target is not writable"));
           assert.equal(featureCount(tempRepo), featureCountBeforeUnwritableDag);
@@ -581,7 +639,7 @@ export const SUITE: EvalSuiteDefinition = {
           const featureCountBeforeSymlinkDag = featureCount(tempRepo);
           const worktreesBeforeSymlinkDag = gitWorktreeCount(tempRepo, replacements);
 
-          const symlinkDagCreate = runCommand("bash", [script, "create-feature", "--root", tempRepo, "--title", "Blocked create by dag symlink", "--slug", "blocked-create-by-dag-symlink", "--goal", "Create should fail before mutation when dag path is a symlink", "--workspace-mode", "worktree"], { cwd: repoRoot, replacements });
+          const symlinkDagCreate = runCommand("bash", [script, "create-feature", "--root", tempRepo, "--title", "Blocked create by dag symlink", "--slug", "blocked-create-by-dag-symlink", "--goal", "Create should fail before mutation when dag path is a symlink", "--workspace-mode", "worktree", "--tasks-file", planPath], { cwd: repoRoot, replacements });
           expectFail(symlinkDagCreate, "create-feature symlink dag");
           assert.ok(symlinkDagCreate.stderr.includes("dag target is not a regular file"));
           assert.equal(featureCount(tempRepo), featureCountBeforeSymlinkDag);

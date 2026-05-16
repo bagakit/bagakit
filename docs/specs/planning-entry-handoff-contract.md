@@ -111,7 +111,7 @@ Current normalized payload shape:
       "A similar handoff without approval must not be materialized."
     ],
     "evidence_refs": [
-      "input_and_qa.md#Q-001"
+      ".bagakit/brainstorm/archive/brainstorm-new-feature/input_and_qa.md#Q-001"
     ]
   },
   "success_criteria": [
@@ -133,9 +133,9 @@ Current normalized payload shape:
     ".bagakit/brainstorm/archive/brainstorm-new-feature/outcome_and_handoff.md"
   ],
   "source_refs": [
-    "input_and_qa.md#Q-001",
-    "expert_forum.md#Decision-Target-And-Exit",
-    "outcome_and_handoff.md#Outcome-Summary"
+    ".bagakit/brainstorm/archive/brainstorm-new-feature/input_and_qa.md#Q-001",
+    ".bagakit/brainstorm/archive/brainstorm-new-feature/expert_forum.md#Decision-Target-And-Exit",
+    ".bagakit/brainstorm/archive/brainstorm-new-feature/outcome_and_handoff.md#Outcome-Summary"
   ]
 }
 ```
@@ -166,8 +166,19 @@ Optional fields:
   - when present, follows `docs/specs/principle-layer-contract.md`
   - consumers may derive a fallback principle layer from required fields when
     older `v1` handoffs omit it
+- `task_plan`
+  - when present, follows `bagakit.feature-task-plan.v1` from
+    `docs/specs/feature-tracker-contract.md`
+  - the approved handoff itself is the review evidence for the embedded plan
+  - absence means Feature Tracker may materialize proposal truth only, not
+    executable placeholder tasks
 
 Normalized handoffs intentionally omit action-time fields.
+
+All artifact, source, evidence, review, and verification references in the
+handoff or embedded task plan must be portable repo-relative paths. URI paths,
+absolute paths, UNC paths, drive-qualified paths, and repository escape are
+invalid.
 
 ## Field Rules
 
@@ -299,6 +310,11 @@ After successful materialization:
 - downstream tooling may update the handoff `status` to `applied`
 - tracker truth becomes canonical planning truth
 - the handoff remains an exchange record, not the new owner
+
+If the approved handoff has no `task_plan`, Feature Tracker must materialize a
+`proposal` feature in `proposal_only` workspace mode. Workspace assignment and
+task start remain blocked until `set-task-plan` records reviewed semantic task
+truth.
 
 ## Execution Boundary Rule
 

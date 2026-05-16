@@ -17,8 +17,11 @@ done
 
 ROOT="$(cd "$ROOT" && pwd)"
 SKILL_DIR="$ROOT/skills/harness/bagakit-feature-tracker"
+LIB_DIR="$ROOT/gate_validation/skills/harness/bagakit-feature-tracker/lib"
 TMP_DIR="$(mktemp -d)"
 trap 'rm -rf "$TMP_DIR"' EXIT
+
+source "$LIB_DIR/feature-tracker-testlib.sh"
 
 git -C "$TMP_DIR" init -q -b main
 git -C "$TMP_DIR" config user.name "Bagakit"
@@ -34,6 +37,8 @@ mkdir -p "$TMP_DIR/docs/.bagakit/inbox"
 
 bash "$SKILL_DIR/scripts/feature-tracker.sh" check-reference-readiness --root "$TMP_DIR" >/dev/null
 bash "$SKILL_DIR/scripts/feature-tracker.sh" initialize-tracker --root "$TMP_DIR" >/dev/null
+TASK_PLAN_JSON="$TMP_DIR/.bagakit/feature-tracker/artifacts/reviewed-task-plan.json"
+feature_tracker_write_reviewed_task_plan "$TASK_PLAN_JSON" "Exercise the regression scenario through reviewed task truth."
 bash "$SKILL_DIR/scripts/feature-tracker.sh" create-feature --root "$TMP_DIR" --title "Archive feature" --slug "archive-feature" --goal "Archive cleanly" --workspace-mode proposal_only >/dev/null
 bash "$SKILL_DIR/scripts/feature-tracker.sh" create-feature --root "$TMP_DIR" --title "Archive feature preexisting" --slug "archive-feature-preexisting" --goal "Archive without touching legacy inbox files" --workspace-mode proposal_only >/dev/null
 
@@ -64,18 +69,8 @@ PY
 ARCHIVE_FEATURE_ID="$(printf '%s\n' "$ARCHIVE_FEATURE_IDS" | sed -n '1p')"
 PREEXISTING_FEATURE_ID="$(printf '%s\n' "$ARCHIVE_FEATURE_IDS" | sed -n '2p')"
 
-python3 - "$TMP_DIR" "$ARCHIVE_FEATURE_ID" "$PREEXISTING_FEATURE_ID" <<'PY'
-import json
-import sys
-from pathlib import Path
-
-root = Path(sys.argv[1])
-for feature_id in (sys.argv[2], sys.argv[3]):
-    state_path = root / ".bagakit" / "feature-tracker" / "features" / feature_id / "state.json"
-    state = json.loads(state_path.read_text(encoding="utf-8"))
-    state["status"] = "done"
-    state_path.write_text(json.dumps(state, indent=2) + "\n", encoding="utf-8")
-PY
+feature_tracker_complete_reviewed_feature "$TMP_DIR" "$SKILL_DIR" "$ARCHIVE_FEATURE_ID" "$TASK_PLAN_JSON"
+feature_tracker_complete_reviewed_feature "$TMP_DIR" "$SKILL_DIR" "$PREEXISTING_FEATURE_ID" "$TASK_PLAN_JSON"
 
 bash "$SKILL_DIR/scripts/feature-tracker.sh" archive-feature --root "$TMP_DIR" --feature "$ARCHIVE_FEATURE_ID" >/dev/null
 test ! -e "$TMP_DIR/docs/.bagakit/inbox/decision-$ARCHIVE_FEATURE_ID.md"
@@ -126,19 +121,12 @@ else:
     raise SystemExit("dirty current_tree archive feature not found")
 PY
 )"
+bash "$SKILL_DIR/scripts/feature-tracker.sh" set-task-plan --root "$TMP_DIR" --feature "$DIRTY_ARCHIVE_ID" --tasks-file "$TASK_PLAN_JSON" --expected-revision 0 >/dev/null
 bash "$SKILL_DIR/scripts/feature-tracker.sh" assign-feature-workspace --root "$TMP_DIR" --feature "$DIRTY_ARCHIVE_ID" --workspace-mode current_tree >/dev/null
-python3 - "$TMP_DIR" "$DIRTY_ARCHIVE_ID" <<'PY'
-import json
-import sys
-from pathlib import Path
-
-root = Path(sys.argv[1])
-feature_id = sys.argv[2]
-state_path = root / ".bagakit" / "feature-tracker" / "features" / feature_id / "state.json"
-state = json.loads(state_path.read_text(encoding="utf-8"))
-state["status"] = "done"
-state_path.write_text(json.dumps(state, indent=2) + "\n", encoding="utf-8")
-PY
+feature_tracker_set_non_ui_gate "$TMP_DIR" "true"
+bash "$SKILL_DIR/scripts/feature-tracker.sh" start-task --root "$TMP_DIR" --feature "$DIRTY_ARCHIVE_ID" --task T-001 >/dev/null
+bash "$SKILL_DIR/scripts/feature-tracker.sh" run-task-gate --root "$TMP_DIR" --feature "$DIRTY_ARCHIVE_ID" --task T-001 >/dev/null
+bash "$SKILL_DIR/scripts/feature-tracker.sh" finish-task --root "$TMP_DIR" --feature "$DIRTY_ARCHIVE_ID" --task T-001 --result done >/dev/null
 DIRTY_ARCHIVE_OUT="$TMP_DIR/bagakit-feature-tracker-dirty-archive.out"
 DIRTY_ARCHIVE_ERR="$TMP_DIR/bagakit-feature-tracker-dirty-archive.err"
 cat > "$TMP_DIR/UNRELATED.md" <<'EOF'
@@ -215,27 +203,7 @@ PY
 ARCHIVE_BLOCKED_ID="$(printf '%s\n' "$BLOCKED_FEATURE_IDS" | sed -n '1p')"
 DISCARD_BLOCKED_ID="$(printf '%s\n' "$BLOCKED_FEATURE_IDS" | sed -n '2p')"
 
-python3 - "$TMP_DIR" "$ARCHIVE_BLOCKED_ID" <<'PY'
-import json
-import sys
-from pathlib import Path
-
-root = Path(sys.argv[1])
-feature_id = sys.argv[2]
-state_path = root / ".bagakit" / "feature-tracker" / "features" / feature_id / "state.json"
-state = json.loads(state_path.read_text(encoding="utf-8"))
-state["status"] = "done"
-state_path.write_text(json.dumps(state, indent=2) + "\n", encoding="utf-8")
-index_path = root / ".bagakit" / "feature-tracker" / "index" / "features.json"
-index_payload = json.loads(index_path.read_text(encoding="utf-8"))
-for item in index_payload.get("features", []):
-    if item.get("feat_id") == feature_id:
-        item["status"] = "done"
-        break
-else:
-    raise SystemExit("archive blocked feature missing from index")
-index_path.write_text(json.dumps(index_payload, indent=2) + "\n", encoding="utf-8")
-PY
+feature_tracker_complete_reviewed_feature "$TMP_DIR" "$SKILL_DIR" "$ARCHIVE_BLOCKED_ID" "$TASK_PLAN_JSON"
 
 FEATURE_COUNT_BEFORE="$(python3 - "$TMP_DIR" <<'PY'
 import json
@@ -262,7 +230,7 @@ state["depends_on"] = [feature_id]
 state_path.write_text(json.dumps(state, indent=2) + "\n", encoding="utf-8")
 PY
 
-if bash "$SKILL_DIR/scripts/feature-tracker.sh" create-feature --root "$TMP_DIR" --title "Blocked create feature" --slug "blocked-create-feature" --goal "Create should preflight graph" --workspace-mode worktree >/tmp/bagakit-feature-tracker-create.out 2>/tmp/bagakit-feature-tracker-create.err; then
+if bash "$SKILL_DIR/scripts/feature-tracker.sh" create-feature --root "$TMP_DIR" --title "Blocked create feature" --slug "blocked-create-feature" --goal "Create should preflight graph" --workspace-mode worktree --tasks-file "$TASK_PLAN_JSON" >/tmp/bagakit-feature-tracker-create.out 2>/tmp/bagakit-feature-tracker-create.err; then
   echo "error: create-feature unexpectedly mutated state before graph validation" >&2
   exit 1
 fi
@@ -309,7 +277,7 @@ root = Path(sys.argv[1])
 feature_id = sys.argv[2]
 state_path = root / ".bagakit" / "feature-tracker" / "features" / feature_id / "state.json"
 state = json.loads(state_path.read_text(encoding="utf-8"))
-state["depends_on"] = []
+state.pop("depends_on", None)
 state_path.write_text(json.dumps(state, indent=2) + "\n", encoding="utf-8")
 PY
 bash "$SKILL_DIR/scripts/feature-tracker.sh" replan-features --root "$TMP_DIR" >/dev/null
@@ -355,7 +323,7 @@ WORKTREE_COLLISION_NEXT_CURSOR="$(printf '%s\n' "$FEATURE_COUNT_BEFORE_WORKTREE_
 WORKTREE_COLLISION_WORKTREE_COUNT="$(git -C "$TMP_DIR" worktree list --porcelain | grep -c '^worktree ')"
 
 git -C "$TMP_DIR" branch "$WORKTREE_COLLISION_BRANCH" >/dev/null
-if bash "$SKILL_DIR/scripts/feature-tracker.sh" create-feature --root "$TMP_DIR" --title "Blocked create by branch collision" --slug "blocked-create-by-branch-collision" --goal "Reject existing branch before cursor persistence" --workspace-mode worktree >/tmp/bagakit-feature-tracker-worktree-branch.out 2>/tmp/bagakit-feature-tracker-worktree-branch.err; then
+if bash "$SKILL_DIR/scripts/feature-tracker.sh" create-feature --root "$TMP_DIR" --title "Blocked create by branch collision" --slug "blocked-create-by-branch-collision" --goal "Reject existing branch before cursor persistence" --workspace-mode worktree --tasks-file "$TASK_PLAN_JSON" >/tmp/bagakit-feature-tracker-worktree-branch.out 2>/tmp/bagakit-feature-tracker-worktree-branch.err; then
   echo "error: create-feature unexpectedly accepted colliding worktree branch" >&2
   exit 1
 fi
@@ -378,7 +346,7 @@ git -C "$TMP_DIR" branch -D "$WORKTREE_COLLISION_BRANCH" >/dev/null
 rm -f /tmp/bagakit-feature-tracker-worktree-branch.out /tmp/bagakit-feature-tracker-worktree-branch.err
 
 mkdir -p "$WORKTREE_COLLISION_PATH"
-if bash "$SKILL_DIR/scripts/feature-tracker.sh" create-feature --root "$TMP_DIR" --title "Blocked create by worktree path collision" --slug "blocked-create-by-worktree-path-collision" --goal "Reject existing worktree path before cursor persistence" --workspace-mode worktree >/tmp/bagakit-feature-tracker-worktree-path.out 2>/tmp/bagakit-feature-tracker-worktree-path.err; then
+if bash "$SKILL_DIR/scripts/feature-tracker.sh" create-feature --root "$TMP_DIR" --title "Blocked create by worktree path collision" --slug "blocked-create-by-worktree-path-collision" --goal "Reject existing worktree path before cursor persistence" --workspace-mode worktree --tasks-file "$TASK_PLAN_JSON" >/tmp/bagakit-feature-tracker-worktree-path.out 2>/tmp/bagakit-feature-tracker-worktree-path.err; then
   echo "error: create-feature unexpectedly accepted colliding worktree path" >&2
   exit 1
 fi
@@ -412,7 +380,7 @@ print(len(payload.get("features", [])))
 PY
 )"
 WORKTREE_COUNT_BEFORE_DAG_MISSING="$(git -C "$TMP_DIR" worktree list --porcelain | grep -c '^worktree ')"
-if bash "$SKILL_DIR/scripts/feature-tracker.sh" create-feature --root "$TMP_DIR" --title "Blocked create by missing dag" --slug "blocked-create-by-missing-dag" --goal "Reject missing dag target" --workspace-mode worktree >/tmp/bagakit-feature-tracker-dag-missing-create.out 2>/tmp/bagakit-feature-tracker-dag-missing-create.err; then
+if bash "$SKILL_DIR/scripts/feature-tracker.sh" create-feature --root "$TMP_DIR" --title "Blocked create by missing dag" --slug "blocked-create-by-missing-dag" --goal "Reject missing dag target" --workspace-mode worktree --tasks-file "$TASK_PLAN_JSON" >/tmp/bagakit-feature-tracker-dag-missing-create.out 2>/tmp/bagakit-feature-tracker-dag-missing-create.err; then
   echo "error: create-feature unexpectedly accepted missing dag file" >&2
   exit 1
 fi
@@ -469,7 +437,7 @@ print(len(payload.get("features", [])))
 PY
 )"
 WORKTREE_COUNT_BEFORE_DAG_SHAPE="$(git -C "$TMP_DIR" worktree list --porcelain | grep -c '^worktree ')"
-if bash "$SKILL_DIR/scripts/feature-tracker.sh" create-feature --root "$TMP_DIR" --title "Blocked create by dag shape" --slug "blocked-create-by-dag-shape" --goal "Reject directory-valued dag target" --workspace-mode worktree >/tmp/bagakit-feature-tracker-dag-shape-create.out 2>/tmp/bagakit-feature-tracker-dag-shape-create.err; then
+if bash "$SKILL_DIR/scripts/feature-tracker.sh" create-feature --root "$TMP_DIR" --title "Blocked create by dag shape" --slug "blocked-create-by-dag-shape" --goal "Reject directory-valued dag target" --workspace-mode worktree --tasks-file "$TASK_PLAN_JSON" >/tmp/bagakit-feature-tracker-dag-shape-create.out 2>/tmp/bagakit-feature-tracker-dag-shape-create.err; then
   echo "error: create-feature unexpectedly accepted directory-valued dag target" >&2
   exit 1
 fi
@@ -521,7 +489,7 @@ print(len(payload.get("features", [])))
 PY
 )"
 WORKTREE_COUNT_BEFORE_DAG_NOWRITE="$(git -C "$TMP_DIR" worktree list --porcelain | grep -c '^worktree ')"
-if bash "$SKILL_DIR/scripts/feature-tracker.sh" create-feature --root "$TMP_DIR" --title "Blocked create by unwritable dag" --slug "blocked-create-by-unwritable-dag" --goal "Reject unwritable dag target" --workspace-mode worktree >/tmp/bagakit-feature-tracker-dag-nowrite-create.out 2>/tmp/bagakit-feature-tracker-dag-nowrite-create.err; then
+if bash "$SKILL_DIR/scripts/feature-tracker.sh" create-feature --root "$TMP_DIR" --title "Blocked create by unwritable dag" --slug "blocked-create-by-unwritable-dag" --goal "Reject unwritable dag target" --workspace-mode worktree --tasks-file "$TASK_PLAN_JSON" >/tmp/bagakit-feature-tracker-dag-nowrite-create.out 2>/tmp/bagakit-feature-tracker-dag-nowrite-create.err; then
   echo "error: create-feature unexpectedly accepted unwritable dag file" >&2
   exit 1
 fi
@@ -590,7 +558,7 @@ print(len(payload.get("features", [])))
 PY
 )"
 WORKTREE_COUNT_BEFORE_DAG_SYMLINK="$(git -C "$TMP_DIR" worktree list --porcelain | grep -c '^worktree ')"
-if bash "$SKILL_DIR/scripts/feature-tracker.sh" create-feature --root "$TMP_DIR" --title "Blocked create by dag symlink" --slug "blocked-create-by-dag-symlink" --goal "Reject symlink dag target" --workspace-mode worktree >/tmp/bagakit-feature-tracker-dag-symlink-create.out 2>/tmp/bagakit-feature-tracker-dag-symlink-create.err; then
+if bash "$SKILL_DIR/scripts/feature-tracker.sh" create-feature --root "$TMP_DIR" --title "Blocked create by dag symlink" --slug "blocked-create-by-dag-symlink" --goal "Reject symlink dag target" --workspace-mode worktree --tasks-file "$TASK_PLAN_JSON" >/tmp/bagakit-feature-tracker-dag-symlink-create.out 2>/tmp/bagakit-feature-tracker-dag-symlink-create.err; then
   echo "error: create-feature unexpectedly accepted symlink dag target" >&2
   exit 1
 fi
@@ -663,6 +631,7 @@ else:
     raise SystemExit("dirty current_tree discard feature not found")
 PY
 )"
+bash "$SKILL_DIR/scripts/feature-tracker.sh" set-task-plan --root "$TMP_DIR" --feature "$DIRTY_DISCARD_ID" --tasks-file "$TASK_PLAN_JSON" --expected-revision 0 >/dev/null
 bash "$SKILL_DIR/scripts/feature-tracker.sh" assign-feature-workspace --root "$TMP_DIR" --feature "$DIRTY_DISCARD_ID" --workspace-mode current_tree >/dev/null
 cat > "$TMP_DIR/DIRTY.md" <<'EOF'
 root dirty change
@@ -751,7 +720,7 @@ root = Path(sys.argv[1])
 for feature_id in (sys.argv[2], sys.argv[3]):
     state_path = root / ".bagakit" / "feature-tracker" / "features" / feature_id / "state.json"
     state = json.loads(state_path.read_text(encoding="utf-8"))
-    state["depends_on"] = []
+    state.pop("depends_on", None)
     state_path.write_text(json.dumps(state, indent=2) + "\n", encoding="utf-8")
 PY
 cat > "$TMP_DIR/.bagakit/feature-tracker/index/FEATURES_DAG.json" <<'EOF'
@@ -921,6 +890,8 @@ else:
 PY
 )"
 
+feature_tracker_complete_reviewed_feature "$TMP_DIR" "$SKILL_DIR" "$CLOSEOUT_FEATURE_ID" "$TASK_PLAN_JSON"
+
 bash "$SKILL_DIR/scripts/feature-tracker.sh" materialize-feature-artifact --root "$TMP_DIR" --feature "$CLOSEOUT_FEATURE_ID" --kind proposal >/dev/null
 bash "$SKILL_DIR/scripts/feature-tracker.sh" materialize-feature-artifact --root "$TMP_DIR" --feature "$CLOSEOUT_FEATURE_ID" --kind verification >/dev/null
 CLOSEOUT_DIR="$TMP_DIR/.bagakit/feature-tracker/features/$CLOSEOUT_FEATURE_ID"
@@ -937,18 +908,6 @@ mkdir -p "$CLOSEOUT_DIR/notes-dir"
 cat > "$CLOSEOUT_DIR/notes-dir/notes.txt" <<'EOF'
 legacy notes
 EOF
-python3 - "$TMP_DIR" "$CLOSEOUT_FEATURE_ID" <<'PY'
-import json
-import sys
-from pathlib import Path
-
-root = Path(sys.argv[1])
-feature_id = sys.argv[2]
-state_path = root / ".bagakit" / "feature-tracker" / "features" / feature_id / "state.json"
-state = json.loads(state_path.read_text(encoding="utf-8"))
-state["status"] = "done"
-state_path.write_text(json.dumps(state, indent=2) + "\n", encoding="utf-8")
-PY
 bash "$SKILL_DIR/scripts/feature-tracker.sh" archive-feature --root "$TMP_DIR" --feature "$CLOSEOUT_FEATURE_ID" >/dev/null
 ARCHIVED_CLOSEOUT_DIR="$TMP_DIR/.bagakit/feature-tracker/features-archived/$CLOSEOUT_FEATURE_ID"
 test -f "$ARCHIVED_CLOSEOUT_DIR/summary.md"

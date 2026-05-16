@@ -17,8 +17,11 @@ done
 
 ROOT="$(cd "$ROOT" && pwd)"
 SKILL_DIR="$ROOT/skills/harness/bagakit-feature-tracker"
+LIB_DIR="$ROOT/gate_validation/skills/harness/bagakit-feature-tracker/lib"
 TMP_DIR="$(mktemp -d)"
 trap 'rm -rf "$TMP_DIR"' EXIT
+
+source "$LIB_DIR/feature-tracker-testlib.sh"
 
 git -C "$TMP_DIR" init -q -b main
 git -C "$TMP_DIR" config user.name "Bagakit"
@@ -66,6 +69,8 @@ if not isinstance(items, list):
 print(items[0]["feat_id"])
 PY
 )"
+TASK_PLAN_JSON="$TMP_DIR/.bagakit/feature-tracker/artifacts/reviewed-task-plan.json"
+feature_tracker_write_reviewed_task_plan "$TASK_PLAN_JSON" "Ship the demo feature through a reviewed task plan."
 
 HANDOFF_JSON="$TMP_DIR/.bagakit/planning-entry/handoffs/demo-approved.json"
 mkdir -p "$(dirname "$HANDOFF_JSON")"
@@ -98,9 +103,9 @@ cat >"$HANDOFF_JSON" <<'JSON'
     ".bagakit/brainstorm/archive/demo/outcome_and_handoff.md"
   ],
   "source_refs": [
-    "input_and_qa.md#Q-001",
-    "expert_forum.md#Decision-Target-And-Exit",
-    "outcome_and_handoff.md#Outcome-Summary"
+    ".bagakit/brainstorm/archive/demo/input_and_qa.md#Q-001",
+    ".bagakit/brainstorm/archive/demo/expert_forum.md#Decision-Target-And-Exit",
+    ".bagakit/brainstorm/archive/demo/outcome_and_handoff.md#Outcome-Summary"
   ]
 }
 JSON
@@ -136,6 +141,10 @@ assert "- What: Turn one approved planning-entry handoff into tracker state with
 assert "- Why: The request was clarified upstream and is ready for canonical feature planning." in proposal_text
 assert "## Transfer Checks" in proposal_text
 assert any(item.get("action") == "planning_entry_handoff_applied" for item in state_payload.get("history", []))
+tasks_path = root / ".bagakit" / "feature-tracker" / "features" / feat_id / "tasks.json"
+tasks_payload = json.loads(tasks_path.read_text(encoding="utf-8"))
+assert tasks_payload["plan_status"] == "draft"
+assert tasks_payload["tasks"] == []
 PY
 
 python3 - "$TMP_DIR" "$FEATURE_ID" <<'PY'
@@ -151,6 +160,7 @@ assert feature_id in [item["feat_id"] for item in dag_payload["features"]]
 assert any(feature_id in layer["feat_ids"] for layer in dag_payload["layers"])
 PY
 
+bash "$SKILL_DIR/scripts/feature-tracker.sh" set-task-plan --root "$TMP_DIR" --feature "$FEATURE_ID" --tasks-file "$TASK_PLAN_JSON" --expected-revision 0
 bash "$SKILL_DIR/scripts/feature-tracker.sh" assign-feature-workspace --root "$TMP_DIR" --feature "$FEATURE_ID" --workspace-mode current_tree
 bash "$SKILL_DIR/scripts/feature-tracker.sh" start-task --root "$TMP_DIR" --feature "$FEATURE_ID" --task T-001
 bash "$SKILL_DIR/scripts/feature-tracker.sh" show-feature-status --root "$TMP_DIR" --feature "$FEATURE_ID" --json >/dev/null
@@ -204,7 +214,11 @@ assert not (feature_dir / "artifacts").exists()
 assert not (feature_dir / "proposal.md").exists()
 assert not (feature_dir / "spec-delta.md").exists()
 assert not (feature_dir / "verification.md").exists()
+assert (feature_dir / "owner-receipt.json").exists()
+assert tasks_payload["plan_status"] == "reviewed"
+assert tasks_payload["plan_revision"] == 1
 task = tasks_payload["tasks"][0]
+assert task["objective"] == "Ship the demo feature through a reviewed task plan."
 for key in ("last_gate_at", "started_at", "finished_at", "updated_at"):
     assert key not in task
 assert issuer_payload["namespace"] == feature_id[5:7]
@@ -330,7 +344,7 @@ assert archived_hidden_by_default["features"] == []
 PY
 
 mkdir -p "$TMP_DIR/.bagakit/planning-entry/handoffs"
-bash "$SKILL_DIR/scripts/feature-tracker.sh" create-feature --root "$TMP_DIR" --title "Closeout feature" --slug "closeout-feature" --goal "Exercise closeout command" --workspace-mode current_tree >/dev/null
+bash "$SKILL_DIR/scripts/feature-tracker.sh" create-feature --root "$TMP_DIR" --title "Closeout feature" --slug "closeout-feature" --goal "Exercise closeout command" --workspace-mode current_tree --tasks-file "$TASK_PLAN_JSON" >/dev/null
 CLOSEOUT_FEATURE_ID="$(python3 - "$TMP_DIR" <<'PY'
 import json
 import sys

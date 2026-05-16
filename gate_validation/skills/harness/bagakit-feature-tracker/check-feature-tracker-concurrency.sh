@@ -26,6 +26,8 @@ source "$LIB_DIR/feature-tracker-testlib.sh"
 feature_tracker_init_temp_repo "$TMP_DIR"
 bash "$SKILL_DIR/scripts/feature-tracker.sh" check-reference-readiness --root "$TMP_DIR" >/dev/null
 bash "$SKILL_DIR/scripts/feature-tracker.sh" initialize-tracker --root "$TMP_DIR" >/dev/null
+TASK_PLAN_JSON="$TMP_DIR/.bagakit/feature-tracker/artifacts/reviewed-task-plan.json"
+feature_tracker_write_reviewed_task_plan "$TASK_PLAN_JSON" "Exercise worktree execution from a reviewed task plan."
 
 CONCURRENT_A_OUT="$TMP_DIR/concurrent-a.out"
 CONCURRENT_A_ERR="$TMP_DIR/concurrent-a.err"
@@ -70,7 +72,7 @@ for feature_id in found.values():
 PY
 bash "$SKILL_DIR/scripts/feature-tracker.sh" validate-tracker --root "$TMP_DIR" >/dev/null
 
-bash "$SKILL_DIR/scripts/feature-tracker.sh" create-feature --root "$TMP_DIR" --title "Worktree gate feature" --slug "worktree-gate-feature" --goal "Run gates from the feature worktree" --workspace-mode worktree >/dev/null
+bash "$SKILL_DIR/scripts/feature-tracker.sh" create-feature --root "$TMP_DIR" --title "Worktree gate feature" --slug "worktree-gate-feature" --goal "Run gates from the feature worktree" --workspace-mode worktree --tasks-file "$TASK_PLAN_JSON" >/dev/null
 WORKTREE_GATE_ID="$(feature_tracker_feature_id_by_title "$TMP_DIR" "Worktree gate feature")"
 WORKTREE_GATE_PATH="$(feature_tracker_worktree_path "$TMP_DIR" "$WORKTREE_GATE_ID")"
 mkdir -p "$WORKTREE_GATE_PATH/worktree-only"
@@ -104,7 +106,7 @@ if not commands or commands[0].get("command") != "test -f worktree-only/gate-sen
     raise SystemExit("gate command record missing worktree-only sentinel check")
 PY
 
-bash "$SKILL_DIR/scripts/feature-tracker.sh" create-feature --root "$TMP_DIR" --title "Worktree commit feature" --slug "worktree-commit-feature" --goal "Commit from the feature worktree branch" --workspace-mode worktree >/dev/null
+bash "$SKILL_DIR/scripts/feature-tracker.sh" create-feature --root "$TMP_DIR" --title "Worktree commit feature" --slug "worktree-commit-feature" --goal "Commit from the feature worktree branch" --workspace-mode worktree --tasks-file "$TASK_PLAN_JSON" >/dev/null
 WORKTREE_COMMIT_ID="$(feature_tracker_feature_id_by_title "$TMP_DIR" "Worktree commit feature")"
 WORKTREE_COMMIT_PATH="$(feature_tracker_worktree_path "$TMP_DIR" "$WORKTREE_COMMIT_ID")"
 WORKTREE_COMMIT_BRANCH="$(feature_tracker_worktree_branch "$TMP_DIR" "$WORKTREE_COMMIT_ID")"
