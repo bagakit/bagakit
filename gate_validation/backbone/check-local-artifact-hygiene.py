@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import fnmatch
+import subprocess
 import sys
 from pathlib import Path
 
@@ -58,6 +59,11 @@ FORBIDDEN_ROOT_PATTERNS = [
     "dist",
 ]
 
+HOST_LOCAL_UNTRACKED_ROOTS = (
+    ".bagakit",
+    ".mem_inbox",
+)
+
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
@@ -106,6 +112,23 @@ def skill_payload_issues(root: Path) -> list[str]:
     return issues
 
 
+def tracked_local_state_issues(root: Path) -> list[str]:
+    result = subprocess.run(
+        ["git", "-C", str(root), "ls-files", "--", *HOST_LOCAL_UNTRACKED_ROOTS],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        detail = result.stderr.strip() or result.stdout.strip() or "git ls-files failed"
+        return [f"cannot inspect tracked host-local state: {detail}"]
+    return [
+        f"host-local runtime path must not be tracked: {path}"
+        for path in result.stdout.splitlines()
+        if path.strip()
+    ]
+
+
 def main() -> int:
     args = parse_args()
     root = Path(args.root).resolve()
@@ -115,6 +138,7 @@ def main() -> int:
 
     issues = root_dir_issues(root)
     issues.extend(skill_payload_issues(root))
+    issues.extend(tracked_local_state_issues(root))
 
     if issues:
         for issue in issues:

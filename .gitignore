@@ -26,4 +26,6 @@ mem/*
 !mem/brainstorm-memory-quality/**
 .codex
 __pycache__
-.mem_inbox
+# Evolver intake is host-local; signal SSOT and its derived README stay together.
+.mem_inbox/
+.worktrees

@@ -106,10 +106,15 @@ Meaning:
 Rule:
 
 - `.mem_inbox/` is evolver-owned project state
+- `.mem_inbox/` is host-local and should remain ignored and untracked as one
+  unit; do not track the derived README while ignoring its signal SSOT
 - it is not shared knowledge truth
 - it is not structured topic memory yet
 - it is optional; some repositories may go directly to topic state when the
   material is already mature
+- reviewed durable learning must move into evolver topic state or another
+  promoted owning surface instead of making the intake buffer durable by
+  accident
 
 ## Signal File Contract
 
