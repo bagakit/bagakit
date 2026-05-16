@@ -54,6 +54,7 @@ Current implemented slices:
     - `skills/paperwork/bagakit-writing-core/`
     - `skills/paperwork/bagakit-writing-de-ai-tone/`
     - `skills/gamemaker/topdown-image2-sprite-pipeline/`
+    - `skills/media-production/bagakit-daily-media-production/`
     - `skills/swe/bagakit-git-message-craft/`
 
 Registration:

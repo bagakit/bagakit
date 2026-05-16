@@ -1,12 +1,12 @@
 version = 1
-skill = "bagakit-daily-media-automation"
-cli_id = "bagakit-daily-media-automation"
-entrypoint = "scripts/bagakit-daily-media-automation-cli.sh"
+skill = "bagakit-daily-media-production"
+cli_id = "bagakit-daily-media-production"
+entrypoint = "scripts/bagakit-daily-media-production-cli.sh"
 runner = "shell"
-usage = "bash scripts/bagakit-daily-media-automation-cli.sh <command>"
-summary = "Inspect and preflight daily media automation dependencies."
+usage = "bash scripts/bagakit-daily-media-production-cli.sh <command>"
+summary = "Inspect and preflight daily media production dependencies."
 surface_refs = [
-  ".bagakit/daily-media-automation",
+  ".bagakit/daily-media-production",
 ]
 
 [[command]]
@@ -23,11 +23,11 @@ summary = "List built-in starter domain packs and their publish thresholds."
 
 [[command]]
 name = "doctor"
-summary = "Check local commands and optional adapters for a daily media automation run."
+summary = "Check local commands and optional adapters for a daily media production run."
 
 [[command]]
 name = "init-run"
-summary = "Create a repo-local daily media automation run ledger skeleton."
+summary = "Create a repo-local daily media production run ledger skeleton."
 
 [[command]]
 name = "validate-run"

@@ -1,14 +1,14 @@
 ---
-name: bagakit-daily-media-automation
+name: bagakit-daily-media-production
 description: Design or run a recurring research-to-publication workflow that coordinates source evidence, editorial synthesis, media assets, a web or message output, deployment or delivery, notification, and run archival. Use for daily AI briefs, market watches, release radars, community pulse pages, research digests, and similar repeatable golden paths that need provenance, no-publish gates, dependency checks, and adapter receipts across multiple component capabilities. Do not use for one-off research, pure image generation, pure webpage design, a single deployment, generic CI/CD, or another task where one owned peer skill or tool is sufficient.
 metadata:
   bagakit:
-    swe_layer: automation-orchestration
+    media_production_layer: workflow-orchestration
 ---
 
-# Bagakit Daily Media Automation
+# Bagakit Daily Media Production
 
-`bagakit-daily-media-automation` is a workflow/golden-path orchestration skill
+`bagakit-daily-media-production` is a workflow/golden-path orchestration skill
 for recurring research-to-publication runs. It is not a primitive media,
 research, design, deployment, notification, or scheduling capability.
 
@@ -40,7 +40,7 @@ at a plan, draft, dry-run, or human-review handoff.
 
 Use this skill when the user wants:
 
-- a daily or recurring AI-news/publication automation
+- a daily or recurring AI-news/media-production workflow
 - a scheduled social/news/web research digest
 - a publishable web brief plus generated share-card assets
 - Vercel or similar deployment followed by a phone/team notification
@@ -235,7 +235,7 @@ Built-in starter packs may prefill these fields during `init-run`, but they are
 still starter thresholds. Override them in the run brief when the domain needs
 stricter sourcing, recency, confidence, or output rules.
 
-## Automation Prompt Shape
+## Scheduled Run Prompt Shape
 
 For scheduled Codex runs, give the agent a compact prompt with the contract
 instead of a loose instruction.
@@ -243,7 +243,7 @@ instead of a loose instruction.
 Minimum prompt fields:
 
 ```text
-Run bagakit-daily-media-automation.
+Run bagakit-daily-media-production.
 Domain pack: <ai-news|release-radar|market-watch|...>
 Cadence: <daily|weekly|manual>, timezone: <IANA timezone>
 Source window: <absolute or relative window>
@@ -263,7 +263,7 @@ directory, secrets, and no-publish behavior have been tested manually.
 This skill may materialize a project-local surface when a host repository
 wants durable run state:
 
-- `.bagakit/daily-media-automation/`
+- `.bagakit/daily-media-production/`
 
 Suggested members:
 

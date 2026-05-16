@@ -40,13 +40,13 @@ time.
 List the built-ins with:
 
 ```bash
-bash skills/swe/bagakit-daily-media-automation/scripts/bagakit-daily-media-automation-cli.sh list-domain-packs
+bash skills/media-production/bagakit-daily-media-production/scripts/bagakit-daily-media-production-cli.sh list-domain-packs
 ```
 
 Initialize a run with a built-in pack:
 
 ```bash
-bash skills/swe/bagakit-daily-media-automation/scripts/bagakit-daily-media-automation-cli.sh init-run \
+bash skills/media-production/bagakit-daily-media-production/scripts/bagakit-daily-media-production-cli.sh init-run \
   --run-id ai-news-<yyyymmdd>-main \
   --domain-pack ai-news \
   --deploy static \

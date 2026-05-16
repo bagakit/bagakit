@@ -21,10 +21,28 @@ rather than a static checklist or report page.
   - `local-session-state`
   - `interaction-result-packet`
 - primary style: `ide-verification-console`
+- components:
+  - `copy-result-control`
 - artifacts:
   - `page-manifest`
   - `report-export`
   - `agent-handoff-packet`
+
+## Expected Inputs
+
+The template consumes a manual test plan. It does not create the QA strategy.
+
+Required inputs:
+
+- case inventory
+- per-case procedure or checklist
+- expected result or pass/fail oracle
+- setup, launch, or reproduction instructions when needed
+- artifact or app under test
+- known risks, priority hints, or previous findings when available
+
+If required inputs are missing, expose that as an input-quality problem instead
+of letting the human guess.
 
 ## Shell Layout
 
@@ -36,6 +54,23 @@ rather than a static checklist or report page.
   - center: current case procedure, expected result, pass criteria
   - right: status, notes, evidence, blocker reason
 - Keep global actions in a compact toolbar with readable labels.
+
+## Component Boundaries
+
+Design the page as composable modules, not as one monolithic HTML page.
+
+Default modules:
+
+- run metadata editor
+- copyable setup or reproduction block
+- case inventory and filters
+- active procedure viewer
+- result recorder
+- evidence editor
+- `copy-result-control` for report copy and download actions
+
+Standalone HTML previews may inline these pieces, but the page brief and
+implementation handoff should still name the module boundaries.
 
 ## Case Schema
 
@@ -77,6 +112,8 @@ manual QA debt into a current retest surface.
   hiding new work.
 - Export Markdown for human review.
 - Export JSON for agent or tool reentry.
+- Use `copy-result-control` for copy and download actions so copied and
+  downloaded results share the same payload semantics.
 - Include run metadata such as app or artifact path, build id, run time, and
   operator notes when relevant.
 - Include attached evidence or references in the export when the page supports

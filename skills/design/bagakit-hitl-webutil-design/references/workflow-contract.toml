@@ -9,6 +9,7 @@ required_reference_links = [
   "references/mechanisms/README.md",
   "references/styles/README.md",
   "references/artifacts/README.md",
+  "references/components/README.md",
   "references/templates/README.md",
   "references/composition-crosswalk.md",
   "references/workflow-contract.toml",
@@ -51,6 +52,12 @@ blocks_completion = true
 id = "artifact-selection"
 phase = "before_design_handoff"
 artifact = "artifact-selection.md"
+blocks_completion = true
+
+[[stage]]
+id = "component-selection"
+phase = "before_design_handoff"
+artifact = "component-selection.md"
 blocks_completion = true
 
 [[stage]]

@@ -1,7 +1,7 @@
 # Adapter Matrix
 
 Use this reference when selecting scheduler, acquisition, deployment, or
-notification routes for `bagakit-daily-media-automation`.
+notification routes for `bagakit-daily-media-production`.
 
 ## Rule
 

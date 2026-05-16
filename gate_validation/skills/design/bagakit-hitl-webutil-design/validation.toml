@@ -6,10 +6,10 @@ owner = "skills/design/bagakit-hitl-webutil-design"
 description = "Require the canonical runtime layout for bagakit-hitl-webutil-design."
 default = true
 proof_mode = "structural"
-protects = ["bagakit-hitl-webutil-design installable runtime layout, mechanism/style/artifact/template reference sets, CLI declaration, and validation registration"]
-oracle = ["fs runner checks required HITL design skill files, reference directories, template files, script, and gate registration"]
-exercised_surface = ["skills/design/bagakit-hitl-webutil-design runtime directory", "HITL webutil design mechanism/style/artifact/template references", "gate_validation/skills/design/bagakit-hitl-webutil-design registration"]
-proves = ["bagakit-hitl-webutil-design-layout proves required skill files and reference sets, including templates, are present."]
+protects = ["bagakit-hitl-webutil-design installable runtime layout, mechanism/style/artifact/component/template reference sets, CLI declaration, and validation registration"]
+oracle = ["fs runner checks required HITL design skill files, reference directories, component and template files, script, and gate registration"]
+exercised_surface = ["skills/design/bagakit-hitl-webutil-design runtime directory", "HITL webutil design mechanism/style/artifact/component/template references", "gate_validation/skills/design/bagakit-hitl-webutil-design registration"]
+proves = ["bagakit-hitl-webutil-design-layout proves required skill files and reference sets, including components and templates, are present."]
 does_not_prove = ["bagakit-hitl-webutil-design-layout does not prove live page usability, visual quality, or implementation behavior."]
 validation_class = "structure"
 groups = ["skills", "design", "hitl-webutil-design", "structure"]
@@ -23,6 +23,7 @@ required_dirs = [
   "skills/design/bagakit-hitl-webutil-design/references/mechanisms",
   "skills/design/bagakit-hitl-webutil-design/references/styles",
   "skills/design/bagakit-hitl-webutil-design/references/artifacts",
+  "skills/design/bagakit-hitl-webutil-design/references/components",
   "skills/design/bagakit-hitl-webutil-design/references/templates",
   "skills/design/bagakit-hitl-webutil-design/scripts",
   "gate_validation/skills/design/bagakit-hitl-webutil-design",
@@ -54,6 +55,8 @@ required_files = [
   "skills/design/bagakit-hitl-webutil-design/references/artifacts/agent-handoff-packet.md",
   "skills/design/bagakit-hitl-webutil-design/references/artifacts/page-manifest.md",
   "skills/design/bagakit-hitl-webutil-design/references/artifacts/report-export.md",
+  "skills/design/bagakit-hitl-webutil-design/references/components/README.md",
+  "skills/design/bagakit-hitl-webutil-design/references/components/copy-result-control.md",
   "skills/design/bagakit-hitl-webutil-design/references/templates/README.md",
   "skills/design/bagakit-hitl-webutil-design/references/templates/manual-test-console.md",
   "skills/design/bagakit-hitl-webutil-design/scripts/bagakit-hitl-webutil-design-cli.sh",
@@ -73,10 +76,10 @@ owner = "skills/design/bagakit-hitl-webutil-design"
 description = "Require the structured HITL web utility design workflow contract."
 default = true
 proof_mode = "structural"
-protects = ["HITL webutil design stage, artifact, eval, shared-guard, crosswalk, template, and peer-boundary contract"]
-oracle = ["parsed workflow-contract.toml plus crosswalk, manual-test template, and SKILL.md anchor checks"]
-exercised_surface = ["skills/design/bagakit-hitl-webutil-design/references/workflow-contract.toml", "composition-crosswalk.md", "references/templates/manual-test-console.md", "SKILL.md"]
-proves = ["bagakit-hitl-webutil-design-contract proves required contract stages, artifacts, hardening gates, shared guards, templates, and composition boundaries are aligned."]
+protects = ["HITL webutil design stage, artifact, eval, shared-guard, crosswalk, component, template, and peer-boundary contract"]
+oracle = ["parsed workflow-contract.toml plus crosswalk, copy-result component, manual-test template, and SKILL.md anchor checks"]
+exercised_surface = ["skills/design/bagakit-hitl-webutil-design/references/workflow-contract.toml", "composition-crosswalk.md", "references/components/copy-result-control.md", "references/templates/manual-test-console.md", "SKILL.md"]
+proves = ["bagakit-hitl-webutil-design-contract proves required contract stages, artifacts, hardening gates, shared guards, components, templates, and composition boundaries are aligned."]
 does_not_prove = ["bagakit-hitl-webutil-design-contract does not prove final page usability, frontend implementation quality, or stochastic agent compliance."]
 timeout_seconds = 120
 validation_class = "contract"

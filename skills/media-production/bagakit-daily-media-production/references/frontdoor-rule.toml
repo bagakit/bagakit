@@ -1,6 +1,6 @@
 version = 1
-skill = "bagakit-daily-media-automation"
+skill = "bagakit-daily-media-production"
 trigger = "Codex should run or design a recurring multi-stage research-to-publication golden path; one-off research, design, deployment, notification, or generic CI/CD should route to its owned peer instead."
 do = "Compose peers through briefs and receipts without vendoring internals; keep no-publish gates and deployment/notification status explicit, and do not perform live publication side effects from planning-only authority."
-see = "skills/swe/bagakit-daily-media-automation/SKILL.md"
-evidence = ".bagakit/daily-media-automation/runs/<run-id>/archive.md"
+see = "skills/media-production/bagakit-daily-media-production/SKILL.md"
+evidence = ".bagakit/daily-media-production/runs/<run-id>/archive.md"

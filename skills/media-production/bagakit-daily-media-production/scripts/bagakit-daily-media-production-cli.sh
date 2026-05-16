@@ -21,13 +21,13 @@ codex_home="${CODEX_HOME:-$(join_path "$HOME" ".codex")}"
 
 usage() {
   cat <<'EOF'
-usage: bagakit-daily-media-automation-cli <command>
+usage: bagakit-daily-media-production-cli <command>
 
 Commands:
   describe          Print a short skill description.
   list-references   List reference files shipped by this skill.
   list-domain-packs List built-in starter domain packs.
-  doctor            Check local commands and optional adapters for a daily media automation run.
+  doctor            Check local commands and optional adapters for a daily media production run.
   init-run          Create a repo-local run ledger skeleton.
   validate-run      Validate run ledgers and no-publish gates.
 EOF
@@ -451,7 +451,7 @@ run_validate_run() {
         ;;
       -h|--help)
         cat <<'EOF'
-usage: bagakit-daily-media-automation-cli validate-run --run-id <domain-YYYYMMDD-slug> [options]
+usage: bagakit-daily-media-production-cli validate-run --run-id <domain-YYYYMMDD-slug> [options]
 
 Options:
   --root <path>          Repository or host root that owns the runtime surface.
@@ -496,8 +496,8 @@ EOF
   fi
 
   if [[ -n "$run_id" ]]; then
-    run_dir="$(join_path "$root" ".bagakit" "daily-media-automation" "runs" "$run_id")"
-    display_run_dir=".bagakit/daily-media-automation/runs/$run_id"
+    run_dir="$(join_path "$root" ".bagakit" "daily-media-production" "runs" "$run_id")"
+    display_run_dir=".bagakit/daily-media-production/runs/$run_id"
   else
     run_id="$(basename "$run_dir")"
     display_run_dir="explicit-run-dir:$run_id"
@@ -819,7 +819,7 @@ run_init_run() {
         ;;
       -h|--help)
         cat <<'EOF'
-usage: bagakit-daily-media-automation-cli init-run --run-id <domain-YYYYMMDD-slug> [options]
+usage: bagakit-daily-media-production-cli init-run --run-id <domain-YYYYMMDD-slug> [options]
 
 Options:
   --root <path>            Repository or host root to write into.
@@ -828,8 +828,8 @@ Options:
   --notify <adapter>       Notification adapter to record in the brief.
   --scheduler <adapter>    Scheduler adapter to record in the brief.
 
-Creates .bagakit/daily-media-automation/surface.toml and
-.bagakit/daily-media-automation/runs/<run-id>/ ledger templates. Existing run
+Creates .bagakit/daily-media-production/surface.toml and
+.bagakit/daily-media-production/runs/<run-id>/ ledger templates. Existing run
 files are never overwritten.
 EOF
         return 0
@@ -878,24 +878,24 @@ EOF
     output_pack="$(domain_pack_field "$domain_pack" output_pack)"
   fi
 
-  local surface_dir="$root/.bagakit/daily-media-automation"
+  local surface_dir="$root/.bagakit/daily-media-production"
   local run_dir="$surface_dir/runs/$run_id"
   local surface_file="$surface_dir/surface.toml"
   mkdir -p "$run_dir"
 
   if [[ ! -e "$surface_file" ]]; then
     write_file_once "$surface_file" 'schema_version = 1
-surface_id = "daily-media-automation-runtime"
-surface_root = ".bagakit/daily-media-automation"
+surface_id = "daily-media-production-runtime"
+surface_root = ".bagakit/daily-media-production"
 owner_kind = "skill"
-owner_id = "bagakit-daily-media-automation"
+owner_id = "bagakit-daily-media-production"
 lifecycle_class = "durable_state"
 edit_policy = "mixed"
 cleanup_safe = false
 source_of_truth = [
   "docs/specs/runtime-surface-contract.md",
-  "skills/swe/bagakit-daily-media-automation/SKILL.md",
-  "skills/swe/bagakit-daily-media-automation/references/run-artifacts.md",
+  "skills/media-production/bagakit-daily-media-production/SKILL.md",
+  "skills/media-production/bagakit-daily-media-production/references/run-artifacts.md",
 ]
 reviewable_outputs = [
   "runs/<run-id>/archive.md",
@@ -1002,19 +1002,19 @@ reviewable_outputs = [
 - next_action: fill run ledgers and resolve blocked gates
 
 ## Ledgers
-- brief: .bagakit/daily-media-automation/runs/$run_id/brief.md
-- collection: .bagakit/daily-media-automation/runs/$run_id/collection-ledger.md
-- evidence_review: .bagakit/daily-media-automation/runs/$run_id/evidence-review.md
-- asset: .bagakit/daily-media-automation/runs/$run_id/asset-ledger.md
+- brief: .bagakit/daily-media-production/runs/$run_id/brief.md
+- collection: .bagakit/daily-media-production/runs/$run_id/collection-ledger.md
+- evidence_review: .bagakit/daily-media-production/runs/$run_id/evidence-review.md
+- asset: .bagakit/daily-media-production/runs/$run_id/asset-ledger.md
 - webpage:
-- deployment: .bagakit/daily-media-automation/runs/$run_id/deployment-ledger.md
-- notification: .bagakit/daily-media-automation/runs/$run_id/notification-ledger.md
+- deployment: .bagakit/daily-media-production/runs/$run_id/deployment-ledger.md
+- notification: .bagakit/daily-media-production/runs/$run_id/notification-ledger.md
 
 ## Gate Summary
 | gate | status | evidence_ref | note |
 |------|--------|--------------|------|" || return 1
 
-  printf 'initialized run: %s\n' ".bagakit/daily-media-automation/runs/$run_id"
+  printf 'initialized run: %s\n' ".bagakit/daily-media-production/runs/$run_id"
 }
 
 run_doctor() {
@@ -1077,7 +1077,7 @@ run_doctor() {
         ;;
       -h|--help)
         cat <<'EOF'
-usage: bagakit-daily-media-automation-cli doctor [options]
+usage: bagakit-daily-media-production-cli doctor [options]
 
 Options:
   --source <agent-reach|rss|web|direct|existing-research|none>
@@ -1280,7 +1280,7 @@ EOF
 
 case "${1:-}" in
   describe)
-    printf '%s\n' "bagakit-daily-media-automation: recurring research-to-publication orchestration with source, asset, webpage, deploy, notify, archive, and no-publish gates."
+    printf '%s\n' "bagakit-daily-media-production: recurring research-to-publication orchestration with source, asset, webpage, deploy, notify, archive, and no-publish gates."
     ;;
   list-references)
     find "$skill_root/references" -type f | sed "s#^$skill_root/##" | sort

@@ -16,6 +16,9 @@ POSIX_SEP = chr(47)
 SKILL_ROOT = POSIX_SEP.join(["skills", "design", "bagakit-hitl-webutil-design"])
 CONTRACT_PATH = POSIX_SEP.join([SKILL_ROOT, "references", "workflow-contract.toml"])
 CROSSWALK_PATH = POSIX_SEP.join([SKILL_ROOT, "references", "composition-crosswalk.md"])
+COPY_RESULT_COMPONENT_PATH = POSIX_SEP.join(
+    [SKILL_ROOT, "references", "components", "copy-result-control.md"]
+)
 MANUAL_TEST_TEMPLATE_PATH = POSIX_SEP.join(
     [SKILL_ROOT, "references", "templates", "manual-test-console.md"]
 )
@@ -27,6 +30,7 @@ REQUIRED_STAGE_IDS = {
     "mechanism-selection",
     "style-selection",
     "artifact-selection",
+    "component-selection",
     "hardening-audit",
     "implementation-route",
 }
@@ -227,6 +231,8 @@ def main() -> int:
         skill_rel("references", "mechanisms", "README.md"),
         skill_rel("references", "styles", "README.md"),
         skill_rel("references", "artifacts", "README.md"),
+        skill_rel("references", "components", "README.md"),
+        COPY_RESULT_COMPONENT_PATH,
         skill_rel("references", "templates", "README.md"),
         MANUAL_TEST_TEMPLATE_PATH,
         skill_rel("references", "artifacts", "page-manifest.md"),
@@ -247,6 +253,7 @@ def main() -> int:
 
     contract_text = (root / CONTRACT_PATH).read_text(encoding="utf-8")
     crosswalk_text = (root / CROSSWALK_PATH).read_text(encoding="utf-8")
+    copy_result_component_text = (root / COPY_RESULT_COMPONENT_PATH).read_text(encoding="utf-8")
     manual_test_template_text = (root / MANUAL_TEST_TEMPLATE_PATH).read_text(encoding="utf-8")
     skill_text = (root / SKILL_ROOT / "SKILL.md").read_text(encoding="utf-8")
 
@@ -326,6 +333,19 @@ def main() -> int:
         failures.append("SKILL.md must preserve high-fit scene-first design routing")
     if "taxonomy work, critique, or planning without a page" not in skill_text:
         failures.append("SKILL.md must preserve the no-page exception for taxonomy, critique, or planning requests")
+    if "references/components/" not in skill_text or "copy-result-control.md" not in skill_text:
+        failures.append("SKILL.md must route reusable page components, including copy-result-control")
+    if "monolithic single-page HTML" not in skill_text:
+        failures.append("SKILL.md must preserve modular implementation handoff guidance")
+    for required in [
+        "copy-result-control",
+        "payload_builder",
+        "copy or download action",
+        "fallback route",
+        "generic",
+    ]:
+        if required not in copy_result_component_text:
+            failures.append(f"copy-result-control component missing required token: {required}")
     for required in [
         "manual-test-execution",
         "case-inventory",
@@ -338,6 +358,9 @@ def main() -> int:
         "ide-verification-console",
         "report-export",
         "agent-handoff-packet",
+        "copy-result-control",
+        "Component Boundaries",
+        "does not create the QA strategy",
     ]:
         if required not in manual_test_template_text:
             failures.append(f"manual-test-console template missing required route token: {required}")

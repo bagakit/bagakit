@@ -1,10 +1,10 @@
 {
   "schema": "bagakit/agent-behavior-eval/v1",
-  "skill_id": "bagakit-daily-media-automation",
+  "skill_id": "bagakit-daily-media-production",
   "comparison": {
     "method": "paired-fresh-sessions",
     "baseline_condition": "Run the same prompt without loading the skill.",
-    "candidate_condition": "Run the same prompt with bagakit-daily-media-automation explicitly available.",
+    "candidate_condition": "Run the same prompt with bagakit-daily-media-production explicitly available.",
     "required_capture": [
       "final_artifact",
       "tool_and_action_trace",

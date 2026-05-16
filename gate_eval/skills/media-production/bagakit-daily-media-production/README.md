@@ -1,7 +1,7 @@
-# Daily Media Automation Eval
+# Daily Media Production Eval
 
-`gate_eval/skills/swe/bagakit-daily-media-automation/` is the non-gating eval
-slice for `skills/swe/bagakit-daily-media-automation/`.
+`gate_eval/skills/media-production/bagakit-daily-media-production/` is the non-gating eval
+slice for `skills/media-production/bagakit-daily-media-production/`.
 
 It exercises deterministic fixture runs for domain-pack initialization,
 ledger completion, no-publish blockers, status separation, run validation, and
@@ -15,9 +15,9 @@ paired baseline and with-skill sessions and review their captured outputs.
 Primary entrypoint:
 
 ```bash
-node --experimental-strip-types dev/eval/src/cli.ts run --root . --suite gate_eval/skills/swe/bagakit-daily-media-automation/suite.ts
+node --experimental-strip-types dev/eval/src/cli.ts run --root . --suite gate_eval/skills/media-production/bagakit-daily-media-production/suite.ts
 ```
 
 Default result root:
 
-- `gate_eval/skills/swe/bagakit-daily-media-automation/results/runs/`
+- `gate_eval/skills/media-production/bagakit-daily-media-production/results/runs/`

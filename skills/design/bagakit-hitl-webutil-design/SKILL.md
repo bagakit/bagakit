@@ -41,6 +41,9 @@ Scenario pages are cross-products, not atomic modules.
 - `artifacts/`
   - durable outputs such as page manifests, report exports, and agent handoff
     packets
+- `components/`
+  - reusable page modules such as copy/export controls that should compose
+    across templates and scenes
 - `templates/`
   - reusable page blueprints that bind mechanisms, style, artifacts, and data
     contracts for one repeatable HITL page family
@@ -65,12 +68,16 @@ Scenario pages are cross-products, not atomic modules.
    - keep cognitive and export semantics in mechanisms or artifacts
 5. Select artifacts.
    - define what the human will copy, export, or hand back to the agent
-6. Run HITL hardening.
+6. Select reusable components.
+   - name component boundaries for the implementation handoff
+   - avoid treating a monolithic single-page HTML file as the durable design
+     target when the host can implement reusable modules
+7. Run HITL hardening.
    - use `references/workflow-contract.toml`
    - keep v0 guards explicit for status/error semantics, provenance labeling,
      local persistence lifetime/reset, information-load budget, and audience
      mismatch
-7. Hand off implementation when needed.
+8. Hand off implementation when needed.
    - if the page should be built as a frontend surface, compose with
      `bagakit-codex-webpage-design`
 
@@ -81,7 +88,8 @@ Always read:
 - `references/composition-crosswalk.md`
 - `references/workflow-contract.toml`
 - the relevant `README.md` under `references/mechanisms/`,
-  `references/styles/`, `references/artifacts/`, and `references/templates/`
+  `references/styles/`, `references/artifacts/`, `references/components/`, and
+  `references/templates/`
 
 Read by route:
 
@@ -89,6 +97,7 @@ Read by route:
   - `references/mechanisms/knowledge-transfer.md`
   - `references/mechanisms/evidence-context.md`
   - `references/mechanisms/interaction-result-packet.md`
+  - `references/components/copy-result-control.md`
   - one of:
     - `references/styles/learning-atlas.md`
     - `references/styles/repo-reading-workbench.md`
@@ -102,6 +111,7 @@ Read by route:
   - `references/mechanisms/evidence-context.md`
   - `references/mechanisms/local-session-state.md`
   - `references/mechanisms/interaction-result-packet.md`
+  - `references/components/copy-result-control.md`
   - `references/styles/ide-verification-console.md`
   - `references/artifacts/report-export.md`
 - report-heavy review route
@@ -132,6 +142,8 @@ failures prove the current guard is too weak. In v0:
 
 - export control behavior stays in
   `references/mechanisms/interaction-result-packet.md`
+- concrete copy/download component treatment stays in
+  `references/components/copy-result-control.md`
 - output shapes stay in `references/artifacts/`
 - status/error semantics and provenance labeling stay in
   `references/workflow-contract.toml`

@@ -11,10 +11,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     -h|--help)
       cat <<'EOF'
-usage: gate_validation/skills/swe/bagakit-daily-media-automation/check-daily-media-automation.sh [--root <repo-root>]
+usage: gate_validation/skills/media-production/bagakit-daily-media-production/check-daily-media-production.sh [--root <repo-root>]
 
 Run deterministic behavior and contract smoke checks for
-bagakit-daily-media-automation.
+bagakit-daily-media-production.
 EOF
       exit 0
       ;;
@@ -26,8 +26,8 @@ EOF
 done
 
 ROOT="$(cd "$ROOT" && pwd)"
-SKILL_DIR="$ROOT/skills/swe/bagakit-daily-media-automation"
-CMD="$SKILL_DIR/scripts/bagakit-daily-media-automation-cli.sh"
+SKILL_DIR="$ROOT/skills/media-production/bagakit-daily-media-production"
+CMD="$SKILL_DIR/scripts/bagakit-daily-media-production-cli.sh"
 RUNBOOK="$SKILL_DIR/references/runbook.md"
 RUN_ARTIFACTS="$SKILL_DIR/references/run-artifacts.md"
 ADAPTER_MATRIX="$SKILL_DIR/references/adapter-matrix.md"
@@ -49,7 +49,7 @@ assert_contains() {
 write_publishable_run() {
   local run_root="$1"
   local run_id="$2"
-  local run_dir="$run_root/.bagakit/daily-media-automation/runs/$run_id"
+  local run_dir="$run_root/.bagakit/daily-media-production/runs/$run_id"
   mkdir -p "$run_dir"
 
   cat >"$run_dir/brief.md" <<EOF
@@ -157,13 +157,13 @@ EOF
 - next_action: monitor next run
 
 ## Ledgers
-- brief: .bagakit/daily-media-automation/runs/$run_id/brief.md
-- collection: .bagakit/daily-media-automation/runs/$run_id/collection-ledger.md
-- evidence_review: .bagakit/daily-media-automation/runs/$run_id/evidence-review.md
-- asset: .bagakit/daily-media-automation/runs/$run_id/asset-ledger.md
+- brief: .bagakit/daily-media-production/runs/$run_id/brief.md
+- collection: .bagakit/daily-media-production/runs/$run_id/collection-ledger.md
+- evidence_review: .bagakit/daily-media-production/runs/$run_id/evidence-review.md
+- asset: .bagakit/daily-media-production/runs/$run_id/asset-ledger.md
 - webpage: browser-check
-- deployment: .bagakit/daily-media-automation/runs/$run_id/deployment-ledger.md
-- notification: .bagakit/daily-media-automation/runs/$run_id/notification-ledger.md
+- deployment: .bagakit/daily-media-production/runs/$run_id/deployment-ledger.md
+- notification: .bagakit/daily-media-production/runs/$run_id/notification-ledger.md
 
 ## Gate Summary
 | gate | status | evidence_ref | note |
@@ -316,10 +316,10 @@ run_ok bash "$CMD" init-run \
   --deploy static \
   --notify none \
   --scheduler manual
-grep -Fq "initialized run: .bagakit/daily-media-automation/runs/$RUN_ID" "$TMP_DIR/out"
+grep -Fq "initialized run: .bagakit/daily-media-production/runs/$RUN_ID" "$TMP_DIR/out"
 
-SURFACE="$RUN_ROOT/.bagakit/daily-media-automation/surface.toml"
-RUN_DIR="$RUN_ROOT/.bagakit/daily-media-automation/runs/$RUN_ID"
+SURFACE="$RUN_ROOT/.bagakit/daily-media-production/surface.toml"
+RUN_DIR="$RUN_ROOT/.bagakit/daily-media-production/runs/$RUN_ID"
 test -f "$SURFACE"
 test -f "$RUN_DIR/brief.md"
 test -f "$RUN_DIR/collection-ledger.md"
@@ -328,7 +328,7 @@ test -f "$RUN_DIR/asset-ledger.md"
 test -f "$RUN_DIR/deployment-ledger.md"
 test -f "$RUN_DIR/notification-ledger.md"
 test -f "$RUN_DIR/archive.md"
-grep -Fq 'surface_root = ".bagakit/daily-media-automation"' "$SURFACE"
+grep -Fq 'surface_root = ".bagakit/daily-media-production"' "$SURFACE"
 grep -Fq "run_id: $RUN_ID" "$RUN_DIR/brief.md"
 grep -Fq "domain_pack: ai-news" "$RUN_DIR/brief.md"
 grep -Fq "source_pack: official AI lab blogs; research feeds; GitHub releases; curated social and RSS sources" "$RUN_DIR/brief.md"
@@ -354,8 +354,8 @@ run_ok bash "$CMD" init-run \
   --deploy none \
   --notify none \
   --scheduler manual
-grep -Fq "domain_pack: paper-digest" "$INFER_ROOT/.bagakit/daily-media-automation/runs/$INFER_ID/brief.md"
-grep -Fq "source_minimum: 4" "$INFER_ROOT/.bagakit/daily-media-automation/runs/$INFER_ID/brief.md"
+grep -Fq "domain_pack: paper-digest" "$INFER_ROOT/.bagakit/daily-media-production/runs/$INFER_ID/brief.md"
+grep -Fq "source_minimum: 4" "$INFER_ROOT/.bagakit/daily-media-production/runs/$INFER_ID/brief.md"
 
 if grep -R -F "$RUN_ROOT" "$RUN_DIR" "$SURFACE" >/dev/null; then
   echo "init-run leaked a machine-local root" >&2
@@ -394,7 +394,7 @@ grep -Fq "asset rows           ok        1 recorded" "$TMP_DIR/out"
 LEAK_ROOT="$TMP_DIR/leak-root"
 LEAK_ID="market-watch-$(printf '%08d' 0)-leak"
 write_publishable_run "$LEAK_ROOT" "$LEAK_ID"
-printf 'local path: %s%s/example/run\n' "/" "Users" >>"$LEAK_ROOT/.bagakit/daily-media-automation/runs/$LEAK_ID/archive.md"
+printf 'local path: %s%s/example/run\n' "/" "Users" >>"$LEAK_ROOT/.bagakit/daily-media-production/runs/$LEAK_ID/archive.md"
 run_fail 2 bash "$CMD" validate-run \
   --root "$LEAK_ROOT" \
   --run-id "$LEAK_ID" \
@@ -447,4 +447,4 @@ assert_contains "$DOMAIN_PACKS" '`paper-digest`'
 assert_contains "$DOMAIN_PACKS" "Domain packs are starter contracts."
 assert_contains "$DOMAIN_PACKS" "do not vendor peer internals"
 
-echo "ok: bagakit-daily-media-automation behavior smoke passed"
+echo "ok: bagakit-daily-media-production behavior smoke passed"
