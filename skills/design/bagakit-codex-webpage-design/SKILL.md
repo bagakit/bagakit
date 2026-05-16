@@ -1,6 +1,6 @@
 ---
 name: bagakit-codex-webpage-design
-description: Use when Codex should create a high-craft webpage or landing page from discussion through image-generation design reference to frontend implementation, browser debugging, and visual parity iteration. Use for strongly styled pages, design-led frontend work, image2 prompt drafting, screenshot-to-implementation loops, and visual polish; not for backend-heavy app features or purely textual design advice.
+description: Use when Codex should create a high-craft webpage or landing page from discussion through startup clarification, image-generation design reference, frontend implementation, browser debugging, and visual parity iteration. Use for strongly styled pages, design-led frontend work, vague or reference-light webpage starts, image2 prompt drafting, screenshot-to-implementation loops, and visual polish; not for backend-heavy app features or purely textual design advice.
 metadata:
   bagakit:
     design_layer: webpage-design
@@ -39,6 +39,8 @@ Use this skill for:
 
 - high-craft webpages, landing pages, microsites, visual prototypes, or
   design-led frontend work
+- vague, reference-light, asset-heavy, hackathon, demo, or pitch-page starts
+  that need project logic clarified before design
 - image2 prompt drafting and generated webpage design references
 - implementing from a generated design, screenshot, Figma frame, or visual
   reference
@@ -53,45 +55,49 @@ implementation.
 Every substantial task follows this invariant spine, while the exact route can
 adapt to the project:
 
-1. `design-brief`
+1. `startup-clarification`
+   - required when the project logic, audience, proof point, reference intent,
+     or asset set is too vague to design from; choose quick intake,
+     Grill-shaped pressure pass, Spark escalation, or direct execute
+2. `design-brief`
    - goal, audience, content, constraints, viewport, and success bar
    - for existing projects, add `redesign-preservation-audit` before edits
-2. `reference-intent`
+3. `reference-intent`
    - strongest reference source and intent class:
      `exact`, `style_reference`, `asset`, `content_context`, or `data_context`
-3. `reference-provenance-ledger` and `reference-survey-ledger`
+4. `reference-provenance-ledger` and `reference-survey-ledger`
    - source class, comparison tier, archetype route, transferable best
      practices, and non-substitution constraints
-4. `image-prompt` and `design-reference`
+5. `image-prompt` and `design-reference`
    - required when no stronger reference exists; missing Image2 output is a blocker handoff
-5. `state-reference-set`
+6. `state-reference-set`
    - default, selected, search/filter, empty/error, modal, disabled, responsive
-6. `visual-decomposition`, optional design-core packet, and design-draft passes
+7. `page-skeleton`, `media-slot-plan`, `visual-decomposition`, optional design-core packet, and design-draft passes
    - page frame, regions, typography, palette, material, component treatment,
      information compression, surface composition, density, copy/icon budget,
      semantic visual ownership, hierarchy, signature details, and
      image-extraction checklist when implementing from screenshots, Figma,
      generated references, or state boards
-7. `design-spec-ledger`
+8. `design-spec-ledger`
    - visual-system source of truth for grid, type, color, hierarchy, spacing,
      control geometry, borders, material, density, motion, brand tone, and
      state tokens, with source and usage for repeated values
-8. `asset-requirement-pass` and `asset-generation-ledger`
+9. `asset-requirement-pass`, `bulk-asset-match-ledger`, and `asset-generation-ledger`
    - required when CSS alone cannot carry texture, masks, glyphs, or craft
-9. `ambition-bar`
+10. `ambition-bar`
    - required for high-craft work; names the reference tier, delight moment,
      signature detail, and anti-generic risks with mitigation or override reasons
-10. `information-architecture-map`, `workflow-model`,
+11. `information-architecture-map`, `workflow-model`,
     `control-surface-map`, `interaction-model`, `interaction-intuition-pass`, and `mobile-interaction-plan`
    - required for product-like and interactive pages before implementation;
      interaction-specific passes apply when live controls, state changes,
      gestures, or responsive interaction modes exist
-11. `frontend-architecture-plan`, `component-source-ledger`, and `capability-route`
+12. `frontend-architecture-plan`, `component-source-ledger`, and `capability-route`
    - host stack, component structure, design-standard mapping, source
      decisions, and libraries matched to graph, search, editing, canvas, or 3D
-12. implementation and browser loop
+13. implementation and browser loop
    - run, capture screenshots, exercise interactions, and iterate
-13. completion ledgers
+14. completion ledgers
    - `affordance-inventory`, `behavior-matrix`, `visual-bug-ledger`,
      `full-page-structural-parity-ledger`, `micro-parity-checklist`,
      `material-parity-checklist`, `canvas-stability-report`, `visual-parity-ledger`,
@@ -99,6 +105,35 @@ adapt to the project:
      `judge-aggregation`, `code-quality-review`, and `handoff`
 
 ## Stage Rules
+
+### Startup Clarification
+
+Use `startup-clarification.md` when the user starts from a vague concept,
+reference-light brief, hackathon/demo pitch, asset-heavy folder, or unclear
+project logic. This stage owns the webpage-start output shape, not a new
+questioning philosophy.
+
+Choose one route:
+
+- `direct_execute`: the brief, references, content, and assets are already
+  clear enough
+- `quick_intake`: only one or two webpage facts are missing
+- `grill_shaped`: the project direction exists but must be pressed into an
+  executable brief, first screen, module order, and asset needs
+- `spark_escalation`: the product idea, audience, value proposition, or
+  narrative is still open-ended enough that a broader Spark discussion should
+  happen before webpage design
+
+If `spark_escalation` is selected, preserve the blocker and do not pretend the
+webpage skill has resolved the project strategy. If `grill_shaped` is selected,
+ask only dependency-ordered questions that change the page structure or asset
+plan. Do not duplicate `bagakit-spark` or `bagakit-grill` protocols inside this
+skill.
+
+When startup clarification is used, feed its result into `design-brief`,
+`reference-intent`, `page-skeleton.md`, `media-slot-plan.md`, and later asset
+matching. The goal is to reach a visible, reviewable skeleton quickly without
+coding from an unexamined prompt.
 
 ### Reference First
 
@@ -175,6 +210,8 @@ Before final handoff, verify:
 
 - `reference-intent`, `visual-decomposition`, and required state references
   exist
+- vague or asset-heavy starts have `startup-clarification.md` completed,
+  explicitly skipped, or escalated before visual implementation
 - `reference-provenance-ledger` passes the reference-source gate
 - the reference source is `external_strong` or `image2_filesystem`; an
   agent-authored browser page is not reference authority
@@ -271,9 +308,13 @@ Use bench cases for failures such as:
 - screenshot/image-to-code work that begins styling before extracting type,
   spacing, color, component geometry, density, image treatment, and unclear
   detail needs
+- vague webpage starts that skip startup clarification and collapse into a
+  generic template before project logic, reference fit, skeleton, or asset
+  slots are clear
 
 ## References
 
+- `references/startup-clarification.md` - vague brief intake, Grill-shaped pressure route, Spark escalation boundary, skeleton and media slot handoff
 - `references/image-prompt-guide.md` - image2 prompt structure, state boards, reference-drift checks
 - `references/implementation-loop.md` - stack choice, workflow/control gates, affordance evidence, canvas stability, browser loop
 - `references/frontend-architecture.md` - component tree, state/data ownership, file/style organization, token integration

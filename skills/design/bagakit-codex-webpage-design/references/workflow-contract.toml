@@ -6,6 +6,7 @@ owner = "skills/design/bagakit-codex-webpage-design"
 [entry]
 skill = "SKILL.md"
 required_reference_links = [
+  "references/startup-clarification.md",
   "references/image-prompt-guide.md",
   "references/implementation-loop.md",
   "references/frontend-architecture.md",
@@ -19,6 +20,12 @@ required_reference_links = [
 optional_peer_contracts = [
   "skills/design/bagakit-design-core/references/design-core-contract.toml",
 ]
+
+[[stage]]
+id = "startup-clarification"
+phase = "before_implementation"
+artifact = "startup-clarification.md"
+required_when = "initial webpage request is vague, reference-light, hackathon/demo/pitch-oriented, asset-heavy, or project logic is unclear"
 
 [[stage]]
 id = "design-brief"
@@ -111,6 +118,18 @@ artifact = "section-frame-continuity-ledger.md"
 required_when = "section-reference-plan exists or generated references are split across multiple section frames"
 
 [[stage]]
+id = "page-skeleton"
+phase = "before_implementation"
+artifact = "page-skeleton.md"
+required_when = "startup-clarification is used or the page begins from a vague/reference-light brief"
+
+[[stage]]
+id = "media-slot-plan"
+phase = "before_implementation"
+artifact = "media-slot-plan.md"
+required_when = "page needs provided, generated, or placeholder imagery"
+
+[[stage]]
 id = "visual-decomposition"
 phase = "before_implementation"
 artifact = "visual-decomposition.md"
@@ -145,6 +164,12 @@ id = "asset-generation-ledger"
 phase = "before_implementation"
 artifact = "asset-generation-ledger.md"
 required_when = "asset-requirement-pass classifies asset_required"
+
+[[stage]]
+id = "bulk-asset-match-ledger"
+phase = "before_implementation"
+artifact = "bulk-asset-match-ledger.md"
+required_when = "user provides an unsorted folder or large batch of images/assets"
 
 [[stage]]
 id = "ambition-bar"
@@ -307,6 +332,26 @@ blocks_completion = true
 id = "handoff"
 artifact = "handoff.md"
 blocks_completion = true
+
+[[guard]]
+id = "startup-clarification-boundary"
+protects = "webpage-design startup clarification must produce webpage-start artifacts without duplicating Spark or Grill dialogue protocols"
+proof_surface = "startup-clarification plus design-brief plus route handoff"
+
+[[guard]]
+id = "brief-clarity-before-design"
+protects = "vague webpage starts must clarify audience, proof point, desired action, project loop, module order, reference fit, and accepted unknowns before visual implementation"
+proof_surface = "startup-clarification plus design-brief plus page-skeleton"
+
+[[guard]]
+id = "skeleton-before-detail"
+protects = "reference-light or vague starts should reach a reviewable page skeleton and media slot plan before detailed styling or bulk asset placement"
+proof_surface = "page-skeleton plus media-slot-plan plus design-spec-ledger"
+
+[[guard]]
+id = "bulk-asset-slot-matching"
+protects = "unsorted image batches must be classified and matched to named media slots with confidence, uncertainty, and correction history"
+proof_surface = "media-slot-plan plus bulk-asset-match-ledger plus visual-parity-ledger"
 
 [[guard]]
 id = "reference-first"

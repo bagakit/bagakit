@@ -21,6 +21,8 @@ reviews. Implementation skills own code, browser evidence, and delivery.
 Use this skill when a task needs:
 
 - brand or product tonality translated into concrete design axes
+- a vague brief, concept, or reference set read into design-relevant project
+  logic before visual choices
 - product-like work shaped by users, outcomes, objects, workflow, states, and
   success signals before visual choices
 - comparable-reference inspection before a draft is accepted
@@ -36,7 +38,8 @@ early ambiguous ideation that still needs `bagakit-spark`.
 
 1. `design-read`
    - record surface kind, audience, task, vibe, reference/system family,
-     constraints, and unknowns
+     constraints, unknowns, and whether the brief is clear enough for design
+     judgment or needs an explicit clarification route
 2. `target-register`
    - classify the surface as brand, product, editorial, tool, game, data, or
      mixed; state what design should optimize

@@ -100,6 +100,11 @@ protects = "design judgment must record surface kind, audience, user task, vibe,
 proof_surface = "design-read plus source-evidence"
 
 [[guard]]
+id = "brief-clarity-before-taste"
+protects = "design judgment must know whether a vague brief needs clarification before accepting a visual direction"
+proof_surface = "design-read plus target-register plus accepted uncertainty"
+
+[[guard]]
 id = "evidence-before-taste"
 protects = "design judgment should start from inspected source evidence, existing visual-system context, or explicit greenfield intent rather than freeform taste"
 proof_surface = "source-evidence plus target-register plus visual-language-profile when existing system evidence matters"

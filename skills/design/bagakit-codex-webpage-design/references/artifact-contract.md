@@ -8,6 +8,14 @@ Recommended root:
 
 Files:
 
+- `startup-clarification.md`
+  - required when the initial webpage prompt is vague, reference-light,
+    hackathon/demo/pitch-oriented, or asset-heavy; records route choice
+    (`direct_execute`, `quick_intake`, `grill_shaped`, or
+    `spark_escalation`), project one-liner, audience, first-screen proof,
+    desired action or belief, project loop, core modules, narrative order,
+    reference fit, asset situation, accepted defaults, accepted unknowns,
+    blockers, and handoff refs
 - `design-brief.md`
   - goal, audience, content, brand/assets, visual direction, constraints
 - `redesign-preservation-audit.md`
@@ -104,6 +112,21 @@ Files:
     frames; records shared palette, type scale, spacing cadence, CTA family,
     radius/material language, imagery grade, icon or mark style, copy tone,
     visual throughline, and any one-time delayed-recognition detail
+- `page-skeleton.md`
+  - required when startup clarification is used or the page begins from a
+    vague/reference-light brief; records first-pass section order, module
+    jobs, object/content placeholders, first-screen proof, narrative flow,
+    and which parts can be filled after visual direction
+- `media-slot-plan.md`
+  - required when the page needs provided, generated, or placeholder imagery;
+    records each media slot's section, semantic role, needed subject, ratio or
+    crop behavior, visual priority, fallback, and whether the asset is
+    provided, missing, generated, or optional
+- `bulk-asset-match-ledger.md`
+  - required when the user provides an unsorted folder or large batch of
+    images/assets; records asset inventory, content classification, matched
+    media slot, confidence, crop/fit recommendation, uncertainty, rejected
+    assets, and correction history
 - `information-architecture-map.md`
   - object taxonomy, navigation hierarchy, page region responsibilities,
     content grouping, progressive disclosure, information scent, object
@@ -257,6 +280,35 @@ should cover host stack, routing, styling approach, token/theme sources,
 component and asset reuse, content and IA, accessibility behavior, analytics or
 test-sensitive labels, and dependencies. A redesign may exceed the old UI, but
 it should know what it is replacing.
+
+`startup-clarification.md` is a route adapter, not a dialogue protocol. It
+should say whether the task can proceed directly, needs a quick intake, needs a
+Grill-shaped pressure pass, or should escalate to Spark because the project
+itself is still unclear. The artifact is complete when it can feed
+`design-brief.md`, `reference-intent.md`, `page-skeleton.md`, and
+`media-slot-plan.md` without inventing hidden strategy in the implementation.
+
+When `startup-clarification.md` selects `spark_escalation`, webpage
+implementation is blocked until the broader discussion returns an accepted
+brief or the user explicitly narrows the task. When it selects `grill_shaped`,
+questions should be ordered by dependency and limited to page-shaping
+decisions: audience, first-screen proof, desired action, project loop, module
+order, reference fit, and asset readiness.
+
+`page-skeleton.md` is the anti-blank-page artifact. It turns the clarified
+project into a visible structure before final visual detail. It should name
+sections, module jobs, placeholder content, first-screen proof, and media slots
+without pretending placeholders are final copy or final assets.
+
+`media-slot-plan.md` must exist before bulk asset matching when the page needs
+many images. A media slot is not just a file path; it should state what the
+image must prove or communicate, where it appears, what crop or ratio it needs,
+and what fallback is acceptable.
+
+`bulk-asset-match-ledger.md` should classify unsorted assets against the slot
+plan. Record confidence and uncertainty. If only one or two assets are wrong,
+the correction loop should update the ledger rather than forcing the user to
+rename or place every asset manually.
 
 `image-extraction-checklist.md` is blocking when visual implementation starts
 from an image-like reference. Extract the reference into buildable facts before

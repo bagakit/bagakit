@@ -25,6 +25,18 @@ Start by classifying what the surface should optimize:
 
 Mixed surfaces should name which register wins in conflict.
 
+## Brief Clarity Before Taste
+
+Before reviewing style, check whether the brief is specific enough to judge
+the design. If the surface goal, audience, proof point, first action, content
+shape, or reference intent is still vague, record the clarification route
+instead of filling the gap with generic visual polish.
+
+This does not make the design-core layer a questioning workflow. It only
+protects the design read: the downstream implementation skill may run a local
+startup clarification, a Grill-style pressure pass, or a Spark discussion when
+the project itself is not yet clear.
+
 ## Product Model Before Pixels
 
 For product-like surfaces, app shells, dashboards, settings, tools, and

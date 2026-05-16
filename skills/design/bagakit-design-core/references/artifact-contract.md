@@ -19,7 +19,8 @@ state as an independently editable source of truth.
 - `design-read.md`
   - compact read before design judgment: surface kind, audience, user task,
     current or desired vibe, reference/system family, constraints, and
-    accepted unknowns
+    accepted unknowns; when the brief is vague, also record the clarification
+    route needed before design judgment
 - `target-register.md`
   - surface class, audience, purpose, optimization target, and what the design
     must not optimize for
