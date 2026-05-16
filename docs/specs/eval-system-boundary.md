@@ -35,6 +35,15 @@ Bagakit's intended eval flow is:
 6. promote durable benchmark conclusions into repository learning only when
    they are worth preserving
 
+Capability eval and regression protection are separate lifecycle states:
+
+1. capability cases measure final-goal quality without blocking release
+2. repeated trials and human calibration establish whether a grader is useful
+3. a recurring or severe failure may become a regression candidate
+4. only a deterministic extracted oracle may graduate into
+   `gate_validation/`
+5. obsolete cases and regressions are retired with replacement or rationale
+
 ## Skill Eval Rule
 
 Skill-owned eval under `gate_eval/skills/` may contain:
@@ -50,6 +59,9 @@ Rule:
 - they are not the terminal maturity target for every skill
 - skills that justify richer evaluation should grow toward dataset-backed,
   comparative, and reliability-aware slices over time
+- model graders must carry a human-calibrated rubric and agreement evidence
+  before their threshold can support a maturity or promotion claim
+- no uncalibrated or stochastic judge may directly block a release
 
 ## Evolver Rule
 

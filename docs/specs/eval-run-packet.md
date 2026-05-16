@@ -30,6 +30,8 @@ Each run writes:
 - case totals
 - focus index
 - case index with per-case report paths
+- trial and reliability summaries when cases request repeated execution
+- grader calibration references when a model or human rubric is used
 
 ## Case Packet
 
@@ -47,6 +49,8 @@ Each `cases/<case-id>.json` packet must include:
 - command trace summary
 - artifact refs
 - optional structured outputs
+- optional goal, polarity, provenance/privacy, grader, lifecycle, and trial
+  metadata copied from a dataset-backed case contract
 - optional error message when the case fails
 
 ## Sanitization Rule
