@@ -5,6 +5,7 @@ import {
   ensureBaseLayout,
   listTopicSlugs,
   listSignalIds,
+  mutateTopic,
   readIndex,
   readRawIndex,
   readRawSignal,
@@ -12,22 +13,18 @@ import {
   readRawTopic,
   readTopic,
   signalExists,
-  syncIndexEntry,
   syncIndexFromTopics,
   topicExists,
   writeIndex,
   writeMemInboxReadme,
   writeSignal,
-  writeTopicArchive,
-  writeTopicHandoff,
-  writeTopic,
-  writeTopicReadme,
-  writeTopicReport,
+  rebuildTopicProjections,
 } from "./lib/fs.ts";
 import { parseArgs, readStringFlag } from "./lib/args.ts";
 import {
   CANDIDATE_KINDS,
   CANDIDATE_STATUSES,
+  COUNTEREVIDENCE_DISPOSITIONS,
   FEEDBACK_SIGNALS,
   NOTE_KINDS,
   PREFLIGHT_DECISIONS,
@@ -55,6 +52,7 @@ import type {
   TopicStatus,
   CandidateKind,
   CandidateStatus,
+  CounterevidenceDisposition,
   EvolverSessionReviewContract,
   EvolverSessionSignalCandidate,
   FeedbackSignal,
@@ -112,11 +110,11 @@ Commands:
   add-feedback --topic <slug> --channel <name> --signal <signal> --detail <text> [--root <repo-root>]
   add-benchmark --topic <slug> --benchmark <id> --metric <name> --result <value> [--baseline <value>] [--detail <text>] [--root <repo-root>]
   add-note --topic <slug> --kind <kind> --text <text> [--root <repo-root>]
-  set-route --topic <slug> --decision <host|upstream|split> --rationale <text> [--host-target <repo-relative-path>] [--host-ref <repo-relative-path>] [--upstream-promotions <id[,id...]>] [--root <repo-root>]
+  set-route --topic <slug> --decision <host|upstream|split> --rationale <text> [--acceptance-authority <authority>] [--acceptance-ref <repo-relative-path>] [--counterevidence-disposition <none_found|addressed|accepted_risk|open>] [--target-owner <owner>] [--proof-plan <name>] [--proof-plan-ref <repo-relative-path>] [--host-target <repo-relative-path>] [--host-ref <repo-relative-path>] [--upstream-promotions <id[,id...]>] [--root <repo-root>]
   add-context-ref --topic <slug> --ref <repo-relative-path> [--note <text>] [--root <repo-root>]
   remove-context-ref --topic <slug> --ref <repo-relative-path> [--root <repo-root>]
   record-decision --topic <slug> --decision <title> --rationale <text> [--candidate <id>] [--status <topic-status>] [--root <repo-root>]
-  record-promotion --topic <slug> --surface <spec|stewardship|skill> --target <target> --summary <text> [--promotion <id>] [--status <proposed|landed>] [--ref <repo-relative-path>] [--proof-refs <repo-relative[,repo-relative...]>] [--root <repo-root>]
+  record-promotion --topic <slug> --surface <spec|stewardship|skill> --target <target> --summary <text> [--promotion <id>] [--status <proposed|accepted_for_landing|landed_verified|rejected|superseded>] [--ref <repo-relative-path>] [--proof-refs <repo-relative[,repo-relative...]>] [--root <repo-root>]
   set-candidate-status --topic <slug> --candidate <id> --status <status> [--note <text>] [--root <repo-root>]
   promote-candidate --topic <slug> --candidate <id> [--note <text>] [--root <repo-root>]
   reject-candidate --topic <slug> --candidate <id> [--note <text>] [--root <repo-root>]
@@ -129,6 +127,10 @@ Commands:
   refresh-index [--root <repo-root>]
   status [--topic <slug>] [--root <repo-root>]
   check [--root <repo-root>]
+
+Topic mutation commands accept optional --operation-id <id>. Retrying the same
+operation and payload with that id is idempotent; reusing the id with different
+input fails as a conflict.
 `);
 }
 
@@ -342,13 +344,51 @@ function persistSignal(paths: ReturnType<typeof resolvePaths>, signal: IntakeSig
   writeMemInboxReadme(paths);
 }
 
-function persistTopic(paths: ReturnType<typeof resolvePaths>, topic: TopicRecord): void {
-  writeTopic(paths, topic);
-  writeTopicReadme(paths, topic);
-  writeTopicReport(paths, topic);
-  writeTopicHandoff(paths, topic);
-  writeTopicArchive(paths, topic);
-  writeIndex(paths, syncIndexEntry(readIndex(paths), topic));
+function topicMutation(
+  paths: ReturnType<typeof resolvePaths>,
+  slug: string,
+  flags: Map<string, string | boolean>,
+  operation: string,
+  payload: unknown,
+  mutate: (topic: TopicRecord) => void,
+  create?: () => TopicRecord,
+): TopicRecord {
+  const result = mutateTopic(
+    paths,
+    slug,
+    {
+      operation,
+      operationId: operationId(flags),
+      payload,
+      create,
+    },
+    mutate,
+  );
+  try {
+    return rebuildTopicProjections(paths, slug);
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error);
+    const disposition = result.idempotent ? "was already committed" : "committed";
+    throw new Error(
+      `topic mutation ${disposition}, but projection rebuild failed: ${detail}; retry with the same --operation-id or run refresh-index`,
+    );
+  }
+}
+
+function operationId(flags: Map<string, string | boolean>): string | undefined {
+  const value = readStringFlag(flags, "operation-id");
+  if (value === undefined) return undefined;
+  if (!new RegExp("^[a-z0-9][a-z0-9._:-]{0,127}$").test(value)) {
+    throw new Error(`operation-id must be a stable lowercase token: ${value}`);
+  }
+  return value;
+}
+
+function assertCounterevidenceDisposition(value: string): CounterevidenceDisposition {
+  if (COUNTEREVIDENCE_DISPOSITIONS.includes(value as CounterevidenceDisposition)) {
+    return value as CounterevidenceDisposition;
+  }
+  throw new Error(`invalid counterevidence disposition: ${value}`);
 }
 
 function requireCandidate(topic: TopicRecord, candidateId: string): CandidateRecord {
@@ -372,14 +412,19 @@ function cmdInitTopic(flags: Map<string, string | boolean>): void {
   ensureBaseLayout(paths);
 
   const now = nowIso();
-  let topic: TopicRecord;
-  if (topicExists(paths, slug)) {
-    topic = readTopic(paths, slug);
-    topic.title = title;
-    topic.updated_at = now;
-  } else {
-    topic = {
+  topicMutation(
+    paths,
+    slug,
+    flags,
+    "init-topic",
+    { title },
+    (topic) => {
+      topic.title = title;
+      topic.updated_at = now;
+    },
+    () => ({
       version: 1,
+      revision: 0,
       slug,
       title,
       status: "active",
@@ -393,10 +438,9 @@ function cmdInitTopic(flags: Map<string, string | boolean>): void {
       benchmarks: [],
       promotions: [],
       notes: [],
-    };
-  }
-
-  persistTopic(paths, topic);
+      mutation_receipts: [],
+    }),
+  );
 
   console.log(`initialized topic ${slug}`);
 }
@@ -626,58 +670,56 @@ function cmdAdoptSignal(flags: Map<string, string | boolean>): void {
 
   const paths = resolvePaths(root);
   const signal = readSignal(paths, signalId);
-  if (signal.status !== "pending") {
+  if (signal.status !== "pending" && !(signal.status === "adopted" && signal.adopted_topic === topicSlug)) {
     throw new Error(`signal is already resolved: ${signalId}`);
   }
 
-  const topic = readTopic(paths, topicSlug);
-  for (const candidateId of relatedCandidates) {
-    requireCandidate(topic, candidateId);
-  }
-  if (topic.sources.some((source) => source.id === sourceId)) {
-    throw new Error(`source already exists in topic ${topicSlug}: ${sourceId}`);
-  }
-
   const primaryRef = signal.local_refs[0];
-  const source: SourceRecord = {
-    id: sourceId,
-    kind: sourceKind,
-    title: signal.title,
-    origin: origin ?? `${signal.producer}:${signal.source_channel}`,
-    local_ref: primaryRef,
-    summary_ref: primaryRef,
-    added_at: nowIso(),
-  };
-  topic.sources.push(source);
-
-  for (const ref of signal.local_refs) {
-    if (!topic.local_context_refs.includes(ref)) {
-      topic.local_context_refs.push(ref);
-    }
-  }
-  topic.local_context_refs.sort((left, right) => left.localeCompare(right));
-
-  const noteLines = [
-    `adopted intake signal ${signal.id} from ${signal.producer}/${signal.source_channel}`,
-    `summary: ${signal.summary}`,
-  ];
-  for (const evidence of signal.evidence) {
-    noteLines.push(`evidence: ${evidence}`);
-  }
-  if (extraNote) {
-    noteLines.push(extraNote);
-  }
-  const note: NoteRecord = {
-    kind: noteKind,
-    title: `signal:${signal.id}`,
-    text: noteLines.join("\n"),
-    created_at: nowIso(),
-    related_candidates: relatedCandidates.length > 0 ? relatedCandidates : undefined,
-    related_source_ids: [sourceId],
-  };
-  topic.notes.push(note);
-  topic.updated_at = nowIso();
-  persistTopic(paths, topic);
+  topicMutation(
+    paths,
+    topicSlug,
+    flags,
+    "adopt-signal",
+    { signalId, sourceId, sourceKind, origin, noteKind, extraNote, relatedCandidates },
+    (topic) => {
+      for (const candidateId of relatedCandidates) {
+        requireCandidate(topic, candidateId);
+      }
+      if (topic.sources.some((source) => source.id === sourceId)) {
+        throw new Error(`source already exists in topic ${topicSlug}: ${sourceId}`);
+      }
+      topic.sources.push({
+        id: sourceId,
+        kind: sourceKind,
+        title: signal.title,
+        origin: origin ?? `${signal.producer}:${signal.source_channel}`,
+        local_ref: primaryRef,
+        summary_ref: primaryRef,
+        added_at: nowIso(),
+      });
+      for (const ref of signal.local_refs) {
+        if (!topic.local_context_refs.includes(ref)) {
+          topic.local_context_refs.push(ref);
+        }
+      }
+      topic.local_context_refs.sort((left, right) => left.localeCompare(right));
+      const noteLines = [
+        `adopted intake signal ${signal.id} from ${signal.producer}:${signal.source_channel}`,
+        `summary: ${signal.summary}`,
+        ...signal.evidence.map((evidence) => `evidence: ${evidence}`),
+      ];
+      if (extraNote) noteLines.push(extraNote);
+      topic.notes.push({
+        kind: noteKind,
+        title: `signal:${signal.id}`,
+        text: noteLines.join("\n"),
+        created_at: nowIso(),
+        related_candidates: relatedCandidates.length > 0 ? relatedCandidates : undefined,
+        related_source_ids: [sourceId],
+      });
+      topic.updated_at = nowIso();
+    },
+  );
 
   const adopted = buildSignalFileRecord(signal, {
     status: "adopted",
@@ -714,16 +756,11 @@ function cmdPreflight(flags: Map<string, string | boolean>): void {
   const rationale = readStringFlag(flags, "rationale", true)!;
 
   const paths = resolvePaths(root);
-  const topic = readTopic(paths, topicSlug);
   const now = nowIso();
-  topic.preflight = {
-    decision,
-    rationale,
-    assessed_at: now,
-  };
-  topic.updated_at = now;
-
-  persistTopic(paths, topic);
+  topicMutation(paths, topicSlug, flags, "preflight", { decision, rationale }, (topic) => {
+    topic.preflight = { decision, rationale, assessed_at: now };
+    topic.updated_at = now;
+  });
   console.log(`recorded preflight for ${topicSlug}`);
 }
 
@@ -739,23 +776,13 @@ function cmdAddCandidate(flags: Map<string, string | boolean>): void {
   );
 
   const paths = resolvePaths(root);
-  const topic = readTopic(paths, topicSlug);
-  if (topic.candidates.some((item) => item.id === candidateId)) {
-    throw new Error(`candidate already exists in topic ${topicSlug}: ${candidateId}`);
-  }
-
-  const candidate: CandidateRecord = {
-    id: candidateId,
-    kind,
-    source,
-    summary,
-    status,
-    added_at: nowIso(),
-  };
-  topic.candidates.push(candidate);
-  topic.updated_at = nowIso();
-
-  persistTopic(paths, topic);
+  topicMutation(paths, topicSlug, flags, "add-candidate", { candidateId, kind, source, summary, status }, (topic) => {
+    if (topic.candidates.some((item) => item.id === candidateId)) {
+      throw new Error(`candidate already exists in topic ${topicSlug}: ${candidateId}`);
+    }
+    topic.candidates.push({ id: candidateId, kind, source, summary, status, added_at: nowIso() });
+    topic.updated_at = nowIso();
+  });
   console.log(`added candidate ${candidateId} to ${topicSlug}`);
 }
 
@@ -770,24 +797,21 @@ function cmdAddSource(flags: Map<string, string | boolean>): void {
   const summaryRef = normalizeOptionalRepoRef(root, readStringFlag(flags, "summary-ref"));
 
   const paths = resolvePaths(root);
-  const topic = readTopic(paths, topicSlug);
-  if (topic.sources.some((item) => item.id === sourceId)) {
-    throw new Error(`source already exists in topic ${topicSlug}: ${sourceId}`);
-  }
-
-  const source: SourceRecord = {
-    id: sourceId,
-    kind,
-    title,
-    origin,
-    local_ref: localRef,
-    summary_ref: summaryRef,
-    added_at: nowIso(),
-  };
-  topic.sources.push(source);
-  topic.updated_at = nowIso();
-
-  persistTopic(paths, topic);
+  topicMutation(paths, topicSlug, flags, "add-source", { sourceId, kind, title, origin, localRef, summaryRef }, (topic) => {
+    if (topic.sources.some((item) => item.id === sourceId)) {
+      throw new Error(`source already exists in topic ${topicSlug}: ${sourceId}`);
+    }
+    topic.sources.push({
+      id: sourceId,
+      kind,
+      title,
+      origin,
+      local_ref: localRef,
+      summary_ref: summaryRef,
+      added_at: nowIso(),
+    });
+    topic.updated_at = nowIso();
+  });
   console.log(`added source ${sourceId} to ${topicSlug}`);
 }
 
@@ -799,17 +823,10 @@ function cmdAddFeedback(flags: Map<string, string | boolean>): void {
   const detail = readStringFlag(flags, "detail", true)!;
 
   const paths = resolvePaths(root);
-  const topic = readTopic(paths, topicSlug);
-  const feedback: FeedbackRecord = {
-    channel,
-    signal,
-    detail,
-    created_at: nowIso(),
-  };
-  topic.feedback.push(feedback);
-  topic.updated_at = nowIso();
-
-  persistTopic(paths, topic);
+  topicMutation(paths, topicSlug, flags, "add-feedback", { channel, signal, detail }, (topic) => {
+    topic.feedback.push({ channel, signal, detail, created_at: nowIso() });
+    topic.updated_at = nowIso();
+  });
   console.log(`added feedback to ${topicSlug}`);
 }
 
@@ -823,19 +840,20 @@ function cmdAddBenchmark(flags: Map<string, string | boolean>): void {
   const detail = readStringFlag(flags, "detail");
 
   const paths = resolvePaths(root);
-  const topic = readTopic(paths, topicSlug);
-  const record: BenchmarkRecord = {
-    id: benchmarkId,
-    metric,
-    result,
-    baseline: baseline ?? undefined,
-    detail: detail ?? undefined,
-    created_at: nowIso(),
-  };
-  topic.benchmarks.push(record);
-  topic.updated_at = nowIso();
-
-  persistTopic(paths, topic);
+  topicMutation(paths, topicSlug, flags, "add-benchmark", { benchmarkId, metric, result, baseline, detail }, (topic) => {
+    if (topic.benchmarks.some((item) => item.id === benchmarkId)) {
+      throw new Error(`benchmark already exists in topic ${topicSlug}: ${benchmarkId}`);
+    }
+    topic.benchmarks.push({
+      id: benchmarkId,
+      metric,
+      result,
+      baseline: baseline ?? undefined,
+      detail: detail ?? undefined,
+      created_at: nowIso(),
+    });
+    topic.updated_at = nowIso();
+  });
   console.log(`added benchmark ${benchmarkId} to ${topicSlug}`);
 }
 
@@ -846,16 +864,10 @@ function cmdAddNote(flags: Map<string, string | boolean>): void {
   const text = readStringFlag(flags, "text", true)!;
 
   const paths = resolvePaths(root);
-  const topic = readTopic(paths, topicSlug);
-  const note: NoteRecord = {
-    kind,
-    text,
-    created_at: nowIso(),
-  };
-  topic.notes.push(note);
-  topic.updated_at = nowIso();
-
-  persistTopic(paths, topic);
+  topicMutation(paths, topicSlug, flags, "add-note", { kind, text }, (topic) => {
+    topic.notes.push({ kind, text, created_at: nowIso() });
+    topic.updated_at = nowIso();
+  });
   console.log(`added ${kind} note to ${topicSlug}`);
 }
 
@@ -866,25 +878,22 @@ function cmdAddContextRef(flags: Map<string, string | boolean>): void {
   const noteText = readStringFlag(flags, "note");
 
   const paths = resolvePaths(root);
-  const topic = readTopic(paths, topicSlug);
   const normalizedRef = normalizeLocalContextRef(paths.root, rawRef);
-
-  if (!topic.local_context_refs.includes(normalizedRef)) {
-    topic.local_context_refs.push(normalizedRef);
-    topic.local_context_refs.sort((a, b) => a.localeCompare(b));
-  }
-
-  if (noteText) {
-    topic.notes.push({
-      kind: "observation",
-      title: "local-context-ref",
-      text: noteText,
-      created_at: nowIso(),
-    });
-  }
-
-  topic.updated_at = nowIso();
-  persistTopic(paths, topic);
+  topicMutation(paths, topicSlug, flags, "add-context-ref", { normalizedRef, noteText }, (topic) => {
+    if (!topic.local_context_refs.includes(normalizedRef)) {
+      topic.local_context_refs.push(normalizedRef);
+      topic.local_context_refs.sort((a, b) => a.localeCompare(b));
+    }
+    if (noteText) {
+      topic.notes.push({
+        kind: "observation",
+        title: "local-context-ref",
+        text: noteText,
+        created_at: nowIso(),
+      });
+    }
+    topic.updated_at = nowIso();
+  });
 
   const absoluteRef = path.join(paths.root, normalizedRef);
   if (!fs.existsSync(absoluteRef)) {
@@ -901,24 +910,50 @@ function cmdSetRoute(flags: Map<string, string | boolean>): void {
   const rationale = readStringFlag(flags, "rationale", true)!;
   const hostTarget = normalizeOptionalRepoRef(root, readStringFlag(flags, "host-target"));
   const hostRef = normalizeOptionalRepoRef(root, readStringFlag(flags, "host-ref"));
+  const acceptanceAuthority = readStringFlag(flags, "acceptance-authority");
+  const acceptanceRef = normalizeOptionalRepoRef(root, readStringFlag(flags, "acceptance-ref"));
+  const counterevidenceDispositionRaw = readStringFlag(flags, "counterevidence-disposition");
+  const counterevidenceDisposition = counterevidenceDispositionRaw
+    ? assertCounterevidenceDisposition(counterevidenceDispositionRaw)
+    : undefined;
+  const targetOwner = readStringFlag(flags, "target-owner");
+  const proofPlan = readStringFlag(flags, "proof-plan");
+  const proofPlanRef = normalizeOptionalRepoRef(root, readStringFlag(flags, "proof-plan-ref"));
   const upstreamPromotionIds = readStringFlag(flags, "upstream-promotions")
     ?.split(",")
     .map((item) => item.trim())
     .filter((item) => item !== "") ?? [];
 
   const paths = resolvePaths(root);
-  const topic = readTopic(paths, topicSlug);
-  topic.routing = {
+  topicMutation(paths, topicSlug, flags, "set-route", {
     decision,
     rationale,
-    decided_at: nowIso(),
-    host_target: hostTarget,
-    host_ref: hostRef,
-    upstream_promotion_ids: upstreamPromotionIds,
-  };
-  topic.updated_at = nowIso();
-
-  persistTopic(paths, topic);
+    hostTarget,
+    hostRef,
+    acceptanceAuthority,
+    acceptanceRef,
+    counterevidenceDisposition,
+    targetOwner,
+    proofPlan,
+    proofPlanRef,
+    upstreamPromotionIds,
+  }, (topic) => {
+    topic.routing = {
+      decision,
+      rationale,
+      decided_at: nowIso(),
+      acceptance_authority: acceptanceAuthority,
+      acceptance_ref: acceptanceRef,
+      counterevidence_disposition: counterevidenceDisposition,
+      target_owner: targetOwner,
+      proof_plan: proofPlan,
+      proof_plan_ref: proofPlanRef,
+      host_target: hostTarget,
+      host_ref: hostRef,
+      upstream_promotion_ids: upstreamPromotionIds,
+    };
+    topic.updated_at = nowIso();
+  });
   console.log(`recorded route ${decision} for ${topicSlug}`);
 }
 
@@ -928,16 +963,15 @@ function cmdRemoveContextRef(flags: Map<string, string | boolean>): void {
   const rawRef = readStringFlag(flags, "ref", true)!;
 
   const paths = resolvePaths(root);
-  const topic = readTopic(paths, topicSlug);
   const normalizedRef = normalizeLocalContextRef(paths.root, rawRef);
-  const before = topic.local_context_refs.length;
-  topic.local_context_refs = topic.local_context_refs.filter((item) => item !== normalizedRef);
-  if (topic.local_context_refs.length === before) {
-    throw new Error(`local context ref not found in ${topicSlug}: ${normalizedRef}`);
-  }
-
-  topic.updated_at = nowIso();
-  persistTopic(paths, topic);
+  topicMutation(paths, topicSlug, flags, "remove-context-ref", { normalizedRef }, (topic) => {
+    const before = topic.local_context_refs.length;
+    topic.local_context_refs = topic.local_context_refs.filter((item) => item !== normalizedRef);
+    if (topic.local_context_refs.length === before) {
+      throw new Error(`local context ref not found in ${topicSlug}: ${normalizedRef}`);
+    }
+    topic.updated_at = nowIso();
+  });
   console.log(`removed local context ref ${normalizedRef} from ${topicSlug}`);
 }
 
@@ -950,26 +984,18 @@ function cmdRecordDecision(flags: Map<string, string | boolean>): void {
   const nextStatus = readStringFlag(flags, "status");
 
   const paths = resolvePaths(root);
-  const topic = readTopic(paths, topicSlug);
-  if (candidateId) {
-    requireCandidate(topic, candidateId);
-  }
-
-  const note: NoteRecord = {
-    kind: "decision",
-    title: decision,
-    text: rationale,
-    created_at: nowIso(),
-    related_candidates: candidateId ? [candidateId] : undefined,
-  };
-  topic.notes.push(note);
-
-  if (nextStatus) {
-    topic.status = assertTopicStatus(nextStatus);
-  }
-  topic.updated_at = nowIso();
-
-  persistTopic(paths, topic);
+  topicMutation(paths, topicSlug, flags, "record-decision", { decision, rationale, candidateId, nextStatus }, (topic) => {
+    if (candidateId) requireCandidate(topic, candidateId);
+    topic.notes.push({
+      kind: "decision",
+      title: decision,
+      text: rationale,
+      created_at: nowIso(),
+      related_candidates: candidateId ? [candidateId] : undefined,
+    });
+    if (nextStatus) topic.status = assertTopicStatus(nextStatus);
+    topic.updated_at = nowIso();
+  });
   console.log(`recorded decision in ${topicSlug}`);
 }
 
@@ -982,17 +1008,18 @@ function cmdRecordPromotion(flags: Map<string, string | boolean>): void {
   const promotionId = toSlug(
     readStringFlag(flags, "promotion") ?? `${surface}-${target}`,
   );
-  const status = assertPromotionStatus(readStringFlag(flags, "status") ?? "proposed");
+  const rawStatus = readStringFlag(flags, "status") ?? "proposed";
+  const status = assertPromotionStatus(rawStatus);
   const ref = normalizeOptionalRepoRef(root, readStringFlag(flags, "ref"));
   const proofRefs = readCsvRepoRefs(root, readStringFlag(flags, "proof-refs"));
   if (!promotionId) {
     throw new Error("promotion id normalizes to empty value");
   }
-  if (status === "landed" && !ref) {
-    throw new Error("landed promotion requires --ref");
+  if (status === "landed_verified" && !ref) {
+    throw new Error("landed_verified promotion requires --ref");
   }
-  if (status === "landed" && proofRefs.length === 0) {
-    throw new Error("landed promotion requires --proof-refs");
+  if (status === "landed_verified" && proofRefs.length === 0) {
+    throw new Error("landed_verified promotion requires --proof-refs");
   }
 
   if (ref) {
@@ -1003,34 +1030,40 @@ function cmdRecordPromotion(flags: Map<string, string | boolean>): void {
   }
 
   const paths = resolvePaths(root);
-  const topic = readTopic(paths, topicSlug);
   const now = nowIso();
-  const existing = topic.promotions.find((promotion) => promotion.id === promotionId);
-  if (existing) {
-    existing.surface = surface;
-    existing.status = status;
-    existing.target = target;
-    existing.summary = summary;
-    existing.ref = ref;
-    existing.proof_refs = proofRefs;
-    existing.updated_at = now;
-  } else {
-    const promotion: PromotionRecord = {
-      id: promotionId,
-      surface,
-      status,
-      target,
-      summary,
-      ref,
-      proof_refs: proofRefs,
-      created_at: now,
-      updated_at: now,
-    };
-    topic.promotions.push(promotion);
-  }
-  topic.updated_at = nowIso();
-
-  persistTopic(paths, topic);
+  topicMutation(paths, topicSlug, flags, "record-promotion", {
+    promotionId,
+    surface,
+    status,
+    target,
+    summary,
+    ref,
+    proofRefs,
+  }, (topic) => {
+    const existing = topic.promotions.find((promotion) => promotion.id === promotionId);
+    if (existing) {
+      existing.surface = surface;
+      existing.status = status;
+      existing.target = target;
+      existing.summary = summary;
+      existing.ref = ref;
+      existing.proof_refs = proofRefs;
+      existing.updated_at = now;
+    } else {
+      topic.promotions.push({
+        id: promotionId,
+        surface,
+        status,
+        target,
+        summary,
+        ref,
+        proof_refs: proofRefs,
+        created_at: now,
+        updated_at: now,
+      });
+    }
+    topic.updated_at = now;
+  });
   console.log(`recorded promotion in ${topicSlug}`);
 }
 
@@ -1045,22 +1078,20 @@ function cmdSetCandidateStatus(
   const noteText = readStringFlag(flags, "note");
 
   const paths = resolvePaths(root);
-  const topic = readTopic(paths, topicSlug);
-  const candidate = requireCandidate(topic, candidateId);
-  candidate.status = nextStatus;
-  topic.updated_at = nowIso();
-
-  if (noteText) {
-    topic.notes.push({
-      kind: "decision",
-      title: `candidate:${candidateId}:${nextStatus}`,
-      text: noteText,
-      created_at: nowIso(),
-      related_candidates: [candidateId],
-    });
-  }
-
-  persistTopic(paths, topic);
+  topicMutation(paths, topicSlug, flags, "set-candidate-status", { candidateId, nextStatus, noteText }, (topic) => {
+    const candidate = requireCandidate(topic, candidateId);
+    candidate.status = nextStatus;
+    topic.updated_at = nowIso();
+    if (noteText) {
+      topic.notes.push({
+        kind: "decision",
+        title: `candidate:${candidateId}:${nextStatus}`,
+        text: noteText,
+        created_at: nowIso(),
+        related_candidates: [candidateId],
+      });
+    }
+  });
   console.log(`set ${candidateId} to ${nextStatus} in ${topicSlug}`);
 }
 
@@ -1070,11 +1101,16 @@ function cmdSetTopicStatus(flags: Map<string, string | boolean>): void {
   const nextStatus = assertTopicStatus(readStringFlag(flags, "status", true)!);
 
   const paths = resolvePaths(root);
-  const topic = readTopic(paths, topicSlug);
-  topic.status = nextStatus;
-  topic.updated_at = nowIso();
-
-  persistTopic(paths, topic);
+  topicMutation(paths, topicSlug, flags, "set-topic-status", { nextStatus }, (topic) => {
+    if (nextStatus === "archived") {
+      const readiness = evaluatePromotionReadiness(topic, paths.root);
+      if (!readiness.archive_ready) {
+        throw new Error(`archive blocked: ${readiness.blockers.join("; ") || `readiness state is ${readiness.state}`}`);
+      }
+    }
+    topic.status = nextStatus;
+    topic.updated_at = nowIso();
+  });
   console.log(`set topic ${topicSlug} to ${nextStatus}`);
 }
 
@@ -1084,17 +1120,22 @@ function cmdCloseTopic(flags: Map<string, string | boolean>, archived: boolean):
   const summary = readStringFlag(flags, "summary", true)!;
 
   const paths = resolvePaths(root);
-  const topic = readTopic(paths, topicSlug);
-  topic.status = archived ? "archived" : "completed";
-  topic.notes.push({
-    kind: "decision",
-    title: archived ? "archive-topic" : "close-topic",
-    text: summary,
-    created_at: nowIso(),
+  topicMutation(paths, topicSlug, flags, archived ? "archive-topic" : "close-topic", { summary }, (topic) => {
+    if (archived) {
+      const readiness = evaluatePromotionReadiness(topic, paths.root);
+      if (!readiness.archive_ready) {
+        throw new Error(`archive blocked: ${readiness.blockers.join("; ") || `readiness state is ${readiness.state}`}`);
+      }
+    }
+    topic.status = archived ? "archived" : "completed";
+    topic.notes.push({
+      kind: "decision",
+      title: archived ? "archive-topic" : "close-topic",
+      text: summary,
+      created_at: nowIso(),
+    });
+    topic.updated_at = nowIso();
   });
-  topic.updated_at = nowIso();
-
-  persistTopic(paths, topic);
   console.log(`${archived ? "archived" : "closed"} topic ${topicSlug}`);
 }
 
@@ -1103,18 +1144,13 @@ function cmdRefreshIndex(flags: Map<string, string | boolean>): void {
   const paths = resolvePaths(root);
   ensureBaseLayout(paths);
 
-  for (const slug of listTopicSlugs(paths)) {
-    const topic = readTopic(paths, slug);
-    writeTopicReadme(paths, topic);
-    writeTopicReport(paths, topic);
-    writeTopicHandoff(paths, topic);
-    writeTopicArchive(paths, topic);
+  const slugs = listTopicSlugs(paths);
+  for (const slug of slugs) {
+    rebuildTopicProjections(paths, slug);
   }
-
-  const index = syncIndexFromTopics(paths);
-  writeIndex(paths, index);
+  if (slugs.length === 0) writeIndex(paths, syncIndexFromTopics(paths));
   writeMemInboxReadme(paths);
-  console.log(`refreshed evolver index and topic artifacts for ${listTopicSlugs(paths).length} topic(s)`);
+  console.log(`refreshed evolver index and topic artifacts for ${slugs.length} topic(s)`);
 }
 
 function cmdStatus(flags: Map<string, string | boolean>): void {
@@ -1137,7 +1173,7 @@ function cmdHandoff(flags: Map<string, string | boolean>): void {
   const jsonMode = flags.has("json");
   const paths = resolvePaths(root);
   const topic = readTopic(paths, topicSlug);
-  const readiness = evaluatePromotionReadiness(topic);
+  const readiness = evaluatePromotionReadiness(topic, paths.root);
 
   if (jsonMode) {
     console.log(
@@ -1163,7 +1199,7 @@ function cmdPromotionReadiness(flags: Map<string, string | boolean>): void {
   const jsonMode = flags.has("json");
   const paths = resolvePaths(root);
   const topic = readTopic(paths, topicSlug);
-  const readiness = evaluatePromotionReadiness(topic);
+  const readiness = evaluatePromotionReadiness(topic, paths.root);
 
   if (jsonMode) {
     console.log(JSON.stringify(readiness, null, 2));

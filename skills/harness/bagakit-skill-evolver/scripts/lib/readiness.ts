@@ -1,3 +1,6 @@
+import fs from "node:fs";
+import path from "node:path";
+
 import type { PromotionRecord, TopicRecord } from "./model.ts";
 
 export type PromotionReadinessState =
@@ -54,7 +57,11 @@ function routeDecision(topic: TopicRecord): PromotionReadinessSummary["route_dec
   return topic.routing?.decision ?? "unset";
 }
 
-export function evaluatePromotionReadiness(topic: TopicRecord): PromotionReadinessSummary {
+function currentRefExists(root: string, ref: string): boolean {
+  return fs.existsSync(path.resolve(root, ref));
+}
+
+export function evaluatePromotionReadiness(topic: TopicRecord, root: string): PromotionReadinessSummary {
   const blockers: string[] = [];
   const decisionCount = topic.notes.filter((note) => note.kind === "decision").length;
   const evidenceCounts = {
@@ -87,8 +94,35 @@ export function evaluatePromotionReadiness(topic: TopicRecord): PromotionReadine
   if (!route) {
     blockers.push("set one repository-level route decision: host, upstream, or split");
   } else {
-    if ((route.decision === "host" || route.decision === "split") && !route.host_target && !route.host_ref) {
-      blockers.push(`route ${route.decision} requires host_target or host_ref`);
+    if (!route.acceptance_authority) {
+      blockers.push("record the authority that accepted the promotion route");
+    }
+    if (!route.acceptance_ref) {
+      blockers.push("record an acceptance_ref for the promotion route");
+    } else if (!currentRefExists(root, route.acceptance_ref)) {
+      blockers.push(`acceptance_ref does not currently exist: ${route.acceptance_ref}`);
+    }
+    if (!route.counterevidence_disposition) {
+      blockers.push("record how counterevidence was dispositioned");
+    } else if (route.counterevidence_disposition === "open") {
+      blockers.push("resolve or explicitly accept the open counterevidence before promotion");
+    }
+    if (!route.target_owner) {
+      blockers.push("name the owner responsible for the promotion target");
+    }
+    if (!route.proof_plan) {
+      blockers.push("name the proof plan that will verify the landing");
+    }
+    if (!route.proof_plan_ref) {
+      blockers.push("record a proof_plan_ref for the named proof plan");
+    } else if (!currentRefExists(root, route.proof_plan_ref)) {
+      blockers.push(`proof_plan_ref does not currently exist: ${route.proof_plan_ref}`);
+    }
+    if ((route.decision === "host" || route.decision === "split") && !route.host_ref) {
+      blockers.push(`route ${route.decision} requires a landed host_ref`);
+    }
+    if ((route.decision === "host" || route.decision === "split") && route.host_ref && !currentRefExists(root, route.host_ref)) {
+      blockers.push(`host_ref does not currently exist: ${route.host_ref}`);
     }
     if (route.decision === "upstream" || route.decision === "split") {
       if (route.upstream_promotion_ids.length === 0) {
@@ -105,7 +139,48 @@ export function evaluatePromotionReadiness(topic: TopicRecord): PromotionReadine
   );
   const allReferencedPromotionsLanded =
     materializedPromotions.length > 0 &&
-    materializedPromotions.every((promotion) => promotion.status === "landed");
+    materializedPromotions.every((promotion) => promotion.status === "landed_verified");
+
+  for (const promotion of materializedPromotions) {
+    if (promotion.status === "landed_verified" && !promotion.ref) {
+      blockers.push(`landed promotion ${promotion.id} requires a landing ref`);
+    }
+    if (promotion.status === "landed_verified" && promotion.proof_refs.length === 0) {
+      blockers.push(`landed promotion ${promotion.id} requires proof refs`);
+    }
+    if (promotion.status === "landed_verified" && promotion.ref && !currentRefExists(root, promotion.ref)) {
+      blockers.push(`landed promotion ref does not currently exist: ${promotion.ref}`);
+    }
+    if (promotion.status === "landed_verified") {
+      for (const proofRef of promotion.proof_refs) {
+        if (!currentRefExists(root, proofRef)) {
+          blockers.push(`landed promotion proof ref does not currently exist: ${proofRef}`);
+        }
+      }
+    }
+  }
+  const unresolvedCandidates = topic.candidates.filter((candidate) =>
+    ["planned", "trial", "revisit"].includes(candidate.status)
+  );
+  if (unresolvedCandidates.length > 0) {
+    blockers.push(`resolve candidate disposition before archive: ${unresolvedCandidates.map((item) => item.id).join(", ")}`);
+  }
+  if (route && (route.decision === "upstream" || route.decision === "split")) {
+    const routed = new Set(route.upstream_promotion_ids);
+    const unrouted = topic.promotions.filter(
+      (promotion) => !["rejected", "superseded"].includes(promotion.status) && !routed.has(promotion.id),
+    );
+    if (unrouted.length > 0) {
+      blockers.push(`route or remove promotions not covered by the route decision: ${unrouted.map((item) => item.id).join(", ")}`);
+    }
+  } else if (route?.decision === "host") {
+    const unresolved = topic.promotions.filter((promotion) =>
+      ["proposed", "accepted_for_landing"].includes(promotion.status),
+    );
+    if (unresolved.length > 0) {
+      blockers.push(`reject or supersede non-host promotions before archive: ${unresolved.map((item) => item.id).join(", ")}`);
+    }
+  }
 
   let state: PromotionReadinessState = "blocked";
   if (blockers.length === 0) {

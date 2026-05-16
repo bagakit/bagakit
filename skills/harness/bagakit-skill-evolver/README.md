@@ -56,11 +56,12 @@ Current capability set:
 - explicit durable promotion surfaces
 - explicit promotion status
 - stable promotion identities for proposal-to-landing tracking
+- locked atomic `topic.json` mutation with revision and idempotent retry receipts
+- fail-closed promotion and archive readiness with current-ref validation
 
 Current known next optimizations:
 
-- add richer promotion workflows into stable repository surfaces
-- add stronger promotion-readiness eval and routing coverage
+- add held-out, canary, and rollback evidence beyond the current readiness gate
 - add better steward-facing views over source, feedback, and benchmark evidence
 
 Important rule:

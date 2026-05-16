@@ -122,12 +122,19 @@ function buildBenchmarkLines(topic: TopicRecord, limit: number | null = 5): stri
     });
 }
 
-function buildReadinessLines(topic: TopicRecord): string[] {
-  const readiness = evaluatePromotionReadiness(topic);
+function buildReadinessLines(paths: EvolverPaths, topic: TopicRecord): string[] {
+  const readiness = evaluatePromotionReadiness(topic, paths.root);
+  const route = topic.routing;
   const lines = [
     `- readiness state: ${quote(readiness.state)}`,
     `- route decision: ${quote(readiness.route_decision)}`,
     `- archive ready: ${quote(readiness.archive_ready ? "yes" : "no")}`,
+    `- acceptance authority: ${quote(route?.acceptance_authority ?? "unset")}`,
+    `- acceptance ref: ${quote(route?.acceptance_ref ?? "unset")}`,
+    `- counterevidence disposition: ${quote(route?.counterevidence_disposition ?? "unset")}`,
+    `- target owner: ${quote(route?.target_owner ?? "unset")}`,
+    `- proof plan: ${quote(route?.proof_plan ?? "unset")}`,
+    `- proof plan ref: ${quote(route?.proof_plan_ref ?? "unset")}`,
   ];
   for (const blocker of readiness.blockers) {
     lines.push(`- blocker: ${blocker}`);
@@ -138,8 +145,8 @@ function buildReadinessLines(topic: TopicRecord): string[] {
   return lines;
 }
 
-function buildRecommendedMove(topic: TopicRecord): string {
-  return evaluatePromotionReadiness(topic).recommended_next_move;
+function buildRecommendedMove(paths: EvolverPaths, topic: TopicRecord): string {
+  return evaluatePromotionReadiness(topic, paths.root).recommended_next_move;
 }
 
 function buildRoutingLines(topic: TopicRecord): string[] {
@@ -263,11 +270,11 @@ export function buildTopicReadme(paths: EvolverPaths, topic: TopicRecord): strin
 }
 
 export function buildTopicReport(paths: EvolverPaths, topic: TopicRecord): string {
-  const readiness = evaluatePromotionReadiness(topic);
+  const readiness = evaluatePromotionReadiness(topic, paths.root);
   const runtimeRoot = path.relative(paths.root, paths.topicDir(topic.slug)).split(path.sep).join("/");
   const researchRefs = joinRepoRefs(topic).filter((ref) => isResearchWorkspaceRef(ref));
   const durableSurfaceLines = buildDurableSurfaceLines(topic);
-  const readinessLines = buildReadinessLines(topic);
+  const readinessLines = buildReadinessLines(paths, topic);
   const lines = [
     `# ${topic.title} Report`,
     "",
@@ -322,7 +329,7 @@ export function buildTopicReport(paths: EvolverPaths, topic: TopicRecord): strin
     "",
     "## Recommended Next Move",
     "",
-    `- ${buildRecommendedMove(topic)}`,
+    `- ${buildRecommendedMove(paths, topic)}`,
     "",
     "## Candidates",
     "",
@@ -353,7 +360,7 @@ export function buildTopicReport(paths: EvolverPaths, topic: TopicRecord): strin
 export function buildTopicHandoff(
   paths: EvolverPaths,
   topic: TopicRecord,
-  readiness: PromotionReadinessSummary = evaluatePromotionReadiness(topic),
+  readiness: PromotionReadinessSummary = evaluatePromotionReadiness(topic, paths.root),
 ): string {
   const runtimeRoot = path.relative(paths.root, paths.topicDir(topic.slug)).split(path.sep).join("/");
   const lines = [
@@ -395,7 +402,7 @@ export function buildTopicHandoff(
 export function buildTopicArchive(
   paths: EvolverPaths,
   topic: TopicRecord,
-  readiness: PromotionReadinessSummary = evaluatePromotionReadiness(topic),
+  readiness: PromotionReadinessSummary = evaluatePromotionReadiness(topic, paths.root),
 ): string {
   const archiveNote = topic.notes
     .filter((note) => note.kind === "decision" && note.title === "archive-topic")

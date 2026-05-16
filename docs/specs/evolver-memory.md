@@ -79,6 +79,8 @@ Topic-local evolver record.
 Current fields:
 
 - `version`
+- `revision`
+- `mutation_receipts[]`
 - `slug`
 - `title`
 - `status`
@@ -112,6 +114,21 @@ Routing record fields:
   - `upstream`
   - `split`
 - `rationale`
+- `acceptance_authority` (optional until promotion readiness)
+  - authority that accepted the route
+- `acceptance_ref` (optional until promotion readiness)
+  - repo-relative current evidence of that acceptance
+- `counterevidence_disposition` (optional until promotion readiness)
+  - `none_found`
+  - `addressed`
+  - `accepted_risk`
+  - `open`
+- `target_owner` (optional until promotion readiness)
+  - owner responsible for the landing target
+- `proof_plan` (optional until promotion readiness)
+  - stable name of the landing verification plan
+- `proof_plan_ref` (optional until promotion readiness)
+  - repo-relative current artifact defining that proof plan
 - `host_target` (optional)
   - repo-relative intended host-side landing path when the route keeps
     material host-local
@@ -217,15 +234,22 @@ Meaning:
 Promotion status values:
 
 - `proposed`
-- `landed`
+- `accepted_for_landing`
+- `landed_verified`
+- `rejected`
+- `superseded`
 
 Promotion rule:
 
 - promotion records are stable topic-local objects, not append-only prose
-- a promotion may move from `proposed` to `landed`
+- a promotion may move from `proposed` to `accepted_for_landing`, then to
+  `landed_verified`
+- rejected or replaced proposals end as `rejected` or `superseded`
 - the stable identity is `id`
-- `landed` promotions must include `ref`
-- `landed` promotions must include one or more `proof_refs`
+- `landed_verified` promotions must include a current `ref`
+- `landed_verified` promotions must include one or more current `proof_refs`
+- promotion state outside this vocabulary is invalid and must be migrated
+  explicitly before normal mutation
 - promotion records describe durable-upstream landing tracks
 - routing remains separate so `host` and `split` decisions do not need to
   pretend that every outcome is one upstream promotion
@@ -235,6 +259,28 @@ Promotion rule:
 - the evolver CLI owns the write path
 - maintainers may inspect these files directly
 - direct hand-edits should be rare and followed by `check`
+
+## Canonical Mutation Contract
+
+`topic.json` is the only canonical topic truth.
+
+Topic mutation commands must:
+
+- acquire a topic-local short lock with owner metadata
+- reclaim a lock only when its owner is dead, with a short grace period for a
+  newly created lock whose owner metadata is not yet visible
+- reread `topic.json` after acquiring the lock
+- replace `topic.json` atomically through a same-directory temporary file,
+  file fsync, rename, and directory fsync
+- increment `revision` on each committed mutation
+- when `--operation-id` is supplied, preserve a bounded receipt with
+  `operation_id` so an identical retry is idempotent and reuse with different
+  semantics fails as a conflict
+
+`README.md`, `REPORT.md`, `HANDOFF.md`, `ARCHIVE.md`, and `index.json` are
+rebuildable projections. They are refreshed from the latest committed topic
+truth under a separate projection lock. Evolver does not claim a transaction
+across `topic.json`, projections, or intake signal files.
 
 ## Derived Artifacts
 
@@ -278,7 +324,8 @@ Evolver should answer two different questions without collapsing them:
 2. what maturity state the durable-upstream portion is in:
    - evidence only
    - proposal only
-   - landed
+   - accepted for landing
+   - landed and verified
 
 The route belongs to `routing`.
 
@@ -294,6 +341,21 @@ without forcing one field to impersonate all three.
 
 Selector may inform the route.
 Selector does not own the repository-level route decision.
+
+Promotion readiness additionally requires:
+
+- an explicit acceptance authority and current acceptance ref
+- a closed counterevidence disposition; `open` is blocking
+- a named target owner
+- a named proof plan and current proof-plan ref
+- a current host landing ref for `host` and `split` routes
+- current landing and proof refs for every `landed_verified` upstream promotion
+- terminal candidate disposition before archive
+
+`archive-topic` and `set-topic-status --status archived` must consume this
+readiness result. Archive is allowed only when the selected route is landed,
+all referenced landings are currently verifiable, and every promotion is
+`landed_verified`, `rejected`, or `superseded`.
 
 ## Practice-Evidence Pattern
 

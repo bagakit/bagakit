@@ -50,6 +50,7 @@ required_files = [
   "gate_validation/skills/harness/bagakit-skill-evolver/validation.toml",
   "gate_validation/skills/harness/bagakit-skill-evolver/check-evolver-state.sh",
   "gate_validation/skills/harness/bagakit-skill-evolver/check-evolver-smoke.sh",
+  "gate_validation/skills/harness/bagakit-skill-evolver/check-evolver-concurrency.sh",
 ]
 forbidden_paths = [
   "skills/harness/bagakit-skill-evolver/SKILL_PAYLOAD.json",
@@ -100,6 +101,29 @@ groups = ["skills", "harness", "evolver", "smoke"]
 [suite.runner]
 kind = "bash_script"
 script = "gate_validation/skills/harness/bagakit-skill-evolver/check-evolver-smoke.sh"
+args = [
+  "--root",
+  "{repo_root}",
+]
+
+[[suite]]
+id = "bagakit-skill-evolver-concurrency"
+owner = "skills/harness/bagakit-skill-evolver"
+description = "Prove concurrent topic writers preserve canonical state, idempotent retry is truthful, and projections rebuild from topic truth."
+default = true
+proof_mode = "state_machine"
+protects = ["skill-evolver topic.json canonical SSOT under concurrent mutation, explicit operation-id retry semantics, lock conflict reporting, same-directory atomic replacement, and rebuildable projections"]
+oracle = ["owner-local script launches eight concurrent public CLI mutations against one topic, parses canonical JSON and index state, retries one operation id, forces a lock conflict, and rebuilds a deliberately stale report"]
+exercised_surface = ["evolver.ts topic mutation commands", ".bagakit/evolver/topics/<slug>/topic.json", "mutation receipts and revision", "REPORT.md and index.json projections"]
+proves = ["bagakit-skill-evolver-concurrency proves concurrent public topic mutations do not lose unique sources, identical operation-id retry does not advance revision, conflicting reuse fails, active locks fail truthfully, and projections can be reconstructed from canonical state."]
+does_not_prove = ["bagakit-skill-evolver-concurrency does not prove distributed filesystem locking, crash recovery after kernel or storage failure, or transactions across topic and signal state."]
+timeout_seconds = 120
+validation_class = "tooling"
+groups = ["skills", "harness", "evolver", "concurrency"]
+
+[suite.runner]
+kind = "bash_script"
+script = "gate_validation/skills/harness/bagakit-skill-evolver/check-evolver-concurrency.sh"
 args = [
   "--root",
   "{repo_root}",

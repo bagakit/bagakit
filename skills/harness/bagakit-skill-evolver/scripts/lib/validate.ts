@@ -4,6 +4,7 @@ import path from "node:path";
 import {
   CANDIDATE_KINDS,
   CANDIDATE_STATUSES,
+  COUNTEREVIDENCE_DISPOSITIONS,
   FEEDBACK_SIGNALS,
   NOTE_KINDS,
   PREFLIGHT_DECISIONS,
@@ -231,6 +232,12 @@ export function validateTopicShape(topic: unknown): void {
   assertNonEmptyString(topic.created_at, "topic created_at");
   assertNonEmptyString(topic.updated_at, "topic updated_at");
   assertEnumValue(TOPIC_STATUSES, topic.status, "topic status");
+  if (topic.revision !== undefined) {
+    assertNumber(topic.revision, "topic revision");
+    if (!Number.isInteger(topic.revision) || topic.revision < 0) {
+      throw new Error(`topic revision must be a non-negative integer for ${topic.slug}`);
+    }
+  }
 
   if (!Array.isArray(topic.local_context_refs)) {
     throw new Error(`local_context_refs must be an array for ${topic.slug}`);
@@ -251,6 +258,22 @@ export function validateTopicShape(topic: unknown): void {
     assertEnumValue(ROUTE_DECISIONS, topic.routing.decision, "routing decision");
     assertNonEmptyString(topic.routing.rationale, "routing rationale");
     assertNonEmptyString(topic.routing.decided_at, "routing decided_at");
+    for (const [field, label] of [
+      ["acceptance_authority", "routing acceptance_authority"],
+      ["acceptance_ref", "routing acceptance_ref"],
+      ["target_owner", "routing target_owner"],
+      ["proof_plan", "routing proof_plan"],
+      ["proof_plan_ref", "routing proof_plan_ref"],
+    ] as const) {
+      if (topic.routing[field] !== undefined) assertNonEmptyString(topic.routing[field], label);
+    }
+    if (topic.routing.counterevidence_disposition !== undefined) {
+      assertEnumValue(
+        COUNTEREVIDENCE_DISPOSITIONS,
+        topic.routing.counterevidence_disposition,
+        "routing counterevidence disposition",
+      );
+    }
     if (topic.routing.host_target !== undefined) {
       assertNonEmptyString(topic.routing.host_target, "routing host_target");
     }
@@ -310,12 +333,17 @@ export function validateTopicShape(topic: unknown): void {
   }
 
   assertArray(topic.benchmarks, "benchmarks");
+  const benchmarkIds = new Set<string>();
   for (const benchmark of topic.benchmarks) {
     assertRecord(benchmark, "benchmark");
     assertNonEmptyString(benchmark.id, "benchmark id");
     assertNonEmptyString(benchmark.metric, "benchmark metric");
     assertNonEmptyString(benchmark.result, "benchmark result");
     assertNonEmptyString(benchmark.created_at, "benchmark created_at");
+    if (benchmarkIds.has(benchmark.id)) {
+      throw new Error(`duplicate benchmark id in ${topic.slug}: ${benchmark.id}`);
+    }
+    benchmarkIds.add(benchmark.id);
   }
 
   assertArray(topic.promotions, "promotions");
@@ -329,7 +357,7 @@ export function validateTopicShape(topic: unknown): void {
     assertNonEmptyString(promotion.summary, "promotion summary");
     assertNonEmptyString(promotion.created_at, "promotion created_at");
     assertNonEmptyString(promotion.updated_at, "promotion updated_at");
-    if (promotion.status === "landed" && promotion.ref === undefined) {
+    if (promotion.status === "landed_verified" && promotion.ref === undefined) {
       throw new Error(`landed promotion must include ref in ${topic.slug}: ${promotion.id}`);
     }
     if (promotion.ref !== undefined) {
@@ -339,7 +367,7 @@ export function validateTopicShape(topic: unknown): void {
     for (const proofRef of promotion.proof_refs) {
       assertNonEmptyString(proofRef, "promotion proof_ref");
     }
-    if (promotion.status === "landed" && promotion.proof_refs.length === 0) {
+    if (promotion.status === "landed_verified" && promotion.proof_refs.length === 0) {
       throw new Error(`landed promotion must include proof_refs in ${topic.slug}: ${promotion.id}`);
     }
     if (promotionIds.has(promotion.id)) {
@@ -384,6 +412,23 @@ export function validateTopicShape(topic: unknown): void {
           throw new Error(`note references unknown source in ${topic.slug}: ${sourceId}`);
         }
       }
+    }
+  }
+
+  if (topic.mutation_receipts !== undefined) {
+    assertArray(topic.mutation_receipts, "mutation_receipts");
+    const operationIds = new Set<string>();
+    for (const receipt of topic.mutation_receipts) {
+      assertRecord(receipt, "mutation receipt");
+      assertNonEmptyString(receipt.operation_id, "mutation receipt operation_id");
+      assertNonEmptyString(receipt.operation, "mutation receipt operation");
+      assertNonEmptyString(receipt.payload_hash, "mutation receipt payload_hash");
+      assertNumber(receipt.revision, "mutation receipt revision");
+      assertNonEmptyString(receipt.committed_at, "mutation receipt committed_at");
+      if (operationIds.has(receipt.operation_id)) {
+        throw new Error(`duplicate mutation receipt in ${topic.slug}: ${receipt.operation_id}`);
+      }
+      operationIds.add(receipt.operation_id);
     }
   }
 }
@@ -728,6 +773,14 @@ export function validateRoutingShape(topic: unknown, root: string): void {
   if (topic.routing.host_target !== undefined) {
     assertNonEmptyString(topic.routing.host_target, "routing host_target");
     normalizeRepoRelativeRef(root, topic.routing.host_target);
+  }
+  if (topic.routing.acceptance_ref !== undefined) {
+    assertNonEmptyString(topic.routing.acceptance_ref, "routing acceptance_ref");
+    normalizeRepoRelativeRef(root, topic.routing.acceptance_ref);
+  }
+  if (topic.routing.proof_plan_ref !== undefined) {
+    assertNonEmptyString(topic.routing.proof_plan_ref, "routing proof_plan_ref");
+    normalizeRepoRelativeRef(root, topic.routing.proof_plan_ref);
   }
   assertArray(topic.routing.upstream_promotion_ids, "routing upstream_promotion_ids");
 }

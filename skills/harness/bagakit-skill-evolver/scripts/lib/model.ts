@@ -7,6 +7,14 @@ export type PreflightDecision = (typeof PREFLIGHT_DECISIONS)[number];
 export const ROUTE_DECISIONS = ["host", "upstream", "split"] as const;
 export type RouteDecision = (typeof ROUTE_DECISIONS)[number];
 
+export const COUNTEREVIDENCE_DISPOSITIONS = [
+  "none_found",
+  "addressed",
+  "accepted_risk",
+  "open",
+] as const;
+export type CounterevidenceDisposition = (typeof COUNTEREVIDENCE_DISPOSITIONS)[number];
+
 export const CANDIDATE_STATUSES = [
   "planned",
   "trial",
@@ -75,7 +83,13 @@ export type TopicStatus = (typeof TOPIC_STATUSES)[number];
 export const PROMOTION_SURFACES = ["spec", "stewardship", "skill"] as const;
 export type PromotionSurface = (typeof PROMOTION_SURFACES)[number];
 
-export const PROMOTION_STATUSES = ["proposed", "landed"] as const;
+export const PROMOTION_STATUSES = [
+  "proposed",
+  "accepted_for_landing",
+  "landed_verified",
+  "rejected",
+  "superseded",
+] as const;
 export type PromotionStatus = (typeof PROMOTION_STATUSES)[number];
 
 export interface CandidateRecord {
@@ -106,9 +120,23 @@ export interface RoutingRecord {
   decision: RouteDecision;
   rationale: string;
   decided_at: string;
+  acceptance_authority?: string;
+  acceptance_ref?: string;
+  counterevidence_disposition?: CounterevidenceDisposition;
+  target_owner?: string;
+  proof_plan?: string;
+  proof_plan_ref?: string;
   host_target?: string;
   host_ref?: string;
   upstream_promotion_ids: string[];
+}
+
+export interface TopicMutationReceipt {
+  operation_id: string;
+  operation: string;
+  payload_hash: string;
+  revision: number;
+  committed_at: string;
 }
 
 export interface SourceRecord {
@@ -234,6 +262,7 @@ export interface EvolverSessionReviewContract {
 
 export interface TopicRecord {
   version: 1;
+  revision: number;
   slug: string;
   title: string;
   status: TopicStatus;
@@ -248,6 +277,7 @@ export interface TopicRecord {
   benchmarks: BenchmarkRecord[];
   promotions: PromotionRecord[];
   notes: NoteRecord[];
+  mutation_receipts: TopicMutationReceipt[];
 }
 
 export interface TopicIndexEntry {

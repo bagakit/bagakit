@@ -10,6 +10,7 @@ export interface EvolverPaths {
   memInboxSignalFile: (signalId: string) => string;
   topicsRoot: string;
   topicDir: (slug: string) => string;
+  topicLock: (slug: string) => string;
   topicArchive: (slug: string) => string;
   topicFile: (slug: string) => string;
   topicHandoff: (slug: string) => string;
@@ -34,6 +35,7 @@ export function resolvePaths(rootArg?: string): EvolverPaths {
     memInboxSignalFile: (signalId) => path.join(memInboxSignalsRoot, `${signalId}.json`),
     topicsRoot,
     topicDir: (slug) => path.join(topicsRoot, slug),
+    topicLock: (slug) => path.join(topicsRoot, slug, ".topic.lock"),
     topicArchive: (slug) => path.join(topicsRoot, slug, "ARCHIVE.md"),
     topicFile: (slug) => path.join(topicsRoot, slug, "topic.json"),
     topicHandoff: (slug) => path.join(topicsRoot, slug, "HANDOFF.md"),
