@@ -1,0 +1,90 @@
+version = 2
+
+[[suite]]
+id = "eval-tool-layout"
+owner = "dev/eval"
+description = "Require the shared eval toolkit, owner-local tests, types, and validation registration."
+default = true
+proof_mode = "structural"
+protects = ["dev/eval maintainer-tool layout includes its executable source, deterministic tests, and typecheck surface"]
+oracle = ["fs runner checks the owner-local source, test, type, package, and validation files"]
+exercised_surface = ["dev/eval tool project and gate_validation/dev/eval registration"]
+proves = ["eval-tool-layout proves the shared eval toolkit ships its declared owner-local verification surfaces."]
+does_not_prove = ["eval-tool-layout does not prove eval semantics or stochastic agent quality."]
+validation_class = "structure"
+groups = ["dev", "eval-tool", "structure"]
+
+[suite.runner]
+kind = "fs"
+required_dirs = [
+  "dev/eval",
+  "dev/eval/src",
+  "dev/eval/src/lib",
+  "dev/eval/test",
+  "dev/eval/types",
+  "gate_validation/dev/eval",
+]
+required_files = [
+  "dev/eval/README.md",
+  "dev/eval/package.json",
+  "dev/eval/tsconfig.json",
+  "dev/eval/src/cli.ts",
+  "dev/eval/src/lib/dataset.ts",
+  "dev/eval/src/lib/io.ts",
+  "dev/eval/src/lib/compare.ts",
+  "dev/eval/src/lib/run.ts",
+  "dev/eval/test/eval.test.ts",
+  "dev/eval/types/node-shim.d.ts",
+  "gate_validation/dev/eval/validation.toml",
+]
+
+[[suite]]
+id = "eval-tool-tests"
+owner = "dev/eval"
+description = "Run deterministic regressions for the shared eval toolkit."
+default = true
+proof_mode = "runtime"
+protects = ["eval dataset split routing, privacy guards, output overwrite refusal, sanitization, and comparison deltas"]
+oracle = ["node:test exercises exported dev/eval helpers against isolated filesystem fixtures and structured dataset records"]
+exercised_surface = ["dev/eval/test/eval.test.ts and exported dev/eval library boundaries"]
+proves = ["eval-tool-tests proves the shared deterministic mechanics preserve their owner-owned safety and comparison behavior."]
+does_not_prove = ["eval-tool-tests does not prove live model quality, grader calibration, or skill-specific case truth."]
+timeout_seconds = 120
+validation_class = "quality"
+groups = ["dev", "eval-tool", "quality"]
+
+[suite.runner]
+kind = "executable"
+command = "{node}"
+args = [
+  "--test",
+  "--experimental-strip-types",
+  "dev/eval/test/eval.test.ts",
+]
+
+[[suite]]
+id = "eval-tool-typecheck"
+owner = "dev/eval"
+description = "Run strict TypeScript checking for the shared eval toolkit."
+default = true
+proof_mode = "structural"
+protects = ["dev/eval compile-time API and cross-tool import integrity"]
+oracle = ["repo-owned TypeScript wrapper checks dev/eval source and tests without emitting files"]
+exercised_surface = ["dev/eval/tsconfig.json, source, tests, and local type shims"]
+proves = ["eval-tool-typecheck proves dev/eval source and owner-local tests satisfy the checked TypeScript contract."]
+does_not_prove = ["eval-tool-typecheck does not prove runtime or eval outcome quality."]
+timeout_seconds = 120
+validation_class = "quality"
+groups = ["dev", "eval-tool", "quality", "typecheck"]
+
+[suite.runner]
+kind = "bash_script"
+script = "dev/host_tools/typescript/tsc-local.sh"
+args = [
+  "--root",
+  "{repo_root}",
+  "--",
+  "-p",
+  "dev/eval/tsconfig.json",
+  "--noEmit",
+]

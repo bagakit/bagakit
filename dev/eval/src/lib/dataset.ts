@@ -218,6 +218,22 @@ function loadTrials(value: unknown, label: string): EvalCaseTrials | undefined {
   };
 }
 
+function loadBuildMeta(value: unknown, label: string): EvalDatasetBuildMeta | undefined {
+  if (value === undefined) return undefined;
+  const record = assertRecord(value, label);
+  const holdoutRatio = assertNumber(record.holdout_ratio, `${label}.holdout_ratio`);
+  if (holdoutRatio < 0 || holdoutRatio > 1) {
+    throw new Error(`${label}.holdout_ratio must be between 0 and 1`);
+  }
+  return {
+    baseline_split: assertString(record.baseline_split, `${label}.baseline_split`),
+    holdout_split: assertString(record.holdout_split, `${label}.holdout_split`),
+    holdout_ratio: holdoutRatio,
+    holdout_tags: normalizeStringArray(assertStringArray(record.holdout_tags, `${label}.holdout_tags`)),
+    seed: assertString(record.seed, `${label}.seed`),
+  };
+}
+
 function normalizeStringArray(values: string[]): string[] {
   return [...new Set(values.map((entry) => entry.trim()).filter(Boolean))].sort();
 }
@@ -301,7 +317,7 @@ export function loadEvalDataset(filePath: string): EvalDatasetFile {
     title: assertString(record.title, `${filePath}.title`),
     description: assertString(record.description, `${filePath}.description`),
     item_schema: assertString(record.item_schema, `${filePath}.item_schema`),
-    build: record.build ? (assertRecord(record.build, `${filePath}.build`) as EvalDatasetBuildMeta) : undefined,
+    build: loadBuildMeta(record.build, `${filePath}.build`),
     items,
   };
 }

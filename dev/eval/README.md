@@ -44,6 +44,16 @@ Those remain in:
   - reusable mechanics for suite loading, temp workspaces, command execution,
     dataset build/export, run comparison, agent-session launches, output
     sanitization, and packet writing
+- `test/`
+  - deterministic regression tests for dataset routing, privacy guards,
+    sanitization, output safety, and run comparison
+
+Run owner-local checks with:
+
+```bash
+npm --prefix dev/eval test
+npm --prefix dev/eval run typecheck
+```
 
 ## Runner Contract
 
