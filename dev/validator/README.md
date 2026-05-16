@@ -71,6 +71,13 @@ Assertion note:
   ids, generated artifacts, receipts, or smoke-run outputs; long required
   phrase lists are evidence that the skill should expose a smaller contract
   surface
+- key presence checks prove only structural or interoperability boundaries;
+  use required-subset checks when production consumers accept unknown fields
+- exact key-set equality is allowed only for a production closed-schema
+  boundary with unknown-field rejection evidence, or for an explicitly
+  classified published wording contract
+- feature claims still require scenario, negative, invariant, round-trip,
+  state-transition, or mutation evidence beyond key matching
 - detailed assertion discipline lives in
   `docs/stewardship/sop/validation-sop.md`
 

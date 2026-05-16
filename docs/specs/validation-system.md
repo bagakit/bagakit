@@ -344,6 +344,36 @@ Promotion rule:
 - historical failure cases should map to contract guard ids rather than
   `must_find` phrase lists
 
+## Key Assertion Boundary
+
+Key presence is boundary evidence, not feature evidence.
+
+A required-key assertion is admissible only when:
+
+- a real parser, serializer, loader, router, security check, or compatibility
+  consumer reads the field
+- removing the field causes an observable parse, routing, compatibility, or
+  security failure at that same boundary
+- the assertion claims only structural or interoperability protection
+- the suite names the nearest feature or workflow behavior it does not prove
+
+Exact closed-world key-set equality is prohibited by default. If the production
+consumer accepts unknown fields, validation must check the required subset and
+explicitly forbidden fields instead of requiring `actual_keys == expected_keys`.
+An exact key set is admissible only when the owned production boundary also
+rejects unknown fields, or when the exact field names are themselves a
+published wording contract. The latter must use
+`proof_mode = "wording_contract"` and must not claim runtime behavior.
+
+For machine-readable boundaries, cover both directions:
+
+- deleting a required field is rejected
+- adding an extension field follows the production consumer's actual policy
+
+Feature or workflow claims require additional behavioral evidence such as
+scenarios, negative cases, invariants, round trips, state transitions, or
+mutation tests. A key assertion alone must never graduate a feature claim.
+
 ## Timing Summary Rule
 
 The default repository gate should emit one timing summary after execution.

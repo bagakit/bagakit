@@ -20,6 +20,10 @@ import {
   resolveIncident,
   validateFlowRunner,
 } from "../../../../skills/harness/bagakit-flow-runner/scripts/lib/core.ts";
+import {
+  validatePolicy,
+  validateRecipe,
+} from "../../../../skills/harness/bagakit-flow-runner/scripts/lib/protocol/validation.ts";
 
 function makeTempRepo(): string {
   return fs.mkdtempSync(path.join(os.tmpdir(), "bagakit-flow-runner-test-"));
@@ -310,22 +314,47 @@ test("applied policy and recipe templates stay aligned with the documented contr
 
     const policy = readJson<Record<string, unknown>>(path.join(root, ".bagakit", "flow-runner", "policy.json"));
     assert.equal(policy.schema, "bagakit/flow-runner/policy/v2");
-    assert.deepEqual(Object.keys(policy).sort(), ["safety", "schema"]);
-    assert.deepEqual(Object.keys(policy.safety as Record<string, unknown>).sort(), [
-      "checkpoint_before_stop",
-      "persist_state_before_stop",
-      "snapshot_before_session",
-    ]);
+    assert.ok(["safety", "schema"].every((key) => key in policy));
+    assert.ok(
+      ["checkpoint_before_stop", "persist_state_before_stop", "snapshot_before_session"].every(
+        (key) => key in (policy.safety as Record<string, unknown>),
+      ),
+    );
 
     const recipe = readJson<Record<string, unknown>>(path.join(root, ".bagakit", "flow-runner", "recipe.json"));
     assert.equal(recipe.schema, "bagakit/flow-runner/recipe/v2");
-    assert.deepEqual(Object.keys(recipe).sort(), ["recipe_id", "recipe_version", "schema", "stage_chain"]);
+    assert.ok(["recipe_id", "recipe_version", "schema", "stage_chain"].every((key) => key in recipe));
     const stageChain = recipe.stage_chain as Array<Record<string, unknown>>;
     assert.ok(Array.isArray(stageChain));
     assert.ok(stageChain.length > 0);
     for (const stage of stageChain) {
-      assert.deepEqual(Object.keys(stage).sort(), ["goal", "stage_key"]);
+      assert.ok(["goal", "stage_key"].every((key) => key in stage));
     }
+
+    assert.doesNotThrow(() => validatePolicy({ ...policy, future_extension: { enabled: true } }));
+    assert.doesNotThrow(() => validateRecipe({
+      ...recipe,
+      future_extension: true,
+      stage_chain: stageChain.map((stage) => ({ ...stage, future_hint: "compatible" })),
+    }));
+    assert.throws(
+      () => validatePolicy({
+        schema: "bagakit/flow-runner/policy/v2",
+        safety: {
+          snapshot_before_session: true,
+          checkpoint_before_stop: true,
+        },
+      }),
+      /persist_state_before_stop must be a boolean/,
+    );
+    assert.throws(
+      () => validateRecipe({
+        schema: "bagakit/flow-runner/recipe/v2",
+        recipe_id: "missing-version",
+        stage_chain: [{ stage_key: "inspect", goal: "inspect" }],
+      }),
+      /recipe_version must be a non-empty string/,
+    );
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }

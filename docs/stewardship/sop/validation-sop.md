@@ -156,6 +156,43 @@ contract. This matters especially in Bagakit because skill authoring and tool
 development have different proof surfaces: skill text may be runtime payload,
 while tool source code is usually implementation detail.
 
+## Key Assertion Admission Rule
+
+Treat key matching as a narrow boundary oracle, not a proxy for feature
+completion.
+
+Before adding a required-key check, record:
+
+1. the real consumer that reads the field
+2. the parser, serialization, routing, security, or compatibility boundary it
+   protects
+3. the observable failure caused by deleting or changing the field
+4. the structural or interoperability claim the check is allowed to make
+
+Use required-subset checks by default. Do not use exact key-set equality when
+the production consumer ignores unknown fields. In that case:
+
+- assert required fields are present and typed
+- assert only specifically forbidden ownership or security fields are absent
+- add a mutation case showing an extension field remains compatible
+
+Exact key-set equality is a narrow exception. Admit it only when the production
+consumer itself rejects unknown fields and a mutation test proves that rejection.
+The suite must describe the result as closed-schema interoperability, not as
+feature or workflow proof.
+
+Published agent-facing schemas may check exact field names as a wording
+contract when those names are themselves the consumed contract. Such a suite
+must use `proof_mode = "wording_contract"` and state that field presence does
+not prove packet parsing, downstream behavior, or final output quality.
+
+Do not create a broad central key catalog. The allowlist is the small set of
+owner-local assertions that satisfy these admission conditions and carry their
+proof and non-proof claims beside the owning suite.
+
+To prove a feature beyond interoperability, add scenario, negative,
+representation-invariant, round-trip, state-transition, or mutation evidence.
+
 ## Skill Contract Rule
 
 Skill validation must not turn into a checklist of incidental wording.

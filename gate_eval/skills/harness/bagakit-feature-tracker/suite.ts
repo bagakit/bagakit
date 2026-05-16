@@ -149,7 +149,9 @@ export const SUITE: EvalSuiteDefinition = {
           assert.match(JSON.stringify(dagPayload), new RegExp(featId));
           assert.ok(Array.isArray(dagPayload.features));
           assert.ok(Array.isArray(dagPayload.layers));
-          assert.deepEqual(Object.keys(dagPayload).sort(), ["features", "generated_by", "layers", "notes", "version"]);
+          assert.ok(
+            ["features", "generated_by", "layers", "notes", "version"].every((key) => key in dagPayload),
+          );
           assert.equal("execution_mode" in dagPayload, false);
           assert.equal("max_parallel" in dagPayload, false);
           assert.equal("parallel_recommendation" in dagPayload, false);

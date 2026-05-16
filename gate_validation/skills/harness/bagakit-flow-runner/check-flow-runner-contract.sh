@@ -55,12 +55,12 @@ recipe_bullets = re.findall(r"- `([^`]+)`", recipe_section.group(1))
 
 assert policy_template == runtime_policy
 assert runtime_policy["schema"] == "bagakit/flow-runner/policy/v2"
-assert sorted(runtime_policy.keys()) == ["safety", "schema"]
-assert sorted(runtime_policy["safety"].keys()) == [
+assert {"safety", "schema"} <= set(runtime_policy)
+assert {
     "checkpoint_before_stop",
     "persist_state_before_stop",
     "snapshot_before_session",
-]
+} <= set(runtime_policy["safety"])
 assert "bagakit/flow-runner/policy/v2" in policy_section.group(1)
 assert policy_bullets == [
     "safety.snapshot_before_session",
@@ -70,7 +70,7 @@ assert policy_bullets == [
 
 assert recipe_template == runtime_recipe
 assert runtime_recipe["schema"] == "bagakit/flow-runner/recipe/v2"
-assert sorted(runtime_recipe.keys()) == ["recipe_id", "recipe_version", "schema", "stage_chain"]
+assert {"recipe_id", "recipe_version", "schema", "stage_chain"} <= set(runtime_recipe)
 assert "bagakit/flow-runner/recipe/v2" in recipe_section.group(1)
 assert recipe_bullets == [
     "recipe_id",
@@ -80,7 +80,7 @@ assert recipe_bullets == [
     "goal",
 ]
 for stage in runtime_recipe["stage_chain"]:
-    assert sorted(stage.keys()) == ["goal", "stage_key"]
+    assert {"goal", "stage_key"} <= set(stage)
 PY
 
 echo "ok: bagakit-flow-runner contract templates passed"

@@ -37,6 +37,15 @@ REQUIRED_ANCHOR_GROUPS = {
             "historical failures map to guard ids",
             ["historical failure cases", "contract guard ids"],
         ),
+        (
+            "key assertions stay boundary-scoped",
+            [
+                "Key Assertion Boundary",
+                "required-key assertion",
+                "Exact closed-world key-set equality is prohibited by default",
+                "A key assertion alone must never graduate a feature claim",
+            ],
+        ),
     ],
     "docs/stewardship/sop/validation-sop.md": [
         (
@@ -79,6 +88,15 @@ REQUIRED_ANCHOR_GROUPS = {
             "historical failures should not be phrase requirements",
             ["Do not use case fields", "`must_find`"],
         ),
+        (
+            "key assertion admission is narrow",
+            [
+                "Key Assertion Admission Rule",
+                "Use required-subset checks by default",
+                "consumer itself rejects unknown fields",
+                "Do not create a broad central key catalog",
+            ],
+        ),
     ],
     "dev/validator/README.md": [
         (
@@ -100,6 +118,14 @@ REQUIRED_ANCHOR_GROUPS = {
         (
             "detailed SOP link",
             ["docs/stewardship/sop/validation-sop.md"],
+        ),
+        (
+            "key matching does not become feature proof",
+            [
+                "key presence checks prove only structural or interoperability boundaries",
+                "exact key-set equality",
+                "feature claims still require scenario",
+            ],
         ),
     ],
 }
