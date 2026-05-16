@@ -18,6 +18,8 @@ low-level stable contracts and not for maintainer procedures.
 - `docs/architecture/A3-core-harness-topology.md`
   - core harness skill topology, explicit composition, and standalone-first
     coupling rules
+- `docs/specs/host-harness-contract.md`
+  - L4 host-defining harness identity, source-unit, and host-workspace contract
 - `docs/architecture/B1-execution-architecture.md`
   - L1 execution design
 - `docs/architecture/B2-behavior-architecture.md`
@@ -49,18 +51,19 @@ low-level stable contracts and not for maintainer procedures.
 1. `docs/architecture/A1-system-architecture.md`
 2. `docs/architecture/A2-governance-structure.md`
 3. `docs/architecture/A3-core-harness-topology.md`
-4. `docs/architecture/B1-execution-architecture.md`
-5. `docs/architecture/B2-behavior-architecture.md`
-6. `docs/architecture/B3-framework-architecture.md`
-7. `docs/architecture/B4-living-knowledge-boundary.md`
-8. `docs/architecture/C1-evidence-and-promotion-flow.md`
-9. `docs/architecture/C2-routing-model.md`
-10. `docs/architecture/C3-outer-driver-stop-and-recovery-model.md`
-11. `docs/architecture/C4-runtime-control-chain.md`
-12. `docs/specs/harness-concepts.md`
-13. `docs/specs/evolver-memory.md`
-14. `docs/specs/evolver-evidence-intake.md`
-15. `docs/stewardship/README.md`
+4. `docs/specs/host-harness-contract.md`
+5. `docs/architecture/B1-execution-architecture.md`
+6. `docs/architecture/B2-behavior-architecture.md`
+7. `docs/architecture/B3-framework-architecture.md`
+8. `docs/architecture/B4-living-knowledge-boundary.md`
+9. `docs/architecture/C1-evidence-and-promotion-flow.md`
+10. `docs/architecture/C2-routing-model.md`
+11. `docs/architecture/C3-outer-driver-stop-and-recovery-model.md`
+12. `docs/architecture/C4-runtime-control-chain.md`
+13. `docs/specs/harness-concepts.md`
+14. `docs/specs/evolver-memory.md`
+15. `docs/specs/evolver-evidence-intake.md`
+16. `docs/stewardship/README.md`
 
 ## Boundary
 

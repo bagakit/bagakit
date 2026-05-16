@@ -125,7 +125,9 @@ The architecture therefore has to keep framework truth explicit and bounded.
 
 ## Layer Model
 
-The repository is designed through three main levels.
+The repository is designed through four distinct layers. L1 through L3 describe
+capability execution, learning behavior, and framework protection. L4 is the
+orthogonal host-purpose layer; it is not a higher framework authority than L3.
 
 ### L1: Execution
 
@@ -173,13 +175,32 @@ Typical concerns:
 - directory-protocol skill discovery semantics
 - framework vocabulary
 
-The three levels should not be flattened into one implementation surface.
+### L4: Host Harness
+
+L4 owns host purpose and host-defining workspace shape.
+
+It explains why one dedicated host exists, which long-running loop defines it,
+and which top-level host layout that loop requires. L4 source units live under
+`host-harnesses/`; ordinary skills remain callable capabilities rather than
+quietly becoming host definitions.
+
+Typical concerns:
+
+- dedicated host purpose
+- top-level host workspace layout
+- long-running host loop identity
+- explicit composition of ordinary skills into that host
+- host initialization and distribution
+
+The four layers should not be flattened into one implementation surface or a
+single authority ladder.
 
 They answer different questions:
 
 - L1 answers: what is happening now
 - L2 answers: how the system learns and routes
 - L3 answers: what must stay stable and how it is protected
+- L4 answers: why this host exists and which loop defines it
 
 Detailed layer design lives in:
 
@@ -187,6 +208,7 @@ Detailed layer design lives in:
 - `docs/architecture/B1-execution-architecture.md`
 - `docs/architecture/B2-behavior-architecture.md`
 - `docs/architecture/B3-framework-architecture.md`
+- `docs/specs/host-harness-contract.md`
 
 ## First Principles
 
@@ -365,6 +387,23 @@ flow protocol, runner substrate, and harness-skill feedback is defined in:
 
 - `docs/architecture/C4-runtime-control-chain.md`
 
+### `host_harness`
+
+`host_harness` is the L4 host-defining unit.
+
+It owns:
+
+- one dedicated host purpose
+- one top-level host workspace shape
+- one long-running host loop identity
+- the explicit composition boundary between that host and ordinary skills
+
+Canonical source units live under `host-harnesses/<harness-id>/`. Their
+identity comes from `harness.toml`; `SKILL.md` is the agent entrypoint, not the
+identity source. The stable contract lives in:
+
+- `docs/specs/host-harness-contract.md`
+
 ### framework surfaces
 
 Framework surfaces own:
@@ -454,21 +493,24 @@ Only routed and reviewed promotion should enter these surfaces.
 
 ### Level Mapping
 
-The functional systems map into the three levels like this:
+The functional systems map into the four layers like this:
 
 ```mermaid
 flowchart LR
     L1[L1 Execution]
     L2[L2 Behavior]
     L3[L3 Framework]
+    L4[L4 Host Harness]
 
     L1 --> L2
     L2 --> L3
+    L4 -.defines host purpose and layout.-> L1
 
     S1[skill_selector] --> L1
     R1[researcher] --> L2
     E1[evolver] --> L2
     C1[contracts + validation + eval] --> L3
+    H1[host_harnesses] --> L4
 ```
 
 In practical terms:
@@ -476,6 +518,7 @@ In practical terms:
 - L1 owns what is happening now
 - L2 owns how the system learns and routes
 - L3 owns what must stay stable and how it is protected
+- L4 owns why one host exists and which long-running loop defines it
 
 ### Concrete Harness Topology
 

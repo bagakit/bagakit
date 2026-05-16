@@ -5,6 +5,10 @@
 This document defines how the core system-owned harness skills cooperate
 without collapsing into one monolith.
 
+These skills occupy L1 and L2 capability roles. L4 host harnesses sit outside
+this capability topology: they define a dedicated host and explicitly compose
+ordinary skills without turning those skills into host definitions.
+
 It focuses on three things:
 
 - the concrete runtime topology under `skills/harness/`
@@ -44,6 +48,10 @@ rather than letting runtime units silently absorb each other.
 
 ```mermaid
 flowchart LR
+    subgraph L4["L4 host purpose"]
+        HOST["host-harnesses/<harness-id>"]
+    end
+
     subgraph L1["L1 execution"]
         SEL["bagakit-skill-selector"]
         RUN["feature-tracker / flow-runner"]
@@ -70,7 +78,13 @@ flowchart LR
     EVO -->|host or split outcomes| LIV
 
     RES <-.standalone-first optional composition.-> LIV
+    HOST -->|defines host layout and loop| SEL
+    HOST -->|selects execution capabilities| RUN
 ```
+
+The L4 arrows mean composition and host purpose, not ownership transfer. Stable
+host-harness identity and source layout live in
+`docs/specs/host-harness-contract.md`.
 
 ## Runtime Control Chain
 

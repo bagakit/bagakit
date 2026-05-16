@@ -26,6 +26,9 @@ required_dirs = [
 ]
 required_files = [
   "docs/specs/host-harness-contract.md",
+  "docs/architecture/A0-README.md",
+  "docs/architecture/A1-system-architecture.md",
+  "docs/architecture/A3-core-harness-topology.md",
   "host-harnesses/README.md",
   "host-harnesses/bagakit-decision-harness/SKILL.md",
   "host-harnesses/bagakit-decision-harness/harness.toml",
@@ -39,11 +42,35 @@ required_files = [
   "gate_validation/host-harnesses/bagakit-decision-harness/validation.toml",
   "gate_validation/host-harnesses/bagakit-decision-harness/check-decision-harness-contract.py",
   "gate_validation/host-harnesses/bagakit-decision-harness/check-decision-harness-cli.sh",
+  "gate_validation/host-harnesses/bagakit-decision-harness/check-host-harness-architecture.sh",
 ]
 forbidden_paths = [
   "host-harnesses/bagakit-decision-harness/SKILL_PAYLOAD.json",
   "host-harnesses/human-improvement",
   "host-harnesses/harness",
+]
+
+[[suite]]
+id = "host-harness-architecture-alignment"
+owner = "host-harnesses/bagakit-decision-harness"
+description = "Keep the primary architecture frontdoor aligned with the stable L4 host-harness contract."
+default = true
+proof_mode = "wording_contract"
+protects = ["primary architecture names L4 as the host-purpose layer and routes to the stable host-harness contract"]
+oracle = ["a narrow architecture-frontdoor check requires the L4 section and rejects the retired three-level declaration"]
+exercised_surface = ["docs/architecture/A0-README.md and A1-system-architecture.md agent and maintainer reading surfaces"]
+proves = ["host-harness-architecture-alignment proves the architecture frontdoor exposes the current four-layer model and L4 contract route."]
+does_not_prove = ["host-harness-architecture-alignment does not prove host-harness runtime behavior or semantic quality beyond the named layer boundary."]
+timeout_seconds = 30
+validation_class = "contract"
+groups = ["host-harnesses", "decision-harness", "architecture", "contract"]
+
+[suite.runner]
+kind = "bash_script"
+script = "gate_validation/host-harnesses/bagakit-decision-harness/check-host-harness-architecture.sh"
+args = [
+  "--root",
+  "{repo_root}",
 ]
 
 [[suite]]
