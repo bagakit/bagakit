@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { existsSync, mkdirSync, readlinkSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, readlinkSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
@@ -13,6 +13,7 @@ import { distributePackages } from "../../scripts/lib/skill/packaging.ts";
 import { resolveSkillSelector } from "../../scripts/lib/skill/selectors.ts";
 
 const cliEntry = fileURLToPath(new URL("../../scripts/skill.ts", import.meta.url));
+const wrapperEntry = fileURLToPath(new URL("../../scripts/skill.sh", import.meta.url));
 
 function makeTempRepo(): string {
   return path.join(os.tmpdir(), `bagakit-skill-test-${process.pid}-${Date.now()}-${Math.random().toString(16).slice(2)}`);
@@ -159,6 +160,23 @@ test("loadSkillInventory rejects flat legacy installable roots", () => {
   }
 });
 
+test("skill wrapper honors an explicit repository root", () => {
+  const repoRoot = makeTempRepo();
+  mkdirSync(path.join(repoRoot, "skills"), { recursive: true });
+  writeSkill(repoRoot, "harness", "alpha");
+
+  try {
+    const result = spawnSync("bash", [wrapperEntry, "list", "--root", repoRoot, "--json"], {
+      encoding: "utf8",
+    });
+    assert.equal(result.status, 0, result.stderr);
+    const payload = JSON.parse(result.stdout) as Array<{ selector: string }>;
+    assert.deepEqual(payload.map((entry) => entry.selector), ["harness/alpha"]);
+  } finally {
+    rmSync(repoRoot, { recursive: true, force: true });
+  }
+});
+
 test("linkSkills creates symlinks, preserves unchanged links, and respects existing path conflicts", () => {
   const repoRoot = makeTempRepo();
   mkdirSync(path.join(repoRoot, "skills"), { recursive: true });
@@ -196,9 +214,24 @@ test("linkSkills creates symlinks, preserves unchanged links, and respects exist
           destDir,
           force: false,
         }),
-      /already exists and does not point to harness\/alpha/,
+      new RegExp("is not a symbolic link; refusing to replace it"),
     );
 
+    assert.throws(
+      () =>
+        linkSkills([alpha], {
+          repoRoot,
+          destDir,
+          force: true,
+        }),
+      new RegExp("is not a symbolic link; refusing to replace it"),
+    );
+    assert.equal(readFileSync(path.join(destDir, "alpha"), "utf8"), "occupied");
+
+    rmSync(path.join(destDir, "alpha"));
+    const foreignTarget = path.join(repoRoot, "foreign-alpha");
+    mkdirSync(foreignTarget);
+    symlinkSync(foreignTarget, path.join(destDir, "alpha"), "dir");
     const forcedRun = linkSkills([alpha], {
       repoRoot,
       destDir,

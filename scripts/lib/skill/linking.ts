@@ -5,10 +5,11 @@ import type { LinkResult, SkillSource } from "./model.ts";
 import { displayPath } from "./paths.ts";
 
 type PlannedAction = "create" | "replace" | "unchanged";
+type ReplacementSafety = "automatic" | "force_required" | "blocked";
 
 type ExistingLinkInspection = Readonly<{
   action: PlannedAction;
-  replaceRequiresForce: boolean;
+  replacementSafety: ReplacementSafety;
 }>;
 
 type PlannedLink = Readonly<{
@@ -69,25 +70,29 @@ function inspectExistingLink(
       try {
         const existingTarget = realpathSync.native(resolvedTarget);
         if (existingTarget === canonicalTarget) {
-          return { action: "unchanged", replaceRequiresForce: false };
+          return { action: "unchanged", replacementSafety: "automatic" };
         }
       } catch {
         return {
           action: "replace",
-          replaceRequiresForce: !isRepoSkillProjectionTarget(repoRoot, resolvedTarget, skill),
+          replacementSafety: isRepoSkillProjectionTarget(repoRoot, resolvedTarget, skill)
+            ? "automatic"
+            : "force_required",
         };
       }
 
       return {
         action: "replace",
-        replaceRequiresForce: !isRepoSkillProjectionTarget(repoRoot, resolvedTarget, skill),
+        replacementSafety: isRepoSkillProjectionTarget(repoRoot, resolvedTarget, skill)
+          ? "automatic"
+          : "force_required",
       };
     }
-    return { action: "replace", replaceRequiresForce: true };
+    return { action: "replace", replacementSafety: "blocked" };
   } catch (error) {
     const code = (error as NodeJS.ErrnoException).code;
     if (code === "ENOENT") {
-      return { action: "create", replaceRequiresForce: false };
+      return { action: "create", replacementSafety: "automatic" };
     }
     throw error;
   }
@@ -107,15 +112,21 @@ function planLinkOperations(skills: SkillSource[], options: LinkOptions): Planne
   for (const skill of skills) {
     const linkPath = path.join(options.destDir, skill.skillId);
     const inspection = inspectExistingLink(linkPath, skill.absoluteDir, options.repoRoot, skill);
-    if (inspection.action === "replace" && inspection.replaceRequiresForce && !options.force) {
-      conflicts.push(`- ${displayPath(options.repoRoot, linkPath)} already exists and does not point to ${skill.selector}`);
+    if (inspection.action === "replace" && inspection.replacementSafety === "blocked") {
+      conflicts.push(`- ${displayPath(options.repoRoot, linkPath)} is not a symbolic link; refusing to replace it`);
+      continue;
+    }
+    if (inspection.action === "replace" && inspection.replacementSafety === "force_required" && !options.force) {
+      conflicts.push(
+        `- ${displayPath(options.repoRoot, linkPath)} is a foreign symbolic link; rerun with --force to replace it`,
+      );
       continue;
     }
     plan.push({ skill, linkPath, action: inspection.action });
   }
 
   if (conflicts.length > 0) {
-    throw new Error(`link would overwrite existing paths; rerun with --force to replace them:\n${conflicts.join("\n")}`);
+    throw new Error(`link operation has protected path conflicts:\n${conflicts.join("\n")}`);
   }
 
   return plan;
@@ -128,7 +139,7 @@ export function linkSkills(skills: SkillSource[], options: LinkOptions): LinkRes
   const results: LinkResult[] = [];
   for (const item of plan) {
     if (item.action === "replace") {
-      rmSync(item.linkPath, { recursive: true, force: true });
+      rmSync(item.linkPath, { force: true });
     }
     if (item.action === "create" || item.action === "replace") {
       symlinkSync(item.skill.absoluteDir, item.linkPath, "dir");

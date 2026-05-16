@@ -10,7 +10,11 @@ if [[ $# -lt 1 || "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
   exec node --experimental-strip-types "$ROOT/scripts/skill.ts" --help
 fi
 
+COMMAND="$1"
+shift
+
 exec node --experimental-strip-types \
   "$ROOT/scripts/skill.ts" \
-  "$@" \
-  --root "$ROOT"
+  "$COMMAND" \
+  --root "$ROOT" \
+  "$@"

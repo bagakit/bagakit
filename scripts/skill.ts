@@ -113,6 +113,7 @@ Notes:
   - install with no selector, or selector "all", installs every discovered installable skill source.
   - install-status reports installed, missing, stale, or conflict by comparing discovered sources with flat install roots.
   - install and link refresh stale symlinks that still point to this repo's previous family path for the same skill id.
+  - --force may replace a foreign symlink, but it never removes a regular file or directory.
   - link is the low-level projection primitive when you need an explicit destination path.
   - Relative --dest and --dist paths resolve against --root.
   - list, install, install-status, link, and distribute-package discover skills directly from the directory protocol.
