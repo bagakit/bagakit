@@ -392,7 +392,16 @@ def main() -> int:
                 if not isinstance(source_ref, str):
                     failures.append(f"case {case_id} has non-string source ref")
                     continue
-                if not (root / source_ref).exists():
+                source_path = Path(source_ref)
+                if source_path.is_absolute() or ".." in source_path.parts:
+                    failures.append(f"case {case_id} has unsafe source ref: {source_ref}")
+                    continue
+                if source_ref.startswith(".bagakit/"):
+                    # Host-local provenance is a logical parentage handle. Fresh
+                    # repository validation must not require ignored runtime
+                    # evidence to be materialized.
+                    continue
+                if not (root / source_path).exists():
                     failures.append(f"case {case_id} source ref missing: {source_ref}")
 
         if "must_find" in case:

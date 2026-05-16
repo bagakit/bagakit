@@ -69,10 +69,14 @@ export const SUITE: EvalSuiteDefinition = {
           assert.ok(item.contract_guard_ids.length > 0, `case ${item.id} needs contract guard ids`);
           assert.ok(mappedCaseIds.has(item.id), `case ${item.id} needs a contract mapping`);
           for (const sourceRef of item.source_refs) {
-            assert.ok(
-              fs.existsSync(path.join(context.repoRoot, sourceRef)),
-              `case ${item.id} source ref missing: ${sourceRef}`,
-            );
+            assert.equal(path.isAbsolute(sourceRef), false, `case ${item.id} source ref must be repo-relative`);
+            assert.equal(sourceRef.split("/").includes(".."), false, `case ${item.id} source ref must not escape the repo`);
+            if (!sourceRef.startsWith(".bagakit/")) {
+              assert.ok(
+                fs.existsSync(path.join(context.repoRoot, sourceRef)),
+                `case ${item.id} checked-in source ref missing: ${sourceRef}`,
+              );
+            }
           }
           for (const guardId of item.contract_guard_ids) {
             assert.ok(guardIds.has(guardId), `case ${item.id} references unknown guard: ${guardId}`);
@@ -87,7 +91,7 @@ export const SUITE: EvalSuiteDefinition = {
         return {
           assertions: [
             "historical failure bench data is present and schema-valid",
-            "each bench case points to existing selector, Spark, or evolver evidence",
+            "each bench case keeps safe repo-relative parentage; host-local refs remain logical handles",
             "each bench case maps to structured workflow guards",
           ],
           artifacts: [
@@ -101,30 +105,32 @@ export const SUITE: EvalSuiteDefinition = {
       },
     },
     {
-      id: "skill-entry-stays-thin-and-delegates-details",
-      title: "Skill Entry Stays Thin And Delegates Details",
-      summary: "The main SKILL.md should stay a concise protocol and route detailed rules to references and bench cases.",
+      id: "skill-entry-delegates-structured-details",
+      title: "Skill Entry Delegates Structured Details",
+      summary: "The published SKILL.md should route detailed rules to owned references and failure cases without enforcing an arbitrary line budget.",
       focus: ["progressive disclosure", "skill-maintainability"],
       run: (context) => {
         const skillPath = "skills/design/bagakit-codex-webpage-design/SKILL.md";
         const skillText = readText(context.repoRoot, skillPath);
-        const lineCount = skillText.split(/\r?\n/).length;
+        const referenceLinks = new Set(
+          Array.from(skillText.matchAll(/references\/[A-Za-z0-9_.\/-]+/g), (match) => match[0]),
+        );
 
-        assert.ok(lineCount <= 260, `SKILL.md should stay thin; found ${lineCount} lines`);
         assert.ok(skillText.includes("references/workflow-contract.toml"), "SKILL.md should link the structured contract");
         assert.ok(skillText.includes("gate_eval/"), "SKILL.md should point failures to the bench surface");
+        assert.ok(referenceLinks.size >= 5, "SKILL.md should delegate detailed guidance to owned references");
 
         return {
           assertions: [
-            "main skill file remains below the thin-entry line budget",
             "main skill links the structured workflow contract",
             "main skill routes repeated failures to gate_eval bench cases",
+            "main skill delegates detailed guidance through multiple owned reference links",
           ],
           artifacts: [
             { label: "skill-entry", path: skillPath },
           ],
           outputs: {
-            skill_lines: lineCount,
+            reference_links: [...referenceLinks].sort(),
           },
         };
       },

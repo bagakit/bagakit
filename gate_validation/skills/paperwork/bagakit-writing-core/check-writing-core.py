@@ -217,9 +217,7 @@ def main() -> int:
 
     check_core_intake_adapter(root, cli, failures)
 
-    tmp_parent = root / ".bagakit" / "tmp"
-    tmp_parent.mkdir(parents=True, exist_ok=True)
-    with tempfile.TemporaryDirectory(prefix="writing-core-gate-", dir=tmp_parent) as tmp_dir:
+    with tempfile.TemporaryDirectory(prefix="writing-core-gate-") as tmp_dir:
         tmp = Path(tmp_dir)
         route = tmp / "route.md"
         route.write_text(
