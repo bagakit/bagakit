@@ -21,6 +21,7 @@ FLOW_RUNNER_DIR="$ROOT/skills/harness/bagakit-flow-runner"
 AGENT_LOOP_DIR="$ROOT/dev/agent_loop"
 FAKE_RUNNER="$ROOT/gate_validation/dev/agent_loop/testdata/fake_runner.py"
 FAKE_NOTIFY="$ROOT/gate_validation/dev/agent_loop/testdata/fake_notification_delivery.py"
+source "$ROOT/gate_validation/skills/harness/bagakit-feature-tracker/lib/feature-tracker-testlib.sh"
 TMP_DIR="$(mktemp -d)"
 trap 'rm -rf "$TMP_DIR"' EXIT
 
@@ -49,6 +50,9 @@ print(payload["features"][0]["feat_id"])
 PY
 )"
 
+TASK_PLAN="$TMP_DIR/tracker-source-task-plan.json"
+feature_tracker_write_reviewed_task_plan "$TASK_PLAN" "Provide reviewed execution truth for the tracker-backed Agent Loop fixture."
+bash "$FEATURE_TRACKER_DIR/scripts/feature-tracker.sh" set-task-plan --root "$TMP_DIR" --feature "$FEATURE_ID" --tasks-file "$TASK_PLAN" --expected-revision 0 >/dev/null
 bash "$FEATURE_TRACKER_DIR/scripts/feature-tracker.sh" assign-feature-workspace --root "$TMP_DIR" --feature "$FEATURE_ID" --workspace-mode worktree >/dev/null
 
 bash "$FLOW_RUNNER_DIR/scripts/flow-runner.sh" apply --root "$TMP_DIR" >/dev/null
