@@ -85,6 +85,83 @@ test "$(printf '%s\n' "$alert_text" | grep -c '👩🏻‍🚒 ALERTS !!')" -eq 
 printf '%s\n' "$alert_text" | grep -q 'P1\[Goal/budget_at_risk\]'
 printf '%s\n' "$alert_text" | grep -q 'P1\[Goal/drift\]'
 
+owner_dir="$fixture/.bagakit/feature-tracker/features/f-driver"
+mkdir -p "$owner_dir"
+printf '{"feat_id":"f-driver","status":"in_progress","current_task_id":"T-001"}\n' >"$owner_dir/state.json"
+printf '{"feat_id":"f-driver","tasks":[{"id":"T-001","status":"in_progress"}]}\n' >"$owner_dir/tasks.json"
+cat >"$owner_dir/owner-receipt.json" <<'EOF'
+{
+  "schema": "bagakit.execution-owner-receipt.v1",
+  "owner_kind": "feature_tracker",
+  "owner_id": "f-driver",
+  "semantic_revision": "",
+  "lifecycle_status": "in_progress",
+  "continuation": "continue",
+  "current_item_id": "T-001",
+  "blocker": null,
+  "replacement_ref": null,
+  "evidence_refs": [
+    ".bagakit/feature-tracker/features/f-driver/state.json",
+    ".bagakit/feature-tracker/features/f-driver/tasks.json"
+  ],
+  "evidence_hashes": {}
+}
+EOF
+python3 - "$fixture" "$owner_dir/owner-receipt.json" <<'PY'
+import hashlib
+import json
+import sys
+from pathlib import Path
+
+root = Path(sys.argv[1])
+path = Path(sys.argv[2])
+receipt = json.loads(path.read_text(encoding="utf-8"))
+receipt["evidence_hashes"] = {
+    ref: hashlib.sha256((root / ref).read_bytes()).hexdigest()
+    for ref in receipt["evidence_refs"]
+}
+projection = {
+    key: receipt[key]
+    for key in (
+        "owner_kind",
+        "owner_id",
+        "lifecycle_status",
+        "continuation",
+        "current_item_id",
+        "blocker",
+        "replacement_ref",
+        "evidence_hashes",
+    )
+}
+receipt["semantic_revision"] = hashlib.sha256(
+    json.dumps(projection, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
+).hexdigest()
+path.write_text(json.dumps(receipt, indent=2) + "\n", encoding="utf-8")
+PY
+sh "$cli" bind-execution-owner \
+  --root "$fixture" \
+  --goal-id driver-goal \
+  --owner-kind feature_tracker \
+  --owner-id f-driver \
+  --receipt-ref .bagakit/feature-tracker/features/f-driver/owner-receipt.json \
+  --owner goal-supervisor \
+  --summary "Bound Driver fixture to owner truth." >/dev/null
+printf '{"feat_id":"f-driver","status":"blocked","current_task_id":"T-001"}\n' >"$owner_dir/state.json"
+
+stale_owner_json="$(sh "$cli" driver-report --root "$fixture" --json)"
+python3 - "$stale_owner_json" <<'PY'
+import json
+import sys
+
+report = json.loads(sys.argv[1])
+owner_alert = next(alert for alert in report["alerts"] if alert["id"] == "owner_truth_stale")
+assert owner_alert["severity"] == "P0"
+assert "evidence hash changed" in owner_alert["signal"]
+assert report["status"] == "active(needs_reconcile)"
+assert report["next"] == "Reconcile the Goal against the current execution-owner receipt before continuing."
+assert "P0[Goal/owner_truth_stale]" in report["footer"]
+PY
+
 sh "$cli" append-goal-event \
   --root "$fixture" \
   --goal-id driver-goal \

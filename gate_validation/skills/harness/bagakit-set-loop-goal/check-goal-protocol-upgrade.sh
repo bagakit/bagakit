@@ -72,7 +72,7 @@ import json
 import sys
 
 report = json.loads(sys.argv[1])
-assert report["target_protocol"] == "bagakit.goal.v.0.1"
+assert report["target_protocol"] == "bagakit.goal.v.0.2"
 assert report["status"] == "upgrade_required"
 assert report["conflicts"] == []
 assert report["inventory"]["foreground_goal"] == "legacy-goal"
@@ -166,17 +166,17 @@ state = yaml.safe_load((goal_root / "state.yaml").read_text(encoding="utf-8"))
 events = [json.loads(line) for line in (goal_root / "events" / "legacy-goal.jsonl").read_text(encoding="utf-8").splitlines()]
 surface = (goal_root / "surface.toml").read_text(encoding="utf-8")
 
-assert "protocol_version: bagakit.goal.v.0.1" in goal
+assert "protocol_version: bagakit.goal.v.0.2" in goal
 assert "## Goal Delta Log" not in goal
 assert "Legacy checkpoint history moved out of the Goal control plane." in goal
 assert "## Open Questions\n- none" in goal
-assert state["protocol_version"] == "bagakit.goal.v.0.1"
+assert state["protocol_version"] == "bagakit.goal.v.0.2"
 assert state["foreground_goal"] == "legacy-goal"
 assert state["goals"]["legacy-goal"]["reconciled_through"] == 2
 assert events[0]["kind"] == "goal_upgraded"
 assert events[0]["control_effect"] == "update_current_state"
 assert events[1]["kind"] == "goal_reconciled"
-assert 'protocol_version = "bagakit.goal.v.0.1"' in surface
+assert 'protocol_version = "bagakit.goal.v.0.2"' in surface
 assert (goal_root / "archive" / "legacy-goal.legacy-log.md").exists()
 assert not (goal_root / "upgrade.json").exists()
 PY
@@ -220,7 +220,7 @@ sh "$cli" reconcile-goal \
   --summary "Reconciled the automatically upgraded Goal." >/dev/null
 sh "$cli" set-supervision --root "$auto" --mode self >/dev/null
 test "$(sh "$cli" fresh-check --root "$auto")" = "fresh-executor check passed"
-grep -q 'protocol_version: bagakit.goal.v.0.1' "$auto/.bagakit/goal/auto-goal.md"
+grep -q 'protocol_version: bagakit.goal.v.0.2' "$auto/.bagakit/goal/auto-goal.md"
 
 multi="$tmp/multi"
 write_legacy_goal "$multi/.bagakit/goal/goal-a.md" goal-a "Goal A" active
@@ -309,7 +309,7 @@ import sys
 
 path = Path(sys.argv[1])
 text = path.read_text(encoding="utf-8")
-text = text.replace("schema: bagakit.loop-goal.v1\n", "schema: bagakit.loop-goal.v1\nprotocol_version: bagakit.goal.v.0.1\n")
+text = text.replace("schema: bagakit.loop-goal.v1\n", "schema: bagakit.loop-goal.v1\nprotocol_version: bagakit.goal.v.0.2\n")
 start = text.index("## Acceptance And Stop Rules")
 end = text.index("## Orchestration Index")
 path.write_text(text[:start] + text[end:], encoding="utf-8")

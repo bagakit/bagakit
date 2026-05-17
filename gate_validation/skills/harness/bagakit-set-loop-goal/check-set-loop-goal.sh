@@ -19,7 +19,8 @@ cd "$root"
 
 cli="skills/harness/bagakit-set-loop-goal/scripts/bagakit-set-loop-goal-cli.sh"
 tmp="$(mktemp -d)"
-trap 'rm -rf "$tmp"' EXIT
+concurrent_tmp=""
+trap 'rm -rf "$tmp" "${concurrent_tmp:-}"' EXIT
 
 sh "$cli" initialize-surface --root "$tmp"
 sh "$cli" upsert-goal \
@@ -127,6 +128,200 @@ PY
 
 fresh_ok_output="$(sh "$cli" fresh-check --root "$tmp")"
 test "$fresh_ok_output" = "fresh-executor check passed"
+
+owner_dir="$tmp/.bagakit/feature-tracker/features/f-demo"
+mkdir -p "$owner_dir"
+printf '{"feat_id":"f-demo","status":"in_progress","current_task_id":"T-001"}\n' >"$owner_dir/state.json"
+printf '{"feat_id":"f-demo","tasks":[{"id":"T-001","status":"in_progress"}]}\n' >"$owner_dir/tasks.json"
+cat >"$owner_dir/owner-receipt.json" <<'EOF'
+{
+  "schema": "bagakit.execution-owner-receipt.v1",
+  "owner_kind": "feature_tracker",
+  "owner_id": "f-demo",
+  "semantic_revision": "",
+  "lifecycle_status": "in_progress",
+  "continuation": "continue",
+  "current_item_id": "T-001",
+  "blocker": null,
+  "replacement_ref": null,
+  "evidence_refs": [
+    ".bagakit/feature-tracker/features/f-demo/state.json",
+    ".bagakit/feature-tracker/features/f-demo/tasks.json"
+  ],
+  "evidence_hashes": {}
+}
+EOF
+
+refresh_owner_receipt() {
+  receipt_path="${1:-$owner_dir/owner-receipt.json}"
+  python3 - "$tmp" "$receipt_path" <<'PY'
+import hashlib
+import json
+import sys
+from pathlib import Path
+
+root = Path(sys.argv[1])
+path = Path(sys.argv[2])
+receipt = json.loads(path.read_text(encoding="utf-8"))
+receipt["evidence_hashes"] = {
+    ref: hashlib.sha256((root / ref).read_bytes()).hexdigest()
+    for ref in receipt["evidence_refs"]
+}
+projection = {
+    key: receipt[key]
+    for key in (
+        "owner_kind",
+        "owner_id",
+        "lifecycle_status",
+        "continuation",
+        "current_item_id",
+        "blocker",
+        "replacement_ref",
+        "evidence_hashes",
+    )
+}
+receipt["semantic_revision"] = hashlib.sha256(
+    json.dumps(projection, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
+).hexdigest()
+path.write_text(json.dumps(receipt, indent=2) + "\n", encoding="utf-8")
+PY
+}
+refresh_owner_receipt
+owner_revision="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["semantic_revision"])' "$owner_dir/owner-receipt.json")"
+
+bind_output="$(sh "$cli" bind-execution-owner \
+  --root "$tmp" \
+  --goal-id demo-goal \
+  --owner-kind feature_tracker \
+  --owner-id f-demo \
+  --receipt-ref .bagakit/feature-tracker/features/f-demo/owner-receipt.json \
+  --owner goal-supervisor \
+  --summary "Bound execution to current Feature Tracker truth.")"
+grep -q "^owner_revision: $owner_revision$" <<<"$bind_output"
+test "$(sh "$cli" fresh-check --root "$tmp")" = "fresh-executor check passed"
+fresh_json="$(sh "$cli" fresh-check --root "$tmp" --json)"
+python3 - "$fresh_json" "$owner_revision" <<'PY'
+import json
+import sys
+
+payload = json.loads(sys.argv[1])
+assert payload["status"] == "pass"
+assert payload["goal_id"] == "demo-goal"
+assert payload["observed_owner"] == {
+    "continuation": "continue",
+    "owner_id": "f-demo",
+    "owner_kind": "feature_tracker",
+    "semantic_revision": sys.argv[2],
+}
+PY
+
+# A self-consistent receipt cannot substitute unrelated repo-local evidence.
+mkdir -p "$tmp/docs"
+cp "$owner_dir/owner-receipt.json" "$owner_dir/owner-receipt.backup.json"
+cp "$owner_dir/state.json" "$tmp/docs/decoy-state.json"
+cp "$owner_dir/tasks.json" "$tmp/docs/decoy-tasks.json"
+python3 - "$owner_dir/owner-receipt.json" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+path = Path(sys.argv[1])
+receipt = json.loads(path.read_text(encoding="utf-8"))
+receipt["evidence_refs"] = ["docs/decoy-state.json", "docs/decoy-tasks.json"]
+path.write_text(json.dumps(receipt, indent=2) + "\n", encoding="utf-8")
+PY
+refresh_owner_receipt
+if sh "$cli" fresh-check --root "$tmp" >"$tmp/decoy-owner-evidence.out" 2>&1; then
+  printf 'fresh-check unexpectedly accepted decoy owner evidence\n' >&2
+  exit 1
+fi
+grep -q 'receipt evidence must be its own state.json and tasks.json' "$tmp/decoy-owner-evidence.out"
+mv "$owner_dir/owner-receipt.backup.json" "$owner_dir/owner-receipt.json"
+
+# Simulate a crash after canonical owner truth changes but before receipt refresh.
+printf '{"feat_id":"f-demo","status":"blocked","current_task_id":"T-001"}\n' >"$owner_dir/state.json"
+if sh "$cli" fresh-check --root "$tmp" >"$tmp/owner-hash-drift.out" 2>&1; then
+  printf 'fresh-check unexpectedly accepted canonical owner drift behind an old receipt\n' >&2
+  exit 1
+fi
+grep -q 'owner receipt evidence hash changed' "$tmp/owner-hash-drift.out"
+
+# Even with refreshed hashes and revision, receipt decisions must match canonical state.
+refresh_owner_receipt
+if sh "$cli" fresh-check --root "$tmp" >"$tmp/owner-decision-drift.out" 2>&1; then
+  printf 'fresh-check unexpectedly accepted receipt decisions that contradict canonical state\n' >&2
+  exit 1
+fi
+grep -q 'state status does not match receipt lifecycle_status' "$tmp/owner-decision-drift.out"
+
+python3 - "$owner_dir/owner-receipt.json" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+path = Path(sys.argv[1])
+receipt = json.loads(path.read_text(encoding="utf-8"))
+receipt["lifecycle_status"] = "blocked"
+receipt["continuation"] = "blocked"
+receipt["blocker"] = {"class": "dependency", "reason": "validation owner is not ready"}
+path.write_text(json.dumps(receipt, indent=2) + "\n", encoding="utf-8")
+PY
+refresh_owner_receipt
+
+if sh "$cli" fresh-check --root "$tmp" >"$tmp/stale-owner.out" 2>&1; then
+  printf 'fresh-check unexpectedly accepted a changed owner revision\n' >&2
+  exit 1
+fi
+grep -q 'owner receipt revision changed' "$tmp/stale-owner.out"
+if sh "$cli" render-wrapper --root "$tmp" >/dev/null 2>"$tmp/stale-wrapper.err"; then
+  printf 'render-wrapper unexpectedly accepted stale owner truth\n' >&2
+  exit 1
+fi
+grep -q 'owner truth requires reconciliation' "$tmp/stale-wrapper.err"
+
+sh "$cli" reconcile-goal \
+  --root "$tmp" \
+  --goal-id demo-goal \
+  --status blocked \
+  --accept-owner-revision \
+  --current-state-line "Owner feature is blocked on validation readiness." \
+  --next-instruction-text "Resolve the Feature Tracker blocker before continuing implementation." \
+  --decision-line "Suppressed the stale continue instruction after owner truth changed." \
+  --owner goal-supervisor \
+  --summary "Reconciled the Goal to blocked owner truth." \
+  --evidence-ref .bagakit/feature-tracker/features/f-demo/owner-receipt.json >/dev/null
+test "$(sh "$cli" fresh-check --root "$tmp")" = "fresh-executor check passed"
+
+printf '{"feat_id":"f-demo","status":"in_progress","current_task_id":"T-001"}\n' >"$owner_dir/state.json"
+python3 - "$owner_dir/owner-receipt.json" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+path = Path(sys.argv[1])
+receipt = json.loads(path.read_text(encoding="utf-8"))
+receipt["lifecycle_status"] = "in_progress"
+receipt["continuation"] = "continue"
+receipt["blocker"] = None
+path.write_text(json.dumps(receipt, indent=2) + "\n", encoding="utf-8")
+PY
+refresh_owner_receipt
+if sh "$cli" fresh-check --root "$tmp" >/dev/null 2>&1; then
+  printf 'fresh-check unexpectedly accepted owner recovery without reconciliation\n' >&2
+  exit 1
+fi
+sh "$cli" reconcile-goal \
+  --root "$tmp" \
+  --goal-id demo-goal \
+  --status active \
+  --accept-owner-revision \
+  --current-state-line "Owner feature is ready to continue." \
+  --next-instruction-text "Continue one bounded owner task." \
+  --decision-line "Accepted the recovered owner revision." \
+  --owner goal-supervisor \
+  --summary "Reconciled the Goal after owner recovery." \
+  --evidence-ref .bagakit/feature-tracker/features/f-demo/owner-receipt.json >/dev/null
+test "$(sh "$cli" fresh-check --root "$tmp")" = "fresh-executor check passed"
 
 review_path="$(sh "$cli" request-evolver-review \
   --root "$tmp" \
@@ -359,6 +554,32 @@ sh "$cli" upsert-goal \
   --decision-line "Created as a backlog branch." \
   --question-line "None."
 
+if sh "$cli" reconcile-goal \
+  --root "$tmp" \
+  --goal-id paused-goal \
+  --status active \
+  --current-state-line "Invalid activation attempt." \
+  --next-instruction-text "Do not commit this state." \
+  --owner goal-supervisor \
+  --summary "Attempted invalid backlog activation." >/dev/null 2>"$tmp/non-foreground-active.err"; then
+  printf 'reconcile-goal unexpectedly activated a non-foreground Goal\n' >&2
+  exit 1
+fi
+grep -q 'cannot activate a non-foreground Goal' "$tmp/non-foreground-active.err"
+
+if sh "$cli" reconcile-goal \
+  --root "$tmp" \
+  --goal-id demo-goal \
+  --status complete \
+  --current-state-line "Invalid completion attempt." \
+  --next-instruction-text "Do not commit this state." \
+  --owner goal-supervisor \
+  --summary "Attempted completion without archive evidence." >/dev/null 2>"$tmp/reconcile-complete.err"; then
+  printf 'reconcile-goal unexpectedly accepted status=complete\n' >&2
+  exit 1
+fi
+grep -Eq 'invalid choice|cannot close a Goal' "$tmp/reconcile-complete.err"
+
 sh "$cli" set-foreground --root "$tmp" --goal-id paused-goal
 python3 - "$tmp/.bagakit/goal/state.yaml" <<'PY'
 from pathlib import Path
@@ -385,12 +606,279 @@ state = yaml.safe_load(Path(sys.argv[1]).read_text(encoding="utf-8"))
 assert state["edges"] == [{"from": "paused-goal", "to": "demo-goal", "kind": "interrupts"}]
 PY
 
+# A bound owner that still says continue cannot support Goal completion.
+if sh "$cli" archive-goal \
+  --root "$tmp" \
+  --goal-id demo-goal \
+  --status complete \
+  --completion-evidence "premature archive proof" \
+  --replacement-foreground paused-goal >/dev/null 2>"$tmp/continue-owner-archive.err"; then
+  printf 'archive-goal unexpectedly completed while owner continuation was continue\n' >&2
+  exit 1
+fi
+grep -q 'completion is not supported by owner truth' "$tmp/continue-owner-archive.err"
+test -f "$tmp/.bagakit/goal/demo-goal.md"
+test ! -e "$tmp/.bagakit/goal/archive/demo-goal.md"
+
+# Move canonical owner truth to complete and explicitly reconcile that revision.
+printf '{"feat_id":"f-demo","status":"done","current_task_id":null}\n' >"$owner_dir/state.json"
+printf '{"feat_id":"f-demo","tasks":[{"id":"T-001","status":"done"}]}\n' >"$owner_dir/tasks.json"
+python3 - "$owner_dir/owner-receipt.json" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+path = Path(sys.argv[1])
+receipt = json.loads(path.read_text(encoding="utf-8"))
+receipt["lifecycle_status"] = "done"
+receipt["continuation"] = "complete"
+receipt["current_item_id"] = None
+receipt["blocker"] = None
+path.write_text(json.dumps(receipt, indent=2) + "\n", encoding="utf-8")
+PY
+refresh_owner_receipt
+sh "$cli" reconcile-goal \
+  --root "$tmp" \
+  --goal-id demo-goal \
+  --status ready_for_review \
+  --accept-owner-revision \
+  --current-state-line "Owner feature is complete and ready for Goal archive." \
+  --next-instruction-text "Archive the Goal with completion evidence." \
+  --decision-line "Accepted the owner completion revision." \
+  --owner goal-supervisor \
+  --summary "Reconciled owner completion before archive." \
+  --evidence-ref .bagakit/feature-tracker/features/f-demo/owner-receipt.json >/dev/null
+
+# Supersession is a route transition, not completion evidence for the old Goal.
+printf '{}\n' >"$tmp/docs/successor-owner.json"
+printf '{"feat_id":"f-demo","status":"discarded","current_task_id":null}\n' >"$owner_dir/state.json"
+python3 - "$owner_dir/owner-receipt.json" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+path = Path(sys.argv[1])
+receipt = json.loads(path.read_text(encoding="utf-8"))
+receipt["lifecycle_status"] = "discarded"
+receipt["continuation"] = "superseded"
+receipt["replacement_ref"] = "docs/successor-owner.json"
+path.write_text(json.dumps(receipt, indent=2) + "\n", encoding="utf-8")
+PY
+refresh_owner_receipt
+sh "$cli" reconcile-goal \
+  --root "$tmp" \
+  --goal-id demo-goal \
+  --status paused \
+  --accept-owner-revision \
+  --current-state-line "Owner feature was superseded by a replacement route." \
+  --next-instruction-text "Route to the replacement instead of claiming completion." \
+  --owner goal-supervisor \
+  --summary "Reconciled owner supersession before archive." >/dev/null
+if sh "$cli" archive-goal \
+  --root "$tmp" \
+  --goal-id demo-goal \
+  --status complete \
+  --completion-evidence "invalid superseded completion" \
+  --replacement-foreground paused-goal >/dev/null 2>"$tmp/superseded-owner-archive.err"; then
+  printf 'archive-goal unexpectedly treated owner supersession as completion\n' >&2
+  exit 1
+fi
+grep -q 'completion requires owner continuation=complete' "$tmp/superseded-owner-archive.err"
+test -f "$tmp/.bagakit/goal/demo-goal.md"
+test ! -e "$tmp/.bagakit/goal/archive/demo-goal.md"
+
+# Restore completed owner truth for the remaining archive checks.
+printf '{"feat_id":"f-demo","status":"done","current_task_id":null}\n' >"$owner_dir/state.json"
+python3 - "$owner_dir/owner-receipt.json" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+path = Path(sys.argv[1])
+receipt = json.loads(path.read_text(encoding="utf-8"))
+receipt["lifecycle_status"] = "done"
+receipt["continuation"] = "complete"
+receipt["replacement_ref"] = None
+path.write_text(json.dumps(receipt, indent=2) + "\n", encoding="utf-8")
+PY
+refresh_owner_receipt
+sh "$cli" reconcile-goal \
+  --root "$tmp" \
+  --goal-id demo-goal \
+  --status ready_for_review \
+  --accept-owner-revision \
+  --current-state-line "Owner feature is complete and ready for Goal archive." \
+  --next-instruction-text "Archive the Goal with completion evidence." \
+  --owner goal-supervisor \
+  --summary "Restored owner completion after supersession regression." >/dev/null
+
+# Invalid replacement must fail before moving any Goal or event file.
+state_hash_before="$(shasum -a 256 "$tmp/.bagakit/goal/state.yaml" | awk '{print $1}')"
+current_hash_before="$(shasum -a 256 "$tmp/.bagakit/goal/current.md" | awk '{print $1}')"
+if sh "$cli" archive-goal \
+  --root "$tmp" \
+  --goal-id demo-goal \
+  --status complete \
+  --completion-evidence "smoke archive proof" \
+  --replacement-foreground missing-goal >/dev/null 2>"$tmp/missing-replacement.err"; then
+  printf 'archive-goal unexpectedly accepted a missing replacement\n' >&2
+  exit 1
+fi
+grep -q 'replacement foreground goal is not registered' "$tmp/missing-replacement.err"
+test -f "$tmp/.bagakit/goal/demo-goal.md"
+test -f "$tmp/.bagakit/goal/events/demo-goal.jsonl"
+test ! -e "$tmp/.bagakit/goal/archive/demo-goal.md"
+test "$state_hash_before" = "$(shasum -a 256 "$tmp/.bagakit/goal/state.yaml" | awk '{print $1}')"
+test "$current_hash_before" = "$(shasum -a 256 "$tmp/.bagakit/goal/current.md" | awk '{print $1}')"
+
+# A prepare-phase filesystem failure must not publish a partial archive.
+goal_root="$tmp/.bagakit/goal"
+active_hash_before="$(shasum -a 256 "$goal_root/demo-goal.md" | awk '{print $1}')"
+event_hash_before="$(shasum -a 256 "$goal_root/events/demo-goal.jsonl" | awk '{print $1}')"
+chmod u-w "$goal_root"
+set +e
+sh "$cli" archive-goal \
+  --root "$tmp" \
+  --goal-id demo-goal \
+  --status complete \
+  --completion-evidence "filesystem failure archive proof" \
+  --replacement-foreground paused-goal >/dev/null 2>"$tmp/archive-transaction.err"
+archive_transaction_rc=$?
+set -e
+chmod u+w "$goal_root"
+if [[ $archive_transaction_rc -eq 0 ]]; then
+  printf 'archive-goal unexpectedly succeeded with an unwritable Goal root\n' >&2
+  exit 1
+fi
+grep -q 'transaction failed without publishing partial state' "$tmp/archive-transaction.err"
+test "$active_hash_before" = "$(shasum -a 256 "$goal_root/demo-goal.md" | awk '{print $1}')"
+test "$event_hash_before" = "$(shasum -a 256 "$goal_root/events/demo-goal.jsonl" | awk '{print $1}')"
+test "$state_hash_before" = "$(shasum -a 256 "$goal_root/state.yaml" | awk '{print $1}')"
+test "$current_hash_before" = "$(shasum -a 256 "$goal_root/current.md" | awk '{print $1}')"
+test ! -e "$goal_root/archive/demo-goal.md"
+test -z "$(find "$goal_root/archive" -name '*.tmp-*' -print -quit)"
+
+# Inject a failure after publication begins and prove the rollback helper
+# restores updated, created, and deleted paths without leftover temp files.
+python3 - \
+  "$root/skills/harness/bagakit-set-loop-goal/scripts/bagakit-set-loop-goal.py" \
+  "$tmp" <<'PY'
+import importlib.util
+import sys
+from pathlib import Path
+
+module_path = Path(sys.argv[1])
+fixture = Path(sys.argv[2]) / "rollback-fixture"
+fixture.mkdir()
+first = fixture / "first.txt"
+created = fixture / "created.txt"
+deleted = fixture / "deleted.txt"
+last = fixture / "last.txt"
+first.write_text("first-before\n", encoding="utf-8")
+deleted.write_text("deleted-before\n", encoding="utf-8")
+
+spec = importlib.util.spec_from_file_location("bagakit_set_loop_goal", module_path)
+assert spec is not None and spec.loader is not None
+module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(module)
+
+original_replace = module.os.replace
+replace_count = 0
+
+def injected_replace(source, destination):
+    global replace_count
+    original_replace(source, destination)
+    replace_count += 1
+    if replace_count == 2:
+        raise OSError("injected post-publish failure")
+
+module.os.replace = injected_replace
+try:
+    module.commit_file_transaction(
+        [
+            (first, b"first-after\n", 0o644),
+            (created, b"created-after\n", 0o644),
+            (last, b"last-after\n", 0o644),
+        ],
+        [deleted],
+    )
+except SystemExit as exc:
+    assert "without publishing partial state" in str(exc)
+else:
+    raise AssertionError("injected transaction failure unexpectedly succeeded")
+finally:
+    module.os.replace = original_replace
+
+assert first.read_text(encoding="utf-8") == "first-before\n"
+assert not created.exists()
+assert deleted.read_text(encoding="utf-8") == "deleted-before\n"
+assert not last.exists()
+assert not list(fixture.glob(".*.tmp-*"))
+PY
+
+# A paused replacement whose owner is blocked must not be activated implicitly.
+paused_owner_dir="$tmp/.bagakit/feature-tracker/features/f-paused"
+mkdir -p "$paused_owner_dir"
+printf '{"feat_id":"f-paused","status":"blocked","current_task_id":null}\n' >"$paused_owner_dir/state.json"
+printf '{"feat_id":"f-paused","tasks":[{"id":"T-010","status":"blocked"}]}\n' >"$paused_owner_dir/tasks.json"
+cat >"$paused_owner_dir/owner-receipt.json" <<'EOF'
+{
+  "schema": "bagakit.execution-owner-receipt.v1",
+  "owner_kind": "feature_tracker",
+  "owner_id": "f-paused",
+  "semantic_revision": "",
+  "lifecycle_status": "blocked",
+  "continuation": "blocked",
+  "current_item_id": null,
+  "blocker": {"class": "dependency", "reason": "replacement dependency is blocked"},
+  "replacement_ref": null,
+  "evidence_refs": [
+    ".bagakit/feature-tracker/features/f-paused/state.json",
+    ".bagakit/feature-tracker/features/f-paused/tasks.json"
+  ],
+  "evidence_hashes": {}
+}
+EOF
+refresh_owner_receipt "$paused_owner_dir/owner-receipt.json"
+sh "$cli" bind-execution-owner \
+  --root "$tmp" \
+  --goal-id paused-goal \
+  --owner-kind feature_tracker \
+  --owner-id f-paused \
+  --receipt-ref .bagakit/feature-tracker/features/f-paused/owner-receipt.json \
+  --owner goal-supervisor \
+  --summary "Bound paused replacement to blocked owner truth." >/dev/null
+if sh "$cli" archive-goal \
+  --root "$tmp" \
+  --goal-id demo-goal \
+  --status complete \
+  --completion-evidence "smoke archive proof" \
+  --replacement-foreground paused-goal >/dev/null 2>"$tmp/blocked-replacement.err"; then
+  printf 'archive-goal unexpectedly activated a blocked replacement\n' >&2
+  exit 1
+fi
+grep -q 'replacement foreground activation is blocked by owner truth' "$tmp/blocked-replacement.err"
+test -f "$tmp/.bagakit/goal/demo-goal.md"
+test ! -e "$tmp/.bagakit/goal/archive/demo-goal.md"
+
+sh "$cli" upsert-goal \
+  --root "$tmp" \
+  --goal-id replacement-goal \
+  --title "Replacement Goal" \
+  --status paused \
+  --prime-directive-text "Continue after the demo Goal is archived." \
+  --current-state-line "Waiting for foreground replacement." \
+  --principle-line "Activate only after archive preflight succeeds." \
+  --acceptance-line "Acceptance: replacement becomes foreground." \
+  --orchestration-line "Feature truth: none" \
+  --next-instruction-text "Continue the replacement branch." >/dev/null
+
 sh "$cli" archive-goal \
   --root "$tmp" \
   --goal-id demo-goal \
   --status complete \
   --completion-evidence "smoke archive proof" \
-  --replacement-foreground paused-goal
+  --replacement-foreground replacement-goal
 
 python3 - "$tmp" <<'PY'
 from __future__ import annotations
@@ -406,6 +894,7 @@ current = (goal_root / "current.md").read_text(encoding="utf-8")
 archived = (goal_root / "archive" / "demo-goal.md").read_text(encoding="utf-8")
 archived_events = goal_root / "archive" / "demo-goal.events.jsonl"
 paused = (goal_root / "paused-goal.md").read_text(encoding="utf-8")
+replacement = (goal_root / "replacement-goal.md").read_text(encoding="utf-8")
 surface = (goal_root / "surface.toml").read_text(encoding="utf-8")
 goal_root_text = "\n".join(
     path.read_text(encoding="utf-8")
@@ -414,23 +903,68 @@ goal_root_text = "\n".join(
 )
 
 assert state["schema"] == "bagakit.goal-state.v1"
-assert state["protocol_version"] == "bagakit.goal.v.0.1"
-assert state["foreground_goal"] == "paused-goal"
+assert state["protocol_version"] == "bagakit.goal.v.0.2"
+assert state["foreground_goal"] == "replacement-goal"
 assert "demo-goal" not in state["goals"]
-assert state["goals"]["paused-goal"]["role"] == "foreground"
-assert state["goals"]["paused-goal"]["status"] == "active"
+assert state["goals"]["replacement-goal"]["role"] == "foreground"
+assert state["goals"]["replacement-goal"]["status"] == "active"
+assert state["goals"]["paused-goal"]["role"] == "backlog"
+assert state["goals"]["paused-goal"]["status"] == "paused"
 assert state["edges"] == []
 assert "truth_surface: .bagakit/goal/archive/demo-goal.md" in archived
-assert "protocol_version: bagakit.goal.v.0.1" in archived
+assert "protocol_version: bagakit.goal.v.0.2" in archived
 assert "status: complete" in archived
 assert "smoke archive proof" in archived
 assert archived_events.exists()
 assert not (goal_root / "events" / "demo-goal.jsonl").exists()
-assert "status: active" in paused
+assert "status: paused" in paused
+assert "status: active" in replacement
 assert "No foreground Goal is currently selected" not in current
 assert 'owner_id = "bagakit-set-loop-goal"' in surface
-assert 'protocol_version = "bagakit.goal.v.0.1"' in surface
+assert 'protocol_version = "bagakit.goal.v.0.2"' in surface
 assert str(tmp) not in goal_root_text
 PY
+
+# Competing archive commands serialize and publish exactly one closed Goal.
+concurrent_tmp="$(mktemp -d)"
+sh "$cli" initialize-surface --root "$concurrent_tmp" >/dev/null
+sh "$cli" upsert-goal \
+  --root "$concurrent_tmp" \
+  --goal-id concurrent-goal \
+  --title "Concurrent Goal" \
+  --status active \
+  --prime-directive-text "Close exactly once under competing archive requests." \
+  --current-state-line "Ready for archive concurrency proof." \
+  --principle-line "Serialize Goal mutation." \
+  --acceptance-line "Acceptance: one archive succeeds and one observes closed truth." \
+  --orchestration-line "Feature truth: none" \
+  --next-instruction-text "Archive once." >/dev/null
+set +e
+sh "$cli" archive-goal \
+  --root "$concurrent_tmp" \
+  --goal-id concurrent-goal \
+  --status complete \
+  --completion-evidence "concurrency proof one" >"$concurrent_tmp/archive-one.out" 2>"$concurrent_tmp/archive-one.err" &
+archive_one_pid=$!
+sh "$cli" archive-goal \
+  --root "$concurrent_tmp" \
+  --goal-id concurrent-goal \
+  --status complete \
+  --completion-evidence "concurrency proof two" >"$concurrent_tmp/archive-two.out" 2>"$concurrent_tmp/archive-two.err" &
+archive_two_pid=$!
+wait "$archive_one_pid"
+archive_one_rc=$?
+wait "$archive_two_pid"
+archive_two_rc=$?
+set -e
+if [[ $archive_one_rc -eq 0 && $archive_two_rc -eq 0 ]] || [[ $archive_one_rc -ne 0 && $archive_two_rc -ne 0 ]]; then
+  printf 'competing archive-goal commands did not produce exactly one success\n' >&2
+  exit 1
+fi
+test -f "$concurrent_tmp/.bagakit/goal/archive/concurrent-goal.md"
+test ! -e "$concurrent_tmp/.bagakit/goal/concurrent-goal.md"
+test ! -e "$concurrent_tmp/.bagakit/goal/events/concurrent-goal.jsonl"
+test -f "$concurrent_tmp/.bagakit/goal/archive/concurrent-goal.events.jsonl"
+cat "$concurrent_tmp/archive-one.err" "$concurrent_tmp/archive-two.err" | grep -Eq 'active goal file not found|archived Goal already exists'
 
 printf 'bagakit-set-loop-goal smoke passed\n'

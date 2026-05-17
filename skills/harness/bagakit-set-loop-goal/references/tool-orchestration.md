@@ -96,8 +96,12 @@ The Goal should include:
 - workspace mode if it changes execution
 - gate evidence required before completion
 - archive/closeout condition
+- a bound execution-owner receipt when Feature Tracker state controls whether
+  the Goal may continue
 
 Do not copy the feature task list into the Goal.
+Do not parse Feature Tracker prose to infer freshness; compare the receipt's
+semantic revision and continuation disposition.
 
 ## Flow Runner
 

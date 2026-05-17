@@ -71,7 +71,10 @@ Rules:
 - identity and revision must match the current receipt
 - a changed revision blocks the old Goal instruction until explicit reconcile
 - `blocked` or `unavailable` requires a blocked or paused Goal
-- `complete` or `superseded` cannot leave the Goal in active execution
+- `complete` may support Goal completion after explicit reconciliation and
+  completion evidence
+- `superseded` cannot support Goal completion; it routes to a replacement or
+  explicit abandonment
 - Goal reconciliation may acknowledge a new revision, but it does not mutate
   the owner
 - continuation-bearing bindings are always required; an unavailable receipt
