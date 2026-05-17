@@ -37,6 +37,8 @@ CURRENT_FEAT_ID_RE = re.compile(r"^f-[23456789abcdefghjkmnpqrstuvwxyz]{9}$")
 TRANSITIONAL_FEAT_ID_RE = re.compile(r"^f-[0-9a-z]{7}$")
 LEGACY_FEAT_ID_RE = re.compile(r"^f-\d{8}-[a-z0-9][a-z0-9-]*$")
 TASK_ID_RE = re.compile(r"^T-\d{3}$")
+URI_SCHEME_RE = re.compile(r"^[A-Za-z][A-Za-z0-9+.-]*:")
+WINDOWS_DRIVE_ABSOLUTE_RE = re.compile(r"^[A-Za-z]:[\\/]")
 FEAT_STATUS = {"proposal", "ready", "in_progress", "blocked", "done", "archived", "discarded"}
 TASK_STATUS = {"todo", "in_progress", "done", "blocked"}
 GATE_STATUS = {"pass", "fail"}
@@ -66,9 +68,15 @@ FEATURE_PROPOSAL_FILENAME = "proposal.md"
 FEATURE_SPEC_DELTA_FILENAME = "spec-delta.md"
 FEATURE_VERIFICATION_FILENAME = "verification.md"
 FEATURE_SUMMARY_FILENAME = "summary.md"
+FEATURE_OWNER_RECEIPT_FILENAME = "owner-receipt.json"
 LEGACY_UI_VERIFICATION_FILENAME = "ui-verification.md"
+TASK_PLAN_SCHEMA = "bagakit.feature-task-plan.v1"
+OWNER_RECEIPT_SCHEMA = "bagakit.execution-owner-receipt.v1"
+TASK_PLAN_STATUSES = {"draft", "reviewed"}
+TASK_VERIFICATION_KINDS = {"command", "artifact", "manual", "owner_receipt"}
 DAG_RECOVERY_HINT = "run feature-tracker.sh replan-features to regenerate FEATURES_DAG.json"
 FEATURE_REQUIRED_ROOT_FILES = frozenset({"state.json", "tasks.json"})
+FEATURE_DERIVED_ROOT_FILES = frozenset({FEATURE_OWNER_RECEIPT_FILENAME})
 FEATURE_OPTIONAL_ROOT_FILES = frozenset(
     {
         FEATURE_PROPOSAL_FILENAME,
@@ -152,6 +160,134 @@ def require_string_list(value: Any, label: str) -> list[str]:
     return out
 
 
+def require_optional_string_list(value: Any, label: str) -> list[str]:
+    if value is None:
+        return []
+    if not isinstance(value, list):
+        raise SystemExit(f"error: {label} must be a list of strings")
+    return [require_nonempty_string(item, f"{label}[{index}]") for index, item in enumerate(value)]
+
+
+def normalize_repo_relative_ref(value: Any, label: str) -> str:
+    raw = require_nonempty_string(value, label)
+    path_part, separator, anchor = raw.partition("#")
+    if URI_SCHEME_RE.match(path_part):
+        raise SystemExit(f"error: {label} must not use a URI or drive-qualified path")
+    if WINDOWS_DRIVE_ABSOLUTE_RE.match(path_part) or path_part.startswith(("/", "\\")):
+        raise SystemExit(f"error: {label} must be repo-relative")
+    portable_path = path_part.replace("\\", "/")
+    normalized_text = os.path.normpath(portable_path).replace("\\", "/")
+    normalized = Path(normalized_text)
+    if normalized_text in {"", ".", ".."} or normalized_text.startswith("../"):
+        raise SystemExit(f"error: {label} must not escape the repository root")
+    result = normalized.as_posix()
+    return f"{result}#{anchor}" if separator else result
+
+
+def require_repo_relative_ref(root: Path, value: Any, label: str) -> str:
+    result = normalize_repo_relative_ref(value, label)
+    path_part = result.partition("#")[0]
+    normalized = Path(path_part)
+    try:
+        (root / normalized).resolve().relative_to(root.resolve())
+    except ValueError as exc:
+        raise SystemExit(f"error: {label} must not escape the repository root") from exc
+    return result
+
+
+def require_repo_relative_refs(root: Path, value: Any, label: str) -> list[str]:
+    refs = require_string_list(value, label)
+    return [require_repo_relative_ref(root, ref, f"{label}[{index}]") for index, ref in enumerate(refs)]
+
+
+def parse_task_plan_candidate(
+    value: Any,
+    *,
+    root: Path,
+    label: str,
+    inherited_review_ref: str | None = None,
+) -> dict[str, Any]:
+    plan = require_record(value, label)
+    schema = require_nonempty_string(plan.get("schema"), f"{label}.schema")
+    if schema != TASK_PLAN_SCHEMA:
+        raise SystemExit(f"error: {label}.schema must be {TASK_PLAN_SCHEMA}")
+
+    if inherited_review_ref is None:
+        review = require_record(plan.get("review"), f"{label}.review")
+        review_status = require_nonempty_string(review.get("status"), f"{label}.review.status")
+        if review_status != "approved":
+            raise SystemExit(f"error: {label}.review.status must be approved")
+        review_ref = require_repo_relative_ref(root, review.get("evidence_ref"), f"{label}.review.evidence_ref")
+    else:
+        review_ref = require_repo_relative_ref(root, inherited_review_ref, f"{label}.review_ref")
+
+    source_refs = require_repo_relative_refs(root, plan.get("source_refs"), f"{label}.source_refs")
+    raw_tasks = plan.get("tasks")
+    if not isinstance(raw_tasks, list) or not raw_tasks:
+        raise SystemExit(f"error: {label}.tasks must be a non-empty list")
+
+    tasks: list[dict[str, Any]] = []
+    seen_ids: set[str] = set()
+    for index, raw_task in enumerate(raw_tasks):
+        task_label = f"{label}.tasks[{index}]"
+        task = require_record(raw_task, task_label)
+        task_id = require_nonempty_string(task.get("id"), f"{task_label}.id")
+        if not TASK_ID_RE.fullmatch(task_id):
+            raise SystemExit(f"error: {task_label}.id must match T-000")
+        if task_id in seen_ids:
+            raise SystemExit(f"error: duplicate task id in reviewed plan: {task_id}")
+        seen_ids.add(task_id)
+
+        verification_raw = task.get("verification")
+        if not isinstance(verification_raw, list) or not verification_raw:
+            raise SystemExit(f"error: {task_label}.verification must be a non-empty list")
+        verification: list[dict[str, str]] = []
+        for verification_index, raw_mapping in enumerate(verification_raw):
+            mapping_label = f"{task_label}.verification[{verification_index}]"
+            mapping = require_record(raw_mapping, mapping_label)
+            kind = require_nonempty_string(mapping.get("kind"), f"{mapping_label}.kind")
+            if kind not in TASK_VERIFICATION_KINDS:
+                raise SystemExit(
+                    f"error: {mapping_label}.kind must be one of {', '.join(sorted(TASK_VERIFICATION_KINDS))}"
+                )
+            verification.append(
+                {
+                    "kind": kind,
+                    "ref": require_repo_relative_ref(root, mapping.get("ref"), f"{mapping_label}.ref"),
+                    "proves": require_nonempty_string(mapping.get("proves"), f"{mapping_label}.proves"),
+                }
+            )
+
+        supersedes = require_optional_string_list(task.get("supersedes"), f"{task_label}.supersedes")
+        if len(set(supersedes)) != len(supersedes):
+            raise SystemExit(f"error: {task_label}.supersedes must not contain duplicates")
+        for superseded_id in supersedes:
+            if not TASK_ID_RE.fullmatch(superseded_id):
+                raise SystemExit(f"error: {task_label}.supersedes entries must match T-000")
+            if superseded_id == task_id:
+                raise SystemExit(f"error: {task_label} must not supersede itself")
+
+        tasks.append(
+            {
+                "id": task_id,
+                "title": require_nonempty_string(task.get("title"), f"{task_label}.title"),
+                "objective": require_nonempty_string(task.get("objective"), f"{task_label}.objective"),
+                "outcome": require_nonempty_string(task.get("outcome"), f"{task_label}.outcome"),
+                "acceptance": require_string_list(task.get("acceptance"), f"{task_label}.acceptance"),
+                "verification": verification,
+                "source_refs": require_repo_relative_refs(root, task.get("source_refs"), f"{task_label}.source_refs"),
+                "supersedes": supersedes,
+            }
+        )
+
+    return {
+        "schema": schema,
+        "review_ref": review_ref,
+        "source_refs": source_refs,
+        "tasks": tasks,
+    }
+
+
 def canonical_runtime_role(value: Any, *, feat_id: str) -> str:
     raw = str(value or "standalone").strip()
     if raw not in RUNTIME_ROLES:
@@ -204,7 +340,7 @@ def canonical_runtime_relations(value: Any, *, feat_id: str) -> list[dict[str, s
     return out
 
 
-def optional_principle_layer(value: Any) -> dict[str, Any] | None:
+def optional_principle_layer(value: Any, *, root: Path) -> dict[str, Any] | None:
     if value is None:
         return None
     layer = require_record(value, "planning-entry handoff principle_layer")
@@ -227,7 +363,8 @@ def optional_principle_layer(value: Any) -> dict[str, Any] | None:
             layer.get("transfer_checks"),
             "planning-entry handoff principle_layer.transfer_checks",
         ),
-        "evidence_refs": require_string_list(
+        "evidence_refs": require_repo_relative_refs(
+            root,
             layer.get("evidence_refs"),
             "planning-entry handoff principle_layer.evidence_refs",
         ),
@@ -373,7 +510,7 @@ def active_feature_ids(paths: "HarnessPaths") -> set[str]:
     }
 
 
-def load_planning_entry_handoff(handoff_path: Path) -> dict[str, Any]:
+def load_planning_entry_handoff(handoff_path: Path, *, root: Path) -> dict[str, Any]:
     payload = require_record(load_json(handoff_path), f"planning-entry handoff {handoff_path}")
     schema = require_nonempty_string(payload.get("schema"), "planning-entry handoff schema")
     if schema != PLANNING_ENTRY_HANDOFF_SCHEMA:
@@ -411,7 +548,15 @@ def load_planning_entry_handoff(handoff_path: Path) -> dict[str, Any]:
         route.get("recipe_id"),
         "planning-entry handoff recommended_route.recipe_id",
     )
-    principle_layer = optional_principle_layer(payload.get("principle_layer"))
+    principle_layer = optional_principle_layer(payload.get("principle_layer"), root=root)
+    task_plan = None
+    if payload.get("task_plan") is not None:
+        task_plan = parse_task_plan_candidate(
+            payload.get("task_plan"),
+            root=root,
+            label="planning-entry handoff task_plan",
+            inherited_review_ref=relative_display(root, handoff_path),
+        )
 
     return {
         "schema": schema,
@@ -441,11 +586,17 @@ def load_planning_entry_handoff(handoff_path: Path) -> dict[str, Any]:
             "scene": scene,
             "recipe_id": recipe_id,
         },
-        "source_artifacts": require_string_list(
+        "source_artifacts": require_repo_relative_refs(
+            root,
             payload.get("source_artifacts"),
             "planning-entry handoff source_artifacts",
         ),
-        "source_refs": require_string_list(payload.get("source_refs"), "planning-entry handoff source_refs"),
+        "source_refs": require_repo_relative_refs(
+            root,
+            payload.get("source_refs"),
+            "planning-entry handoff source_refs",
+        ),
+        "task_plan": task_plan,
     }
 
 
@@ -764,6 +915,9 @@ class HarnessPaths:
     def feat_tasks(self, feat_id: str, *, status: str | None = None) -> Path:
         return self.feat_dir(feat_id, status=status) / "tasks.json"
 
+    def feat_owner_receipt(self, feat_id: str, *, status: str | None = None) -> Path:
+        return self.feat_dir(feat_id, status=status) / FEATURE_OWNER_RECEIPT_FILENAME
+
     def feat_summary(self, feat_id: str, *, status: str | None = None) -> Path:
         return self.feat_dir(feat_id, status=status) / "summary.md"
 
@@ -902,6 +1056,324 @@ def normalize_tasks_payload(tasks: dict[str, Any]) -> None:
             continue
         for key in ("last_gate_at", "started_at", "finished_at", "updated_at"):
             item.pop(key, None)
+
+
+def draft_tasks_payload(feat_id: str) -> dict[str, Any]:
+    return {
+        "version": 2,
+        "feat_id": feat_id,
+        "plan_status": "draft",
+        "plan_revision": 0,
+        "supersedes_revision": None,
+        "review_ref": "",
+        "source_refs": [],
+        "plan_history": [],
+        "tasks": [],
+    }
+
+
+def latest_plan_task_ids(tasks: dict[str, Any]) -> list[str]:
+    history = tasks.get("plan_history")
+    if not isinstance(history, list) or not history:
+        return []
+    latest = history[-1]
+    if not isinstance(latest, dict) or latest.get("revision") != tasks.get("plan_revision"):
+        return []
+    task_ids = latest.get("task_ids")
+    if not isinstance(task_ids, list) or not task_ids:
+        return []
+    out: list[str] = []
+    for task_id in task_ids:
+        if not isinstance(task_id, str) or not TASK_ID_RE.fullmatch(task_id) or task_id in out:
+            return []
+        out.append(task_id)
+    return out
+
+
+def task_has_execution_evidence(task: dict[str, Any]) -> bool:
+    return bool(
+        task.get("status") in {"done", "blocked"}
+        or task.get("gate_result") is not None
+        or bool(task.get("last_gate_commands"))
+        or bool(task.get("last_commit_hash"))
+    )
+
+
+def task_has_canonical_semantics(task: dict[str, Any]) -> bool:
+    if not isinstance(task, dict) or not TASK_ID_RE.fullmatch(str(task.get("id") or "")):
+        return False
+    if task.get("status") not in TASK_STATUS:
+        return False
+    if not isinstance(task.get("introduced_in_revision"), int) or isinstance(
+        task.get("introduced_in_revision"), bool
+    ):
+        return False
+    for field in ("title", "objective", "outcome"):
+        if not isinstance(task.get(field), str) or not str(task.get(field)).strip():
+            return False
+    for field in ("acceptance", "source_refs"):
+        values = task.get(field)
+        if not isinstance(values, list) or not values or any(not isinstance(item, str) or not item.strip() for item in values):
+            return False
+    try:
+        for index, ref in enumerate(task["source_refs"]):
+            normalize_repo_relative_ref(ref, f"task.source_refs[{index}]")
+    except SystemExit:
+        return False
+    supersedes = task.get("supersedes")
+    if not isinstance(supersedes, list) or any(
+        not isinstance(item, str) or not TASK_ID_RE.fullmatch(item) for item in supersedes
+    ):
+        return False
+    if len(set(supersedes)) != len(supersedes) or str(task.get("id")) in supersedes:
+        return False
+    verification = task.get("verification")
+    if not isinstance(verification, list) or not verification:
+        return False
+    for mapping in verification:
+        if not isinstance(mapping, dict) or mapping.get("kind") not in TASK_VERIFICATION_KINDS:
+            return False
+        if not isinstance(mapping.get("ref"), str) or not str(mapping.get("ref")).strip():
+            return False
+        try:
+            normalize_repo_relative_ref(mapping.get("ref"), "task.verification.ref")
+        except SystemExit:
+            return False
+        if not isinstance(mapping.get("proves"), str) or not str(mapping.get("proves")).strip():
+            return False
+    return True
+
+
+def has_reviewed_task_plan(tasks: dict[str, Any]) -> bool:
+    task_items = tasks.get("tasks")
+    if not isinstance(task_items, list) or not task_items:
+        return False
+    revision = tasks.get("plan_revision")
+    if (
+        tasks.get("version") != 2
+        or tasks.get("plan_status") != "reviewed"
+        or not isinstance(revision, int)
+        or isinstance(revision, bool)
+        or revision < 1
+    ):
+        return False
+    expected_supersedes_revision = None if revision == 1 else revision - 1
+    if tasks.get("supersedes_revision") != expected_supersedes_revision:
+        return False
+    try:
+        normalize_repo_relative_ref(tasks.get("review_ref"), "tasks.review_ref")
+    except SystemExit:
+        return False
+    source_refs = tasks.get("source_refs")
+    if not isinstance(source_refs, list) or not source_refs:
+        return False
+    try:
+        for index, ref in enumerate(source_refs):
+            normalize_repo_relative_ref(ref, f"tasks.source_refs[{index}]")
+    except SystemExit:
+        return False
+    history = tasks.get("plan_history")
+    if not isinstance(history, list) or len(history) != revision:
+        return False
+    previous_history_ids: set[str] = set()
+    for history_index, entry in enumerate(history):
+        expected_revision = history_index + 1
+        if not isinstance(entry, dict) or entry.get("revision") != expected_revision:
+            return False
+        if entry.get("supersedes_revision") != (None if expected_revision == 1 else expected_revision - 1):
+            return False
+        try:
+            normalize_repo_relative_ref(entry.get("review_ref"), "plan_history.review_ref")
+            entry_source_refs = entry.get("source_refs")
+            if not isinstance(entry_source_refs, list) or not entry_source_refs:
+                return False
+            for source_ref in entry_source_refs:
+                normalize_repo_relative_ref(source_ref, "plan_history.source_refs")
+        except SystemExit:
+            return False
+        raw_entry_ids = entry.get("task_ids")
+        raw_superseded_ids = entry.get("superseded_task_ids")
+        if not isinstance(raw_entry_ids, list) or not raw_entry_ids or not isinstance(raw_superseded_ids, list):
+            return False
+        entry_ids = {str(item) for item in raw_entry_ids}
+        superseded_ids = {str(item) for item in raw_superseded_ids}
+        if (
+            len(entry_ids) != len(raw_entry_ids)
+            or len(superseded_ids) != len(raw_superseded_ids)
+            or any(not TASK_ID_RE.fullmatch(str(item)) for item in raw_entry_ids)
+            or any(not TASK_ID_RE.fullmatch(str(item)) for item in raw_superseded_ids)
+        ):
+            return False
+        expected_removed = previous_history_ids - entry_ids if history_index > 0 else set()
+        if superseded_ids != expected_removed:
+            return False
+        previous_history_ids = entry_ids
+    if history[-1].get("review_ref") != tasks.get("review_ref") or history[-1].get("source_refs") != source_refs:
+        return False
+    current_ids = latest_plan_task_ids(tasks)
+    if not current_ids:
+        return False
+    task_by_id: dict[str, dict[str, Any]] = {}
+    for task in task_items:
+        if not task_has_canonical_semantics(task):
+            return False
+        task_id = str(task["id"])
+        if task_id in task_by_id:
+            return False
+        task_by_id[task_id] = task
+    for task_id in current_ids:
+        task = task_by_id.get(task_id)
+        if task is None or bool(task.get("superseded_by")):
+            return False
+    declared_latest_supersedes = {
+        superseded_id
+        for task_id in current_ids
+        for superseded_id in task_by_id[task_id].get("supersedes", [])
+    }
+    latest_superseded_ids = {str(item) for item in history[-1].get("superseded_task_ids", [])}
+    if declared_latest_supersedes != latest_superseded_ids:
+        return False
+    return True
+
+
+def require_reviewed_task_plan(tasks: dict[str, Any], *, feat_id: str, action: str) -> None:
+    if has_reviewed_task_plan(tasks):
+        return
+    raise SystemExit(
+        "error: "
+        f"feat {feat_id} has no reviewed task plan; run feature-tracker.sh set-task-plan "
+        f"before {action}"
+    )
+
+
+def build_reviewed_tasks_payload(
+    feat_id: str,
+    candidate: dict[str, Any],
+    *,
+    revision: int,
+    supersedes_revision: int | None,
+    previous: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    previous = previous or draft_tasks_payload(feat_id)
+    previous_items = previous.get("tasks") if isinstance(previous.get("tasks"), list) else []
+    if any(isinstance(task, dict) and task.get("status") == "in_progress" for task in previous_items):
+        raise SystemExit("error: task plan cannot be replaced while a task is in_progress")
+
+    previous_by_id = {
+        str(task.get("id")): task
+        for task in previous_items
+        if isinstance(task, dict) and str(task.get("id") or "").strip()
+    }
+    previous_ids = set(previous_by_id)
+    previous_active_ids = set(latest_plan_task_ids(previous)) if has_reviewed_task_plan(previous) else previous_ids
+    candidate_ids = {str(task["id"]) for task in candidate["tasks"]}
+    reintroduced_historical = {
+        task_id
+        for task_id in candidate_ids
+        if task_id in previous_ids and task_id not in previous_active_ids
+    }
+    if reintroduced_historical:
+        raise SystemExit(
+            "error: reviewed task plan cannot reactivate historical superseded tasks: "
+            + ", ".join(sorted(reintroduced_historical))
+        )
+    superseded_ids = previous_active_ids - candidate_ids
+    declared_supersedes = {
+        superseded
+        for task in candidate["tasks"]
+        for superseded in task.get("supersedes", [])
+    }
+    unknown_supersedes = declared_supersedes - previous_active_ids
+    if unknown_supersedes:
+        raise SystemExit(
+            "error: reviewed task plan supersedes tasks outside the prior current plan: "
+            + ", ".join(sorted(unknown_supersedes))
+        )
+    retained_supersedes = declared_supersedes & candidate_ids
+    if retained_supersedes:
+        raise SystemExit(
+            "error: reviewed task plan cannot supersede tasks retained in the current plan: "
+            + ", ".join(sorted(retained_supersedes))
+        )
+    missing_lineage = superseded_ids - declared_supersedes
+    if missing_lineage:
+        raise SystemExit(
+            "error: reviewed task plan must preserve supersession lineage for removed tasks: "
+            + ", ".join(sorted(missing_lineage))
+        )
+
+    history = list(previous.get("plan_history") or [])
+    history.append(
+        {
+            "revision": revision,
+            "supersedes_revision": supersedes_revision,
+            "review_ref": candidate["review_ref"],
+            "source_refs": candidate["source_refs"],
+            "task_ids": [task["id"] for task in candidate["tasks"]],
+            "superseded_task_ids": sorted(superseded_ids),
+        }
+    )
+    semantic_fields = (
+        "title",
+        "objective",
+        "outcome",
+        "acceptance",
+        "verification",
+        "source_refs",
+        "supersedes",
+    )
+    tasks = []
+    for task in candidate["tasks"]:
+        previous_task = previous_by_id.get(task["id"])
+        previous_has_evidence = bool(previous_task and task_has_execution_evidence(previous_task))
+        if previous_task and previous_has_evidence:
+            changed = [field for field in semantic_fields if previous_task.get(field) != task.get(field)]
+            if changed:
+                raise SystemExit(
+                    "error: executed task semantics are immutable across plan revisions: "
+                    f"{task['id']} changed {', '.join(changed)}"
+                )
+            tasks.append(dict(previous_task))
+            continue
+        tasks.append(
+            {
+                **task,
+                "introduced_in_revision": revision,
+                "status": "todo",
+                "gate_result": None,
+                "last_gate_commands": [],
+                "last_commit_hash": None,
+                "notes": [],
+            }
+        )
+
+    superseded_by: dict[str, list[str]] = {}
+    for task in candidate["tasks"]:
+        for superseded in task.get("supersedes", []):
+            superseded_by.setdefault(superseded, []).append(task["id"])
+    historical_ids = previous_ids - previous_active_ids
+    for task_id in sorted(historical_ids):
+        previous_task = previous_by_id[task_id]
+        if task_has_execution_evidence(previous_task):
+            tasks.append(dict(previous_task))
+    for task_id in sorted(superseded_ids):
+        previous_task = previous_by_id[task_id]
+        previous_has_evidence = task_has_execution_evidence(previous_task)
+        if previous_has_evidence:
+            preserved = dict(previous_task)
+            preserved["superseded_by"] = sorted(superseded_by.get(task_id, []))
+            tasks.append(preserved)
+    return {
+        "version": 2,
+        "feat_id": feat_id,
+        "plan_status": "reviewed",
+        "plan_revision": revision,
+        "supersedes_revision": supersedes_revision,
+        "review_ref": candidate["review_ref"],
+        "source_refs": candidate["source_refs"],
+        "plan_history": history,
+        "tasks": tasks,
+    }
 
 
 def load_local_issuer(paths: HarnessPaths) -> dict[str, Any] | None:
@@ -1347,7 +1819,7 @@ def preserve_closeout_root_entries(
 
     preserve_dir = feat_dir / "artifacts" / FEATURE_CLOSEOUT_PRESERVE_DIRNAME
     for child in sorted(feat_dir.iterdir()):
-        if child.is_file() and child.name in FEATURE_REQUIRED_ROOT_FILES:
+        if child.is_file() and child.name in FEATURE_REQUIRED_ROOT_FILES | FEATURE_DERIVED_ROOT_FILES:
             continue
         if child.is_file() and child.name in FEATURE_CLOSEOUT_ROOT_FILES and not include_closeout_root_files:
             continue
@@ -1465,7 +1937,122 @@ def save_feat(
     status = str(state.get("status") or "")
     save_json(paths.feat_state(feat_id, status=status), state)
     save_json(paths.feat_tasks(feat_id, status=status), tasks)
+    save_json(
+        paths.feat_owner_receipt(feat_id, status=status),
+        build_owner_receipt(paths, state, tasks),
+    )
     upsert_feat_index(paths, state, index_data=index_data)
+
+
+def owner_continuation(
+    state: dict[str, Any],
+    tasks: dict[str, Any],
+) -> tuple[str, dict[str, str] | None, str | None]:
+    status = str(state.get("status") or "proposal")
+    replacement = str(state.get("replacement_feat_id") or "").strip() or None
+    if status in {"done", "archived"}:
+        return "complete", None, None
+    if status == "discarded":
+        if replacement:
+            return "superseded", None, replacement
+        return "unavailable", None, None
+    if not has_reviewed_task_plan(tasks):
+        return (
+            "blocked",
+            {"class": "task_plan_missing", "reason": "Feature has no reviewed semantic task plan."},
+            None,
+        )
+    if status in {"ready", "in_progress"}:
+        return "continue", None, None
+    if status == "blocked":
+        reason_class = str(state.get("blocked_reason_class") or "internal_blocker")
+        if reason_class == "none":
+            reason_class = "internal_blocker"
+        reason = str(state.get("blocked_reason") or "Feature Tracker owner is blocked.")
+        return "blocked", {"class": reason_class, "reason": reason}, None
+    return (
+        "blocked",
+        {"class": "workspace_unassigned", "reason": "Feature has no assigned execution workspace."},
+        None,
+    )
+
+
+def build_owner_receipt(
+    paths: HarnessPaths,
+    state: dict[str, Any],
+    tasks: dict[str, Any],
+) -> dict[str, Any]:
+    feat_id = str(state.get("feat_id") or "")
+    status = str(state.get("status") or "proposal")
+    current_item_id = str(state.get("current_task_id") or "").strip() or None
+    continuation, blocker, replacement_id = owner_continuation(state, tasks)
+    replacement_ref = None
+    if replacement_id:
+        replacement_status = feat_index_status(paths, replacement_id)
+        replacement_ref = relative_display(
+            paths.root,
+            paths.feat_owner_receipt(replacement_id, status=replacement_status),
+        )
+    feat_dir = paths.feat_dir(feat_id, status=status)
+    evidence_refs = [
+        relative_display(paths.root, feat_dir / "state.json"),
+        relative_display(paths.root, feat_dir / "tasks.json"),
+    ]
+    evidence_hashes: dict[str, str] = {}
+    for evidence_ref in evidence_refs:
+        evidence_path = paths.root / evidence_ref
+        if not evidence_path.is_file():
+            raise SystemExit(f"error: owner receipt evidence missing: {evidence_ref}")
+        evidence_hashes[evidence_ref] = sha256_file(evidence_path)
+    semantic_projection = {
+        "owner_kind": "feature_tracker",
+        "owner_id": feat_id,
+        "lifecycle_status": status,
+        "continuation": continuation,
+        "current_item_id": current_item_id,
+        "blocker": blocker,
+        "replacement_ref": replacement_ref,
+        "evidence_hashes": evidence_hashes,
+    }
+    semantic_revision = sha256_bytes(
+        json.dumps(semantic_projection, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    )
+    return {
+        "schema": OWNER_RECEIPT_SCHEMA,
+        "owner_kind": "feature_tracker",
+        "owner_id": feat_id,
+        "semantic_revision": semantic_revision,
+        "lifecycle_status": status,
+        "continuation": continuation,
+        "current_item_id": current_item_id,
+        "blocker": blocker,
+        "replacement_ref": replacement_ref,
+        "evidence_refs": evidence_refs,
+        "evidence_hashes": evidence_hashes,
+    }
+
+
+def load_current_owner_receipt(
+    paths: HarnessPaths,
+    state: dict[str, Any],
+    tasks: dict[str, Any],
+) -> dict[str, Any]:
+    feat_id = str(state.get("feat_id") or "")
+    status = str(state.get("status") or "")
+    expected = build_owner_receipt(paths, state, tasks)
+    receipt_path = paths.feat_owner_receipt(feat_id, status=status)
+    if not receipt_path.exists():
+        raise SystemExit(
+            "error: missing persisted owner receipt: "
+            f"{relative_display(paths.root, receipt_path)}"
+        )
+    persisted = load_json(receipt_path)
+    if persisted != expected:
+        raise SystemExit(
+            "error: owner receipt drift from canonical feature state: "
+            f"{relative_display(paths.root, receipt_path)}"
+        )
+    return persisted
 
 
 def find_task(tasks: dict[str, Any], task_id: str) -> dict[str, Any]:
@@ -2027,13 +2614,38 @@ def cmd_feat_new(args: argparse.Namespace) -> int:
     title = args.title.strip()
     goal = args.goal.strip()
     slug = slugify(args.slug if args.slug else title)
+    task_plan = getattr(args, "task_plan", None)
+    tasks_file_raw = str(getattr(args, "tasks_file", "") or "").strip()
+    if task_plan is not None and tasks_file_raw:
+        eprint("error: internal task_plan and --tasks-file cannot be supplied together")
+        return 1
+    if tasks_file_raw:
+        tasks_file = Path(tasks_file_raw)
+        if not tasks_file.is_absolute():
+            tasks_file = root / tasks_file
+        if not tasks_file.exists():
+            eprint(f"error: reviewed task plan file not found: {tasks_file}")
+            return 1
+        task_plan = parse_task_plan_candidate(
+            load_json(tasks_file),
+            root=root,
+            label=f"reviewed task plan {relative_display(root, tasks_file)}",
+        )
+
+    policy = load_runtime_policy(paths)
+    workspace_mode = resolve_workspace_mode(policy, args.workspace_mode)
+    if task_plan is None and workspace_mode != "proposal_only":
+        eprint(
+            "error: create-feature without a reviewed task plan must use workspace_mode=proposal_only; "
+            "supply --tasks-file or materialize a plan later with set-task-plan"
+        )
+        return 1
+
     feat_id, planned_index_data = allocate_feat_id(root, paths)
     if not is_valid_feat_id(feat_id):
         eprint(f"error: generated invalid feat id: {feat_id}")
         return 1
 
-    policy = load_runtime_policy(paths)
-    workspace_mode = resolve_workspace_mode(policy, args.workspace_mode)
     branch_prefix = resolve_branch_prefix(policy, args.branch_prefix)
     base_ref = pick_base_branch(root)
     root_branch = current_branch(root)
@@ -2048,7 +2660,7 @@ def cmd_feat_new(args: argparse.Namespace) -> int:
         "title": title,
         "slug": slug,
         "goal": goal,
-        "status": "proposal",
+        "status": "ready" if task_plan is not None and workspace_mode != "proposal_only" else "proposal",
         "workspace_mode": workspace_mode,
         "base_ref": base_ref,
         "branch": branch,
@@ -2115,22 +2727,16 @@ def cmd_feat_new(args: argparse.Namespace) -> int:
         state["worktree_name"] = wt_name
         state["worktree_path"] = wt_rel
 
-    tasks: dict[str, Any] = {
-        "version": 1,
-        "feat_id": feat_id,
-        "tasks": [
-            {
-                "id": "T-001",
-                "title": "Implement first scoped change for this feat",
-                "status": "todo",
-                "summary": "Replace this placeholder with actual task detail.",
-                "gate_result": None,
-                "last_gate_commands": [],
-                "last_commit_hash": None,
-                "notes": [],
-            }
-        ],
-    }
+    tasks = (
+        build_reviewed_tasks_payload(
+            feat_id,
+            task_plan,
+            revision=1,
+            supersedes_revision=None,
+        )
+        if task_plan is not None
+        else draft_tasks_payload(feat_id)
+    )
 
     feat_dir = paths.feat_dir(feat_id)
     feat_dir.mkdir(parents=True, exist_ok=False)
@@ -2159,7 +2765,7 @@ def cmd_feat_new_from_planning_entry_handoff(args: argparse.Namespace) -> int:
         eprint(f"error: planning-entry handoff not found: {handoff_path}")
         return 1
 
-    handoff = load_planning_entry_handoff(handoff_path)
+    handoff = load_planning_entry_handoff(handoff_path, root=root)
     if handoff["status"] != "approved":
         eprint(
             "error: planning-entry handoff must be approved before feature creation: "
@@ -2188,6 +2794,12 @@ def cmd_feat_new_from_planning_entry_handoff(args: argparse.Namespace) -> int:
             f"{recipe_id}"
         )
         return 1
+    task_plan = handoff.get("task_plan")
+    if task_plan is None and args.workspace_mode not in {None, "proposal_only"}:
+        eprint(
+            "error: planning-entry handoff without task_plan can only create a proposal_only feature"
+        )
+        return 1
 
     before_ids = active_feature_ids(paths)
     create_args = argparse.Namespace(
@@ -2198,8 +2810,10 @@ def cmd_feat_new_from_planning_entry_handoff(args: argparse.Namespace) -> int:
         title=handoff["title"],
         slug=args.slug,
         goal=handoff["goal"],
-        workspace_mode=args.workspace_mode,
+        workspace_mode=args.workspace_mode if task_plan is not None else "proposal_only",
         branch_prefix=args.branch_prefix,
+        tasks_file="",
+        task_plan=task_plan,
     )
     result = cmd_feat_new(create_args)
     if result != 0:
@@ -2230,6 +2844,78 @@ def cmd_feat_new_from_planning_entry_handoff(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_set_task_plan(args: argparse.Namespace) -> int:
+    root = Path(args.root).resolve()
+    paths = HarnessPaths(root)
+    ensure_harness_exists(paths)
+    state, tasks = load_feat(paths, args.feat)
+    status = str(state.get("status") or "")
+    if status in CLOSED_FEAT_STATUS or status == "in_progress":
+        eprint(f"error: task plan cannot be replaced while feature status is {status}")
+        return 1
+    if state.get("current_task_id") is not None:
+        eprint("error: task plan cannot be replaced while current_task_id is set")
+        return 1
+
+    current_revision = tasks.get("plan_revision")
+    if not isinstance(current_revision, int) or isinstance(current_revision, bool):
+        current_revision = 1 if has_reviewed_task_plan(tasks) else 0
+    if args.expected_revision != current_revision:
+        eprint(
+            "error: task plan revision conflict: "
+            f"expected {args.expected_revision}, current {current_revision}"
+        )
+        return 1
+
+    tasks_file = Path(args.tasks_file)
+    if not tasks_file.is_absolute():
+        tasks_file = root / tasks_file
+    if not tasks_file.exists():
+        eprint(f"error: reviewed task plan file not found: {tasks_file}")
+        return 1
+    candidate = parse_task_plan_candidate(
+        load_json(tasks_file),
+        root=root,
+        label=f"reviewed task plan {relative_display(root, tasks_file)}",
+    )
+    next_revision = current_revision + 1
+    tasks = build_reviewed_tasks_payload(
+        args.feat,
+        candidate,
+        revision=next_revision,
+        supersedes_revision=current_revision if current_revision > 0 else None,
+        previous=tasks,
+    )
+    if count_tasks(tasks, "todo") > 0 and status in {"blocked", "done"}:
+        state["status"] = "proposal" if workspace_mode_of(state) == "proposal_only" else "ready"
+        state["blocked_reason_class"] = "none"
+    state.setdefault("history", []).append(
+        history_event(
+            "task_plan_set",
+            f"revision={next_revision}; supersedes_revision={current_revision if current_revision > 0 else 'none'}",
+        )
+    )
+    save_feat(paths, args.feat, state, tasks)
+    print(f"ok: task plan set {args.feat} revision={next_revision}")
+    return 0
+
+
+def cmd_get_owner_receipt(args: argparse.Namespace) -> int:
+    paths = HarnessPaths(Path(args.root).resolve())
+    ensure_harness_exists(paths)
+    state, tasks = load_feat(paths, args.feat)
+    receipt = load_current_owner_receipt(paths, state, tasks)
+    if args.json:
+        print(json.dumps(receipt, ensure_ascii=False, indent=2))
+        return 0
+    print(f"owner: {receipt['owner_kind']}/{receipt['owner_id']}")
+    print(f"semantic_revision: {receipt['semantic_revision']}")
+    print(f"lifecycle_status: {receipt['lifecycle_status']}")
+    print(f"continuation: {receipt['continuation']}")
+    print(f"current_item_id: {receipt['current_item_id'] or 'none'}")
+    return 0
+
+
 def cmd_assign_feat_workspace(args: argparse.Namespace) -> int:
     root = Path(args.root).resolve()
     paths = HarnessPaths(root)
@@ -2239,6 +2925,11 @@ def cmd_assign_feat_workspace(args: argparse.Namespace) -> int:
     state, tasks = load_feat(paths, args.feat)
     if str(state.get("status") or "") in CLOSED_FEAT_STATUS:
         eprint(f"error: cannot assign workspace for closed feat: {args.feat}")
+        return 1
+    try:
+        require_reviewed_task_plan(tasks, feat_id=args.feat, action="workspace assignment")
+    except SystemExit as exc:
+        eprint(str(exc))
         return 1
 
     current_mode = workspace_mode_of(state)
@@ -2282,6 +2973,8 @@ def cmd_assign_feat_workspace(args: argparse.Namespace) -> int:
             return 1
 
     state["workspace_mode"] = target_mode
+    if state.get("status") == "proposal":
+        state["status"] = "ready"
     state["base_ref"] = base_ref
     state["branch"] = branch
     state["worktree_name"] = wt_name
@@ -2359,6 +3052,11 @@ def cmd_task_start(args: argparse.Namespace) -> int:
     ensure_harness_exists(paths)
     ensure_git_repo(root)
     state, tasks = load_feat(paths, args.feat)
+    try:
+        require_reviewed_task_plan(tasks, feat_id=args.feat, action="task start")
+    except SystemExit as exc:
+        eprint(str(exc))
+        return 1
     workspace_mode = workspace_mode_of(state)
     if workspace_mode == "proposal_only":
         recommended_mode, reason = recommend_workspace_mode(root)
@@ -2381,8 +3079,11 @@ def cmd_task_start(args: argparse.Namespace) -> int:
         return 1
 
     task_id = args.task
-    if not TASK_ID_RE.match(task_id):
+    if not TASK_ID_RE.fullmatch(task_id):
         eprint(f"error: invalid task id: {task_id}")
+        return 1
+    if task_id not in set(latest_plan_task_ids(tasks)):
+        eprint(f"error: task {task_id} is not part of the current reviewed task plan")
         return 1
 
     for t in tasks.get("tasks", []):
@@ -2391,6 +3092,9 @@ def cmd_task_start(args: argparse.Namespace) -> int:
             return 1
 
     target = find_task(tasks, task_id)
+    if target.get("superseded_by"):
+        eprint(f"error: task {task_id} has been superseded and cannot be restarted")
+        return 1
     if target.get("status") not in {"todo", "blocked"}:
         eprint(f"error: task {task_id} cannot be started from status={target.get('status')}")
         return 1
@@ -3314,8 +4018,17 @@ def cmd_feat_discard(args: argparse.Namespace) -> int:
         if replacement == args.feat:
             eprint("error: replacement feat must differ from discarded feat")
             return 1
-        if get_feat_index_entry(load_index(paths), replacement) is None:
+        replacement_entry = get_feat_index_entry(load_index(paths), replacement)
+        if replacement_entry is None:
             eprint(f"error: replacement feat not indexed: {replacement}")
+            return 1
+        replacement_status = str(replacement_entry.get("status") or "proposal")
+        replacement_receipt = paths.feat_owner_receipt(replacement, status=replacement_status)
+        if not replacement_receipt.is_file():
+            eprint(
+                "error: replacement feat has no execution-owner receipt: "
+                f"{relative_display(root, replacement_receipt)}"
+            )
             return 1
 
     try:
@@ -3758,15 +4471,119 @@ def validate_feat(paths: HarnessPaths, root: Path, feat_id: str) -> list[str]:
             errors.append(f"{feat_id}: counter {key} not integer")
 
     task_items = tasks.get("tasks")
-    if not isinstance(task_items, list) or not task_items:
+    if not isinstance(task_items, list):
         errors.append(f"{feat_id}: tasks.json missing tasks array")
         return errors
+
+    explicit_plan = "plan_status" in tasks
+    current_plan_ids: set[str] = set()
+    latest_superseded_ids: set[str] = set()
+    if explicit_plan:
+        if tasks.get("version") != 2:
+            errors.append(f"{feat_id}: explicit task plan requires version 2")
+        plan_status = str(tasks.get("plan_status") or "")
+        plan_revision = tasks.get("plan_revision")
+        if plan_status not in TASK_PLAN_STATUSES:
+            errors.append(f"{feat_id}: invalid task plan status: {plan_status or '<missing>'}")
+        if not isinstance(plan_revision, int) or isinstance(plan_revision, bool) or plan_revision < 0:
+            errors.append(f"{feat_id}: plan_revision must be a non-negative integer")
+        if plan_status == "draft":
+            if plan_revision != 0 or task_items:
+                errors.append(f"{feat_id}: draft task plan must use revision 0 and contain no executable tasks")
+            if tasks.get("supersedes_revision") is not None:
+                errors.append(f"{feat_id}: draft task plan supersedes_revision must be null")
+            if tasks.get("plan_history") != []:
+                errors.append(f"{feat_id}: draft task plan history must be empty")
+            if status not in CLOSED_FEAT_STATUS and (status != "proposal" or workspace_mode != "proposal_only"):
+                errors.append(f"{feat_id}: draft task plan requires proposal status and proposal_only workspace")
+        elif not task_items:
+            errors.append(f"{feat_id}: reviewed task plan must contain at least one task")
+        if plan_status == "reviewed":
+            expected_supersedes_revision = None if plan_revision == 1 else (
+                plan_revision - 1 if isinstance(plan_revision, int) and not isinstance(plan_revision, bool) else None
+            )
+            if tasks.get("supersedes_revision") != expected_supersedes_revision:
+                errors.append(f"{feat_id}: reviewed task plan supersedes_revision must identify the prior revision")
+            try:
+                require_repo_relative_ref(root, tasks.get("review_ref"), f"{feat_id}: reviewed task plan review_ref")
+            except SystemExit as exc:
+                errors.append(normalize_error_text(exc))
+            try:
+                require_repo_relative_refs(root, tasks.get("source_refs"), f"{feat_id}: reviewed task plan source_refs")
+            except SystemExit as exc:
+                errors.append(normalize_error_text(exc))
+
+            history = tasks.get("plan_history")
+            if not isinstance(history, list):
+                errors.append(f"{feat_id}: reviewed task plan requires plan_history")
+            else:
+                if isinstance(plan_revision, int) and not isinstance(plan_revision, bool) and len(history) != plan_revision:
+                    errors.append(f"{feat_id}: plan_history length must equal plan_revision")
+                previous_history_ids: set[str] = set()
+                for history_index, raw_entry in enumerate(history):
+                    history_label = f"{feat_id}: plan_history[{history_index}]"
+                    if not isinstance(raw_entry, dict):
+                        errors.append(f"{history_label} must be an object")
+                        continue
+                    expected_revision = history_index + 1
+                    if raw_entry.get("revision") != expected_revision:
+                        errors.append(f"{history_label}.revision must be {expected_revision}")
+                    expected_prior = None if expected_revision == 1 else expected_revision - 1
+                    if raw_entry.get("supersedes_revision") != expected_prior:
+                        errors.append(f"{history_label}.supersedes_revision must be {expected_prior}")
+                    try:
+                        require_repo_relative_ref(root, raw_entry.get("review_ref"), f"{history_label}.review_ref")
+                    except SystemExit as exc:
+                        errors.append(normalize_error_text(exc))
+                    try:
+                        require_repo_relative_refs(root, raw_entry.get("source_refs"), f"{history_label}.source_refs")
+                    except SystemExit as exc:
+                        errors.append(normalize_error_text(exc))
+                    entry_task_ids = raw_entry.get("task_ids")
+                    if not isinstance(entry_task_ids, list) or not entry_task_ids:
+                        errors.append(f"{history_label}.task_ids must be a non-empty list")
+                        entry_ids: set[str] = set()
+                    else:
+                        entry_ids = {str(item) for item in entry_task_ids}
+                        if len(entry_ids) != len(entry_task_ids) or any(
+                            not TASK_ID_RE.fullmatch(str(item)) for item in entry_task_ids
+                        ):
+                            errors.append(f"{history_label}.task_ids must contain unique task ids")
+                    raw_superseded_ids = raw_entry.get("superseded_task_ids")
+                    if not isinstance(raw_superseded_ids, list):
+                        errors.append(f"{history_label}.superseded_task_ids must be a list")
+                        entry_superseded_ids: set[str] = set()
+                    else:
+                        entry_superseded_ids = {str(item) for item in raw_superseded_ids}
+                        if len(entry_superseded_ids) != len(raw_superseded_ids) or any(
+                            not TASK_ID_RE.fullmatch(str(item)) for item in raw_superseded_ids
+                        ):
+                            errors.append(f"{history_label}.superseded_task_ids must contain unique task ids")
+                    expected_removed = previous_history_ids - entry_ids if history_index > 0 else set()
+                    if entry_superseded_ids != expected_removed:
+                        errors.append(f"{history_label}.superseded_task_ids drift from revision lineage")
+                    previous_history_ids = entry_ids
+                    if history_index == len(history) - 1:
+                        current_plan_ids = entry_ids
+                        latest_superseded_ids = entry_superseded_ids
+                if history and isinstance(history[-1], dict):
+                    if history[-1].get("review_ref") != tasks.get("review_ref"):
+                        errors.append(f"{feat_id}: current review_ref drift from latest plan_history entry")
+                    if history[-1].get("source_refs") != tasks.get("source_refs"):
+                        errors.append(f"{feat_id}: current source_refs drift from latest plan_history entry")
+            if not has_reviewed_task_plan(tasks):
+                errors.append(f"{feat_id}: reviewed task plan is not canonical executable v2 state")
+    elif status not in CLOSED_FEAT_STATUS:
+        errors.append(f"{feat_id}: active feature requires an explicit version 2 reviewed task plan")
 
     seen: set[str] = set()
     in_progress: list[str] = []
     for task in task_items:
+        if not isinstance(task, dict):
+            errors.append(f"{feat_id}: task entries must be objects")
+            continue
         tid = str(task.get("id", ""))
-        if not TASK_ID_RE.match(tid):
+        if not TASK_ID_RE.fullmatch(tid):
             errors.append(f"{feat_id}: invalid task id: {tid}")
         if tid in seen:
             errors.append(f"{feat_id}: duplicate task id: {tid}")
@@ -3777,6 +4594,102 @@ def validate_feat(paths: HarnessPaths, root: Path, feat_id: str) -> list[str]:
             errors.append(f"{feat_id}/{tid}: invalid task status: {tstatus}")
         if tstatus == "in_progress":
             in_progress.append(tid)
+        if explicit_plan and tasks.get("plan_status") == "reviewed":
+            for field in ("title", "objective", "outcome"):
+                if not str(task.get(field) or "").strip():
+                    errors.append(f"{feat_id}/{tid}: reviewed task requires {field}")
+            for field in ("acceptance", "verification", "source_refs"):
+                value = task.get(field)
+                if not isinstance(value, list) or not value:
+                    errors.append(f"{feat_id}/{tid}: reviewed task requires non-empty {field}")
+            acceptance = task.get("acceptance")
+            if isinstance(acceptance, list) and any(not isinstance(item, str) or not item.strip() for item in acceptance):
+                errors.append(f"{feat_id}/{tid}: acceptance entries must be non-empty strings")
+            try:
+                require_repo_relative_refs(root, task.get("source_refs"), f"{feat_id}/{tid}: source_refs")
+            except SystemExit as exc:
+                errors.append(normalize_error_text(exc))
+            verification = task.get("verification")
+            if isinstance(verification, list):
+                for mapping_index, mapping in enumerate(verification):
+                    mapping_label = f"{feat_id}/{tid}: verification[{mapping_index}]"
+                    if not isinstance(mapping, dict):
+                        errors.append(f"{mapping_label} must be an object")
+                        continue
+                    if mapping.get("kind") not in TASK_VERIFICATION_KINDS:
+                        errors.append(f"{mapping_label}.kind is invalid")
+                    try:
+                        require_repo_relative_ref(root, mapping.get("ref"), f"{mapping_label}.ref")
+                    except SystemExit as exc:
+                        errors.append(normalize_error_text(exc))
+                    if not isinstance(mapping.get("proves"), str) or not str(mapping.get("proves")).strip():
+                        errors.append(f"{mapping_label}.proves must be a non-empty string")
+            supersedes = task.get("supersedes")
+            if not isinstance(supersedes, list):
+                errors.append(f"{feat_id}/{tid}: supersedes must be a list")
+            else:
+                if len(set(str(item) for item in supersedes)) != len(supersedes):
+                    errors.append(f"{feat_id}/{tid}: supersedes must not contain duplicates")
+                for superseded_id in supersedes:
+                    if not isinstance(superseded_id, str) or not TASK_ID_RE.fullmatch(superseded_id):
+                        errors.append(f"{feat_id}/{tid}: supersedes entries must be task ids")
+                    elif superseded_id == tid:
+                        errors.append(f"{feat_id}/{tid}: task must not supersede itself")
+            introduced_revision = task.get("introduced_in_revision")
+            if (
+                not isinstance(introduced_revision, int)
+                or isinstance(introduced_revision, bool)
+                or introduced_revision < 1
+                or not isinstance(plan_revision, int)
+                or introduced_revision > plan_revision
+            ):
+                errors.append(f"{feat_id}/{tid}: reviewed task requires introduced_in_revision")
+            superseded_by = task.get("superseded_by")
+            if tid in current_plan_ids and superseded_by:
+                errors.append(f"{feat_id}/{tid}: current-plan task must not be superseded")
+            if tid not in current_plan_ids:
+                if not task_has_execution_evidence(task):
+                    errors.append(f"{feat_id}/{tid}: historical task requires preserved execution evidence")
+                if not isinstance(superseded_by, list) or not superseded_by:
+                    errors.append(f"{feat_id}/{tid}: historical task requires superseded_by lineage")
+
+    if explicit_plan and tasks.get("plan_status") == "reviewed":
+        by_id = {
+            str(task.get("id")): task
+            for task in task_items
+            if isinstance(task, dict) and str(task.get("id") or "")
+        }
+        missing_current = current_plan_ids - set(by_id)
+        if missing_current:
+            errors.append(f"{feat_id}: latest plan_history references missing tasks: {', '.join(sorted(missing_current))}")
+        declared_latest_supersedes = {
+            superseded_id
+            for task_id in current_plan_ids
+            for superseded_id in (
+                by_id.get(task_id, {}).get("supersedes", [])
+                if isinstance(by_id.get(task_id, {}).get("supersedes", []), list)
+                else []
+            )
+        }
+        if declared_latest_supersedes != latest_superseded_ids:
+            errors.append(f"{feat_id}: current task supersedes lineage drifts from latest plan_history")
+        known_plan_task_ids = set(by_id)
+        history = tasks.get("plan_history")
+        if isinstance(history, list):
+            for entry in history:
+                if isinstance(entry, dict) and isinstance(entry.get("task_ids"), list):
+                    known_plan_task_ids.update(str(item) for item in entry["task_ids"])
+        for task_id, task in by_id.items():
+            superseded_by = task.get("superseded_by")
+            if not isinstance(superseded_by, list):
+                continue
+            invalid_targets = {
+                str(target)
+                for target in superseded_by
+                if not isinstance(target, str) or target not in known_plan_task_ids
+            }
+            if invalid_targets:
+                errors.append(f"{feat_id}/{task_id}: superseded_by references unknown tasks")
 
     if len(in_progress) > 1:
         errors.append(f"{feat_id}: more than one in_progress task: {', '.join(in_progress)}")
@@ -3790,7 +4703,7 @@ def validate_feat(paths: HarnessPaths, root: Path, feat_id: str) -> list[str]:
     feat_dir = paths.feat_dir(feat_id, status=str(state.get("status") or ""))
     if feat_dir.exists():
         is_closed = str(state.get("status") or "") in CLOSED_FEAT_STATUS
-        allowed_files = set(FEATURE_REQUIRED_ROOT_FILES)
+        allowed_files = set(FEATURE_REQUIRED_ROOT_FILES | FEATURE_DERIVED_ROOT_FILES)
         if is_closed:
             allowed_files |= set(FEATURE_CLOSEOUT_ROOT_FILES)
         else:
@@ -3810,6 +4723,15 @@ def validate_feat(paths: HarnessPaths, root: Path, feat_id: str) -> list[str]:
             summary_file = paths.feat_summary(feat_id, status=str(state.get("status") or ""))
             if not summary_file.exists():
                 errors.append(f"{feat_id}: closed feat missing summary.md")
+
+    receipt_path = paths.feat_owner_receipt(feat_id, status=str(status or ""))
+    if explicit_plan and not receipt_path.exists():
+        errors.append(f"{feat_id}: missing owner-receipt.json for canonical task-plan state")
+    elif receipt_path.exists():
+        try:
+            load_current_owner_receipt(paths, state, tasks)
+        except SystemExit as exc:
+            errors.append(normalize_error_text(exc))
 
     # Validate tracked commit messages for tasks that have commit hash.
     for task in task_items:
@@ -4834,6 +5756,7 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--goal", required=True)
     sp.add_argument("--workspace-mode", choices=sorted(WORKSPACE_MODES), default=None)
     sp.add_argument("--branch-prefix", default=None)
+    sp.add_argument("--tasks-file", default="")
     sp.set_defaults(strict=True, func=cmd_feat_new)
 
     sp = sub.add_parser(
@@ -4850,6 +5773,13 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--branch-prefix", default=None)
     sp.set_defaults(strict=True, func=cmd_feat_new_from_planning_entry_handoff)
 
+    sp = sub.add_parser("set-task-plan", help="materialize or replace one reviewed semantic task plan")
+    add_common(sp)
+    sp.add_argument("--feature", dest="feat", required=True)
+    sp.add_argument("--tasks-file", required=True)
+    sp.add_argument("--expected-revision", type=int, required=True)
+    sp.set_defaults(func=cmd_set_task_plan)
+
     sp = sub.add_parser("assign-feature-workspace", help="assign current_tree/worktree to an existing feature")
     add_common(sp)
     sp.add_argument("--feature", dest="feat", required=True)
@@ -4862,6 +5792,12 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--feature", dest="feat", default=None)
     sp.add_argument("--json", action="store_true")
     sp.set_defaults(func=cmd_feat_status)
+
+    sp = sub.add_parser("get-owner-receipt", help="read the current feature execution-owner receipt")
+    add_common(sp)
+    sp.add_argument("--feature", dest="feat", required=True)
+    sp.add_argument("--json", action="store_true")
+    sp.set_defaults(func=cmd_get_owner_receipt)
 
     sp = sub.add_parser("start-task", help="start a task")
     add_common(sp)
@@ -4983,6 +5919,7 @@ def command_requires_global_tracker_lock(args: argparse.Namespace) -> bool:
         "materialize-feature-artifact",
         "create-feature",
         "create-feature-from-planning-entry-handoff",
+        "set-task-plan",
         "assign-feature-workspace",
         "start-task",
         "finish-task",
@@ -4990,6 +5927,7 @@ def command_requires_global_tracker_lock(args: argparse.Namespace) -> bool:
         "archive-feature",
         "discard-feature",
         "replan-features",
+        "get-owner-receipt",
     }
 
 

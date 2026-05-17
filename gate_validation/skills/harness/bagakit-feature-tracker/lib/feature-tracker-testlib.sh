@@ -8,6 +8,40 @@ feature_tracker_init_temp_repo() {
   git -C "$repo_root" commit -q -m "init"
 }
 
+feature_tracker_write_reviewed_task_plan() {
+  local target="$1"
+  local objective="${2:-Exercise the feature tracker lifecycle.}"
+  mkdir -p "$(dirname "$target")"
+  cat > "$target" <<JSON
+{
+  "schema": "bagakit.feature-task-plan.v1",
+  "review": {
+    "status": "approved",
+    "evidence_ref": "test/reviewed-task-plan"
+  },
+  "source_refs": ["test/feature-tracker-fixture"],
+  "tasks": [
+    {
+      "id": "T-001",
+      "title": "Execute reviewed fixture task",
+      "objective": "$objective",
+      "outcome": "The public feature lifecycle completes with semantic task truth.",
+      "acceptance": ["The fixture reaches its expected public lifecycle state."],
+      "verification": [
+        {
+          "kind": "command",
+          "ref": "gate_validation/skills/harness/bagakit-feature-tracker/validation.toml",
+          "proves": "The public lifecycle behavior under test passes."
+        }
+      ],
+      "source_refs": ["test/feature-tracker-fixture"],
+      "supersedes": []
+    }
+  ]
+}
+JSON
+}
+
 feature_tracker_feature_id_by_title() {
   local repo_root="$1"
   local title="$2"
@@ -77,6 +111,24 @@ policy["gate"]["verification_policy"] = "never"
 policy["gate"]["non_ui_commands"] = [command]
 policy_path.write_text(json.dumps(policy, indent=2) + "\n", encoding="utf-8")
 PY
+}
+
+feature_tracker_complete_reviewed_feature() {
+  local repo_root="$1"
+  local skill_dir="$2"
+  local feature_id="$3"
+  local task_plan="$4"
+  bash "$skill_dir/scripts/feature-tracker.sh" set-task-plan \
+    --root "$repo_root" --feature "$feature_id" --tasks-file "$task_plan" --expected-revision 0 >/dev/null
+  bash "$skill_dir/scripts/feature-tracker.sh" assign-feature-workspace \
+    --root "$repo_root" --feature "$feature_id" --workspace-mode current_tree >/dev/null
+  feature_tracker_set_non_ui_gate "$repo_root" "true"
+  bash "$skill_dir/scripts/feature-tracker.sh" start-task \
+    --root "$repo_root" --feature "$feature_id" --task T-001 >/dev/null
+  bash "$skill_dir/scripts/feature-tracker.sh" run-task-gate \
+    --root "$repo_root" --feature "$feature_id" --task T-001 >/dev/null
+  bash "$skill_dir/scripts/feature-tracker.sh" finish-task \
+    --root "$repo_root" --feature "$feature_id" --task T-001 --result done >/dev/null
 }
 
 feature_tracker_last_commit_hash() {

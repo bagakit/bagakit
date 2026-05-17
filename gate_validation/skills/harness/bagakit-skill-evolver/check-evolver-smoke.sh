@@ -30,6 +30,8 @@ git -C "$TMP_DIR" commit -q -m "init"
 mkdir -p "$TMP_DIR/docs/specs"
 printf 'spec\n' > "$TMP_DIR/docs/specs/demo-rule.md"
 printf 'proof\n' > "$TMP_DIR/docs/specs/demo-rule-proof.md"
+printf 'accepted by maintainer\n' > "$TMP_DIR/docs/specs/demo-rule-acceptance.md"
+printf 'proof plan\n' > "$TMP_DIR/docs/specs/demo-rule-proof-plan.md"
 mkdir -p "$TMP_DIR/docs/session" "$TMP_DIR/.bagakit/goal/reviews"
 printf 'approved evidence slice\n' > "$TMP_DIR/docs/session/session-evidence.md"
 printf 'counterevidence slice\n' > "$TMP_DIR/docs/session/counterevidence.md"
@@ -406,13 +408,26 @@ node --experimental-strip-types "$EVOLVER_DIR/scripts/evolver.ts" add-feedback -
 node --experimental-strip-types "$EVOLVER_DIR/scripts/evolver.ts" add-benchmark --root "$TMP_DIR" --topic demo-evolver --benchmark b1 --metric report_quality --result pass --detail "report stays concise" >/dev/null
 node --experimental-strip-types "$EVOLVER_DIR/scripts/evolver.ts" record-decision --root "$TMP_DIR" --topic demo-evolver --decision "Promote demo rule" --rationale "holds outside one task" --candidate c1 >/dev/null
 
-if node --experimental-strip-types "$EVOLVER_DIR/scripts/evolver.ts" record-promotion --root "$TMP_DIR" --topic demo-evolver --surface spec --target docs/specs/demo-rule.md --summary "land demo rule" --promotion demo-rule --status landed --ref docs/specs/demo-rule.md >/dev/null 2>&1; then
+if node --experimental-strip-types "$EVOLVER_DIR/scripts/evolver.ts" archive-topic --root "$TMP_DIR" --topic demo-evolver --summary "premature archive" >/dev/null 2>"$TMP_DIR/archive-before-ready.err"; then
+  echo "error: archive unexpectedly bypassed promotion readiness" >&2
+  exit 1
+fi
+grep -q 'archive blocked' "$TMP_DIR/archive-before-ready.err"
+
+if node --experimental-strip-types "$EVOLVER_DIR/scripts/evolver.ts" record-promotion --root "$TMP_DIR" --topic demo-evolver --surface spec --target docs/specs/demo-rule.md --summary "land demo rule" --promotion demo-rule --status landed_verified --ref docs/specs/demo-rule.md >/dev/null 2>&1; then
   echo "error: landed promotion unexpectedly accepted without proof refs" >&2
   exit 1
 fi
 
-node --experimental-strip-types "$EVOLVER_DIR/scripts/evolver.ts" record-promotion --root "$TMP_DIR" --topic demo-evolver --surface spec --target docs/specs/demo-rule.md --summary "land demo rule" --promotion demo-rule --status landed --ref docs/specs/demo-rule.md --proof-refs docs/specs/demo-rule-proof.md >/dev/null
-node --experimental-strip-types "$EVOLVER_DIR/scripts/evolver.ts" set-route --root "$TMP_DIR" --topic demo-evolver --decision upstream --rationale "reusable upstream lesson" --upstream-promotions demo-rule >/dev/null
+node --experimental-strip-types "$EVOLVER_DIR/scripts/evolver.ts" record-promotion --root "$TMP_DIR" --topic demo-evolver --surface spec --target docs/specs/demo-rule.md --summary "land demo rule" --promotion demo-rule --status landed_verified --ref docs/specs/demo-rule.md --proof-refs docs/specs/demo-rule-proof.md >/dev/null
+node --experimental-strip-types "$EVOLVER_DIR/scripts/evolver.ts" promote-candidate --root "$TMP_DIR" --topic demo-evolver --candidate c1 --note "candidate accepted for landing" >/dev/null
+node --experimental-strip-types "$EVOLVER_DIR/scripts/evolver.ts" set-route --root "$TMP_DIR" --topic demo-evolver --decision upstream --rationale "reusable upstream lesson" --acceptance-authority maintainer --acceptance-ref docs/specs/demo-rule-acceptance.md --counterevidence-disposition open --target-owner docs-specs-maintainers --proof-plan demo-rule-contract-proof --proof-plan-ref docs/specs/demo-rule-proof-plan.md --upstream-promotions demo-rule >/dev/null
+if node --experimental-strip-types "$EVOLVER_DIR/scripts/evolver.ts" set-topic-status --root "$TMP_DIR" --topic demo-evolver --status archived >/dev/null 2>"$TMP_DIR/archive-open-counterevidence.err"; then
+  echo "error: set-topic-status unexpectedly archived with open counterevidence" >&2
+  exit 1
+fi
+grep -q 'open counterevidence' "$TMP_DIR/archive-open-counterevidence.err"
+node --experimental-strip-types "$EVOLVER_DIR/scripts/evolver.ts" set-route --root "$TMP_DIR" --topic demo-evolver --decision upstream --rationale "reusable upstream lesson" --acceptance-authority maintainer --acceptance-ref docs/specs/demo-rule-acceptance.md --counterevidence-disposition addressed --target-owner docs-specs-maintainers --proof-plan demo-rule-contract-proof --proof-plan-ref docs/specs/demo-rule-proof-plan.md --upstream-promotions demo-rule >/dev/null
 
 READINESS_JSON="$TMP_DIR/readiness.json"
 node --experimental-strip-types "$EVOLVER_DIR/scripts/evolver.ts" promotion-readiness --root "$TMP_DIR" --topic demo-evolver --json > "$READINESS_JSON"
@@ -426,6 +441,7 @@ assert payload["state"] == "upstream-landed"
 assert payload["route_decision"] == "upstream"
 assert payload["archive_ready"] is True
 assert payload["referenced_promotions"][0]["proof_refs"] == ["docs/specs/demo-rule-proof.md"]
+assert payload["blockers"] == []
 PY
 
 LIST_JSON="$TMP_DIR/signals-after.json"
@@ -460,6 +476,22 @@ HANDOFF_FILE="$TMP_DIR/.bagakit/evolver/topics/demo-evolver/HANDOFF.md"
 test -f "$HANDOFF_FILE"
 grep -q "## Strongest Evidence" "$HANDOFF_FILE"
 grep -q "## Open Promotion Actions" "$HANDOFF_FILE"
+
+rm "$TMP_DIR/docs/specs/demo-rule-proof.md"
+if node --experimental-strip-types "$EVOLVER_DIR/scripts/evolver.ts" archive-topic --root "$TMP_DIR" --topic demo-evolver --summary "archive with missing current proof" >/dev/null 2>"$TMP_DIR/archive-missing-proof.err"; then
+  echo "error: archive unexpectedly accepted a missing landed proof ref" >&2
+  exit 1
+fi
+grep -q 'landed promotion proof ref does not currently exist' "$TMP_DIR/archive-missing-proof.err"
+printf 'proof\n' > "$TMP_DIR/docs/specs/demo-rule-proof.md"
+
+rm "$TMP_DIR/docs/specs/demo-rule.md"
+if node --experimental-strip-types "$EVOLVER_DIR/scripts/evolver.ts" archive-topic --root "$TMP_DIR" --topic demo-evolver --summary "archive with missing current landing" >/dev/null 2>"$TMP_DIR/archive-missing-landing.err"; then
+  echo "error: archive unexpectedly accepted a missing landed ref" >&2
+  exit 1
+fi
+grep -q 'landed promotion ref does not currently exist' "$TMP_DIR/archive-missing-landing.err"
+printf 'spec\n' > "$TMP_DIR/docs/specs/demo-rule.md"
 
 node --experimental-strip-types "$EVOLVER_DIR/scripts/evolver.ts" archive-topic --root "$TMP_DIR" --topic demo-evolver --summary "archive the demo evolver topic" >/dev/null
 ARCHIVE_FILE="$TMP_DIR/.bagakit/evolver/topics/demo-evolver/ARCHIVE.md"

@@ -3,11 +3,17 @@
 from __future__ import annotations
 
 import argparse
+import fcntl
+import hashlib
 import json
+import os
 import re
+import subprocess
 import sys
-from pathlib import Path
-from typing import Any
+import tempfile
+from contextlib import contextmanager
+from pathlib import Path, PurePosixPath
+from typing import Any, Generator
 
 try:
     import yaml
@@ -22,6 +28,7 @@ GOAL_PROTOCOL_VERSION = "bagakit.goal.v.0.2"
 GOAL_UPGRADE_REPORT_SCHEMA = "bagakit.goal-upgrade-report.v1"
 EVOLVER_REVIEW_SCHEMA = "bagakit.goal-evolver-review.v1"
 GOAL_EVENT_SCHEMA = "bagakit.goal-event.v1"
+EXECUTION_OWNER_RECEIPT_SCHEMA = "bagakit.execution-owner-receipt.v1"
 GOAL_STATUSES = {
     "draft",
     "active",
@@ -64,6 +71,30 @@ GOAL_CONTROL_EFFECTS = {
     "patch_goal",
     "change_status",
     "ask_user",
+}
+OWNER_CONTINUATIONS = {"continue", "blocked", "complete", "superseded", "unavailable"}
+OWNER_RECEIPT_FIELDS = {
+    "schema",
+    "owner_kind",
+    "owner_id",
+    "semantic_revision",
+    "lifecycle_status",
+    "continuation",
+    "current_item_id",
+    "blocker",
+    "replacement_ref",
+    "evidence_refs",
+    "evidence_hashes",
+}
+OWNER_BINDING_FIELDS = {"owner_kind", "owner_id", "receipt_ref", "observed_revision", "required"}
+READ_ONLY_COMMANDS = {
+    "describe",
+    "list-references",
+    "validate",
+    "inspect-upgrade",
+    "render-wrapper",
+    "show-surface",
+    "driver-report",
 }
 GOAL_FILE_RE = re.compile(r"^[a-z0-9][a-z0-9-]{0,62}$")
 EDGE_KIND_RE = re.compile(r"^[a-z][a-z0-9_]{0,62}$")
@@ -118,6 +149,130 @@ def write_text(path: Path, text: str) -> None:
     path.write_text(text, encoding="utf-8")
 
 
+def git_common_dir(root: Path) -> Path:
+    completed = subprocess.run(
+        ["git", "-C", str(root), "rev-parse", "--git-common-dir"],
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    if completed.returncode != 0:
+        detail = completed.stderr.strip() or completed.stdout.strip() or "git common dir lookup failed"
+        raise SystemExit(f"error: {detail}")
+    raw = completed.stdout.strip()
+    if not raw:
+        raise SystemExit("error: git common dir lookup returned an empty path")
+    path = Path(raw)
+    return path if path.is_absolute() else (root / path).resolve()
+
+
+@contextmanager
+def repository_lock(root: Path, name: str) -> Generator[None, None, None]:
+    try:
+        lock_root = git_common_dir(root) / "bagakit"
+    except SystemExit:
+        lock_root = root / ".bagakit" / "locks"
+    lock_path = lock_root / name
+    lock_path.parent.mkdir(parents=True, exist_ok=True)
+    with lock_path.open("a+", encoding="utf-8") as lock:
+        fcntl.flock(lock.fileno(), fcntl.LOCK_EX)
+        try:
+            yield
+        finally:
+            fcntl.flock(lock.fileno(), fcntl.LOCK_UN)
+
+
+def fsync_directory(path: Path) -> None:
+    descriptor = os.open(path, os.O_RDONLY)
+    try:
+        os.fsync(descriptor)
+    finally:
+        os.close(descriptor)
+
+
+def prepare_atomic_bytes(path: Path, data: bytes, mode: int) -> Path:
+    descriptor, raw_temp = tempfile.mkstemp(prefix=f".{path.name}.tmp-", dir=path.parent)
+    temp_path = Path(raw_temp)
+    try:
+        os.fchmod(descriptor, mode)
+        with os.fdopen(descriptor, "wb") as handle:
+            handle.write(data)
+            handle.flush()
+            os.fsync(handle.fileno())
+    except BaseException:
+        try:
+            os.close(descriptor)
+        except OSError:
+            pass
+        temp_path.unlink(missing_ok=True)
+        raise
+    return temp_path
+
+
+def restore_file_snapshots(snapshots: dict[Path, tuple[bytes, int] | None]) -> list[str]:
+    issues: list[str] = []
+    for path, snapshot in snapshots.items():
+        if snapshot is None:
+            try:
+                path.unlink(missing_ok=True)
+            except OSError as exc:
+                issues.append(f"remove {path}: {exc}")
+    for path, snapshot in snapshots.items():
+        if snapshot is None:
+            continue
+        data, mode = snapshot
+        temp_path: Path | None = None
+        try:
+            temp_path = prepare_atomic_bytes(path, data, mode)
+            os.replace(temp_path, path)
+            fsync_directory(path.parent)
+        except OSError as exc:
+            issues.append(f"restore {path}: {exc}")
+            if temp_path is not None:
+                temp_path.unlink(missing_ok=True)
+    return issues
+
+
+def commit_file_transaction(
+    writes: list[tuple[Path, bytes, int]],
+    deletes: list[Path],
+) -> None:
+    touched = list(dict.fromkeys([path for path, _data, _mode in writes] + deletes))
+    snapshots: dict[Path, tuple[bytes, int] | None] = {
+        path: (path.read_bytes(), path.stat().st_mode & 0o777) if path.exists() else None
+        for path in touched
+    }
+    prepared: list[tuple[Path, Path]] = []
+    published = False
+    try:
+        for path, data, mode in writes:
+            prepared.append((path, prepare_atomic_bytes(path, data, mode)))
+        for path, temp_path in prepared:
+            os.replace(temp_path, path)
+            published = True
+        for path in deletes:
+            path.unlink(missing_ok=True)
+            published = True
+        for directory in sorted({path.parent for path in touched}, key=str):
+            fsync_directory(directory)
+    except BaseException as exc:
+        for _path, temp_path in prepared:
+            temp_path.unlink(missing_ok=True)
+        if not published:
+            raise SystemExit(
+                f"error: Goal archive transaction failed without publishing partial state: {exc}"
+            ) from exc
+        rollback_issues = restore_file_snapshots(snapshots)
+        if rollback_issues:
+            raise SystemExit(
+                "error: Goal archive transaction failed and rollback was incomplete: "
+                + str(exc)
+                + "; "
+                + "; ".join(rollback_issues)
+            ) from exc
+        raise SystemExit(f"error: Goal archive transaction failed without publishing partial state: {exc}") from exc
+
+
 def load_json(path: Path) -> Any:
     return json.loads(path.read_text(encoding="utf-8"))
 
@@ -166,6 +321,221 @@ def ensure_repo_relative_refs(root: Path, values: list[str], label: str) -> None
             raise SystemExit(f"error: {label} escapes the repository root: {item}") from exc
         if relative == Path("."):
             raise SystemExit(f"error: {label} must point to a repository artifact: {item}")
+
+
+def repo_path(root: Path, ref: str, label: str) -> Path:
+    ensure_repo_relative_refs(root, [ref], label)
+    return (root / ref).resolve()
+
+
+def load_execution_owner_receipt(root: Path, ref: str) -> dict[str, Any]:
+    path = repo_path(root, ref, "owner receipt ref")
+    if not path.is_file():
+        raise SystemExit(f"error: owner receipt is unavailable: {ref}")
+    try:
+        payload = load_json(path)
+    except (json.JSONDecodeError, OSError) as exc:
+        raise SystemExit(f"error: owner receipt is unreadable: {ref}: {exc}") from exc
+    if not isinstance(payload, dict):
+        raise SystemExit(f"error: owner receipt must be a JSON object: {ref}")
+    missing = sorted(OWNER_RECEIPT_FIELDS - set(payload))
+    unexpected = sorted(set(payload) - OWNER_RECEIPT_FIELDS)
+    issues: list[str] = []
+    if missing:
+        issues.append("missing fields: " + ", ".join(missing))
+    if unexpected:
+        issues.append("unexpected fields: " + ", ".join(unexpected))
+    if payload.get("schema") != EXECUTION_OWNER_RECEIPT_SCHEMA:
+        issues.append(f"schema must be {EXECUTION_OWNER_RECEIPT_SCHEMA}")
+    for field in ("owner_kind", "owner_id", "lifecycle_status"):
+        if not isinstance(payload.get(field), str) or not payload[field].strip():
+            issues.append(f"{field} must be a non-empty string")
+    semantic_revision = payload.get("semantic_revision")
+    if not isinstance(semantic_revision, str) or not re.fullmatch(r"[a-f0-9]{64}", semantic_revision):
+        issues.append("semantic_revision must be a lowercase sha256 digest")
+    if payload.get("continuation") not in OWNER_CONTINUATIONS:
+        issues.append("continuation must be continue, blocked, complete, superseded, or unavailable")
+    current_item_id = payload.get("current_item_id")
+    if current_item_id is not None and not isinstance(current_item_id, str):
+        issues.append("current_item_id must be a string or null")
+    blocker = payload.get("blocker")
+    if blocker is not None:
+        if not isinstance(blocker, dict) or set(blocker) != {"class", "reason"}:
+            issues.append("blocker must be null or an object with class and reason")
+        elif not all(isinstance(blocker.get(key), str) and blocker[key].strip() for key in ("class", "reason")):
+            issues.append("blocker class and reason must be non-empty strings")
+    replacement_ref = payload.get("replacement_ref")
+    if replacement_ref is not None:
+        if not isinstance(replacement_ref, str) or not replacement_ref.strip():
+            issues.append("replacement_ref must be a non-empty string or null")
+        else:
+            try:
+                ensure_repo_relative_refs(root, [replacement_ref], "owner receipt replacement_ref")
+                if not (root / replacement_ref).is_file():
+                    issues.append(f"owner receipt replacement_ref does not resolve to a file: {replacement_ref}")
+            except SystemExit as exc:
+                issues.append(str(exc).removeprefix("error: "))
+    evidence_refs = payload.get("evidence_refs")
+    if not isinstance(evidence_refs, list) or not evidence_refs or not all(
+        isinstance(item, str) and item.strip() for item in evidence_refs
+    ):
+        issues.append("evidence_refs must be a non-empty list of non-empty strings")
+    else:
+        try:
+            ensure_repo_relative_refs(root, evidence_refs, "owner receipt evidence_refs")
+            for evidence_ref in evidence_refs:
+                if not (root / evidence_ref).is_file():
+                    issues.append(f"owner receipt evidence_ref does not resolve to a file: {evidence_ref}")
+        except SystemExit as exc:
+            issues.append(str(exc).removeprefix("error: "))
+    evidence_hashes = payload.get("evidence_hashes")
+    if not isinstance(evidence_hashes, dict) or not evidence_hashes:
+        issues.append("evidence_hashes must be a non-empty ref-to-sha256 mapping")
+    elif isinstance(evidence_refs, list):
+        if set(evidence_hashes) != set(evidence_refs):
+            issues.append("evidence_hashes keys must exactly match evidence_refs")
+        for evidence_ref, digest in evidence_hashes.items():
+            if not isinstance(evidence_ref, str) or not isinstance(digest, str) or not re.fullmatch(r"[a-f0-9]{64}", digest):
+                issues.append("evidence_hashes values must be lowercase sha256 digests")
+                continue
+            evidence_path = root / evidence_ref
+            if evidence_path.is_file():
+                actual = hashlib.sha256(evidence_path.read_bytes()).hexdigest()
+                if actual != digest:
+                    issues.append(f"owner receipt evidence hash changed: {evidence_ref}")
+    revision_payload = {
+        key: payload.get(key)
+        for key in (
+            "owner_kind",
+            "owner_id",
+            "lifecycle_status",
+            "continuation",
+            "current_item_id",
+            "blocker",
+            "replacement_ref",
+            "evidence_hashes",
+        )
+    }
+    expected_revision = hashlib.sha256(
+        json.dumps(revision_payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()
+    if semantic_revision != expected_revision:
+        issues.append("semantic_revision does not match the receipt decision and evidence projection")
+    if payload.get("owner_kind") == "feature_tracker":
+        owner_id = str(payload.get("owner_id") or "")
+        tracker_root = PurePosixPath(".bagakit", "feature-tracker")
+        expected_refs = {
+            str(tracker_root / "features" / owner_id / "owner-receipt.json"),
+            str(tracker_root / "features-archived" / owner_id / "owner-receipt.json"),
+            str(tracker_root / "features-discarded" / owner_id / "owner-receipt.json"),
+        }
+        if ref not in expected_refs:
+            issues.append("feature_tracker receipt_ref is outside the owner feature directory")
+        receipt_dir = PurePosixPath(ref).parent
+        expected_evidence_refs = {
+            str(receipt_dir / "state.json"),
+            str(receipt_dir / "tasks.json"),
+        }
+        if isinstance(evidence_refs, list) and set(evidence_refs) != expected_evidence_refs:
+            issues.append("feature_tracker receipt evidence must be its own state.json and tasks.json")
+        lifecycle = payload.get("lifecycle_status")
+        continuation = payload.get("continuation")
+        replacement = payload.get("replacement_ref")
+        expected_continuation = {
+            "proposal": "blocked",
+            "ready": "continue",
+            "in_progress": "continue",
+            "blocked": "blocked",
+            "done": "complete",
+            "archived": "complete",
+        }.get(lifecycle)
+        if lifecycle == "discarded":
+            expected_continuation = "superseded" if replacement else "unavailable"
+        if expected_continuation is None:
+            issues.append(f"feature_tracker lifecycle_status is invalid: {lifecycle}")
+        elif continuation != expected_continuation:
+            issues.append(
+                f"feature_tracker lifecycle_status={lifecycle} requires continuation={expected_continuation}"
+            )
+        state_ref = str(receipt_dir / "state.json")
+        tasks_ref = str(receipt_dir / "tasks.json")
+        try:
+            owner_state = load_json(root / state_ref)
+            owner_tasks = load_json(root / tasks_ref)
+        except (json.JSONDecodeError, OSError) as exc:
+            issues.append(f"feature_tracker canonical evidence is unreadable: {exc}")
+        else:
+            if not isinstance(owner_state, dict) or not isinstance(owner_tasks, dict):
+                issues.append("feature_tracker canonical state and tasks must be JSON objects")
+            else:
+                if owner_state.get("feat_id") != payload.get("owner_id"):
+                    issues.append("feature_tracker state feat_id does not match receipt owner_id")
+                if owner_tasks.get("feat_id") != payload.get("owner_id"):
+                    issues.append("feature_tracker tasks feat_id does not match receipt owner_id")
+                if owner_state.get("status") != lifecycle:
+                    issues.append("feature_tracker state status does not match receipt lifecycle_status")
+                canonical_item_id = owner_state.get("current_task_id")
+                if canonical_item_id in {"", None}:
+                    canonical_item_id = None
+                if canonical_item_id != current_item_id:
+                    issues.append("feature_tracker state current_task_id does not match receipt current_item_id")
+                if current_item_id is not None:
+                    task_items = owner_tasks.get("tasks")
+                    matching = (
+                        [
+                            task
+                            for task in task_items
+                            if isinstance(task, dict) and task.get("id") == current_item_id
+                        ]
+                        if isinstance(task_items, list)
+                        else []
+                    )
+                    if len(matching) != 1 or matching[0].get("status") != "in_progress":
+                        issues.append("feature_tracker current_item_id must name the unique in_progress task")
+    if issues:
+        raise SystemExit(f"error: invalid owner receipt {ref}: " + "; ".join(issues))
+    return payload
+
+
+def owner_binding_issues(root: Path, frontmatter: dict[str, Any]) -> tuple[list[str], dict[str, Any] | None]:
+    binding = frontmatter.get("owner_binding")
+    if binding is None:
+        return [], None
+    if not isinstance(binding, dict):
+        return ["owner_binding must be a mapping"], None
+    issues: list[str] = []
+    missing = sorted(OWNER_BINDING_FIELDS - set(binding))
+    unexpected = sorted(set(binding) - OWNER_BINDING_FIELDS)
+    if missing:
+        issues.append("owner_binding missing fields: " + ", ".join(missing))
+    if unexpected:
+        issues.append("owner_binding unexpected fields: " + ", ".join(unexpected))
+    for field in ("owner_kind", "owner_id", "receipt_ref", "observed_revision"):
+        if not isinstance(binding.get(field), str) or not binding[field].strip():
+            issues.append(f"owner_binding.{field} must be a non-empty string")
+    if binding.get("required") is not True:
+        issues.append("owner_binding.required must be true for continuation-bearing owner truth")
+    if issues:
+        return issues, None
+    try:
+        receipt = load_execution_owner_receipt(root, binding["receipt_ref"])
+    except SystemExit as exc:
+        return [str(exc).removeprefix("error: ")], None
+    if receipt["owner_kind"] != binding["owner_kind"] or receipt["owner_id"] != binding["owner_id"]:
+        issues.append("owner receipt identity does not match owner_binding")
+    if receipt["semantic_revision"] != binding["observed_revision"]:
+        issues.append(
+            "owner receipt revision changed; run reconcile-goal with --accept-owner-revision before execution"
+        )
+    continuation = receipt["continuation"]
+    status = frontmatter.get("status")
+    if continuation == "continue" and status not in {"active", "ready_for_review"}:
+        issues.append(f"owner continuation=continue is incompatible with Goal status={status}")
+    if continuation in {"blocked", "unavailable"} and status not in {"blocked", "paused"}:
+        issues.append(f"owner continuation={continuation} requires Goal status blocked or paused")
+    if continuation in {"complete", "superseded"} and status in {"active", "draft"}:
+        issues.append(f"owner continuation={continuation} requires Goal reconciliation away from active execution")
+    return issues, receipt
 
 
 def slugify(value: str) -> str:
@@ -340,7 +710,14 @@ def current_md_text(has_supervisor: bool, has_foreground: bool) -> str:
             "No foreground Goal is currently selected. Read `.bagakit/goal/state.yaml`,\n"
             "choose or create a foreground Goal, then read that Goal file before acting."
         )
-    lines = ["# Current Goal", "", middle]
+    lines = [
+        "# Current Goal",
+        "",
+        middle,
+        "",
+        "Run the Goal `fresh-check` immediately before each bounded execution round; it verifies",
+        "event reconciliation and any bound execution-owner semantic revision.",
+    ]
     if supervisor_line:
         lines.extend(["", supervisor_line])
     lines.extend(["", "Context may be stale or wrong; recover from these files before trusting prior context."])
@@ -1575,6 +1952,44 @@ def append_goal_event(args: argparse.Namespace) -> None:
     print(f".bagakit/goal/events/{goal_id}.jsonl#{event['seq']}")
 
 
+def bind_execution_owner(args: argparse.Namespace) -> None:
+    root = Path(args.root).resolve()
+    ensure_surface(root)
+    state = load_state(root)
+    goal_id = require_nonempty(args.goal_id or state.get("foreground_goal"), "--goal-id or foreground_goal")
+    path = goal_path(root, goal_id)
+    if not path.exists():
+        raise SystemExit(f"error: active goal does not exist: {goal_id}")
+    receipt_ref = require_nonempty(args.receipt_ref, "--receipt-ref")
+    receipt = load_execution_owner_receipt(root, receipt_ref)
+    if receipt["owner_kind"] != args.owner_kind or receipt["owner_id"] != args.owner_id:
+        raise SystemExit("error: owner receipt identity does not match --owner-kind and --owner-id")
+    frontmatter, title, sections, extras = read_goal_doc(path)
+    frontmatter["owner_binding"] = {
+        "owner_kind": args.owner_kind,
+        "owner_id": args.owner_id,
+        "receipt_ref": receipt_ref,
+        "observed_revision": receipt["semantic_revision"],
+        "required": True,
+    }
+    issues, _receipt = owner_binding_issues(root, frontmatter)
+    if issues:
+        raise SystemExit("error: owner binding is not executable: " + "; ".join(issues))
+    write_text(path, dump_frontmatter_markdown(frontmatter, render_goal_body(title, sections, extras)))
+    event = append_goal_event_record(
+        root,
+        goal_id,
+        kind="goal_updated",
+        owner=args.owner,
+        summary=args.summary,
+        evidence_refs=[receipt_ref],
+        control_effect="none",
+    )
+    print(path.relative_to(root))
+    print(f"owner_revision: {receipt['semantic_revision']}")
+    print(f"event: .bagakit/goal/events/{goal_id}.jsonl#{event['seq']}")
+
+
 def reconcile_goal(args: argparse.Namespace) -> None:
     root = Path(args.root).resolve()
     ensure_surface(root, allow_unreconciled=True)
@@ -1585,6 +2000,20 @@ def reconcile_goal(args: argparse.Namespace) -> None:
         raise SystemExit(f"error: active goal does not exist: {goal_id}")
     frontmatter, title, sections, extras = read_goal_doc(path)
     extras = drop_obsolete_append_only_sections(extras)
+    if args.status:
+        if args.status in {"complete", "abandoned"}:
+            raise SystemExit("error: reconcile-goal cannot close a Goal; use archive-goal with lifecycle evidence")
+        if args.status == "active" and state.get("foreground_goal") != goal_id:
+            raise SystemExit("error: reconcile-goal cannot activate a non-foreground Goal")
+        frontmatter["status"] = args.status
+    if args.accept_owner_revision:
+        binding = frontmatter.get("owner_binding")
+        if not isinstance(binding, dict):
+            raise SystemExit("error: --accept-owner-revision requires an existing owner_binding")
+        receipt = load_execution_owner_receipt(root, str(binding.get("receipt_ref", "")))
+        if receipt["owner_kind"] != binding.get("owner_kind") or receipt["owner_id"] != binding.get("owner_id"):
+            raise SystemExit("error: owner receipt identity does not match owner_binding")
+        binding["observed_revision"] = receipt["semantic_revision"]
     current_state = render_list_section(args.current_state_line)
     next_instruction = require_nonempty(args.next_instruction_text, "--next-instruction-text")
     decisions = render_list_section(args.decision_line)
@@ -1596,7 +2025,15 @@ def reconcile_goal(args: argparse.Namespace) -> None:
     sections["Current State"] = current_state
     sections["Next Execution Instruction"] = next_instruction
     sections["Recent Decisions"] = decisions
+    binding_issues, _receipt = owner_binding_issues(root, frontmatter)
+    if binding_issues:
+        raise SystemExit("error: reconciled Goal is not executable: " + "; ".join(binding_issues))
     write_text(path, dump_frontmatter_markdown(frontmatter, render_goal_body(title, sections, extras)))
+
+    entry = state.get("goals", {}).get(goal_id)
+    if entry is not None:
+        entry["status"] = frontmatter["status"]
+        save_state(root, state)
 
     event = append_goal_event_record(
         root,
@@ -1721,6 +2158,11 @@ def create_or_update_goal(args: argparse.Namespace) -> None:
     }
     if wait is not None:
         frontmatter["wait"] = wait
+    if existing_frontmatter.get("owner_binding") is not None:
+        frontmatter["owner_binding"] = existing_frontmatter["owner_binding"]
+    binding_issues, _receipt = owner_binding_issues(root, frontmatter)
+    if binding_issues:
+        raise SystemExit("error: updated Goal is not executable: " + "; ".join(binding_issues))
     sections = {
         "Prime Directive": prime_directive.strip(),
         "Current State": current_state.strip(),
@@ -1829,6 +2271,12 @@ def set_foreground(args: argparse.Namespace) -> None:
     status = goal_status(frontmatter, path)
     if status not in OPEN_GOAL_STATUSES:
         raise SystemExit("error: only incomplete goals may become foreground")
+    if status in RESUMABLE_TO_ACTIVE:
+        proposed_frontmatter = dict(frontmatter)
+        proposed_frontmatter["status"] = "active"
+        binding_issues, _receipt = owner_binding_issues(root, proposed_frontmatter)
+        if binding_issues:
+            raise SystemExit("error: foreground activation is blocked by owner truth: " + "; ".join(binding_issues))
     paused_goal_ids = pause_previous_foregrounds(root, state, goal_id)
     existing_entry = state.setdefault("goals", {}).get(goal_id)
     state["goals"][goal_id] = normalize_registry_entry(goal_id, frontmatter, "foreground", existing_entry)
@@ -2093,6 +2541,13 @@ def render_wrapper(args: argparse.Namespace) -> None:
             "error: reconcile Goal control truth before rendering the wrapper for: "
             + ", ".join(pending_goal_ids)
         )
+    foreground_goal = state.get("foreground_goal")
+    if foreground_goal and foreground_goal in state.get("goals", {}):
+        goal_file = root / state["goals"][foreground_goal]["file"]
+        frontmatter, _title, _sections, _extras = read_goal_doc(goal_file)
+        binding_issues, _receipt = owner_binding_issues(root, frontmatter)
+        if binding_issues:
+            raise SystemExit("error: Goal owner truth requires reconciliation: " + "; ".join(binding_issues))
     mode = state.get("supervision", {}).get("mode", "off")
     sys.stdout.write(WRAPPER_WITH_SUPERVISOR if mode != "off" else WRAPPER_WITHOUT_SUPERVISOR)
 
@@ -2267,6 +2722,20 @@ def driver_report(args: argparse.Namespace) -> None:
             entry = state["goals"][goal_id]
             goal_file = root / entry["file"]
             frontmatter, _title, sections, _extras = read_goal_doc(goal_file)
+            binding_issues, owner_receipt = owner_binding_issues(root, frontmatter)
+            owner_next_override: str | None = None
+            if binding_issues:
+                owner_next_override = "Reconcile the Goal against the current execution-owner receipt before continuing."
+                alerts.append(
+                    make_driver_alert(
+                        "P0",
+                        "owner_truth_stale",
+                        " | ".join(binding_issues),
+                        "The Goal's next instruction is not bound to current owner truth.",
+                        "Reconcile the Goal against the owner receipt before continuing.",
+                        str(frontmatter.get("owner_binding", {}).get("receipt_ref", entry["file"])),
+                    )
+                )
             events = load_goal_events(root, goal_id)
             latest_event = events[-1] if events else {}
             progress, progress_ratio = acceptance_progress(
@@ -2355,7 +2824,13 @@ def driver_report(args: argparse.Namespace) -> None:
                 if args.previous_status and args.previous_status != status
                 else status
             )
+            if binding_issues:
+                status_display = f"{status_display}(needs_reconcile)"
             default_evidence = list(latest_event.get("evidence_refs", [])) or [entry["file"]]
+            if owner_receipt is not None:
+                default_evidence = list(
+                    dict.fromkeys(default_evidence + list(owner_receipt.get("evidence_refs", [])))
+                )
             effective_evidence = evidence_refs or default_evidence
             summary = {
                 "goal_id": goal_id,
@@ -2367,8 +2842,11 @@ def driver_report(args: argparse.Namespace) -> None:
                 "discovery": compact_driver_value(" | ".join(args.discovery)),
                 "evidence": compact_driver_value(" | ".join(effective_evidence)),
                 "next": compact_driver_value(
-                    args.next_action,
-                    compact_driver_value(sections.get("Next Execution Instruction"), "unknown"),
+                    owner_next_override,
+                    compact_driver_value(
+                        args.next_action,
+                        compact_driver_value(sections.get("Next Execution Instruction"), "unknown"),
+                    ),
                 ),
                 "alerts": alerts,
             }
@@ -2425,6 +2903,7 @@ def fresh_check(args: argparse.Namespace) -> None:
     root = Path(args.root).resolve()
     paths = surface_paths(root)
     issues: list[str] = []
+    observed_owner: dict[str, Any] | None = None
 
     if not paths["surface_toml"].exists():
         issues.append("missing .bagakit/goal/surface.toml")
@@ -2481,6 +2960,15 @@ def fresh_check(args: argparse.Namespace) -> None:
                 if frontmatter.get("status") == "complete" and not frontmatter.get("completion_evidence"):
                     issues.append("complete goal requires completion_evidence")
                 issues.extend(f"foreground goal {issue}" for issue in wait_contract_issues(frontmatter))
+                binding_issues, receipt = owner_binding_issues(root, frontmatter)
+                issues.extend(binding_issues)
+                if receipt is not None and not binding_issues:
+                    observed_owner = {
+                        "owner_kind": receipt["owner_kind"],
+                        "owner_id": receipt["owner_id"],
+                        "semantic_revision": receipt["semantic_revision"],
+                        "continuation": receipt["continuation"],
+                    }
                 if goals[foreground_goal].get("status") != frontmatter.get("status"):
                     issues.append("state.yaml goal status does not match foreground goal frontmatter")
                 if goals[foreground_goal].get("role") != "foreground":
@@ -2541,12 +3029,82 @@ def fresh_check(args: argparse.Namespace) -> None:
         for issue in issues:
             print(f"- {issue}")
         raise SystemExit(1)
-    print("fresh-executor check passed")
+    if args.json:
+        print(
+            json.dumps(
+                {
+                    "status": "pass",
+                    "goal_id": foreground_goal,
+                    "protocol_version": GOAL_PROTOCOL_VERSION,
+                    "observed_owner": observed_owner,
+                },
+                indent=2,
+                ensure_ascii=False,
+                sort_keys=True,
+            )
+        )
+    else:
+        print("fresh-executor check passed")
 
 
-def archive_goal(args: argparse.Namespace) -> None:
-    root = Path(args.root).resolve()
-    ensure_surface(root)
+def require_current_surface_for_archive(root: Path) -> dict[str, Path]:
+    paths = surface_paths(root)
+    if not paths["root"].is_dir() or not paths["state"].is_file() or not paths["current"].is_file():
+        raise SystemExit("error: Goal surface is not initialized")
+    report, _internal = build_upgrade_plan(root)
+    if report["status"] != "current":
+        raise SystemExit(
+            f"error: archive-goal requires a current Goal surface; {report['next_instruction']}"
+        )
+    if paths["upgrade"].exists():
+        raise SystemExit("error: unresolved Goal upgrade report blocks archive-goal")
+    pending_goal_ids = unreconciled_goal_ids(root)
+    if pending_goal_ids:
+        raise SystemExit(
+            "error: unreconciled Goal control events block archive-goal for: "
+            + ", ".join(pending_goal_ids)
+        )
+    return paths
+
+
+def archive_uses_feature_tracker(root: Path, args: argparse.Namespace) -> bool:
+    state = load_state(root)
+    goal_ids = [require_nonempty(args.goal_id, "--goal-id")]
+    replacement = args.replacement_foreground
+    if replacement and replacement in state.get("goals", {}):
+        goal_ids.append(replacement)
+    for goal_id in goal_ids:
+        entry = state.get("goals", {}).get(goal_id)
+        if not isinstance(entry, dict):
+            continue
+        path = root / str(entry.get("file") or "")
+        if not path.is_file():
+            continue
+        frontmatter, _title, _sections, _extras = read_goal_doc(path)
+        binding = frontmatter.get("owner_binding")
+        if isinstance(binding, dict) and binding.get("owner_kind") == "feature_tracker":
+            return True
+    return False
+
+
+def foreground_uses_feature_tracker(root: Path) -> bool:
+    state = load_state(root)
+    goal_id = state.get("foreground_goal")
+    if not isinstance(goal_id, str) or not goal_id:
+        return False
+    entry = state.get("goals", {}).get(goal_id)
+    if not isinstance(entry, dict):
+        return False
+    path = root / str(entry.get("file") or "")
+    if not path.is_file():
+        return False
+    frontmatter, _title, _sections, _extras = read_goal_doc(path)
+    binding = frontmatter.get("owner_binding")
+    return isinstance(binding, dict) and binding.get("owner_kind") == "feature_tracker"
+
+
+def archive_goal_locked(args: argparse.Namespace, root: Path) -> None:
+    paths = require_current_surface_for_archive(root)
     state = load_state(root)
     goal_id = require_nonempty(args.goal_id, "--goal-id")
     active_path = goal_path(root, goal_id)
@@ -2555,19 +3113,71 @@ def archive_goal(args: argparse.Namespace) -> None:
     frontmatter, title, sections, extras = read_goal_doc(active_path)
     if args.status not in {"complete", "abandoned"}:
         raise SystemExit("error: archive-goal status must be complete or abandoned")
-    frontmatter["status"] = args.status
     completion_evidence = list(args.completion_evidence or frontmatter.get("completion_evidence") or [])
     if args.status == "complete" and not completion_evidence:
         raise SystemExit("error: archive-goal status=complete requires completion evidence")
-    frontmatter["completion_evidence"] = completion_evidence
-    frontmatter["truth_surface"] = f".bagakit/goal/archive/{goal_id}.md"
+    ensure_no_absolute_paths(completion_evidence, "archive completion evidence", False)
+
     archive_path = archived_goal_path(root, goal_id)
-    write_text(archive_path, dump_frontmatter_markdown(frontmatter, render_goal_body(title, sections, extras)))
-    active_path.unlink()
+    if archive_path.exists():
+        raise SystemExit(f"error: archived Goal already exists: {archive_path.relative_to(root)}")
     active_event_path = goal_event_path(root, goal_id)
-    if active_event_path.exists():
-        archived_event_path = surface_root(root) / "archive" / f"{goal_id}.events.jsonl"
-        active_event_path.replace(archived_event_path)
+    archived_event_path = surface_root(root) / "archive" / f"{goal_id}.events.jsonl"
+    if active_event_path.exists() and archived_event_path.exists():
+        raise SystemExit(f"error: archived Goal event stream already exists: {archived_event_path.relative_to(root)}")
+
+    current_binding_issues, current_receipt = owner_binding_issues(root, frontmatter)
+    if current_binding_issues:
+        raise SystemExit("error: archive-goal owner truth is stale or invalid: " + "; ".join(current_binding_issues))
+    proposed_frontmatter = dict(frontmatter)
+    proposed_frontmatter["status"] = args.status
+    proposed_frontmatter["completion_evidence"] = completion_evidence
+    proposed_frontmatter["truth_surface"] = f".bagakit/goal/archive/{goal_id}.md"
+    if args.status == "complete":
+        completion_binding_issues, completion_receipt = owner_binding_issues(root, proposed_frontmatter)
+        if completion_binding_issues:
+            raise SystemExit(
+                "error: archive-goal completion is not supported by owner truth: "
+                + "; ".join(completion_binding_issues)
+            )
+        if completion_receipt is not None and completion_receipt.get("continuation") != "complete":
+            raise SystemExit(
+                "error: archive-goal completion requires owner continuation=complete; "
+                f"received {completion_receipt.get('continuation')}"
+            )
+
+    replacement = args.replacement_foreground if state.get("foreground_goal") == goal_id else None
+    replacement_update: tuple[Path, dict[str, Any], str, dict[str, str], list[tuple[str, str]]] | None = None
+    if args.replacement_foreground and state.get("foreground_goal") != goal_id:
+        raise SystemExit("error: replacement foreground is only valid when archiving the foreground Goal")
+    if replacement:
+        if replacement == goal_id or replacement not in state.get("goals", {}):
+            raise SystemExit("error: replacement foreground goal is not registered")
+        rep_path = root / state["goals"][replacement]["file"]
+        if not rep_path.is_file():
+            raise SystemExit("error: replacement foreground goal file is missing")
+        rep_frontmatter, rep_title, rep_sections, rep_extras = read_goal_doc(rep_path)
+        rep_status = goal_status(rep_frontmatter, rep_path)
+        if rep_status not in OPEN_GOAL_STATUSES:
+            raise SystemExit("error: replacement foreground goal must be incomplete")
+        if rep_status in RESUMABLE_TO_ACTIVE:
+            proposed_replacement = dict(rep_frontmatter)
+            proposed_replacement["status"] = "active"
+            replacement_issues, _replacement_receipt = owner_binding_issues(root, proposed_replacement)
+            if replacement_issues:
+                raise SystemExit(
+                    "error: replacement foreground activation is blocked by owner truth: "
+                    + "; ".join(replacement_issues)
+                )
+            rep_frontmatter = proposed_replacement
+        else:
+            replacement_issues, _replacement_receipt = owner_binding_issues(root, rep_frontmatter)
+            if replacement_issues:
+                raise SystemExit(
+                    "error: replacement foreground owner truth is stale or invalid: "
+                    + "; ".join(replacement_issues)
+                )
+        replacement_update = (rep_path, rep_frontmatter, rep_title, rep_sections, rep_extras)
 
     state.get("goals", {}).pop(goal_id, None)
     state["edges"] = [
@@ -2576,23 +3186,83 @@ def archive_goal(args: argparse.Namespace) -> None:
         if edge.get("from") != goal_id and edge.get("to") != goal_id
     ]
     if state.get("foreground_goal") == goal_id:
-        replacement = args.replacement_foreground
         if replacement:
-            if replacement not in state.get("goals", {}):
-                raise SystemExit("error: replacement foreground goal is not registered")
             state["foreground_goal"] = replacement
             state["goals"][replacement]["role"] = "foreground"
-            rep_path = root / state["goals"][replacement]["file"]
-            rep_frontmatter, rep_title, rep_sections, rep_extras = read_goal_doc(rep_path)
-            if rep_frontmatter.get("status") in RESUMABLE_TO_ACTIVE:
-                rep_frontmatter["status"] = "active"
-                write_text(rep_path, dump_frontmatter_markdown(rep_frontmatter, render_goal_body(rep_title, rep_sections, rep_extras)))
-                state["goals"][replacement]["status"] = "active"
+            if replacement_update is not None:
+                rep_path, rep_frontmatter, rep_title, rep_sections, rep_extras = replacement_update
+                state["goals"][replacement]["status"] = rep_frontmatter["status"]
         else:
             state["foreground_goal"] = None
-    save_state(root, state)
-    refresh_current(root, state)
+
+    # Feature Tracker's global lock is held by archive_goal when applicable, so
+    # this final read is the commit-point owner revision check.
+    commit_binding_issues, commit_receipt = owner_binding_issues(root, frontmatter)
+    if commit_binding_issues:
+        raise SystemExit(
+            "error: archive-goal owner truth changed before commit: "
+            + "; ".join(commit_binding_issues)
+        )
+    if current_receipt is not None and commit_receipt != current_receipt:
+        raise SystemExit("error: archive-goal owner receipt changed before commit")
+
+    active_mode = active_path.stat().st_mode & 0o777
+    writes: list[tuple[Path, bytes, int]] = [
+        (
+            archive_path,
+            dump_frontmatter_markdown(
+                proposed_frontmatter,
+                render_goal_body(title, sections, extras),
+            ).encode("utf-8"),
+            active_mode,
+        ),
+        (
+            paths["state"],
+            yaml.safe_dump(state, sort_keys=False, allow_unicode=True).encode("utf-8"),
+            paths["state"].stat().st_mode & 0o777,
+        ),
+        (
+            paths["current"],
+            current_md_text(
+                state.get("supervision", {}).get("mode") != "off",
+                bool(state.get("foreground_goal")),
+            ).encode("utf-8"),
+            paths["current"].stat().st_mode & 0o777,
+        ),
+    ]
+    deletes = [active_path]
+    if active_event_path.exists():
+        writes.append(
+            (
+                archived_event_path,
+                active_event_path.read_bytes(),
+                active_event_path.stat().st_mode & 0o777,
+            )
+        )
+        deletes.append(active_event_path)
+    if replacement_update is not None:
+        rep_path, rep_frontmatter, rep_title, rep_sections, rep_extras = replacement_update
+        writes.append(
+            (
+                rep_path,
+                dump_frontmatter_markdown(
+                    rep_frontmatter,
+                    render_goal_body(rep_title, rep_sections, rep_extras),
+                ).encode("utf-8"),
+                rep_path.stat().st_mode & 0o777,
+            )
+        )
+    commit_file_transaction(writes, deletes)
     print(archive_path.relative_to(root))
+
+
+def archive_goal(args: argparse.Namespace) -> None:
+    root = Path(args.root).resolve()
+    if archive_uses_feature_tracker(root, args):
+        with repository_lock(root, "feature-tracker.lock"):
+            archive_goal_locked(args, root)
+        return
+    archive_goal_locked(args, root)
 
 
 def validate_skill(_args: argparse.Namespace) -> None:
@@ -2735,6 +3405,16 @@ def build_parser() -> argparse.ArgumentParser:
     append_event.add_argument("--control-effect", default="none", choices=sorted(GOAL_CONTROL_EFFECTS))
     append_event.set_defaults(func=append_goal_event)
 
+    bind_owner = sub.add_parser("bind-execution-owner")
+    bind_owner.add_argument("--root", default=".")
+    bind_owner.add_argument("--goal-id")
+    bind_owner.add_argument("--owner-kind", required=True)
+    bind_owner.add_argument("--owner-id", required=True)
+    bind_owner.add_argument("--receipt-ref", required=True)
+    bind_owner.add_argument("--owner", required=True)
+    bind_owner.add_argument("--summary", required=True)
+    bind_owner.set_defaults(func=bind_execution_owner)
+
     reconcile = sub.add_parser("reconcile-goal")
     reconcile.add_argument("--root", default=".")
     reconcile.add_argument("--goal-id")
@@ -2744,6 +3424,8 @@ def build_parser() -> argparse.ArgumentParser:
     reconcile.add_argument("--owner", required=True)
     reconcile.add_argument("--summary", required=True)
     reconcile.add_argument("--evidence-ref", action="append", default=[])
+    reconcile.add_argument("--status", choices=sorted(OPEN_GOAL_STATUSES))
+    reconcile.add_argument("--accept-owner-revision", action="store_true")
     reconcile.add_argument("--allow-absolute-paths", action="store_true")
     reconcile.set_defaults(func=reconcile_goal)
 
@@ -2753,6 +3435,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     fresh = sub.add_parser("fresh-check")
     fresh.add_argument("--root", default=".")
+    fresh.add_argument("--json", action="store_true")
     fresh.set_defaults(func=fresh_check)
 
     archive = sub.add_parser("archive-goal")
@@ -2791,7 +3474,16 @@ def build_parser() -> argparse.ArgumentParser:
 def main() -> None:
     parser = build_parser()
     args = parser.parse_args()
-    result = args.func(args)
+    if args.command in READ_ONLY_COMMANDS:
+        result = args.func(args)
+    else:
+        root = Path(args.root).resolve()
+        with repository_lock(root, "set-loop-goal.lock"):
+            if args.command == "fresh-check" and foreground_uses_feature_tracker(root):
+                with repository_lock(root, "feature-tracker.lock"):
+                    result = args.func(args)
+            else:
+                result = args.func(args)
     if result is not None:
         print(result)
 

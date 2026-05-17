@@ -67,6 +67,7 @@ import {
   type SkillUsageDoc,
   type LessonUpdateAction,
   type LessonUpdateLogEntry,
+  type MutationLogEntry,
   type TaskStatus,
   type TaskSignalKind,
   type TaskSignalLogEntry,
@@ -76,6 +77,7 @@ import {
   type UsageResult,
 } from "./model.ts";
 import { isRecord, parseTomlFile } from "./toml.ts";
+import { atomicReplaceText } from "./transaction.ts";
 
 function nowIso(): string {
   return new Date().toISOString();
@@ -512,6 +514,15 @@ function parseLessonUpdateLogEntry(record: Record<string, unknown>): LessonUpdat
   };
 }
 
+function parseMutationLogEntry(record: Record<string, unknown>): MutationLogEntry {
+  return {
+    operation_id: readString(record, "operation_id"),
+    command: readString(record, "command"),
+    request_hash: readString(record, "request_hash"),
+    applied_at: readString(record, "applied_at"),
+  };
+}
+
 export function createSkillUsageDoc(taskId: string, objective: string, owner: string): SkillUsageDoc {
   const timestamp = nowIso();
   return {
@@ -564,6 +575,7 @@ export function createSkillUsageDoc(taskId: string, objective: string, owner: st
     selection_lesson_log: [],
     lesson_update_log: [],
     evolver_signal_log: [],
+    mutation_log: [],
   };
 }
 
@@ -645,12 +657,12 @@ export function readSkillUsageDoc(filePath: string): SkillUsageDoc {
     selection_lesson_log: readRecordArray(raw, "selection_lesson_log").map(parseSelectionLessonLogEntry),
     lesson_update_log: readRecordArray(raw, "lesson_update_log").map(parseLessonUpdateLogEntry),
     evolver_signal_log: readRecordArray(raw, "evolver_signal_log").map(parseEvolverSignalLogEntry),
+    mutation_log: readRecordArray(raw, "mutation_log").map(parseMutationLogEntry),
   };
 }
 
 export function writeSkillUsageDoc(filePath: string, doc: SkillUsageDoc): void {
-  fs.mkdirSync(path.dirname(filePath), { recursive: true });
-  fs.writeFileSync(filePath, renderSkillUsageDoc(doc), "utf-8");
+  atomicReplaceText(filePath, renderSkillUsageDoc(doc));
 }
 
 export function renderSkillUsageDoc(doc: SkillUsageDoc): string {
@@ -701,7 +713,7 @@ export function renderSkillUsageDoc(doc: SkillUsageDoc): string {
   }
   lines.push("");
   lines.push(
-    "# Append records below with [[recipe_log]], [[task_signal_log]], [[selection_lesson_log]], [[lesson_update_log]], [[evolver_signal_log]], [[skill_plan]], [[candidate_result_log]], [[usage_log]], [[feedback_log]], [[search_log]], [[benchmark_log]], and [[error_pattern_log]].",
+    "# Append records below with [[recipe_log]], [[task_signal_log]], [[selection_lesson_log]], [[lesson_update_log]], [[evolver_signal_log]], [[skill_plan]], [[candidate_result_log]], [[usage_log]], [[feedback_log]], [[search_log]], [[benchmark_log]], and [[error_pattern_log]]. [[mutation_log]] is operator-managed transaction evidence.",
   );
 
   renderArrayTable(lines, "recipe_log", doc.recipe_log, [
@@ -744,6 +756,12 @@ export function renderSkillUsageDoc(doc: SkillUsageDoc): string {
     "reason",
     "evidence_ref",
     "notes",
+  ]);
+  renderArrayTable(lines, "mutation_log", doc.mutation_log, [
+    "operation_id",
+    "command",
+    "request_hash",
+    "applied_at",
   ]);
   renderArrayTable(lines, "evolver_signal_log", doc.evolver_signal_log, [
     "timestamp",
@@ -1884,6 +1902,25 @@ export function closeSkillUsage(
 
 export function validateSkillUsage(doc: SkillUsageDoc, strict: boolean): string[] {
   const issues: string[] = [];
+
+  const operationIds = new Set<string>();
+  for (const mutation of doc.mutation_log) {
+    if (mutation.operation_id.trim() === "") {
+      issues.push("mutation_log.operation_id must not be empty");
+    } else if (operationIds.has(mutation.operation_id)) {
+      issues.push(`duplicate mutation_log.operation_id: ${mutation.operation_id}`);
+    }
+    operationIds.add(mutation.operation_id);
+    if (mutation.command.trim() === "") {
+      issues.push(`mutation_log.command must not be empty for ${mutation.operation_id}`);
+    }
+    if (!new RegExp("^[a-f0-9]{64}$").test(mutation.request_hash)) {
+      issues.push(`mutation_log.request_hash must be sha256 for ${mutation.operation_id}`);
+    }
+    if (mutation.applied_at.trim() === "") {
+      issues.push(`mutation_log.applied_at must not be empty for ${mutation.operation_id}`);
+    }
+  }
 
   if (doc.preflight.answer === "pending") {
     issues.push("preflight.answer is pending or missing");

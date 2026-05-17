@@ -28,6 +28,9 @@ Core contract:
 - Lock the Goal protocol to `bagakit.goal.v.0.2`. Inspect and upgrade missing,
   older, or incomplete Goal surfaces before normal mutation; route semantic
   conflicts to Grill instead of guessing.
+- Bind continuation-bearing external owner truth through a structured execution
+  owner receipt. Record the observed semantic revision in Goal frontmatter and
+  fail closed when the owner revision or continuation disposition changes.
 - Maintain `.bagakit/goal/current.md` as the agent-facing entrypoint and
   `.bagakit/goal/state.yaml` as the machine-readable registry, incomplete-Goal
   topology cache, reconciliation cursor, and foreground selector.
@@ -79,8 +82,8 @@ Minimal workflow:
 5. Write repeated execution records to their owner stream. Append only
    steering-relevant events to the Goal JSONL stream.
 6. Reconcile the Goal by replacing current state and the one next instruction,
-   folding accepted deltas into their owning sections, and advancing the event
-   cursor.
+   folding accepted deltas into their owning sections, acknowledging any
+   reviewed owner revision, and advancing the event cursor.
 7. When execution cannot proceed, classify `waiting` versus `blocked` using
    `references/loop-off-loop.md`; keep waiting rounds at zero until its loss
    line is crossed.

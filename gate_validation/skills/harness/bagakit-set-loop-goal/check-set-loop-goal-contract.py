@@ -87,6 +87,7 @@ def main() -> None:
         "request-evolver-review",
         "record-evolver-review",
         "append-goal-event",
+        "bind-execution-owner",
         "reconcile-goal",
         "render-wrapper",
         "fresh-check",

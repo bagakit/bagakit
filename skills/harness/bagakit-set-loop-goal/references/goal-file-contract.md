@@ -10,6 +10,7 @@ file.
 - Protocol Version
 - Goal Surface State
 - Event Streams And Reconciliation
+- Execution Owner Binding
 - Evolver Review Receipts
 - Supervisor Contract
 - Frontmatter Lifecycle
@@ -107,6 +108,9 @@ Read `.bagakit/goal/state.yaml`, resolve `foreground_goal`, then read that Goal
 file before acting. Creating or switching to a new Goal does not abandon any
 previous incomplete Goal; update the registry status instead.
 
+Run the Goal `fresh-check` immediately before each bounded execution round; it
+verifies event reconciliation and any bound execution-owner semantic revision.
+
 If `.bagakit/goal/supervisor.md` exists, read it and run its checkpoint before
 each bounded execution round and before final completion.
 
@@ -174,6 +178,10 @@ Rules:
   in the Goal file, move it under `archive/`, update its `truth_surface` to the
   archived path, and remove it from the active `goals` registry unless it still
   affects the foreground Goal as a short historical pointer.
+- Serialize Goal mutations through the repository Goal lock. Archive preflight
+  is read-only, rechecks bound owner truth at the commit point, and publishes
+  the Goal, event, registry, current entrypoint, and replacement update through
+  one rollback-capable file transaction.
 - If `foreground_goal` or its file is missing or contradicts the target Goal's
   frontmatter, repair the state before execution or stop and ask.
 
@@ -198,6 +206,35 @@ newer evidence, or when checkpoint history starts accumulating:
 
 Read `references/event-stream-contract.md` for format ownership, the JSONL
 schema, control effects, cursor behavior, and archive rules.
+
+## Execution Owner Binding
+
+When another runtime surface owns continuation-bearing planning or work truth,
+bind the Goal to its `bagakit.execution-owner-receipt.v1` receipt instead of
+parsing free-form orchestration text.
+
+The optional Goal frontmatter binding records owner identity, the repo-relative
+receipt ref, and the semantic revision used during the last reconciliation.
+`fresh-check`, wrapper rendering, and Driver reporting fail or alert when the
+revision changes. Use `bind-execution-owner` to create the binding and
+`reconcile-goal --accept-owner-revision` after reviewing new owner truth.
+`fresh-check` takes the Goal mutation lock and, for a Feature Tracker owner,
+the shared Tracker state lock while reading the snapshot. The lock ends when
+the command returns; before-round freshness remains a cooperative protocol,
+not a lease that spans the subsequent bounded execution round.
+
+Owner continuation dispositions constrain Goal lifecycle:
+
+- `continue`: Goal may be active or ready for review
+- `blocked` or `unavailable`: Goal must be blocked or paused
+- `complete`: Goal may archive as complete after reconciliation and completion
+  evidence
+- `superseded`: Goal must leave active execution, but cannot be archived as
+  complete; route to the replacement or archive as explicitly abandoned
+
+The Goal never updates owner state through this binding.
+It verifies receipt identity, decision-field consistency, canonical evidence
+hashes, and the semantic revision before trusting the continuation disposition.
 
 ## Evolver Review Receipts
 
@@ -608,6 +645,8 @@ Before handing off, ask:
    runner state from the Goal?
 4. Can the executor identify the next action and the stop condition?
 5. Would adding the prior chat materially change the executor's next move?
+6. When an execution owner is bound, does `fresh-check --json` report the
+   exact owner revision being used for this bounded round?
 
 If answer 5 is yes, the Goal is missing key control-plane information.
 

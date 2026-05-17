@@ -79,7 +79,7 @@ summary = "Add an observation or decision note."
 
 [[command]]
 name = "set-route"
-summary = "Set promotion route for a topic."
+summary = "Set promotion route, acceptance authority, counterevidence disposition, target owner, and proof plan for a topic."
 
 [[command]]
 name = "add-context-ref"
@@ -95,7 +95,7 @@ summary = "Record a topic decision."
 
 [[command]]
 name = "record-promotion"
-summary = "Record a proposed or landed promotion."
+summary = "Record a proposed, accepted-for-landing, landed-verified, rejected, or superseded promotion."
 
 [[command]]
 name = "set-candidate-status"
@@ -123,7 +123,7 @@ summary = "Close an evolver topic."
 
 [[command]]
 name = "archive-topic"
-summary = "Archive an evolver topic."
+summary = "Archive an evolver topic only after current promotion readiness passes."
 
 [[command]]
 name = "handoff"

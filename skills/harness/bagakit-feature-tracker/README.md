@@ -12,10 +12,11 @@ Feature and task planning truth for repositories that need:
 This skill owns canonical feature and task planning truth:
 
 - feature identity and feature lifecycle
-- current task selection
+- reviewed task-plan revisions, supersession, and current task selection
 - workspace mode and worktree assignment
 - task gates
 - task commit preparation
+- execution-owner receipt projection
 - archive and discard state
 
 It does not own:
@@ -58,6 +59,12 @@ bash "$BAGAKIT_FEATURE_TRACKER_SKILL_DIR/scripts/feature-tracker.sh" create-feat
   --handoff .bagakit/planning-entry/handoffs/<handoff-id>.json \
   --workspace-mode proposal_only
 
+bash "$BAGAKIT_FEATURE_TRACKER_SKILL_DIR/scripts/feature-tracker.sh" set-task-plan \
+  --root . \
+  --feature <feature-id> \
+  --tasks-file <reviewed-task-plan.json> \
+  --expected-revision 0
+
 bash "$BAGAKIT_FEATURE_TRACKER_SKILL_DIR/scripts/feature-tracker.sh" assign-feature-workspace \
   --root . \
   --feature <feature-id> \
@@ -90,6 +97,7 @@ Runtime state lives under:
 - `.bagakit/feature-tracker/runtime-policy.json`
 - `.bagakit/feature-tracker/features/<feature-id>/state.json`
 - `.bagakit/feature-tracker/features/<feature-id>/tasks.json`
+- `.bagakit/feature-tracker/features/<feature-id>/owner-receipt.json`
 - `.bagakit/feature-tracker/features-archived/<feature-id>/`
 - `.bagakit/feature-tracker/features-discarded/<feature-id>/`
 
@@ -102,12 +110,26 @@ Stable specs:
 - `docs/specs/feature-tracker-contract.md`
 - `docs/specs/feature-tracker-id-issuance.md`
 - `docs/specs/feature-tracker-projection-surfaces.md`
+- `docs/specs/execution-owner-receipt-contract.md`
 
 The skill directory is the operator entry surface.
 The specs above are the durable repository contract.
 
 Task SSOT lives only in `tasks.json`.
-The default feature directory keeps only `state.json` and `tasks.json`.
+The default feature directory keeps canonical `state.json` and `tasks.json`
+plus derived `owner-receipt.json`.
+Without reviewed task truth, a new feature remains `proposal` in
+`proposal_only` mode and has no executable placeholder.
+Active execution requires version 2 `tasks.json` materialized from an approved
+`bagakit.feature-task-plan.v1` payload.
+`set-task-plan` uses optimistic `--expected-revision` checks, rejects plan
+replacement while a task is active, preserves blocked/done evidence, and
+records explicit supersession against the immediately prior current plan.
+Historical superseded tasks remain visible for attribution but cannot restart.
+All review, source, verification, and evidence refs are portable repo-relative
+paths; URI, absolute, drive-qualified, UNC, and escaping paths are rejected.
+`owner-receipt.json` binds canonical state and tasks with SHA-256
+`evidence_hashes`. A missing or stale persisted receipt fails closed.
 `FEATURES_DAG.json` is a generated dependency projection over active feature
 state; it is not the dependency source of truth and it does not carry
 policy-resolved execution planning.
@@ -151,8 +173,10 @@ Closed feature roots should preserve legacy `ui-verification.md` under
 - `materialize-feature-artifact`
 - `create-feature`
 - `create-feature-from-planning-entry-handoff`
+- `set-task-plan`
 - `assign-feature-workspace`
 - `show-feature-status`
+- `get-owner-receipt`
 - `start-task`
 - `run-task-gate`
 - `prepare-task-commit`

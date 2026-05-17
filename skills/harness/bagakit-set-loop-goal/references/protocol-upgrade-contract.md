@@ -32,6 +32,11 @@ The protocol version describes the complete Goal control-plane contract. File
 schemas such as `bagakit.loop-goal.v1` remain format identifiers and do not
 replace protocol negotiation.
 
+Version `bagakit.goal.v.0.2` adds optional revision-bound execution-owner
+receipts. Existing `v.0.1` Goals upgrade deterministically because an absent
+`owner_binding` preserves standalone Goal behavior. Do not infer a binding from
+free-form orchestration text during upgrade.
+
 Compare protocol versions numerically by their final major and minor numbers.
 Missing versions are older than the current protocol. Never downgrade a surface
 whose version is newer than the installed skill.
@@ -60,6 +65,7 @@ upgraded without choosing user intent, stop before normal mutation.
 Apply these without Grill when evidence has one safe interpretation:
 
 - add missing current protocol metadata
+- upgrade `v.0.1` metadata to `v.0.2` without inventing an execution-owner binding
 - restore `surface.toml`, `current.md`, standard directories, and registry paths
 - infer a missing `goal_id` from a valid Goal filename
 - restore fixed schema and truth-surface fields

@@ -90,8 +90,10 @@ Done means:
   - `docs/stewardship/`
   - `skills/`
   is no longer ad hoc
-- `proposed -> landed` has a stable meaning
-- landed promotion always has proof
+- `proposed -> accepted_for_landing -> landed_verified` has a stable meaning
+- rejected and replaced promotions have explicit `rejected` or `superseded`
+  terminal states
+- landed-verified promotion always has current proof
 
 Evidence of done:
 

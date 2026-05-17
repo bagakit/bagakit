@@ -48,6 +48,9 @@ It does:
 - keep durable promotions typed by repository surface
 - keep promotion intent distinct from landed durable changes
 - keep promotion identities stable across updates
+- keep `topic.json` as canonical truth through locked, atomic topic mutation
+- make identical `--operation-id` retries idempotent and conflicting reuse fail
+- block archive until promotion readiness is current and complete
 
 It does not:
 
@@ -177,6 +180,11 @@ Do not collapse these into one giant memory bucket.
    the compression layer before durable
    promotion.
 
+10. Before archive, require the route to record acceptance authority and ref,
+    counterevidence disposition, target owner, named proof plan and ref, plus
+    current host or upstream landing proof. `archive-topic` fails closed when
+    any of those refs are missing or stale.
+
 ## Operator Preference
 
 Low-level operator:
@@ -205,6 +213,16 @@ Common intake sequence:
   - move one pending signal into structured topic evidence
 - `dismiss-signal`
   - explicitly close one pending signal without topic adoption
+
+Topic mutation rule:
+
+- topic commands accept optional `--operation-id <stable-lowercase-token>`
+- retry the same operation and payload with the same id after an uncertain CLI
+  exit; Evolver returns the committed truth without applying it twice
+- reusing an id with different input is a conflict
+- a canonical commit may succeed before a projection rebuild; the error reports
+  that state truthfully, and the same operation id or `refresh-index` repairs the
+  rebuildable projections
 
 Session-review bridge rules:
 
@@ -246,7 +264,6 @@ structured decision value.
 
 The current implementation direction after this baseline is:
 
-1. harden route and promotion-readiness workflow
-2. add stronger promotion workflows into stable repository surfaces
-3. keep handoff and archive ergonomics derived from topic SSOT instead of
-   adding ad hoc side channels
+1. add held-out and canary proof beyond the fail-closed readiness baseline
+2. keep handoff and archive ergonomics derived from topic SSOT
+3. refine promotion lineage through real steward usage

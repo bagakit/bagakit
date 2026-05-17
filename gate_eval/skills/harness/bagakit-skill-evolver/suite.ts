@@ -12,6 +12,9 @@ function createFixtureRepo(): string {
   const repo = createTempDir("bagakit-evolver-eval-");
   writeTextFile(path.join(repo, "README.md"), "# eval\n");
   fs.mkdirSync(path.join(repo, "docs", "specs"), { recursive: true });
+  writeTextFile(path.join(repo, "docs", "evolver-acceptance.md"), "accepted\n");
+  writeTextFile(path.join(repo, "docs", "evolver-proof-plan.md"), "proof plan\n");
+  writeTextFile(path.join(repo, "docs", "host-note.md"), "host landing\n");
   return repo;
 }
 
@@ -433,12 +436,16 @@ export const SUITE: EvalSuiteDefinition = {
               "--promotion",
               "report-rule",
               "--status",
-              "landed",
+              "landed_verified",
               "--ref",
               "docs/specs/report-rule.md",
               "--proof-refs",
               "docs/specs/report-rule-proof.md",
             ]).status,
+            0,
+          );
+          assert.equal(
+            run(["promote-candidate", "--topic", "report-quality", "--candidate", "c1", "--note", "accepted for landing"]).status,
             0,
           );
           assert.equal(
@@ -450,6 +457,18 @@ export const SUITE: EvalSuiteDefinition = {
               "upstream",
               "--rationale",
               "reusable",
+              "--acceptance-authority",
+              "maintainer",
+              "--acceptance-ref",
+              "docs/evolver-acceptance.md",
+              "--counterevidence-disposition",
+              "addressed",
+              "--target-owner",
+              "docs-specs-maintainers",
+              "--proof-plan",
+              "report-rule-proof",
+              "--proof-plan-ref",
+              "docs/evolver-proof-plan.md",
               "--upstream-promotions",
               "report-rule",
             ]).status,
@@ -555,12 +574,12 @@ export const SUITE: EvalSuiteDefinition = {
             "--promotion",
             "promo",
             "--status",
-            "landed",
+            "landed_verified",
             "--ref",
             "docs/specs/promo.md",
           ]);
           assert.equal(badPromotion.status, 1);
-          assert.ok(badPromotion.stderr.includes("landed promotion requires --proof-refs"));
+          assert.ok(badPromotion.stderr.includes("landed_verified promotion requires --proof-refs"));
           assert.equal(
             run([
               "record-promotion",
@@ -575,7 +594,7 @@ export const SUITE: EvalSuiteDefinition = {
               "--promotion",
               "promo",
               "--status",
-              "landed",
+              "landed_verified",
               "--ref",
               "docs/specs/promo.md",
               "--proof-refs",
@@ -592,6 +611,18 @@ export const SUITE: EvalSuiteDefinition = {
               "upstream",
               "--rationale",
               "reusable",
+              "--acceptance-authority",
+              "maintainer",
+              "--acceptance-ref",
+              "docs/evolver-acceptance.md",
+              "--counterevidence-disposition",
+              "none_found",
+              "--target-owner",
+              "docs-specs-maintainers",
+              "--proof-plan",
+              "promo-proof",
+              "--proof-plan-ref",
+              "docs/evolver-proof-plan.md",
               "--upstream-promotions",
               "promo",
             ]).status,
@@ -687,7 +718,21 @@ export const SUITE: EvalSuiteDefinition = {
               "host",
               "--rationale",
               "host adoption",
+              "--acceptance-authority",
+              "maintainer",
+              "--acceptance-ref",
+              "docs/evolver-acceptance.md",
+              "--counterevidence-disposition",
+              "accepted_risk",
+              "--target-owner",
+              "host-maintainer",
+              "--proof-plan",
+              "host-artifact-check",
+              "--proof-plan-ref",
+              "docs/evolver-proof-plan.md",
               "--host-target",
+              "docs/host-note.md",
+              "--host-ref",
               "docs/host-note.md",
             ]).status,
             0,
@@ -695,7 +740,7 @@ export const SUITE: EvalSuiteDefinition = {
           const hostReadiness = JSON.parse(
             run(["promotion-readiness", "--topic", "host-topic", "--json"]).stdout,
           ) as Record<string, unknown>;
-          assert.equal(hostReadiness.state, "host-proposed");
+          assert.equal(hostReadiness.state, "host-landed");
 
           assert.equal(run(["init-topic", "--slug", "split-topic", "--title", "Split Topic"]).status, 0);
           assert.equal(
@@ -759,7 +804,21 @@ export const SUITE: EvalSuiteDefinition = {
               "split",
               "--rationale",
               "host plus upstream",
+              "--acceptance-authority",
+              "maintainer",
+              "--acceptance-ref",
+              "docs/evolver-acceptance.md",
+              "--counterevidence-disposition",
+              "addressed",
+              "--target-owner",
+              "split-owner",
+              "--proof-plan",
+              "split-proof",
+              "--proof-plan-ref",
+              "docs/evolver-proof-plan.md",
               "--host-target",
+              "docs/host-note.md",
+              "--host-ref",
               "docs/host-note.md",
               "--upstream-promotions",
               "split-spec",

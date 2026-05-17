@@ -62,8 +62,12 @@ name = "append-goal-event"
 summary = "Append one structured Goal control event to the Goal-owned JSONL stream."
 
 [[command]]
+name = "bind-execution-owner"
+summary = "Bind a Goal to a structured execution-owner receipt and its current semantic revision."
+
+[[command]]
 name = "reconcile-goal"
-summary = "Replace stale current truth, record reconciliation, and advance the Goal event cursor."
+summary = "Replace stale current truth, optionally accept a reviewed owner revision, and advance the Goal event cursor."
 
 [[command]]
 name = "render-wrapper"
@@ -71,7 +75,7 @@ summary = "Emit the fixed Goal invocation wrapper template."
 
 [[command]]
 name = "fresh-check"
-summary = "Run the fresh-executor quality check on the current Goal surface."
+summary = "Run the fresh-executor quality check and optionally emit the observed execution-owner revision as JSON."
 
 [[command]]
 name = "archive-goal"

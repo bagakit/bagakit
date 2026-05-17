@@ -29,10 +29,11 @@ task local instead of creating tracker lifecycle state.
 ## What It Owns
 
 - feature identity and feature lifecycle
-- task list and current task progression
+- reviewed semantic task plans, revisions, supersession, and current task progression
 - workspace mode and worktree assignment
 - task gates
 - task commit protocol
+- execution-owner receipts derived from canonical feature state
 - archive and discard state
 
 It does not own:
@@ -81,6 +82,17 @@ bash "$BAGAKIT_FEATURE_TRACKER_SKILL_DIR/scripts/feature-tracker.sh" create-feat
   --goal "<goal>" \
   --workspace-mode proposal_only
 
+bash "$BAGAKIT_FEATURE_TRACKER_SKILL_DIR/scripts/feature-tracker.sh" set-task-plan \
+  --root . \
+  --feature <feature-id> \
+  --tasks-file <reviewed-task-plan.json> \
+  --expected-revision 0
+
+bash "$BAGAKIT_FEATURE_TRACKER_SKILL_DIR/scripts/feature-tracker.sh" assign-feature-workspace \
+  --root . \
+  --feature <feature-id> \
+  --workspace-mode current_tree
+
 bash "$BAGAKIT_FEATURE_TRACKER_SKILL_DIR/scripts/feature-tracker.sh" create-feature-from-planning-entry-handoff \
   --root . \
   --handoff .bagakit/planning-entry/handoffs/<handoff-id>.json \
@@ -108,8 +120,10 @@ bash "$BAGAKIT_FEATURE_TRACKER_SKILL_DIR/scripts/feature-tracker.sh" materialize
 - `feature-tracker.sh materialize-feature-artifact`
 - `feature-tracker.sh create-feature`
 - `feature-tracker.sh create-feature-from-planning-entry-handoff`
+- `feature-tracker.sh set-task-plan`
 - `feature-tracker.sh assign-feature-workspace`
 - `feature-tracker.sh show-feature-status`
+- `feature-tracker.sh get-owner-receipt`
 - `feature-tracker.sh start-task`
 - `feature-tracker.sh run-task-gate`
 - `feature-tracker.sh prepare-task-commit`
@@ -132,6 +146,7 @@ External bridges are intentionally out of scope for this skill.
 - `docs/specs/feature-tracker-contract.md`
 - `docs/specs/feature-tracker-id-issuance.md`
 - `docs/specs/feature-tracker-projection-surfaces.md`
+- `docs/specs/execution-owner-receipt-contract.md`
 - `docs/specs/principle-layer-contract.md`
 
 The runtime payload is intentionally smaller than the canonical repo-spec layer.
@@ -139,7 +154,23 @@ Use the specs above when you need the durable contract rather than the local
 operator entrypoint.
 
 Task SSOT lives only in `tasks.json`.
-The default feature directory keeps only `state.json` and `tasks.json`.
+The default feature directory keeps canonical `state.json` and `tasks.json`
+plus derived `owner-receipt.json`.
+New features without a reviewed task plan remain `proposal` + `proposal_only`
+with no executable placeholder task.
+Active execution requires explicit version 2 reviewed task truth materialized
+from `bagakit.feature-task-plan.v1` through `--tasks-file` or `set-task-plan`.
+Workspace assignment and task start fail closed until that plan exists.
+Plan replacement uses `--expected-revision`, is rejected during active task
+execution, preserves blocked/done evidence, and requires explicit supersession
+lineage against the immediately prior current plan.
+Historical superseded tasks remain attributable but cannot be restarted.
+Review, source, verification, and evidence refs must be portable repo-relative
+paths and must not use URI, absolute, drive-qualified, UNC, or escaping paths.
+`owner-receipt.json` binds `state.json` and `tasks.json` through SHA-256
+`evidence_hashes`; missing or stale persisted receipts fail closed.
+The receipt follows `docs/specs/execution-owner-receipt-contract.md` and remains
+a derived handoff rather than task truth.
 `FEATURES_DAG.json` is a generated dependency projection over active feature
 state; it is not the dependency source of truth and it does not carry
 policy-resolved execution planning.

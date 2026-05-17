@@ -29,6 +29,7 @@ Stable tracker-owned runtime files live under:
 - `.bagakit/feature-tracker/runtime-policy.json`
 - `.bagakit/feature-tracker/features/<feature-id>/state.json`
 - `.bagakit/feature-tracker/features/<feature-id>/tasks.json`
+- `.bagakit/feature-tracker/features/<feature-id>/owner-receipt.json`
 - `.bagakit/feature-tracker/features-archived/<feature-id>/`
 - `.bagakit/feature-tracker/features-discarded/<feature-id>/`
 - `.bagakit/feature-tracker/local/issuer.json`
@@ -80,7 +81,8 @@ Stable local issuer surfaces are:
 Implications:
 
 - `tasks.json` is the only task source of truth
-- the default feature directory contains only `state.json` and `tasks.json`
+- the default feature directory contains `state.json`, `tasks.json`, and the
+  derived `owner-receipt.json`
 - `state.json` may also carry runtime-owner semantics such as `runtime_role`,
   `blocked_reason_class`, and `runtime_relations`; when present,
   `index/features.json` should project those fields as read-optimized index
@@ -161,6 +163,91 @@ Downstream trust gate:
 Tracker may also project the consumed handoff into optional helper markdown such
 as `proposal.md`, but those projections do not replace tracker JSON SSOT.
 
+An approved handoff may carry an optional reviewed `task_plan` using
+`bagakit.feature-task-plan.v1`.
+
+- with `task_plan`, tracker may materialize reviewed task truth immediately
+- without `task_plan`, tracker must create `proposal` + `proposal_only` state
+- an approved handoff is not itself permission to invent executable tasks
+
+## Semantic Task Plan Contract
+
+Active Feature Tracker execution requires explicit version 2 task truth.
+
+Draft `tasks.json` shape:
+
+- `version = 2`
+- `plan_status = draft`
+- `plan_revision = 0`
+- no executable tasks
+
+Reviewed task-plan input schema:
+
+- `schema = bagakit.feature-task-plan.v1`
+- approved review evidence
+- non-empty repo-relative source references
+- one or more semantic tasks
+
+Each reviewed task requires:
+
+- `id`, `title`, `objective`, and `outcome`
+- non-empty acceptance statements
+- non-empty verification mappings with `kind`, repo-relative `ref`, and
+  `proves`
+- non-empty source references
+- explicit `supersedes` lineage when it removes tasks from the prior current
+  plan
+
+Required behavior:
+
+- `create-feature --tasks-file` materializes revision 1
+- `set-task-plan --expected-revision <n>` fails on stale revision
+- workspace assignment and task start fail closed without canonical reviewed
+  version 2 task truth
+- a task may be started only when it belongs to the latest reviewed plan
+- a task already superseded by a later plan cannot be restarted
+- plan replacement is rejected while a task is `in_progress`
+- blocked or done task records with execution evidence remain immutable and
+  attributable when later plans supersede them
+- later revisions compare against the immediately prior current-plan task ids,
+  not every historical task record retained in `tasks.json`
+- active features must use this explicit contract; closed historical features
+  may retain their pre-v2 task shape
+
+Review, source, verification, and evidence references are portable
+repo-relative paths. They must reject repository escape, URI paths, drive
+absolute paths, and UNC paths.
+
+Feature Tracker owns semantic planning truth and task gate evidence. It does
+not own Flow Runner checkpoints, repeated execution scheduling, or normalized
+outer-loop work-item history.
+
+## Execution Owner Receipt
+
+Feature Tracker writes `owner-receipt.json` beside canonical feature state.
+The shared receipt shape is defined by:
+
+- `docs/specs/execution-owner-receipt-contract.md`
+
+Feature Tracker requirements:
+
+- `owner_kind = feature_tracker`
+- `evidence_refs` identify the feature's `state.json` and `tasks.json`
+- `evidence_hashes` bind each evidence ref to the SHA-256 digest of its final
+  canonical file bytes
+- `semantic_revision` is the SHA-256 digest of the compact canonical JSON over
+  owner identity, lifecycle, continuation, current item, blocker,
+  replacement ref, and `evidence_hashes`
+- `save_feat` writes canonical state and tasks before refreshing the receipt
+- a missing receipt, stale receipt, or evidence hash drift fails closed
+- `ready` and valid `in_progress` state map to `continue`
+- missing reviewed plan or missing workspace maps to blocked continuation
+- a replacement points to the repo-relative replacement owner receipt, not a
+  bare feature id
+
+The receipt is a derived owner handoff. It does not become task SSOT and does
+not authorize a consumer to mutate Feature Tracker.
+
 ## Feature Root File Policy
 
 Feature roots are not general-purpose documentation buckets.
@@ -169,6 +256,7 @@ Allowed live-feature root files:
 
 - `state.json`
 - `tasks.json`
+- `owner-receipt.json`
 - optional `proposal.md`
 - optional `spec-delta.md`
 - optional `verification.md`

@@ -22,12 +22,20 @@ name = "create-feature-from-planning-entry-handoff"
 summary = "Create a feature from a planning-entry handoff."
 
 [[command]]
+name = "set-task-plan"
+summary = "Materialize or revise one reviewed semantic task plan with an expected revision guard."
+
+[[command]]
 name = "assign-feature-workspace"
-summary = "Assign or change one feature workspace mode."
+summary = "Assign one reviewed feature to current_tree or worktree execution."
 
 [[command]]
 name = "show-feature-status"
 summary = "Show one feature's status."
+
+[[command]]
+name = "get-owner-receipt"
+summary = "Read and verify the persisted execution-owner receipt against canonical feature state."
 
 [[command]]
 name = "start-task"

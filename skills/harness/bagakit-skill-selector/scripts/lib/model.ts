@@ -315,6 +315,13 @@ export interface LessonUpdateLogEntry {
   notes: string;
 }
 
+export interface MutationLogEntry {
+  operation_id: string;
+  command: string;
+  request_hash: string;
+  applied_at: string;
+}
+
 export interface SkillUsageDoc {
   schema_version: string;
   task_id: string;
@@ -342,6 +349,7 @@ export interface SkillUsageDoc {
   selection_lesson_log: SelectionLessonLogEntry[];
   lesson_update_log: LessonUpdateLogEntry[];
   evolver_signal_log: EvolverSignalLogEntry[];
+  mutation_log: MutationLogEntry[];
 }
 
 export interface BagakitDriverDirective {

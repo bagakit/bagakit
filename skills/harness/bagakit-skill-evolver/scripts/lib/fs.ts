@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import crypto from "node:crypto";
 
 import type {
   EvolverIndex,
@@ -17,9 +18,150 @@ function ensureDir(dir: string): void {
   fs.mkdirSync(dir, { recursive: true });
 }
 
-function writeJson(file: string, value: unknown): void {
+const LOCK_WAIT_MS = 10;
+const DEFAULT_LOCK_TIMEOUT_MS = 15_000;
+const ORPHAN_LOCK_GRACE_MS = 1_000;
+const MAX_MUTATION_RECEIPTS = 256;
+
+interface LockOwner {
+  pid: number;
+  acquired_at: string;
+}
+
+function sleep(milliseconds: number): void {
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, milliseconds);
+}
+
+function fsyncDirectory(dir: string): void {
+  let descriptor: number | undefined;
+  try {
+    descriptor = fs.openSync(dir, "r");
+    fs.fsyncSync(descriptor);
+  } catch {
+    return;
+  } finally {
+    if (descriptor !== undefined) fs.closeSync(descriptor);
+  }
+}
+
+function atomicTempPrefix(file: string): string {
+  return `.${path.basename(file)}.tmp-`;
+}
+
+function cleanupAtomicTemps(file: string): void {
+  const dir = path.dirname(file);
+  if (!fs.existsSync(dir)) return;
+  const prefix = atomicTempPrefix(file);
+  for (const entry of fs.readdirSync(dir)) {
+    if (entry.startsWith(prefix)) fs.rmSync(path.join(dir, entry), { force: true });
+  }
+}
+
+function atomicWriteFile(file: string, content: string): void {
   ensureDir(path.dirname(file));
-  fs.writeFileSync(file, JSON.stringify(value, null, 2) + "\n", "utf8");
+  const mode = fs.existsSync(file) ? fs.statSync(file).mode & 0o777 : 0o666;
+  const tempFile = path.join(
+    path.dirname(file),
+    `${atomicTempPrefix(file)}${process.pid}-${crypto.randomBytes(6).toString("hex")}`,
+  );
+  const descriptor = fs.openSync(tempFile, "wx", mode);
+  try {
+    fs.writeFileSync(descriptor, content, "utf8");
+    fs.fsyncSync(descriptor);
+  } finally {
+    fs.closeSync(descriptor);
+  }
+  if (process.env.BAGAKIT_EVOLVER_TEST_CRASH_AFTER_TEMP_WRITE === "1") {
+    process.exit(86);
+  }
+  try {
+    fs.renameSync(tempFile, file);
+    fsyncDirectory(path.dirname(file));
+  } catch (error) {
+    fs.rmSync(tempFile, { force: true });
+    throw error;
+  }
+  if (process.env.BAGAKIT_EVOLVER_TEST_CRASH_AFTER_RENAME === "1") {
+    process.exit(87);
+  }
+}
+
+function writeJson(file: string, value: unknown): void {
+  atomicWriteFile(file, JSON.stringify(value, null, 2) + "\n");
+}
+
+function processIsAlive(pid: number): boolean {
+  if (!Number.isInteger(pid) || pid <= 0) return false;
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (error) {
+    return (error as NodeJS.ErrnoException).code === "EPERM";
+  }
+}
+
+function readLockOwner(lockPath: string): LockOwner | undefined {
+  try {
+    const raw = JSON.parse(fs.readFileSync(path.join(lockPath, "owner.json"), "utf8")) as Partial<LockOwner>;
+    if (typeof raw.pid !== "number" || typeof raw.acquired_at !== "string") return undefined;
+    return { pid: raw.pid, acquired_at: raw.acquired_at };
+  } catch {
+    return undefined;
+  }
+}
+
+function reclaimDeadLock(lockPath: string): boolean {
+  const owner = readLockOwner(lockPath);
+  if (owner && processIsAlive(owner.pid)) return false;
+  if (!owner) {
+    try {
+      if (Date.now() - fs.statSync(lockPath).mtimeMs < ORPHAN_LOCK_GRACE_MS) return false;
+    } catch {
+      return true;
+    }
+  }
+  try {
+    fs.rmSync(lockPath, { recursive: true, force: true });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function lockTimeoutMs(): number {
+  const raw = Number(process.env.BAGAKIT_EVOLVER_LOCK_TIMEOUT_MS ?? DEFAULT_LOCK_TIMEOUT_MS);
+  return Number.isFinite(raw) && raw > 0 ? raw : DEFAULT_LOCK_TIMEOUT_MS;
+}
+
+function withShortLock<T>(lockPath: string, label: string, callback: () => T): T {
+  ensureDir(path.dirname(lockPath));
+  const deadline = Date.now() + lockTimeoutMs();
+  while (true) {
+    try {
+      fs.mkdirSync(lockPath);
+      fs.writeFileSync(
+        path.join(lockPath, "owner.json"),
+        `${JSON.stringify({ pid: process.pid, acquired_at: new Date().toISOString() })}\n`,
+        "utf8",
+      );
+      break;
+    } catch (error) {
+      const code = (error as NodeJS.ErrnoException).code;
+      if (code !== "EEXIST") {
+        throw error;
+      }
+      if (!reclaimDeadLock(lockPath) && Date.now() >= deadline) {
+        const owner = readLockOwner(lockPath);
+        throw new Error(`topic mutation conflict: timed out waiting for ${label}${owner ? ` (pid=${owner.pid})` : ""}`);
+      }
+      sleep(LOCK_WAIT_MS);
+    }
+  }
+  try {
+    return callback();
+  } finally {
+    fs.rmSync(lockPath, { recursive: true, force: true });
+  }
 }
 
 function readJson(file: string): unknown {
@@ -52,6 +194,12 @@ function normalizeRoutingRecord(raw: unknown): RoutingRecord | undefined {
     decision: String(record.decision ?? "") as RoutingRecord["decision"],
     rationale: String(record.rationale ?? ""),
     decided_at: String(record.decided_at ?? ""),
+    acceptance_authority: record.acceptance_authority === undefined ? undefined : String(record.acceptance_authority),
+    acceptance_ref: record.acceptance_ref === undefined ? undefined : String(record.acceptance_ref),
+    counterevidence_disposition: record.counterevidence_disposition,
+    target_owner: record.target_owner === undefined ? undefined : String(record.target_owner),
+    proof_plan: record.proof_plan === undefined ? undefined : String(record.proof_plan),
+    proof_plan_ref: record.proof_plan_ref === undefined ? undefined : String(record.proof_plan_ref),
     host_target: record.host_target === undefined ? undefined : String(record.host_target),
     host_ref: record.host_ref === undefined ? undefined : String(record.host_ref),
     upstream_promotion_ids: Array.isArray(record.upstream_promotion_ids)
@@ -82,6 +230,7 @@ function normalizePromotionRecord(raw: unknown): PromotionRecord {
 function normalizeTopicRecord(raw: Partial<TopicRecord>, fallbackSlug: string): TopicRecord {
   return {
     version: 1,
+    revision: Number(raw.revision ?? 0),
     slug: String(raw.slug ?? fallbackSlug),
     title: String(raw.title ?? fallbackSlug),
     status: (raw.status ?? "active") as TopicRecord["status"],
@@ -96,6 +245,7 @@ function normalizeTopicRecord(raw: Partial<TopicRecord>, fallbackSlug: string): 
     benchmarks: Array.isArray(raw.benchmarks) ? raw.benchmarks : [],
     promotions: Array.isArray(raw.promotions) ? raw.promotions.map((item) => normalizePromotionRecord(item)) : [],
     notes: Array.isArray(raw.notes) ? raw.notes : [],
+    mutation_receipts: Array.isArray(raw.mutation_receipts) ? raw.mutation_receipts : [],
   };
 }
 
@@ -240,23 +390,96 @@ export function writeTopic(paths: EvolverPaths, topic: TopicRecord): void {
   writeJson(paths.topicFile(topic.slug), topic);
 }
 
+export interface TopicMutationOptions {
+  operation: string;
+  operationId?: string;
+  payload: unknown;
+  create?: () => TopicRecord;
+}
+
+export interface TopicMutationResult {
+  topic: TopicRecord;
+  idempotent: boolean;
+}
+
+export function mutateTopic(
+  paths: EvolverPaths,
+  slug: string,
+  options: TopicMutationOptions,
+  mutate: (topic: TopicRecord) => void,
+): TopicMutationResult {
+  return withShortLock(paths.topicLock(slug), `topic ${slug}`, () => {
+    cleanupAtomicTemps(paths.topicFile(slug));
+    const topic = topicExists(paths, slug)
+      ? readTopic(paths, slug)
+      : options.create?.();
+    if (!topic) {
+      throw new Error(`unknown topic: ${slug}`);
+    }
+
+    const payloadHash = crypto
+      .createHash("sha256")
+      .update(JSON.stringify(options.payload))
+      .digest("hex");
+    if (options.operationId) {
+      const prior = topic.mutation_receipts.find((receipt) => receipt.operation_id === options.operationId);
+      if (prior) {
+        if (prior.operation !== options.operation || prior.payload_hash !== payloadHash) {
+          throw new Error(
+            `conflict[operation_id_reused]: operation-id ${options.operationId} was already applied with different semantics`,
+          );
+        }
+        return { topic, idempotent: true };
+      }
+    }
+
+    mutate(topic);
+    topic.revision += 1;
+    if (options.operationId) {
+      topic.mutation_receipts.push({
+        operation_id: options.operationId,
+        operation: options.operation,
+        payload_hash: payloadHash,
+        revision: topic.revision,
+        committed_at: topic.updated_at,
+      });
+      topic.mutation_receipts = topic.mutation_receipts.slice(-MAX_MUTATION_RECEIPTS);
+    }
+    writeTopic(paths, topic);
+    return { topic, idempotent: false };
+  });
+}
+
+export function rebuildTopicProjections(paths: EvolverPaths, slug: string): TopicRecord {
+  const projectionLock = path.join(paths.stateRoot, ".projections.lock");
+  return withShortLock(projectionLock, "evolver projections", () => {
+    const topic = readTopic(paths, slug);
+    writeTopicReadme(paths, topic);
+    writeTopicReport(paths, topic);
+    writeTopicHandoff(paths, topic);
+    writeTopicArchive(paths, topic);
+    writeIndex(paths, syncIndexFromTopics(paths));
+    return topic;
+  });
+}
+
 export function writeTopicReadme(
   paths: EvolverPaths,
   topic: TopicRecord,
 ): void {
   ensureDir(paths.topicDir(topic.slug));
-  fs.writeFileSync(paths.topicReadme(topic.slug), buildTopicReadme(paths, topic), "utf8");
+  atomicWriteFile(paths.topicReadme(topic.slug), buildTopicReadme(paths, topic));
 }
 
 export function writeTopicReport(paths: EvolverPaths, topic: TopicRecord): void {
   ensureDir(paths.topicDir(topic.slug));
-  fs.writeFileSync(paths.topicReport(topic.slug), buildTopicReport(paths, topic), "utf8");
+  atomicWriteFile(paths.topicReport(topic.slug), buildTopicReport(paths, topic));
 }
 
 export function writeTopicHandoff(paths: EvolverPaths, topic: TopicRecord): void {
   ensureDir(paths.topicDir(topic.slug));
-  const readiness = evaluatePromotionReadiness(topic);
-  fs.writeFileSync(paths.topicHandoff(topic.slug), buildTopicHandoff(paths, topic, readiness), "utf8");
+  const readiness = evaluatePromotionReadiness(topic, paths.root);
+  atomicWriteFile(paths.topicHandoff(topic.slug), buildTopicHandoff(paths, topic, readiness));
 }
 
 export function writeTopicArchive(paths: EvolverPaths, topic: TopicRecord): void {
@@ -268,8 +491,8 @@ export function writeTopicArchive(paths: EvolverPaths, topic: TopicRecord): void
     return;
   }
   ensureDir(paths.topicDir(topic.slug));
-  const readiness = evaluatePromotionReadiness(topic);
-  fs.writeFileSync(archiveFile, buildTopicArchive(paths, topic, readiness), "utf8");
+  const readiness = evaluatePromotionReadiness(topic, paths.root);
+  atomicWriteFile(archiveFile, buildTopicArchive(paths, topic, readiness));
 }
 
 export function syncIndexEntry(
