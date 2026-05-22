@@ -106,6 +106,7 @@ Stable runtime-owner fields:
   - `standalone`
   - `frontdoor_context`
   - `execution_owner`
+  - `foreground_owner`
 - `state.json.blocked_reason_class`
   - `none`
   - `external_blocker`
@@ -130,6 +131,8 @@ Required invariants:
 - `frontdoor_context` features may only point outward with
   `runtime_relations[].relation = frontdoor_for`
 - `execution_owner` features may only point outward with
+  `runtime_relations[].relation = handoff_from`
+- `foreground_owner` features may only point outward with
   `runtime_relations[].relation = handoff_from`
 - cross-feature runtime links should stay symmetric:
   `frontdoor_for(A -> B)` requires `handoff_from(B -> A)`

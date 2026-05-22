@@ -4,7 +4,7 @@ cli_id = "bagakit-set-loop-goal"
 entrypoint = "scripts/bagakit-set-loop-goal-cli.sh"
 runner = "shell"
 usage = "sh scripts/bagakit-set-loop-goal-cli.sh <command>"
-summary = "Materialize and maintain loop-resumable Goal control planes."
+summary = "Materialize staleness-safe Goal Kernels with one execution owner."
 surface_refs = [
   ".bagakit/goal/",
 ]
@@ -27,15 +27,15 @@ summary = "Create the .bagakit/goal runtime surface and its entrypoint files."
 
 [[command]]
 name = "inspect-upgrade"
-summary = "Inspect Goal protocol versions, completeness, deterministic repairs, and semantic conflicts without mutation."
+summary = "Inspect protocol, Kernel admission, owner migration, topology, deterministic repairs, and semantic conflicts without mutation."
 
 [[command]]
 name = "upgrade-surface"
-summary = "Upgrade a legacy or incomplete Goal surface when the plan contains no unresolved semantic conflicts."
+summary = "Upgrade to v0.3 after legacy dynamic truth is migrated into exactly one execution owner."
 
 [[command]]
 name = "upsert-goal"
-summary = "Create or update a Goal file and sync it into the active registry."
+summary = "Create or update a Goal Kernel with one existing execution owner and sync the registry."
 
 [[command]]
 name = "set-foreground"
@@ -62,12 +62,8 @@ name = "append-goal-event"
 summary = "Append one structured Goal control event to the Goal-owned JSONL stream."
 
 [[command]]
-name = "bind-execution-owner"
-summary = "Bind a Goal to a structured execution-owner receipt and its current semantic revision."
-
-[[command]]
 name = "reconcile-goal"
-summary = "Replace stale current truth, optionally accept a reviewed owner revision, and advance the Goal event cursor."
+summary = "Confirm owner evidence, record reconciliation, and advance the Goal event cursor without copying live state into Goal."
 
 [[command]]
 name = "render-wrapper"
@@ -75,7 +71,7 @@ summary = "Emit the fixed Goal invocation wrapper template."
 
 [[command]]
 name = "fresh-check"
-summary = "Run the fresh-executor quality check and optionally emit the observed execution-owner revision as JSON."
+summary = "Check Kernel shape, owner recovery, registry agreement, event cursor, and archive isolation."
 
 [[command]]
 name = "archive-goal"

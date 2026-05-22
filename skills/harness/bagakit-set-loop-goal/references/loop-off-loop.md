@@ -1,40 +1,11 @@
 # Loop-Off-Loop Control
 
-Use this reference when a Goal file supports an inner execution loop observed
-by an outer supervisor loop or by a self-supervised executor checkpoint.
-
-## Contents
-
-- Model
-- Invocation Wrapper
-- Supervisor File
-- Supervisor Cycle
-- Evolver Review Checkpoints
-- Drift Classes
-- Supervisor Packet
-- Relationship To bagakit-loop-supervisor
-
-## Model
-
-- Inner loop: implements or advances one bounded step.
-- Supervisor checkpoint: observes evidence, detects drift, and updates the Goal
-  or next instruction.
-- Goal surface: `current.md`, `state.yaml`, optional `supervisor.md`, and the
-  foreground Goal file.
-- Event surface: Goal steering events use Goal JSONL; inner execution events
-  stay in the Runner, evaluator, or tool-owned stream.
-
-The supervisor should correct the control plane, not become a second executor.
+The inner loop executes owner tasks. The outer supervisor compares owner
+evidence with the Goal Kernel and corrects drift without becoming an executor.
 
 ## Invocation Wrapper
 
-When the host supports file references, the text set in the Codex Goal command,
-Claude Loop command, or a comparable agent goal should reference the Goal
-entrypoint directly.
-
-Use the fixed templates below. Do not rewrite them as free-form prose. Only
-change repo-relative paths when the host project uses a different Goal surface,
-and only omit the supervisor block when `supervisor.md` does not exist.
+Use these fixed host prompts. Do not rewrite them as free-form prose.
 
 With supervisor:
 
@@ -57,143 +28,98 @@ Read current.md first; it resolves state.yaml, foreground_goal, and the active G
 Context may be stale or wrong; recover from this file before trusting prior context.
 ```
 
-If supervision is added later, `current.md` should recall `supervisor.md`; if it
-exists at Goal setup time, include both references because direct file inclusion
-improves recovery.
+If supervision is added later, `current.md` recalls it. If present when the Goal
+or Loop is set, include both references for stronger recovery.
 
-When file references are unavailable, use the same instructions with
-repo-relative paths.
+## Stable Supervisor File
 
-## Supervisor File
+`supervisor.md` owns only:
 
-Use `.bagakit/goal/supervisor.md` for shared supervision rules when
-`state.yaml` sets `supervision.mode` to `self` or `external`.
-
-Keep `supervisor.md` focused on:
-
-- role boundary between executor and supervisor checkpoint
+- executor versus supervisor role boundary
 - checkpoint cadence
 - drift classes
-- packet schema
-- sidecar/Grok handling
-- stop, ask, and patch rules
+- packet ownership and response rules
+- sidecar handling
+- stop, ask, and Kernel-patch boundaries
 
-Do not put run logs, raw sidecar output, or task details in `supervisor.md`.
+It does not own task state, packets, logs, assignments, evidence, or waits.
 
 ## Supervisor Cycle
 
-1. Re-read `current.md`, `state.yaml`, `supervisor.md` when present, and the
-   foreground Goal file when the Goal surface exists; otherwise re-read the
-   explicit Goal file.
-2. Read inner-loop evidence: checkpoint, diff, validation, incident, or user
-   discussion.
-3. Classify whether execution is aligned, drifting, waiting, blocked, or ready
-   to stop.
-4. Distill new information into one of:
-   - Goal patch
-   - owner-file pointer
-   - open user question
-   - next inner-loop instruction
-   - stop recommendation
-5. Update the Goal only when the update changes execution direction or recovery.
-6. Append the steering observation as a Goal control event. Reconcile the Goal
-   before more execution when that event changes current state, next action,
-   status, or a user gate.
-
-## Evolver Review Checkpoints
-
-Request an Evolver review when a bounded execution event may reveal a reusable
-repository lesson:
-
-- `before_round`: evidence or a known risk should influence the next round
-- `after_round`: the round produced comparison, retry, failure, or feedback
-  evidence
-- `risk`: privacy, cost, publication, reversibility, or repeated failure may
-  reveal a reusable control rule
-- `stale`: expected checkpoint, validation, decision, or feedback evidence is
-  missing
-- `pre_closeout`: review reusable lessons before final Goal archive
-- `session_end`: opportunistic review when session-end evidence is available
-
-Write the request or receipt under `.bagakit/goal/reviews/`. The Goal surface
-does not run a timer service and does not own Evolver topic, adoption, routing,
-or promotion state. A `signal_candidate` disposition emits a deterministic next
-instruction to pass the receipt path to Evolver's session-review intake.
+1. Read `current.md`, `state.yaml`, the foreground Kernel, its
+   `execution_owner`, and `supervisor.md` when active.
+2. Read the latest owner-native task, packet, checkpoint, diff, validation,
+   incident, and user decision evidence.
+3. Classify alignment as `on_track`, `needs_correction`, `waiting`, `blocked`,
+   or `ready_to_stop`.
+4. Update the owner for current state, next action, task, wait, blocker, packet,
+   or evidence changes.
+5. Patch the Kernel only for final outcome, invariant, non-goal, acceptance,
+   stop boundary, authority, or stable context-reference changes.
+6. Append a Goal event only for Kernel, lifecycle, authority, or user-gate
+   effects. Reconcile its cursor against owner evidence.
+7. Continue unrelated safe work while one branch waits. Block the whole loop
+   only when the waiting boundary actually gates all useful work.
 
 ## Drift Classes
 
-- target drift: the work is solving the neighboring problem
-- method drift: the chosen path is increasingly poor
-- scope drift: the work is expanding without stronger justification
-- evidence drift: claims are outrunning validation
-- retry drift: the same failed move keeps repeating
-- risk drift: the next move changes privacy, cost, publication, or reversibility
-- context drift: a compact/restart/handoff would lose the reason behind current
-  choices
+- target: solving a neighboring problem
+- method: continuing a poor approach without new mechanism
+- scope: expansion without stronger value or authority
+- evidence: claims outrunning proof
+- retry: repeating the same failed move
+- risk: privacy, cost, publication, or reversibility changed
+- context: recovery no longer preserves why the Kernel is true
 
-## Waiting And Loss Lines
+## Waiting And Blocking
 
-Use this three-question decision tree:
+Store the full decision in the execution owner:
 
-1. Can safe, valuable work still advance now? Keep the Goal `active`.
-2. If not, is there a known external event that can resume execution? Set the
-   Goal to `waiting` and record `resume_on` plus one task-specific `loss_line`.
-3. If no credible recovery event exists, or post-loss-line reassessment shows
-   waiting is no longer justified, set the Goal to `blocked` and name the
-   missing recovery path.
+1. If safe valuable work can advance, keep working.
+2. Otherwise, if a known external event can resume work, record waiting,
+   `resume_on`, and one task-specific loss line in owner state.
+3. Before the loss line, do not count no-progress rounds or spend full turns
+   polling.
+4. After it, use bounded reassessment and task judgment. Counts are evidence,
+   never an automatic block trigger.
+5. Mark blocked only when no credible recovery path remains for the task.
 
-Waiting rules:
-
-- `phase: grace`: do not count no-progress rounds and do not spend full model
-  turns merely checking whether the event happened.
-- Choose the loss line from task evidence, including authorization expiry,
-  expected human latency, urgency, reversibility, observation cost, and useful
-  fallback work. Do not use one global duration or round threshold.
-- After the loss line is crossed, set `phase: assessing`. Each bounded,
-  materially distinct reassessment that still finds no recovery may increment
-  `no_progress_rounds`.
-- The count is evidence for model judgment, not an automatic block trigger.
-  Repeating the same no-change check does not make the blocker more severe.
-- Prefer event delivery or suspension. If polling is necessary, use bounded
-  backoff and stop expensive observation when its cost is no longer justified.
-- Resume `active` when the recovery event occurs. Use `blocked` only when the
-  recovery path is absent, invalid, expired, rejected, or no longer reasonable
-  for this task.
+Goal may mirror `waiting` or `blocked` only as a coarse multi-Goal scheduling
+status. The owner remains truth for recovery event, counters, fallback work,
+authorization state, and observation backoff.
 
 ## Supervisor Packet
 
-When useful, emit a concise packet:
+Store the current packet inside the execution owner or Runner:
 
 ```toml
-goal_state_file = ".bagakit/goal/state.yaml"
-goal_file = ".bagakit/goal/<goal-id>.md"
-foreground_goal = "<goal-id>"
-status = "on_track" # on_track | needs_correction | waiting | blocked | ready_to_stop
-goal_delta = "none" # none | clarify | narrow | broaden | replace
-sidecar = "not_needed" # not_needed | dispatched | pending | unavailable | incorporated
+goal_id = "<goal-id>"
+kernel_ref = ".bagakit/goal/<goal-id>.md"
+owner_ref = "<execution-owner-ref>"
+status = "on_track"
+goal_delta = "none"
 drift = []
 evidence = []
-goal_patch = ""
-next_instruction = ""
-stop_rule = ""
+owner_update = ""
+kernel_patch = ""
+next_action = ""
 user_question = ""
 ```
 
-Rules:
+Packets are mutable execution truth. Goal JSONL may point to one only when it
+causes a Kernel, lifecycle, authority, or user-gate event.
 
-- `next_instruction` is for the inner loop.
-- `goal_patch` changes the Goal before further execution.
-- `goal_delta = "replace"` requires user confirmation unless the user already
-  delegated the change.
-- `waiting` names the external recovery event and reads the Goal's wait block.
-- `blocked` names why no credible recovery path remains.
-- `ready_to_stop` names acceptance evidence.
-- Store repeated packets as JSONL control events, not appended Markdown in
-  `supervisor.md`. Keep raw execution telemetry in the execution owner.
+## Evolver Review Checkpoints
+
+Use event-bound review triggers: `before_round`, `after_round`, `risk`, `stale`,
+`pre_closeout`, or opportunistic `session_end`. `stale` means expected evidence
+is missing. Goal owns compact request/receipt identity; Evolver owns intake,
+adoption, routing, and promotion. Send a `signal_candidate` receipt to Evolver's
+session-review intake; do not create Evolver topic state from Goal.
 
 ## Relationship To bagakit-loop-supervisor
 
-There should not be a separate `bagakit-loop-supervisor` skill until supervision
-has an independent operator that owns durable packet logs, drift logs, sidecar
-sessions, and runner integration. Until then, supervision is a mode of
-`bagakit-set-loop-goal`, with `supervisor.md` as the optional contract file.
+There is no separate supervisor skill until supervision owns an independent
+operator and durable runtime. For now, it is a mode of
+`bagakit-set-loop-goal`; `supervisor.md` is policy and the execution owner holds
+live state.

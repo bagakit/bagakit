@@ -1,121 +1,160 @@
 # Goal Protocol Upgrade Contract
 
-Use this reference when a Goal surface may be missing protocol metadata, use an
-older protocol, contain incomplete files, or need several Goals reconciled into
-one executable topology.
-
-## Contents
-
-- Current Protocol
-- Upgrade Detection
-- Deterministic Repairs
-- Semantic Conflicts
-- Grill Handoff
-- Upgrade Workflow
-- Safety Rules
+Use this reference for missing metadata, pre-v0.3 Goals, incomplete Kernels,
+owner migration, and multi-Goal topology conflicts.
 
 ## Current Protocol
 
-The current Goal protocol is:
-
 ```text
-bagakit.goal.v.0.2
+bagakit.goal.v.0.3
 ```
 
-Record it in three places:
+Record it in `surface.toml`, `state.yaml`, and Goal frontmatter. Compare final
+major/minor numbers numerically. Missing versions are older. Future versions
+fail closed and must never be downgraded.
 
-- `protocol_version` in `.bagakit/goal/state.yaml`
-- `protocol_version` in each Goal file frontmatter
-- `protocol_version` in `.bagakit/goal/surface.toml`
+## Detection
 
-The protocol version describes the complete Goal control-plane contract. File
-schemas such as `bagakit.loop-goal.v1` remain format identifiers and do not
-replace protocol negotiation.
+Inspect or upgrade when:
 
-Version `bagakit.goal.v.0.2` adds optional revision-bound execution-owner
-receipts. Existing `v.0.1` Goals upgrade deterministically because an absent
-`owner_binding` preserves standalone Goal behavior. Do not infer a binding from
-free-form orchestration text during upgrade.
+- protocol metadata is missing or older
+- generated entrypoint, registry, directories, event stream, or Goal is absent
+- Kernel frontmatter or required sections are missing
+- an unarchived Goal lacks exactly one valid `execution_owner`
+- Goal and registry disagree on lifecycle, owner, role, path, or foreground
+- legacy dynamic sections or Goal-local wait details remain
+- several incomplete Goals have no unambiguous foreground
+- event cursor or topology is malformed
+- closed Goals still interfere with active execution
 
-Compare protocol versions numerically by their final major and minor numbers.
-Missing versions are older than the current protocol. Never downgrade a surface
-whose version is newer than the installed skill.
-
-## Upgrade Detection
-
-A Goal surface requires inspection or upgrade when any of these is true:
-
-- protocol metadata is missing
-- protocol version is lower than `bagakit.goal.v.0.2`
-- `current.md`, `state.yaml`, `surface.toml`, or a registered Goal is missing
-- a Goal frontmatter field is missing or invalid
-- required Goal sections are absent or empty
-- registry status, role, path, or foreground state conflicts with Goal truth
-- an event stream or reconciliation cursor is missing, invalid, or stale
-- completed or abandoned Goals still interfere with the active work set
-- several incomplete Goals exist without one unambiguous foreground Goal
-- legacy append-only Markdown history still lives inside a Goal
-
-Inspection is read-only. Normal mutating Goal operations should attempt the
-same deterministic upgrade before continuing. If the surface cannot be safely
-upgraded without choosing user intent, stop before normal mutation.
+Inspection is read-only. A mutating command must not partially apply a blocked
+upgrade.
 
 ## Deterministic Repairs
 
-Apply these without Grill when evidence has one safe interpretation:
+Apply without Grill when one safe interpretation exists:
 
-- add missing current protocol metadata
-- upgrade `v.0.1` metadata to `v.0.2` without inventing an execution-owner binding
-- restore `surface.toml`, `current.md`, standard directories, and registry paths
-- infer a missing `goal_id` from a valid Goal filename
-- restore fixed schema and truth-surface fields
-- treat Goal frontmatter lifecycle as authoritative over the registry cache
-- create a Goal event stream when no prior stream exists
-- initialize a reconciliation cursor to the generated upgrade event
-- add empty `Recent Decisions` or `Open Questions` sections
-- move a legacy `Goal Delta Log` into an archive-side legacy-log artifact
-- archive a complete or abandoned Goal that has valid completion state
-- choose the only incomplete Goal as foreground when exactly one exists
-- normalize all non-foreground registry roles to backlog or their explicit role
-- preserve valid project-defined topology relation ids
+- restore generated `surface.toml`, `current.md`, directories, and registry
+  shape
+- add current protocol and fixed schema fields
+- infer `goal_id` from a valid matching filename
+- mirror frontmatter lifecycle and owner into the registry
+- create an empty event stream and cursor
+- add `Context References: - none`
+- archive complete or explicitly abandoned Goals
+- select the only incomplete Goal as foreground
+- preserve valid project-defined topology edge ids
+- map legacy `Execution Principles` to `Protected Invariants`
+- generate the standard Authority and Orchestration owner boundary
 
-Every automatic repair must be idempotent and preserve original Goal meaning.
-Moving legacy history out of an incomplete Goal creates an unreconciled
-`goal_upgraded` event. Normal mutation and Goal wrapper rendering remain blocked
-until `reconcile-goal` rebuilds current truth from owner evidence.
+Deterministic repair may fix shape. It must not invent final outcome,
+invariants, acceptance, authority, or user risk choices.
 
-## Semantic Conflicts
+## Execution-Truth Migration
 
-Do not guess when repair changes intent. Stop and emit an upgrade conflict for:
+Pre-v0.3 Goal Markdown may contain Current State, Next Execution Instruction,
+Recent Decisions, Open Questions, Orchestration Index, wait details, or logs.
+Never discard these while they are the only recoverable copy.
 
-- several plausible foreground Goals
-- a non-foreground Goal still marked `active` when pausing it may be wrong
-- unclear `supersedes`, `interrupts`, `depends_on`, or `resumes_after` relations
-- malformed or orphaned topology edges whose meaning cannot be recovered
-- missing or contradictory objective, execution principles, acceptance, or next
-  instruction
-- a completion claim without sufficient completion evidence
-- uncertainty between `waiting`, `paused`, `blocked`, `complete`, and
-  `abandoned`
-- `status: waiting` without a recoverable `resume_on`, task-specific
-  `loss_line`, phase, or valid no-progress count
-- owner truth that contradicts a user promise or another Goal
-- privacy, publication, cost, or irreversible-action implications
+1. Reuse a compatible Spec, Feature, or equivalent owner. If none exists,
+   create a Feature with `bagakit-feature-tracker`.
+2. Move still-valid current state and tasks into owner-native state.
+3. Route decisions, questions, blockers, waits, packets, and evidence to their
+   native owner surfaces.
+4. Write one structured receipt inside the owner. Bind it to the exact legacy
+   Goal hash and classify every legacy dynamic or unknown section.
+5. Rerun upgrade with:
 
-Unsupported future protocol versions are blocking compatibility conflicts, not
-Grill questions. Use a newer installed skill instead of downgrading.
+```text
+--execution-owner <goal-id>:<kind>:<repo-relative-owner-ref>
+--owner-migration-ref <goal-id>:<repo-relative-ref-inside-owner>
+```
 
-## Grill Handoff
+Receipt shape:
 
-Write unresolved upgrade state to `.bagakit/goal/upgrade.json` using a compact
-packet:
+```json
+{
+  "schema": "bagakit.goal-owner-migration.v1",
+  "goal_id": "<goal-id>",
+  "source_protocol": "bagakit.goal.v.0.2",
+  "source_goal_ref": ".bagakit/goal/<goal-id>.md",
+  "source_sha256": "<sha256 of the complete legacy Goal>",
+  "execution_owner": {
+    "kind": "bagakit-feature-tracker",
+    "ref": ".bagakit/feature-tracker/features/<feature-id>"
+  },
+  "sections": {
+    "Current State": {
+      "source_sha256": "<sha256 of this section>",
+      "disposition": "migrated_to_owner",
+      "target_refs": [".bagakit/feature-tracker/features/<feature-id>/tasks.json"],
+      "kernel_headings": [],
+      "rationale": "Current execution truth was distilled into owner-native state."
+    },
+    "Orchestration Index": {
+      "source_sha256": "<sha256 of this section>",
+      "disposition": "promoted_to_kernel",
+      "target_refs": [],
+      "kernel_headings": ["Authority And Orchestration"],
+      "rationale": "The section contains a durable approval boundary."
+    }
+  },
+  "kernel_patch": {
+    "Protected Invariants": [],
+    "Acceptance And Stop Rules": [],
+    "Authority And Orchestration": ["Ask before publication or irreversible actions."],
+    "Context References": []
+  },
+  "unresolved": []
+}
+```
+
+Each legacy dynamic or unknown section, plus legacy `wait` frontmatter, requires
+one disposition:
+
+- `migrated_to_owner`: names existing target refs inside the selected owner
+- `promoted_to_kernel`: names one or more permitted Kernel headings and supplies
+  their patch lines
+- `discarded_as_stale`: supplies a non-empty rationale and no target
+
+The whole-Goal and per-section hashes prevent stale or generic receipts. Empty
+JSON, arbitrary files, refs outside the owner, missing targets, and unsupported
+Kernel headings are invalid. Any non-empty `unresolved` list routes the concrete
+migration packet through Grill before rewrite.
+
+On apply, the operator preserves `<goal-id>.pre-v0.3.md` and any legacy stream
+under `archive/`, rewrites the active Goal as a Kernel, and creates a fresh v0.3
+event stream. The archive snapshot is safety history, not active truth.
+
+If a pre-v0.3 Goal or event snapshot already exists with different content,
+stop with `archive_collision`; never skip the new snapshot and continue
+rewriting.
+
+## Semantic Conflicts And Grill
+
+Use Grill after local inspection only when user intent is still required:
+
+- contradictory or absent Prime Directive
+- missing protected invariant or non-goal
+- ambiguous acceptance, insufficiency, stop, privacy, cost, publication, or
+  irreversible-action boundary
+- several plausible foreground Goals or execution owners
+- unclear lifecycle or topology meaning
+- completion without sufficient evidence
+- owner truth contradicting a user promise or another Goal
+
+Do not Grill deterministic formatting or a simple absence of owner machinery.
+Create the Feature first. When several compatible owners or interpretations
+remain, hand the concrete `upgrade.json` conflict to Grill and ask one
+dependency-ready question at a time.
+
+Conflict packet:
 
 ```json
 {
   "schema": "bagakit.goal-upgrade-report.v1",
-  "target_protocol": "bagakit.goal.v.0.2",
+  "target_protocol": "bagakit.goal.v.0.3",
   "status": "blocked",
-  "deterministic_actions": [],
   "conflicts": [
     {
       "conflict_id": "foreground-selection",
@@ -123,40 +162,25 @@ packet:
       "goal_ids": ["goal-a", "goal-b"],
       "evidence_refs": [".bagakit/goal/state.yaml"],
       "options": ["select goal-a", "select goal-b", "correct the topology"],
-      "recommended": "Select the Goal that protects the currently promised outcome; pause the other without abandoning it.",
-      "risk_if_wrong": "The executor may advance the wrong objective or hide unfinished work.",
+      "recommended": "Select the Goal protecting the currently promised outcome; pause the other.",
+      "risk_if_wrong": "The executor may advance the wrong objective.",
       "route": "bagakit-grill"
     }
   ]
 }
 ```
 
-Use Grill only for semantic conflicts. Give Grill this packet as the concrete
-target snapshot, preserve the protected outcome, ask one decision-bearing
-question at a time, record the consensus, then rerun the upgrade. Grill does
-not directly rewrite Goal topology.
+## Workflow
 
-## Upgrade Workflow
+1. Run `inspect-upgrade`.
+2. Create or select missing execution owners and migrate old dynamic truth.
+3. Resolve remaining semantic conflicts through Grill or explicit user input.
+4. Run `upgrade-surface --apply` with foreground, pause, owner, and migration
+   overrides as needed.
+5. Reconcile any listed Goal against owner evidence.
+6. Run `fresh-check`.
+7. Give the user a plain-language recap of Kernel, owner, foreground, archived
+   legacy state, and remaining risks.
 
-1. Run `inspect-upgrade` to inventory versions, files, topology, repairs, and
-   conflicts without mutation.
-2. If only deterministic actions remain, run `upgrade-surface --apply` or let a
-   normal mutating Goal command perform the same upgrade attempt.
-3. If semantic conflicts exist, preserve `.bagakit/goal/upgrade.json` and stop.
-4. Resolve conflicts through Grill or explicit user decisions.
-5. Apply the resolved topology and rerun `upgrade-surface --apply`.
-6. Reconcile every incomplete Goal whose current truth changed.
-7. Run `fresh-check`; normal execution remains blocked until it passes.
-8. Give the user a plain-language upgrade recap.
-
-## Safety Rules
-
-- Inspection never mutates.
-- Upgrade plans complete before writes begin; do not partially apply a blocked
-  plan.
-- Automatic repair must not abandon, complete, pause, or reprioritize a Goal
-  when intent is ambiguous.
-- Preserve legacy logs and completion evidence before moving or rewriting files.
-- Future-version surfaces fail closed.
-- Re-running an applied upgrade is a no-op except for deterministic template
-  refreshes.
+Automatic repair never abandons, completes, reprioritizes, or changes promised
+outcome when intent is ambiguous.

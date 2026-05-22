@@ -1,35 +1,25 @@
 set -euo pipefail
 
 root="."
-
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --root)
-      root="$2"
-      shift 2
-      ;;
-    *)
-      printf 'unknown argument: %s\n' "$1" >&2
-      exit 2
-      ;;
+    --root) root="$2"; shift 2 ;;
+    *) printf 'unknown argument: %s\n' "$1" >&2; exit 2 ;;
   esac
 done
 
 cd "$root"
-
 cli="skills/harness/bagakit-set-loop-goal/scripts/bagakit-set-loop-goal-cli.sh"
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
 
 write_legacy_goal() {
-  local target="$1"
-  local goal_id="$2"
-  local title="$3"
-  local status="$4"
-  mkdir -p "$(dirname "$target")"
-  cat >"$target" <<EOF
+  local path="$1" goal_id="$2" title="$3" status="$4"
+  mkdir -p "$(dirname "$path")"
+  cat >"$path" <<EOF
 ---
 schema: bagakit.loop-goal.v1
+protocol_version: bagakit.goal.v.0.2
 goal_id: $goal_id
 status: $status
 truth_surface: .bagakit/goal/$goal_id.md
@@ -39,348 +29,421 @@ completion_evidence: []
 # Goal: $title
 
 ## Prime Directive
-Complete $title without losing unfinished work.
+Deliver the promised $title outcome.
 
 ## Current State
-- Last known progress: legacy state
-- Active branch: recover the Goal surface
-- Blockers: none
+- Last known progress: legacy execution is in progress.
 
 ## Execution Principles
-- Preserve user intent.
+- Preserve the promised behavior and evidence bar.
 
 ## Acceptance And Stop Rules
-- Acceptance: the Goal is recoverable under the current protocol.
+- Acceptance: observable owner evidence proves the complete outcome.
+- Insufficient: a plan or partial implementation does not count.
 
 ## Orchestration Index
-- Feature truth: none
+- Feature truth: not yet migrated.
 
 ## Next Execution Instruction
-Inspect the legacy Goal surface.
+Continue from the legacy live state.
 
-## Goal Delta Log
-- old checkpoint detail
+## Recent Decisions
+- Preserve the original outcome.
+
+## Open Questions
+- Which current task should run next?
 EOF
 }
 
-single="$tmp/single"
-write_legacy_goal "$single/.bagakit/goal/legacy-goal.md" legacy-goal "Legacy Goal" active
-
-single_report="$(sh "$cli" inspect-upgrade --root "$single")"
-python3 - "$single_report" <<'PY'
+write_migration_receipt() {
+  local repo="$1" goal_id="$2" owner_ref="$3" receipt_ref="$4"
+  python3 - "$repo" "$goal_id" "$owner_ref" "$receipt_ref" <<'PY'
+from pathlib import Path, PurePosixPath
+import hashlib
 import json
 import sys
-
-report = json.loads(sys.argv[1])
-assert report["target_protocol"] == "bagakit.goal.v.0.2"
-assert report["status"] == "upgrade_required"
-assert report["conflicts"] == []
-assert report["inventory"]["foreground_goal"] == "legacy-goal"
-PY
-if grep -q 'protocol_version' "$single/.bagakit/goal/legacy-goal.md"; then
-  printf 'inspect-upgrade unexpectedly mutated the legacy Goal\n' >&2
-  exit 1
-fi
-
-sh "$cli" upgrade-surface --root "$single" --apply >/dev/null
-
-reconciliation_report="$(sh "$cli" inspect-upgrade --root "$single")"
-python3 - "$reconciliation_report" <<'PY'
-import json
-import sys
-
-report = json.loads(sys.argv[1])
-assert report["status"] == "reconciliation_required"
-assert report["reconciliation_required_goal_ids"] == ["legacy-goal"]
-assert [action["kind"] for action in report["deterministic_actions"]] == ["require_reconciliation"]
-PY
-
-if sh "$cli" fresh-check --root "$single" >"$single-fresh.out" 2>&1; then
-  printf 'fresh-check unexpectedly accepted upgraded but unreconciled Goal truth\n' >&2
-  exit 1
-fi
-grep -q 'unreconciled Goal control events' "$single-fresh.out"
-
-sh "$cli" reconcile-goal \
-  --root "$single" \
-  --goal-id legacy-goal \
-  --current-state-line "Last known progress: legacy surface upgraded" \
-  --current-state-line "Active branch: continue from current owner truth" \
-  --current-state-line "Blockers: none" \
-  --next-instruction-text "Continue one bounded execution round." \
-  --decision-line "Legacy checkpoint history moved out of the Goal control plane." \
-  --owner goal-upgrade \
-  --summary "Reconciled current truth after protocol upgrade." >/dev/null
-
-sh "$cli" upsert-goal \
-  --root "$single" \
-  --goal-id second-goal \
-  --title "Second Goal" \
-  --prime-directive-text "Preserve a second unfinished task." \
-  --current-state-line "Last known progress: not started" \
-  --current-state-line "Active branch: wait in backlog" \
-  --current-state-line "Blockers: none" \
-  --principle-line "Do not interfere with the foreground Goal." \
-  --acceptance-line "Acceptance: the Goal can later become foreground." \
-  --orchestration-line "Feature truth: none" \
-  --next-instruction-text "Wait until selected as foreground." >/dev/null
-
-python3 - "$single/.bagakit/goal/state.yaml" <<'PY'
-from pathlib import Path
-import sys
-
-import yaml
-
-state = yaml.safe_load(Path(sys.argv[1]).read_text(encoding="utf-8"))
-assert state["goals"]["second-goal"]["status"] == "paused"
-assert state["goals"]["second-goal"]["role"] == "backlog"
-PY
-
-if sh "$cli" upsert-goal \
-  --root "$single" \
-  --goal-id invalid-active-goal \
-  --title "Invalid Active Goal" \
-  --status active \
-  --prime-directive-text "Do not create two active Goals." \
-  --current-state-line "Last known progress: none" \
-  --principle-line "Keep one active foreground." \
-  --acceptance-line "Acceptance: rejected before write." \
-  --orchestration-line "Feature truth: none" \
-  --next-instruction-text "Stop." >/dev/null 2>&1; then
-  printf 'upsert unexpectedly created a non-foreground active Goal\n' >&2
-  exit 1
-fi
-test "$(sh "$cli" fresh-check --root "$single")" = "fresh-executor check passed"
-
-python3 - "$single" <<'PY'
-from pathlib import Path
-import json
-import sys
-
 import yaml
 
 root = Path(sys.argv[1])
-goal_root = root / ".bagakit" / "goal"
-goal = (goal_root / "legacy-goal.md").read_text(encoding="utf-8")
-state = yaml.safe_load((goal_root / "state.yaml").read_text(encoding="utf-8"))
-events = [json.loads(line) for line in (goal_root / "events" / "legacy-goal.jsonl").read_text(encoding="utf-8").splitlines()]
-surface = (goal_root / "surface.toml").read_text(encoding="utf-8")
+goal_id = sys.argv[2]
+owner_ref = sys.argv[3]
+receipt_ref = sys.argv[4]
+goal_ref = f".bagakit/goal/{goal_id}.md"
+goal_path = root / goal_ref
+text = goal_path.read_text(encoding="utf-8")
+frontmatter = yaml.safe_load(text.split("---", 2)[1])
+body = text.split("---", 2)[2]
 
-assert "protocol_version: bagakit.goal.v.0.2" in goal
-assert "## Goal Delta Log" not in goal
-assert "Legacy checkpoint history moved out of the Goal control plane." in goal
-assert "## Open Questions\n- none" in goal
-assert state["protocol_version"] == "bagakit.goal.v.0.2"
-assert state["foreground_goal"] == "legacy-goal"
-assert state["goals"]["legacy-goal"]["reconciled_through"] == 2
-assert events[0]["kind"] == "goal_upgraded"
-assert events[0]["control_effect"] == "update_current_state"
-assert events[1]["kind"] == "goal_reconciled"
-assert 'protocol_version = "bagakit.goal.v.0.2"' in surface
-assert (goal_root / "archive" / "legacy-goal.legacy-log.md").exists()
-assert not (goal_root / "upgrade.json").exists()
+sections = {}
+heading = None
+buffer = []
+for line in body.splitlines():
+    if line.startswith("## "):
+        if heading is not None:
+            sections[heading] = "\n".join(buffer).strip()
+        heading = line[3:].strip()
+        buffer = []
+    elif heading is not None:
+        buffer.append(line)
+if heading is not None:
+    sections[heading] = "\n".join(buffer).strip()
+
+known_kernel = {
+    "Prime Directive",
+    "Protected Invariants",
+    "Acceptance And Stop Rules",
+    "Authority And Orchestration",
+    "Context References",
+}
+migration_sections = {
+    name: content
+    for name, content in sections.items()
+    if name not in known_kernel and name != "Execution Principles" and content
+}
+if "wait" in frontmatter:
+    migration_sections["frontmatter.wait"] = json.dumps(
+        frontmatter["wait"], ensure_ascii=False, sort_keys=True
+    )
+
+target_ref = str(PurePosixPath(owner_ref) / "tasks.json")
+records = {}
+for name, content in migration_sections.items():
+    promoted = name == "Orchestration Index"
+    records[name] = {
+        "source_sha256": hashlib.sha256(content.encode()).hexdigest(),
+        "disposition": "promoted_to_kernel" if promoted else "migrated_to_owner",
+        "target_refs": [] if promoted else [target_ref],
+        "kernel_headings": ["Authority And Orchestration"] if promoted else [],
+        "rationale": (
+            "The legacy orchestration section contains a durable approval boundary."
+            if promoted
+            else "Current execution truth was distilled into owner-native task state."
+        ),
+    }
+
+receipt = {
+    "schema": "bagakit.goal-owner-migration.v1",
+    "goal_id": goal_id,
+    "source_protocol": frontmatter.get("protocol_version", "missing"),
+    "source_goal_ref": goal_ref,
+    "source_sha256": hashlib.sha256(text.encode()).hexdigest(),
+    "execution_owner": {
+        "kind": "bagakit-feature-tracker",
+        "ref": owner_ref,
+    },
+    "sections": records,
+    "kernel_patch": {
+        "Protected Invariants": [],
+        "Acceptance And Stop Rules": [],
+        "Authority And Orchestration": [
+            "Ask before publication, authorization changes, or irreversible actions."
+        ],
+        "Context References": [],
+    },
+    "unresolved": [],
+}
+path = root / receipt_ref
+path.parent.mkdir(parents=True, exist_ok=True)
+path.write_text(json.dumps(receipt, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 PY
+}
 
-current_report="$(sh "$cli" inspect-upgrade --root "$single")"
-python3 - "$current_report" <<'PY'
+legacy="$tmp/legacy"
+write_legacy_goal "$legacy/.bagakit/goal/legacy-goal.md" legacy-goal "Legacy Goal" active
+cat >"$legacy/.bagakit/goal/surface.toml" <<'EOF'
+protocol_version = "bagakit.goal.v.0.2"
+[surface]
+id = "bagakit-goal"
+owner = "bagakit-set-loop-goal"
+kind = "runtime-control"
+EOF
+
+inspect_no_owner="$(sh "$cli" inspect-upgrade --root "$legacy")"
+python3 - "$inspect_no_owner" <<'PY'
 import json
 import sys
+report = json.loads(sys.argv[1])
+conflict = next(item for item in report["conflicts"] if item["kind"] == "missing_execution_owner")
+assert report["status"] == "blocked"
+assert conflict["route"] == "bagakit-feature-tracker"
+assert "Create or update" in report["next_instruction"]
+PY
+grep -q 'protocol_version: bagakit.goal.v.0.2' "$legacy/.bagakit/goal/legacy-goal.md"
 
+mkdir -p "$legacy/.bagakit/feature-tracker/features/legacy"
+printf '{"current_task":"continue legacy execution","decisions":["preserve the original outcome"]}\n' > "$legacy/.bagakit/feature-tracker/features/legacy/tasks.json"
+owner_arg='legacy-goal:bagakit-feature-tracker:.bagakit/feature-tracker/features/legacy'
+
+inspect_no_migration="$(sh "$cli" inspect-upgrade --root "$legacy" --execution-owner "$owner_arg")"
+python3 - "$inspect_no_migration" <<'PY'
+import json
+import sys
+report = json.loads(sys.argv[1])
+assert any(item["kind"] == "execution_truth_migration_required" for item in report["conflicts"])
+assert report["status"] == "blocked"
+PY
+
+migration_arg='legacy-goal:.bagakit/feature-tracker/features/legacy/goal-migration.json'
+printf '{}\n' > "$legacy/.bagakit/feature-tracker/features/legacy/goal-migration.json"
+inspect_empty_receipt="$(sh "$cli" inspect-upgrade --root "$legacy" --execution-owner "$owner_arg" --owner-migration-ref "$migration_arg")"
+python3 - "$inspect_empty_receipt" <<'PY'
+import json
+import sys
+report = json.loads(sys.argv[1])
+assert any(item["kind"] == "invalid_owner_migration_receipt" for item in report["conflicts"])
+assert report["status"] == "blocked"
+PY
+write_migration_receipt \
+  "$legacy" \
+  legacy-goal \
+  .bagakit/feature-tracker/features/legacy \
+  .bagakit/feature-tracker/features/legacy/goal-migration.json
+python3 - "$legacy/.bagakit/feature-tracker/features/legacy/goal-migration.json" <<'PY'
+from pathlib import Path
+import json
+import sys
+path = Path(sys.argv[1])
+receipt = json.loads(path.read_text(encoding="utf-8"))
+receipt["unresolved"] = ["Decide whether the legacy authorization boundary remains durable."]
+path.write_text(json.dumps(receipt, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+PY
+inspect_unresolved="$(sh "$cli" inspect-upgrade --root "$legacy" --execution-owner "$owner_arg" --owner-migration-ref "$migration_arg")"
+python3 - "$inspect_unresolved" <<'PY'
+import json
+import sys
+report = json.loads(sys.argv[1])
+conflict = next(item for item in report["conflicts"] if item["kind"] == "unresolved_kernel_migration")
+assert conflict["route"] == "bagakit-grill"
+PY
+write_migration_receipt \
+  "$legacy" \
+  legacy-goal \
+  .bagakit/feature-tracker/features/legacy \
+  .bagakit/feature-tracker/features/legacy/goal-migration.json
+inspect_ready="$(sh "$cli" inspect-upgrade --root "$legacy" --execution-owner "$owner_arg" --owner-migration-ref "$migration_arg")"
+python3 - "$inspect_ready" <<'PY'
+import json
+import sys
+report = json.loads(sys.argv[1])
+assert report["status"] == "upgrade_required"
+assert report["conflicts"] == []
+assert any(item["kind"] == "migrate_to_goal_kernel" for item in report["deterministic_actions"])
+PY
+
+sh "$cli" upgrade-surface \
+  --root "$legacy" \
+  --execution-owner "$owner_arg" \
+  --owner-migration-ref "$migration_arg" \
+  --apply >/dev/null
+test "$(sh "$cli" fresh-check --root "$legacy")" = "fresh-executor check passed"
+
+node --experimental-strip-types --input-type=module - "$legacy/.bagakit/goal/surface.toml" <<'JS'
+import assert from "node:assert/strict";
+import path from "node:path";
+import { pathToFileURL } from "node:url";
+
+const parserUrl = pathToFileURL(path.resolve("dev/validator/src/lib/toml.ts")).href;
+const { parseTomlFile } = await import(parserUrl);
+const surface = parseTomlFile(process.argv[2]);
+assert.equal(surface.schema_version, 1);
+assert.equal(surface.protocol_version, "bagakit.goal.v.0.3");
+assert.equal(surface.surface_id, "goal-runtime");
+assert.equal(surface.surface_root, ".bagakit/goal");
+assert.equal(surface.owner_kind, "skill");
+assert.equal(surface.owner_id, "bagakit-set-loop-goal");
+assert.ok(surface.source_of_truth.length > 0);
+assert.ok(surface.reviewable_outputs.length > 0);
+assert.equal(surface.surface.id, "bagakit-goal");
+JS
+
+python3 - "$legacy" <<'PY'
+from pathlib import Path
+import json
+import sys
+import yaml
+
+root = Path(sys.argv[1])
+goal_root = root / ".bagakit/goal"
+goal = (goal_root / "legacy-goal.md").read_text(encoding="utf-8")
+legacy = (goal_root / "archive/legacy-goal.pre-v0.3.md").read_text(encoding="utf-8")
+state = yaml.safe_load((goal_root / "state.yaml").read_text(encoding="utf-8"))
+events = [json.loads(line) for line in (goal_root / "events/legacy-goal.jsonl").read_text(encoding="utf-8").splitlines()]
+
+assert "protocol_version: bagakit.goal.v.0.3" in goal
+assert "## Protected Invariants" in goal
+assert "## Context References" in goal
+assert "Ask before publication, authorization changes, or irreversible actions." in goal
+for heading in ("Current State", "Next Execution Instruction", "Recent Decisions", "Open Questions", "Orchestration Index"):
+    assert f"## {heading}" not in goal
+assert "## Current State" in legacy
+owner = {"kind": "bagakit-feature-tracker", "ref": ".bagakit/feature-tracker/features/legacy"}
+assert state["goals"]["legacy-goal"]["execution_owner"] == owner
+assert events == [{
+    "control_effect": "none",
+    "event_id": "e-000001",
+    "evidence_refs": [".bagakit/goal/legacy-goal.md"],
+    "goal_id": "legacy-goal",
+    "kind": "goal_upgraded",
+    "owner": "bagakit-set-loop-goal",
+    "schema": "bagakit.goal-event.v1",
+    "seq": 1,
+    "summary": "Upgraded Goal control plane to bagakit.goal.v.0.3.",
+}]
+PY
+
+repeat="$(sh "$cli" inspect-upgrade --root "$legacy")"
+python3 - "$repeat" <<'PY'
+import json
+import sys
 report = json.loads(sys.argv[1])
 assert report["status"] == "current"
 assert report["deterministic_actions"] == []
 assert report["conflicts"] == []
 PY
-sh "$cli" upgrade-surface --root "$single" --apply >/dev/null
 
-auto="$tmp/auto"
-write_legacy_goal "$auto/.bagakit/goal/auto-goal.md" auto-goal "Auto Upgrade Goal" active
-python3 - "$auto/.bagakit/goal/auto-goal.md" <<'PY'
+mkdir -p "$legacy/.bagakit/feature-tracker/features/wrong-owner"
+python3 - "$legacy/.bagakit/goal/state.yaml" <<'PY'
 from pathlib import Path
 import sys
+import yaml
 
 path = Path(sys.argv[1])
-text = path.read_text(encoding="utf-8")
-text = text.replace("schema: bagakit.loop-goal.v1\n", "schema: bagakit.loop-goal.v1\nprotocol_version: bagakit.goal.v.0.0\n")
-path.write_text(text, encoding="utf-8")
+state = yaml.safe_load(path.read_text(encoding="utf-8"))
+state["goals"]["legacy-goal"]["execution_owner"] = {
+    "kind": "bagakit-feature-tracker",
+    "ref": ".bagakit/feature-tracker/features/wrong-owner",
+}
+path.write_text(yaml.safe_dump(state, sort_keys=False), encoding="utf-8")
 PY
-if sh "$cli" set-supervision --root "$auto" --mode self >/dev/null 2>"$auto.err"; then
-  printf 'normal mutation unexpectedly continued after upgrade required reconciliation\n' >&2
-  exit 1
-fi
-grep -q 'reconciliation is required' "$auto.err"
-sh "$cli" reconcile-goal \
-  --root "$auto" \
-  --goal-id auto-goal \
-  --current-state-line "Last known progress: automatic upgrade complete" \
-  --current-state-line "Active branch: resume normal execution" \
-  --current-state-line "Blockers: none" \
-  --next-instruction-text "Resume one bounded round." \
-  --owner goal-upgrade \
-  --summary "Reconciled the automatically upgraded Goal." >/dev/null
-sh "$cli" set-supervision --root "$auto" --mode self >/dev/null
-test "$(sh "$cli" fresh-check --root "$auto")" = "fresh-executor check passed"
-grep -q 'protocol_version: bagakit.goal.v.0.2' "$auto/.bagakit/goal/auto-goal.md"
+owner_drift="$(sh "$cli" inspect-upgrade --root "$legacy")"
+python3 - "$owner_drift" <<'PY'
+import json
+import sys
+report = json.loads(sys.argv[1])
+assert report["status"] == "upgrade_required"
+assert any(item["kind"] == "rewrite_state_registry" for item in report["deterministic_actions"])
+PY
+driver_drift="$(sh "$cli" driver-report --root "$legacy" --json)"
+python3 - "$driver_drift" <<'PY'
+import json
+import sys
+report = json.loads(sys.argv[1])
+assert report["status"] == "upgrade_required"
+assert report["alerts"][0]["id"] == "upgrade_required"
+PY
+sh "$cli" upgrade-surface --root "$legacy" --apply >/dev/null
+python3 - "$legacy/.bagakit/goal/state.yaml" <<'PY'
+from pathlib import Path
+import sys
+import yaml
+state = yaml.safe_load(Path(sys.argv[1]).read_text(encoding="utf-8"))
+assert state["goals"]["legacy-goal"]["execution_owner"]["ref"] == ".bagakit/feature-tracker/features/legacy"
+PY
 
 multi="$tmp/multi"
 write_legacy_goal "$multi/.bagakit/goal/goal-a.md" goal-a "Goal A" active
 write_legacy_goal "$multi/.bagakit/goal/goal-b.md" goal-b "Goal B" active
-cat >"$multi/.bagakit/goal/state.yaml" <<'EOF'
-schema: bagakit.goal-state.v1
-foreground_goal: null
-supervision:
-  mode: off
-  contract: .bagakit/goal/supervisor.md
-  checkpoint: before_action_and_after_round
-goals: {}
-edges:
-  - from: goal-a
-    to: goal-b
-    kind: raises_bar
-archive:
-  dir: .bagakit/goal/archive
-EOF
+for goal_id in goal-a goal-b; do
+  mkdir -p "$multi/.bagakit/feature-tracker/features/$goal_id"
+  printf '{"current_task":"migrated legacy task"}\n' > "$multi/.bagakit/feature-tracker/features/$goal_id/tasks.json"
+  write_migration_receipt \
+    "$multi" \
+    "$goal_id" \
+    ".bagakit/feature-tracker/features/$goal_id" \
+    ".bagakit/feature-tracker/features/$goal_id/goal-migration.json"
+done
 
-if sh "$cli" set-supervision --root "$multi" --mode self >/dev/null 2>"$multi.err"; then
-  printf 'normal mutation unexpectedly bypassed a blocked Goal upgrade\n' >&2
+if sh "$cli" upgrade-surface \
+  --root "$multi" \
+  --execution-owner 'goal-a:bagakit-feature-tracker:.bagakit/feature-tracker/features/goal-a' \
+  --owner-migration-ref 'goal-a:.bagakit/feature-tracker/features/goal-a/goal-migration.json' \
+  --execution-owner 'goal-b:bagakit-feature-tracker:.bagakit/feature-tracker/features/goal-b' \
+  --owner-migration-ref 'goal-b:.bagakit/feature-tracker/features/goal-b/goal-migration.json' \
+  --apply >/dev/null 2>"$tmp/multi.err"; then
+  printf 'upgrade unexpectedly guessed the foreground Goal\n' >&2
   exit 1
 fi
-grep -q 'upgrade is blocked' "$multi.err"
-
-python3 - "$multi" <<'PY'
+python3 - "$multi/.bagakit/goal/upgrade.json" <<'PY'
 from pathlib import Path
 import json
 import sys
-
-root = Path(sys.argv[1])
-goal_root = root / ".bagakit" / "goal"
-report = json.loads((goal_root / "upgrade.json").read_text(encoding="utf-8"))
-kinds = {conflict["kind"] for conflict in report["conflicts"]}
-assert report["status"] == "blocked"
-assert "foreground_selection" in kinds
-assert report["next_instruction"].startswith("Use bagakit-grill")
-assert any(conflict["route"] == "bagakit-grill" for conflict in report["conflicts"])
-assert "protocol_version" not in (goal_root / "goal-a.md").read_text(encoding="utf-8")
-assert "protocol_version" not in (goal_root / "goal-b.md").read_text(encoding="utf-8")
+report = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+assert any(item["kind"] == "foreground_selection" and item["route"] == "bagakit-grill" for item in report["conflicts"])
 PY
 
 sh "$cli" upgrade-surface \
   --root "$multi" \
   --foreground-goal goal-a \
   --pause-goal goal-b \
+  --execution-owner 'goal-a:bagakit-feature-tracker:.bagakit/feature-tracker/features/goal-a' \
+  --owner-migration-ref 'goal-a:.bagakit/feature-tracker/features/goal-a/goal-migration.json' \
+  --execution-owner 'goal-b:bagakit-feature-tracker:.bagakit/feature-tracker/features/goal-b' \
+  --owner-migration-ref 'goal-b:.bagakit/feature-tracker/features/goal-b/goal-migration.json' \
   --apply >/dev/null
-if sh "$cli" fresh-check --root "$multi" >/dev/null 2>&1; then
-  printf 'fresh-check unexpectedly accepted unreconciled multi-Goal upgrade\n' >&2
-  exit 1
-fi
-for goal_id in goal-a goal-b; do
-  sh "$cli" reconcile-goal \
-    --root "$multi" \
-    --goal-id "$goal_id" \
-    --current-state-line "Last known progress: protocol upgrade complete" \
-    --current-state-line "Active branch: follow the resolved topology" \
-    --current-state-line "Blockers: none" \
-    --next-instruction-text "Follow the foreground and backlog roles in state.yaml." \
-    --owner goal-upgrade \
-    --summary "Reconciled Goal after multi-Goal protocol upgrade." >/dev/null
-done
 test "$(sh "$cli" fresh-check --root "$multi")" = "fresh-executor check passed"
 
-python3 - "$multi/.bagakit/goal/state.yaml" <<'PY'
-from pathlib import Path
-import sys
-
-import yaml
-
-state = yaml.safe_load(Path(sys.argv[1]).read_text(encoding="utf-8"))
-assert state["foreground_goal"] == "goal-a"
-assert state["goals"]["goal-a"]["status"] == "active"
-assert state["goals"]["goal-a"]["role"] == "foreground"
-assert state["goals"]["goal-b"]["status"] == "paused"
-assert state["goals"]["goal-b"]["role"] == "backlog"
-assert state["edges"] == [{"from": "goal-a", "to": "goal-b", "kind": "raises_bar"}]
-PY
-
-incomplete="$tmp/incomplete"
-write_legacy_goal "$incomplete/.bagakit/goal/incomplete-goal.md" incomplete-goal "Incomplete Goal" active
-python3 - "$incomplete/.bagakit/goal/incomplete-goal.md" <<'PY'
-from pathlib import Path
-import sys
-
-path = Path(sys.argv[1])
-text = path.read_text(encoding="utf-8")
-text = text.replace("schema: bagakit.loop-goal.v1\n", "schema: bagakit.loop-goal.v1\nprotocol_version: bagakit.goal.v.0.2\n")
-start = text.index("## Acceptance And Stop Rules")
-end = text.index("## Orchestration Index")
-path.write_text(text[:start] + text[end:], encoding="utf-8")
-PY
-if sh "$cli" upgrade-surface --root "$incomplete" --apply >/dev/null 2>&1; then
-  printf 'upgrade unexpectedly repaired missing Goal meaning\n' >&2
+collision="$tmp/collision"
+write_legacy_goal "$collision/.bagakit/goal/collision-goal.md" collision-goal "Collision Goal" active
+mkdir -p "$collision/.bagakit/feature-tracker/features/collision" "$collision/.bagakit/goal/archive"
+printf '{"current_task":"migrated collision task"}\n' > "$collision/.bagakit/feature-tracker/features/collision/tasks.json"
+write_migration_receipt \
+  "$collision" \
+  collision-goal \
+  .bagakit/feature-tracker/features/collision \
+  .bagakit/feature-tracker/features/collision/goal-migration.json
+printf 'different prior snapshot\n' > "$collision/.bagakit/goal/archive/collision-goal.pre-v0.3.md"
+if sh "$cli" upgrade-surface \
+  --root "$collision" \
+  --execution-owner 'collision-goal:bagakit-feature-tracker:.bagakit/feature-tracker/features/collision' \
+  --owner-migration-ref 'collision-goal:.bagakit/feature-tracker/features/collision/goal-migration.json' \
+  --apply >/dev/null 2>&1; then
+  printf 'upgrade unexpectedly ignored a conflicting legacy snapshot\n' >&2
   exit 1
 fi
-python3 - "$incomplete/.bagakit/goal/upgrade.json" <<'PY'
+grep -q 'protocol_version: bagakit.goal.v.0.2' "$collision/.bagakit/goal/collision-goal.md"
+python3 - "$collision/.bagakit/goal/upgrade.json" <<'PY'
 from pathlib import Path
 import json
 import sys
-
 report = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
-conflict = next(item for item in report["conflicts"] if item["kind"] == "incomplete_goal_content")
-assert conflict["route"] == "bagakit-grill"
-assert "Acceptance And Stop Rules" in conflict["risk_if_wrong"]
+assert any(item["kind"] == "archive_collision" for item in report["conflicts"])
 PY
 
-waiting_incomplete="$tmp/waiting-incomplete"
-write_legacy_goal "$waiting_incomplete/.bagakit/goal/waiting-goal.md" waiting-goal "Waiting Goal" waiting
-python3 - "$waiting_incomplete/.bagakit/goal/waiting-goal.md" <<'PY'
+closed="$tmp/closed"
+write_legacy_goal "$closed/.bagakit/goal/closed-goal.md" closed-goal "Closed Goal" complete
+python3 - "$closed/.bagakit/goal/closed-goal.md" <<'PY'
 from pathlib import Path
 import sys
-
 path = Path(sys.argv[1])
 text = path.read_text(encoding="utf-8")
-text = text.replace(
-    "schema: bagakit.loop-goal.v1\n",
-    "schema: bagakit.loop-goal.v1\nprotocol_version: bagakit.goal.v.0.2\n",
-)
-path.write_text(text, encoding="utf-8")
+path.write_text(text.replace("completion_evidence: []", "completion_evidence:\n  - verification passed"), encoding="utf-8")
 PY
-if sh "$cli" upgrade-surface --root "$waiting_incomplete" --apply >/dev/null 2>&1; then
-  printf 'upgrade unexpectedly guessed a missing waiting contract\n' >&2
-  exit 1
-fi
-python3 - "$waiting_incomplete/.bagakit/goal/upgrade.json" <<'PY'
-from pathlib import Path
-import json
-import sys
-
-report = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
-conflict = next(item for item in report["conflicts"] if item["kind"] == "incomplete_wait_contract")
-assert conflict["route"] == "bagakit-grill"
-assert "status=waiting requires a wait mapping" in conflict["risk_if_wrong"]
-PY
+mkdir -p "$closed/.bagakit/goal/events"
+printf '%s\n' '{"schema":"bagakit.goal-event.v1","seq":1,"event_id":"e-000001","goal_id":"closed-goal","kind":"goal_created","owner":"legacy-goal","summary":"legacy event","evidence_refs":[],"control_effect":"none"}' > "$closed/.bagakit/goal/events/closed-goal.jsonl"
+sh "$cli" upgrade-surface --root "$closed" --apply >/dev/null
+test ! -e "$closed/.bagakit/goal/events/closed-goal.jsonl"
+test -f "$closed/.bagakit/goal/archive/closed-goal.pre-v0.3.events.jsonl"
+test -f "$closed/.bagakit/goal/archive/closed-goal.events.jsonl"
+test -f "$closed/.bagakit/goal/archive/closed-goal.md"
 
 future="$tmp/future"
 write_legacy_goal "$future/.bagakit/goal/future-goal.md" future-goal "Future Goal" active
 python3 - "$future/.bagakit/goal/future-goal.md" <<'PY'
 from pathlib import Path
 import sys
-
 path = Path(sys.argv[1])
-text = path.read_text(encoding="utf-8")
-text = text.replace("schema: bagakit.loop-goal.v1\n", "schema: bagakit.loop-goal.v1\nprotocol_version: bagakit.goal.v.9.0\n")
-path.write_text(text, encoding="utf-8")
+path.write_text(path.read_text(encoding="utf-8").replace("bagakit.goal.v.0.2", "bagakit.goal.v.9.0"), encoding="utf-8")
 PY
 if sh "$cli" upgrade-surface --root "$future" --apply >/dev/null 2>&1; then
-  printf 'upgrade unexpectedly downgraded a future Goal protocol\n' >&2
+  printf 'upgrade unexpectedly downgraded a future protocol\n' >&2
   exit 1
 fi
 python3 - "$future/.bagakit/goal/upgrade.json" <<'PY'
 from pathlib import Path
 import json
 import sys
-
 report = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
-conflict = next(item for item in report["conflicts"] if item["kind"] == "unsupported_future_protocol")
-assert conflict["route"] == "install_newer_skill"
+assert any(item["kind"] == "unsupported_future_protocol" and item["route"] == "install_newer_skill" for item in report["conflicts"])
 PY
 
 printf 'bagakit-set-loop-goal protocol upgrade passed\n'

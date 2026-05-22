@@ -48,6 +48,7 @@ def main() -> None:
     root = Path(args.root)
     skill = root / "skills/harness/bagakit-set-loop-goal/SKILL.md"
     contract = root / "skills/harness/bagakit-set-loop-goal/references/goal-file-contract.md"
+    event_contract = root / "skills/harness/bagakit-set-loop-goal/references/event-stream-contract.md"
     upgrade_contract = root / "skills/harness/bagakit-set-loop-goal/references/protocol-upgrade-contract.md"
     loop_off = root / "skills/harness/bagakit-set-loop-goal/references/loop-off-loop.md"
     frontdoor = root / "skills/harness/bagakit-set-loop-goal/references/frontdoor-rule.toml"
@@ -56,6 +57,7 @@ def main() -> None:
 
     skill_text = skill.read_text(encoding="utf-8")
     contract_text = contract.read_text(encoding="utf-8")
+    event_text = event_contract.read_text(encoding="utf-8")
     upgrade_text = upgrade_contract.read_text(encoding="utf-8")
     loop_text = loop_off.read_text(encoding="utf-8")
     frontdoor_text = frontdoor.read_text(encoding="utf-8")
@@ -87,7 +89,6 @@ def main() -> None:
         "request-evolver-review",
         "record-evolver-review",
         "append-goal-event",
-        "bind-execution-owner",
         "reconcile-goal",
         "render-wrapper",
         "fresh-check",
@@ -102,14 +103,22 @@ def main() -> None:
     require("references/loop-off-loop.md" in skill_text, "SKILL.md must route to loop-off-loop reference")
     require("references/goal-file-contract.md" in skill_text, "SKILL.md must route to goal-file-contract reference")
     require("references/protocol-upgrade-contract.md" in skill_text, "SKILL.md must route to protocol-upgrade-contract reference")
-    require("bagakit.goal.v.0.2" in upgrade_text, "upgrade contract must declare the current Goal protocol")
+    require("bagakit.goal.v.0.3" in upgrade_text, "upgrade contract must declare the current Goal protocol")
+    require("execution_owner" in skill_text, "SKILL.md must require one execution owner")
+    require("Would normal successful execution" in contract_text, "goal contract must expose the Kernel admission test")
+    require("Protected Invariants" in contract_text, "goal contract must define the Kernel template")
+    require("bagakit-feature-tracker" in contract_text, "goal contract must define the missing-owner route")
+    require("--owner-migration-ref" in upgrade_text, "upgrade contract must preserve legacy dynamic truth until owner migration")
+    require("bagakit.goal-owner-migration.v1" in upgrade_text, "upgrade contract must define the structured owner migration receipt")
+    require("source_sha256" in upgrade_text, "upgrade contract must bind migration receipts to legacy content")
+    require("archive_collision" in upgrade_text, "upgrade contract must define legacy snapshot collision handling")
     require("insert_target = \"bagakit_footer\"" in driver_text, "Goal Driver must target the Bagakit footer")
     require("👩🏻‍🚒 ALERTS !!" in driver_text, "Goal Driver must contribute to the shared Alert aggregate")
     require("session-review intake" in loop_text, "loop-off-loop must define the Evolver handoff route")
-    require("`session_end` is opportunistic only" in contract_text, "goal contract must keep session_end opportunistic")
+    require("opportunistic `session_end`" in loop_text, "loop contract must keep session_end opportunistic")
     require(
-        re.search(r"`stale` means expected\s+evidence is absent", contract_text) is not None,
-        "goal contract must define stale as missing evidence",
+        re.search(r"`stale` means\s+expected evidence is absent", event_text) is not None,
+        "event contract must define stale as missing evidence",
     )
     require(".bagakit/goal/reviews/<review-id>.json" in frontdoor_text, "frontdoor rule must reference review receipts")
 

@@ -1,129 +1,79 @@
 # Goal File Contract
 
-Use this reference when creating, rewriting, compressing, or reviewing a Goal
-file.
-
-## Contents
-
-- Quality Bar
-- Placement
-- Protocol Version
-- Goal Surface State
-- Event Streams And Reconciliation
-- Execution Owner Binding
-- Evolver Review Receipts
-- Supervisor Contract
-- Frontmatter Lifecycle
-- Goal Wrapper
-- Minimum Structure
-- What Belongs In The Goal
-- What Belongs Elsewhere
-- Fresh-Executor Check
-- Alignment Recap
+Use this reference when creating, upgrading, compressing, or reviewing a Goal.
 
 ## Quality Bar
 
-A high-quality Goal file lets a fresh executor continue after restart, compact,
-or handoff without reading the whole prior chat. It explains:
+A high-quality Goal is a staleness-safe execution control brief. It lets a fresh
+executor recover the promised destination and the rules for reaching it, then
+find current execution truth in exactly one owner.
 
-- what outcome must be achieved
-- why the outcome matters and what principles protect it
-- what is already known, done, waiting, blocked, or deliberately out of scope
-- where detailed truth lives
-- how to schedule the next execution round
-- how to know when to stop, ask, or correct drift
+Apply this admission question to every proposed Kernel statement:
 
-The Goal file is a steering index. It is not a full task plan, changelog,
-research notebook, transcript, or backlog.
+> Would normal successful execution make this statement false?
 
-## Placement
+If yes, keep it out of the Goal Markdown. Put it in the execution owner or
+another native Spec, Plan, Research, Runner, or decision surface.
 
-Default durable placement is the target project's local Goal surface:
+The Goal is not a current-state snapshot, plan, backlog, transcript, evidence
+store, supervisor log, or fixed team roster.
 
-- `.bagakit/goal/<goal-id>.md`
+## Placement And Version
+
+The default private runtime surface is:
+
 - `.bagakit/goal/current.md`
 - `.bagakit/goal/state.yaml`
+- `.bagakit/goal/<goal-id>.md`
 - `.bagakit/goal/supervisor.md` when supervision is active
-- `.bagakit/goal/events/<goal-id>.jsonl` for append-only Goal control events
-- `.bagakit/goal/reviews/<review-id>.json` for event-bound Evolver review
-  request/receipt records
-- `.bagakit/goal/upgrade.json` only while a protocol upgrade is blocked
+- `.bagakit/goal/events/<goal-id>.jsonl`
+- `.bagakit/goal/reviews/<review-id>.json`
+- temporary `.bagakit/goal/upgrade.json`
 - `.bagakit/goal/archive/`
 
-This path is relative to the project or host repository whose agent will execute
-the work. Do not place durable Goal files inside the installed skill directory,
-global skills directory, or another repository unless the user explicitly asks.
+Projects may ignore `.bagakit/goal/`; commit only Goals intentionally shared as
+project control surfaces. Materialized top-level runtime surfaces still require
+`surface.toml`. Durable text uses repo-relative refs, never machine-local paths.
 
-`.bagakit/goal/` is runtime/control-plane material. A project may ignore the
-directory when Goals are private execution state; commit only the Goal files the
-team intentionally wants to share as project control surfaces.
+The current protocol is `bagakit.goal.v.0.3`. Record it in `surface.toml`,
+`state.yaml`, and every Goal frontmatter. Missing, older, or incomplete surfaces
+must be upgraded before execution. Never downgrade a future protocol.
 
-If `.bagakit/goal/` is materialized as a Bagakit runtime surface, it should carry
-`surface.toml` according to the host's runtime-surface contract.
+## Recovery Chain
 
-Accepted temporary placement:
+Recovery order is fixed:
 
-- a pasted text-file reference such as
-  `pasted text file: <path>. Read this file before continuing.`
-- a user-supplied path when the user explicitly wants that path
+```text
+current.md
+-> state.yaml
+-> foreground Goal Kernel
+-> execution_owner
+-> current owner task, runner receipt, or verification evidence
+```
 
-Use repo-relative paths or logical ids. Do not write machine-local absolute
-paths into durable Goal files.
-
-## Protocol Version
-
-The current Goal protocol is `bagakit.goal.v.0.2`. Store it as
-`protocol_version` in `surface.toml`, `state.yaml`, and every Goal frontmatter.
-Missing, older, or incomplete surfaces require upgrade before normal mutation;
-future versions must not be downgraded. Read
-`references/protocol-upgrade-contract.md` for inspection, deterministic repair,
-conflict packets, and Grill routing.
-
-## Goal Surface State
-
-When a project materializes `.bagakit/goal/`, keep separate surfaces for the
-agent entrypoint, the machine-readable work set, and inactive history:
-
-- `current.md`: Markdown entrypoint for the executor. It names the foreground
-  Goal, points to `state.yaml`, and tells the executor how to recover.
-- `state.yaml`: registry and topology for incomplete or reviewable Goals.
-- `supervisor.md`: optional supervision contract for checkpoint cadence, drift
-  handling, sidecar rules, and packet shape.
-- `events/`: append-only Goal control events; execution logs stay with their
-  Runner, evaluator, or tool owner.
-- `reviews/`: compact idempotent Evolver review requests and receipts.
-- `upgrade.json`: temporary blocked-upgrade packet and Grill handoff; remove it
-  after a successful upgrade.
-- `<goal-id>.md`: one Goal control plane.
-- `archive/`: completed, abandoned, or otherwise inactive Goal files that should
-  not affect the current work set.
-
-`current.md` is an ordinary text file, not a symlink. Keep it short and
-agent-facing:
+`current.md` is generated and short:
 
 ```markdown
 # Current Goal
 
 Read `.bagakit/goal/state.yaml`, resolve `foreground_goal`, then read that Goal
-file before acting. Creating or switching to a new Goal does not abandon any
-previous incomplete Goal; update the registry status instead.
+Kernel and its `execution_owner` before acting. Read current task, next action,
+blockers, waits, and evidence from that owner rather than from the Goal file.
 
-Run the Goal `fresh-check` immediately before each bounded execution round; it
-verifies event reconciliation and any bound execution-owner semantic revision.
+If `.bagakit/goal/supervisor.md` exists, read it before execution and run its
+checkpoint rules.
 
-If `.bagakit/goal/supervisor.md` exists, read it and run its checkpoint before
-each bounded execution round and before final completion.
-
-Context may be stale or wrong; recover from these files before trusting prior
-context.
+Context may be stale or wrong; recover from these files before trusting prior context.
 ```
 
-`state.yaml` is the machine-readable topology. Use it for the foreground cursor,
-known incomplete Goals, and relation edges:
+## State Registry
+
+`state.yaml` is the machine-readable foreground, topology, lifecycle cache,
+owner pointer, and Goal-event cursor:
 
 ```yaml
 schema: bagakit.goal-state.v1
-protocol_version: bagakit.goal.v.0.2
+protocol_version: bagakit.goal.v.0.3
 foreground_goal: <goal-id>
 
 supervision:
@@ -136,319 +86,162 @@ goals:
     file: .bagakit/goal/<goal-id>.md
     status: active
     role: foreground
+    execution_owner:
+      kind: bagakit-feature-tracker
+      ref: .bagakit/feature-tracker/features/<feature-id>
     event_log: .bagakit/goal/events/<goal-id>.jsonl
     reconciled_through: 1
-  <paused-goal-id>:
-    file: .bagakit/goal/<paused-goal-id>.md
-    status: paused
-    role: backlog
 
-edges:
-  - from: <paused-goal-id>
-    to: <goal-id>
-    kind: interrupts
-
+edges: []
 archive:
   dir: .bagakit/goal/archive
 ```
 
 Rules:
 
-- Read `.bagakit/goal/current.md` first when it exists, then read `state.yaml`,
-  then read the `foreground_goal` file.
-- If `supervision.mode` is not `off`, read `supervision.contract` before
-  execution and follow its checkpoint rules.
-- Keep exactly one foreground Goal. The registry may contain multiple incomplete
-  Goals, but one agent loop should execute only one foreground Goal at a time.
-- Allow topology edges such as `depends_on`, `blocks`, `interrupts`,
-  `resumes_after`, or `supersedes` when they change scheduling or recovery.
-  Edges may be DAG-like, but they are not permission for parallel execution.
-- Creating or switching to a new Goal must not mark the previous Goal
-  `abandoned` unless the user explicitly says it is abandoned. Use `paused`,
-  `waiting`, `blocked`, or `ready_for_review` as appropriate.
-- Creating a second incomplete Goal while another Goal is foreground defaults
-  the new Goal to `paused`. Explicit foreground switching pauses the previous
-  active foreground Goal and preserves it in the registry.
-- A foreground Goal may remain `waiting`; do not demote it to backlog merely
-  because its external recovery event has not arrived.
-- Keep lifecycle state in each Goal file's frontmatter. Mirror status in
-  `state.yaml` only as a registry cache; repair it from the Goal frontmatter if
-  they conflict.
-- When a Goal reaches `status: complete` or `status: abandoned`, record evidence
-  in the Goal file, move it under `archive/`, update its `truth_surface` to the
-  archived path, and remove it from the active `goals` registry unless it still
-  affects the foreground Goal as a short historical pointer.
-- Serialize Goal mutations through the repository Goal lock. Archive preflight
-  is read-only, rechecks bound owner truth at the commit point, and publishes
-  the Goal, event, registry, current entrypoint, and replacement update through
-  one rollback-capable file transaction.
-- If `foreground_goal` or its file is missing or contradicts the target Goal's
-  frontmatter, repair the state before execution or stop and ask.
+- Keep exactly one foreground Goal; keep any number of incomplete backlog Goals.
+- Every unarchived Goal has exactly one existing, repo-relative
+  `execution_owner`; the Goal frontmatter is authoritative and the registry
+  mirrors it.
+- A new Goal does not abandon the previous one. Pause, wait, block, or review it
+  according to actual scheduling intent.
+- Edges such as `depends_on`, `blocks`, `interrupts`, `resumes_after`, or
+  `supersedes` describe scheduling and recovery, not permission to execute two
+  foreground Goals concurrently.
+- Archive `complete` and explicitly `abandoned` Goals and remove them from the
+  active registry.
 
-## Event Streams And Reconciliation
+## Execution Owner
 
-Keep the Goal Markdown as current control truth. Store append-only Goal control
-events in `.bagakit/goal/events/<goal-id>.jsonl`; store execution rounds,
-retries, process output, case progress, and validation logs in the owning
-Runner, evaluator, or tool surface.
+Reuse one compatible owner when it already represents current execution truth:
 
-Do not require normal recovery to replay JSONL. Reconcile after a material
-milestone, before compact or handoff, when current instructions conflict with
-newer evidence, or when checkpoint history starts accumulating:
+- accepted Spec or equivalent lifecycle surface
+- Bagakit Feature Tracker feature
+- another project-native owner with task, state, and evidence semantics
 
-1. read owner truth and unreconciled Goal events
-2. replace `Current State`
-3. replace the single `Next Execution Instruction`
-4. fold accepted deltas into their owning Goal sections
-5. keep only future-relevant `Recent Decisions`
-6. remove resolved questions and stale directions
-7. advance the registry `reconciled_through` cursor
+If none exists, create a Feature with `bagakit-feature-tracker`. Use
+`bagakit-flow-runner` beneath that owner when repeated bounded rounds are needed.
+Do not vendor either skill's state model into Goal.
 
-Read `references/event-stream-contract.md` for format ownership, the JSONL
-schema, control effects, cursor behavior, and archive rules.
+Dynamic ownership mapping:
 
-## Execution Owner Binding
+| Dynamic truth | Owner location |
+| --- | --- |
+| current state and current task | Feature `state.json` / `tasks.json` or equivalent |
+| next execution instruction | current task or Flow Runner receipt |
+| recent decisions | proposal, spec delta, Spec, or Consensus Ledger |
+| open questions | owner task, Grill, proposal, or Consensus Ledger |
+| blockers, waits, loss lines, no-progress counts | owner task lifecycle and runtime receipt |
+| HEAD, release, authorization, environment state | verification or runtime receipt |
+| current supervisor packet | execution owner packet or checkpoint receipt |
+| execution evidence | task gates, `verification.md`, Runner, or evaluator |
 
-When another runtime surface owns continuation-bearing planning or work truth,
-bind the Goal to its `bagakit.execution-owner-receipt.v1` receipt instead of
-parsing free-form orchestration text.
+Goal may mirror only the coarse lifecycle status needed to schedule multiple
+Goals. It must not duplicate the owner's mutable details.
 
-The optional Goal frontmatter binding records owner identity, the repo-relative
-receipt ref, and the semantic revision used during the last reconciliation.
-`fresh-check`, wrapper rendering, and Driver reporting fail or alert when the
-revision changes. Use `bind-execution-owner` to create the binding and
-`reconcile-goal --accept-owner-revision` after reviewing new owner truth.
-`fresh-check` takes the Goal mutation lock and, for a Feature Tracker owner,
-the shared Tracker state lock while reading the snapshot. The lock ends when
-the command returns; before-round freshness remains a cooperative protocol,
-not a lease that spans the subsequent bounded execution round.
+## Goal Kernel
 
-Owner continuation dispositions constrain Goal lifecycle:
-
-- `continue`: Goal may be active or ready for review
-- `blocked` or `unavailable`: Goal must be blocked or paused
-- `complete`: Goal may archive as complete after reconciliation and completion
-  evidence
-- `superseded`: Goal must leave active execution, but cannot be archived as
-  complete; route to the replacement or archive as explicitly abandoned
-
-The Goal never updates owner state through this binding.
-It verifies receipt identity, decision-field consistency, canonical evidence
-hashes, and the semantic revision before trusting the continuation disposition.
-
-## Evolver Review Receipts
-
-Use `.bagakit/goal/reviews/<review-id>.json` when a bounded Goal checkpoint may
-contain reusable repository learning. The caller supplies a stable `review_id`;
-requesting the same id for the same Goal and trigger is idempotent and must not
-reset a completed receipt. Exact request replay is allowed; a different request
-payload under the same id is rejected and must use a new review id.
-
-```json
-{
-  "schema": "bagakit.goal-evolver-review.v1",
-  "goal_id": "<goal-id>",
-  "review_id": "<review-id>",
-  "trigger": "after_round",
-  "status": "requested",
-  "evidence_refs": [".bagakit/flow-runner/runs/<run-id>/checkpoint.json"],
-  "drift": [],
-  "next_instruction": "Run an Evolver review over the referenced evidence and record the disposition.",
-  "approval": "not_required",
-  "evolver_disposition": "pending"
-}
-```
-
-Contract:
-
-- `trigger`: `before_round`, `after_round`, `risk`, `stale`, `pre_closeout`, or
-  `session_end`.
-- `status`: `requested`, `completed`, `blocked`, or `skipped`.
-- `approval`: `not_required`, `pending`, `approved`, or `rejected`. This field
-  records the applicable gate; it does not grant new permission to read private
-  session evidence.
-- `evolver_disposition`: `pending`, `no_signal`, `signal_candidate`, or
-  `deferred`.
-- State pairs are fixed: `requested/pending`, `completed/no_signal`,
-  `completed/signal_candidate`, `blocked/deferred`, or `skipped/no_signal`.
-  `signal_candidate` also requires `approval` to be `not_required` or
-  `approved`.
-- `evidence_refs` contains repo-relative source or result references. Raw
-  transcript content does not belong in this receipt. Absolute paths and refs
-  that escape the repository root are invalid.
-- `drift` contains compact observed drift or the expected evidence missing at a
-  `stale` checkpoint.
-- `next_instruction` is the next Goal-side action, not Evolver topic or routing
-  state.
-- A `signal_candidate` receipt hands the repo-relative receipt path to
-  Evolver's session-review intake. Goal must not create or update Evolver
-  topics, adoption, route, or promotion state.
-- Once a receipt leaves `requested`, the same `review_id` is immutable. A
-  materially different outcome or evidence packet requires a new review id.
-
-Review scheduling is event-bound. Do not add a daemon or timer service merely
-to generate review files. `session_end` is opportunistic only; failure to run
-it must not invalidate otherwise complete Goal evidence. `stale` means expected
-evidence is absent, not that wall-clock time alone elapsed.
-
-## Supervisor Contract
-
-Use `.bagakit/goal/supervisor.md` when the Goal needs self-supervision or a
-separate outer loop. This file is a reusable supervision contract, not a log and
-not a second Goal schema.
-
-Template:
-
-````markdown
-# Goal Supervisor
-
-## Role Boundary
-- Inner loop: execute one bounded step toward the foreground Goal.
-- Supervisor checkpoint: observe evidence, detect drift, and update the Goal or
-  next instruction before more implementation.
-- Do not become a second executor.
-
-## Checkpoint Cadence
-- Run before each bounded execution round.
-- Run after each bounded execution round.
-- Run before claiming `status: complete`.
-
-## Drift Classes
-- target drift
-- method drift
-- scope drift
-- evidence drift
-- retry drift
-- risk drift
-- context drift
-
-## Packet
-```toml
-goal_state_file = ".bagakit/goal/state.yaml"
-goal_file = ".bagakit/goal/<goal-id>.md"
-foreground_goal = "<goal-id>"
-status = "on_track" # on_track | needs_correction | waiting | blocked | ready_to_stop
-goal_delta = "none" # none | clarify | narrow | broaden | replace
-sidecar = "not_needed" # not_needed | dispatched | pending | unavailable | incorporated
-drift = []
-evidence = []
-goal_patch = ""
-next_instruction = ""
-stop_rule = ""
-user_question = ""
-```
-
-## Evolver Review Checkpoints
-- Use event-bound review triggers: `before_round`, `after_round`, `risk`,
-  `stale`, `pre_closeout`, or opportunistic `session_end`.
-- `stale` means expected evidence is missing; do not add a timer or daemon.
-- Store request/receipt state under `.bagakit/goal/reviews/`; Goal does not own
-  Evolver topic, adoption, routing, or promotion state.
-
-## Rules
-- Patch the Goal only when new information changes execution direction or
-  recovery.
-- Ask before changing the promised outcome, dropping a requirement, or taking
-  irreversible, privacy-sensitive, publication, or cost-bearing action.
-- Distill sidecar output into a Goal delta, risk, non-goal, acceptance
-  criterion, open question, or owner-file pointer.
-````
-
-## Frontmatter Lifecycle
-
-Every durable Goal file should start with machine-readable frontmatter. Use one
-status field as the lifecycle source of truth.
+Frontmatter:
 
 ```yaml
 ---
 schema: bagakit.loop-goal.v1
-protocol_version: bagakit.goal.v.0.2
+protocol_version: bagakit.goal.v.0.3
 goal_id: <goal-id>
-status: draft # draft | active | waiting | paused | blocked | ready_for_review | complete | abandoned
+status: active
 truth_surface: .bagakit/goal/<goal-id>.md
+execution_owner:
+  kind: bagakit-feature-tracker
+  ref: .bagakit/feature-tracker/features/<feature-id>
 completion_evidence: []
 ---
 ```
 
-Status meanings:
+Kernel template:
 
-- `draft`: the Goal is being shaped and should not drive execution yet.
-- `active`: execution should continue.
-- `waiting`: execution is paused on a known external recovery condition. The
-  Goal remains incomplete and may stay foreground.
-- `paused`: the Goal is intentionally not foreground but may be resumed.
-- `blocked`: no currently credible recovery path remains, or post-loss-line
-  reassessment shows that continuing to wait is no longer justified.
-- `ready_for_review`: acceptance likely holds, but review or user confirmation
-  is still needed.
-- `complete`: acceptance and stop rules have been met.
-- `abandoned`: the Goal was deliberately stopped without completion.
+```markdown
+# Goal: <short name>
 
-Do not add a separate `complete: true` field; it can conflict with `status`.
-When the Goal is complete, set `status: complete` and add concise
-`completion_evidence` using repo-relative refs, command names, or observable
-results. Do not add timestamps, usernames, hostnames, or absolute paths unless
-the user explicitly requires them for a private runtime file.
+## Prime Directive
+<final outcome and why it is important>
 
-If the Goal is archived, update `truth_surface` to the archived path, usually
-`.bagakit/goal/archive/<goal-id>.md`.
+## Protected Invariants
+- <principle or constraint that stays true throughout execution>
+- Non-goals: <neighboring outcomes that must not replace the target>
 
-When `status: waiting`, add exactly one compact wait block:
+## Acceptance And Stop Rules
+- Acceptance: <observable end-state evidence>
+- Insufficient: <plausible partial results that do not count>
+- Stop and ask when: <authority, risk, cost, privacy, or irreversible boundary>
+- Stop as complete when: <completion evidence contract>
 
-```yaml
-wait:
-  resume_on: user authorization is confirmed
-  loss_line: reassess after the authorization's expected response window
-  phase: grace # grace | assessing
-  no_progress_rounds: 0
+## Authority And Orchestration
+- Resolve the exact execution owner from frontmatter; `state.yaml` mirrors it
+  for registry recovery.
+- <durable delegation, parallelism, review, merge, and evidence principles>
+- <who may change outcome, scope, acceptance, or irreversible state>
+
+## Context References
+- `<ref>`: explains <invariant or rationale>; read when <specific condition>.
 ```
 
-The model chooses `loss_line` from the task's authorization lifetime, expected
-human response time, reversibility, urgency, observation cost, and available
-fallback work. It is not a universal duration or round count.
+The compact multi-agent brief pattern is structural, not a word-count target:
 
-- During `phase: grace`, suspend expensive execution and keep
-  `no_progress_rounds: 0`.
-- When the loss line is actually crossed, set `phase: assessing`; only then may
-  bounded no-progress reassessments increment `no_progress_rounds`.
-- A no-change observation before the loss line is not a failed round.
-- Crossing the loss line does not automatically mean `blocked`. Continue
-  waiting, switch method, pause observation, escalate once, or mark `blocked`
-  according to the task's remaining recovery path and cost.
-- Resume as `active` when `resume_on` occurs. Remove the wait block whenever the
-  status is no longer `waiting`.
-- Host-level automatic continuation counts are scheduling safeguards, not Goal
-  lifecycle evidence, and must not replace this task-specific judgment.
+- state the exact outcome
+- name plausible results that are still insufficient
+- define adaptive search or execution heuristics
+- require concrete outputs and evidence
+- require adversarial or independent audit where risk warrants it
+- define the return or stopping condition
+
+Do not hard-code a worker count or fixed role allocation into Goal unless it is
+a true external constraint. Live approach registries, team assignments, and
+resource use belong in the owner.
+
+## Context References
+
+Context References preserve stable material that explains why the Kernel is
+true without becoming current execution truth. Each entry contains only:
+
+- a repo-relative path or stable id
+- what invariant or rationale it explains
+- the condition under which the executor should read it
+
+Do not copy long summaries, runtime status, or evidence into this section.
+
+## Kernel Gaps And Grill
+
+Use `inspect-upgrade` or the upsert requirements as the decision tool.
+
+- Repair generated files, protocol metadata, empty optional Context References,
+  and other deterministic shape gaps directly.
+- Inspect code, owner state, and local docs before asking questions.
+- If final outcome, importance, invariant, non-goal, acceptance, insufficiency,
+  stop boundary, owner choice, or authority remains ambiguous, preserve a
+  concrete conflict packet and use `bagakit-grill`.
+- Ask one decision-bearing question at a time. Do not use Grill merely to fill
+  formatting or restate evidence already available locally.
+
+## Lifecycle
+
+Allowed statuses are `draft`, `active`, `waiting`, `paused`, `blocked`,
+`ready_for_review`, `complete`, and `abandoned`.
+
+- `waiting` and `blocked` are coarse Goal scheduling states only. Recovery
+  event, loss line, reassessment count, blocker detail, and fallback work live
+  in the execution owner.
+- `complete` requires concise repo-relative `completion_evidence`.
+- Do not add a second completion boolean.
+- Archive complete or abandoned Goals. Update `truth_surface` to the archive
+  path.
+- Validate the replacement foreground before mutation, then publish the Goal,
+  event stream, registry, entrypoint, and replacement update as one serialized
+  file transaction. Failed or competing archive requests must not expose a
+  partial lifecycle state.
 
 ## Goal Wrapper
 
-When the user asks for "a paragraph to set as Goal", write a short wrapper that
-points at the Goal file instead of pasting the full control plane into chat.
-If `.bagakit/goal/current.md` exists, point the wrapper there first so the
-executor can resolve `state.yaml` and the foreground Goal before reading the
-Goal file. If `.bagakit/goal/supervisor.md` exists at creation time, include it
-as a second file reference in the wrapper; `current.md` should still recall it
-later if supervision is added after the initial Goal is set.
-
-The wrapper should:
-
-- state that the agent must read the Goal file before continuing
-- explain the importance of the goal and why completion matters
-- tell the agent to use CodexL for each concrete execution action when that is
-  the user's desired execution model
-- keep logical supervision with the current agent: inspect context, judge the
-  result, update the Goal when needed, and decide the next iteration
-- allow arbitrarily many execution iterations until the task is genuinely
-  complete
-- require context recovery after restart, compact, or handoff
-- require the agent to set frontmatter `status: complete` and record
-  `completion_evidence` before claiming final completion
-- point to the Goal file as the control plane
-
-For the Codex Goal command, Claude Loop command, or any host that supports file
-references, use one of these fixed templates instead of improvising prose. Only
-the file paths and the presence of the `supervisor.md` block may vary; keep the
-one-sentence file guidance and stale-context warning intact.
+Use these fixed host prompts. Only paths and supervisor presence may vary.
 
 With supervisor:
 
@@ -471,253 +264,43 @@ Read current.md first; it resolves state.yaml, foreground_goal, and the active G
 Context may be stale or wrong; recover from this file before trusting prior context.
 ```
 
-Template:
-
-```text
-Read `<current-file-or-goal-file>` before continuing and treat it as the
-execution control plane for this task. If this is `.bagakit/goal/current.md`,
-read `.bagakit/goal/state.yaml`, resolve `foreground_goal`, and read that Goal
-file before acting. If `.bagakit/goal/supervisor.md` is referenced or exists,
-read it before execution and run its checkpoint rules around each bounded work
-round.
-
-Your job is to complete the objective described in that Goal file, not merely
-make one attempt. For every concrete execution action, dispatch the work through
-CodexL when available, while you retain responsibility for reading context,
-checking the code, judging progress, updating the Goal when direction-changing
-facts appear, and choosing the next iteration. Continue through as many
-iterations as needed until the Goal's acceptance and stop rules say the task is
-genuinely complete. After restart, compact, or handoff, recover state from the
-Goal file and its indexed owner files before acting. Before reporting final
-completion, update the Goal frontmatter to `status: complete`, add concise
-`completion_evidence`, and archive the Goal so it no longer interferes with the
-active work set. If the work is waiting, paused, blocked, needs review, or is
-abandoned, write that status instead of claiming completion.
-```
-
-## Minimum Structure
-
-Use this spine unless the host already has a compatible format:
-
-Current entrypoint:
-
-```markdown
-# Current Goal
-
-Read `.bagakit/goal/state.yaml`, resolve `foreground_goal`, then read that Goal
-file before acting. If `.bagakit/goal/supervisor.md` exists, read it before
-execution and run its checkpoint rules.
-
-Context may be stale or wrong; recover from these files before trusting prior
-context.
-```
-
-State file:
-
-```yaml
-schema: bagakit.goal-state.v1
-protocol_version: bagakit.goal.v.0.2
-foreground_goal: <goal-id>
-
-supervision:
-  mode: off
-  contract: .bagakit/goal/supervisor.md
-  checkpoint: before_action_and_after_round
-
-goals:
-  <goal-id>:
-    file: .bagakit/goal/<goal-id>.md
-    status: active
-    role: foreground
-    event_log: .bagakit/goal/events/<goal-id>.jsonl
-    reconciled_through: 1
-
-edges: []
-
-archive:
-  dir: .bagakit/goal/archive
-```
-
-Supervisor file when `supervision.mode` is not `off`:
-
-```markdown
-# Goal Supervisor
-
-Run a checkpoint before and after each bounded execution round. Classify
-alignment as `on_track`, `needs_correction`, `waiting`, `blocked`, or
-`ready_to_stop`.
-Patch the Goal only when new information changes direction or recovery.
-```
-
-Goal file:
-
-```markdown
----
-schema: bagakit.loop-goal.v1
-protocol_version: bagakit.goal.v.0.2
-goal_id: <goal-id>
-status: active
-truth_surface: .bagakit/goal/<goal-id>.md
-completion_evidence: []
----
-
-# Goal: <short name>
-
-## Prime Directive
-<one paragraph stating the final outcome and why it matters>
-
-## Current State
-- Last known progress: <compact factual state>
-- Active branch: <what the executor should currently optimize for>
-- Blockers: <none or decision/evidence/tooling gap>
-
-## Execution Principles
-- <principle that should shape choices>
-- <constraint or invariant that must not be violated>
-- Non-goals: <what not to do>
-
-## Acceptance And Stop Rules
-- Acceptance: <observable evidence required>
-- Stop and ask when: <user decision, irreversible action, privacy/cost risk>
-- Stop as complete when: <completion evidence>
-
-## Orchestration Index
-- Specs: <OpenSpec/spec refs or none>
-- Plans: <Plan on Fire/plan refs or none>
-- Brainstorm: <brainstorm refs or none>
-- Feature truth: <feature tracker refs or none>
-- Runner truth: <flow runner/session refs or none>
-- Research/evidence: <research refs or none>
-- Supervisor/sidecar: <supervisor packet, Grok sidecar, or pending refs>
-
-## Next Execution Instruction
-<one concrete next instruction for the executor>
-
-## Recent Decisions
-- <only a few accepted decisions that still affect future execution>
-
-## Open Questions
-- <question, owner, and what changes based on the answer>
-```
-
-## What Belongs In The Goal
-
-Write into the Goal when information changes execution direction or recovery:
-
-- final objective and success bar
-- execution principle or invariant
-- hard constraint, non-goal, privacy/cost/publication/reversibility gate
-- acceptance criterion, evidence standard, or stop rule
-- current execution state and next instruction
-- compact risk, blocker, or open question
-- pointer to owning feature, plan, spec, research, runner, handoff, or sidecar
-- accepted Goal delta from user discussion or supervisor review
-
-## What Belongs Elsewhere
-
-Do not turn the Goal into a storage bin.
-
-| Content | Owner |
-| --- | --- |
-| feature scope, task breakdown, lifecycle state | Feature Tracker or feature file |
-| implementation steps and technical plan | Plan, handoff, or runner item |
-| formal requirements and change lifecycle | OpenSpec or equivalent spec tool |
-| raw discussion, options, expert review | Brainstorm |
-| source notes, claims, evidence | Researcher or evidence files |
-| repeated execution checkpoints, incidents, retry history | Flow Runner or owner JSONL/session state |
-| append-only steering events and reconciliation history | Goal JSONL event stream |
-| raw Grok/sidecar output | sidecar log; Goal keeps distilled delta or pointer |
-| supervisor protocol and checkpoint cadence | `.bagakit/goal/supervisor.md` |
-| Evolver signals, topics, adoption, routing, promotion | `bagakit-skill-evolver`; Goal keeps only the review request/receipt |
-| completed or abandoned Goal history | `.bagakit/goal/archive/` |
-
-When unsure, add a one-line pointer in the Goal and put the detail in the owner
-surface.
-
 ## Fresh-Executor Check
 
-Before handing off, ask:
+A fresh executor must be able to:
 
-1. Can a new executor state the final objective in one paragraph?
-2. Can the executor explain the principles behind the target, not just the todo
-   list?
-3. Can the executor find detailed specs, plans, research, feature state, and
-   runner state from the Goal?
-4. Can the executor identify the next action and the stop condition?
-5. Would adding the prior chat materially change the executor's next move?
-6. When an execution owner is bound, does `fresh-check --json` report the
-   exact owner revision being used for this bounded round?
+1. state the final outcome, importance, invariants, non-goals, and acceptance
+2. distinguish completion from plausible but insufficient partial progress
+3. identify authority, escalation, and adaptive orchestration rules
+4. resolve exactly one execution owner
+5. find current task, blockers, waits, packets, and evidence in that owner
 
-If answer 5 is yes, the Goal is missing key control-plane information.
+If prior chat would materially change these answers, the Kernel or owner is
+incomplete.
 
 ## Alignment Recap
 
-After nontrivial Goal creation or a direction-changing Goal update, give the
-user a short plain-language recap before activation or continued execution. This
-recap proves user-agent agreement, not executor recovery.
+After nontrivial creation or direction-changing updates, explain in plain
+language:
 
-Include only decision-bearing points:
+- the outcome and why it matters
+- invariants, non-goals, acceptance, and insufficiency boundaries
+- the execution owner and execution mode
+- assumptions or risks that could change direction
+- only the points where user correction would change execution
 
-- Goal: <what outcome the Goal is steering toward>
-- Why it matters: <why this outcome is worth completing>
-- Scope: <in scope and out of scope>
-- Execution mode: <current/state/supervisor, CodexL, Team mode, sidecar, or
-  owner tools when relevant>
-- Risks or assumptions: <what could change the Goal, acceptance bar, or next
-  move>
-- Please correct: <only the points where a user answer changes execution>
+Generate this recap from Kernel plus owner evidence. It is transient, not a
+second source of truth. Write user corrections back to the Kernel or owner and
+rerun the fresh-executor check.
 
-Rules:
+## Driver Feedback
 
-- Generate the recap from the Goal and indexed owner refs.
-- Do not store the recap as a second source of truth.
-- Distill user corrections into Goal deltas, owner-file updates, or open
-  questions before activation.
-- If the correction changes the promised outcome, acceptance bar, or execution
-  mode, update the Goal and run the fresh-executor check again.
-- For tiny mechanical updates where the user already delegated execution, the
-  recap may be informational and need not block progress.
-
-## Event-Driven Driver Feedback
-
-Use the Goal Driver as a read-only feedback tool after owner truth has been
-updated. The fixed summary shape is:
+Render Driver output from explicit owner evidence:
 
 ```text
 [[BAGAKIT]]
-- Goal: ID=<goal-id>; Status=<previous→current or current>; Event=<latest material event>; Progress=<passed gates/total gates or unknown>; Drift=<none or summary>; Budget=<time/token assessment or unknown>; Discovery=<decision-bearing discovery or none>; Evidence=<refs>; Next=<one deterministic action>
+- Goal: ID=<goal-id>; Status=<transition>; Event=<event>; Progress=<owner gates or unknown>; Drift=<summary>; Budget=<assessment or unknown>; Discovery=<material discovery or none>; Evidence=<owner refs>; Next=<owner action>
 ```
 
-Run the full report after:
-
-- restart, compact recovery, or execution handoff
-- a bounded execution round or material milestone
-- status, foreground, acceptance, or next-action changes
-- drift, blocking, retry backoff, or budget risk
-- a discovery that changes scope, risk, acceptance, or orchestration
-- pre-closeout and completion
-
-For every new user input, assess drift internally. Do not emit another full
-report unless the input creates a Goal delta, an alert candidate, or a material
-checkpoint. This keeps the reinforcement loop active without turning the
-conversation into a log stream.
-
-Progress and resource rules:
-
-- prefer checked acceptance gates and explicit counts over guessed percentages
-- report `unknown` when no denominator, timer baseline, token counter, or token
-  budget exists
-- surface discoveries only when they can change the Goal or next execution move
-- generate the report from Goal and indexed owner evidence; never write the
-  rendered footer back into the Goal
-
-Use the shared Bagakit alert aggregate for decision-bearing exceptions:
-
-```text
-- 👩🏻‍🚒 ALERTS !! P1[Goal/<id>] Signal=<what changed>; Impact=<why it matters>; Response=<one corrective action>; Evidence=<refs>
-```
-
-Goal contributes alert candidates for protocol incompatibility, unreconciled
-truth, blocking, material drift, and budget risk. It must not create a separate
-Goal Alert section. Run `driver-report` to render the projection or obtain its
-structured JSON form.
+Never infer progress from mutable checkboxes in the Kernel. Report `unknown`
+when owner evidence has no denominator, time baseline, or token budget. Use the
+shared Bagakit Alert aggregate for decision-bearing exceptions.

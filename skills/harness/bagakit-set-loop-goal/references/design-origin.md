@@ -65,11 +65,24 @@ index.
 
 这样做的目的是明确它应该如何遵循这些文件、为什么要遵循这些模版，从而让它的目标完成得更好。"
 
+11. "所以 goal 里头的东西，应该是不需要维护也绝对正确的那些东西"
+
+12. "Current State
+Next Execution Instruction
+Recent Decisions
+Open Questions
+动态 blocker、等待次数、HEAD、release、授权状态
+当前 supervisor packet 和执行 evidence
+
+这些反而应该用 feature 类的结构承载, 如果有就写入, 如果没有就创建 bagakit-feature-tracker 来管理真相更加合理
+
+另外, 有一些上下文是助于理解 goal 的真相, 这些虽然不放在 Kernel, 但是可以作为引用记录"
+
 ## FAQ
 
 ### Q1: Goal 文件是不是要包含所有上下文？
 
-A: 不是。Goal 文件是控制面，不是仓库、日志、完整计划或研究笔记。它应该包含会影响执行方向的信息：最终目标、原则、约束、验收标准、当前状态、关键索引、下一步策略、停止条件、风险和开放问题。细节应放到对应 Feature、Plan、Research、Runner、Spec 或 Handoff 文件中，Goal 只保留指针和摘要。
+A: 不是。Goal Kernel 只保留正常执行不会让它过时的真相：最终目标与重要性、原则、约束、非目标、验收与“不算完成”的边界、停止与升级边界、权限合同，以及稳定的上下文引用。当前状态、下一步、近期决策、开放问题、blocker、等待、packet 和 evidence 必须放到唯一 execution owner。
 
 ### Q2: 用户在执行过程中提出新想法怎么办？
 
@@ -85,7 +98,7 @@ A: 主 Skill 要保持精简，只写触发条件、核心合同、最小循环�
 
 ### Q5: Goal 文件和 Feature / Plan / Spec 的关系是什么？
 
-A: Goal 文件负责“为什么、到哪里、按什么原则走、当前走到哪、去哪找细节”。Feature / Plan / Spec 负责“具体拆解、实现细节、任务状态、技术方案、研究材料”。Goal 文件应该编排这些工具，而不是替代它们。
+A: Goal 文件负责“为什么、到哪里、按什么永久正确的原则走、谁拥有执行真相、去哪理解背景”。唯一 execution owner 负责“当前走到哪、下一步、任务状态、blocker、等待、packet 和 evidence”。Feature / Plan / Spec / Research / Runner 各自保留原生职责，Goal 不复制它们。
 
 ### Q6: Goal 文件默认放在哪里？
 
@@ -109,7 +122,7 @@ A: 已完成或明确 abandoned 的 Goal 不应该继续干扰当前工作集。
 
 ### Q11: Supervisor 是否需要独立 skill？
 
-A: 目前不需要。Supervisor 能力应作为 `bagakit-set-loop-goal` 的 supervision mode 存在，用 `.bagakit/goal/supervisor.md` 承载监督协议。只有当它拥有独立 operator，能持续写 supervisor packets、drift logs、Grok sidecar sessions，并与 runner 自动联动时，才值得拆成独立 skill。
+A: 目前不需要。Supervisor 能力应作为 `bagakit-set-loop-goal` 的 supervision mode 存在，用 `.bagakit/goal/supervisor.md` 承载稳定监督协议；当前 packet 和 evidence 写入 execution owner。只有当 Supervisor 拥有独立 operator 和独立 runtime ownership 时，才值得拆成独立 skill。
 
 ### Q12: Goal command 或 Loop command 里应该如何引用 Goal 文件？
 
@@ -127,25 +140,24 @@ A: 不允许。Goal command 和 Loop command 应使用固定 wrapper 模板。�
 2. 「应该要有等待止损线，比如等人授权，等待肯定是合理的, 现在的问题主要是 \"几次 block\" 作为标准不合理」
 3. 「可以到止损线开始允许记录 “无进展轮次”，然后止损线要求模型根据任务来看」
 
-A: 已知外部事件能够恢复执行时，应使用 `waiting`。模型根据任务的授权有效期、预期人工响应时间、紧迫度、可逆性、观察成本和可做的替代工作设置一个 `loss_line`。止损线之前不记录无进展轮次；越过止损线后才进入 bounded reassessment，并允许记录 `no_progress_rounds`。这个计数只帮助模型判断，不构成固定的自动 blocked 阈值。只有恢复路径已经不存在、失效、被拒绝，或者继续等待对当前任务已不合理时，才设为 `blocked`。
+A: 已知外部事件能够恢复执行时，应使用 `waiting`。模型根据任务的授权有效期、预期人工响应时间、紧迫度、可逆性、观察成本和可做的替代工作设置一个 `loss_line`。止损线之前不记录无进展轮次；越过止损线后才进入 bounded reassessment，并允许记录 `no_progress_rounds`。这个计数只帮助模型判断，不构成固定的自动 blocked 阈值。恢复条件、止损线、计数、fallback 和授权状态都写入 execution owner；Goal 只在多 Goal 排程需要时镜像粗粒度 `waiting` 或 `blocked` 状态。
 
 ## Design Answers
 
-1. A high-quality Goal file is a compact, recoverable steering index.
-2. The minimum structure is prime directive, current state, principles,
-   acceptance and stop rules, orchestration index, next instruction, delta log,
-   and open questions.
-3. Direction-changing context belongs in the Goal; detailed task substance
-   belongs in Feature, Plan, Spec, Research, Runner, or Handoff surfaces.
-4. Restart, compact, and handoff are supported by a fresh-executor check and by
-   keeping refs to owner files in the Goal.
+1. A high-quality Goal is a compact, recoverable, staleness-safe Kernel.
+2. The minimum Kernel is prime directive, protected invariants, acceptance and
+   stop rules, authority and orchestration, and bounded context references.
+3. Every unarchived Goal has exactly one execution owner. Current state, next
+   action, decisions, questions, waits, packets, and evidence live there.
+4. Restart, compact, and handoff recover through current, state, Kernel, owner,
+   then current owner task or receipt.
 5. Grok sidecar, Team mode, OpenSpec, Brainstorm, Feature Tracker, and Runner
-   are adapters in the Goal's orchestration index, not content buckets.
+   keep their native ownership; the owner composes them and the Goal keeps only
+   durable principles.
 6. The main skill stays short; templates, placement rules, packet schema, and
    evolution intent live in references.
-7. Loop-off-loop means the outer loop edits the control plane and next
-   instruction when drift appears, rather than directly changing the inner
-   implementation.
+7. Loop-off-loop means the outer loop updates owner truth or a Kernel delta when
+   drift appears, rather than directly changing the inner implementation.
 8. Some requests need a Goal wrapper: a short paragraph to set as the live
    Agent Goal. The wrapper should point to the Goal file, require CodexL for
    concrete execution actions when desired, preserve the agent's logic
@@ -175,4 +187,9 @@ A: 已知外部事件能够恢复执行时，应使用 `waiting`。模型根据�
 17. Known external recovery conditions use `waiting`. A task-specific loss line
     protects cost without turning host continuation counts into lifecycle truth;
     no-progress rounds begin only after that line and remain evidence for model
-    judgment rather than an automatic block threshold.
+    judgment rather than an automatic block threshold. Full wait truth belongs
+    to the execution owner.
+18. Kernel admission asks whether normal successful execution would make a
+    statement false. If yes, route it to the owner.
+19. Missing semantic Kernel truth routes to Grill after local inspection;
+    deterministic shape repair and owner creation should not burden the user.

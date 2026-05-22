@@ -1,11 +1,11 @@
 version = 1
 insert_target = "bagakit_footer"
-summary_line = "- Goal: ID=<foreground goal or none>; Status=<previous→current or current>; Event=<latest material event>; Progress=<evidence-backed gates or unknown>; Drift=<none or decision-bearing drift>; Budget=<time/token assessment or unknown>; Discovery=<decision-bearing discovery or none>; Evidence=<Goal and owner refs>; Next=<one deterministic action>"
+summary_line = "- Goal: ID=<foreground goal or none>; Status=<previous→current or current>; Event=<latest material event>; Progress=<owner evidence-backed gates or unknown>; Drift=<none or decision-bearing drift>; Budget=<time/token assessment or unknown>; Discovery=<decision-bearing discovery or none>; Evidence=<owner refs>; Next=<one owner action>"
 
 [[directive]]
 id = "CHECKPOINT"
 when = "a bounded round, material milestone, lifecycle change, foreground switch, restart recovery, or pre-closeout check completes"
-instruction = "update and reconcile Goal truth first, then render one Goal summary with `driver-report`; do not use the conversation footer as a second source of truth"
+instruction = "update execution-owner truth first, patch the Kernel only for durable direction changes, reconcile any Goal event cursor, then render one summary with `driver-report`"
 
 [[directive]]
 id = "INPUT_DRIFT"
@@ -15,7 +15,7 @@ instruction = "assess whether it changes the protected outcome, acceptance, scop
 [[directive]]
 id = "PROGRESS"
 when = "reporting overall progress"
-instruction = "prefer passed acceptance gates over intuitive percentages; report `unknown` when no evidence-backed denominator exists"
+instruction = "prefer passed owner task gates over intuitive percentages; report `unknown` when no owner evidence-backed denominator exists"
 
 [[directive]]
 id = "BUDGET"
@@ -30,4 +30,4 @@ instruction = "surface only discoveries that may change Goal direction, acceptan
 [[directive]]
 id = "ALERT_CANDIDATE"
 when = "Goal drift, post-loss-line waiting, blocking, unreconciled truth, protocol incompatibility, or budget risk can change the next action"
-instruction = "contribute a P0, P1, or P2 candidate to the shared `👩🏻‍🚒 ALERTS !!` aggregate; never create a Goal-specific alert heading"
+instruction = "contribute a P0, P1, or P2 candidate to the shared `👩🏻‍🚒 ALERTS !!` aggregate using owner evidence; never create a Goal-specific alert heading"

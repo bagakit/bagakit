@@ -1,130 +1,95 @@
 # Tool Orchestration
 
-Use this reference when a Goal file must coordinate project-specific planning,
-spec, research, sidecar, or execution tools.
+The Goal defines durable authority and orchestration principles. Exactly one
+execution owner holds the live plan, tasks, assignments, packets, and evidence.
 
-## Core Rule
+## Owner Selection
 
-The Goal coordinates tools; it does not replace them.
+Choose in order:
 
-For each tool, record only:
+1. an existing accepted Spec, Feature, or project-native owner that already
+   owns current execution truth
+2. a new Feature created through `bagakit-feature-tracker`
+3. beneath that owner, `bagakit-flow-runner` for repeated bounded rounds
 
-- whether the tool is active, unavailable, or not needed
-- the authoritative file or id
-- the current state that changes execution
-- the next action or stop condition
+Do not point `execution_owner` into `.bagakit/goal/`. Do not list several owners
+as peers. Secondary tools are indexed by the owner.
 
-## Team Mode And Parallelism
+## Adaptive Teams
 
-Use parallel or Team-mode execution when:
+Use parallel workers when branches are genuinely independent, outputs have
+distinct owners, and the merge or audit rule is clear. Scale effort to task
+value, dependency shape, context size, and cost.
 
-- independent research, review, implementation, or validation branches can run
-  without writing the same files
-- a sidecar analysis can evaluate user concerns while the main agent inspects
-  local state
-- an executor/reviewer split would improve quality
+The durable Goal may state:
 
-Do not use parallelism when:
+- preserve several independent approaches before converging
+- give each branch an objective, boundaries, output format, tools or sources,
+  evidence bar, and stop condition
+- require adversarial review of candidate results
+- keep unrelated safe work moving while one branch waits
+- avoid global synchronous barriers
 
-- branches would edit the same files without a merge plan
-- privacy, cost, publication, or irreversible actions need user approval
-- the Goal lacks a clear acceptance bar
+The owner records the live approach registry, worker count, assignments,
+progress, budget, packet state, and merge disposition. Do not hard-code a
+worker count or fixed roster in Goal unless an external constraint makes it
+permanently true.
 
-Record Team-mode decisions in the Goal as:
+Multi-agent work is not free. Prefer it for high-value parallel branches and
+large independent context. Coding tasks often expose fewer safe parallel
+writes than research; use disjoint write scopes and explicit integration.
 
-```markdown
-- Team mode: <not_needed|recommended|active|blocked>
-- Parallel branches: <branch -> owner/output/ref>
-- Merge rule: <how branch outputs become Goal deltas or owner-file updates>
+## Supervisor
+
+`supervisor.md` defines stable checkpoint policy. The execution owner stores
+the current packet and evidence. A supervisor may:
+
+- identify target, method, scope, evidence, retry, risk, or context drift
+- update owner truth
+- propose a Kernel delta
+- ask for a decision at a protected boundary
+- recommend stop or closeout
+
+It must not duplicate implementation, wait as a global barrier when unrelated
+work is available, or write live packet state into Goal Markdown.
+
+## Sidecar Analysis
+
+Grok or another sidecar is analysis, not executor authority. Its raw output
+stays in a sidecar or research surface. Distill only:
+
+- a candidate Kernel delta
+- an owner task or decision update
+- a risk, non-goal, acceptance change, or context reference
+- a Grill question when user authority is required
+
+Unavailable sidecar analysis must be recorded as unavailable, never implied.
+
+## Specs, Plans, Brainstorm, And Research
+
+- OpenSpec or equivalent owns formal requirements and accepted change state.
+- Feature Tracker owns feature lifecycle, tasks, gates, and workspace state.
+- Flow Runner owns repeated rounds, checkpoints, incidents, and resume payloads.
+- Brainstorm owns option exploration and trade-offs.
+- Grill owns dependency-ordered user decisions for a concrete conflict.
+- Researcher owns source cards, claims, counterevidence, and synthesis.
+- Consensus Ledger owns recoverable shared-understanding state.
+
+The Goal keeps only stable principles and bounded references. The execution
+owner indexes whichever secondary surfaces affect current work.
+
+## Delegation Packet
+
+Every delegated branch should receive:
+
+```text
+objective: exact branch outcome
+boundaries: files, decisions, and actions it may or may not own
+output: required artifact or structured result
+tools_and_sources: preferred or forbidden routes
+evidence: what makes the result usable
+stop: completion, escalation, and budget condition
 ```
 
-## Grok Sidecar
-
-Grok sidecar is analysis, not execution.
-
-Use sidecar analysis for:
-
-- new user ideas that may widen, narrow, or redirect the target
-- doubts about whether the current path still matches the final goal
-- risk statements, counterarguments, or alternate strategies
-- questions where an external reasoning pass can surface hidden assumptions
-
-Rules:
-
-- Grok output must not directly become code or implementation.
-- Distill output into a Goal delta, open question, risk, non-goal, acceptance
-  criterion, or pointer to an owner file.
-- If Grok is unavailable, record `grok_pending` or `grok_unavailable` instead
-  of pretending the review happened.
-
-## OpenSpec Or Spec Tools
-
-When an OpenSpec-like tool exists:
-
-- specs own formal requirements, proposals, accepted changes, and compatibility
-  constraints
-- the Goal records spec ids, status, and which spec gates affect execution
-- Goal deltas that change promised behavior should route into the spec tool
-  before execution proceeds
-
-Goal entry:
-
-```markdown
-- Specs: <spec id/path/status>
-- Spec gate: <what must be accepted or checked before implementation>
-```
-
-## Plan On Fire, Brainstorm, And Planning Notes
-
-Use planning tools for details and alternatives.
-
-- Brainstorm owns raw discussion, option exploration, trade-offs, and expert
-  review.
-- Plan files own concrete implementation decomposition.
-- Plan on Fire or equivalent task tools own volatile planning state.
-
-The Goal records the accepted planning principle, selected option, and pointer
-to the owning plan.
-
-## Feature Tracker
-
-Use Feature Tracker when durable feature or task truth is needed.
-
-The Goal should include:
-
-- active feature id or task id
-- workspace mode if it changes execution
-- gate evidence required before completion
-- archive/closeout condition
-- a bound execution-owner receipt when Feature Tracker state controls whether
-  the Goal may continue
-
-Do not copy the feature task list into the Goal.
-Do not parse Feature Tracker prose to infer freshness; compare the receipt's
-semantic revision and continuation disposition.
-
-## Flow Runner
-
-Use Flow Runner when repeated bounded execution sessions are needed.
-
-The Goal should include:
-
-- active runner item or session id
-- latest checkpoint or incident ref
-- next-action payload ref
-- resume-candidate rule
-- stop or escalation condition
-
-Do not rewrite runner checkpoints in the Goal.
-
-## Other Project-Specific Tools
-
-For any other local tool, use the same adapter shape:
-
-```markdown
-- Tool: <name>
-- Role: <what this tool owns>
-- Truth ref: <repo-relative file/id>
-- Goal relevance: <why it changes execution>
-- Next action: <one command or decision>
-```
+This packet lives with the owner or runner because assignments change. The Goal
+may retain only the durable rule that such packets are required.
