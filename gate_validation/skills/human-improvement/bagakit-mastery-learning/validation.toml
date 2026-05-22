@@ -1,0 +1,77 @@
+version = 2
+
+[[suite]]
+id = "bagakit-mastery-learning-layout"
+owner = "skills/human-improvement/bagakit-mastery-learning"
+description = "Require the canonical runtime layout for bagakit-mastery-learning."
+default = true
+proof_mode = "structural"
+protects = ["bagakit-mastery-learning installable layout, agent metadata, references, CLI declaration, and validation registration"]
+oracle = ["fs runner checks required skill files and forbids maintainer payload leaks"]
+exercised_surface = ["skills/human-improvement/bagakit-mastery-learning runtime directory", "gate_validation/skills/human-improvement/bagakit-mastery-learning registration"]
+proves = ["bagakit-mastery-learning-layout proves the runtime skill and its contract references are complete and installable."]
+does_not_prove = ["bagakit-mastery-learning-layout does not prove learning outcomes, transfer, retention, or stochastic Agent compliance."]
+validation_class = "structure"
+groups = ["skills", "human-improvement", "mastery-learning", "structure"]
+
+[suite.runner]
+kind = "fs"
+required_dirs = [
+  "skills/human-improvement",
+  "skills/human-improvement/bagakit-mastery-learning",
+  "skills/human-improvement/bagakit-mastery-learning/agents",
+  "skills/human-improvement/bagakit-mastery-learning/references",
+  "skills/human-improvement/bagakit-mastery-learning/scripts",
+  "gate_validation/skills/human-improvement",
+  "gate_validation/skills/human-improvement/bagakit-mastery-learning",
+]
+required_files = [
+  "skills/human-improvement/README.md",
+  "skills/human-improvement/bagakit-mastery-learning/SKILL.md",
+  "skills/human-improvement/bagakit-mastery-learning/agents/openai.yaml",
+  "skills/human-improvement/bagakit-mastery-learning/references/mastery-learning-contract.toml",
+  "skills/human-improvement/bagakit-mastery-learning/references/first-course-turn.md",
+  "skills/human-improvement/bagakit-mastery-learning/references/mastery-packet.md",
+  "skills/human-improvement/bagakit-mastery-learning/references/learning-loop.md",
+  "skills/human-improvement/bagakit-mastery-learning/references/evidence-and-adaptation.md",
+  "skills/human-improvement/bagakit-mastery-learning/references/learner-copy-review.md",
+  "skills/human-improvement/bagakit-mastery-learning/references/hitl-course-handoff.md",
+  "skills/human-improvement/bagakit-mastery-learning/references/frontdoor-rule.toml",
+  "skills/human-improvement/bagakit-mastery-learning/references/bagakit-driver.toml",
+  "skills/human-improvement/bagakit-mastery-learning/references/skill-cli.toml",
+  "skills/human-improvement/bagakit-mastery-learning/scripts/bagakit-mastery-learning-cli.sh",
+  "gate_validation/skills/human-improvement/README.md",
+  "gate_validation/skills/human-improvement/bagakit-mastery-learning/validation.toml",
+  "gate_validation/skills/human-improvement/bagakit-mastery-learning/check-mastery-learning.ts",
+]
+forbidden_paths = [
+  "skills/human-improvement/bagakit-mastery-learning/SKILL_PAYLOAD.json",
+  "skills/human-improvement/bagakit-mastery-learning/docs",
+  "skills/human-improvement/bagakit-mastery-learning/gate",
+  "skills/human-improvement/bagakit-mastery-learning/scripts_dev",
+]
+
+[[suite]]
+id = "bagakit-mastery-learning-contract"
+owner = "skills/human-improvement/bagakit-mastery-learning"
+description = "Require the structured mastery-learning workflow and evidence contract."
+default = true
+proof_mode = "structural"
+protects = ["mastery-learning stages, artifacts, evidence dimensions, evidence-task quality, prompt-defect fairness, support policy, learner-copy review, guards, eval gates, default built-page delivery, explicit downgrade modes, and peer boundaries"]
+oracle = ["repo-owned TOML parser plus typed identity, lifecycle, ordered delivery-chain, evidence-task policy, historical failure mapping, learner-copy policy, reference-closure, evidence-schema, source-boundary, event-schema, and peer-ownership assertions"]
+exercised_surface = ["skills/human-improvement/bagakit-mastery-learning/references/mastery-learning-contract.toml", "skills/human-improvement/bagakit-mastery-learning/references/learner-copy-review.md", "skills/human-improvement/bagakit-mastery-learning/SKILL.md"]
+proves = ["bagakit-mastery-learning-contract proves that the declared structured fields, lifecycle states, task-quality policy, prompt-defect accounting, continuation route, adaptive completion evidence, learner-copy route, and peer boundaries are internally aligned."]
+does_not_prove = ["bagakit-mastery-learning-contract does not prove that a generated task is instructionally valid, that an Agent follows the contract, that a course causes mastery, or that any effect generalizes across domains."]
+timeout_seconds = 120
+validation_class = "contract"
+groups = ["skills", "human-improvement", "mastery-learning", "contract"]
+
+[suite.runner]
+kind = "executable"
+command = "{node}"
+args = [
+  "--experimental-strip-types",
+  "gate_validation/skills/human-improvement/bagakit-mastery-learning/check-mastery-learning.ts",
+  "--root",
+  "{repo_root}",
+]

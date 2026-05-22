@@ -1,0 +1,5 @@
+version = 1
+skill = "bagakit-mastery-learning"
+trigger = "Codex should turn source material into a course or learning path aimed at thorough understanding, independent application, transfer, retention, or evidence-backed mastery; or should evaluate and continue an existing course from a course id, attempt packet, page-submission receipt, or explicit resume request."
+do = "Close the source boundary, define a mastery contract, route diagnostics, build active practice and transfer, fade support, and plan re-entry; review learner-facing copy through bagakit-writing-core and its de-AI-tone route; for interactive-course or learning-interface intent, default to a built and browser-verified page through bagakit-hitl-webutil-design and bagakit-codex-webpage-design unless the user explicitly selects a downgrade mode; on continuation, evaluate the new attempt and return a versioned projection to the existing page rather than moving the course into chat."
+see = "skills/human-improvement/bagakit-mastery-learning/SKILL.md"

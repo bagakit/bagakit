@@ -1,0 +1,8 @@
+version = 1
+insert_target = "bagakit_footer"
+summary_line = "- MasteryLearning: Brief=<learning brief ref>; Scope=<bounded source>; Objectives=<count>; CopyReview=<pass|warn|blocked>; Diagnostic=<complete|partial|blocked>; Transfer=<none|near|far>; Support=<independent|faded|dependent>; Retention=<not_due|due|demonstrated>; Delivery=<built_page|dialogue_only|design_only|no_file_mutation>; HITL=<page or handoff ref|not_needed>; Next=<one evidence-producing action>"
+
+[[directive]]
+id = "MASTERY_LEARNING"
+when = "bagakit-mastery-learning materially shaped a learning contract, course route, evidence update, mastery report, or HITL handoff"
+instruction = "cite the bounded scope, source closure, mastery packet, learner-copy review status, diagnostic evidence, transfer level, support dependency, retention status, selected delivery mode, page or fallback evidence, unresolved claims, and next evidence-producing action"

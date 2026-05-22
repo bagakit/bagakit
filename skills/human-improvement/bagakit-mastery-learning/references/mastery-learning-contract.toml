@@ -1,0 +1,539 @@
+version = 1
+skill_id = "bagakit-mastery-learning"
+contract_kind = "skill_workflow_contract"
+owner = "skills/human-improvement/bagakit-mastery-learning"
+
+[entry]
+skill = "SKILL.md"
+required_reference_links = [
+  "references/first-course-turn.md",
+  "references/mastery-packet.md",
+  "references/learning-loop.md",
+  "references/evidence-and-adaptation.md",
+  "references/learner-copy-review.md",
+  "references/hitl-course-handoff.md",
+  "references/mastery-learning-contract.toml",
+]
+optional_peer_contracts = [
+  "skills/paperwork/bagakit-writing-core/references/frontdoor-rule.toml",
+  "skills/paperwork/bagakit-writing-de-ai-tone/references/frontdoor-rule.toml",
+  "skills/design/bagakit-hitl-webutil-design/references/workflow-contract.toml",
+]
+
+[lifecycle]
+phases = [
+  "authoring",
+  "learning_session",
+  "reentry",
+]
+authoring_completion = "source closure, mastery contract, course graph, and any requested HITL handoff are ready"
+initial_evidence_status = "not_assessed"
+rule = "Authoring completion never implies that the learner completed a learning session, transfer check, or delayed re-entry."
+
+[delivery_policy]
+default_for_interactive_intent = "built_page"
+interactive_intents = [
+  "interactive_course",
+  "learning_interface",
+  "learning_workbench",
+]
+downgrade_modes = [
+  "dialogue_only",
+  "design_only",
+  "no_file_mutation",
+]
+default_chain = [
+  "bagakit-mastery-learning",
+  "bagakit-writing-core",
+  "bagakit-hitl-webutil-design",
+  "bagakit-codex-webpage-design",
+]
+completion_evidence = [
+  "learner_copy_review_receipt",
+  "implementation_entrypoint",
+  "running_page_location",
+  "desktop_browser_evidence",
+  "mobile_browser_evidence",
+]
+adaptive_completion_evidence = [
+  "learner_attempt",
+  "agent_feedback_projection",
+  "next_page_task",
+  "subsequent_learner_action",
+  "restored_history",
+  "canonical_export",
+]
+fallback_rule = "A peer-unavailable or explicitly downgraded route must preserve the mastery packet and state why built-page delivery did not complete."
+
+[continuation_policy]
+trigger_inputs = [
+  "course_id_with_resume_intent",
+  "attempt_packet",
+  "page_submission_receipt",
+]
+processing_order = [
+  "load_course_state",
+  "evaluate_attempt",
+  "update_evidence",
+  "emit_hitl_projection",
+  "notify_in_chat",
+]
+required_locator_fields = [
+  "page_id",
+  "page_manifest_ref",
+  "projection_target_ref",
+]
+primary_surface = "existing_page"
+fallback = "emit a versioned importable projection packet when the existing page cannot be updated directly"
+
+[learner_copy_policy]
+default_route = "bagakit-writing-core"
+nested_de_ai_reviewer = "bagakit-writing-de-ai-tone"
+applies_to = [
+  "scope_receipt",
+  "evidence_receipt",
+  "diagnostic",
+  "explanation",
+  "task_prompt",
+  "hint",
+  "feedback",
+  "transition",
+  "status",
+  "handoff_copy",
+]
+protected_meaning = [
+  "source_and_quote",
+  "evidence_status_literal",
+  "numeric_claim_and_interval",
+  "source_boundary",
+  "capability_claim",
+  "diagnostic_intent",
+  "task_demand",
+  "rubric_criterion",
+  "support_level",
+  "first_turn_no_leak",
+]
+required_receipt_fields = [
+  "copy_packet_ref",
+  "writing_route",
+  "scene",
+  "protected_span_summary",
+  "issues_found",
+  "rewrite_refs",
+  "meaning_regressions",
+  "second_pass_status",
+  "unreviewed_blocks",
+]
+fallback_rule = "If Writing Core is unavailable, preserve the copy packet, mark copy review blocked, and do not claim learner-ready prose."
+
+[[stage]]
+id = "learning-brief"
+phase = "authoring"
+artifact = "mastery-packet"
+artifact_section = "learning-brief"
+blocks_completion = true
+
+[[stage]]
+id = "source-closure"
+phase = "authoring"
+artifact = "mastery-packet"
+artifact_section = "source-closure"
+blocks_completion = true
+
+[[stage]]
+id = "mastery-contract"
+phase = "authoring"
+artifact = "mastery-packet"
+artifact_section = "objectives-and-evidence-bars"
+blocks_completion = true
+
+[[stage]]
+id = "diagnostic-express-lane"
+phase = "learning_session"
+artifact = "learner-event-stream"
+artifact_section = "diagnostic-events"
+blocks_completion = false
+
+[[stage]]
+id = "course-graph"
+phase = "authoring"
+artifact = "mastery-packet"
+artifact_section = "course-graph"
+blocks_completion = true
+
+[[stage]]
+id = "evidence-task-audit"
+phase = "authoring"
+artifact = "mastery-packet"
+artifact_section = "evidence-task-records-and-audit"
+blocks_completion = true
+
+[[stage]]
+id = "active-learning-loop"
+phase = "learning_session"
+artifact = "learner-event-stream"
+blocks_completion = false
+
+[[stage]]
+id = "learner-copy-review"
+phase = "authoring"
+artifact = "learner-copy-review"
+artifact_section = "copy-packet-and-review-receipt"
+blocks_completion = true
+required_when = "the course has learner-visible copy"
+
+[[stage]]
+id = "support-fade"
+phase = "learning_session"
+artifact = "learner-event-stream"
+blocks_completion = false
+
+[[stage]]
+id = "transfer-check"
+phase = "learning_session"
+artifact = "mastery-report"
+blocks_completion = false
+
+[[stage]]
+id = "retention-plan"
+phase = "reentry"
+artifact = "mastery-report"
+blocks_completion = false
+
+[[stage]]
+id = "interactive-delivery-route"
+phase = "authoring"
+artifact = "hitl-course-handoff"
+required_when = "interactive-course or learning-interface intent; built_page continues through HITL and webpage implementation unless an explicit downgrade mode applies"
+
+[[artifact]]
+id = "mastery-packet"
+owner = "references/mastery-packet.md"
+role = "task source of truth"
+
+[[artifact]]
+id = "learner-event-stream"
+owner = "references/mastery-packet.md"
+role = "append-oriented attempts, questions, hints, feedback, and retests"
+
+[[artifact]]
+id = "mastery-report"
+owner = "references/mastery-packet.md"
+role = "human-readable and machine-readable evidence projection"
+
+[[artifact]]
+id = "hitl-course-handoff"
+owner = "references/hitl-course-handoff.md"
+role = "optional page-design input"
+
+[[artifact]]
+id = "learner-copy-review"
+owner = "references/learner-copy-review.md"
+role = "meaning-preserving learner-copy review and de-AI-tone receipt"
+
+[mastery_evidence]
+dimensions = [
+  "source_coverage",
+  "unaided_recall",
+  "explanation",
+  "application",
+  "near_transfer",
+  "far_transfer",
+  "calibration",
+  "delayed_retention",
+]
+statuses = [
+  "not_assessed",
+  "supported",
+  "fragile",
+  "demonstrated",
+  "retest_due",
+  "blocked",
+]
+required_objective_fields = [
+  "objective_id",
+  "capability_claim",
+  "scope",
+  "evidence_task_ref",
+  "rubric_ref",
+  "transfer_target",
+  "evidence_record_refs",
+  "summary_status",
+  "next_action",
+]
+required_evidence_record_fields = [
+  "evidence_id",
+  "objective_id",
+  "dimension",
+  "status",
+  "task_ref",
+  "rubric_ref",
+  "attempt_refs",
+  "support_level",
+  "transfer_distance",
+  "retention_interval",
+  "learner_confidence",
+  "assessment_confidence",
+  "provenance",
+  "recorded_phase",
+  "next_action",
+]
+summary_status_rule = "Objective summary status is derived from dimension records and cannot hide not-assessed, support-dependent, transfer, or retention states."
+
+[source_closure]
+required_fields = [
+  "requested_url",
+  "canonical_url",
+  "anchor",
+  "stop_boundary",
+  "included_sections",
+  "dependency_dispositions",
+  "claim_source_refs",
+  "closure_status",
+]
+dependency_statuses = [
+  "included",
+  "excluded_with_rationale",
+  "unresolved",
+]
+rule = "An unresolved dependency that affects an in-scope claim blocks complete-coverage language."
+
+[learner_event]
+required_fields = [
+  "event_id",
+  "course_id",
+  "objective_id",
+  "event_kind",
+  "context_ref",
+  "attempt_ref",
+  "support_level",
+  "evidence_record_refs",
+  "privacy_scope",
+  "next_action",
+]
+task_bound_required_fields = [
+  "task_version",
+  "attribution_disposition",
+  "support_delta",
+  "prompt_defect_ref",
+]
+invariants = [
+  "append_only_attempt_history",
+  "support_is_explicit",
+  "questions_keep_context",
+  "export_preserves_stable_refs",
+  "prompt_defect_negative_results_are_not_scored",
+  "prompt_repair_does_not_consume_support_without_solution_cues",
+]
+
+[support_policy]
+levels = [
+  "independent",
+  "strategy_prompt",
+  "hint",
+  "worked_step",
+  "model_answer",
+]
+rule = "Preserve the attempt, use the least sufficient support, then fade support before a mastery claim."
+
+[evidence_task_policy]
+required_fields = [
+  "task_id",
+  "task_version",
+  "objective_id",
+  "capability_demand",
+  "learner_role",
+  "scenario",
+  "decision_or_output",
+  "available_evidence",
+  "constraints",
+  "rubric_ref",
+  "support_ceiling",
+  "prompt_defect_disposition",
+]
+quality_checks = [
+  "capability_alignment",
+  "answerable_without_hidden_ontology",
+  "decision_relevant_requirements_only",
+  "input_action_output_boundaries",
+  "functional_not_nominal_specificity",
+  "multiple_valid_solutions_preserved",
+  "rubric_does_not_leak_the_answer",
+]
+prompt_defect_dispositions = [
+  "valid",
+  "repair_without_scoring",
+  "retire_and_replace",
+]
+prompt_defect_record_fields = [
+  "replaces_task_ref",
+  "affected_attempt_refs",
+  "attempt_treatment",
+  "support_delta",
+]
+prompt_defect_attempt_treatments = [
+  "not_scored_preserve_interpretable_positive",
+  "not_scored_no_interpretable_evidence",
+]
+prompt_defect_support_rule = "zero_without_solution_cue"
+clarification_classes = [
+  "task_repair_without_solution_cue",
+  "learner_support_with_solution_structure",
+]
+mnemonic_rule = "A mnemonic or author-internal decomposition may support retrieval after teaching, but it cannot stand alone as an application or transfer task unless every label has an actor, lifecycle boundary, and observable decision meaning."
+attribution_rule = "Missing scenario facts, undefined labels, and prompt ambiguity are task defects. Their negative results are not scored, interpretable positive evidence may be preserved, and support_delta stays zero unless added clarification supplies solution strategy or answer structure."
+
+[[guard]]
+id = "bounded-completeness"
+protects = "complete means source and capability coverage inside a declared boundary"
+
+[[guard]]
+id = "evidence-before-content"
+protects = "capability claims and evidence tasks precede lesson generation"
+
+[[guard]]
+id = "diagnostic-evidence-only"
+protects = "skip decisions require unaided evidence rather than self-report alone"
+
+[[guard]]
+id = "diagnostic-no-leak"
+protects = "core answers, answer keys, and revealing source anchors stay hidden until the first diagnostic attempt"
+
+[[guard]]
+id = "anti-crutch"
+protects = "assisted performance is not mastery and support must fade before independent checks"
+
+[[guard]]
+id = "transfer-distance-honesty"
+protects = "near and far transfer are reported separately"
+
+[[guard]]
+id = "retention-horizon-honesty"
+protects = "immediate success is not reported as delayed retention"
+
+[[guard]]
+id = "feedback-correction-loop"
+protects = "feedback identifies a gap and leads to a new attempt without erasing the original"
+
+[[guard]]
+id = "learner-event-privacy"
+protects = "question and attempt retention stays explicit, bounded, and resettable"
+
+[[guard]]
+id = "no-page-ownership"
+protects = "learning semantics remain independent from page design and frontend implementation"
+
+[[guard]]
+id = "learner-copy-semantic-preservation"
+protects = "writing review may improve wording but cannot change source claims, diagnostic intent, task demand, rubric criteria, support meaning, or mastery status"
+
+[[guard]]
+id = "evidence-task-construct-validity"
+protects = "evidence tasks measure the declared capability rather than familiarity with a mnemonic, hidden ontology, or arbitrary implementation choice"
+
+[[guard]]
+id = "prompt-defect-fairness"
+protects = "ambiguous or underspecified prompts are repaired or retired without being scored as learner weakness or automatically consuming support budget"
+
+[[eval_gate]]
+id = "source-closure-proof"
+decision = "requested and canonical URLs, anchor, stop boundary, included sections, dependency dispositions, and claim-source refs are explicit; claim-affecting unresolved dependencies block complete-coverage language"
+
+[[eval_gate]]
+id = "false-mastery-proof"
+decision = "a demonstrated record requires a preserved prior attempt, a predeclared rubric, no support, and a materially changed task; applicable transfer and retention dimensions remain separate"
+
+[[eval_gate]]
+id = "transfer-proof"
+decision = "the report states which transfer distance was tested and preserves failures"
+
+[[eval_gate]]
+id = "retention-proof"
+decision = "delayed retention is demonstrated only after the declared re-entry interval"
+
+[[eval_gate]]
+id = "handoff-proof"
+decision = "the HITL handoff round-trips learner events and dimension evidence without mapping page status to mastery"
+
+[[eval_gate]]
+id = "interactive-web-delivery-proof"
+decision = "interactive-course intent defaults to built_page and does not complete at chat text or a page brief; completion carries an implementation entrypoint plus desktop and mobile browser evidence, and multi-turn delivery additionally proves attempt, Agent feedback, next page task, another learner action, restored history, and canonical export, or records an explicit downgrade or blocker"
+
+[[eval_gate]]
+id = "authoring-state-proof"
+decision = "a newly authored course initializes learner evidence as not_assessed and does not claim transfer or retention execution"
+
+[[eval_gate]]
+id = "diagnostic-integrity-proof"
+decision = "the first diagnostic appears before core answers or keyed reply hints and requests reasoning where recognition could pass by guessing"
+
+[[eval_gate]]
+id = "learner-copy-tone-proof"
+decision = "learner-facing copy has a Writing Core and de-AI-tone receipt, protected meaning survives, and the second-pass audit has no blocking AI-tone issue"
+
+[[eval_gate]]
+id = "evidence-task-quality-proof"
+decision = "each evidence task has a versioned task record, is answerable from the declared scenario and evidence, requests only rubric-relevant decisions, preserves multiple valid solutions, and does not expose a keyed answer"
+
+[[eval_gate]]
+id = "prompt-repair-attribution-proof"
+decision = "prompt defects carry an explicit disposition, replacement relation, affected attempts, attempt treatment, and support delta; negative results are not scored, interpretable positive evidence may remain, and only added solution structure increases support"
+
+[[historical_case]]
+id = "ambiguous-mnemonic-task"
+failure = "An application task exposed five author-internal labels as fill-in fields; the learner had to infer actor and lifecycle meaning, and later prompts demanded low-signal implementation details."
+evidence_refs = [
+  "codex-thread:019f7536-2acf-78f1-bdf1-cee1d10c1a08",
+]
+guard_ids = [
+  "evidence-task-construct-validity",
+  "prompt-defect-fairness",
+]
+non_proof = "The historical case proves one real failure mode; it does not prove every future task is clear or instructionally valid."
+
+[[composition_boundary]]
+id = "mastery-vs-writing-review"
+peer = "bagakit-writing-core"
+skill_owns = [
+  "source_bounded_learning_semantics",
+  "diagnostic_intent",
+  "evidence_tasks",
+  "rubrics",
+  "support_policy",
+  "mastery_states",
+]
+peer_owns = [
+  "audience_fit",
+  "prose_structure",
+  "clarity",
+  "no_regression_review",
+  "de_ai_tone_orchestration",
+]
+protected_semantics = [
+  "source_claims",
+  "diagnostic_intent",
+  "task_demand",
+  "rubric_criteria",
+  "support_meaning",
+  "mastery_status",
+  "first_turn_no_leak",
+]
+default_when = "the course has learner-visible copy"
+completion_evidence = "learner-copy review receipt with protected spans, meaning-regression result, and second-pass status"
+
+[[composition_boundary]]
+id = "mastery-vs-hitl-page-design"
+peer = "bagakit-hitl-webutil-design"
+skill_owns = "learning semantics, adaptation, and mastery evidence"
+peer_owns = "interactive page decomposition, components, state presentation, and copy/export UI"
+round_trip_contract = "learner events and evidence records preserve stable refs and upstream semantics"
+default_when = "delivery mode is built_page"
+completion_evidence = "HITL page brief is consumed by webpage implementation rather than returned as the final deliverable"
+
+[[composition_boundary]]
+id = "mastery-vs-webpage-implementation"
+peer = "bagakit-codex-webpage-design"
+skill_owns = "course and evidence contracts"
+peer_owns = "frontend implementation, browser verification, and visual parity"
+default_when = "delivery mode is built_page after HITL projection"
+completion_evidence = "implementation entrypoint, running page location, and desktop plus mobile browser evidence"

@@ -1,0 +1,19 @@
+version = 1
+skill = "bagakit-mastery-learning"
+cli_id = "bagakit-mastery-learning"
+entrypoint = "scripts/bagakit-mastery-learning-cli.sh"
+runner = "shell"
+usage = "sh scripts/bagakit-mastery-learning-cli.sh <command>"
+summary = "Inspect and validate the mastery-learning skill assets."
+
+[[command]]
+name = "describe"
+summary = "Print a short skill description."
+
+[[command]]
+name = "list-references"
+summary = "List shipped contract and guidance references."
+
+[[command]]
+name = "validate"
+summary = "Check required skill files and references."
