@@ -37,11 +37,13 @@ required_files = [
   "skills/design/bagakit-hitl-webutil-design/references/workflow-contract.toml",
   "skills/design/bagakit-hitl-webutil-design/references/composition-crosswalk.md",
   "skills/design/bagakit-hitl-webutil-design/references/mechanisms/README.md",
+  "skills/design/bagakit-hitl-webutil-design/references/mechanisms/adaptive-session-continuity.md",
   "skills/design/bagakit-hitl-webutil-design/references/mechanisms/case-inventory.md",
   "skills/design/bagakit-hitl-webutil-design/references/mechanisms/copyable-reproduction.md",
   "skills/design/bagakit-hitl-webutil-design/references/mechanisms/evidence-context.md",
   "skills/design/bagakit-hitl-webutil-design/references/mechanisms/interaction-result-packet.md",
   "skills/design/bagakit-hitl-webutil-design/references/mechanisms/knowledge-transfer.md",
+  "skills/design/bagakit-hitl-webutil-design/references/mechanisms/human-judgment-guidance.md",
   "skills/design/bagakit-hitl-webutil-design/references/mechanisms/local-session-state.md",
   "skills/design/bagakit-hitl-webutil-design/references/mechanisms/procedure-runbook.md",
   "skills/design/bagakit-hitl-webutil-design/references/mechanisms/result-capture.md",
@@ -53,12 +55,18 @@ required_files = [
   "skills/design/bagakit-hitl-webutil-design/references/styles/repo-reading-workbench.md",
   "skills/design/bagakit-hitl-webutil-design/references/artifacts/README.md",
   "skills/design/bagakit-hitl-webutil-design/references/artifacts/agent-handoff-packet.md",
+  "skills/design/bagakit-hitl-webutil-design/references/artifacts/case-catalog.md",
   "skills/design/bagakit-hitl-webutil-design/references/artifacts/page-manifest.md",
   "skills/design/bagakit-hitl-webutil-design/references/artifacts/report-export.md",
   "skills/design/bagakit-hitl-webutil-design/references/components/README.md",
+  "skills/design/bagakit-hitl-webutil-design/references/components/adaptive-feedback-panel.md",
   "skills/design/bagakit-hitl-webutil-design/references/components/copy-result-control.md",
+  "skills/design/bagakit-hitl-webutil-design/references/components/case-directory-panel.md",
+  "skills/design/bagakit-hitl-webutil-design/references/components/contextual-question-capture.md",
   "skills/design/bagakit-hitl-webutil-design/references/templates/README.md",
   "skills/design/bagakit-hitl-webutil-design/references/templates/manual-test-console.md",
+  "skills/design/bagakit-hitl-webutil-design/references/templates/evidence-review-console.md",
+  "skills/design/bagakit-hitl-webutil-design/references/templates/interactive-learning-course.md",
   "skills/design/bagakit-hitl-webutil-design/scripts/bagakit-hitl-webutil-design-cli.sh",
   "gate_validation/skills/design/bagakit-hitl-webutil-design/validation.toml",
   "gate_validation/skills/design/bagakit-hitl-webutil-design/check-hitl-webutil-design.py",
@@ -76,11 +84,11 @@ owner = "skills/design/bagakit-hitl-webutil-design"
 description = "Require the structured HITL web utility design workflow contract."
 default = true
 proof_mode = "structural"
-protects = ["HITL webutil design stage, artifact, eval, shared-guard, crosswalk, component, template, and peer-boundary contract"]
+protects = ["HITL webutil design stage, artifact, eval, shared-guard, crosswalk, component, template, default built-page delivery, explicit downgrade, and peer-boundary contract"]
 oracle = ["parsed workflow-contract.toml plus crosswalk, copy-result component, manual-test template, and SKILL.md anchor checks"]
-exercised_surface = ["skills/design/bagakit-hitl-webutil-design/references/workflow-contract.toml", "composition-crosswalk.md", "references/components/copy-result-control.md", "references/templates/manual-test-console.md", "SKILL.md"]
-proves = ["bagakit-hitl-webutil-design-contract proves required contract stages, artifacts, hardening gates, shared guards, components, templates, and composition boundaries are aligned."]
-does_not_prove = ["bagakit-hitl-webutil-design-contract does not prove final page usability, frontend implementation quality, or stochastic agent compliance."]
+exercised_surface = ["skills/design/bagakit-hitl-webutil-design/references/workflow-contract.toml", "composition-crosswalk.md", "references/artifacts/case-catalog.md", "references/components/contextual-question-capture.md", "references/components/case-directory-panel.md", "references/components/copy-result-control.md", "references/templates/interactive-learning-course.md", "references/templates/evidence-review-console.md", "references/templates/manual-test-console.md", "SKILL.md"]
+proves = ["bagakit-hitl-webutil-design-contract proves that declared stages, artifacts, structured case/run and continuation fields, components, templates, delivery policy, and composition boundaries are internally aligned."]
+does_not_prove = ["bagakit-hitl-webutil-design-contract does not prove final page usability, adaptive round-trip behavior, frontend implementation quality, or stochastic Agent compliance."]
 timeout_seconds = 120
 validation_class = "contract"
 groups = ["skills", "design", "hitl-webutil-design", "contract"]

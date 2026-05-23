@@ -7,11 +7,14 @@
 
 ## Good For
 
-- Manual execution, inspection, and one-case-at-a-time verification.
+- Manual execution, inspection, one-case-at-a-time verification, and
+  decision-centered evidence review.
 
 ## Control Treatment
 
 - Left inventory, center procedure, right result or export is the default route.
+- For evidence review, replace procedure emphasis with decision plus evidence,
+  and keep judgment or reveal state in the right pane.
 - Keep live status close to the active case.
 
 ## Failure Signals

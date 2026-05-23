@@ -26,6 +26,14 @@ surface that cannot be recomposed.
 
 ## V0 Components
 
+- `adaptive-feedback-panel.md`
+  - for versioned Agent feedback, next-task projection, sync state, and
+    transport fallback in multi-turn pages
+- `contextual-question-capture.md`
+  - for questions that must preserve page context, privacy scope, and next
+    action across learning, review, and QA scenes
+- `case-directory-panel.md`
+  - for current-attention navigation and collapsed, searchable case history
 - `copy-result-control.md`
   - for copy/download actions that turn human interaction state into a
     reusable result packet

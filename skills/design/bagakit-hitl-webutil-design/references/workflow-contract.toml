@@ -10,13 +10,55 @@ required_reference_links = [
   "references/styles/README.md",
   "references/artifacts/README.md",
   "references/components/README.md",
+  "references/components/adaptive-feedback-panel.md",
+  "references/mechanisms/adaptive-session-continuity.md",
   "references/templates/README.md",
   "references/composition-crosswalk.md",
   "references/workflow-contract.toml",
 ]
 optional_peer_contracts = [
   "skills/design/bagakit-codex-webpage-design/references/workflow-contract.toml",
+  "skills/human-improvement/bagakit-mastery-learning/references/mastery-learning-contract.toml",
 ]
+
+[delivery_policy]
+default_for_explicit_page = "built_page"
+default_for_mastery_interactive_course = "built_page"
+downgrade_modes = [
+  "design_only",
+  "no_file_mutation",
+]
+implementation_peer = "bagakit-codex-webpage-design"
+completion_evidence = [
+  "implementation_entrypoint",
+  "running_page_location",
+  "desktop_browser_evidence",
+  "mobile_browser_evidence",
+]
+adaptive_completion_evidence = [
+  "adaptive_round_trip_evidence",
+]
+rule = "Explicit HITL page requests and mastery interactive-course handoffs do not complete at a page brief unless a downgrade mode is explicit."
+
+[continuation_policy]
+trigger_inputs = [
+  "existing_page_submission",
+  "attempt_packet",
+  "stable_page_ref",
+  "course_id_with_resume_intent",
+]
+required_locator_fields = [
+  "page_id",
+  "page_manifest_ref",
+  "projection_target_ref",
+]
+projection_order = [
+  "consume_upstream_evaluation",
+  "build_versioned_projection",
+  "update_existing_page_or_emit_import",
+  "notify_in_chat",
+]
+rule = "Continuation targets the existing page; chat is notification or an explicit fallback, never the hidden primary course UI."
 
 [[stage]]
 id = "design-brief"
@@ -35,6 +77,12 @@ id = "scene-crosswalk-selection"
 phase = "before_scene_selection"
 artifact = "scene-crosswalk-selection.md"
 blocks_completion = true
+
+[[stage]]
+id = "judgment-contract"
+phase = "before_design_handoff"
+artifact = "judgment-contract.md"
+required_when = "the human must judge evidence, adjudicate disagreement, or approve a consequential action"
 
 [[stage]]
 id = "mechanism-selection"
@@ -70,7 +118,12 @@ blocks_completion = true
 id = "implementation-route"
 phase = "handoff"
 artifact = "implementation-route.md"
-required_when = "the page should be built as a frontend surface rather than left as a design packet"
+required_when = "every explicit HITL page request and mastery interactive-course handoff unless design_only or no_file_mutation is explicit"
+
+[[artifact]]
+id = "case-catalog"
+owner = "references/artifacts/case-catalog.md"
+required_when = "a page contains repeated decisions, revisioned runs, rubric evolution, or retained history"
 
 [[artifact]]
 id = "page-manifest"
@@ -87,14 +140,160 @@ id = "report-export"
 owner = "references/artifacts/report-export.md"
 required_when = "the scene captures case-by-case verification or review results"
 
+[[component]]
+id = "adaptive-feedback-panel"
+owner = "references/components/adaptive-feedback-panel.md"
+serves = "versioned Agent feedback, next-task projection, sync state, and transport fallback"
+
+[[component]]
+id = "contextual-question-capture"
+owner = "references/components/contextual-question-capture.md"
+serves = "context-bound human questions with privacy and handoff state"
+
+[[component]]
+id = "case-directory-panel"
+owner = "references/components/case-directory-panel.md"
+serves = "attention-first case navigation with retained history"
+
+[[component]]
+id = "copy-result-control"
+owner = "references/components/copy-result-control.md"
+serves = "copy and download actions over one shared payload"
+
+[[template]]
+id = "interactive-learning-course"
+owner = "references/templates/interactive-learning-course.md"
+scene = "interactive-course-learning"
+
+[[template]]
+id = "manual-test-console"
+owner = "references/templates/manual-test-console.md"
+scene = "manual-test-execution"
+
+[[template]]
+id = "evidence-review-console"
+owner = "references/templates/evidence-review-console.md"
+scene = "human-evidence-review"
+
+[[data_contract]]
+id = "case-catalog"
+owner = "references/artifacts/case-catalog.md"
+required_fields = [
+  "case_id",
+  "case_run_id",
+  "evaluation_contract_id",
+  "evaluation_contract_version",
+  "attention_state",
+  "review_mode",
+  "reveal_policy",
+  "evidence_items",
+  "evidence_sufficiency",
+  "provisional_human_judgment",
+  "agent_position",
+  "disagreement",
+  "final_human_judgment",
+  "evidence_refs",
+  "relation_to_prior_run",
+]
+invariants = [
+  "one_case_one_human_decision",
+  "stable_case_identity",
+  "append_only_run_history",
+  "attention_driven_visibility",
+  "explicit_review_mode",
+  "explicit_reveal_policy",
+  "provisional_and_final_judgments_are_distinct",
+]
+
+[[data_contract]]
+id = "page-export-alignment"
+owner = "references/artifacts/page-manifest.md"
+required_fields = [
+  "scene",
+  "template_id",
+  "data_contract_refs",
+  "operator_mode",
+  "primary_interaction_surface",
+  "feedback_transport",
+  "projection_contract_ref",
+]
+invariants = [
+  "manifest_route_matches_template",
+  "renderer_fields_exist_in_data_contract",
+  "copy_and_download_share_payload_semantics",
+]
+
+[[data_contract]]
+id = "interactive-course-state"
+owner = "references/artifacts/agent-handoff-packet.md"
+required_fields = [
+  "course_id",
+  "mastery_packet_ref",
+  "objective_id",
+  "page_id",
+  "page_manifest_ref",
+  "projection_target_ref",
+  "primary_interaction_surface",
+  "feedback_transport",
+  "projection_version",
+  "last_applied_event_ref",
+  "sync_state",
+  "active_task_ref",
+  "feedback_ref",
+  "learner_event_refs",
+  "evidence_record_refs",
+  "attempt_refs",
+  "question_events",
+  "support_level",
+  "transfer_distance",
+  "retention_interval",
+  "evidence_status",
+  "provenance",
+  "blockers",
+  "next_action",
+]
+invariants = [
+  "upstream_semantics_are_projection_only",
+  "append_only_attempt_history",
+  "page_status_does_not_map_to_mastery_status",
+  "copy_and_download_preserve_upstream_records",
+  "question_context_round_trips",
+  "missing_evidence_remains_unresolved",
+  "page_remains_primary_after_first_attempt",
+  "adaptive_round_trip_is_explicit",
+  "projection_targets_original_page",
+  "stale_projection_is_visible",
+  "chat_is_notification_or_fallback",
+]
+
 [[eval_gate]]
 id = "minimum-transfer-proof"
-decision = "manual-test-execution plus repository-understanding"
+decision = "manual-test-execution plus human-evidence-review plus repository-understanding"
 use_when = "validating this skill scaffold or a major crosswalk refactor"
 
 [[eval_gate]]
+id = "decision-centered-review-proof"
+decision = "one human decision groups related evidence, review mode and reveal policy are explicit, and retained runs remain reachable"
+use_when = "adding or changing evidence-review behavior"
+
+[[eval_gate]]
+id = "interactive-course-projection-proof"
+decision = "the page preserves course objectives and evidence state, captures contextual questions, hides backstage chrome, keeps feedback and next tasks on the declared primary surface, and does not infer mastery from page completion"
+use_when = "adding or changing an interactive-course route"
+
+[[eval_gate]]
+id = "adaptive-course-round-trip-proof"
+decision = "browser evidence covers learner attempt, Agent feedback projection, next page task, another learner action, restored history, sync state, and canonical export; first-attempt-only delivery is incomplete"
+use_when = "delivering or changing a multi-turn interactive course"
+
+[[eval_gate]]
+id = "built-page-delivery-proof"
+decision = "explicit HITL page and mastery interactive-course routes continue through frontend implementation and return a running page location plus desktop and mobile browser evidence, or record an explicit downgrade or blocker"
+use_when = "validating default delivery behavior"
+
+[[eval_gate]]
 id = "lightweight-hardening-audit"
-decision = "status/error semantics, provenance labeling, local persistence lifetime/reset, information-load budget, audience mismatch"
+decision = "status/error semantics, provenance labeling, local persistence lifetime/reset, information-load budget, audience mismatch, human judgment, history retention, and schema alignment"
 use_when = "snapshot acceptance or route validation after the minimum transfer proof"
 
 [shared_guard.status_and_error]
@@ -130,6 +329,7 @@ requirements = [
   "provide reset or clear behavior",
   "avoid persisting sensitive detail longer than needed",
   "treat private or unavailable storage as a recoverable limitation",
+  "migrate restored state without hiding newly introduced attention-required cases",
 ]
 
 [shared_guard.information_load]
@@ -144,11 +344,113 @@ rule = "High density should reduce extraneous load, not merely increase visible 
 [shared_guard.audience_mismatch]
 rule = "Crosswalk rows should state the operator mode and avoid silently overfitting expert workflows to beginner users."
 
+[shared_guard.human_judgment]
+review_modes = [
+  "independent",
+  "adjudication",
+  "approval",
+]
+requirements = [
+  "one case represents one human decision",
+  "related outputs remain evidence items or subchecks",
+  "why the human is needed and what the answer changes are visible",
+  "independent mode records a provisional human answer before Agent reveal",
+  "insufficient evidence is a valid recoverable outcome",
+]
+
+[shared_guard.history_retention]
+requirements = [
+  "case identity is stable across runs",
+  "new requirements create a new run or needs-retest relation",
+  "prior runs are not silently deleted",
+  "attention state controls default folding",
+  "collapsed history remains searchable and directly reachable",
+]
+
+[shared_guard.schema_alignment]
+requirements = [
+  "manifest scene and template ids agree",
+  "renderer and export fields exist in the selected data contract",
+  "copy and download use one payload builder",
+  "local-state migrations preserve stable case and run identity",
+]
+
+[shared_guard.learning_claim_honesty]
+requirements = [
+  "page completion and interaction count do not imply mastery",
+  "self-reported confidence stays distinct from observed evidence",
+  "the page preserves transfer, support, and retest states supplied by the course input",
+  "missing mastery evidence remains visibly unresolved",
+  "generic page passed or failed status never maps to mastery status",
+]
+
+[shared_guard.learner_facing_chrome]
+requirements = [
+  "user-facing provenance is preserved",
+  "source file names and storage APIs are hidden",
+  "skill ids, template names, and Agent production narration are hidden",
+  "local save, reset, privacy, and export scope use learner-facing language",
+]
+
+[shared_guard.adaptive_session_continuity]
+primary_surface = "page"
+transport_modes = [
+  "local_exchange",
+  "manual_round_trip",
+  "page_reprojection",
+]
+lightweight_routes = [
+  "manual_round_trip",
+  "page_reprojection",
+]
+local_exchange_preconditions = [
+  "host_owned_exchange_exists",
+  "one_step_submission_materially_improves_repeated_workflow",
+]
+forbidden_continuity_scope = [
+  "accounts",
+  "database",
+  "push_infrastructure",
+  "generic_course_service",
+]
+sync_states = [
+  "in_sync",
+  "local_changes_pending",
+  "awaiting_agent",
+  "projection_ready",
+  "stale",
+  "conflict",
+  "offline_fallback",
+]
+requirements = [
+  "feedback and next tasks return to the page after the first attempt",
+  "continuation packets preserve page id, manifest ref, and projection target",
+  "projection version and last-applied event ref are explicit",
+  "new projections preserve local drafts attempts and questions",
+  "transport failure keeps one canonical export and recovery path",
+  "chat is notification or explicit fallback rather than hidden primary UI",
+]
+
+[[historical_case]]
+id = "adaptive-course-chat-drift"
+failure = "A browser-verified course captured and exported only the blind diagnostic; Agent feedback and every adaptive task continued in chat, so refresh restored stale page state and the learner had to ask where to continue."
+evidence_refs = [
+  "historical-case:adaptive-course-chat-drift",
+]
+guard_ids = [
+  "adaptive_session_continuity",
+  "local_session_state",
+  "schema_alignment",
+]
+non_proof = "The historical case proves one first-attempt-only failure; it does not select a universal transport implementation."
+
 [[composition_boundary]]
 id = "hitl-design-vs-webpage-implementation"
 peer = "bagakit-codex-webpage-design"
 skill_owns = "HITL decomposition, mechanisms, styles, artifacts, hardening audit, and crosswalk choice"
 peer_owns = "frontend implementation, reference-first workflow, browser evidence, and parity review"
+default_when = "explicit HITL page request or mastery interactive-course handoff"
+completion_evidence = "implementation entrypoint, running page location, and desktop plus mobile browser evidence"
 
 [[composition_boundary]]
 id = "hitl-design-vs-design-review"
@@ -161,3 +463,9 @@ id = "hitl-design-vs-spark"
 peer = "bagakit-spark"
 skill_owns = "design route after scope is clear enough"
 peer_owns = "open-ended shaping when scene, goal, or eval meaning is still unstable"
+
+[[composition_boundary]]
+id = "hitl-design-vs-mastery-learning"
+peer = "bagakit-mastery-learning"
+skill_owns = "interactive course page projection, components, learner-facing state, and copy/export UI"
+peer_owns = "source closure, learning goals, diagnostics, course sequence, transfer, support fading, retention, and mastery evidence"

@@ -1,8 +1,8 @@
 version = 1
 insert_target = "bagakit_footer"
-summary_line = "- HitlWebutilDesign: Brief=<design brief ref or none>; Scene=<crosswalk row or none>; OperatorMode=<operator mode or none>; Mechanisms=<selected mechanism ids>; Style=<selected style id>; Artifacts=<selected artifact ids>; Hardening=<passed|partial|blocked>; ImplementationRoute=<hitl_only|compose_webpage_design|blocked>; Next=<one deterministic next action>"
+summary_line = "- HitlWebutilDesign: Brief=<design brief ref or none>; Scene=<crosswalk row or none>; OperatorMode=<operator mode or none>; LearningContract=<handoff ref|fallback|not_needed>; ReviewMode=<independent|adjudication|approval|not_needed>; RevealPolicy=<policy or not_needed>; Mechanisms=<selected mechanism ids>; Style=<selected style id>; Artifacts=<selected artifact ids>; History=<retained|not_needed|blocked>; Hardening=<passed|partial|blocked>; Delivery=<built_page|design_only|no_file_mutation>; BrowserEvidence=<refs|blocked|not_required>; Next=<one deterministic next action>"
 
 [[directive]]
 id = "HITL_WEBUTIL_DESIGN"
 when = "bagakit-hitl-webutil-design materially shaped a HITL page brief, crosswalk choice, hardening audit, or implementation handoff"
-instruction = "cite the design brief, selected scene row, operator mode, selected mechanisms, selected style, selected artifacts, hardening audit result, implementation route, residual risks, and next action"
+instruction = "cite the design brief, selected scene row, operator mode, learning contract and claim boundary, review mode and reveal policy when applicable, selected mechanisms, selected style, selected artifacts, case-history policy, hardening audit result, delivery mode, implementation and browser evidence or explicit downgrade, residual risks, and next action"

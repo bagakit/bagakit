@@ -1,4 +1,4 @@
 interface:
   display_name: "HITL Webutil Design"
   short_description: "Design HITL web utility pages"
-  default_prompt: "Use $bagakit-hitl-webutil-design to design a human-in-the-loop web utility page using mechanism, style, artifact, and crosswalk contracts."
+  default_prompt: "Use $bagakit-hitl-webutil-design to project the HITL page contract, including one declared primary interaction surface and an explicit continuity route for multi-turn work. Then default to $bagakit-codex-webpage-design for implementation and desktop/mobile browser verification. For an adaptive course, prove one round trip from attempt through Agent feedback to the next page task, restore, and export. Treat an existing page submission, attempt packet, stable page ref, or course resume request as continuation; target the original page or its versioned import projection before notifying in chat. Do not stop at a page brief or first-attempt-only page unless design-only or no-file delivery was explicitly requested."

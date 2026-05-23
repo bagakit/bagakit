@@ -24,7 +24,7 @@ require_nonempty_dir() {
 
 case "${1:-}" in
   describe)
-    printf '%s\n' "bagakit-hitl-webutil-design: purpose-first HITL web utility page design from mechanisms, style routes, artifacts, and scene crosswalks."
+    printf '%s\n' "bagakit-hitl-webutil-design: purpose-first HITL web utility page design from mechanisms, styles, artifacts, components, templates, and scene crosswalks."
     ;;
   list-references)
     find "$skill_root/references" -type f | sed "s#^$skill_root/##" | sort
@@ -38,6 +38,8 @@ case "${1:-}" in
     require_nonempty_dir "$skill_root/references/mechanisms"
     require_nonempty_dir "$skill_root/references/styles"
     require_nonempty_dir "$skill_root/references/artifacts"
+    require_nonempty_dir "$skill_root/references/components"
+    require_nonempty_dir "$skill_root/references/templates"
     ;;
   ""|-h|--help|help)
     usage

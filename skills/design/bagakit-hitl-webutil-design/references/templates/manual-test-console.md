@@ -5,6 +5,10 @@
 Use this template when the human must execute manual checks, one case at a
 time, and return structured results to an agent.
 
+If several generated outputs only provide evidence for one shared human
+decision, use `evidence-review-console.md` instead of creating one manual-test
+case per output.
+
 Source evidence: session `019f31d7-2ab1-78c3-bbef-017a6488a8dd` produced a
 manual QA page that worked better after it became an IDE-like execution console
 rather than a static checklist or report page.
@@ -40,6 +44,7 @@ Required inputs:
 - setup, launch, or reproduction instructions when needed
 - artifact or app under test
 - known risks, priority hints, or previous findings when available
+- prior case runs when the current work is a retest
 
 If required inputs are missing, expose that as an input-quality problem instead
 of letting the human guess.
@@ -90,6 +95,10 @@ Each case should expose:
 `previous_finding` is optional, but useful when the page carries historical
 manual QA debt into a current retest surface.
 
+When identity must survive repeated runs, bind the execution data to
+`../artifacts/case-catalog.md` and keep `case_id` separate from
+`case_run_id`.
+
 ## Required Controls
 
 - Search by id, title, section, reason, and prior finding.
@@ -110,6 +119,7 @@ manual QA debt into a current retest surface.
 - Preserve local progress across long sessions.
 - Version local state so a changed case set can migrate stale filters without
   hiding new work.
+- Preserve prior runs when new evaluation requirements create a retest.
 - Export Markdown for human review.
 - Export JSON for agent or tool reentry.
 - Use `copy-result-control` for copy and download actions so copied and
@@ -136,6 +146,8 @@ Instead, accept these as page inputs, manifest fields, or runtime form values.
 - The page is only a checklist of labels.
 - The human must guess how to test a case.
 - A prior local filter hides newly added cases.
+- A new evaluation requirement removes older cases or annotations.
+- Several outputs that answer one question are presented as unrelated cases.
 - The page collects notes but cannot export an agent-ready packet.
 - Toolbar actions are reduced to symbols that require memory.
 - The layout reads like a marketing dashboard rather than an execution console.

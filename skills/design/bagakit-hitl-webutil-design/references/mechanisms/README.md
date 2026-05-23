@@ -17,3 +17,16 @@ Keep cross-cutting concerns lean in v0:
 - export schemas live in `../artifacts/`
 
 Do not create a scene-first mechanism when a crosswalk composition is enough.
+
+Current mechanisms include:
+
+- `adaptive-session-continuity.md`
+  - page-first multi-turn submission, Agent feedback, reprojection, and fallback
+- `human-judgment-guidance.md`
+  - decision contract, review mode, and Agent-advice reveal policy
+- `case-inventory.md`
+  - attention ordering over stable cases
+- `procedure-runbook.md`
+  - runnable execution instructions
+- `result-capture.md`
+  - structured human observations and judgments

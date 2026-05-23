@@ -23,6 +23,12 @@ enough to need a stable starting shape.
 
 ## V0 Templates
 
+- `interactive-learning-course.md`
+  - for interactive course pages projected from a bounded course plan or an
+    optional mastery-learning handoff
 - `manual-test-console.md`
   - for pages where a human executes cases, records results, and returns a
     copyable report to an agent
+- `evidence-review-console.md`
+  - for pages where evidence items support human judgment, adjudication, or
+    approval while prior case runs remain available

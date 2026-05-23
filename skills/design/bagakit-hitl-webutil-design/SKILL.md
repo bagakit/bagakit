@@ -1,6 +1,6 @@
 ---
 name: bagakit-hitl-webutil-design
-description: Design human-in-the-loop web utility pages that help a person understand, inspect, test, compare, or report back to an agent. Use when Codex should decompose a HITL page into reusable mechanisms, style routes, artifact contracts, and scene crosswalks; define copyable human-to-agent handoff outputs; or prepare a HITL page brief before handing frontend implementation to bagakit-codex-webpage-design.
+description: Design or continue human-in-the-loop web utility pages that help a person understand, learn, inspect, test, compare, judge evidence, or report back to an agent. Use when Codex should decompose a HITL page into reusable mechanisms, style routes, artifact contracts, components, templates, and scene crosswalks; project or resume an interactive course from a mastery-learning handoff, attempt packet, or page-submission receipt; preserve stable case/run history; define review-mode reveal policies and copyable human-to-agent handoff outputs; or prepare a HITL page brief before handing frontend implementation to bagakit-codex-webpage-design. Explicit HITL page requests and mastery interactive-course handoffs default to implemented, browser-verified frontend delivery unless the user explicitly requests design-only or no-file work.
 ---
 
 # Bagakit HITL Webutil Design
@@ -18,13 +18,24 @@ back to the agent.
 When the user explicitly invokes `bagakit-hitl-webutil-design`, treat that as a
 request for a HITL page, not merely a request to discuss HITL principles.
 
+Treat an existing page submission, attempt packet, `course_id` plus resume
+intent, or request to continue a built course as a continuation trigger. Reuse
+the stable page locator from the handoff packet and return evaluated feedback
+and the next action to that page; do not restart the course in chat.
+
+Default delivery is a built page. The same rule applies when
+`bagakit-mastery-learning` supplies an interactive-course handoff. Use
+`design_only` or `no_file_mutation` only when the user or host explicitly
+requires that downgrade.
+
 Default output:
 
 - design a concrete page brief
 - choose the scene route when one fits
 - bind mechanisms, style, artifacts, and any matching template
-- hand off to `bagakit-codex-webpage-design` when the user expects a built
-  frontend page
+- continue through `bagakit-codex-webpage-design` for implementation and
+  desktop plus mobile browser verification
+- return the running page location and browser evidence, not only the brief
 
 If one crosswalk scene or template strongly matches the request, design from
 that scenario first. Do not stay at mechanism-only abstraction unless the user
@@ -56,10 +67,16 @@ Scenario pages are cross-products, not atomic modules.
 1. Write the page brief.
    - clarify scene, operator mode, success bar, and what the human must return
      to the agent
+   - for multi-turn pages, declare the primary interaction surface, one
+     continuity route, projection versioning, sync states, and fallback
+   - when the page asks for judgment, name the decision question, review mode,
+     reveal policy, and downstream effect
 2. Select or compose the scene route.
    - start from `references/composition-crosswalk.md`
    - if no row fits, extend the crosswalk instead of inventing a scene-first
      mechanism
+   - for an interactive course, consume the mastery-learning handoff when
+     present; otherwise keep page and mastery claims separate
 3. Select mechanisms.
    - load only the mechanism files that materially shape the page job
 4. Select one style route.
@@ -75,11 +92,16 @@ Scenario pages are cross-products, not atomic modules.
 7. Run HITL hardening.
    - use `references/workflow-contract.toml`
    - keep v0 guards explicit for status/error semantics, provenance labeling,
-     local persistence lifetime/reset, information-load budget, and audience
-     mismatch
-8. Hand off implementation when needed.
-   - if the page should be built as a frontend surface, compose with
-     `bagakit-codex-webpage-design`
+     local persistence lifetime/reset, information-load budget, audience
+     mismatch, human judgment, history retention, and schema alignment
+   - for adaptive pages, prove one full attempt, Agent feedback, next-task,
+     retry or submission, restore, and export round trip
+8. Complete implementation.
+   - for the default built-page route, compose with
+     `bagakit-codex-webpage-design`, start the page, and verify desktop plus
+     mobile behavior
+   - do not stop at a page brief unless `design_only` or `no_file_mutation` was
+     explicitly selected
 
 ## Reference Routing
 
@@ -114,6 +136,33 @@ Read by route:
   - `references/components/copy-result-control.md`
   - `references/styles/ide-verification-console.md`
   - `references/artifacts/report-export.md`
+- evidence review, human adjudication, or approval page
+  - `references/templates/evidence-review-console.md`
+  - `references/mechanisms/case-inventory.md`
+  - `references/mechanisms/human-judgment-guidance.md`
+  - `references/mechanisms/result-capture.md`
+  - `references/mechanisms/evidence-context.md`
+  - `references/mechanisms/local-session-state.md`
+  - `references/mechanisms/interaction-result-packet.md`
+  - `references/components/case-directory-panel.md`
+  - `references/components/copy-result-control.md`
+  - `references/styles/ide-verification-console.md`
+  - `references/artifacts/case-catalog.md`
+  - `references/artifacts/page-manifest.md`
+  - `references/artifacts/report-export.md`
+- interactive course or learning workbench
+  - `references/templates/interactive-learning-course.md`
+  - `references/mechanisms/knowledge-transfer.md`
+  - `references/mechanisms/evidence-context.md`
+  - `references/mechanisms/local-session-state.md`
+  - `references/mechanisms/adaptive-session-continuity.md`
+  - `references/mechanisms/interaction-result-packet.md`
+  - `references/components/adaptive-feedback-panel.md`
+  - `references/components/contextual-question-capture.md`
+  - `references/components/copy-result-control.md`
+  - `references/styles/learning-atlas.md`
+  - `references/artifacts/page-manifest.md`
+  - `references/artifacts/agent-handoff-packet.md`
 - report-heavy review route
   - `references/styles/dense-test-report.md`
   - `references/artifacts/report-export.md`
@@ -132,6 +181,10 @@ Read by route:
 - `bagakit-spark`
   - use when the page purpose, scene boundary, or eval meaning is still too
     unclear to scaffold
+- `bagakit-mastery-learning`
+  - optionally owns learning goals, diagnostics, course sequence, transfer,
+    support fading, retention, and mastery evidence
+  - HITL owns only the interactive page projection
 
 ## Lean V0 Rule
 
@@ -146,4 +199,9 @@ failures prove the current guard is too weak. In v0:
   `references/components/copy-result-control.md`
 - output shapes stay in `references/artifacts/`
 - status/error semantics and provenance labeling stay in
+  `references/workflow-contract.toml`
+- multi-turn page/Agent continuity stays in
+  `references/mechanisms/adaptive-session-continuity.md`; the concrete feedback
+  and sync UI stays in `references/components/adaptive-feedback-panel.md`
+- judgment, history-retention, and schema-alignment invariants stay in
   `references/workflow-contract.toml`
