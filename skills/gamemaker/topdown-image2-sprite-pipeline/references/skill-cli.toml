@@ -28,8 +28,24 @@ name = "process"
 summary = "Process source strips into runtime sheets."
 
 [[command]]
+name = "validate-source-layout"
+summary = "Run pre-processing source grid and cell-completeness validation."
+
+[[command]]
 name = "validate-package"
 summary = "Run independent package validation."
+
+[[command]]
+name = "validate-paper-doll-source-kit"
+summary = "Run paper-doll source-kit validation with slot, residue, chroma, provenance, and manual-gate checks."
+
+[[command]]
+name = "preflight-structural-control"
+summary = "Run an offline readiness preflight for ComfyUI, OpenPose, identity conditioning, model files, guides, and accelerator support."
+
+[[command]]
+name = "validate-single-action"
+summary = "Run single-row validation with strip equality, component, bbox, heading, and pose-label gates."
 
 [[command]]
 name = "analyze-motion"

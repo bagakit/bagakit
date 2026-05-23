@@ -29,6 +29,8 @@ required_files=(
   "$skill_dir/references/review-packet-template.md"
   "$manifest"
   "$cli"
+  "$skill_dir/scripts/validate_source_layout.py"
+  "$skill_dir/scripts/validate_paper_doll_source_kit.py"
 )
 
 for file in "${required_files[@]}"; do
@@ -41,7 +43,9 @@ done
 for command in \
   check-dependencies \
   process \
+  validate-source-layout \
   validate-package \
+  validate-paper-doll-source-kit \
   analyze-motion \
   check-handoff; do
   if ! grep -Fq "name = \"$command\"" "$manifest"; then
@@ -70,6 +74,7 @@ touch \
   "$tmp/generation-log.md" \
   "$tmp/README.md" \
   "$tmp/preview-contact-sheet.png" \
+  "$tmp/source-layout-report.json" \
   "$tmp/validation-report.json" \
   "$tmp/independent-image2-validation-report.json" \
   "$tmp/visual-metrics-report.json" \

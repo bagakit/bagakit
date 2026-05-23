@@ -20,8 +20,10 @@ This packet follows `docs/specs/review-packet-contract.md`.
 - review_scope:
   - `asset-contract.md`
   - `generation-log.md`
+  - `source-layout-report.json`
   - `validation-report.json`
   - `independent-image2-validation-report.json`
+  - `paper-doll-validation.json` when using a paper-doll kit
   - `visual-metrics-report.json`
   - `preview-contact-sheet.png`
   - `final/`
@@ -36,6 +38,9 @@ This packet follows `docs/specs/review-packet-contract.md`.
 
 - accepted_deviations:
 - rejected_deviations:
+- layer_contract_decision:
+- batch_style_decision:
+- paper_doll_manual_gate_decision:
 
 ## Paired Review
 

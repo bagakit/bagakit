@@ -2,6 +2,7 @@ set -euo pipefail
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 skill_root="$(dirname "$script_dir")"
+python_bin="${PYTHON_BIN:-${PYTHON:-python3}}"
 
 usage() {
   cat <<'EOF'
@@ -13,7 +14,15 @@ Commands:
   validate           Check required skill files and report dependency status.
   check-dependencies Check runtime dependencies needed by package commands.
   process            Process source strips into runtime sheets.
+  validate-source-layout
+                    Run pre-processing source layout validation.
   validate-package   Run independent package validation.
+  validate-paper-doll-source-kit
+                    Run paper-doll source-kit validation.
+  preflight-structural-control
+                    Run offline ComfyUI/OpenPose/identity-stack preflight.
+  validate-single-action
+                    Run single-row hard-gate validation.
   analyze-motion     Run visual-semantic motion analysis.
   check-handoff      Check package handoff artifacts after review.
 
@@ -54,7 +63,7 @@ require_root() {
 }
 
 check_pillow() {
-  python3 - <<'PY'
+  "$python_bin" - <<'PY'
 import importlib.util
 raise SystemExit(0 if importlib.util.find_spec("PIL") else 1)
 PY
@@ -65,7 +74,7 @@ print_dependency_status() {
     printf '%s\n' "Pillow available"
     return 0
   fi
-  printf '%s\n' "Missing dependency: Pillow. Install it with \`python -m pip install Pillow\`." >&2
+  printf 'Missing dependency: Pillow for %s. Install it with `python -m pip install Pillow` or set PYTHON_BIN to a Python that has Pillow.\n' "$python_bin" >&2
   return 1
 }
 
@@ -77,6 +86,7 @@ check_handoff() {
     "generation-log.md"
     "README.md"
     "preview-contact-sheet.png"
+    "source-layout-report.json"
     "validation-report.json"
     "independent-image2-validation-report.json"
     "visual-metrics-report.json"
@@ -125,8 +135,12 @@ case "${1:-}" in
     test -f "$skill_root/references/prompt-patterns.md"
     test -f "$skill_root/references/review-checklist.md"
     test -f "$skill_root/scripts/process_image2_sprite_package.py"
+    test -f "$skill_root/scripts/validate_source_layout.py"
     test -f "$skill_root/scripts/analyze_sprite_motion.py"
     test -f "$skill_root/scripts/validate_image2_sprite_package.py"
+    test -f "$skill_root/scripts/validate_paper_doll_source_kit.py"
+    test -f "$skill_root/scripts/preflight_structural_control_stack.py"
+    test -f "$skill_root/scripts/validate_single_action_row.py"
     if ! print_dependency_status >/dev/null; then
       printf '%s\n' "warning: process, validate-package, and analyze-motion require Pillow." >&2
     fi
@@ -141,7 +155,16 @@ case "${1:-}" in
       exit 0
     fi
     root="$(require_root "$@")"
-    exec python3 "$skill_root/scripts/process_image2_sprite_package.py" --root "$root"
+    exec "$python_bin" "$skill_root/scripts/process_image2_sprite_package.py" --root "$root"
+    ;;
+  validate-source-layout|source-layout)
+    shift
+    if [[ "${1:-}" == "-h" || "${1:-}" == "--help" || "${1:-}" == "help" ]]; then
+      usage
+      exit 0
+    fi
+    root="$(require_root "$@")"
+    exec "$python_bin" "$skill_root/scripts/validate_source_layout.py" --root "$root"
     ;;
   validate-package)
     shift
@@ -150,7 +173,19 @@ case "${1:-}" in
       exit 0
     fi
     root="$(require_root "$@")"
-    exec python3 "$skill_root/scripts/validate_image2_sprite_package.py" --root "$root"
+    exec "$python_bin" "$skill_root/scripts/validate_image2_sprite_package.py" --root "$root"
+    ;;
+  validate-paper-doll-source-kit|validate-paper-doll|paper-doll-source-kit)
+    shift
+    exec "$python_bin" "$skill_root/scripts/validate_paper_doll_source_kit.py" "$@"
+    ;;
+  preflight-structural-control|structural-control-preflight)
+    shift
+    exec "$python_bin" "$skill_root/scripts/preflight_structural_control_stack.py" "$@"
+    ;;
+  validate-single-action)
+    shift
+    exec "$python_bin" "$skill_root/scripts/validate_single_action_row.py" "$@"
     ;;
   analyze-motion|analyze)
     shift
@@ -159,7 +194,7 @@ case "${1:-}" in
       exit 0
     fi
     root="$(require_root "$@")"
-    exec python3 "$skill_root/scripts/analyze_sprite_motion.py" --root "$root"
+    exec "$python_bin" "$skill_root/scripts/analyze_sprite_motion.py" --root "$root"
     ;;
   check-handoff)
     shift
