@@ -10,6 +10,7 @@ usage: bagakit-coding-agent-principles <command>
 Commands:
   describe          Print the protected meta-principle.
   list-references   List shipped decision and review references.
+  list-studies      List optional background studies.
   print-gate        Print the protected-principle gate template.
   validate          Check the minimal skill payload.
 EOF
@@ -22,6 +23,11 @@ case "${1:-}" in
   list-references)
     find "$skill_root/references" -type f | sed "s#^$skill_root/##" | sort
     ;;
+  list-studies)
+    if [[ -d "$skill_root/studies" ]]; then
+      find "$skill_root/studies" -type f | sed "s#^$skill_root/##" | sort
+    fi
+    ;;
   print-gate)
     cat "$skill_root/references/principle-gate.md"
     ;;
@@ -30,6 +36,7 @@ case "${1:-}" in
     test -f "$skill_root/references/principle-gate.md"
     test -f "$skill_root/references/decision-ladder.md"
     test -f "$skill_root/references/verdict-policy.md"
+    test -f "$skill_root/studies/compensatory-complexity-runaway.md"
     ;;
   ""|-h|--help|help)
     usage

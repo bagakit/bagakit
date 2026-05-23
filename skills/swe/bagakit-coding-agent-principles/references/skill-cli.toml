@@ -16,6 +16,10 @@ name = "list-references"
 summary = "List shipped decision and review references."
 
 [[command]]
+name = "list-studies"
+summary = "List optional background studies."
+
+[[command]]
 name = "print-gate"
 summary = "Print the protected-principle gate template."
 

@@ -26,6 +26,8 @@ Treat these as blocking:
 - invalid ladder stop rule
 - proof plan insufficient for public behavior or owner-owned contract
 - required behavior dropped for a smaller patch
+- compensating-layer accumulation that masks a broken contract, owner boundary,
+  or platform replacement path
 - safety, data, production, accessibility, or privacy risk without approval
 - SSOT break that creates conflicting truth
 
@@ -39,6 +41,8 @@ Treat these as advisory unless they affect the protected goal or proof:
 - optional cleanup
 - stronger naming
 - future eval or validation improvement
+- background study would help future maintainers but does not change the
+  current protected goal or proof
 
 ## Main-Agent Response
 
@@ -48,6 +52,9 @@ Treat these as advisory unless they affect the protected goal or proof:
   more code.
 - For `reroute`, stop coding and switch to the named branch.
 - For `blocked`, ask or gather evidence. Do not invent certainty.
+- If the issue is compensatory complexity runaway, prefer `needs_correction`
+  or `reroute` over another small coding patch unless the patch reduces the
+  compensating stack or repairs the owning contract.
 
 ## Reporting Shape
 

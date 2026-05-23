@@ -23,6 +23,8 @@ Use this skill for coding tasks when any of these are true:
 - the requested behavior or non-goal could be misread
 - the change may introduce a new abstraction, dependency, or cross-module path
 - the agent may overbuild, widen the diff, or do opportunistic cleanup
+- the proposed fix adds another repair, gate, fallback, exception, retry, or
+  supervisor layer on top of an already fragile path
 - the proof plan is unclear or could prove only private implementation shape
 - an independent principle review would improve quality for the token cost
 
@@ -56,6 +58,8 @@ It must not become a SWE control plane or a complete coding-agent runtime.
      plan.
 4. Implement only the chosen rung.
    - Keep the diff narrow and avoid unrelated cleanup.
+   - Before adding a compensating layer, check whether deleting, narrowing, or
+     replacing the failing contract would better protect the goal.
 5. Prove public behavior or an owner-owned contract.
    - Do not treat private implementation shape as the main proof.
 6. Use serial bounded reviewers when risk warrants it.
@@ -81,6 +85,15 @@ Read only the reference needed for the current decision:
 - `references/verdict-policy.md`
   - blocking versus advisory verdict policy and main-agent response
 
+Optional context studies live under `studies/`. They are background reading,
+not required workflow steps. Read the relevant study only when the task shows
+that failure mode or when a reviewer asks for deeper context.
+
+- `studies/compensatory-complexity-runaway.md`
+  - good/bad cases and research context for fixes that keep adding repair,
+    gate, fallback, exception, retry, or supervisor layers instead of repairing
+    the underlying contract
+
 ## Output Discipline
 
 - Keep reasoning compact and action-bound.
@@ -96,5 +109,6 @@ Use `scripts/bagakit-coding-agent-principles.sh` for read-only inspection:
 
 - `describe`
 - `list-references`
+- `list-studies`
 - `print-gate`
 - `validate`

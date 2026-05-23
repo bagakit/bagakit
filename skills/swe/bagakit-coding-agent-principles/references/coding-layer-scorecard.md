@@ -20,15 +20,18 @@ Use `0`, `1`, or `2`.
   - proof covers public behavior or owner-owned contract
 - `scope_control`
   - diff stays narrow and avoids opportunistic cleanup
+- `compensation_risk`
+  - change avoids adding or preserving fragile repair/gate/fallback layers
+    when the owner contract should be fixed, narrowed, deleted, or replaced
 - `maintainability`
   - change is understandable and does not create avoidable debt
 
 Total interpretation:
 
-- `12-14`: strong
-- `9-11`: acceptable with notes
-- `6-8`: correction recommended before implementation or commit
-- `0-5`: blocking unless user explicitly lowers the bar
+- `14-16`: strong
+- `11-13`: acceptable with notes
+- `8-10`: correction recommended before implementation or commit
+- `0-7`: blocking unless user explicitly lowers the bar
 
 ## Cross-Cutting Engineering Checks
 
@@ -49,6 +52,9 @@ Apply these checks with coding-layer weight, not as universal hammers:
   - is the change near the existing behavior and reviewable in one intent?
 - `Proof`
   - does validation prove behavior, not just implementation shape?
+- `Compensation`
+  - does the change reduce the compensating stack, or does it make a fragile
+    repair/gate/fallback path more entrenched?
 
 ## Blocking Conditions
 
@@ -56,6 +62,10 @@ Apply these checks with coding-layer weight, not as universal hammers:
 - stop rule is invalid
 - implementation drops required behavior
 - new dependency or abstraction lacks a goal-protecting reason
+- new repair, quality gate, fallback, exception, retry, or supervisor layer
+  masks an unexamined broken contract or owner boundary
+- patch hardcodes a type, report, route, or environment as a shortcut around a
+  general contract failure
 - SSOT break creates conflicting truth
 - engineering risk affects safety, data, production, or accessibility
 

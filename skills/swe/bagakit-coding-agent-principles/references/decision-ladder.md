@@ -9,8 +9,12 @@ Use this ladder after the protected-principle gate.
 2. Locate existing behavior.
    - Read nearby code, tests, configuration, owners, helpers, and conventions
      before proposing new code.
+   - Identify whether the failing path already depends on stacked repairs,
+     gates, fallbacks, exceptions, retries, or supervisors.
 3. Prefer no-code, configuration, deletion, or wiring changes.
    - Use this rung when existing behavior already supports the goal.
+   - Prefer deleting or narrowing an unnecessary compensating layer when that
+     restores the owner contract.
 4. Reuse a local project pattern.
    - Extend the nearest owner-owned abstraction instead of inventing a parallel
      path.
@@ -43,6 +47,16 @@ duplication, or matches a local pattern that already owns the behavior.
 Add a dependency only when existing project code, platform features, standard
 library behavior, and installed dependencies cannot protect the goal with
 acceptable proof and maintenance cost.
+
+## Compensation Layer Rule
+
+Do not add another repair, gate, fallback, exception, retry, or supervisor layer
+until you have checked whether the better fix is to delete, narrow, replace, or
+move the underlying contract to a project-native or platform-native owner.
+
+Escalate or reroute when the proposed patch would make the old compensating
+stack harder to delete, hides a broken owner boundary, or proves only that the
+scaffold still satisfies itself.
 
 ## Proof Rule
 
