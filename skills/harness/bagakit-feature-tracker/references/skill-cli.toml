@@ -26,6 +26,10 @@ name = "set-task-plan"
 summary = "Materialize or revise one reviewed semantic task plan with an expected revision guard."
 
 [[command]]
+name = "upgrade-legacy-task-plan"
+summary = "Enrich one otherwise-valid active version 1 task payload with an exact reviewed semantic plan while preserving execution state."
+
+[[command]]
 name = "assign-feature-workspace"
 summary = "Assign one reviewed feature to current_tree or worktree execution."
 

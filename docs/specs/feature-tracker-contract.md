@@ -205,6 +205,8 @@ Required behavior:
 
 - `create-feature --tasks-file` materializes revision 1
 - `set-task-plan --expected-revision <n>` fails on stale revision
+- `upgrade-legacy-task-plan --expected-revision 0` is the only supported
+  in-place path from otherwise-valid active version 1 task truth
 - workspace assignment and task start fail closed without canonical reviewed
   version 2 task truth
 - a task may be started only when it belongs to the latest reviewed plan
@@ -216,6 +218,17 @@ Required behavior:
   not every historical task record retained in `tasks.json`
 - active features must use this explicit contract; closed historical features
   may retain their pre-v2 task shape
+
+The legacy upgrade command is semantic enrichment, not plan replacement. Its
+approved `bagakit.feature-task-plan.v1` input must enumerate the exact existing
+task ids in the same order, preserve every title exactly, and use
+`supersedes=[]`. The operator preserves feature status, `current_task_id`, task
+status, gate/commit evidence, notes, and legacy helper fields while adding the
+reviewed semantic fields and revision-1 plan metadata. It rejects closed,
+partially migrated, or already-v2 state and any task addition, removal,
+reordering, rename, or supersession. The tracker must not derive review status,
+acceptance, verification, or source evidence from legacy `summary` or `notes`.
+Normal `set-task-plan` replacement remains forbidden while a task is active.
 
 Review, source, verification, and evidence references are portable
 repo-relative paths. They must reject repository escape, URI paths, drive

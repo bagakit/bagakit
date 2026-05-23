@@ -88,6 +88,13 @@ bash "$BAGAKIT_FEATURE_TRACKER_SKILL_DIR/scripts/feature-tracker.sh" set-task-pl
   --tasks-file <reviewed-task-plan.json> \
   --expected-revision 0
 
+# One-time upgrade for an otherwise-valid active version 1 feature.
+bash "$BAGAKIT_FEATURE_TRACKER_SKILL_DIR/scripts/feature-tracker.sh" upgrade-legacy-task-plan \
+  --root . \
+  --feature <legacy-feature-id> \
+  --tasks-file <reviewed-task-plan.json> \
+  --expected-revision 0
+
 bash "$BAGAKIT_FEATURE_TRACKER_SKILL_DIR/scripts/feature-tracker.sh" assign-feature-workspace \
   --root . \
   --feature <feature-id> \
@@ -121,6 +128,7 @@ bash "$BAGAKIT_FEATURE_TRACKER_SKILL_DIR/scripts/feature-tracker.sh" materialize
 - `feature-tracker.sh create-feature`
 - `feature-tracker.sh create-feature-from-planning-entry-handoff`
 - `feature-tracker.sh set-task-plan`
+- `feature-tracker.sh upgrade-legacy-task-plan`
 - `feature-tracker.sh assign-feature-workspace`
 - `feature-tracker.sh show-feature-status`
 - `feature-tracker.sh get-owner-receipt`
@@ -164,6 +172,16 @@ Workspace assignment and task start fail closed until that plan exists.
 Plan replacement uses `--expected-revision`, is rejected during active task
 execution, preserves blocked/done evidence, and requires explicit supersession
 lineage against the immediately prior current plan.
+Pre-v2 active features use the separate one-time `upgrade-legacy-task-plan`
+command. It requires an approved `bagakit.feature-task-plan.v1` file, revision
+`0`, otherwise-valid legacy state, and the exact existing task ids, order, and
+titles with `supersedes=[]`. The command preserves feature status,
+`current_task_id`, task status, gate/commit evidence, notes, and legacy helper
+fields while adding only explicit reviewed semantic fields and revision-1 plan
+history. It cannot add, remove, reorder, rename, supersede, or restart a task,
+and it cannot run against canonical v2 or closed state. Do not synthesize the
+review, acceptance, verification, or source refs from legacy summaries; a
+human- or process-reviewed plan must supply them.
 Historical superseded tasks remain attributable but cannot be restarted.
 Review, source, verification, and evidence refs must be portable repo-relative
 paths and must not use URI, absolute, drive-qualified, UNC, or escaping paths.

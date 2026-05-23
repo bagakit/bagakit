@@ -1236,9 +1236,24 @@ def has_reviewed_task_plan(tasks: dict[str, Any]) -> bool:
     return True
 
 
+def is_legacy_task_plan(tasks: dict[str, Any]) -> bool:
+    version = tasks.get("version")
+    return version == 1 and not isinstance(version, bool) and "plan_status" not in tasks
+
+
+def legacy_task_plan_validation_error(feat_id: str) -> str:
+    return (
+        f"{feat_id}: active feature requires an explicit version 2 reviewed task plan; "
+        "run feature-tracker.sh upgrade-legacy-task-plan with an approved plan and "
+        "--expected-revision 0"
+    )
+
+
 def require_reviewed_task_plan(tasks: dict[str, Any], *, feat_id: str, action: str) -> None:
     if has_reviewed_task_plan(tasks):
         return
+    if is_legacy_task_plan(tasks):
+        raise SystemExit(f"error: {legacy_task_plan_validation_error(feat_id)} before {action}")
     raise SystemExit(
         "error: "
         f"feat {feat_id} has no reviewed task plan; run feature-tracker.sh set-task-plan "
@@ -1374,6 +1389,101 @@ def build_reviewed_tasks_payload(
         "plan_history": history,
         "tasks": tasks,
     }
+
+
+def build_legacy_task_plan_upgrade_payload(
+    feat_id: str,
+    candidate: dict[str, Any],
+    *,
+    previous: dict[str, Any],
+) -> dict[str, Any]:
+    if not is_legacy_task_plan(previous):
+        raise SystemExit(
+            "error: legacy task-plan upgrade requires version 1 tasks.json without plan_status"
+        )
+    partial_plan_fields = {
+        "plan_revision",
+        "supersedes_revision",
+        "review_ref",
+        "source_refs",
+        "plan_history",
+    }
+    present_partial_fields = sorted(partial_plan_fields & set(previous))
+    if present_partial_fields:
+        raise SystemExit(
+            "error: legacy task-plan upgrade rejects partially materialized plan metadata: "
+            + ", ".join(present_partial_fields)
+        )
+    if previous.get("feat_id") != feat_id:
+        raise SystemExit(f"error: legacy tasks feat_id mismatch for {feat_id}")
+
+    previous_items = previous.get("tasks")
+    if not isinstance(previous_items, list) or not previous_items:
+        raise SystemExit("error: legacy task-plan upgrade requires at least one existing task")
+    previous_ids = [
+        str(task.get("id") or "") if isinstance(task, dict) else ""
+        for task in previous_items
+    ]
+    candidate_ids = [str(task["id"]) for task in candidate["tasks"]]
+    if candidate_ids != previous_ids:
+        raise SystemExit(
+            "error: legacy task-plan upgrade must preserve existing task ids and order exactly; "
+            f"existing={','.join(previous_ids)} candidate={','.join(candidate_ids)}"
+        )
+
+    upgraded_items: list[dict[str, Any]] = []
+    semantic_fields = (
+        "title",
+        "objective",
+        "outcome",
+        "acceptance",
+        "verification",
+        "source_refs",
+        "supersedes",
+    )
+    for previous_task, candidate_task in zip(previous_items, candidate["tasks"]):
+        if not isinstance(previous_task, dict):
+            raise SystemExit("error: legacy task-plan upgrade requires object task entries")
+        task_id = str(candidate_task["id"])
+        if previous_task.get("title") != candidate_task.get("title"):
+            raise SystemExit(
+                "error: legacy task-plan upgrade cannot rename existing task "
+                f"{task_id}; reviewed title must match tasks.json exactly"
+            )
+        if candidate_task.get("supersedes"):
+            raise SystemExit(
+                "error: legacy task-plan upgrade is semantic enrichment, not replacement; "
+                f"task {task_id} must use supersedes=[]"
+            )
+        upgraded_task = dict(previous_task)
+        for field in semantic_fields:
+            upgraded_task[field] = copy.deepcopy(candidate_task[field])
+        upgraded_task["introduced_in_revision"] = 1
+        upgraded_items.append(upgraded_task)
+
+    payload = {
+        "version": 2,
+        "feat_id": feat_id,
+        "plan_status": "reviewed",
+        "plan_revision": 1,
+        "supersedes_revision": None,
+        "review_ref": candidate["review_ref"],
+        "source_refs": candidate["source_refs"],
+        "plan_history": [
+            {
+                "revision": 1,
+                "supersedes_revision": None,
+                "review_ref": candidate["review_ref"],
+                "source_refs": candidate["source_refs"],
+                "task_ids": candidate_ids,
+                "superseded_task_ids": [],
+            }
+        ],
+        "tasks": upgraded_items,
+    }
+    if not has_reviewed_task_plan(payload):
+        raise SystemExit("error: legacy task-plan upgrade did not produce canonical reviewed v2 state")
+    return payload
 
 
 def load_local_issuer(paths: HarnessPaths) -> dict[str, Any] | None:
@@ -2897,6 +3007,65 @@ def cmd_set_task_plan(args: argparse.Namespace) -> int:
     )
     save_feat(paths, args.feat, state, tasks)
     print(f"ok: task plan set {args.feat} revision={next_revision}")
+    return 0
+
+
+def cmd_upgrade_legacy_task_plan(args: argparse.Namespace) -> int:
+    root = Path(args.root).resolve()
+    paths = HarnessPaths(root)
+    ensure_harness_exists(paths)
+    state, tasks = load_feat(paths, args.feat)
+    status = str(state.get("status") or "")
+    if status in CLOSED_FEAT_STATUS:
+        eprint(f"error: legacy task-plan upgrade is not available for closed feature status={status}")
+        return 1
+    if args.expected_revision != 0:
+        eprint(
+            "error: legacy task-plan upgrade revision conflict: "
+            f"expected {args.expected_revision}, current 0"
+        )
+        return 1
+
+    allowed_legacy_error = legacy_task_plan_validation_error(args.feat)
+    preflight_errors = validate_feat(paths, root, args.feat)
+    unexpected_errors = [error for error in preflight_errors if error != allowed_legacy_error]
+    if allowed_legacy_error not in preflight_errors or unexpected_errors:
+        eprint(
+            "error: legacy task-plan upgrade requires otherwise valid pre-v2 feature state"
+        )
+        for error in preflight_errors:
+            eprint(f"error: preflight: {error}")
+        return 1
+
+    tasks_file = Path(args.tasks_file)
+    if not tasks_file.is_absolute():
+        tasks_file = root / tasks_file
+    if not tasks_file.exists():
+        eprint(f"error: reviewed task plan file not found: {tasks_file}")
+        return 1
+    candidate = parse_task_plan_candidate(
+        load_json(tasks_file),
+        root=root,
+        label=f"reviewed task plan {relative_display(root, tasks_file)}",
+    )
+    try:
+        upgraded_tasks = build_legacy_task_plan_upgrade_payload(
+            args.feat,
+            candidate,
+            previous=tasks,
+        )
+    except SystemExit as exc:
+        eprint(str(exc))
+        return 1
+
+    state.setdefault("history", []).append(
+        history_event(
+            "legacy_task_plan_upgraded",
+            f"version=1->2; revision=1; preserved_status={status}",
+        )
+    )
+    save_feat(paths, args.feat, state, upgraded_tasks)
+    print(f"ok: legacy task plan upgraded {args.feat} revision=1 status={status}")
     return 0
 
 
@@ -4574,7 +4743,10 @@ def validate_feat(paths: HarnessPaths, root: Path, feat_id: str) -> list[str]:
             if not has_reviewed_task_plan(tasks):
                 errors.append(f"{feat_id}: reviewed task plan is not canonical executable v2 state")
     elif status not in CLOSED_FEAT_STATUS:
-        errors.append(f"{feat_id}: active feature requires an explicit version 2 reviewed task plan")
+        if is_legacy_task_plan(tasks):
+            errors.append(legacy_task_plan_validation_error(feat_id))
+        else:
+            errors.append(f"{feat_id}: active feature requires an explicit version 2 reviewed task plan")
 
     seen: set[str] = set()
     in_progress: list[str] = []
@@ -5780,6 +5952,16 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--expected-revision", type=int, required=True)
     sp.set_defaults(func=cmd_set_task_plan)
 
+    sp = sub.add_parser(
+        "upgrade-legacy-task-plan",
+        help="upgrade one otherwise-valid active version 1 task payload with explicit reviewed semantics",
+    )
+    add_common(sp)
+    sp.add_argument("--feature", dest="feat", required=True)
+    sp.add_argument("--tasks-file", required=True)
+    sp.add_argument("--expected-revision", type=int, required=True)
+    sp.set_defaults(func=cmd_upgrade_legacy_task_plan)
+
     sp = sub.add_parser("assign-feature-workspace", help="assign current_tree/worktree to an existing feature")
     add_common(sp)
     sp.add_argument("--feature", dest="feat", required=True)
@@ -5920,6 +6102,7 @@ def command_requires_global_tracker_lock(args: argparse.Namespace) -> bool:
         "create-feature",
         "create-feature-from-planning-entry-handoff",
         "set-task-plan",
+        "upgrade-legacy-task-plan",
         "assign-feature-workspace",
         "start-task",
         "finish-task",

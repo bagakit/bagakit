@@ -65,6 +65,13 @@ bash "$BAGAKIT_FEATURE_TRACKER_SKILL_DIR/scripts/feature-tracker.sh" set-task-pl
   --tasks-file <reviewed-task-plan.json> \
   --expected-revision 0
 
+# Use only for an otherwise-valid active version 1 feature.
+bash "$BAGAKIT_FEATURE_TRACKER_SKILL_DIR/scripts/feature-tracker.sh" upgrade-legacy-task-plan \
+  --root . \
+  --feature <legacy-feature-id> \
+  --tasks-file <reviewed-task-plan.json> \
+  --expected-revision 0
+
 bash "$BAGAKIT_FEATURE_TRACKER_SKILL_DIR/scripts/feature-tracker.sh" assign-feature-workspace \
   --root . \
   --feature <feature-id> \
@@ -125,6 +132,14 @@ Active execution requires version 2 `tasks.json` materialized from an approved
 `set-task-plan` uses optimistic `--expected-revision` checks, rejects plan
 replacement while a task is active, preserves blocked/done evidence, and
 records explicit supersession against the immediately prior current plan.
+`upgrade-legacy-task-plan` is the one-time, non-replacement path for active
+version 1 state. It requires an explicit approved task-plan file whose task
+ids, order, and titles exactly match the legacy payload and whose tasks declare
+`supersedes=[]`. It preserves lifecycle/current-task state and all execution
+evidence while materializing revision 1 semantics. It rejects partial upgrades,
+closed or canonical v2 state, and any task add/remove/reorder/rename. Operators
+must review and supply objective, outcome, acceptance, verification, and source
+refs; the tracker does not infer them from legacy `summary` or `notes`.
 Historical superseded tasks remain visible for attribution but cannot restart.
 All review, source, verification, and evidence refs are portable repo-relative
 paths; URI, absolute, drive-qualified, UNC, and escaping paths are rejected.
@@ -174,6 +189,7 @@ Closed feature roots should preserve legacy `ui-verification.md` under
 - `create-feature`
 - `create-feature-from-planning-entry-handoff`
 - `set-task-plan`
+- `upgrade-legacy-task-plan`
 - `assign-feature-workspace`
 - `show-feature-status`
 - `get-owner-receipt`
