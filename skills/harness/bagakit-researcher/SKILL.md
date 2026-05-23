@@ -100,6 +100,8 @@ synthesized into Bagakit-facing guidance.
 - record counterevidence or confidence limits for recommendations
 - distinguish source-landscape unknowns from user-goal or local-context
   unknowns before starting broad retrieval
+- when one-sided framing could change the research decision, use selected
+  evidence lenses as question generators, not simulated expert testimony
 - keep each synthesis anchored to its parent charter, and carry material
   evidence-coverage gaps forward as open risks instead of dropping them
 - before synthesis or handoff, check that recommendations and citations trace

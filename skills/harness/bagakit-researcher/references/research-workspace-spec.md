@@ -195,6 +195,51 @@ Survey handback conditions should distinguish search-resolvable unknowns from
 unknowns that require user, project, or local context. Do not fill that gap by
 expanding retrieval.
 
+### Evidence-Lens Stress Test
+
+Use an evidence-lens stress test only when one-sided framing, contested
+evidence, incentives, or historical analogy could materially change the search
+plan or decision. The lenses are question generators, not personas, and none is
+mandatory when it adds no decision value:
+
+- operations:
+  - surface tacit practice, implementation constraints, and realities that
+    formal accounts may omit
+- scholarship:
+  - seek peer-reviewed or systematic evidence, including findings that
+    contradict popular belief
+- countercase:
+  - construct the strongest serious objection and seek evidence the favored
+    position may be neglecting
+- incentives:
+  - inspect beneficiaries, funding, business models, conflicts, and incentives
+    that may shape available claims or evidence
+- precedent:
+  - compare earlier cases, outcomes, and mechanism-level similarities and
+    differences instead of relying on superficial analogy
+
+Prefer deriving lenses from adjacent-topic structures, real stakeholder
+classes, known disagreements, and current evidence gaps. Treat the five lenses
+above as fallback prompts, not a closed panel.
+
+Before retrieval, record only lens-specific questions, hypotheses, likely
+source classes, and what evidence could change or resolve the working
+hypothesis. After retrieval, a selected lens may produce a compact note with:
+
+- a one- or two-sentence evidence-bounded position
+- the strongest supporting evidence ref
+- the strongest limitation, counterevidence, or unresolved gap
+- the decision-relevant contribution not already supplied by another lens
+- confidence and whether the position is sourced observation or inference
+
+Judge a lens by the distinct evidence, source route, contradiction, or decision
+change it contributes, not by lexical diversity or expert-like tone.
+
+Never attribute a position to a simulated practitioner, academic, skeptic,
+economist, historian, or other expert. If the user explicitly requests all five
+perspectives, cover all five lenses, but leave unsupported positions as
+evidence needs rather than inventing representative testimony.
+
 ## Pass And Track Rule
 
 Each pass under `passes/` should describe one bounded research attempt:
