@@ -386,8 +386,8 @@ reporting, the response footer may use:
 </bagakit-rule>
 
 <bagakit-rule skill="bagakit-hitl-webutil-design">
-- Trigger: Codex should design a human-in-the-loop web utility page or skill route for understanding, testing, comparison, or agent handoff.
-- Do: Clarify the HITL page brief, select mechanisms, one style route, and artifacts, choose or extend a crosswalk row, run the hardening audit, and hand frontend implementation to bagakit-codex-webpage-design when needed.
+- Trigger: Codex should design or continue a human-in-the-loop web utility page or skill route for understanding, interactive learning, testing, evidence review, comparison, approval, or Agent handoff; continuation includes an existing page submission, attempt packet, stable page ref, or course id with resume intent.
+- Do: Clarify the HITL page brief, select mechanisms, one style route, artifacts, reusable components, and a template; preserve mastery-learning boundaries for course pages, run the hardening audit, and default explicit page or interactive-course handoffs to frontend implementation plus desktop/mobile browser verification through bagakit-codex-webpage-design unless design-only or no-file delivery is explicit; on continuation, target the existing page or emit its versioned import projection and keep chat as notification or fallback.
 - See: `skills/design/bagakit-hitl-webutil-design/SKILL.md`
 </bagakit-rule>
 
@@ -395,6 +395,12 @@ reporting, the response footer may use:
 - Trigger: A repository needs shared checked-in knowledge, deterministic recall, managed bootstrap guidance, or path protocol.
 - Do: Use the living-knowledge operator for indexing, recall, ingestion, and managed guidebook surfaces.
 - See: `skills/harness/bagakit-living-knowledge/SKILL.md`
+</bagakit-rule>
+
+<bagakit-rule skill="bagakit-mastery-learning">
+- Trigger: Codex should turn source material into a course or learning path aimed at thorough understanding, independent application, transfer, retention, or evidence-backed mastery; or should evaluate and continue an existing course from a course id, attempt packet, page-submission receipt, or explicit resume request.
+- Do: Close the source boundary, define a mastery contract, route diagnostics, build active practice and transfer, fade support, and plan re-entry; review learner-facing copy through bagakit-writing-core and its de-AI-tone route; for interactive-course or learning-interface intent, default to a built and browser-verified page through bagakit-hitl-webutil-design and bagakit-codex-webpage-design unless the user explicitly selects a downgrade mode; on continuation, evaluate the new attempt and return a versioned projection to the existing page rather than moving the course into chat.
+- See: `skills/human-improvement/bagakit-mastery-learning/SKILL.md`
 </bagakit-rule>
 
 <bagakit-rule skill="bagakit-paperwork-technical-writing">
@@ -411,10 +417,10 @@ reporting, the response footer may use:
 
 <bagakit-rule skill="bagakit-set-loop-goal">
 - Trigger: A long-running agent task needs a high-quality Goal file that can survive restart, compact, handoff, sidecar analysis, or loop supervision.
-- Do: Inspect and upgrade the Goal surface to bagakit.goal.v.0.2, create or update compact Goal control truth, bind continuation-bearing owner receipts when present, run fresh-check before bounded execution, resolve semantic migration conflicts through Grill, and render Driver feedback from reconciled evidence.
+- Do: Inspect and upgrade to bagakit.goal.v.0.3, migrate mutable execution truth into exactly one owner, resolve remaining semantic Kernel conflicts through Grill, then render Driver feedback from owner evidence.
 - See: `skills/harness/bagakit-set-loop-goal/SKILL.md`
 - Surface: `.bagakit/goal/current.md, .bagakit/goal/state.yaml, optional .bagakit/goal/supervisor.md, .bagakit/goal/<goal-id>.md, .bagakit/goal/events/<goal-id>.jsonl, .bagakit/goal/reviews/<review-id>.json, temporary .bagakit/goal/upgrade.json, and .bagakit/goal/archive/`
-- Fallback: If the target itself is still unclear, use bagakit-spark first; if execution truth is missing, use the owning planning or runner skill before writing a control-plane Goal.
+- Fallback: If the target is still vague, use bagakit-spark; if no execution owner exists, create a Feature with bagakit-feature-tracker; use Grill only for unresolved decision-bearing Kernel truth.
 </bagakit-rule>
 
 <bagakit-rule skill="bagakit-skill-evolver">
