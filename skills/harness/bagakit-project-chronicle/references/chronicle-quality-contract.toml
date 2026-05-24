@@ -1,0 +1,67 @@
+version = 1
+skill_id = "bagakit-project-chronicle"
+goal = "Turn a bounded project-session corpus into a faithful epic chronicle and an actionable, evidence-bound harness-evolution ledger."
+
+[[guard]]
+id = "bound-completeness-to-adapters"
+polarity = "should"
+goal_dimension = "coverage-honesty"
+behavior = "Define what counts as a session, name every adapter in scope, and report complete or partial coverage relative to that boundary."
+failure_boundary = "Complete coverage does not imply access to deleted, unretained, unrelated-account, or unauthorized sessions."
+transfer_limit = "Applies to multi-session census claims, especially requests phrased as all project sessions."
+
+[[guard]]
+id = "preserve-contradiction-and-correction"
+polarity = "should"
+goal_dimension = "evidence-fidelity"
+behavior = "Preserve material conflicts between sessions and show which later evidence corrected or bounded an earlier belief."
+failure_boundary = "Do not manufacture disagreement when sources are compatible or the difference is immaterial."
+transfer_limit = "Applies when cross-session synthesis encounters incompatible outcomes, claims, or assumptions."
+
+[[guard]]
+id = "epoch-requires-capability-delta"
+polarity = "should"
+goal_dimension = "generation-quality"
+behavior = "Create a new epoch only when an inherited capability, source of truth, proof surface, human burden, cost, or represented uncertainty materially changes."
+failure_boundary = "Do not force several epochs when one bounded generation accurately explains the corpus."
+transfer_limit = "Applies to generational lineage, not ordinary chronological summaries."
+
+[[guard]]
+id = "epic-without-fiction"
+polarity = "should_not"
+goal_dimension = "epic-fidelity"
+behavior = "Do not invent dialogue, motive, consensus, causality, blame, or victory to make the chronicle feel epic."
+failure_boundary = "Functional epithets, recurring symbols, and explicit editorial compression remain allowed when their evidence mapping stays visible."
+transfer_limit = "Applies to literary framing of operational session evidence."
+
+[[guard]]
+id = "principle-layer-before-reuse"
+polarity = "should"
+goal_dimension = "harness-transfer"
+behavior = "Before accepting a reusable lesson, preserve what, why, intended generalization, failure boundary, behavior examples, transfer checks, evidence, and counterevidence."
+failure_boundary = "An unresolved tension may remain inferred and need not claim broad transfer."
+transfer_limit = "Applies to lessons intended to change future Agent or harness behavior."
+
+[[guard]]
+id = "synchronize-narrative-and-ledger"
+polarity = "should"
+goal_dimension = "dual-output-coherence"
+behavior = "Keep material generational claims and inherited levers consistent between the readable chronicle and the evidence-facing evolution ledger."
+failure_boundary = "The two outputs may use different detail and tone; they need not duplicate wording or structure."
+transfer_limit = "Applies to completed dual-output chronicle runs."
+
+[[guard]]
+id = "no-full-chronicle-for-one-session-summary"
+polarity = "should_not"
+goal_dimension = "route-precision"
+behavior = "Do not open the full census, lineage, cast, and evolution workflow for an ordinary single-session summary."
+failure_boundary = "A user may explicitly request a stylized single-session story, but it should not claim cross-session generations or harness evolution."
+transfer_limit = "Applies at skill routing and intake before runtime materialization."
+
+[[guard]]
+id = "no-automatic-promotion"
+polarity = "should_not"
+goal_dimension = "promotion-boundary"
+behavior = "Do not turn an accepted chronicle or ledger entry into shared knowledge, an Evolver topic, a route decision, or a repository promotion automatically."
+failure_boundary = "The skill may prepare an explicit reviewed handoff for the owning downstream workflow."
+transfer_limit = "Applies after editorial acceptance and before durable cross-system mutation."

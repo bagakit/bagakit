@@ -1,0 +1,7 @@
+version = 1
+skill = "bagakit-project-chronicle"
+trigger = "Project sessions need to become an evidence-grounded epic chronicle, cross-session retrospective, origin story, or harness-evolution analysis."
+do = "Declare the session boundary, build and seal a source census, derive source-bound session cards and generational lineage, then publish a chronicle plus an evolution ledger without turning literary framing into fact."
+see = "skills/harness/bagakit-project-chronicle/SKILL.md"
+surface = ".bagakit/project-chronicle/runs/<run-id>/"
+fallback = "For one session use an ordinary summary; for repository promotion decisions hand reviewed candidates to the owning evolution or knowledge workflow."

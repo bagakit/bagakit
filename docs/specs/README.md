@@ -83,6 +83,7 @@ Current examples include:
 - `host-harness-contract.md`
 - `planning-entry-handoff-contract.md`
 - `principle-layer-contract.md`
+- `project-chronicle-contract.md`
 - `output-discipline.md`
 - `selector-data-model.md`
 - `bagakit-driver-contract.md`

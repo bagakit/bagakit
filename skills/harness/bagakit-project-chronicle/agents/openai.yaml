@@ -1,0 +1,4 @@
+interface:
+  display_name: "Bagakit Project Chronicle"
+  short_description: "Turn project sessions into evidence-grounded chronicles."
+  default_prompt: "Use $bagakit-project-chronicle to analyze this project’s sessions and write an evidence-grounded epic chronicle of its evolution."

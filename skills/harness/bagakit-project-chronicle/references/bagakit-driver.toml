@@ -1,0 +1,18 @@
+version = 1
+insert_target = "bagakit_footer"
+summary_line = "- ProjectChronicle: Coverage=<complete|partial>; Sessions=<included/discovered>; Epochs=<count>; Review=<pending|accepted|changes_requested>; Evidence=<run path>; Next=<one deterministic next action>"
+
+[[directive]]
+id = "CENSUS"
+when = "the user requests all project sessions"
+instruction = "declare the source boundary and adapters, register every discovered session, and report partial coverage instead of implying global completeness"
+
+[[directive]]
+id = "EPIC_FIDELITY"
+when = "roles, causality, dialogue, motives, or generational claims enter the narrative"
+instruction = "preserve the cast ledger and bounded evidence refs; remove or label any flourish that cannot be separated from a factual claim"
+
+[[directive]]
+id = "EVOLUTION"
+when = "one lesson may affect future Agent or harness behavior"
+instruction = "record what, why, intended generalization, failure boundary, behavior examples, transfer checks, evidence refs, and counterevidence before acceptance"

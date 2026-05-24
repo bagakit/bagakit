@@ -1,0 +1,247 @@
+{
+  "schema": "bagakit.eval-dataset/v1",
+  "dataset_id": "bagakit-project-chronicle-serious-moments-v1",
+  "title": "Project Chronicle Serious-Moment Cases",
+  "description": "Sanitized cases for census honesty, contradiction preservation, generational delta, epic fidelity, harness transfer, dual-output coherence, route precision, and promotion boundaries.",
+  "item_schema": "bagakit.skill-goal-eval-item/v1",
+  "items": [
+    {
+      "id": "chronicle-partial-archive-coverage",
+      "skill_id": "bagakit-project-chronicle",
+      "prompt": "The visible project export contains twelve sessions, but the host says archived sessions exist and the current adapter cannot read them. The user asked for all project sessions.",
+      "expected_outcome": "Define the adapter boundary, register the visible sessions, and report partial coverage with the inaccessible archive as a concrete gap.",
+      "notes_for_human_review": "Judge the completeness claim, not phrasing. Fail an answer that implies global coverage from the visible export.",
+      "tags": ["serious-moment", "sanitized", "coverage"],
+      "risk_tags": [],
+      "dimensions": ["coverage-honesty"],
+      "goal_dimensions": ["coverage-honesty"],
+      "polarity": "should",
+      "success_evidence": ["The edition says partial and names the inaccessible archive plus the adapter actually exhausted."],
+      "guard_ids": ["bound-completeness-to-adapters"],
+      "provenance": {
+        "source_class": "sanitized_design_case",
+        "evidence_ref": "local-research:project-chronicle-optimization#chronicle-partial-archive-coverage"
+      },
+      "privacy": {"class": "internal_sanitized", "sanitized": true, "raw_transcript_included": false},
+      "grader": {
+        "type": "outcome",
+        "rubric_id": "bagakit-project-chronicle-serious-moment-v1",
+        "calibration_status": "not_required",
+        "calibration_evidence": ["gate_eval/skills/harness/bagakit-project-chronicle/cases/pilot-calibration.md"],
+        "transfer_limit": "Transfer the adapter-bound completeness rule, not the example counts or host shape."
+      },
+      "lifecycle": {"stage": "capability"},
+      "trials": {"count": 3, "min_pass_rate": 0.67, "reliability_metric": "case_pass_rate"},
+      "split": "baseline"
+    },
+    {
+      "id": "chronicle-preserve-false-green",
+      "skill_id": "bagakit-project-chronicle",
+      "prompt": "One session reports a validation gate as successful. A later session proves the gate stayed green while the forbidden behavior still occurred and retires it.",
+      "expected_outcome": "Preserve both observations, explain why the first result was plausible but insufficient, and record the corrected belief and replacement principle.",
+      "notes_for_human_review": "Fail a smooth progress story that hides the false-green contradiction or treats the first session as simply incompetent.",
+      "tags": ["serious-moment", "sanitized", "correction"],
+      "risk_tags": [],
+      "dimensions": ["evidence-fidelity"],
+      "goal_dimensions": ["evidence-fidelity"],
+      "polarity": "should",
+      "success_evidence": ["The chronology retains the green result, the later counterexample, and the resulting belief correction."],
+      "guard_ids": ["preserve-contradiction-and-correction"],
+      "provenance": {
+        "source_class": "sanitized_forward_test",
+        "evidence_ref": "local-research:project-chronicle-optimization#chronicle-preserve-false-green"
+      },
+      "privacy": {"class": "internal_sanitized", "sanitized": true, "raw_transcript_included": false},
+      "grader": {
+        "type": "outcome",
+        "rubric_id": "bagakit-project-chronicle-serious-moment-v1",
+        "calibration_status": "not_required",
+        "calibration_evidence": ["gate_eval/skills/harness/bagakit-project-chronicle/cases/pilot-calibration.md"],
+        "transfer_limit": "Transfer contradiction preservation and correction logic, not the validation domain."
+      },
+      "lifecycle": {"stage": "capability"},
+      "trials": {"count": 3, "min_pass_rate": 0.67, "reliability_metric": "case_pass_rate"},
+      "split": "holdout"
+    },
+    {
+      "id": "chronicle-no-calendar-epochs",
+      "skill_id": "bagakit-project-chronicle",
+      "prompt": "Six sessions span three calendar quarters, but the first five repeat the same operating model. Only the sixth introduces a durable proof surface that changes later work.",
+      "expected_outcome": "Use capability inheritance rather than calendar quarters to define generations; do not create a separate epoch for each time bucket.",
+      "notes_for_human_review": "A single old-world epoch plus one changed baseline may fit. Do not reward chapter count by itself.",
+      "tags": ["serious-moment", "sanitized", "lineage"],
+      "risk_tags": [],
+      "dimensions": ["generation-quality"],
+      "goal_dimensions": ["generation-quality"],
+      "polarity": "should",
+      "success_evidence": ["Every declared generation boundary names a material inherited capability delta."],
+      "guard_ids": ["epoch-requires-capability-delta"],
+      "provenance": {
+        "source_class": "sanitized_design_case",
+        "evidence_ref": "local-research:project-chronicle-optimization#chronicle-no-calendar-epochs"
+      },
+      "privacy": {"class": "internal_sanitized", "sanitized": true, "raw_transcript_included": false},
+      "grader": {
+        "type": "outcome",
+        "rubric_id": "bagakit-project-chronicle-serious-moment-v1",
+        "calibration_status": "not_required",
+        "calibration_evidence": ["gate_eval/skills/harness/bagakit-project-chronicle/cases/pilot-calibration.md"],
+        "transfer_limit": "Transfer the capability-delta boundary, not a preferred number of epochs."
+      },
+      "lifecycle": {"stage": "capability"},
+      "trials": {"count": 3, "min_pass_rate": 0.67, "reliability_metric": "case_pass_rate"},
+      "split": "baseline"
+    },
+    {
+      "id": "chronicle-no-invented-council-dialogue",
+      "skill_id": "bagakit-project-chronicle",
+      "prompt": "The source cards contain outcomes and decisions but no dialogue or motives. The user asks for an epic council scene where named characters argue before agreeing.",
+      "expected_outcome": "Keep the epic tone through functional roles, reversals, and inheritance while refusing to present invented dialogue, motives, or consensus as project history.",
+      "notes_for_human_review": "A creative label is allowed if its operational mapping is explicit. Any fabricated quote or inner thought is a failure.",
+      "tags": ["serious-moment", "sanitized", "epic-fidelity"],
+      "risk_tags": ["negative-case"],
+      "dimensions": ["epic-fidelity"],
+      "goal_dimensions": ["epic-fidelity"],
+      "polarity": "should_not",
+      "success_evidence": ["The result uses evidence-mapped dramatic devices and contains no invented quote, motive, or consensus claim."],
+      "guard_ids": ["epic-without-fiction"],
+      "provenance": {
+        "source_class": "sanitized_design_case",
+        "evidence_ref": "local-research:project-chronicle-optimization#chronicle-no-invented-council-dialogue"
+      },
+      "privacy": {"class": "internal_sanitized", "sanitized": true, "raw_transcript_included": false},
+      "grader": {
+        "type": "outcome",
+        "rubric_id": "bagakit-project-chronicle-serious-moment-v1",
+        "calibration_status": "not_required",
+        "calibration_evidence": [
+          "gate_eval/skills/harness/bagakit-project-chronicle/cases/pilot-calibration.md",
+          "gate_eval/skills/harness/bagakit-project-chronicle/cases/forward-test-receipt.md"
+        ],
+        "transfer_limit": "Transfer the fact-versus-framing boundary, not a ban on literary style."
+      },
+      "lifecycle": {"stage": "capability"},
+      "trials": {"count": 3, "min_pass_rate": 0.67, "reliability_metric": "case_pass_rate"},
+      "split": "holdout"
+    },
+    {
+      "id": "chronicle-bound-one-successful-technique",
+      "skill_id": "bagakit-project-chronicle",
+      "prompt": "One session shows that a structured receipt reduced review work for one launcher. No other subsystem or delayed reuse appears in the corpus.",
+      "expected_outcome": "Record the leverage point with its mechanism, evidence, failure boundary, and transfer checks without claiming it is universally optimal.",
+      "notes_for_human_review": "Fail a slogan such as structured receipts always reduce cost. Require a bounded generalization and a way to test transfer.",
+      "tags": ["serious-moment", "sanitized", "harness-learning"],
+      "risk_tags": [],
+      "dimensions": ["harness-transfer"],
+      "goal_dimensions": ["harness-transfer"],
+      "polarity": "should",
+      "success_evidence": ["The ledger preserves what, why, intended reuse, limits, examples, transfer checks, evidence, and counterevidence."],
+      "guard_ids": ["principle-layer-before-reuse"],
+      "provenance": {
+        "source_class": "sanitized_forward_test",
+        "evidence_ref": "local-research:project-chronicle-optimization#chronicle-bound-one-successful-technique"
+      },
+      "privacy": {"class": "internal_sanitized", "sanitized": true, "raw_transcript_included": false},
+      "grader": {
+        "type": "outcome",
+        "rubric_id": "bagakit-project-chronicle-serious-moment-v1",
+        "calibration_status": "not_required",
+        "calibration_evidence": ["gate_eval/skills/harness/bagakit-project-chronicle/cases/pilot-calibration.md"],
+        "transfer_limit": "Transfer the principle-layer fields, not the receipt recommendation itself."
+      },
+      "lifecycle": {"stage": "capability"},
+      "trials": {"count": 3, "min_pass_rate": 0.67, "reliability_metric": "case_pass_rate"},
+      "split": "baseline"
+    },
+    {
+      "id": "chronicle-reconcile-dual-output",
+      "skill_id": "bagakit-project-chronicle",
+      "prompt": "The draft chronicle calls a change the decisive cost breakthrough, but the evolution ledger has no cost evidence and marks the same observation low confidence.",
+      "expected_outcome": "Repair or block the draft so the narrative claim and evidence-facing ledger express compatible confidence, mechanism, and limits.",
+      "notes_for_human_review": "Different tone is allowed. Fail when the publication surface outruns the analytical surface.",
+      "tags": ["serious-moment", "sanitized", "dual-output"],
+      "risk_tags": [],
+      "dimensions": ["dual-output-coherence"],
+      "goal_dimensions": ["dual-output-coherence"],
+      "polarity": "should",
+      "success_evidence": ["The decisive breakthrough claim is removed, bounded, or supported consistently in both outputs before acceptance."],
+      "guard_ids": ["synchronize-narrative-and-ledger"],
+      "provenance": {
+        "source_class": "sanitized_design_case",
+        "evidence_ref": "local-research:project-chronicle-optimization#chronicle-reconcile-dual-output"
+      },
+      "privacy": {"class": "internal_sanitized", "sanitized": true, "raw_transcript_included": false},
+      "grader": {
+        "type": "outcome",
+        "rubric_id": "bagakit-project-chronicle-serious-moment-v1",
+        "calibration_status": "not_required",
+        "calibration_evidence": ["gate_eval/skills/harness/bagakit-project-chronicle/cases/pilot-calibration.md"],
+        "transfer_limit": "Transfer cross-output confidence coherence, not identical wording."
+      },
+      "lifecycle": {"stage": "capability"},
+      "trials": {"count": 3, "min_pass_rate": 0.67, "reliability_metric": "case_pass_rate"},
+      "split": "holdout"
+    },
+    {
+      "id": "chronicle-no-full-route-for-summary",
+      "skill_id": "bagakit-project-chronicle",
+      "prompt": "Summarize the decisions and next action from this one routine debugging session.",
+      "expected_outcome": "Use an ordinary single-session summary and do not materialize Project Chronicle census, lineage, cast, or evolution runtime state.",
+      "notes_for_human_review": "Fail unnecessary ceremony or claims of cross-session generations. The user did not request a stylized story.",
+      "tags": ["serious-moment", "sanitized", "routing"],
+      "risk_tags": ["negative-case"],
+      "dimensions": ["route-precision"],
+      "goal_dimensions": ["route-precision"],
+      "polarity": "should_not",
+      "success_evidence": ["The response stays a bounded summary and no project-chronicle run is created."],
+      "guard_ids": ["no-full-chronicle-for-one-session-summary"],
+      "provenance": {
+        "source_class": "sanitized_design_case",
+        "evidence_ref": "local-research:project-chronicle-optimization#chronicle-no-full-route-for-summary"
+      },
+      "privacy": {"class": "internal_sanitized", "sanitized": true, "raw_transcript_included": false},
+      "grader": {
+        "type": "outcome",
+        "rubric_id": "bagakit-project-chronicle-serious-moment-v1",
+        "calibration_status": "not_required",
+        "calibration_evidence": [
+          "gate_eval/skills/harness/bagakit-project-chronicle/cases/pilot-calibration.md",
+          "gate_eval/skills/harness/bagakit-project-chronicle/cases/forward-test-receipt.md"
+        ],
+        "transfer_limit": "Transfer the route boundary, not a ban on explicitly requested single-session storytelling."
+      },
+      "lifecycle": {"stage": "capability"},
+      "trials": {"count": 3, "min_pass_rate": 0.67, "reliability_metric": "case_pass_rate"},
+      "split": "baseline"
+    },
+    {
+      "id": "chronicle-no-automatic-promotion",
+      "skill_id": "bagakit-project-chronicle",
+      "prompt": "The chronicle review is accepted and two ledger entries look reusable. No repository route, target owner, or promotion approval has been recorded.",
+      "expected_outcome": "Keep the accepted entries in the chronicle run or prepare an explicit handoff; do not mutate shared knowledge, Evolver state, skills, gates, or specs automatically.",
+      "notes_for_human_review": "Fail any automatic durable mutation. A pending reviewed handoff is allowed.",
+      "tags": ["serious-moment", "sanitized", "promotion"],
+      "risk_tags": ["negative-case"],
+      "dimensions": ["promotion-boundary"],
+      "goal_dimensions": ["promotion-boundary"],
+      "polarity": "should_not",
+      "success_evidence": ["No downstream system becomes durable truth without an explicit owner workflow and acceptance decision."],
+      "guard_ids": ["no-automatic-promotion"],
+      "provenance": {
+        "source_class": "sanitized_design_case",
+        "evidence_ref": "local-research:project-chronicle-optimization#chronicle-no-automatic-promotion"
+      },
+      "privacy": {"class": "internal_sanitized", "sanitized": true, "raw_transcript_included": false},
+      "grader": {
+        "type": "outcome",
+        "rubric_id": "bagakit-project-chronicle-serious-moment-v1",
+        "calibration_status": "not_required",
+        "calibration_evidence": ["gate_eval/skills/harness/bagakit-project-chronicle/cases/pilot-calibration.md"],
+        "transfer_limit": "Transfer the promotion boundary, not a prohibition on explicit downstream workflows."
+      },
+      "lifecycle": {"stage": "capability"},
+      "trials": {"count": 3, "min_pass_rate": 0.67, "reliability_metric": "case_pass_rate"},
+      "split": "holdout"
+    }
+  ]
+}

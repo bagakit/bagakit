@@ -409,6 +409,14 @@ reporting, the response footer may use:
 - See: `skills/paperwork/bagakit-paperwork-technical-writing/SKILL.md`
 </bagakit-rule>
 
+<bagakit-rule skill="bagakit-project-chronicle">
+- Trigger: Project sessions need to become an evidence-grounded epic chronicle, cross-session retrospective, origin story, or harness-evolution analysis.
+- Do: Declare the session boundary, build and seal a source census, derive source-bound session cards and generational lineage, then publish a chronicle plus an evolution ledger without turning literary framing into fact.
+- See: `skills/harness/bagakit-project-chronicle/SKILL.md`
+- Surface: `.bagakit/project-chronicle/runs/<run-id>/`
+- Fallback: For one session use an ordinary summary; for repository promotion decisions hand reviewed candidates to the owning evolution or knowledge workflow.
+</bagakit-rule>
+
 <bagakit-rule skill="bagakit-researcher">
 - Trigger: A repository needs a local-first research loop with topic charter, source cards, summaries, claims, or drift checks.
 - Do: Create a topic workspace, preserve source-bound evidence, and synthesize only after quality checks.

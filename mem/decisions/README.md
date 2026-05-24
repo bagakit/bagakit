@@ -6,6 +6,9 @@ canonical `docs/` truth.
 
 Current records:
 
+- `project-chronicle-graduation.md`
+  - approves `bagakit-project-chronicle` at graduation while preserving the
+    explicit evidence gaps for frontier and flywheel claims
 - `validation-assertion-audit.md`
   - audit of current Bagakit validation assertion style, including which suites
     are already structured-state-first and which still lean too much on

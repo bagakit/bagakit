@@ -1,0 +1,31 @@
+version = 1
+skill = "bagakit-project-chronicle"
+cli_id = "bagakit-project-chronicle"
+entrypoint = "scripts/project_chronicle.ts"
+runner = "node"
+usage = "node --experimental-strip-types scripts/project_chronicle.ts <command> [args...]"
+summary = "Initialize, census, inspect, and validate evidence-grounded project chronicle runs."
+surface_refs = [
+  ".bagakit/project-chronicle/surface.toml",
+  ".bagakit/project-chronicle/runs/<run-id>/",
+]
+
+[[command]]
+name = "init"
+summary = "Create a chronicle run and its reviewable artifact skeleton."
+
+[[command]]
+name = "add-session"
+summary = "Register one discovered session and create a card skeleton when included."
+
+[[command]]
+name = "seal-census"
+summary = "Record complete or partial discovery coverage plus adapters and gaps."
+
+[[command]]
+name = "status"
+summary = "Report structured run progress and artifact counts."
+
+[[command]]
+name = "validate"
+summary = "Validate draft structure or the final evidence and review closure gate."

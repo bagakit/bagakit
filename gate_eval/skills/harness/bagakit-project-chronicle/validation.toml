@@ -1,0 +1,29 @@
+version = 2
+
+[[suite]]
+id = "bagakit-project-chronicle-goal-case-eval"
+owner = "gate_eval/skills/harness/bagakit-project-chronicle"
+description = "Run a deterministic non-gating goal-case coverage pilot for Project Chronicle serious moments."
+default = true
+proof_mode = "runtime"
+protects = ["project-chronicle eval cases for census honesty, contradiction preservation, capability generations, epic fidelity, harness transfer, dual-output coherence, route precision, and promotion boundaries"]
+oracle = ["shared dev/eval goal-case pilot validates sanitized cases against the skill-owned structured quality guards and baseline subset"]
+exercised_surface = ["gate_eval/skills/harness/bagakit-project-chronicle/suite.ts", "gate_eval/skills/harness/bagakit-project-chronicle/cases/serious-moments.json", "skills/harness/bagakit-project-chronicle/references/chronicle-quality-contract.toml"]
+proves = ["bagakit-project-chronicle-goal-case-eval proves the case bank is schema-valid, contains positive and negative cases, maps every case to a matching goal guard, and exposes candidate coverage beyond the deterministic baseline subset."]
+does_not_prove = ["bagakit-project-chronicle-goal-case-eval does not run a live agent, prove literary quality, establish three-trial reliability, or authorize release blocking or promotion."]
+timeout_seconds = 120
+validation_class = "quality"
+groups = ["skills", "harness", "project-chronicle", "eval", "quality"]
+
+[suite.runner]
+kind = "executable"
+command = "{node}"
+args = [
+  "--experimental-strip-types",
+  "dev/eval/src/cli.ts",
+  "run",
+  "--root",
+  "{repo_root}",
+  "--suite",
+  "gate_eval/skills/harness/bagakit-project-chronicle/suite.ts",
+]

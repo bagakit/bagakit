@@ -1,0 +1,87 @@
+version = 2
+
+[[suite]]
+id = "bagakit-project-chronicle-layout"
+owner = "skills/harness/bagakit-project-chronicle"
+description = "Require the canonical installable runtime layout, stable and quality contracts, frontdoor declaration, owner-local validation, and non-gating eval registration."
+default = true
+proof_mode = "structural"
+protects = ["bagakit-project-chronicle installable payload, runtime and quality contracts, source adapter guidance, editorial method, validation registration, and owner-local eval slice"]
+oracle = ["fs runner checks required skill, operator, reference, template, shared spec, validation, and eval files while forbidding compatibility payloads"]
+exercised_surface = ["skills/harness/bagakit-project-chronicle runtime directory", "docs/specs/project-chronicle-contract.md", "gate_validation/skills/harness/bagakit-project-chronicle registration", "gate_eval/skills/harness/bagakit-project-chronicle registration"]
+proves = ["bagakit-project-chronicle-layout proves the runtime-ready skill boundary, public contracts, deterministic validation, and non-gating measurement surface are present."]
+does_not_prove = ["bagakit-project-chronicle-layout does not prove operator behavior, session-discovery completeness, or literary quality."]
+validation_class = "structure"
+groups = ["skills", "harness", "project-chronicle", "structure"]
+
+[suite.runner]
+kind = "fs"
+required_dirs = [
+  "skills/harness/bagakit-project-chronicle",
+  "skills/harness/bagakit-project-chronicle/agents",
+  "skills/harness/bagakit-project-chronicle/assets",
+  "skills/harness/bagakit-project-chronicle/references",
+  "skills/harness/bagakit-project-chronicle/scripts",
+  "gate_eval/skills/harness/bagakit-project-chronicle",
+  "gate_eval/skills/harness/bagakit-project-chronicle/cases",
+  "gate_eval/skills/harness/bagakit-project-chronicle/results",
+  "gate_eval/skills/harness/bagakit-project-chronicle/results/runs",
+  "gate_validation/skills/harness/bagakit-project-chronicle",
+]
+required_files = [
+  "docs/specs/project-chronicle-contract.md",
+  "skills/harness/bagakit-project-chronicle/README.md",
+  "skills/harness/bagakit-project-chronicle/SKILL.md",
+  "skills/harness/bagakit-project-chronicle/agents/openai.yaml",
+  "skills/harness/bagakit-project-chronicle/assets/chronicle.template.md",
+  "skills/harness/bagakit-project-chronicle/references/bagakit-driver.toml",
+  "skills/harness/bagakit-project-chronicle/references/chronicle-quality-contract.toml",
+  "skills/harness/bagakit-project-chronicle/references/editorial-method.md",
+  "skills/harness/bagakit-project-chronicle/references/frontdoor-rule.toml",
+  "skills/harness/bagakit-project-chronicle/references/output-contract.md",
+  "skills/harness/bagakit-project-chronicle/references/skill-cli.toml",
+  "skills/harness/bagakit-project-chronicle/references/source-adapters.md",
+  "skills/harness/bagakit-project-chronicle/scripts/project_chronicle.ts",
+  "gate_eval/skills/harness/bagakit-project-chronicle/README.md",
+  "gate_eval/skills/harness/bagakit-project-chronicle/cases/forward-test-receipt.md",
+  "gate_eval/skills/harness/bagakit-project-chronicle/cases/pilot-calibration.md",
+  "gate_eval/skills/harness/bagakit-project-chronicle/cases/serious-moments.json",
+  "gate_eval/skills/harness/bagakit-project-chronicle/results/.gitignore",
+  "gate_eval/skills/harness/bagakit-project-chronicle/results/README.md",
+  "gate_eval/skills/harness/bagakit-project-chronicle/results/runs/.gitkeep",
+  "gate_eval/skills/harness/bagakit-project-chronicle/suite.ts",
+  "gate_eval/skills/harness/bagakit-project-chronicle/validation.toml",
+  "gate_validation/skills/harness/bagakit-project-chronicle/validation.toml",
+  "gate_validation/skills/harness/bagakit-project-chronicle/check-project-chronicle.sh",
+]
+forbidden_paths = [
+  "skills/harness/bagakit-project-chronicle/SKILL_PAYLOAD.json",
+  "skills/harness/bagakit-project-chronicle/AGENTS.md",
+  "skills/harness/bagakit-project-chronicle/Makefile",
+  "skills/harness/bagakit-project-chronicle/docs",
+  "skills/harness/bagakit-project-chronicle/gate",
+  "skills/harness/bagakit-project-chronicle/scripts_dev",
+]
+
+[[suite]]
+id = "bagakit-project-chronicle-cli-smoke"
+owner = "skills/harness/bagakit-project-chronicle"
+description = "Exercise census initialization, source registration, honest partial coverage, structured status, draft validation, final closure, and a cast-coverage failure."
+default = true
+proof_mode = "runtime"
+protects = ["project chronicle census and final artifact closure across source cards, lineage, cast, evolution ledger, chronicle, and review"]
+oracle = ["smoke script runs the public CLI in a temporary project and checks successful plus fail-closed paths"]
+exercised_surface = ["project_chronicle.ts CLI", ".bagakit/project-chronicle/surface.toml", "project chronicle run artifacts"]
+proves = ["bagakit-project-chronicle-cli-smoke proves the operator records bounded session coverage and rejects a final chronicle until structured evidence, lineage, cast coverage, reusable principles, prose closure, and review gates are complete."]
+does_not_prove = ["bagakit-project-chronicle-cli-smoke does not prove that an external host exposed every session, that cross-session causal judgments are correct, or that the prose has epic quality."]
+timeout_seconds = 120
+validation_class = "smoke"
+groups = ["skills", "harness", "project-chronicle", "smoke"]
+
+[suite.runner]
+kind = "bash_script"
+script = "gate_validation/skills/harness/bagakit-project-chronicle/check-project-chronicle.sh"
+args = [
+  "--root",
+  "{repo_root}",
+]
