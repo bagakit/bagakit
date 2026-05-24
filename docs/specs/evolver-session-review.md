@@ -37,7 +37,7 @@ The CLI accepts this root shape:
 ```json
 {
   "schema": "bagakit.evolver.session-review.v1",
-  "producer": "goal-reviewer",
+  "producer": "session-reviewer",
   "generated_at": "2001-01-02T00:00:00Z",
   "session_evidence": {},
   "candidates": [],
@@ -56,10 +56,9 @@ hide raw transcript content inside the review contract.
 - `run_id`
 - `source_channel`
   - `session-review`
-  - `goal-review`
 - `source_refs[]`
-  - unique repo-relative references to operational evidence, approved slices,
-    or a Goal review receipt
+  - unique repo-relative references to owner-managed operational evidence or
+    approved slices
 - `captured_at`
 - `sensitivity`
   - `public`, `internal`, `confidential`, or `restricted`
@@ -81,10 +80,9 @@ repo-relative file, privacy disposition must be `approved_slices` or
 Expired or deleted sources may support a no-change or non-accepted review
 record, but they cannot substantiate a new pending Evolver signal.
 
-When `source_channel = goal-review`, at least one source ref must be a valid
-`.bagakit/goal/reviews/<review-id>.json` receipt with `status = completed`,
-`evolver_disposition = signal_candidate`, and compatible approval. Its evidence
-refs must also appear in `session_evidence.source_refs`.
+Evolver does not branch on the evidence owner. Feature artifacts, Runner
+receipts, approved transcript slices, and other operational evidence use the
+same source-ref, retention, privacy, candidate, and independent-review rules.
 
 ## Candidate Contract
 

@@ -250,8 +250,8 @@ Skill-promotion review rule:
 Session-review bridge rules:
 
 - use `docs/specs/evolver-session-review.md` as the public contract
-- `goal-review` may cite a repo-relative Goal review receipt in
-  `session_evidence.source_refs[]`
+- cite owner-managed operational evidence through repo-relative
+  `session_evidence.source_refs[]`; Evolver does not special-case the owner
 - accepted candidates require resolvable source files, at least one bounded
   source span, in-window retention, and `approved_slices` or `redacted` privacy
   disposition

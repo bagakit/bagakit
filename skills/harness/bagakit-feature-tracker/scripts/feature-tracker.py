@@ -67,16 +67,19 @@ FEATURES_DAG_FILENAME = "FEATURES_DAG.json"
 FEATURE_PROPOSAL_FILENAME = "proposal.md"
 FEATURE_SPEC_DELTA_FILENAME = "spec-delta.md"
 FEATURE_VERIFICATION_FILENAME = "verification.md"
+FEATURE_GOAL_FILENAME = "goal.md"
 FEATURE_SUMMARY_FILENAME = "summary.md"
 FEATURE_OWNER_RECEIPT_FILENAME = "owner-receipt.json"
 LEGACY_UI_VERIFICATION_FILENAME = "ui-verification.md"
 TASK_PLAN_SCHEMA = "bagakit.feature-task-plan.v1"
 OWNER_RECEIPT_SCHEMA = "bagakit.execution-owner-receipt.v1"
+FEATURE_GOAL_SCHEMA = "bagakit.feature-goal.v1"
 TASK_PLAN_STATUSES = {"draft", "reviewed"}
 TASK_VERIFICATION_KINDS = {"command", "artifact", "manual", "owner_receipt"}
 DAG_RECOVERY_HINT = "run feature-tracker.sh replan-features to regenerate FEATURES_DAG.json"
 FEATURE_REQUIRED_ROOT_FILES = frozenset({"state.json", "tasks.json"})
 FEATURE_DERIVED_ROOT_FILES = frozenset({FEATURE_OWNER_RECEIPT_FILENAME})
+FEATURE_CONTROL_ROOT_FILES = frozenset({FEATURE_GOAL_FILENAME})
 FEATURE_OPTIONAL_ROOT_FILES = frozenset(
     {
         FEATURE_PROPOSAL_FILENAME,
@@ -94,6 +97,16 @@ FEATURE_ROOT_FILE_HINTS = {
     "tasks.md": "tasks.json is the only task source of truth",
     LEGACY_UI_VERIFICATION_FILENAME: "rename ui-verification.md to verification.md; the ui-only filename is retired",
 }
+POSIX_SEP = chr(47)
+MACHINE_LOCAL_PATH_RE = re.compile(
+    r"(?:file:"
+    + re.escape(POSIX_SEP * 2)
+    + r"|"
+    + re.escape(POSIX_SEP)
+    + r"(?:Users|home|private|tmp|var|opt|workspace|Volumes)"
+    + re.escape(POSIX_SEP)
+    + r"|[A-Za-z]:[\\\\/]|\\\\\\\\[A-Za-z0-9_.-]+[\\\\/])"
+)
 LEGACY_RUNTIME_PATH_HINTS = {
     "feats": ".bagakit/feature-tracker/features/",
     "feats-archived": ".bagakit/feature-tracker/features-archived/",
@@ -137,6 +150,46 @@ def read_text(path: Path) -> str:
 def write_text(path: Path, text: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(text, encoding="utf-8")
+
+
+def write_text_atomic(path: Path, text: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_suffix(path.suffix + ".tmp")
+    tmp.write_text(text, encoding="utf-8")
+    tmp.replace(path)
+
+
+def normalized_markdown(text: str) -> str:
+    return text.replace("\r\n", "\n").replace("\r", "\n").rstrip() + "\n"
+
+
+def validate_feature_goal_text(text: str, *, feat_id: str) -> list[str]:
+    issues: list[str] = []
+    if "\x00" in text:
+        issues.append("goal.md must not contain NUL bytes")
+        return issues
+    normalized = normalized_markdown(text)
+    lines = normalized.splitlines()
+    contract_marker = f"Contract: `{FEATURE_GOAL_SCHEMA}`"
+    feature_marker = f"Feature: `{feat_id}`"
+    declared_contracts = [line for line in lines if line.startswith("Contract: ")]
+    declared_features = [line for line in lines if line.startswith("Feature: ")]
+    if declared_contracts != [contract_marker]:
+        issues.append(f"goal.md must declare Contract: `{FEATURE_GOAL_SCHEMA}`")
+    if declared_features != [feature_marker]:
+        issues.append(f"goal.md must bind Feature: `{feat_id}`")
+    control_lines = [
+        line.strip()
+        for line in lines
+        if line.strip()
+        and line not in {contract_marker, feature_marker}
+        and not line.startswith("#")
+    ]
+    if not control_lines:
+        issues.append("goal.md must contain non-empty control content")
+    if MACHINE_LOCAL_PATH_RE.search(normalized):
+        issues.append("goal.md contains a machine-local absolute path or file URI")
+    return issues
 
 
 def require_record(value: Any, label: str) -> dict[str, Any]:
@@ -380,13 +433,14 @@ def unsupported_feature_root_file_error(rel_path: str, *, closed_root: bool = Fa
     if closed_root:
         return (
             f"unsupported feature-root file: {rel_path}; "
-            f"hint: closed feature roots keep only summary.md and artifacts/ at the root; "
+            f"hint: closed feature roots keep state.json, tasks.json, owner-receipt.json, "
+            f"optional goal.md, summary.md, and artifacts/ at the root; "
             f"preserve live or legacy root entries under artifacts/{FEATURE_CLOSEOUT_PRESERVE_DIRNAME}/ instead"
         )
     hint = FEATURE_ROOT_FILE_HINTS.get(name)
     if hint:
         return f"unsupported feature-root file: {rel_path}; hint: {hint}"
-    allowed = ", ".join(sorted(FEATURE_OPTIONAL_ROOT_FILES))
+    allowed = ", ".join(sorted(FEATURE_OPTIONAL_ROOT_FILES | FEATURE_CONTROL_ROOT_FILES))
     return (
         f"unsupported feature-root file: {rel_path}; "
         f"allowed live-feature helper files are state.json, tasks.json, {allowed}, and artifacts/"
@@ -917,6 +971,9 @@ class HarnessPaths:
 
     def feat_owner_receipt(self, feat_id: str, *, status: str | None = None) -> Path:
         return self.feat_dir(feat_id, status=status) / FEATURE_OWNER_RECEIPT_FILENAME
+
+    def feat_goal(self, feat_id: str, *, status: str | None = None) -> Path:
+        return self.feat_dir(feat_id, status=status) / FEATURE_GOAL_FILENAME
 
     def feat_summary(self, feat_id: str, *, status: str | None = None) -> Path:
         return self.feat_dir(feat_id, status=status) / "summary.md"
@@ -1830,6 +1887,55 @@ def load_feat(paths: HarnessPaths, feat_id: str) -> tuple[dict[str, Any], dict[s
     return state, tasks
 
 
+def expected_feature_goal_ref(paths: HarnessPaths, state: dict[str, Any]) -> str:
+    feat_id = str(state.get("feat_id") or "")
+    status = str(state.get("status") or "")
+    return relative_display(paths.root, paths.feat_goal(feat_id, status=status))
+
+
+def feature_goal_contract_issues(paths: HarnessPaths, state: dict[str, Any]) -> list[str]:
+    feat_id = str(state.get("feat_id") or "")
+    status = str(state.get("status") or "")
+    goal_path = paths.feat_goal(feat_id, status=status)
+    contract = state.get("goal_contract")
+    if contract is None:
+        return [f"{feat_id}: goal.md exists without state.json goal_contract"] if goal_path.exists() else []
+    if not isinstance(contract, dict):
+        return [f"{feat_id}: state.json goal_contract must be an object"]
+
+    issues: list[str] = []
+    if contract.get("schema") != FEATURE_GOAL_SCHEMA:
+        issues.append(f"{feat_id}: goal_contract.schema must be {FEATURE_GOAL_SCHEMA}")
+    expected_ref = expected_feature_goal_ref(paths, state)
+    if contract.get("ref") != expected_ref:
+        issues.append(f"{feat_id}: goal_contract.ref must be {expected_ref}")
+    revision = contract.get("revision")
+    if not isinstance(revision, str) or not re.fullmatch(r"[0-9a-f]{64}", revision):
+        issues.append(f"{feat_id}: goal_contract.revision must be a lowercase SHA-256 digest")
+    if not goal_path.is_file():
+        issues.append(f"{feat_id}: goal_contract target is missing: {expected_ref}")
+        return issues
+
+    text = read_text(goal_path)
+    issues.extend(f"{feat_id}: {issue}" for issue in validate_feature_goal_text(text, feat_id=feat_id))
+    actual_revision = sha256_file(goal_path)
+    if isinstance(revision, str) and revision != actual_revision:
+        issues.append(f"{feat_id}: goal_contract.revision drifts from goal.md")
+    return issues
+
+
+def require_valid_feature_goal_contract(paths: HarnessPaths, state: dict[str, Any]) -> None:
+    issues = feature_goal_contract_issues(paths, state)
+    if issues:
+        raise SystemExit("error: " + "; ".join(issues))
+
+
+def normalize_feature_goal_ref(paths: HarnessPaths, state: dict[str, Any]) -> None:
+    contract = state.get("goal_contract")
+    if isinstance(contract, dict):
+        contract["ref"] = expected_feature_goal_ref(paths, state)
+
+
 def ensure_closed_feat_rerun_state(
     paths: HarnessPaths,
     feat_id: str,
@@ -1929,7 +2035,9 @@ def preserve_closeout_root_entries(
 
     preserve_dir = feat_dir / "artifacts" / FEATURE_CLOSEOUT_PRESERVE_DIRNAME
     for child in sorted(feat_dir.iterdir()):
-        if child.is_file() and child.name in FEATURE_REQUIRED_ROOT_FILES | FEATURE_DERIVED_ROOT_FILES:
+        if child.is_file() and child.name in (
+            FEATURE_REQUIRED_ROOT_FILES | FEATURE_DERIVED_ROOT_FILES | FEATURE_CONTROL_ROOT_FILES
+        ):
             continue
         if child.is_file() and child.name in FEATURE_CLOSEOUT_ROOT_FILES and not include_closeout_root_files:
             continue
@@ -2007,7 +2115,7 @@ def materialize_feature_artifact(
     status = str(state.get("status") or "")
     if status in CLOSED_FEAT_STATUS:
         raise SystemExit(
-            "error: closed feats keep only state.json, tasks.json, summary.md, and artifacts/ at the root; "
+            "error: closed feats keep state.json, tasks.json, optional goal.md, summary.md, and artifacts/ at the root; "
             "live-feature helper files are not materializable after closeout"
         )
     if kind == "proposal":
@@ -2034,6 +2142,121 @@ def materialize_feature_artifact(
     return target
 
 
+def resolve_input_file(root: Path, raw: str, *, label: str) -> Path:
+    path = Path(raw)
+    if not path.is_absolute():
+        path = root / path
+    path = path.resolve()
+    if not path.is_file():
+        raise SystemExit(f"error: {label} does not exist: {path}")
+    return path
+
+
+def cmd_validate_feature_goal(args: argparse.Namespace) -> int:
+    root = Path(args.root).resolve()
+    paths = HarnessPaths(root)
+    ensure_harness_exists(paths)
+    state, _ = load_feat(paths, args.feat)
+    status = str(state.get("status") or "")
+    if args.goal_file:
+        source = resolve_input_file(root, args.goal_file, label="goal file")
+        issues = validate_feature_goal_text(read_text(source), feat_id=args.feat)
+    else:
+        issues = feature_goal_contract_issues(paths, state)
+        if state.get("goal_contract") is None and not paths.feat_goal(args.feat, status=status).exists():
+            issues.append(f"{args.feat}: feature has no goal.md contract")
+    if issues:
+        for issue in issues:
+            eprint(f"error: {issue}")
+        return 1
+    print(f"ok: feature goal valid {args.feat}")
+    return 0
+
+
+def cmd_set_feature_goal(args: argparse.Namespace) -> int:
+    root = Path(args.root).resolve()
+    paths = HarnessPaths(root)
+    ensure_harness_exists(paths)
+    state, tasks = load_feat(paths, args.feat)
+    status = str(state.get("status") or "")
+    if status in CLOSED_FEAT_STATUS:
+        eprint("error: closed features preserve goal.md but do not accept Goal updates")
+        return 1
+
+    source = resolve_input_file(root, args.goal_file, label="goal file")
+    candidate = normalized_markdown(read_text(source))
+    issues = validate_feature_goal_text(candidate, feat_id=args.feat)
+    if issues:
+        for issue in issues:
+            eprint(f"error: {issue}")
+        return 1
+
+    target = paths.feat_goal(args.feat, status=status)
+    current_contract = state.get("goal_contract")
+    if current_contract is not None:
+        if not isinstance(current_contract, dict):
+            eprint("error: state.json goal_contract must be an object")
+            return 1
+        if current_contract.get("schema") != FEATURE_GOAL_SCHEMA:
+            eprint(f"error: goal_contract.schema must be {FEATURE_GOAL_SCHEMA}")
+            return 1
+        if current_contract.get("ref") != expected_feature_goal_ref(paths, state):
+            eprint("error: goal_contract.ref is not the canonical feature goal path")
+            return 1
+        current_revision = str(current_contract.get("revision") or "")
+        if not re.fullmatch(r"[0-9a-f]{64}", current_revision):
+            eprint("error: goal_contract.revision must be a lowercase SHA-256 digest")
+            return 1
+    else:
+        if target.exists():
+            eprint("error: goal.md exists without state.json goal_contract; resolve the collision before setting Goal")
+            return 1
+        current_revision = "none"
+    expected_revision = str(args.expected_revision or "").strip().lower()
+    if expected_revision != "none" and not re.fullmatch(r"[0-9a-f]{64}", expected_revision):
+        eprint("error: --expected-revision must be `none` or a lowercase SHA-256 digest")
+        return 1
+    if expected_revision != current_revision:
+        eprint(
+            "error: stale Goal revision: "
+            f"expected {expected_revision}, current {current_revision}"
+        )
+        return 1
+
+    old_bytes = target.read_bytes() if target.exists() else None
+    old_mode = target.stat().st_mode & 0o777 if target.exists() else None
+    old_state = copy.deepcopy(state)
+    old_tasks = copy.deepcopy(tasks)
+    try:
+        write_text_atomic(target, candidate)
+        revision = sha256_file(target)
+        state["goal_contract"] = {
+            "schema": FEATURE_GOAL_SCHEMA,
+            "ref": relative_display(root, target),
+            "revision": revision,
+        }
+        state.setdefault("history", []).append(
+            history_event("feature_goal_set", f"{current_revision} -> {revision}")
+        )
+        save_feat(paths, args.feat, state, tasks)
+    except BaseException:
+        if old_bytes is None:
+            target.unlink(missing_ok=True)
+        else:
+            target.write_bytes(old_bytes)
+            if old_mode is not None:
+                target.chmod(old_mode)
+        try:
+            save_feat(paths, args.feat, old_state, old_tasks)
+        except BaseException:
+            pass
+        raise
+
+    print(f"goal: {relative_display(root, target)}")
+    print(f"revision: {revision}")
+    return 0
+
+
 def save_feat(
     paths: HarnessPaths,
     feat_id: str,
@@ -2044,6 +2267,8 @@ def save_feat(
 ) -> None:
     normalize_state_payload(state)
     normalize_tasks_payload(tasks)
+    normalize_feature_goal_ref(paths, state)
+    require_valid_feature_goal_contract(paths, state)
     status = str(state.get("status") or "")
     save_json(paths.feat_state(feat_id, status=status), state)
     save_json(paths.feat_tasks(feat_id, status=status), tasks)
@@ -2092,6 +2317,7 @@ def build_owner_receipt(
     state: dict[str, Any],
     tasks: dict[str, Any],
 ) -> dict[str, Any]:
+    require_valid_feature_goal_contract(paths, state)
     feat_id = str(state.get("feat_id") or "")
     status = str(state.get("status") or "proposal")
     current_item_id = str(state.get("current_task_id") or "").strip() or None
@@ -2108,6 +2334,8 @@ def build_owner_receipt(
         relative_display(paths.root, feat_dir / "state.json"),
         relative_display(paths.root, feat_dir / "tasks.json"),
     ]
+    if state.get("goal_contract") is not None:
+        evidence_refs.append(relative_display(paths.root, feat_dir / FEATURE_GOAL_FILENAME))
     evidence_hashes: dict[str, str] = {}
     for evidence_ref in evidence_refs:
         evidence_path = paths.root / evidence_ref
@@ -4530,6 +4758,8 @@ def validate_feat(paths: HarnessPaths, root: Path, feat_id: str) -> list[str]:
     if state.get("feat_id") != feat_id:
         errors.append(f"{feat_id}: state feat_id mismatch")
 
+    errors.extend(feature_goal_contract_issues(paths, state))
+
     try:
         canonical_depends_on(state, feat_id=feat_id)
     except SystemExit as exc:
@@ -4875,7 +5105,9 @@ def validate_feat(paths: HarnessPaths, root: Path, feat_id: str) -> list[str]:
     feat_dir = paths.feat_dir(feat_id, status=str(state.get("status") or ""))
     if feat_dir.exists():
         is_closed = str(state.get("status") or "") in CLOSED_FEAT_STATUS
-        allowed_files = set(FEATURE_REQUIRED_ROOT_FILES | FEATURE_DERIVED_ROOT_FILES)
+        allowed_files = set(
+            FEATURE_REQUIRED_ROOT_FILES | FEATURE_DERIVED_ROOT_FILES | FEATURE_CONTROL_ROOT_FILES
+        )
         if is_closed:
             allowed_files |= set(FEATURE_CLOSEOUT_ROOT_FILES)
         else:
@@ -4897,8 +5129,8 @@ def validate_feat(paths: HarnessPaths, root: Path, feat_id: str) -> list[str]:
                 errors.append(f"{feat_id}: closed feat missing summary.md")
 
     receipt_path = paths.feat_owner_receipt(feat_id, status=str(status or ""))
-    if explicit_plan and not receipt_path.exists():
-        errors.append(f"{feat_id}: missing owner-receipt.json for canonical task-plan state")
+    if (explicit_plan or state.get("goal_contract") is not None) and not receipt_path.exists():
+        errors.append(f"{feat_id}: missing owner-receipt.json for canonical Feature control state")
     elif receipt_path.exists():
         try:
             load_current_owner_receipt(paths, state, tasks)
@@ -5962,6 +6194,19 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--expected-revision", type=int, required=True)
     sp.set_defaults(func=cmd_upgrade_legacy_task_plan)
 
+    sp = sub.add_parser("validate-feature-goal", help="validate a candidate or installed feature-owned goal.md")
+    add_common(sp)
+    sp.add_argument("--feature", dest="feat", required=True)
+    sp.add_argument("--goal-file", default="")
+    sp.set_defaults(func=cmd_validate_feature_goal)
+
+    sp = sub.add_parser("set-feature-goal", help="install or revise one feature-owned goal.md with revision guard")
+    add_common(sp)
+    sp.add_argument("--feature", dest="feat", required=True)
+    sp.add_argument("--goal-file", required=True)
+    sp.add_argument("--expected-revision", required=True)
+    sp.set_defaults(func=cmd_set_feature_goal)
+
     sp = sub.add_parser("assign-feature-workspace", help="assign current_tree/worktree to an existing feature")
     add_common(sp)
     sp.add_argument("--feature", dest="feat", required=True)
@@ -6103,6 +6348,7 @@ def command_requires_global_tracker_lock(args: argparse.Namespace) -> bool:
         "create-feature-from-planning-entry-handoff",
         "set-task-plan",
         "upgrade-legacy-task-plan",
+        "set-feature-goal",
         "assign-feature-workspace",
         "start-task",
         "finish-task",

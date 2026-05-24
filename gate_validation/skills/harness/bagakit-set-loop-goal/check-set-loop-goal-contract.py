@@ -1,38 +1,19 @@
 from __future__ import annotations
 
 import argparse
-import re
 from pathlib import Path
 
+try:
+    import tomllib
+except ModuleNotFoundError:  # Python 3.10 runtime
+    import tomli as tomllib
 
-WITH_SUPERVISOR = """@./.bagakit/goal/current.md
-Read current.md first; it resolves state.yaml, foreground_goal, and the active Goal.
 
-@./.bagakit/goal/supervisor.md
-Read supervisor.md when present; run checkpoint rules around bounded work.
+WRAPPER = """@./.bagakit/feature-tracker/features/<feature-id>/goal.md
+Read this Feature Goal first; follow only the Feature owner, current task, and continuation it resolves.
 
-Context may be stale or wrong; recover from these files before trusting prior context.
+Context may be stale or belong to another Feature; recover from this file before acting.
 """
-
-WITHOUT_SUPERVISOR = """@./.bagakit/goal/current.md
-Read current.md first; it resolves state.yaml, foreground_goal, and the active Goal.
-
-Context may be stale or wrong; recover from this file before trusting prior context.
-"""
-
-
-def extract_code_block(text: str, marker: str) -> str:
-    index = text.find(marker)
-    if index == -1:
-        raise SystemExit(f"error: could not find marker: {marker}")
-    block_start = text.find("```text", index)
-    if block_start == -1:
-        raise SystemExit(f"error: could not find code block after marker: {marker}")
-    content_start = text.find("\n", block_start) + 1
-    content_end = text.find("```", content_start)
-    if content_end == -1:
-        raise SystemExit(f"error: unterminated code block after marker: {marker}")
-    return text[content_start:content_end]
 
 
 def require(condition: bool, message: str) -> None:
@@ -40,88 +21,63 @@ def require(condition: bool, message: str) -> None:
         raise SystemExit(f"error: {message}")
 
 
+def extract_wrapper(text: str) -> str:
+    marker = "## Agent Wrapper"
+    start = text.find(marker)
+    require(start >= 0, "goal-file-contract missing Agent Wrapper")
+    fence = text.find("```text", start)
+    require(fence >= 0, "goal-file-contract missing wrapper fence")
+    content_start = text.find("\n", fence) + 1
+    content_end = text.find("```", content_start)
+    require(content_end >= 0, "goal-file-contract wrapper fence is unterminated")
+    return text[content_start:content_end]
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--root", required=True)
     args = parser.parse_args()
-
     root = Path(args.root)
-    skill = root / "skills/harness/bagakit-set-loop-goal/SKILL.md"
-    contract = root / "skills/harness/bagakit-set-loop-goal/references/goal-file-contract.md"
-    event_contract = root / "skills/harness/bagakit-set-loop-goal/references/event-stream-contract.md"
-    upgrade_contract = root / "skills/harness/bagakit-set-loop-goal/references/protocol-upgrade-contract.md"
-    loop_off = root / "skills/harness/bagakit-set-loop-goal/references/loop-off-loop.md"
-    frontdoor = root / "skills/harness/bagakit-set-loop-goal/references/frontdoor-rule.toml"
-    skill_cli = root / "skills/harness/bagakit-set-loop-goal/references/skill-cli.toml"
-    driver = root / "skills/harness/bagakit-set-loop-goal/references/bagakit-driver.toml"
+    skill_dir = root / "skills/harness/bagakit-set-loop-goal"
 
-    skill_text = skill.read_text(encoding="utf-8")
-    contract_text = contract.read_text(encoding="utf-8")
-    event_text = event_contract.read_text(encoding="utf-8")
-    upgrade_text = upgrade_contract.read_text(encoding="utf-8")
-    loop_text = loop_off.read_text(encoding="utf-8")
-    frontdoor_text = frontdoor.read_text(encoding="utf-8")
-    skill_cli_text = skill_cli.read_text(encoding="utf-8")
-    driver_text = driver.read_text(encoding="utf-8")
-
-    contract_with = extract_code_block(contract_text, "With supervisor:")
-    contract_without = extract_code_block(contract_text, "Without supervisor:")
-    loop_with = extract_code_block(loop_text, "With supervisor:")
-    loop_without = extract_code_block(loop_text, "Without supervisor:")
-
-    require(contract_with == WITH_SUPERVISOR, "goal-file-contract with-supervisor wrapper drifted")
-    require(contract_without == WITHOUT_SUPERVISOR, "goal-file-contract without-supervisor wrapper drifted")
-    require(loop_with == WITH_SUPERVISOR, "loop-off-loop with-supervisor wrapper drifted")
-    require(loop_without == WITHOUT_SUPERVISOR, "loop-off-loop without-supervisor wrapper drifted")
-
-    require(".bagakit/goal/current.md" in frontdoor_text, "frontdoor rule must reference current.md")
-    require(".bagakit/goal/state.yaml" in frontdoor_text, "frontdoor rule must reference state.yaml")
-    require(".bagakit/goal/archive/" in frontdoor_text, "frontdoor rule must reference archive/")
-
-    for command in [
-        "initialize-surface",
-        "inspect-upgrade",
-        "upgrade-surface",
-        "upsert-goal",
-        "set-foreground",
-        "set-supervision",
-        "relate-goals",
-        "request-evolver-review",
-        "record-evolver-review",
-        "append-goal-event",
-        "reconcile-goal",
-        "render-wrapper",
-        "fresh-check",
-        "archive-goal",
-        "show-surface",
-        "driver-report",
-    ]:
-        require(f'name = "{command}"' in skill_cli_text, f"skill-cli.toml missing command entry: {command}")
-
-    require(".bagakit/goal/current.md" in skill_text, "SKILL.md must reference current.md ownership")
-    require(".bagakit/goal/state.yaml" in skill_text, "SKILL.md must reference state.yaml ownership")
-    require("references/loop-off-loop.md" in skill_text, "SKILL.md must route to loop-off-loop reference")
-    require("references/goal-file-contract.md" in skill_text, "SKILL.md must route to goal-file-contract reference")
-    require("references/protocol-upgrade-contract.md" in skill_text, "SKILL.md must route to protocol-upgrade-contract reference")
-    require("bagakit.goal.v.0.3" in upgrade_text, "upgrade contract must declare the current Goal protocol")
-    require("execution_owner" in skill_text, "SKILL.md must require one execution owner")
-    require("Would normal successful execution" in contract_text, "goal contract must expose the Kernel admission test")
-    require("Protected Invariants" in contract_text, "goal contract must define the Kernel template")
-    require("bagakit-feature-tracker" in contract_text, "goal contract must define the missing-owner route")
-    require("--owner-migration-ref" in upgrade_text, "upgrade contract must preserve legacy dynamic truth until owner migration")
-    require("bagakit.goal-owner-migration.v1" in upgrade_text, "upgrade contract must define the structured owner migration receipt")
-    require("source_sha256" in upgrade_text, "upgrade contract must bind migration receipts to legacy content")
-    require("archive_collision" in upgrade_text, "upgrade contract must define legacy snapshot collision handling")
-    require("insert_target = \"bagakit_footer\"" in driver_text, "Goal Driver must target the Bagakit footer")
-    require("👩🏻‍🚒 ALERTS !!" in driver_text, "Goal Driver must contribute to the shared Alert aggregate")
-    require("session-review intake" in loop_text, "loop-off-loop must define the Evolver handoff route")
-    require("opportunistic `session_end`" in loop_text, "loop contract must keep session_end opportunistic")
-    require(
-        re.search(r"`stale` means\s+expected evidence is absent", event_text) is not None,
-        "event contract must define stale as missing evidence",
+    skill = (skill_dir / "SKILL.md").read_text(encoding="utf-8")
+    contract = (skill_dir / "references/goal-file-contract.md").read_text(encoding="utf-8")
+    frontdoor = tomllib.loads(
+        (skill_dir / "references/frontdoor-rule.toml").read_text(encoding="utf-8")
     )
-    require(".bagakit/goal/reviews/<review-id>.json" in frontdoor_text, "frontdoor rule must reference review receipts")
+    goal_cli = tomllib.loads(
+        (skill_dir / "references/skill-cli.toml").read_text(encoding="utf-8")
+    )
+    tracker_cli = tomllib.loads(
+        (root / "skills/harness/bagakit-feature-tracker/references/skill-cli.toml").read_text(
+            encoding="utf-8"
+        )
+    )
 
+    require(len(skill.splitlines()) <= 110, "SKILL.md must remain concise")
+    require(extract_wrapper(contract) == WRAPPER, "fixed Feature Goal wrapper drifted")
+    goal_path = ".bagakit/feature-tracker/features/<feature-id>/goal.md"
+    require(frontdoor.get("skill") == "bagakit-set-loop-goal", "frontdoor skill identity drifted")
+    require(frontdoor.get("surface") == goal_path, "frontdoor Goal surface drifted")
+    require(goal_cli.get("surface_refs") == [goal_path], "Goal CLI surface declaration drifted")
+
+    expected_goal_commands = {
+        "describe",
+        "list-references",
+        "validate",
+        "render-template",
+        "validate-goal",
+        "set-goal",
+        "render-wrapper",
+    }
+    goal_commands = {str(item.get("name")) for item in goal_cli.get("command", [])}
+    require(goal_commands == expected_goal_commands, "Goal CLI public command set drifted")
+
+    tracker_commands = {str(item.get("name")) for item in tracker_cli.get("command", [])}
+    require(
+        {"validate-feature-goal", "set-feature-goal"}.issubset(tracker_commands),
+        "Feature Tracker Goal owner commands are missing",
+    )
     print("bagakit-set-loop-goal contract passed")
 
 

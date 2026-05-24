@@ -25,11 +25,13 @@ An owner writes `owner-receipt.json` beside its canonical runtime state:
   "replacement_ref": null,
   "evidence_refs": [
     ".bagakit/feature-tracker/features/f-example/state.json",
-    ".bagakit/feature-tracker/features/f-example/tasks.json"
+    ".bagakit/feature-tracker/features/f-example/tasks.json",
+    ".bagakit/feature-tracker/features/f-example/goal.md"
   ],
   "evidence_hashes": {
     ".bagakit/feature-tracker/features/f-example/state.json": "<sha256>",
-    ".bagakit/feature-tracker/features/f-example/tasks.json": "<sha256>"
+    ".bagakit/feature-tracker/features/f-example/tasks.json": "<sha256>",
+    ".bagakit/feature-tracker/features/f-example/goal.md": "<sha256>"
   }
 }
 ```
@@ -38,6 +40,9 @@ Required behavior:
 
 - `evidence_hashes` contains the current sha256 digest of every artifact in
   `evidence_refs`; keys must match exactly.
+- optional canonical owner control files such as Feature Tracker `goal.md`
+  enter both collections when their owner state declares them; orphan helper
+  files must not silently become receipt evidence
 - `semantic_revision` is the sha256 of canonical compact JSON over
   `owner_kind`, `owner_id`, `lifecycle_status`, `continuation`,
   `current_item_id`, `blocker`, `replacement_ref`, and `evidence_hashes`.
@@ -53,34 +58,32 @@ Required behavior:
 - The owner refreshes the receipt in the same canonical mutation boundary as
   its state. A projection job must not invent a newer revision.
 
-## Consumer Binding
+## Feature Goal Recovery
 
-A Goal may persist this optional frontmatter binding:
+A Feature-owned `goal.md` does not persist a second owner binding or observed
+receipt revision. Its binding is already canonical in
+`state.json.goal_contract`, and the sibling `owner-receipt.json` includes the
+Goal bytes in `evidence_hashes`.
 
-```yaml
-owner_binding:
-  owner_kind: feature_tracker
-  owner_id: f-example
-  receipt_ref: .bagakit/feature-tracker/features/f-example/owner-receipt.json
-  observed_revision: <stable semantic digest>
-  required: true
-```
+Recovery rules:
 
-Rules:
-
-- identity and revision must match the current receipt
-- a changed revision blocks the old Goal instruction until explicit reconcile
-- `blocked` or `unavailable` requires a blocked or paused Goal
-- `complete` may support Goal completion after explicit reconciliation and
-  completion evidence
-- `superseded` cannot support Goal completion; it routes to a replacement or
-  explicit abandonment
-- Goal reconciliation may acknowledge a new revision, but it does not mutate
-  the owner
-- continuation-bearing bindings are always required; an unavailable receipt
-  blocks execution
+- verify the receipt identity and all evidence hashes before using its
+  continuation
+- verify `state.json.goal_contract.ref` and `revision` against the co-located
+  `goal.md`
+- read current task, blocker, and continuation from owner state rather than
+  copying them into the Goal
+- `continue` permits work on the owner-selected task
+- `blocked` requires following the owner's blocker and independent-work rules
+- `complete` means the Feature lifecycle is complete; the Goal does not carry
+  its own completion flag
+- `superseded` routes to `replacement_ref`
+- `unavailable` blocks execution until an authoritative owner is restored
+- a changed receipt revision requires re-reading owner state, not rewriting the
+  stable Goal unless durable intent changed
 
 ## Boundary
 
-The receipt is a typed handoff, not shared authority. It does not authorize the
-Goal to update Feature Tracker, infer task completion, or replay owner history.
+The receipt is a typed handoff, not shared authority. It does not authorize a
+consumer to update Feature Tracker, infer task completion, or replay owner
+history.

@@ -32,38 +32,20 @@ printf 'spec\n' > "$TMP_DIR/docs/specs/demo-rule.md"
 printf 'proof\n' > "$TMP_DIR/docs/specs/demo-rule-proof.md"
 printf 'accepted by maintainer\n' > "$TMP_DIR/docs/specs/demo-rule-acceptance.md"
 printf 'proof plan\n' > "$TMP_DIR/docs/specs/demo-rule-proof-plan.md"
-mkdir -p "$TMP_DIR/docs/session" "$TMP_DIR/.bagakit/goal/reviews"
+mkdir -p "$TMP_DIR/docs/session"
 printf 'approved evidence slice\n' > "$TMP_DIR/docs/session/session-evidence.md"
 printf 'counterevidence slice\n' > "$TMP_DIR/docs/session/counterevidence.md"
-cat > "$TMP_DIR/.bagakit/goal/reviews/round-1.json" <<'EOF'
-{
-  "schema": "bagakit.goal-evolver-review.v1",
-  "goal_id": "demo-goal",
-  "review_id": "round-1",
-  "trigger": "after_round",
-  "status": "completed",
-  "evidence_refs": [
-    "docs/session/session-evidence.md",
-    "docs/session/counterevidence.md"
-  ],
-  "drift": [],
-  "next_instruction": "Let Evolver review the bounded evidence.",
-  "approval": "approved",
-  "evolver_disposition": "signal_candidate"
-}
-EOF
 
 cat > "$TMP_DIR/session-review.json" <<'EOF'
 {
   "schema": "bagakit.evolver.session-review.v1",
-  "producer": "goal-reviewer",
+  "producer": "session-reviewer",
   "generated_at": "2001-01-02T00:05:00Z",
   "session_evidence": {
     "session_id": "session-001",
     "run_id": "run-001",
-    "source_channel": "goal-review",
+    "source_channel": "session-review",
     "source_refs": [
-      ".bagakit/goal/reviews/round-1.json",
       "docs/session/session-evidence.md",
       "docs/session/counterevidence.md"
     ],
@@ -201,8 +183,7 @@ from pathlib import Path
 signal = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
 signal_dir = Path(sys.argv[2])
 assert signal["status"] == "pending"
-assert signal["source_channel"] == "goal-review"
-assert ".bagakit/goal/reviews/round-1.json" in signal["local_refs"]
+assert signal["source_channel"] == "session-review"
 assert "docs/session/session-evidence.md" in signal["local_refs"]
 assert "docs/session/counterevidence.md" in signal["local_refs"]
 assert "privacy_disposition: approved_slices" in signal["evidence"]
@@ -344,26 +325,6 @@ if node --experimental-strip-types "$EVOLVER_DIR/scripts/evolver.ts" validate-se
   echo "error: session review unexpectedly accepted review after evidence expiry" >&2
   exit 1
 fi
-
-cp "$TMP_DIR/.bagakit/goal/reviews/round-1.json" "$TMP_DIR/.bagakit/goal/reviews/round-1.valid.json"
-python3 - "$TMP_DIR/.bagakit/goal/reviews/round-1.json" <<'PY'
-import json
-import sys
-from pathlib import Path
-
-path = Path(sys.argv[1])
-payload = json.loads(path.read_text(encoding="utf-8"))
-payload["goal_id"] = "../invalid-goal"
-payload["trigger"] = "hourly"
-payload["drift"] = {"raw": "invalid"}
-payload["next_instruction"] = {"raw": "invalid"}
-path.write_text(json.dumps(payload), encoding="utf-8")
-PY
-if node --experimental-strip-types "$EVOLVER_DIR/scripts/evolver.ts" validate-session-review --root "$TMP_DIR" --contract "$TMP_DIR/session-review.json" >/dev/null 2>&1; then
-  echo "error: session review unexpectedly accepted an invalid Goal review receipt" >&2
-  exit 1
-fi
-mv "$TMP_DIR/.bagakit/goal/reviews/round-1.valid.json" "$TMP_DIR/.bagakit/goal/reviews/round-1.json"
 
 node --experimental-strip-types "$EVOLVER_DIR/scripts/evolver.ts" capture-signal --root "$TMP_DIR" --signal living-doc-taxonomy --kind decision --title "Doc taxonomy signal" --summary "shared doc taxonomy keeps drifting" --producer bagakit-living-knowledge --channel host --topic-hint demo-evolver --confidence 0.8 --evidence "host-side churn" --local-refs docs/specs/demo-rule.md >/dev/null
 

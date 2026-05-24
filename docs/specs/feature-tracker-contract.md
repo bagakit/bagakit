@@ -29,6 +29,7 @@ Stable tracker-owned runtime files live under:
 - `.bagakit/feature-tracker/runtime-policy.json`
 - `.bagakit/feature-tracker/features/<feature-id>/state.json`
 - `.bagakit/feature-tracker/features/<feature-id>/tasks.json`
+- optional `.bagakit/feature-tracker/features/<feature-id>/goal.md`
 - `.bagakit/feature-tracker/features/<feature-id>/owner-receipt.json`
 - `.bagakit/feature-tracker/features-archived/<feature-id>/`
 - `.bagakit/feature-tracker/features-discarded/<feature-id>/`
@@ -72,6 +73,9 @@ Stable local issuer surfaces are:
 - `features.json` owns the ordered feature index and tracked issuance cursor.
 - `state.json` owns one feature's lifecycle and workspace truth.
 - `tasks.json` owns one feature's task truth.
+- `goal.md`, when present, owns one feature's stable long-running Agent control
+  contract: final outcome, invariants, final acceptance, authority, durable
+  orchestration principles, and bounded context references.
 - `runtime-policy.json` owns tracker policy defaults, gate policy, and doctor
   thresholds.
 - `FEATURES_DAG.json` owns the latest generated dependency projection, not the
@@ -81,8 +85,15 @@ Stable local issuer surfaces are:
 Implications:
 
 - `tasks.json` is the only task source of truth
-- the default feature directory contains `state.json`, `tasks.json`, and the
-  derived `owner-receipt.json`
+- the default feature directory contains `state.json`, `tasks.json`, optional
+  canonical `goal.md`, and the derived `owner-receipt.json`
+- `state.json.goal_contract` binds the exact Goal schema, repo-relative path,
+  and SHA-256 revision; `state.json.goal` remains only a concise index summary
+- Feature Tracker validates Goal identity, binding, content presence, and
+  portability; authoring headings, prose order, and semantic quality remain
+  `bagakit-set-loop-goal` concerns
+- Goal must not own a second lifecycle, task plan, dependency graph, blocker,
+  event stream, completion evidence, review state, or archive
 - `state.json` may also carry runtime-owner semantics such as `runtime_role`,
   `blocked_reason_class`, and `runtime_relations`; when present,
   `index/features.json` should project those fields as read-optimized index
@@ -249,6 +260,7 @@ Feature Tracker requirements:
 
 - `owner_kind = feature_tracker`
 - `evidence_refs` identify the feature's `state.json` and `tasks.json`
+- when `goal_contract` exists, `evidence_refs` also identifies `goal.md`
 - `evidence_hashes` bind each evidence ref to the SHA-256 digest of its final
   canonical file bytes
 - `semantic_revision` is the SHA-256 digest of the compact canonical JSON over
@@ -273,6 +285,7 @@ Allowed live-feature root files:
 - `state.json`
 - `tasks.json`
 - `owner-receipt.json`
+- optional canonical `goal.md`
 - optional `proposal.md`
 - optional `spec-delta.md`
 - optional `verification.md`
@@ -285,13 +298,21 @@ Allowed closeout-only root files:
 
 - `summary.md`
 
+Allowed canonical files in both live and closed feature roots:
+
+- `goal.md` when `state.json.goal_contract` exists
+
 Rules:
 
 - unsupported feature-root files must be rejected by validation
 - unsupported feature-root directories must be rejected by validation
+- an orphan, missing, malformed, wrongly bound, or hash-drifted `goal.md` must
+  be rejected by validation
 - `summary.md` is a closeout artifact and must not appear in active feature
   roots
 - closed feature roots must contain `summary.md`
+- closeout keeps canonical `goal.md` at the closed Feature root and updates
+  `goal_contract.ref` plus owner receipt hashes to the closed path
 - live-feature helper files such as `proposal.md`, `spec-delta.md`, and
   `verification.md` are not valid in closed feature roots
 - closeout should preserve legacy or live-only root entries by moving them

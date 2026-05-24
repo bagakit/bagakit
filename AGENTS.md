@@ -424,11 +424,11 @@ reporting, the response footer may use:
 </bagakit-rule>
 
 <bagakit-rule skill="bagakit-set-loop-goal">
-- Trigger: A long-running agent task needs a high-quality Goal file that can survive restart, compact, handoff, sidecar analysis, or loop supervision.
-- Do: Inspect and upgrade to bagakit.goal.v.0.3, migrate mutable execution truth into exactly one owner, resolve remaining semantic Kernel conflicts through Grill, then render Driver feedback from owner evidence.
+- Trigger: A Feature Tracker feature needs a compact Agent Goal that can survive restart, compact, handoff, or loop supervision.
+- Do: Create or revise the Feature-owned goal.md through Feature Tracker, keep mutable execution truth in state and tasks, and bind the Agent to that exact Feature path.
 - See: `skills/harness/bagakit-set-loop-goal/SKILL.md`
-- Surface: `.bagakit/goal/current.md, .bagakit/goal/state.yaml, optional .bagakit/goal/supervisor.md, .bagakit/goal/<goal-id>.md, .bagakit/goal/events/<goal-id>.jsonl, .bagakit/goal/reviews/<review-id>.json, temporary .bagakit/goal/upgrade.json, and .bagakit/goal/archive/`
-- Fallback: If the target is still vague, use bagakit-spark; if no execution owner exists, create a Feature with bagakit-feature-tracker; use Grill only for unresolved decision-bearing Kernel truth.
+- Surface: `.bagakit/feature-tracker/features/<feature-id>/goal.md`
+- Fallback: Create or resolve the Feature first; use bagakit-spark for an unclear target and Grill only for unresolved decision-bearing Goal truth.
 </bagakit-rule>
 
 <bagakit-rule skill="bagakit-skill-evolver">

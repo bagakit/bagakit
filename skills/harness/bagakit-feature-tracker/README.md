@@ -17,6 +17,7 @@ This skill owns canonical feature and task planning truth:
 - task gates
 - task commit preparation
 - execution-owner receipt projection
+- optional long-running Agent `goal.md` control truth and its revision binding
 - archive and discard state
 
 It does not own:
@@ -65,6 +66,12 @@ bash "$BAGAKIT_FEATURE_TRACKER_SKILL_DIR/scripts/feature-tracker.sh" set-task-pl
   --tasks-file <reviewed-task-plan.json> \
   --expected-revision 0
 
+bash "$BAGAKIT_FEATURE_TRACKER_SKILL_DIR/scripts/feature-tracker.sh" set-feature-goal \
+  --root . \
+  --feature <feature-id> \
+  --goal-file <reviewed-goal.md> \
+  --expected-revision none
+
 # Use only for an otherwise-valid active version 1 feature.
 bash "$BAGAKIT_FEATURE_TRACKER_SKILL_DIR/scripts/feature-tracker.sh" upgrade-legacy-task-plan \
   --root . \
@@ -104,6 +111,7 @@ Runtime state lives under:
 - `.bagakit/feature-tracker/runtime-policy.json`
 - `.bagakit/feature-tracker/features/<feature-id>/state.json`
 - `.bagakit/feature-tracker/features/<feature-id>/tasks.json`
+- optional `.bagakit/feature-tracker/features/<feature-id>/goal.md`
 - `.bagakit/feature-tracker/features/<feature-id>/owner-receipt.json`
 - `.bagakit/feature-tracker/features-archived/<feature-id>/`
 - `.bagakit/feature-tracker/features-discarded/<feature-id>/`
@@ -124,7 +132,7 @@ The specs above are the durable repository contract.
 
 Task SSOT lives only in `tasks.json`.
 The default feature directory keeps canonical `state.json` and `tasks.json`
-plus derived `owner-receipt.json`.
+plus optional canonical `goal.md` and derived `owner-receipt.json`.
 Without reviewed task truth, a new feature remains `proposal` in
 `proposal_only` mode and has no executable placeholder.
 Active execution requires version 2 `tasks.json` materialized from an approved
@@ -143,7 +151,11 @@ refs; the tracker does not infer them from legacy `summary` or `notes`.
 Historical superseded tasks remain visible for attribution but cannot restart.
 All review, source, verification, and evidence refs are portable repo-relative
 paths; URI, absolute, drive-qualified, UNC, and escaping paths are rejected.
-`owner-receipt.json` binds canonical state and tasks with SHA-256
+Feature-owned `goal.md` is the optional direct Agent control contract for
+restart, compact, handoff, or loop supervision. It is revision-guarded by
+`state.json.goal_contract`; Feature Tracker owns mutation and closeout while
+`bagakit-set-loop-goal` owns authoring guidance.
+`owner-receipt.json` binds canonical state, tasks, and `goal.md` when present with SHA-256
 `evidence_hashes`. A missing or stale persisted receipt fails closed.
 `FEATURES_DAG.json` is a generated dependency projection over active feature
 state; it is not the dependency source of truth and it does not carry
@@ -190,6 +202,8 @@ Closed feature roots should preserve legacy `ui-verification.md` under
 - `create-feature-from-planning-entry-handoff`
 - `set-task-plan`
 - `upgrade-legacy-task-plan`
+- `validate-feature-goal`
+- `set-feature-goal`
 - `assign-feature-workspace`
 - `show-feature-status`
 - `get-owner-receipt`
@@ -211,8 +225,9 @@ External bridges are intentionally out of scope for this skill.
 
 ## Design Notes
 
-- Runtime truth stays in JSON SSOT under `.bagakit/feature-tracker/`.
-- Markdown files are projections of that runtime truth.
+- Mutable runtime truth stays in JSON SSOT under `.bagakit/feature-tracker/`.
+- Optional `goal.md` is canonical stable control truth; other helper Markdown
+  files remain non-authoritative planning or evidence aids.
 - `FEATURES_DAG.json` is a projection-only graph surface and may be regenerated
   from canonical feature state.
 - Successful graph-affecting commands refresh `FEATURES_DAG.json` so normal

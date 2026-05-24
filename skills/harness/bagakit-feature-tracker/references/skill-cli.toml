@@ -30,6 +30,14 @@ name = "upgrade-legacy-task-plan"
 summary = "Enrich one otherwise-valid active version 1 task payload with an exact reviewed semantic plan while preserving execution state."
 
 [[command]]
+name = "validate-feature-goal"
+summary = "Validate candidate or installed goal.md identity, Feature binding, content presence, and portability."
+
+[[command]]
+name = "set-feature-goal"
+summary = "Install or revise feature-owned goal.md with an expected SHA-256 revision."
+
+[[command]]
 name = "assign-feature-workspace"
 summary = "Assign one reviewed feature to current_tree or worktree execution."
 

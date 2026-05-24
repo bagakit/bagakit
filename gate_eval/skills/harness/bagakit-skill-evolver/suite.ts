@@ -87,31 +87,15 @@ export const SUITE: EvalSuiteDefinition = {
 
           writeTextFile(path.join(tempRepo, "docs", "session-evidence.md"), "approved slice\n");
           writeTextFile(path.join(tempRepo, "docs", "counterevidence.md"), "counterevidence\n");
-          writeTextFile(
-            path.join(tempRepo, ".bagakit", "goal", "reviews", "review.json"),
-            `${JSON.stringify({
-              schema: "bagakit.goal-evolver-review.v1",
-              goal_id: "eval-goal",
-              review_id: "review",
-              trigger: "after_round",
-              status: "completed",
-              evidence_refs: ["docs/session-evidence.md", "docs/counterevidence.md"],
-              drift: [],
-              next_instruction: "Let Evolver review the bounded evidence.",
-              approval: "approved",
-              evolver_disposition: "signal_candidate",
-            }, null, 2)}\n`,
-          );
           const contract = {
             schema: "bagakit.evolver.session-review.v1",
-            producer: "goal-reviewer",
+            producer: "session-reviewer",
             generated_at: "2001-01-02T00:05:00Z",
             session_evidence: {
               session_id: "session-eval",
               run_id: "run-eval",
-              source_channel: "goal-review",
+              source_channel: "session-review",
               source_refs: [
-                ".bagakit/goal/reviews/review.json",
                 "docs/session-evidence.md",
                 "docs/counterevidence.md",
               ],
@@ -191,8 +175,7 @@ export const SUITE: EvalSuiteDefinition = {
           const localRefs = signal.local_refs as string[];
           const evidence = signal.evidence as string[];
           assert.equal(signal.status, "pending");
-          assert.equal(signal.source_channel, "goal-review");
-          assert.ok(localRefs.includes(".bagakit/goal/reviews/review.json"));
+          assert.equal(signal.source_channel, "session-review");
           assert.ok(localRefs.includes("docs/counterevidence.md"));
           assert.ok(evidence.includes("privacy_disposition: approved_slices"));
           assert.ok(evidence.includes("retention_disposition: expires"));

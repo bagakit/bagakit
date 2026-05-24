@@ -34,7 +34,7 @@ export type SignalKind = (typeof SIGNAL_KINDS)[number];
 export const SIGNAL_STATUSES = ["pending", "adopted", "dismissed"] as const;
 export type SignalStatus = (typeof SIGNAL_STATUSES)[number];
 
-export const SESSION_REVIEW_CHANNELS = ["session-review", "goal-review"] as const;
+export const SESSION_REVIEW_CHANNELS = ["session-review"] as const;
 export type SessionReviewChannel = (typeof SESSION_REVIEW_CHANNELS)[number];
 
 export const SESSION_SENSITIVITIES = ["public", "internal", "confidential", "restricted"] as const;

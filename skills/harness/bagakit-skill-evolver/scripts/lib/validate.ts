@@ -116,61 +116,6 @@ function requireExistingRepoRefs(root: string, refs: Iterable<string>, label: st
   }
 }
 
-function validateGoalReviewReceipt(root: string, ref: string, sessionSourceRefs: Set<string>): void {
-  if (!ref.startsWith(".bagakit/goal/reviews/") || !ref.endsWith(".json")) {
-    throw new Error(`goal-review source ref must use .bagakit/goal/reviews/<review-id>.json: ${ref}`);
-  }
-  const raw = JSON.parse(fs.readFileSync(path.resolve(root, ref), "utf8")) as unknown;
-  assertRecord(raw, `goal review receipt ${ref}`);
-  assertOnlyKeys(
-    raw,
-    [
-      "schema",
-      "goal_id",
-      "review_id",
-      "trigger",
-      "status",
-      "evidence_refs",
-      "drift",
-      "next_instruction",
-      "approval",
-      "evolver_disposition",
-    ],
-    `goal review receipt ${ref}`,
-  );
-  if (raw.schema !== "bagakit.goal-evolver-review.v1") {
-    throw new Error(`goal review receipt has invalid schema: ${ref}`);
-  }
-  assertNonEmptyString(raw.goal_id, `goal review receipt goal_id ${ref}`);
-  assertNonEmptyString(raw.review_id, `goal review receipt review_id ${ref}`);
-  const stableGoalToken = new RegExp("^[a-z0-9][a-z0-9-]{0,62}$");
-  if (!stableGoalToken.test(raw.goal_id) || !stableGoalToken.test(raw.review_id)) {
-    throw new Error(`goal review receipt has invalid goal_id or review_id: ${ref}`);
-  }
-  if (path.basename(ref, ".json") !== raw.review_id) {
-    throw new Error(`goal review receipt review_id does not match filename: ${ref}`);
-  }
-  if (raw.status !== "completed" || raw.evolver_disposition !== "signal_candidate") {
-    throw new Error(`goal review receipt is not ready for Evolver signal review: ${ref}`);
-  }
-  if (!["before_round", "after_round", "risk", "stale", "pre_closeout", "session_end"].includes(String(raw.trigger))) {
-    throw new Error(`goal review receipt has invalid trigger: ${ref}`);
-  }
-  if (raw.approval !== "approved" && raw.approval !== "not_required") {
-    throw new Error(`goal review receipt lacks compatible approval: ${ref}`);
-  }
-  const receiptEvidenceRefs = validateRepoRefList(raw.evidence_refs, root, `goal review receipt evidence_refs ${ref}`);
-  validateBoundedStringList(raw.drift, `goal review receipt drift ${ref}`, 20, 500);
-  if (typeof raw.next_instruction !== "string" || raw.next_instruction.length > 1200) {
-    throw new Error(`goal review receipt next_instruction must be a bounded string: ${ref}`);
-  }
-  for (const evidenceRef of receiptEvidenceRefs) {
-    if (!sessionSourceRefs.has(evidenceRef)) {
-      throw new Error(`goal review evidence_ref is missing from session_evidence.source_refs: ${evidenceRef}`);
-    }
-  }
-}
-
 function validateStringList(value: unknown, label: string): string[] {
   assertArray(value, label);
   const result: string[] = [];
@@ -629,16 +574,6 @@ export function validateSessionReviewContract(contract: unknown, root: string): 
   ) {
     throw new Error("session_evidence is already expired at contract generation time");
   }
-  if (evidence.source_channel === "goal-review") {
-    const goalReviewRefs = [...sessionSourceRefs].filter((ref) => ref.startsWith(".bagakit/goal/reviews/"));
-    if (goalReviewRefs.length === 0) {
-      throw new Error("goal-review session evidence requires a Goal review receipt ref");
-    }
-    for (const ref of goalReviewRefs) {
-      validateGoalReviewReceipt(root, ref, sessionSourceRefs);
-    }
-  }
-
   assertArray(contract.candidates, "session review candidates");
   assertArray(contract.reviews, "session review reviews");
   if (contract.candidates.length > 100 || contract.reviews.length > 100) {

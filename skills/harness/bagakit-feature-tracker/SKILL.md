@@ -34,6 +34,7 @@ task local instead of creating tracker lifecycle state.
 - task gates
 - task commit protocol
 - execution-owner receipts derived from canonical feature state
+- optional long-running Agent `goal.md` control truth and its revision binding
 - archive and discard state
 
 It does not own:
@@ -88,6 +89,12 @@ bash "$BAGAKIT_FEATURE_TRACKER_SKILL_DIR/scripts/feature-tracker.sh" set-task-pl
   --tasks-file <reviewed-task-plan.json> \
   --expected-revision 0
 
+bash "$BAGAKIT_FEATURE_TRACKER_SKILL_DIR/scripts/feature-tracker.sh" set-feature-goal \
+  --root . \
+  --feature <feature-id> \
+  --goal-file <reviewed-goal.md> \
+  --expected-revision none
+
 # One-time upgrade for an otherwise-valid active version 1 feature.
 bash "$BAGAKIT_FEATURE_TRACKER_SKILL_DIR/scripts/feature-tracker.sh" upgrade-legacy-task-plan \
   --root . \
@@ -129,6 +136,8 @@ bash "$BAGAKIT_FEATURE_TRACKER_SKILL_DIR/scripts/feature-tracker.sh" materialize
 - `feature-tracker.sh create-feature-from-planning-entry-handoff`
 - `feature-tracker.sh set-task-plan`
 - `feature-tracker.sh upgrade-legacy-task-plan`
+- `feature-tracker.sh validate-feature-goal`
+- `feature-tracker.sh set-feature-goal`
 - `feature-tracker.sh assign-feature-workspace`
 - `feature-tracker.sh show-feature-status`
 - `feature-tracker.sh get-owner-receipt`
@@ -163,7 +172,7 @@ operator entrypoint.
 
 Task SSOT lives only in `tasks.json`.
 The default feature directory keeps canonical `state.json` and `tasks.json`
-plus derived `owner-receipt.json`.
+plus optional canonical `goal.md` and derived `owner-receipt.json`.
 New features without a reviewed task plan remain `proposal` + `proposal_only`
 with no executable placeholder task.
 Active execution requires explicit version 2 reviewed task truth materialized
@@ -185,7 +194,15 @@ human- or process-reviewed plan must supply them.
 Historical superseded tasks remain attributable but cannot be restarted.
 Review, source, verification, and evidence refs must be portable repo-relative
 paths and must not use URI, absolute, drive-qualified, UNC, or escaping paths.
-`owner-receipt.json` binds `state.json` and `tasks.json` through SHA-256
+`goal.md` is optional and should be created only when restart, compact, handoff,
+or loop supervision needs a durable Agent control Kernel. Feature Tracker owns
+its write path and revision guard; `bagakit-set-loop-goal` owns authoring
+semantics and delegates mutation back to this operator. Goal does not own a
+second lifecycle, topology, event stream, or archive.
+Tracker validation checks Goal identity, Feature binding, non-empty content,
+and portability; it does not prescribe headings, prose order, or recovery
+wording.
+`owner-receipt.json` binds `state.json`, `tasks.json`, and `goal.md` when present through SHA-256
 `evidence_hashes`; missing or stale persisted receipts fail closed.
 The receipt follows `docs/specs/execution-owner-receipt-contract.md` and remains
 a derived handoff rather than task truth.
