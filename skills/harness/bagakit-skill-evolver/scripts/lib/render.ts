@@ -52,7 +52,12 @@ function formatPromotionLine(promotion: PromotionRecord): string {
     promotion.proof_refs.length > 0
       ? `\n  - proof: ${promotion.proof_refs.map((ref) => quote(ref)).join(", ")}`
       : "";
-  return `- ${quote(promotion.id)} | surface: ${quote(promotion.surface)} | status: ${quote(promotion.status)} | target: ${quote(promotion.target)}${refText}\n  - ${promotion.summary}${proofText}`;
+  const modelFitText = promotion.surface === "skill"
+    ? promotion.model_fit_review
+      ? `\n  - model-fit: ${quote(promotion.model_fit_review.disposition)} | floor: ${quote(promotion.model_fit_review.model_floor)} | entropy: ${quote(promotion.model_fit_review.entropy_disposition)} | obsolete compensation: ${quote(promotion.model_fit_review.obsolete_compensation_disposition)}\n  - model-fit evidence: ${promotion.model_fit_review.evidence_refs.map((ref) => quote(ref)).join(", ")}`
+      : "\n  - model-fit: missing"
+    : "";
+  return `- ${quote(promotion.id)} | surface: ${quote(promotion.surface)} | status: ${quote(promotion.status)} | target: ${quote(promotion.target)}${refText}\n  - ${promotion.summary}${proofText}${modelFitText}`;
 }
 
 function buildDurableSurfaceLines(topic: TopicRecord): string[] {

@@ -92,6 +92,19 @@ export const PROMOTION_STATUSES = [
 ] as const;
 export type PromotionStatus = (typeof PROMOTION_STATUSES)[number];
 
+export const MODEL_FIT_REVIEW_DISPOSITIONS = ["passed", "blocked"] as const;
+export type ModelFitReviewDisposition = (typeof MODEL_FIT_REVIEW_DISPOSITIONS)[number];
+
+export const ENTROPY_DISPOSITIONS = ["reduced", "neutral", "increased_with_evidence"] as const;
+export type EntropyDisposition = (typeof ENTROPY_DISPOSITIONS)[number];
+
+export const OBSOLETE_COMPENSATION_DISPOSITIONS = [
+  "removed",
+  "retained_with_evidence",
+  "none_found",
+] as const;
+export type ObsoleteCompensationDisposition = (typeof OBSOLETE_COMPENSATION_DISPOSITIONS)[number];
+
 export interface CandidateRecord {
   id: string;
   kind: CandidateKind;
@@ -165,6 +178,19 @@ export interface BenchmarkRecord {
   created_at: string;
 }
 
+export interface ModelFitReviewRecord {
+  disposition: ModelFitReviewDisposition;
+  reviewed_promotion_hash: string;
+  model_floor: string;
+  model_owned: string;
+  harness_owned: string;
+  entropy_disposition: EntropyDisposition;
+  entropy_rationale: string;
+  obsolete_compensation_disposition: ObsoleteCompensationDisposition;
+  evidence_refs: string[];
+  reviewed_at: string;
+}
+
 export interface PromotionRecord {
   id: string;
   surface: PromotionSurface;
@@ -173,6 +199,7 @@ export interface PromotionRecord {
   summary: string;
   ref?: string;
   proof_refs: string[];
+  model_fit_review?: ModelFitReviewRecord;
   created_at: string;
   updated_at: string;
 }

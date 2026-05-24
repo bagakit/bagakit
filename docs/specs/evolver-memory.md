@@ -177,6 +177,8 @@ Promotion record fields:
 - `summary`
 - `ref` (optional)
 - `proof_refs[]`
+- `model_fit_review` (optional until a `skill` promotion is accepted)
+  - stable contract: `docs/specs/evolver-skill-promotion-review.md`
 
 Note record fields:
 
@@ -248,6 +250,11 @@ Promotion rule:
 - the stable identity is `id`
 - `landed_verified` promotions must include a current `ref`
 - `landed_verified` promotions must include one or more current `proof_refs`
+- `skill` promotions must carry a current passing `model_fit_review` before
+  moving to `accepted_for_landing` or `landed_verified`
+- changing a skill promotion's surface, target, or summary invalidates its
+  prior model-fit review; the review's semantic digest makes this checkable
+  from canonical state
 - promotion state outside this vocabulary is invalid and must be migrated
   explicitly before normal mutation
 - promotion records describe durable-upstream landing tracks
@@ -350,6 +357,7 @@ Promotion readiness additionally requires:
 - a named proof plan and current proof-plan ref
 - a current host landing ref for `host` and `split` routes
 - current landing and proof refs for every `landed_verified` upstream promotion
+- a current passing model-fit review for every referenced `skill` promotion
 - terminal candidate disposition before archive
 
 `archive-topic` and `set-topic-status --status archived` must consume this

@@ -89,6 +89,7 @@ Current examples include:
 - `bagakit-driver-contract.md`
 - `skill-cli-contract.md`
 - `evolver-memory.md`
+- `evolver-skill-promotion-review.md`
 - `flow-runner-contract.md`
 - `harness-concepts.md`
 - `living-knowledge-system.md`

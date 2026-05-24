@@ -1,7 +1,13 @@
 import fs from "node:fs";
 import path from "node:path";
 
-import type { PromotionRecord, TopicRecord } from "./model.ts";
+import {
+  ENTROPY_DISPOSITIONS,
+  OBSOLETE_COMPENSATION_DISPOSITIONS,
+  type PromotionRecord,
+  type TopicRecord,
+} from "./model.ts";
+import { promotionSemanticsHash } from "./promotion.ts";
 
 export type PromotionReadinessState =
   | "blocked"
@@ -58,7 +64,14 @@ function routeDecision(topic: TopicRecord): PromotionReadinessSummary["route_dec
 }
 
 function currentRefExists(root: string, ref: string): boolean {
-  return fs.existsSync(path.resolve(root, ref));
+  const resolved = path.resolve(root, ref);
+  const relative = path.relative(root, resolved);
+  return relative !== "" && !relative.startsWith("..") && !path.isAbsolute(relative) && fs.existsSync(resolved);
+}
+
+function currentFileRefExists(root: string, ref: string): boolean {
+  if (!currentRefExists(root, ref)) return false;
+  return fs.statSync(path.resolve(root, ref)).isFile();
 }
 
 export function evaluatePromotionReadiness(topic: TopicRecord, root: string): PromotionReadinessSummary {
@@ -142,6 +155,32 @@ export function evaluatePromotionReadiness(topic: TopicRecord, root: string): Pr
     materializedPromotions.every((promotion) => promotion.status === "landed_verified");
 
   for (const promotion of materializedPromotions) {
+    if (promotion.surface === "skill") {
+      const review = promotion.model_fit_review;
+      if (!review) {
+        blockers.push(`skill promotion ${promotion.id} requires a model-fit review`);
+      } else if (review.disposition !== "passed") {
+        blockers.push(`skill promotion ${promotion.id} has a blocked model-fit review`);
+      } else if (review.reviewed_promotion_hash !== promotionSemanticsHash(promotion)) {
+        blockers.push(`skill promotion ${promotion.id} has a stale model-fit review`);
+      } else if (
+        [review.model_floor, review.model_owned, review.harness_owned, review.entropy_rationale]
+          .some((value) => !value.trim()) ||
+        !ENTROPY_DISPOSITIONS.includes(review.entropy_disposition) ||
+        !OBSOLETE_COMPENSATION_DISPOSITIONS.includes(review.obsolete_compensation_disposition) ||
+        Number.isNaN(Date.parse(review.reviewed_at))
+      ) {
+        blockers.push(`skill promotion ${promotion.id} has an incomplete model-fit review`);
+      } else if (review.evidence_refs.length === 0 || new Set(review.evidence_refs).size !== review.evidence_refs.length) {
+        blockers.push(`skill promotion ${promotion.id} requires unique model-fit evidence refs`);
+      } else {
+        for (const evidenceRef of review.evidence_refs) {
+          if (!currentFileRefExists(root, evidenceRef)) {
+            blockers.push(`skill promotion model-fit evidence ref does not currently exist: ${evidenceRef}`);
+          }
+        }
+      }
+    }
     if (promotion.status === "landed_verified" && !promotion.ref) {
       blockers.push(`landed promotion ${promotion.id} requires a landing ref`);
     }

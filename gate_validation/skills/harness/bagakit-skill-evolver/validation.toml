@@ -28,6 +28,7 @@ required_files = [
   "docs/specs/evolver-evidence-intake.md",
   "docs/specs/evolver-session-review.md",
   "docs/specs/evolver-memory.md",
+  "docs/specs/evolver-skill-promotion-review.md",
   "docs/specs/selector-evolver-boundary.md",
   "docs/stewardship/evolver-done-criteria.md",
   "skills/harness/bagakit-skill-evolver/README.md",
@@ -37,6 +38,7 @@ required_files = [
   "skills/harness/bagakit-skill-evolver/scripts/lib/fs.ts",
   "skills/harness/bagakit-skill-evolver/scripts/lib/model.ts",
   "skills/harness/bagakit-skill-evolver/scripts/lib/paths.ts",
+  "skills/harness/bagakit-skill-evolver/scripts/lib/promotion.ts",
   "skills/harness/bagakit-skill-evolver/scripts/lib/readiness.ts",
   "skills/harness/bagakit-skill-evolver/scripts/lib/render.ts",
   "skills/harness/bagakit-skill-evolver/scripts/lib/text.ts",
@@ -86,13 +88,13 @@ args = [
 [[suite]]
 id = "bagakit-skill-evolver-smoke"
 owner = "skills/harness/bagakit-skill-evolver"
-description = "Run a minimal evolver lifecycle covering reviewed session intake, routing, promotion readiness, handoff, and archive artifacts."
+description = "Run a minimal evolver lifecycle covering reviewed session intake, routing, model-fit-gated skill promotion, promotion readiness, handoff, and archive artifacts."
 default = true
 proof_mode = "runtime"
-protects = ["skill-evolver public CLI lifecycle for reviewed session intake, signal capture/import/adoption, topic tracking, promotion proof refs, handoff, archive, and readiness state"]
-oracle = ["smoke script drives evolver.ts commands in a temporary repo and checks accepted-only session bridging, preserved evidence metadata, JSON state, rejected missing proof refs, handoff/archive files, and readiness output"]
+protects = ["skill-evolver public CLI lifecycle for reviewed session intake, signal capture/import/adoption, topic tracking, model-fit-gated skill promotion, promotion proof refs, handoff, archive, and readiness state"]
+oracle = ["smoke script drives evolver.ts commands in a temporary repo and checks accepted-only session bridging, preserved evidence metadata, model-fit review transitions, semantic invalidation, current review refs, JSON state, rejected missing proof refs, handoff/archive files, and readiness output"]
 exercised_surface = ["evolver.ts CLI", ".mem_inbox signal state", ".bagakit/evolver topic state", "session review and signal contracts", "HANDOFF.md and ARCHIVE.md artifacts"]
-proves = ["bagakit-skill-evolver-smoke proves accepted-only reviewed session intake plus the existing routing, promotion readiness, handoff, and archive lifecycle."]
+proves = ["bagakit-skill-evolver-smoke proves accepted-only reviewed session intake plus the model-fit-gated skill promotion, routing, promotion readiness, handoff, and archive lifecycle."]
 does_not_prove = ["bagakit-skill-evolver-smoke does not prove live service behavior, stochastic agent quality, or unrelated repository surfaces."]
 timeout_seconds = 300
 validation_class = "smoke"

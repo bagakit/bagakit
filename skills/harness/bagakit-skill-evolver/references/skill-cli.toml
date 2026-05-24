@@ -98,6 +98,10 @@ name = "record-promotion"
 summary = "Record a proposed, accepted-for-landing, landed-verified, rejected, or superseded promotion."
 
 [[command]]
+name = "review-skill-promotion"
+summary = "Review an existing skill promotion for model ownership, hard harness boundaries, entropy, obsolete compensation, and current evidence."
+
+[[command]]
 name = "set-candidate-status"
 summary = "Set candidate status."
 

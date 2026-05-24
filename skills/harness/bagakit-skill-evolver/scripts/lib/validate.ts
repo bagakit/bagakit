@@ -6,7 +6,10 @@ import {
   CANDIDATE_STATUSES,
   COUNTEREVIDENCE_DISPOSITIONS,
   FEEDBACK_SIGNALS,
+  ENTROPY_DISPOSITIONS,
+  MODEL_FIT_REVIEW_DISPOSITIONS,
   NOTE_KINDS,
+  OBSOLETE_COMPENSATION_DISPOSITIONS,
   PREFLIGHT_DECISIONS,
   SIGNAL_KINDS,
   SIGNAL_STATUSES,
@@ -24,6 +27,7 @@ import {
   TOPIC_STATUSES,
   type PromotionSurface,
 } from "./model.ts";
+import { promotionSemanticsHash } from "./promotion.ts";
 
 export const DURABLE_SURFACE_PREFIXES: Record<PromotionSurface, string> = {
   spec: "docs/specs/",
@@ -369,6 +373,75 @@ export function validateTopicShape(topic: unknown): void {
     }
     if (promotion.status === "landed_verified" && promotion.proof_refs.length === 0) {
       throw new Error(`landed promotion must include proof_refs in ${topic.slug}: ${promotion.id}`);
+    }
+    if (promotion.model_fit_review !== undefined) {
+      if (promotion.surface !== "skill") {
+        throw new Error(`model_fit_review is only valid for skill promotions in ${topic.slug}: ${promotion.id}`);
+      }
+      assertRecord(promotion.model_fit_review, "promotion model_fit_review");
+      assertOnlyKeys(
+        promotion.model_fit_review,
+        [
+          "disposition",
+          "reviewed_promotion_hash",
+          "model_floor",
+          "model_owned",
+          "harness_owned",
+          "entropy_disposition",
+          "entropy_rationale",
+          "obsolete_compensation_disposition",
+          "evidence_refs",
+          "reviewed_at",
+        ],
+        "promotion model_fit_review",
+      );
+      assertEnumValue(
+        MODEL_FIT_REVIEW_DISPOSITIONS,
+        promotion.model_fit_review.disposition,
+        "promotion model-fit disposition",
+      );
+      assertNonEmptyString(
+        promotion.model_fit_review.reviewed_promotion_hash,
+        "promotion reviewed_promotion_hash",
+      );
+      if (promotion.model_fit_review.reviewed_promotion_hash !== promotionSemanticsHash({
+        surface: promotion.surface,
+        target: promotion.target,
+        summary: promotion.summary,
+      })) {
+        throw new Error(`promotion model-fit review is stale in ${topic.slug}: ${promotion.id}`);
+      }
+      assertBoundedString(promotion.model_fit_review.model_floor, "promotion model_floor", 300);
+      assertBoundedString(promotion.model_fit_review.model_owned, "promotion model_owned", 1200);
+      assertBoundedString(promotion.model_fit_review.harness_owned, "promotion harness_owned", 1200);
+      assertEnumValue(
+        ENTROPY_DISPOSITIONS,
+        promotion.model_fit_review.entropy_disposition,
+        "promotion entropy disposition",
+      );
+      assertBoundedString(promotion.model_fit_review.entropy_rationale, "promotion entropy_rationale", 1600);
+      assertEnumValue(
+        OBSOLETE_COMPENSATION_DISPOSITIONS,
+        promotion.model_fit_review.obsolete_compensation_disposition,
+        "promotion obsolete compensation disposition",
+      );
+      const evidenceRefs = validateBoundedStringList(
+        promotion.model_fit_review.evidence_refs,
+        "promotion model-fit evidence_refs",
+        20,
+        500,
+      );
+      if (evidenceRefs.length === 0) {
+        throw new Error(`promotion model-fit review requires evidence_refs in ${topic.slug}: ${promotion.id}`);
+      }
+      assertIsoTimestamp(promotion.model_fit_review.reviewed_at, "promotion model-fit reviewed_at");
+    }
+    if (
+      promotion.surface === "skill" &&
+      ["accepted_for_landing", "landed_verified"].includes(String(promotion.status)) &&
+      promotion.model_fit_review?.disposition !== "passed"
+    ) {
+      throw new Error(`accepted skill promotion requires a passing model_fit_review in ${topic.slug}: ${promotion.id}`);
     }
     if (promotionIds.has(promotion.id)) {
       throw new Error(`duplicate promotion id in ${topic.slug}: ${promotion.id}`);

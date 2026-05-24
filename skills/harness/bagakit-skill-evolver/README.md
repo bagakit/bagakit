@@ -56,8 +56,14 @@ Current capability set:
 - explicit durable promotion surfaces
 - explicit promotion status
 - stable promotion identities for proposal-to-landing tracking
+- evidence-backed model-fit and harness-entropy review for skill promotions
 - locked atomic `topic.json` mutation with revision and idempotent retry receipts
 - fail-closed promotion and archive readiness with current-ref validation
+
+Before accepting a `surface=skill` promotion, record its review with
+`review-skill-promotion`. The stable contract is
+`docs/specs/evolver-skill-promotion-review.md`. This gate governs promotion; it
+does not make Evolver a skill designer or scaffolder.
 
 Current known next optimizations:
 

@@ -25,8 +25,11 @@ import {
   CANDIDATE_KINDS,
   CANDIDATE_STATUSES,
   COUNTEREVIDENCE_DISPOSITIONS,
+  ENTROPY_DISPOSITIONS,
   FEEDBACK_SIGNALS,
+  MODEL_FIT_REVIEW_DISPOSITIONS,
   NOTE_KINDS,
+  OBSOLETE_COMPENSATION_DISPOSITIONS,
   PREFLIGHT_DECISIONS,
   PROMOTION_STATUSES,
   PROMOTION_SURFACES,
@@ -55,14 +58,18 @@ import type {
   CounterevidenceDisposition,
   EvolverSessionReviewContract,
   EvolverSessionSignalCandidate,
+  EntropyDisposition,
   FeedbackSignal,
+  ModelFitReviewDisposition,
   NoteKind,
+  ObsoleteCompensationDisposition,
   PreflightDecision,
   RouteDecision,
   PromotionSurface,
   SourceKind,
 } from "./lib/model.ts";
 import { resolvePaths } from "./lib/paths.ts";
+import { promotionSemanticsHash } from "./lib/promotion.ts";
 import { buildMemInboxReadme, buildTopicArchive, buildTopicHandoff, buildTopicReadme, buildTopicReport } from "./lib/render.ts";
 import { evaluatePromotionReadiness } from "./lib/readiness.ts";
 import { nowIso, toSlug } from "./lib/text.ts";
@@ -115,6 +122,7 @@ Commands:
   remove-context-ref --topic <slug> --ref <repo-relative-path> [--root <repo-root>]
   record-decision --topic <slug> --decision <title> --rationale <text> [--candidate <id>] [--status <topic-status>] [--root <repo-root>]
   record-promotion --topic <slug> --surface <spec|stewardship|skill> --target <target> --summary <text> [--promotion <id>] [--status <proposed|accepted_for_landing|landed_verified|rejected|superseded>] [--ref <repo-relative-path>] [--proof-refs <repo-relative[,repo-relative...]>] [--root <repo-root>]
+  review-skill-promotion --topic <slug> --promotion <id> --disposition <passed|blocked> --model-floor <text> --model-owned <text> --harness-owned <text> --entropy <reduced|neutral|increased_with_evidence> --entropy-rationale <text> --obsolete-compensation <removed|retained_with_evidence|none_found> --evidence-refs <repo-relative[,repo-relative...]> [--root <repo-root>]
   set-candidate-status --topic <slug> --candidate <id> --status <status> [--note <text>] [--root <repo-root>]
   promote-candidate --topic <slug> --candidate <id> [--note <text>] [--root <repo-root>]
   reject-candidate --topic <slug> --candidate <id> [--note <text>] [--root <repo-root>]
@@ -193,6 +201,22 @@ function assertPromotionStatus(value: string): PromotionStatus {
   return assertEnumValue(PROMOTION_STATUSES, value, "promotion status");
 }
 
+function assertModelFitReviewDisposition(value: string): ModelFitReviewDisposition {
+  return assertEnumValue(MODEL_FIT_REVIEW_DISPOSITIONS, value, "model-fit review disposition");
+}
+
+function assertEntropyDisposition(value: string): EntropyDisposition {
+  return assertEnumValue(ENTROPY_DISPOSITIONS, value, "entropy disposition");
+}
+
+function assertObsoleteCompensationDisposition(value: string): ObsoleteCompensationDisposition {
+  return assertEnumValue(
+    OBSOLETE_COMPENSATION_DISPOSITIONS,
+    value,
+    "obsolete compensation disposition",
+  );
+}
+
 function normalizeLocalContextRef(root: string, raw: string): string {
   return normalizeRepoRelativeRef(root, raw);
 }
@@ -213,6 +237,68 @@ function readCsvRepoRefs(root: string, raw?: string): string[] {
     .map((item) => item.trim())
     .filter((item) => item !== "")
     .map((item) => normalizeLocalContextRef(root, item));
+}
+
+function readRequiredUniqueCsvRepoRefs(root: string, raw: string): string[] {
+  const refs = readCsvRepoRefs(root, raw);
+  if (refs.length === 0) {
+    throw new Error("--evidence-refs requires at least one repo-relative file");
+  }
+  if (new Set(refs).size !== refs.length) {
+    throw new Error("--evidence-refs must not contain duplicate refs");
+  }
+  for (const ref of refs) {
+    const resolved = path.resolve(root, ref);
+    if (!fs.existsSync(resolved) || !fs.statSync(resolved).isFile()) {
+      throw new Error(`model-fit evidence ref does not resolve to a file: ${ref}`);
+    }
+  }
+  return refs;
+}
+
+function readBoundedFlag(
+  flags: Map<string, string | boolean>,
+  key: string,
+  maxLength: number,
+): string {
+  const value = readStringFlag(flags, key, true)!.trim();
+  if (!value) {
+    throw new Error(`--${key} must be a non-empty string`);
+  }
+  if (value.length > maxLength) {
+    throw new Error(`--${key} exceeds compressed field limit (${maxLength} characters)`);
+  }
+  return value;
+}
+
+function assertSkillPromotionReviewAllowsLanding(promotion: PromotionRecord, root: string): void {
+  if (
+    promotion.surface !== "skill" ||
+    !["accepted_for_landing", "landed_verified"].includes(promotion.status)
+  ) {
+    return;
+  }
+  const review = promotion.model_fit_review;
+  if (!review || review.disposition !== "passed") {
+    throw new Error(
+      `skill promotion ${promotion.id} requires a passing model-fit review before ${promotion.status}`,
+    );
+  }
+  if (review.reviewed_promotion_hash !== promotionSemanticsHash(promotion)) {
+    throw new Error(`skill promotion ${promotion.id} has a stale model-fit review`);
+  }
+  if (review.evidence_refs.length === 0) {
+    throw new Error(`skill promotion ${promotion.id} model-fit review requires evidence refs`);
+  }
+  for (const evidenceRef of review.evidence_refs) {
+    if (normalizeLocalContextRef(root, evidenceRef) !== evidenceRef) {
+      throw new Error(`skill promotion model-fit evidence ref is not normalized: ${evidenceRef}`);
+    }
+    const resolved = path.resolve(root, evidenceRef);
+    if (!fs.existsSync(resolved) || !fs.statSync(resolved).isFile()) {
+      throw new Error(`skill promotion model-fit evidence ref does not currently exist: ${evidenceRef}`);
+    }
+  }
 }
 
 function readCsvValues(raw?: string): string[] {
@@ -1041,30 +1127,90 @@ function cmdRecordPromotion(flags: Map<string, string | boolean>): void {
     proofRefs,
   }, (topic) => {
     const existing = topic.promotions.find((promotion) => promotion.id === promotionId);
+    const semanticChange = existing !== undefined && (
+      existing.surface !== surface || existing.target !== target || existing.summary !== summary
+    );
+    const nextPromotion: PromotionRecord = {
+      id: promotionId,
+      surface,
+      status,
+      target,
+      summary,
+      ref,
+      proof_refs: proofRefs,
+      model_fit_review: semanticChange ? undefined : existing?.model_fit_review,
+      created_at: existing?.created_at ?? now,
+      updated_at: now,
+    };
+    assertSkillPromotionReviewAllowsLanding(nextPromotion, paths.root);
     if (existing) {
-      existing.surface = surface;
-      existing.status = status;
-      existing.target = target;
-      existing.summary = summary;
-      existing.ref = ref;
-      existing.proof_refs = proofRefs;
-      existing.updated_at = now;
+      Object.assign(existing, nextPromotion);
     } else {
-      topic.promotions.push({
-        id: promotionId,
-        surface,
-        status,
-        target,
-        summary,
-        ref,
-        proof_refs: proofRefs,
-        created_at: now,
-        updated_at: now,
-      });
+      topic.promotions.push(nextPromotion);
     }
     topic.updated_at = now;
   });
   console.log(`recorded promotion in ${topicSlug}`);
+}
+
+function cmdReviewSkillPromotion(flags: Map<string, string | boolean>): void {
+  const root = readStringFlag(flags, "root") ?? defaultRoot;
+  const topicSlug = toSlug(readStringFlag(flags, "topic", true)!);
+  const promotionId = toSlug(readStringFlag(flags, "promotion", true)!);
+  const disposition = assertModelFitReviewDisposition(readStringFlag(flags, "disposition", true)!);
+  const modelFloor = readBoundedFlag(flags, "model-floor", 300);
+  const modelOwned = readBoundedFlag(flags, "model-owned", 1200);
+  const harnessOwned = readBoundedFlag(flags, "harness-owned", 1200);
+  const entropyDisposition = assertEntropyDisposition(readStringFlag(flags, "entropy", true)!);
+  const entropyRationale = readBoundedFlag(flags, "entropy-rationale", 1600);
+  const obsoleteCompensationDisposition = assertObsoleteCompensationDisposition(
+    readStringFlag(flags, "obsolete-compensation", true)!,
+  );
+  const evidenceRefs = readRequiredUniqueCsvRepoRefs(
+    root,
+    readStringFlag(flags, "evidence-refs", true)!,
+  );
+  if (!promotionId) {
+    throw new Error("promotion id normalizes to empty value");
+  }
+
+  const paths = resolvePaths(root);
+  const reviewedAt = nowIso();
+  topicMutation(paths, topicSlug, flags, "review-skill-promotion", {
+    promotionId,
+    disposition,
+    modelFloor,
+    modelOwned,
+    harnessOwned,
+    entropyDisposition,
+    entropyRationale,
+    obsoleteCompensationDisposition,
+    evidenceRefs,
+  }, (topic) => {
+    const promotion = topic.promotions.find((item) => item.id === promotionId);
+    if (!promotion) {
+      throw new Error(`unknown promotion in topic ${topic.slug}: ${promotionId}`);
+    }
+    if (promotion.surface !== "skill") {
+      throw new Error(`model-fit review is only valid for skill promotions: ${promotionId}`);
+    }
+    promotion.model_fit_review = {
+      disposition,
+      reviewed_promotion_hash: promotionSemanticsHash(promotion),
+      model_floor: modelFloor,
+      model_owned: modelOwned,
+      harness_owned: harnessOwned,
+      entropy_disposition: entropyDisposition,
+      entropy_rationale: entropyRationale,
+      obsolete_compensation_disposition: obsoleteCompensationDisposition,
+      evidence_refs: evidenceRefs,
+      reviewed_at: reviewedAt,
+    };
+    assertSkillPromotionReviewAllowsLanding(promotion, paths.root);
+    promotion.updated_at = reviewedAt;
+    topic.updated_at = reviewedAt;
+  });
+  console.log(`recorded model-fit review for ${promotionId} in ${topicSlug}`);
 }
 
 function cmdSetCandidateStatus(
@@ -1321,14 +1467,15 @@ function cmdCheck(flags: Map<string, string | boolean>): void {
     }
 
     for (const promotion of topic.promotions) {
-      if (!promotion.ref) continue;
-      const normalizedRef = normalizeLocalContextRef(paths.root, promotion.ref);
-      if (normalizedRef !== promotion.ref) {
-        throw new Error(`promotion ref is not normalized for ${entry.slug}: ${promotion.ref}`);
-      }
-      const absoluteRef = path.join(paths.root, promotion.ref);
-      if (!fs.existsSync(absoluteRef)) {
-        warnings.push(`${entry.slug}: missing promotion ref target ${promotion.ref}`);
+      if (promotion.ref) {
+        const normalizedRef = normalizeLocalContextRef(paths.root, promotion.ref);
+        if (normalizedRef !== promotion.ref) {
+          throw new Error(`promotion ref is not normalized for ${entry.slug}: ${promotion.ref}`);
+        }
+        const absoluteRef = path.join(paths.root, promotion.ref);
+        if (!fs.existsSync(absoluteRef)) {
+          warnings.push(`${entry.slug}: missing promotion ref target ${promotion.ref}`);
+        }
       }
       for (const proofRef of promotion.proof_refs) {
         const normalizedProofRef = normalizeLocalContextRef(paths.root, proofRef);
@@ -1338,6 +1485,18 @@ function cmdCheck(flags: Map<string, string | boolean>): void {
         const absoluteProofRef = path.join(paths.root, proofRef);
         if (!fs.existsSync(absoluteProofRef)) {
           throw new Error(`missing promotion proof ref target for ${entry.slug}: ${proofRef}`);
+        }
+      }
+      if (promotion.model_fit_review) {
+        for (const evidenceRef of promotion.model_fit_review.evidence_refs) {
+          const normalizedEvidenceRef = normalizeLocalContextRef(paths.root, evidenceRef);
+          if (normalizedEvidenceRef !== evidenceRef) {
+            throw new Error(`promotion model-fit evidence ref is not normalized for ${entry.slug}: ${evidenceRef}`);
+          }
+          const absoluteEvidenceRef = path.join(paths.root, evidenceRef);
+          if (!fs.existsSync(absoluteEvidenceRef) || !fs.statSync(absoluteEvidenceRef).isFile()) {
+            throw new Error(`missing promotion model-fit evidence ref target for ${entry.slug}: ${evidenceRef}`);
+          }
         }
       }
     }
@@ -1493,6 +1652,9 @@ function main(): void {
       return;
     case "record-promotion":
       cmdRecordPromotion(flags);
+      return;
+    case "review-skill-promotion":
+      cmdReviewSkillPromotion(flags);
       return;
     case "set-candidate-status":
       cmdSetCandidateStatus(flags);

@@ -5,6 +5,7 @@ import crypto from "node:crypto";
 import type {
   EvolverIndex,
   IntakeSignalRecord,
+  ModelFitReviewRecord,
   PromotionRecord,
   RoutingRecord,
   TopicRecord,
@@ -222,8 +223,32 @@ function normalizePromotionRecord(raw: unknown): PromotionRecord {
     proof_refs: Array.isArray(record.proof_refs)
       ? record.proof_refs.map((value) => String(value))
       : [],
+    model_fit_review: normalizeModelFitReviewRecord(record.model_fit_review),
     created_at: String(record.created_at ?? ""),
     updated_at: String(record.updated_at ?? ""),
+  };
+}
+
+function normalizeModelFitReviewRecord(raw: unknown): ModelFitReviewRecord | undefined {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+    return undefined;
+  }
+  const record = raw as Partial<ModelFitReviewRecord>;
+  return {
+    disposition: String(record.disposition ?? "blocked") as ModelFitReviewRecord["disposition"],
+    reviewed_promotion_hash: String(record.reviewed_promotion_hash ?? ""),
+    model_floor: String(record.model_floor ?? ""),
+    model_owned: String(record.model_owned ?? ""),
+    harness_owned: String(record.harness_owned ?? ""),
+    entropy_disposition: String(record.entropy_disposition ?? "neutral") as ModelFitReviewRecord["entropy_disposition"],
+    entropy_rationale: String(record.entropy_rationale ?? ""),
+    obsolete_compensation_disposition: String(
+      record.obsolete_compensation_disposition ?? "none_found",
+    ) as ModelFitReviewRecord["obsolete_compensation_disposition"],
+    evidence_refs: Array.isArray(record.evidence_refs)
+      ? record.evidence_refs.map((value) => String(value))
+      : [],
+    reviewed_at: String(record.reviewed_at ?? ""),
   };
 }
 

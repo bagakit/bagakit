@@ -499,6 +499,138 @@ test -f "$ARCHIVE_FILE"
 grep -q "## Promotion Trail" "$ARCHIVE_FILE"
 grep -q "docs/specs/demo-rule-proof.md" "$ARCHIVE_FILE"
 
+python3 - "$TOPIC_JSON" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+topic = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+promotion = next(item for item in topic["promotions"] if item["id"] == "demo-rule")
+assert promotion["surface"] == "spec"
+assert "model_fit_review" not in promotion
+PY
+
+mkdir -p "$TMP_DIR/skills/harness/demo"
+printf '%s\n' '# Demo Skill' > "$TMP_DIR/skills/harness/demo/SKILL.md"
+printf 'skill proof\n' > "$TMP_DIR/docs/specs/demo-skill-proof.md"
+printf 'model fit evidence\n' > "$TMP_DIR/docs/specs/demo-skill-model-fit.md"
+
+node --experimental-strip-types "$EVOLVER_DIR/scripts/evolver.ts" init-topic --root "$TMP_DIR" --slug skill-promotion-review --title "Skill Promotion Review" >/dev/null
+node --experimental-strip-types "$EVOLVER_DIR/scripts/evolver.ts" preflight --root "$TMP_DIR" --topic skill-promotion-review --decision track --rationale "skill promotion spans durable model and harness boundaries" >/dev/null
+node --experimental-strip-types "$EVOLVER_DIR/scripts/evolver.ts" add-source --root "$TMP_DIR" --topic skill-promotion-review --source-id model-fit --kind doc --title "Model fit evidence" --origin local-eval --local-ref docs/specs/demo-skill-model-fit.md >/dev/null
+node --experimental-strip-types "$EVOLVER_DIR/scripts/evolver.ts" record-decision --root "$TMP_DIR" --topic skill-promotion-review --decision "Promote the bounded skill" --rationale "the skill keeps hard state and verification boundaries while delegating flexible orchestration" >/dev/null
+node --experimental-strip-types "$EVOLVER_DIR/scripts/evolver.ts" record-promotion --root "$TMP_DIR" --topic skill-promotion-review --surface skill --target skills/harness/demo/SKILL.md --summary "land the low-entropy demo skill" --promotion demo-skill --status proposed >/dev/null
+node --experimental-strip-types "$EVOLVER_DIR/scripts/evolver.ts" set-route --root "$TMP_DIR" --topic skill-promotion-review --decision upstream --rationale "the capability belongs in the reusable skill" --acceptance-authority maintainer --acceptance-ref docs/specs/demo-rule-acceptance.md --counterevidence-disposition addressed --target-owner harness-skill-maintainers --proof-plan demo-skill-contract-proof --proof-plan-ref docs/specs/demo-rule-proof-plan.md --upstream-promotions demo-skill >/dev/null
+
+if node --experimental-strip-types "$EVOLVER_DIR/scripts/evolver.ts" record-promotion --root "$TMP_DIR" --topic skill-promotion-review --surface skill --target skills/harness/demo/SKILL.md --summary "land the low-entropy demo skill" --promotion demo-skill --status accepted_for_landing >/dev/null 2>"$TMP_DIR/skill-accept-without-review.err"; then
+  echo "error: skill promotion unexpectedly reached accepted_for_landing without model-fit review" >&2
+  exit 1
+fi
+grep -q 'requires a passing model-fit review' "$TMP_DIR/skill-accept-without-review.err"
+
+node --experimental-strip-types "$EVOLVER_DIR/scripts/evolver.ts" review-skill-promotion --root "$TMP_DIR" --topic skill-promotion-review --promotion demo-skill --disposition blocked --model-floor "current general-purpose frontier models" --model-owned "flexible planning and tool ordering" --harness-owned "durable state authority verification and recovery" --entropy neutral --entropy-rationale "the proposal still duplicates planning structure" --obsolete-compensation retained_with_evidence --evidence-refs docs/specs/demo-skill-model-fit.md >/dev/null
+if node --experimental-strip-types "$EVOLVER_DIR/scripts/evolver.ts" record-promotion --root "$TMP_DIR" --topic skill-promotion-review --surface skill --target skills/harness/demo/SKILL.md --summary "land the low-entropy demo skill" --promotion demo-skill --status accepted_for_landing >/dev/null 2>"$TMP_DIR/skill-accept-blocked-review.err"; then
+  echo "error: skill promotion unexpectedly accepted a blocked model-fit review" >&2
+  exit 1
+fi
+grep -q 'requires a passing model-fit review' "$TMP_DIR/skill-accept-blocked-review.err"
+
+node --experimental-strip-types "$EVOLVER_DIR/scripts/evolver.ts" review-skill-promotion --root "$TMP_DIR" --topic skill-promotion-review --promotion demo-skill --disposition passed --model-floor "current general-purpose frontier models" --model-owned "flexible planning context selection and tool ordering" --harness-owned "authority durable state verification recovery and irreversible actions" --entropy reduced --entropy-rationale "removed duplicated planning stages while preserving proof-bearing boundaries" --obsolete-compensation removed --evidence-refs docs/specs/demo-skill-model-fit.md >/dev/null
+node --experimental-strip-types "$EVOLVER_DIR/scripts/evolver.ts" record-promotion --root "$TMP_DIR" --topic skill-promotion-review --surface skill --target skills/harness/demo/SKILL.md --summary "land the low-entropy demo skill" --promotion demo-skill --status landed_verified --ref skills/harness/demo/SKILL.md --proof-refs docs/specs/demo-skill-proof.md >/dev/null
+
+SKILL_TOPIC_JSON="$TMP_DIR/.bagakit/evolver/topics/skill-promotion-review/topic.json"
+python3 - "$SKILL_TOPIC_JSON" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+topic = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+promotion = next(item for item in topic["promotions"] if item["id"] == "demo-skill")
+assert promotion["status"] == "landed_verified"
+assert promotion["model_fit_review"]["disposition"] == "passed"
+assert promotion["model_fit_review"]["entropy_disposition"] == "reduced"
+assert promotion["model_fit_review"]["obsolete_compensation_disposition"] == "removed"
+PY
+
+node --experimental-strip-types "$EVOLVER_DIR/scripts/evolver.ts" record-promotion --root "$TMP_DIR" --topic skill-promotion-review --surface skill --target skills/harness/demo/SKILL.md --summary "land the simplified demo skill v2" --promotion demo-skill --status proposed --ref skills/harness/demo/SKILL.md --proof-refs docs/specs/demo-skill-proof.md >/dev/null
+python3 - "$SKILL_TOPIC_JSON" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+topic = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+promotion = next(item for item in topic["promotions"] if item["id"] == "demo-skill")
+assert promotion["status"] == "proposed"
+assert "model_fit_review" not in promotion
+PY
+if node --experimental-strip-types "$EVOLVER_DIR/scripts/evolver.ts" record-promotion --root "$TMP_DIR" --topic skill-promotion-review --surface skill --target skills/harness/demo/SKILL.md --summary "land the simplified demo skill v2" --promotion demo-skill --status landed_verified --ref skills/harness/demo/SKILL.md --proof-refs docs/specs/demo-skill-proof.md >/dev/null 2>"$TMP_DIR/skill-land-after-semantic-change.err"; then
+  echo "error: semantic promotion change unexpectedly preserved model-fit authorization" >&2
+  exit 1
+fi
+grep -q 'requires a passing model-fit review' "$TMP_DIR/skill-land-after-semantic-change.err"
+
+node --experimental-strip-types "$EVOLVER_DIR/scripts/evolver.ts" review-skill-promotion --root "$TMP_DIR" --topic skill-promotion-review --promotion demo-skill --disposition passed --model-floor "current general-purpose frontier models" --model-owned "flexible planning context selection and tool ordering" --harness-owned "authority durable state verification recovery and irreversible actions" --entropy neutral --entropy-rationale "the v2 intent keeps the already reduced control surface" --obsolete-compensation none_found --evidence-refs docs/specs/demo-skill-model-fit.md >/dev/null
+node --experimental-strip-types "$EVOLVER_DIR/scripts/evolver.ts" record-promotion --root "$TMP_DIR" --topic skill-promotion-review --surface skill --target skills/harness/demo/SKILL.md --summary "land the simplified demo skill v2" --promotion demo-skill --status landed_verified --ref skills/harness/demo/SKILL.md --proof-refs docs/specs/demo-skill-proof.md >/dev/null
+
+SKILL_READINESS_JSON="$TMP_DIR/skill-readiness.json"
+node --experimental-strip-types "$EVOLVER_DIR/scripts/evolver.ts" promotion-readiness --root "$TMP_DIR" --topic skill-promotion-review --json > "$SKILL_READINESS_JSON"
+python3 - "$SKILL_READINESS_JSON" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+payload = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+assert payload["state"] == "upstream-landed"
+assert payload["archive_ready"] is True
+assert payload["referenced_promotions"][0]["model_fit_review"]["disposition"] == "passed"
+assert payload["blockers"] == []
+PY
+
+SKILL_HANDOFF="$TMP_DIR/.bagakit/evolver/topics/skill-promotion-review/HANDOFF.md"
+grep -q 'model-fit: `passed`' "$SKILL_HANDOFF"
+grep -q 'entropy: `neutral`' "$SKILL_HANDOFF"
+
+python3 - "$SKILL_TOPIC_JSON" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+path = Path(sys.argv[1])
+topic = json.loads(path.read_text(encoding="utf-8"))
+promotion = next(item for item in topic["promotions"] if item["id"] == "demo-skill")
+promotion["summary"] = "direct-edited skill intent"
+path.write_text(json.dumps(topic, indent=2) + "\n", encoding="utf-8")
+PY
+if node --experimental-strip-types "$EVOLVER_DIR/scripts/evolver.ts" archive-topic --root "$TMP_DIR" --topic skill-promotion-review --summary "archive with stale direct-edited review" >/dev/null 2>"$TMP_DIR/archive-stale-model-fit.err"; then
+  echo "error: archive unexpectedly accepted a stale direct-edited model-fit review" >&2
+  exit 1
+fi
+grep -q 'has a stale model-fit review' "$TMP_DIR/archive-stale-model-fit.err"
+python3 - "$SKILL_TOPIC_JSON" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+path = Path(sys.argv[1])
+topic = json.loads(path.read_text(encoding="utf-8"))
+promotion = next(item for item in topic["promotions"] if item["id"] == "demo-skill")
+promotion["summary"] = "land the simplified demo skill v2"
+path.write_text(json.dumps(topic, indent=2) + "\n", encoding="utf-8")
+PY
+
+rm "$TMP_DIR/docs/specs/demo-skill-model-fit.md"
+if node --experimental-strip-types "$EVOLVER_DIR/scripts/evolver.ts" archive-topic --root "$TMP_DIR" --topic skill-promotion-review --summary "archive with missing model-fit evidence" >/dev/null 2>"$TMP_DIR/archive-missing-model-fit.err"; then
+  echo "error: archive unexpectedly accepted a missing model-fit evidence ref" >&2
+  exit 1
+fi
+grep -q 'skill promotion model-fit evidence ref does not currently exist' "$TMP_DIR/archive-missing-model-fit.err"
+printf 'model fit evidence\n' > "$TMP_DIR/docs/specs/demo-skill-model-fit.md"
+
+node --experimental-strip-types "$EVOLVER_DIR/scripts/evolver.ts" archive-topic --root "$TMP_DIR" --topic skill-promotion-review --summary "archive the model-fit-reviewed skill promotion" >/dev/null
+SKILL_ARCHIVE="$TMP_DIR/.bagakit/evolver/topics/skill-promotion-review/ARCHIVE.md"
+grep -q 'model-fit: `passed`' "$SKILL_ARCHIVE"
+grep -q 'obsolete compensation: `none_found`' "$SKILL_ARCHIVE"
+
 node --experimental-strip-types "$EVOLVER_DIR/scripts/evolver.ts" check --root "$TMP_DIR" >/dev/null
 
 echo "ok: bagakit-skill-evolver canonical smoke passed"

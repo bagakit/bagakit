@@ -94,6 +94,9 @@ Done means:
 - rejected and replaced promotions have explicit `rejected` or `superseded`
   terminal states
 - landed-verified promotion always has current proof
+- skill promotions distinguish model-owned flexibility from harness-owned hard
+  boundaries and carry a current, evidence-backed entropy disposition before
+  acceptance
 
 Evidence of done:
 
@@ -117,6 +120,8 @@ Done means:
   - state contract validity
   - derived artifact freshness
   - promotion proof shape
+  - model-fit review transitions, semantic invalidation, and evidence drift for
+    skill promotions
 - `gate_eval/skills/harness/bagakit-skill-evolver/`
   exists as a real skill-level eval surface
 - skill-level eval covers more than structure

@@ -48,6 +48,8 @@ It does:
 - keep durable promotions typed by repository surface
 - keep promotion intent distinct from landed durable changes
 - keep promotion identities stable across updates
+- require a current model-fit and harness-entropy review before a `skill`
+  promotion is accepted for landing
 - keep `topic.json` as canonical truth through locked, atomic topic mutation
 - make identical `--operation-id` retries idempotent and conflicting reuse fail
 - block archive until promotion readiness is current and complete
@@ -60,6 +62,7 @@ It does not:
 - persist raw transcripts, traces, checkpoints, or opaque session payloads
 - own task-local evaluation
 - replace ordinary docs or straightforward execution
+- design, scaffold, or implement the promoted skill
 - auto-promote repository learning by confidence alone
 
 ## Output Discipline
@@ -176,6 +179,13 @@ Do not collapse these into one giant memory bucket.
    - maintainer procedures -> `docs/stewardship/`
    - runtime-facing capabilities -> `skills/`
 
+   Before a `skill` promotion moves beyond `proposed`, run
+   `review-skill-promotion` using
+   `docs/specs/evolver-skill-promotion-review.md`. Record the model floor,
+   what remains model-owned, what must remain harness-owned, the entropy
+   effect, any obsolete compensation structure, and current evidence refs.
+   A blocked review preserves evidence but does not authorize landing.
+
 9. Use the steward-facing topic report plus the next-session handoff artifact as
    the compression layer before durable
    promotion.
@@ -223,6 +233,19 @@ Topic mutation rule:
 - a canonical commit may succeed before a projection rebuild; the error reports
   that state truthfully, and the same operation id or `refresh-index` repairs the
   rebuildable projections
+
+Skill-promotion review rule:
+
+- `review-skill-promotion` applies only to an existing `surface=skill`
+  promotion
+- keep model names in `model_floor` evidence rather than permanent enums
+- prefer the lowest stable harness entropy that still protects authority,
+  durable state, isolation, verification, recovery, and irreversible actions
+- changing promotion surface, target, or summary clears the prior review
+- `accepted_for_landing`, `landed_verified`, readiness, and archive all fail
+  closed without a current passing review and resolvable evidence refs
+- Evolver governs the promotion decision; the target skill owner still owns
+  design and implementation
 
 Session-review bridge rules:
 
