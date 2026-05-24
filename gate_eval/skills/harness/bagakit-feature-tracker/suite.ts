@@ -10,10 +10,6 @@ function expectOk(result: CommandResult, label: string): void {
   assert.equal(result.status, 0, `${label} failed\nstdout:\n${result.stdout}\nstderr:\n${result.stderr}`);
 }
 
-function expectFail(result: CommandResult, label: string): void {
-  assert.notEqual(result.status, 0, `${label} unexpectedly passed\nstdout:\n${result.stdout}\nstderr:\n${result.stderr}`);
-}
-
 function initGitRepo(cwd: string, replacements: { from: string; to: string }[]): void {
   expectOk(runCommand("git", ["init", "-q"], { cwd, replacements }), "git init");
   expectOk(runCommand("git", ["config", "user.name", "Bagakit"], { cwd, replacements }), "git config user.name");
@@ -35,64 +31,6 @@ function featureCount(tempRepo: string): number {
   return payload.features.length;
 }
 
-function featureIdByTitle(tempRepo: string, title: string): string {
-  const indexPath = path.join(tempRepo, ".bagakit", "feature-tracker", "index", "features.json");
-  const payload = JSON.parse(fs.readFileSync(indexPath, "utf8")) as {
-    features: Array<{ feat_id: string; title?: string }>;
-  };
-  const match = payload.features.find((item) => item.title === title);
-  assert.ok(match, `missing feature with title ${title}`);
-  return match!.feat_id;
-}
-
-function updateFeatureState(
-  tempRepo: string,
-  featId: string,
-  mutate: (state: Record<string, unknown>) => void,
-  statusDir = "features",
-): void {
-  const statePath = path.join(tempRepo, ".bagakit", "feature-tracker", statusDir, featId, "state.json");
-  const statePayload = JSON.parse(fs.readFileSync(statePath, "utf8")) as Record<string, unknown>;
-  mutate(statePayload);
-  fs.writeFileSync(statePath, `${JSON.stringify(statePayload, null, 2)}\n`);
-}
-
-function gitWorktreeCount(tempRepo: string, replacements: { from: string; to: string }[]): number {
-  const result = runCommand("git", ["worktree", "list", "--porcelain"], { cwd: tempRepo, replacements });
-  expectOk(result, "git worktree list");
-  return result.stdout
-    .split("\n")
-    .filter((line) => line.startsWith("worktree "))
-    .length;
-}
-
-function readFeatureState(tempRepo: string, featId: string): Record<string, unknown> {
-  const statePath = path.join(tempRepo, ".bagakit", "feature-tracker", "features", featId, "state.json");
-  return JSON.parse(fs.readFileSync(statePath, "utf8")) as Record<string, unknown>;
-}
-
-function readFeatureTasks(tempRepo: string, featId: string): { tasks: Array<Record<string, unknown>> } {
-  const tasksPath = path.join(tempRepo, ".bagakit", "feature-tracker", "features", featId, "tasks.json");
-  return JSON.parse(fs.readFileSync(tasksPath, "utf8")) as { tasks: Array<Record<string, unknown>> };
-}
-
-function writeRuntimePolicy(tempRepo: string, mutate: (policy: Record<string, unknown>) => void): void {
-  const policyPath = path.join(tempRepo, ".bagakit", "feature-tracker", "runtime-policy.json");
-  const policy = JSON.parse(fs.readFileSync(policyPath, "utf8")) as Record<string, unknown>;
-  mutate(policy);
-  fs.writeFileSync(policyPath, `${JSON.stringify(policy, null, 2)}\n`);
-}
-
-function configureWorktreeSentinelGate(tempRepo: string, sentinelPath: string): void {
-  writeRuntimePolicy(tempRepo, (policy) => {
-    const gate = (policy.gate && typeof policy.gate === "object" ? policy.gate : {}) as Record<string, unknown>;
-    gate.project_type = "non_ui";
-    gate.verification_policy = "never";
-    gate.non_ui_commands = [`test -f ${sentinelPath}`];
-    policy.gate = gate;
-  });
-}
-
 function writeReviewedTaskPlan(tempRepo: string, objective: string): string {
   const planPath = path.join(tempRepo, ".bagakit", "feature-tracker", "artifacts", "reviewed-task-plan.json");
   writeTextFile(
@@ -109,13 +47,13 @@ function writeReviewedTaskPlan(tempRepo: string, objective: string): string {
           id: "T-001",
           title: "Execute reviewed eval task",
           objective,
-          outcome: "The eval exercises public lifecycle behavior from reviewed task truth.",
-          acceptance: ["The case reaches its expected public lifecycle state."],
+          outcome: "The eval observes public status projection from reviewed task truth.",
+          acceptance: ["The public projection matches canonical task state."],
           verification: [
             {
               kind: "command",
               ref: "gate_eval/skills/harness/bagakit-feature-tracker/validation.toml",
-              proves: "The deterministic eval case exercises the intended public boundary.",
+              proves: "The deterministic eval case observes the intended public projection boundary.",
             },
           ],
           source_refs: ["gate_eval/skills/harness/bagakit-feature-tracker/suite.ts"],
@@ -127,40 +65,18 @@ function writeReviewedTaskPlan(tempRepo: string, objective: string): string {
   return planPath;
 }
 
-function completeReviewedFeature(
-  script: string,
-  repoRoot: string,
-  tempRepo: string,
-  replacements: { from: string; to: string }[],
-  featId: string,
-  planPath: string,
-): void {
-  expectOk(runCommand("bash", [script, "set-task-plan", "--root", tempRepo, "--feature", featId, "--tasks-file", planPath, "--expected-revision", "0"], { cwd: repoRoot, replacements }), "set-task-plan");
-  expectOk(runCommand("bash", [script, "assign-feature-workspace", "--root", tempRepo, "--feature", featId, "--workspace-mode", "current_tree"], { cwd: repoRoot, replacements }), "assign-feature-workspace");
-  writeRuntimePolicy(tempRepo, (policy) => {
-    const gate = (policy.gate && typeof policy.gate === "object" ? policy.gate : {}) as Record<string, unknown>;
-    gate.project_type = "non_ui";
-    gate.verification_policy = "never";
-    gate.non_ui_commands = ["true"];
-    policy.gate = gate;
-  });
-  expectOk(runCommand("bash", [script, "start-task", "--root", tempRepo, "--feature", featId, "--task", "T-001"], { cwd: repoRoot, replacements }), "start-task");
-  expectOk(runCommand("bash", [script, "run-task-gate", "--root", tempRepo, "--feature", featId, "--task", "T-001"], { cwd: repoRoot, replacements }), "run-task-gate");
-  expectOk(runCommand("bash", [script, "finish-task", "--root", tempRepo, "--feature", featId, "--task", "T-001", "--result", "done"], { cwd: repoRoot, replacements }), "finish-task");
-}
-
 export const SUITE: EvalSuiteDefinition = {
   id: "bagakit-feature-tracker-shared-runner-eval",
   owner: "gate_eval/skills/harness/bagakit-feature-tracker",
   title: "Feature Tracker Shared Runner Eval",
-  summary: "Measure deterministic feature lifecycle and status projection quality for bagakit-feature-tracker.",
+  summary: "Measure status projection and planning-entry integration quality for bagakit-feature-tracker.",
   defaultOutputDir: "gate_eval/skills/harness/bagakit-feature-tracker/results/runs",
   cases: [
     {
       id: "feature-status-projects-active-task",
       title: "Feature Status Projects Active Task",
-      summary: "Starting a task should update feature status projection, task state, and DAG presence coherently.",
-      focus: ["state-transition", "status-projection", "dag-coherence"],
+      summary: "Starting a task should update feature status, task state, and the computed dependency projection coherently.",
+      focus: ["state-transition", "status-projection", "computed-dependency-graph"],
       run: (context) => {
         const { repoRoot } = context;
         const tempRepo = createTempDir("bagakit-feature-tracker-eval-");
@@ -169,7 +85,6 @@ export const SUITE: EvalSuiteDefinition = {
           initGitRepo(tempRepo, replacements);
 
           const script = path.join(repoRoot, "skills", "harness", "bagakit-feature-tracker", "scripts", "feature-tracker.sh");
-          expectOk(runCommand("bash", [script, "check-reference-readiness", "--root", tempRepo], { cwd: repoRoot, replacements }), "check-reference-readiness");
           expectOk(runCommand("bash", [script, "initialize-tracker", "--root", tempRepo], { cwd: repoRoot, replacements }), "initialize-tracker");
           expectOk(
             runCommand(
@@ -189,14 +104,15 @@ export const SUITE: EvalSuiteDefinition = {
           const statusResult = runCommand("bash", [script, "show-feature-status", "--root", tempRepo, "--feature", featId, "--json"], { cwd: repoRoot, replacements });
           expectOk(statusResult, "show-feature-status");
           const statusPayload = JSON.parse(statusResult.stdout) as Record<string, unknown>;
+          const graphResult = runCommand("bash", [script, "show-feature-dag", "--root", tempRepo, "--json"], { cwd: repoRoot, replacements });
+          expectOk(graphResult, "show-feature-dag");
+          const graphPayload = JSON.parse(graphResult.stdout) as Record<string, unknown>;
           const statePath = path.join(tempRepo, ".bagakit", "feature-tracker", "features", featId, "state.json");
           const tasksPath = path.join(tempRepo, ".bagakit", "feature-tracker", "features", featId, "tasks.json");
-          const dagPath = path.join(tempRepo, ".bagakit", "feature-tracker", "index", "FEATURES_DAG.json");
           const issuerPath = path.join(tempRepo, ".bagakit", "feature-tracker", "local", "issuer.json");
           const featureDir = path.join(tempRepo, ".bagakit", "feature-tracker", "features", featId);
           const statePayload = JSON.parse(fs.readFileSync(statePath, "utf8")) as Record<string, unknown>;
           const tasksPayload = JSON.parse(fs.readFileSync(tasksPath, "utf8")) as { tasks: Array<Record<string, unknown>> };
-          const dagPayload = JSON.parse(fs.readFileSync(dagPath, "utf8")) as Record<string, unknown>;
           const issuerPayload = JSON.parse(fs.readFileSync(issuerPath, "utf8")) as Record<string, unknown>;
 
           assert.match(featId, new RegExp("^f-[23456789abcdefghjkmnpqrstuvwxyz]{9}$"));
@@ -204,16 +120,16 @@ export const SUITE: EvalSuiteDefinition = {
           assert.equal(statePayload.current_task_id, "T-001");
           assert.equal(tasksPayload.tasks[0].status, "in_progress");
           assert.ok(JSON.stringify(statusPayload).includes("T-001"));
-          assert.match(JSON.stringify(dagPayload), new RegExp(featId));
-          assert.ok(Array.isArray(dagPayload.features));
-          assert.ok(Array.isArray(dagPayload.layers));
+          assert.match(JSON.stringify(graphPayload), new RegExp(featId));
+          assert.ok(Array.isArray(graphPayload.features));
+          assert.ok(Array.isArray(graphPayload.layers));
           assert.ok(
-            ["features", "generated_by", "layers", "notes", "version"].every((key) => key in dagPayload),
+            ["features", "generated_by", "layers", "notes", "version"].every((key) => key in graphPayload),
           );
-          assert.equal("execution_mode" in dagPayload, false);
-          assert.equal("max_parallel" in dagPayload, false);
-          assert.equal("parallel_recommendation" in dagPayload, false);
-          assert.equal("first_unfinished_layer" in dagPayload, false);
+          assert.equal("execution_mode" in graphPayload, false);
+          assert.equal("max_parallel" in graphPayload, false);
+          assert.equal("parallel_recommendation" in graphPayload, false);
+          assert.equal("first_unfinished_layer" in graphPayload, false);
           assert.equal(issuerPayload.namespace, featId.slice(5, 7));
           assert.equal(fs.existsSync(path.join(featureDir, "tasks.md")), false);
           assert.equal(fs.existsSync(path.join(featureDir, "artifacts")), false);
@@ -222,7 +138,7 @@ export const SUITE: EvalSuiteDefinition = {
           assert.equal(fs.existsSync(path.join(featureDir, "verification.md")), false);
           assert.equal("created_at" in statePayload, false);
           assert.equal("updated_at" in statePayload, false);
-          assert.equal("generated_at" in dagPayload, false);
+          assert.equal("generated_at" in graphPayload, false);
           assert.equal("started_at" in tasksPayload.tasks[0], false);
           assert.equal("updated_at" in tasksPayload.tasks[0], false);
 
@@ -232,7 +148,7 @@ export const SUITE: EvalSuiteDefinition = {
               "tasks.json marks the started task as in progress without per-task timestamps",
               "new features start with a minimal default layout and no eager helper markdown files",
               "feature ids use the c3/n2/g4 opaque shape and stay aligned with local issuer state",
-              "FEATURES_DAG.json stays a pure dependency projection instead of embedding execution-planning fields",
+              "show-feature-dag computes a pure dependency projection from canonical feature state without embedding execution-planning fields",
             ],
             commands: [
               `bash ${script} initialize-tracker --root <temp-repo>`,
@@ -241,193 +157,15 @@ export const SUITE: EvalSuiteDefinition = {
               `bash ${script} start-task --root <temp-repo> --feature ${featId} --task T-001`,
               `bash ${script} replan-features --root <temp-repo> --json`,
               `bash ${script} show-feature-status --root <temp-repo> --feature ${featId} --json`,
+              `bash ${script} show-feature-dag --root <temp-repo> --json`,
             ],
             artifacts: [
               { label: "feature-state", path: statePath },
               { label: "feature-tasks", path: tasksPath },
-              { label: "features-dag", path: dagPath },
             ],
             outputs: {
               feat_id: featId,
               status_keys: Object.keys(statusPayload),
-            },
-            replacements,
-          };
-        } finally {
-          cleanupTempDir(tempRepo, context.keepTemp);
-        }
-      },
-    },
-    {
-      id: "worktree-execution-root-contract",
-      title: "Worktree Execution Root Contract",
-      summary: "Worktree-mode gates and executed commits should run from the assigned feature worktree, not the root checkout.",
-      focus: ["workspace-mode", "run-task-gate", "prepare-task-commit", "commit-contract"],
-      run: (context) => {
-        const { repoRoot } = context;
-        const tempRepo = createTempDir("bagakit-feature-tracker-worktree-context-");
-        const replacements = registerTempRepo(context, tempRepo);
-        try {
-          initGitRepo(tempRepo, replacements);
-
-          const script = path.join(repoRoot, "skills", "harness", "bagakit-feature-tracker", "scripts", "feature-tracker.sh");
-          const contractPath = path.join(repoRoot, "docs", "specs", "feature-tracker-contract.md");
-          const readmePath = path.join(repoRoot, "skills", "harness", "bagakit-feature-tracker", "README.md");
-          const skillPath = path.join(repoRoot, "skills", "harness", "bagakit-feature-tracker", "SKILL.md");
-          assert.ok(fs.readFileSync(contractPath, "utf8").includes("git -C <execution-root>"));
-          assert.ok(fs.readFileSync(contractPath, "utf8").includes("Concurrency Contract"));
-          assert.ok(fs.readFileSync(readmePath, "utf8").includes("git -C <execution-root>"));
-          assert.ok(fs.readFileSync(skillPath, "utf8").includes("git -C <execution-root>"));
-
-          expectOk(runCommand("bash", [script, "check-reference-readiness", "--root", tempRepo], { cwd: repoRoot, replacements }), "check-reference-readiness");
-          expectOk(runCommand("bash", [script, "initialize-tracker", "--root", tempRepo], { cwd: repoRoot, replacements }), "initialize-tracker");
-          const planPath = writeReviewedTaskPlan(tempRepo, "Exercise worktree execution from reviewed semantic task truth.");
-          expectOk(
-            runCommand(
-              "bash",
-              [script, "create-feature", "--root", tempRepo, "--title", "Worktree gate feature", "--slug", "worktree-gate-feature", "--goal", "Run gate from the feature worktree", "--workspace-mode", "worktree", "--tasks-file", planPath],
-              { cwd: repoRoot, replacements },
-            ),
-            "create worktree gate feature",
-          );
-
-          const gateFeatId = featureIdByTitle(tempRepo, "Worktree gate feature");
-          const gateState = readFeatureState(tempRepo, gateFeatId);
-          const gateWorktreePath = path.join(tempRepo, String(gateState.worktree_path));
-          const gateSentinel = path.join(gateWorktreePath, "worktree-only", "gate-sentinel.txt");
-          writeTextFile(gateSentinel, "gate should run in the feature worktree\n");
-          configureWorktreeSentinelGate(tempRepo, "worktree-only/gate-sentinel.txt");
-
-          expectOk(runCommand("bash", [script, "start-task", "--root", tempRepo, "--feature", gateFeatId, "--task", "T-001"], { cwd: repoRoot, replacements }), "start gate task");
-          expectOk(runCommand("bash", [script, "run-task-gate", "--root", tempRepo, "--feature", gateFeatId, "--task", "T-001"], { cwd: repoRoot, replacements }), "run gate from worktree");
-          const gateTask = readFeatureTasks(tempRepo, gateFeatId).tasks[0];
-          assert.equal(gateTask.gate_result, "pass");
-          const gateCommands = gateTask.last_gate_commands as Array<Record<string, unknown>>;
-          assert.equal(gateCommands.length, 1);
-          assert.equal(gateCommands[0].command, "test -f worktree-only/gate-sentinel.txt");
-          assert.equal(gateCommands[0].exit_code, 0);
-          assert.equal(gateCommands[0].status, "pass");
-
-          expectOk(
-            runCommand(
-              "bash",
-              [script, "create-feature", "--root", tempRepo, "--title", "Worktree commit feature", "--slug", "worktree-commit-feature", "--goal", "Commit from the feature worktree branch", "--workspace-mode", "worktree", "--tasks-file", planPath],
-              { cwd: repoRoot, replacements },
-            ),
-            "create worktree commit feature",
-          );
-
-          const commitFeatId = featureIdByTitle(tempRepo, "Worktree commit feature");
-          const commitState = readFeatureState(tempRepo, commitFeatId);
-          const commitBranch = String(commitState.branch);
-          const commitWorktreePath = path.join(tempRepo, String(commitState.worktree_path));
-          const commitSentinelRel = "worktree-only/commit-sentinel.txt";
-          writeTextFile(path.join(commitWorktreePath, commitSentinelRel), "commit should be created from the feature worktree\n");
-          expectOk(runCommand("git", ["add", commitSentinelRel], { cwd: commitWorktreePath, replacements }), "stage worktree sentinel");
-          configureWorktreeSentinelGate(tempRepo, commitSentinelRel);
-          expectOk(runCommand("bash", [script, "start-task", "--root", tempRepo, "--feature", commitFeatId, "--task", "T-001"], { cwd: repoRoot, replacements }), "start commit task");
-          expectOk(runCommand("bash", [script, "run-task-gate", "--root", tempRepo, "--feature", commitFeatId, "--task", "T-001"], { cwd: repoRoot, replacements }), "run commit gate from worktree");
-          expectOk(
-            runCommand(
-              "bash",
-              [script, "prepare-task-commit", "--root", tempRepo, "--feature", commitFeatId, "--task", "T-001", "--summary", "Commit worktree sentinel", "--task-status", "done", "--execute"],
-              { cwd: repoRoot, replacements },
-            ),
-            "execute commit from worktree",
-          );
-
-          const lastCommitHash = String(readFeatureTasks(tempRepo, commitFeatId).tasks[0].last_commit_hash);
-          assert.match(lastCommitHash, new RegExp("^[0-9a-f]{40}$"));
-          expectOk(runCommand("git", ["cat-file", "-e", `${lastCommitHash}^{commit}`], { cwd: tempRepo, replacements }), "commit exists");
-          expectOk(runCommand("git", ["merge-base", "--is-ancestor", lastCommitHash, commitBranch], { cwd: tempRepo, replacements }), "commit is on feature branch");
-          const treeResult = runCommand("git", ["ls-tree", "-r", "--name-only", lastCommitHash], { cwd: tempRepo, replacements });
-          expectOk(treeResult, "inspect commit tree");
-          assert.ok(treeResult.stdout.split("\n").includes(commitSentinelRel));
-          assert.equal(runCommand("git", ["rev-parse", "HEAD"], { cwd: commitWorktreePath, replacements }).stdout.trim(), lastCommitHash);
-          assert.equal(runCommand("git", ["rev-parse", commitBranch], { cwd: tempRepo, replacements }).stdout.trim(), lastCommitHash);
-          assert.notEqual(runCommand("git", ["rev-parse", "HEAD"], { cwd: tempRepo, replacements }).stdout.trim(), lastCommitHash);
-
-          return {
-            assertions: [
-              "worktree-mode gate commands execute from the assigned feature worktree and can see a worktree-only sentinel file",
-              "prepare-task-commit --execute records last_commit_hash for a commit created on the assigned worktree feature branch",
-              "the recorded feature-branch commit includes the worktree-only staged file and does not become the root checkout HEAD",
-              "operator guidance uses git -C <execution-root> for worktree commit commands",
-            ],
-            commands: [
-              `bash ${script} create-feature --root <temp-repo> --title "Worktree gate feature" --slug "worktree-gate-feature" --goal "Run gate from the feature worktree" --workspace-mode worktree`,
-              `bash ${script} run-task-gate --root <temp-repo> --feature ${gateFeatId} --task T-001`,
-              `bash ${script} prepare-task-commit --root <temp-repo> --feature ${commitFeatId} --task T-001 --summary "Commit worktree sentinel" --task-status done --execute`,
-            ],
-            artifacts: [
-              { label: "feature-contract", path: contractPath },
-              { label: "gate-worktree-sentinel", path: gateSentinel },
-              { label: "commit-worktree-sentinel", path: path.join(commitWorktreePath, commitSentinelRel) },
-            ],
-            outputs: {
-              gate_feat_id: gateFeatId,
-              commit_feat_id: commitFeatId,
-              last_commit_hash: lastCommitHash,
-              commit_branch: commitBranch,
-            },
-            replacements,
-          };
-        } finally {
-          cleanupTempDir(tempRepo, context.keepTemp);
-        }
-      },
-    },
-    {
-      id: "feature-root-rejects-unsupported-prose",
-      title: "Feature Root Rejects Unsupported Prose",
-      summary: "Feature roots should reject unsupported prose files like PRD.md and Changelog.md.",
-      focus: ["artifact-boundary", "validation", "feature-surface"],
-      run: (context) => {
-        const { repoRoot } = context;
-        const tempRepo = createTempDir("bagakit-feature-tracker-boundary-");
-        const replacements = registerTempRepo(context, tempRepo);
-        try {
-          initGitRepo(tempRepo, replacements);
-
-          const script = path.join(repoRoot, "skills", "harness", "bagakit-feature-tracker", "scripts", "feature-tracker.sh");
-          expectOk(runCommand("bash", [script, "check-reference-readiness", "--root", tempRepo], { cwd: repoRoot, replacements }), "check-reference-readiness");
-          expectOk(runCommand("bash", [script, "initialize-tracker", "--root", tempRepo], { cwd: repoRoot, replacements }), "initialize-tracker");
-          expectOk(
-            runCommand(
-              "bash",
-              [script, "create-feature", "--root", tempRepo, "--title", "Boundary feature", "--slug", "boundary-feature", "--goal", "Reject unsupported files", "--workspace-mode", "proposal_only"],
-              { cwd: repoRoot, replacements },
-            ),
-            "create-feature",
-          );
-          const featId = featureId(tempRepo);
-          const featureDir = path.join(tempRepo, ".bagakit", "feature-tracker", "features", featId);
-          writeTextFile(path.join(featureDir, "PRD.md"), "# shadow product doc\n");
-          writeTextFile(path.join(featureDir, "Changelog.md"), "# shadow changelog\n");
-
-          const validateResult = runCommand("bash", [script, "validate-tracker", "--root", tempRepo], { cwd: repoRoot, replacements });
-          expectFail(validateResult, "validate-tracker");
-          assert.ok(validateResult.stderr.includes("unsupported feature-root file"));
-          assert.ok(validateResult.stderr.includes("PRD.md") || validateResult.stderr.includes("Changelog.md"));
-          assert.ok(validateResult.stderr.includes("proposal.md"));
-          assert.ok(validateResult.stderr.includes("repo/release surfaces"));
-
-          return {
-            assertions: [
-              "feature-tracker validation rejects unsupported prose files in active feature roots",
-              "validation points PRD-like intent toward proposal.md or upstream planning artifacts",
-              "validation points changelog-like history toward repo or release surfaces",
-              "the current contract keeps feature-root helper artifacts explicit instead of allowing a general markdown bucket",
-            ],
-            commands: [
-              `bash ${script} create-feature --root <temp-repo> --title "Boundary feature" --slug "boundary-feature" --goal "Reject unsupported files" --workspace-mode proposal_only`,
-              `bash ${script} validate-tracker --root <temp-repo>`,
-            ],
-            artifacts: [
-              { label: "feature-dir", path: featureDir },
-            ],
-            outputs: {
-              feat_id: featId,
             },
             replacements,
           };
@@ -449,7 +187,6 @@ export const SUITE: EvalSuiteDefinition = {
           initGitRepo(tempRepo, replacements);
 
           const script = path.join(repoRoot, "skills", "harness", "bagakit-feature-tracker", "scripts", "feature-tracker.sh");
-          expectOk(runCommand("bash", [script, "check-reference-readiness", "--root", tempRepo], { cwd: repoRoot, replacements }), "check-reference-readiness");
           expectOk(runCommand("bash", [script, "initialize-tracker", "--root", tempRepo], { cwd: repoRoot, replacements }), "initialize-tracker");
 
           const handoffPath = path.join(tempRepo, ".bagakit", "planning-entry", "handoffs", "approved.json");
@@ -526,507 +263,6 @@ export const SUITE: EvalSuiteDefinition = {
             ],
             outputs: {
               feat_id: featId,
-            },
-            replacements,
-          };
-        } finally {
-          cleanupTempDir(tempRepo, context.keepTemp);
-        }
-      },
-    },
-    {
-      id: "graph-mutations-preflight-before-side-effects",
-      title: "Graph Mutations Preflight Before Side Effects",
-      summary: "Create, archive, and discard should fail before mutating tracked state or cleanup side effects when the resulting active graph is invalid.",
-      focus: ["create-feature", "archive-feature", "discard-feature", "preflight"],
-      run: (context) => {
-        const { repoRoot } = context;
-        const tempRepo = createTempDir("bagakit-feature-tracker-preflight-");
-        const replacements = registerTempRepo(context, tempRepo);
-        try {
-          initGitRepo(tempRepo, replacements);
-
-          const script = path.join(repoRoot, "skills", "harness", "bagakit-feature-tracker", "scripts", "feature-tracker.sh");
-          expectOk(runCommand("bash", [script, "check-reference-readiness", "--root", tempRepo], { cwd: repoRoot, replacements }), "check-reference-readiness");
-          expectOk(runCommand("bash", [script, "initialize-tracker", "--root", tempRepo], { cwd: repoRoot, replacements }), "initialize-tracker");
-          const planPath = writeReviewedTaskPlan(tempRepo, "Exercise graph-mutation preflight from reviewed task truth.");
-          expectOk(runCommand("bash", [script, "create-feature", "--root", tempRepo, "--title", "Boundary feature", "--slug", "boundary-feature", "--goal", "Block graph changes", "--workspace-mode", "proposal_only"], { cwd: repoRoot, replacements }), "create-feature boundary");
-          expectOk(runCommand("bash", [script, "create-feature", "--root", tempRepo, "--title", "Archive blocked feature", "--slug", "archive-blocked-feature", "--goal", "Archive should preflight graph", "--workspace-mode", "proposal_only"], { cwd: repoRoot, replacements }), "create-feature archive target");
-          expectOk(runCommand("bash", [script, "create-feature", "--root", tempRepo, "--title", "Discard blocked feature", "--slug", "discard-blocked-feature", "--goal", "Discard should preflight graph", "--workspace-mode", "proposal_only"], { cwd: repoRoot, replacements }), "create-feature discard target");
-
-          const boundaryId = featureIdByTitle(tempRepo, "Boundary feature");
-          const archiveBlockedId = featureIdByTitle(tempRepo, "Archive blocked feature");
-          const discardBlockedId = featureIdByTitle(tempRepo, "Discard blocked feature");
-          completeReviewedFeature(script, repoRoot, tempRepo, replacements, archiveBlockedId, planPath);
-          updateFeatureState(tempRepo, boundaryId, (state) => {
-            state.depends_on = [boundaryId];
-          });
-
-          const featureCountBefore = featureCount(tempRepo);
-          const worktreesBefore = gitWorktreeCount(tempRepo, replacements);
-
-          const failedCreate = runCommand("bash", [script, "create-feature", "--root", tempRepo, "--title", "Blocked create feature", "--slug", "blocked-create-feature", "--goal", "Create should preflight graph", "--workspace-mode", "worktree", "--tasks-file", planPath], { cwd: repoRoot, replacements });
-          expectFail(failedCreate, "create-feature preflight");
-          assert.ok(failedCreate.stderr.includes("feat cannot depend on itself"));
-          assert.equal(featureCount(tempRepo), featureCountBefore);
-          assert.equal(gitWorktreeCount(tempRepo, replacements), worktreesBefore);
-
-          const failedArchive = runCommand("bash", [script, "archive-feature", "--root", tempRepo, "--feature", archiveBlockedId], { cwd: repoRoot, replacements });
-          expectFail(failedArchive, "archive-feature preflight");
-          assert.ok(failedArchive.stderr.includes("feat cannot depend on itself"));
-          assert.equal(fs.existsSync(path.join(tempRepo, ".bagakit", "feature-tracker", "features", archiveBlockedId)), true);
-          assert.equal(fs.existsSync(path.join(tempRepo, ".bagakit", "feature-tracker", "features-archived", archiveBlockedId)), false);
-
-          const failedDiscard = runCommand("bash", [script, "discard-feature", "--root", tempRepo, "--feature", discardBlockedId, "--reason", "superseded"], { cwd: repoRoot, replacements });
-          expectFail(failedDiscard, "discard-feature preflight");
-          assert.ok(failedDiscard.stderr.includes("feat cannot depend on itself"));
-          assert.equal(fs.existsSync(path.join(tempRepo, ".bagakit", "feature-tracker", "features", discardBlockedId)), true);
-          assert.equal(fs.existsSync(path.join(tempRepo, ".bagakit", "feature-tracker", "features-discarded", discardBlockedId)), false);
-
-          updateFeatureState(tempRepo, boundaryId, (state) => {
-            delete state.depends_on;
-          });
-          expectOk(runCommand("bash", [script, "replan-features", "--root", tempRepo], { cwd: repoRoot, replacements }), "replan after invalid graph");
-
-          const dagPath = path.join(tempRepo, ".bagakit", "feature-tracker", "index", "FEATURES_DAG.json");
-          fs.rmSync(dagPath, { force: true });
-          const featureCountBeforeMissingDag = featureCount(tempRepo);
-          const worktreesBeforeMissingDag = gitWorktreeCount(tempRepo, replacements);
-
-          const missingDagCreate = runCommand("bash", [script, "create-feature", "--root", tempRepo, "--title", "Blocked create by missing dag", "--slug", "blocked-create-by-missing-dag", "--goal", "Create should fail before mutation when dag is missing", "--workspace-mode", "worktree", "--tasks-file", planPath], { cwd: repoRoot, replacements });
-          expectFail(missingDagCreate, "create-feature missing dag");
-          assert.ok(missingDagCreate.stderr.includes("dag file missing"));
-          assert.equal(featureCount(tempRepo), featureCountBeforeMissingDag);
-          assert.equal(gitWorktreeCount(tempRepo, replacements), worktreesBeforeMissingDag);
-
-          const missingDagArchive = runCommand("bash", [script, "archive-feature", "--root", tempRepo, "--feature", archiveBlockedId], { cwd: repoRoot, replacements });
-          expectFail(missingDagArchive, "archive-feature missing dag");
-          assert.ok(missingDagArchive.stderr.includes("dag file missing"));
-          assert.equal(fs.existsSync(path.join(tempRepo, ".bagakit", "feature-tracker", "features", archiveBlockedId)), true);
-          assert.equal(fs.existsSync(path.join(tempRepo, ".bagakit", "feature-tracker", "features-archived", archiveBlockedId)), false);
-
-          const missingDagDiscard = runCommand("bash", [script, "discard-feature", "--root", tempRepo, "--feature", discardBlockedId, "--reason", "superseded"], { cwd: repoRoot, replacements });
-          expectFail(missingDagDiscard, "discard-feature missing dag");
-          assert.ok(missingDagDiscard.stderr.includes("dag file missing"));
-          assert.equal(fs.existsSync(path.join(tempRepo, ".bagakit", "feature-tracker", "features", discardBlockedId)), true);
-          assert.equal(fs.existsSync(path.join(tempRepo, ".bagakit", "feature-tracker", "features-discarded", discardBlockedId)), false);
-
-          expectOk(runCommand("bash", [script, "replan-features", "--root", tempRepo], { cwd: repoRoot, replacements }), "replan after missing dag");
-          fs.chmodSync(dagPath, 0o444);
-          const featureCountBeforeUnwritableDag = featureCount(tempRepo);
-          const worktreesBeforeUnwritableDag = gitWorktreeCount(tempRepo, replacements);
-
-          const unwritableDagCreate = runCommand("bash", [script, "create-feature", "--root", tempRepo, "--title", "Blocked create by unwritable dag", "--slug", "blocked-create-by-unwritable-dag", "--goal", "Create should fail before mutation when dag is not writable", "--workspace-mode", "worktree", "--tasks-file", planPath], { cwd: repoRoot, replacements });
-          expectFail(unwritableDagCreate, "create-feature unwritable dag");
-          assert.ok(unwritableDagCreate.stderr.includes("dag target is not writable"));
-          assert.equal(featureCount(tempRepo), featureCountBeforeUnwritableDag);
-          assert.equal(gitWorktreeCount(tempRepo, replacements), worktreesBeforeUnwritableDag);
-
-          const unwritableDagArchive = runCommand("bash", [script, "archive-feature", "--root", tempRepo, "--feature", archiveBlockedId], { cwd: repoRoot, replacements });
-          expectFail(unwritableDagArchive, "archive-feature unwritable dag");
-          assert.ok(unwritableDagArchive.stderr.includes("dag target is not writable"));
-          assert.equal(fs.existsSync(path.join(tempRepo, ".bagakit", "feature-tracker", "features", archiveBlockedId)), true);
-          assert.equal(fs.existsSync(path.join(tempRepo, ".bagakit", "feature-tracker", "features-archived", archiveBlockedId)), false);
-
-          const unwritableDagDiscard = runCommand("bash", [script, "discard-feature", "--root", tempRepo, "--feature", discardBlockedId, "--reason", "superseded"], { cwd: repoRoot, replacements });
-          expectFail(unwritableDagDiscard, "discard-feature unwritable dag");
-          assert.ok(unwritableDagDiscard.stderr.includes("dag target is not writable"));
-          assert.equal(fs.existsSync(path.join(tempRepo, ".bagakit", "feature-tracker", "features", discardBlockedId)), true);
-          assert.equal(fs.existsSync(path.join(tempRepo, ".bagakit", "feature-tracker", "features-discarded", discardBlockedId)), false);
-          fs.chmodSync(dagPath, 0o644);
-
-          const dagSymlinkTargetPath = path.join(tempRepo, ".bagakit", "feature-tracker", "index", "FEATURES_DAG.symlink-target.json");
-          fs.renameSync(dagPath, dagSymlinkTargetPath);
-          fs.symlinkSync(path.basename(dagSymlinkTargetPath), dagPath);
-          const featureCountBeforeSymlinkDag = featureCount(tempRepo);
-          const worktreesBeforeSymlinkDag = gitWorktreeCount(tempRepo, replacements);
-
-          const symlinkDagCreate = runCommand("bash", [script, "create-feature", "--root", tempRepo, "--title", "Blocked create by dag symlink", "--slug", "blocked-create-by-dag-symlink", "--goal", "Create should fail before mutation when dag path is a symlink", "--workspace-mode", "worktree", "--tasks-file", planPath], { cwd: repoRoot, replacements });
-          expectFail(symlinkDagCreate, "create-feature symlink dag");
-          assert.ok(symlinkDagCreate.stderr.includes("dag target is not a regular file"));
-          assert.equal(featureCount(tempRepo), featureCountBeforeSymlinkDag);
-          assert.equal(gitWorktreeCount(tempRepo, replacements), worktreesBeforeSymlinkDag);
-
-          const symlinkDagArchive = runCommand("bash", [script, "archive-feature", "--root", tempRepo, "--feature", archiveBlockedId], { cwd: repoRoot, replacements });
-          expectFail(symlinkDagArchive, "archive-feature symlink dag");
-          assert.ok(symlinkDagArchive.stderr.includes("dag target is not a regular file"));
-          assert.equal(fs.existsSync(path.join(tempRepo, ".bagakit", "feature-tracker", "features", archiveBlockedId)), true);
-          assert.equal(fs.existsSync(path.join(tempRepo, ".bagakit", "feature-tracker", "features-archived", archiveBlockedId)), false);
-
-          const symlinkDagDiscard = runCommand("bash", [script, "discard-feature", "--root", tempRepo, "--feature", discardBlockedId, "--reason", "superseded"], { cwd: repoRoot, replacements });
-          expectFail(symlinkDagDiscard, "discard-feature symlink dag");
-          assert.ok(symlinkDagDiscard.stderr.includes("dag target is not a regular file"));
-          assert.equal(fs.existsSync(path.join(tempRepo, ".bagakit", "feature-tracker", "features", discardBlockedId)), true);
-          assert.equal(fs.existsSync(path.join(tempRepo, ".bagakit", "feature-tracker", "features-discarded", discardBlockedId)), false);
-
-          fs.unlinkSync(dagPath);
-          fs.renameSync(dagSymlinkTargetPath, dagPath);
-
-          return {
-            assertions: [
-              "create-feature fails before writing a new feature record or creating a new worktree when the prospective active graph is invalid",
-              "archive-feature fails before moving the feature into features-archived when the post-closeout active graph would be invalid",
-              "discard-feature fails before moving the feature into features-discarded when the post-closeout active graph would be invalid",
-              "create-feature, archive-feature, and discard-feature also fail before mutation when FEATURES_DAG.json is missing",
-              "create-feature, archive-feature, and discard-feature fail before mutation when an existing regular FEATURES_DAG.json is not writable",
-              "create-feature, archive-feature, and discard-feature also fail before mutation when FEATURES_DAG.json is a symlink instead of a regular file",
-            ],
-            commands: [
-              `bash ${script} create-feature --root <temp-repo> --title "Blocked create feature" --slug "blocked-create-feature" --goal "Create should preflight graph" --workspace-mode worktree`,
-              `bash ${script} archive-feature --root <temp-repo> --feature ${archiveBlockedId}`,
-              `bash ${script} discard-feature --root <temp-repo> --feature ${discardBlockedId} --reason superseded`,
-            ],
-            artifacts: [
-              { label: "feature-index", path: path.join(tempRepo, ".bagakit", "feature-tracker", "index", "features.json") },
-            ],
-            outputs: {
-              boundary_id: boundaryId,
-              archive_blocked_id: archiveBlockedId,
-              discard_blocked_id: discardBlockedId,
-            },
-            replacements,
-          };
-        } finally {
-          cleanupTempDir(tempRepo, context.keepTemp);
-        }
-      },
-    },
-    {
-      id: "dag-contract-validation-rejects-missing-fields-and-symlinks",
-      title: "DAG Contract Validation Rejects Missing Fields And Symlinks",
-      summary: "show-feature-dag and validate-tracker should reject DAG payloads that are missing stable contract fields or routed through symlink paths.",
-      focus: ["show-feature-dag", "validate-tracker", "dag-contract"],
-      run: (context) => {
-        const { repoRoot } = context;
-        const tempRepo = createTempDir("bagakit-feature-tracker-dag-validation-");
-        const replacements = registerTempRepo(context, tempRepo);
-        try {
-          initGitRepo(tempRepo, replacements);
-
-          const script = path.join(repoRoot, "skills", "harness", "bagakit-feature-tracker", "scripts", "feature-tracker.sh");
-          expectOk(runCommand("bash", [script, "check-reference-readiness", "--root", tempRepo], { cwd: repoRoot, replacements }), "check-reference-readiness");
-          expectOk(runCommand("bash", [script, "initialize-tracker", "--root", tempRepo], { cwd: repoRoot, replacements }), "initialize-tracker");
-          expectOk(
-            runCommand(
-              "bash",
-              [script, "create-feature", "--root", tempRepo, "--title", "Schema feature", "--slug", "schema-feature", "--goal", "Validate dag contract shape", "--workspace-mode", "proposal_only"],
-              { cwd: repoRoot, replacements },
-            ),
-            "create-feature",
-          );
-
-          const featId = featureId(tempRepo);
-          const dagPath = path.join(tempRepo, ".bagakit", "feature-tracker", "index", "FEATURES_DAG.json");
-          writeTextFile(
-            dagPath,
-            `${JSON.stringify({
-              features: [
-                {
-                  feat_id: featId,
-                  depends_on: [],
-                  dependents: [],
-                },
-              ],
-              layers: [
-                {
-                  layer: 0,
-                  feat_ids: [featId],
-                },
-              ],
-              notes: [],
-            }, null, 2)}\n`,
-          );
-
-          const missingFieldShow = runCommand("bash", [script, "show-feature-dag", "--root", tempRepo], { cwd: repoRoot, replacements });
-          expectFail(missingFieldShow, "show-feature-dag missing fields");
-          assert.ok(missingFieldShow.stderr.includes("missing dag version field"));
-
-          const missingFieldValidate = runCommand("bash", [script, "validate-tracker", "--root", tempRepo], { cwd: repoRoot, replacements });
-          expectFail(missingFieldValidate, "validate-tracker missing fields");
-          assert.ok(missingFieldValidate.stderr.includes("missing dag version field"));
-          assert.ok(missingFieldValidate.stderr.includes("missing dag generated_by field"));
-          assert.ok(missingFieldValidate.stderr.includes("missing dag layer field for feature[0]"));
-
-          expectOk(runCommand("bash", [script, "replan-features", "--root", tempRepo], { cwd: repoRoot, replacements }), "replan-features restore valid dag");
-
-          const dagSymlinkTargetPath = path.join(tempRepo, ".bagakit", "feature-tracker", "index", "FEATURES_DAG.symlink-target.json");
-          fs.renameSync(dagPath, dagSymlinkTargetPath);
-          fs.symlinkSync(path.basename(dagSymlinkTargetPath), dagPath);
-
-          const symlinkShow = runCommand("bash", [script, "show-feature-dag", "--root", tempRepo], { cwd: repoRoot, replacements });
-          expectFail(symlinkShow, "show-feature-dag symlink");
-          assert.ok(symlinkShow.stderr.includes("dag file is not a regular file"));
-
-          const symlinkValidate = runCommand("bash", [script, "validate-tracker", "--root", tempRepo], { cwd: repoRoot, replacements });
-          expectFail(symlinkValidate, "validate-tracker symlink");
-          assert.ok(symlinkValidate.stderr.includes("dag file is not a regular file"));
-
-          fs.unlinkSync(dagPath);
-          fs.renameSync(dagSymlinkTargetPath, dagPath);
-
-          return {
-            assertions: [
-              "show-feature-dag rejects DAG payloads missing required stable contract fields instead of treating missing keys as optional defaults",
-              "validate-tracker reports missing top-level DAG contract fields such as version/generated_by and missing per-feature layer values",
-              "show-feature-dag and validate-tracker both fail closed when FEATURES_DAG.json is a symlink path",
-            ],
-            commands: [
-              `bash ${script} show-feature-dag --root <temp-repo>`,
-              `bash ${script} validate-tracker --root <temp-repo>`,
-            ],
-            artifacts: [
-              { label: "features-dag", path: dagPath },
-            ],
-            outputs: {
-              feat_id: featId,
-            },
-            replacements,
-          };
-        } finally {
-          cleanupTempDir(tempRepo, context.keepTemp);
-        }
-      },
-    },
-    {
-      id: "feature-closeout-preserves-root-artifacts",
-      title: "Feature Closeout Preserves Root Artifacts",
-      summary: "Archive should keep closed roots valid by preserving live-only or legacy root entries under artifacts.",
-      focus: ["closeout", "artifact-boundary", "dag-refresh"],
-      run: (context) => {
-        const { repoRoot } = context;
-        const tempRepo = createTempDir("bagakit-feature-tracker-closeout-");
-        const replacements = registerTempRepo(context, tempRepo);
-        try {
-          initGitRepo(tempRepo, replacements);
-
-          const script = path.join(repoRoot, "skills", "harness", "bagakit-feature-tracker", "scripts", "feature-tracker.sh");
-          expectOk(runCommand("bash", [script, "check-reference-readiness", "--root", tempRepo], { cwd: repoRoot, replacements }), "check-reference-readiness");
-          expectOk(runCommand("bash", [script, "initialize-tracker", "--root", tempRepo], { cwd: repoRoot, replacements }), "initialize-tracker");
-          expectOk(
-            runCommand(
-              "bash",
-              [script, "create-feature", "--root", tempRepo, "--title", "Closeout feature", "--slug", "closeout-feature", "--goal", "Archive cleanly", "--workspace-mode", "proposal_only"],
-              { cwd: repoRoot, replacements },
-            ),
-            "create-feature",
-          );
-          const featId = featureId(tempRepo);
-          const liveFeatureDir = path.join(tempRepo, ".bagakit", "feature-tracker", "features", featId);
-          const dagPath = path.join(tempRepo, ".bagakit", "feature-tracker", "index", "FEATURES_DAG.json");
-
-          const createdDag = JSON.parse(fs.readFileSync(dagPath, "utf8")) as {
-            features: Array<{ feat_id: string }>;
-          };
-          assert.deepEqual(createdDag.features.map((item) => item.feat_id), [featId]);
-
-          expectOk(runCommand("bash", [script, "materialize-feature-artifact", "--root", tempRepo, "--feature", featId, "--kind", "proposal"], { cwd: repoRoot, replacements }), "materialize proposal");
-          expectOk(runCommand("bash", [script, "materialize-feature-artifact", "--root", tempRepo, "--feature", featId, "--kind", "verification"], { cwd: repoRoot, replacements }), "materialize verification");
-          writeTextFile(path.join(liveFeatureDir, "ui-verification.md"), "legacy ui verification\n");
-          writeTextFile(path.join(liveFeatureDir, "summary.md"), "operator-authored active summary\n");
-          writeTextFile(path.join(liveFeatureDir, "PRD.md"), "legacy product doc\n");
-
-          updateFeatureState(tempRepo, featId, (state) => {
-            state.status = "done";
-          });
-
-          expectOk(runCommand("bash", [script, "archive-feature", "--root", tempRepo, "--feature", featId], { cwd: repoRoot, replacements }), "archive-feature");
-          expectOk(runCommand("bash", [script, "validate-tracker", "--root", tempRepo], { cwd: repoRoot, replacements }), "validate-tracker");
-
-          const archivedDir = path.join(tempRepo, ".bagakit", "feature-tracker", "features-archived", featId);
-          const refreshedDag = JSON.parse(fs.readFileSync(dagPath, "utf8")) as {
-            features: Array<{ feat_id: string }>;
-          };
-          assert.equal(refreshedDag.features.some((item) => item.feat_id === featId), false);
-          assert.equal(fs.existsSync(path.join(archivedDir, "summary.md")), true);
-          assert.equal(fs.existsSync(path.join(archivedDir, "proposal.md")), false);
-          assert.equal(fs.existsSync(path.join(archivedDir, "verification.md")), false);
-          assert.equal(fs.existsSync(path.join(archivedDir, "ui-verification.md")), false);
-          assert.equal(fs.existsSync(path.join(archivedDir, "PRD.md")), false);
-          assert.equal(fs.existsSync(path.join(archivedDir, "artifacts", "closeout-preserved-root", "proposal.md")), true);
-          assert.equal(fs.existsSync(path.join(archivedDir, "artifacts", "closeout-preserved-root", "verification.md")), true);
-          assert.equal(fs.existsSync(path.join(archivedDir, "artifacts", "closeout-preserved-root", "ui-verification.md")), true);
-          assert.equal(fs.existsSync(path.join(archivedDir, "artifacts", "closeout-preserved-root", "summary.md")), true);
-          assert.equal(fs.existsSync(path.join(archivedDir, "artifacts", "closeout-preserved-root", "PRD.md")), true);
-          assert.equal(fs.readFileSync(path.join(archivedDir, "artifacts", "closeout-preserved-root", "summary.md"), "utf8"), "operator-authored active summary\n");
-          const summaryBefore = fs.readFileSync(path.join(archivedDir, "summary.md"), "utf8");
-          fs.rmSync(dagPath, { force: true });
-          expectOk(runCommand("bash", [script, "archive-feature", "--root", tempRepo, "--feature", featId], { cwd: repoRoot, replacements }), "archive-feature idempotent");
-          assert.equal(fs.readFileSync(path.join(archivedDir, "summary.md"), "utf8"), summaryBefore);
-          assert.equal(fs.readFileSync(path.join(archivedDir, "artifacts", "closeout-preserved-root", "summary.md"), "utf8"), "operator-authored active summary\n");
-          assert.equal(fs.existsSync(dagPath), true);
-          fs.rmSync(dagPath, { force: true, recursive: true });
-          fs.mkdirSync(dagPath, { recursive: true });
-          expectOk(runCommand("bash", [script, "archive-feature", "--root", tempRepo, "--feature", featId], { cwd: repoRoot, replacements }), "archive-feature idempotent malformed dag");
-          assert.equal(fs.readFileSync(path.join(archivedDir, "summary.md"), "utf8"), summaryBefore);
-          assert.equal(fs.existsSync(dagPath), true);
-          assert.equal(fs.statSync(dagPath).isFile(), true);
-          const driftedDag = JSON.parse(fs.readFileSync(dagPath, "utf8")) as { notes?: string[] };
-          driftedDag.notes = [...(driftedDag.notes ?? []), "manual drift sentinel"];
-          writeTextFile(dagPath, `${JSON.stringify(driftedDag, null, 2)}\n`);
-          const driftedDagBefore = fs.readFileSync(dagPath, "utf8");
-          expectOk(runCommand("bash", [script, "archive-feature", "--root", tempRepo, "--feature", featId], { cwd: repoRoot, replacements }), "archive-feature idempotent valid drift");
-          assert.equal(fs.readFileSync(dagPath, "utf8"), driftedDagBefore);
-          assert.equal(fs.readFileSync(path.join(archivedDir, "summary.md"), "utf8"), summaryBefore);
-
-          const closedMaterialize = runCommand("bash", [script, "materialize-feature-artifact", "--root", tempRepo, "--feature", featId, "--kind", "verification"], { cwd: repoRoot, replacements });
-          expectFail(closedMaterialize, "materialize closed verification");
-          assert.ok(closedMaterialize.stderr.includes("live-feature helper files are not materializable after closeout"));
-
-          expectOk(
-            runCommand(
-              "bash",
-              [script, "create-feature", "--root", tempRepo, "--title", "False archived feature", "--slug", "false-archived-feature", "--goal", "Reject false archived rerun", "--workspace-mode", "proposal_only"],
-              { cwd: repoRoot, replacements },
-            ),
-            "create false archived feature",
-          );
-          expectOk(
-            runCommand(
-              "bash",
-              [script, "create-feature", "--root", tempRepo, "--title", "False discarded feature", "--slug", "false-discarded-feature", "--goal", "Reject false discarded rerun", "--workspace-mode", "proposal_only"],
-              { cwd: repoRoot, replacements },
-            ),
-            "create false discarded feature",
-          );
-          const falseArchivedId = featureIdByTitle(tempRepo, "False archived feature");
-          const falseDiscardedId = featureIdByTitle(tempRepo, "False discarded feature");
-          const falseArchivedActiveDir = path.join(tempRepo, ".bagakit", "feature-tracker", "features", falseArchivedId);
-          const falseDiscardedActiveDir = path.join(tempRepo, ".bagakit", "feature-tracker", "features", falseDiscardedId);
-          updateFeatureState(tempRepo, falseArchivedId, (state) => {
-            state.status = "archived";
-          });
-          updateFeatureState(tempRepo, falseDiscardedId, (state) => {
-            state.status = "discarded";
-          });
-
-          const inconsistentArchive = runCommand("bash", [script, "archive-feature", "--root", tempRepo, "--feature", falseArchivedId], { cwd: repoRoot, replacements });
-          expectFail(inconsistentArchive, "archive-feature false archived rerun");
-          assert.ok(inconsistentArchive.stderr.includes("claims status=archived but still lives under features/"));
-          assert.equal(fs.existsSync(falseArchivedActiveDir), true);
-          assert.equal(fs.existsSync(path.join(tempRepo, ".bagakit", "feature-tracker", "features-archived", falseArchivedId)), false);
-
-          const inconsistentDiscard = runCommand("bash", [script, "discard-feature", "--root", tempRepo, "--feature", falseDiscardedId, "--reason", "superseded"], { cwd: repoRoot, replacements });
-          expectFail(inconsistentDiscard, "discard-feature false discarded rerun");
-          assert.ok(inconsistentDiscard.stderr.includes("claims status=discarded but still lives under features/"));
-          assert.equal(fs.existsSync(falseDiscardedActiveDir), true);
-          assert.equal(fs.existsSync(path.join(tempRepo, ".bagakit", "feature-tracker", "features-discarded", falseDiscardedId)), false);
-
-          expectOk(
-            runCommand(
-              "bash",
-              [script, "create-feature", "--root", tempRepo, "--title", "Broken active feature", "--slug", "broken-active-feature", "--goal", "Break active graph without blocking closed rerun", "--workspace-mode", "proposal_only"],
-              { cwd: repoRoot, replacements },
-            ),
-            "create broken active feature",
-          );
-          const brokenActiveId = featureIdByTitle(tempRepo, "Broken active feature");
-          updateFeatureState(tempRepo, brokenActiveId, (state) => {
-            state.depends_on = [brokenActiveId];
-          });
-          fs.rmSync(dagPath, { force: true });
-          const brokenActiveRerun = runCommand("bash", [script, "archive-feature", "--root", tempRepo, "--feature", featId], { cwd: repoRoot, replacements });
-          expectOk(brokenActiveRerun, "archive-feature idempotent broken active graph");
-          assert.ok(brokenActiveRerun.stderr.includes("skipped FEATURES_DAG.json repair on already-closed rerun"));
-          assert.ok(brokenActiveRerun.stderr.includes("feat cannot depend on itself"));
-          assert.equal(fs.existsSync(dagPath), false);
-
-          return {
-            assertions: [
-              "create-feature refreshes the active DAG projection immediately",
-              "archive-feature drops the closed feature from the active DAG without requiring manual replanning",
-              "closed feature roots keep canonical summary.md while an operator-authored active-root summary.md is preserved under artifacts/closeout-preserved-root",
-              "archive-feature idempotent reruns heal missing or malformed DAG surfaces without reshuffling summary.md, but leave schema-valid DAG drift untouched",
-              "closed features reject new helper materialization after closeout",
-              "archive-feature and discard-feature reject false already-closed reruns when the feature still lives under features/",
-              "already-closed archive-feature reruns warn instead of failing when unrelated active-graph breakage blocks missing-DAG repair",
-            ],
-            commands: [
-              `bash ${script} create-feature --root <temp-repo> --title "Closeout feature" --slug "closeout-feature" --goal "Archive cleanly" --workspace-mode proposal_only`,
-              `bash ${script} archive-feature --root <temp-repo> --feature ${featId}`,
-              `bash ${script} validate-tracker --root <temp-repo>`,
-            ],
-            artifacts: [
-              { label: "archived-feature-dir", path: archivedDir },
-              { label: "features-dag", path: dagPath },
-            ],
-            outputs: {
-              feat_id: featId,
-            },
-            replacements,
-          };
-        } finally {
-          cleanupTempDir(tempRepo, context.keepTemp);
-        }
-      },
-    },
-    {
-      id: "replan-rolls-back-invalid-overrides",
-      title: "Replan Rolls Back Invalid Overrides",
-      summary: "Failed dependency replans should not persist partial state, and malformed DAG archives should not block regeneration.",
-      focus: ["replan", "rollback", "dag-archive"],
-      run: (context) => {
-        const { repoRoot } = context;
-        const tempRepo = createTempDir("bagakit-feature-tracker-replan-");
-        const replacements = registerTempRepo(context, tempRepo);
-        try {
-          initGitRepo(tempRepo, replacements);
-
-          const script = path.join(repoRoot, "skills", "harness", "bagakit-feature-tracker", "scripts", "feature-tracker.sh");
-          expectOk(runCommand("bash", [script, "check-reference-readiness", "--root", tempRepo], { cwd: repoRoot, replacements }), "check-reference-readiness");
-          expectOk(runCommand("bash", [script, "initialize-tracker", "--root", tempRepo], { cwd: repoRoot, replacements }), "initialize-tracker");
-          expectOk(runCommand("bash", [script, "create-feature", "--root", tempRepo, "--title", "Cycle A", "--slug", "cycle-a", "--goal", "Check rollback", "--workspace-mode", "proposal_only"], { cwd: repoRoot, replacements }), "create-feature A");
-          expectOk(runCommand("bash", [script, "create-feature", "--root", tempRepo, "--title", "Cycle B", "--slug", "cycle-b", "--goal", "Check rollback", "--workspace-mode", "proposal_only"], { cwd: repoRoot, replacements }), "create-feature B");
-
-          const featA = featureIdByTitle(tempRepo, "Cycle A");
-          const featB = featureIdByTitle(tempRepo, "Cycle B");
-          const dagPath = path.join(tempRepo, ".bagakit", "feature-tracker", "index", "FEATURES_DAG.json");
-          const archiveDir = path.join(tempRepo, ".bagakit", "feature-tracker", "index", "archive");
-
-          const failedReplan = runCommand("bash", [script, "replan-features", "--root", tempRepo, "--dependency", `${featA}:${featB}`, "--dependency", `${featB}:${featA}`], { cwd: repoRoot, replacements });
-          expectFail(failedReplan, "cyclic replan");
-          assert.ok(failedReplan.stderr.includes("dependency cycle detected"));
-
-          const stateAPath = path.join(tempRepo, ".bagakit", "feature-tracker", "features", featA, "state.json");
-          const stateBPath = path.join(tempRepo, ".bagakit", "feature-tracker", "features", featB, "state.json");
-          const stateA = JSON.parse(fs.readFileSync(stateAPath, "utf8")) as Record<string, unknown>;
-          const stateB = JSON.parse(fs.readFileSync(stateBPath, "utf8")) as Record<string, unknown>;
-          assert.deepEqual(stateA.depends_on ?? [], []);
-          assert.deepEqual(stateB.depends_on ?? [], []);
-
-          fs.writeFileSync(dagPath, "not json\n", "utf8");
-          expectOk(runCommand("bash", [script, "replan-features", "--root", tempRepo, "--clear-dependencies", featA, "--clear-dependencies", featB], { cwd: repoRoot, replacements }), "replan after malformed dag");
-          const archivedFiles = fs.readdirSync(archiveDir).filter((name) => name.endsWith(".json")).sort();
-          assert.ok(archivedFiles.length > 0);
-          assert.equal(fs.readFileSync(path.join(archiveDir, archivedFiles.at(-1)!), "utf8"), "not json\n");
-          JSON.parse(fs.readFileSync(dagPath, "utf8"));
-
-          fs.rmSync(dagPath, { force: true, recursive: true });
-          fs.mkdirSync(dagPath, { recursive: true });
-          writeTextFile(path.join(dagPath, "README.txt"), "directory sentinel\n");
-          expectOk(runCommand("bash", [script, "replan-features", "--root", tempRepo, "--clear-dependencies", featA, "--clear-dependencies", featB], { cwd: repoRoot, replacements }), "replan after dag directory");
-          const archivedDirs = fs.readdirSync(archiveDir).filter((name) => name.endsWith(".json") && fs.statSync(path.join(archiveDir, name)).isDirectory()).sort();
-          assert.ok(archivedDirs.length > 0);
-          assert.equal(fs.readFileSync(path.join(archiveDir, archivedDirs.at(-1)!, "README.txt"), "utf8"), "directory sentinel\n");
-          assert.equal(fs.statSync(dagPath).isFile(), true);
-          JSON.parse(fs.readFileSync(dagPath, "utf8"));
-
-          return {
-            assertions: [
-              "failed cyclic replans do not persist depends_on overrides into canonical feature state",
-              "replan-features can archive a malformed prior DAG as raw history and still write a fresh projection",
-              "replan-features also recovers when the existing DAG path is a directory instead of a file",
-            ],
-            commands: [
-              `bash ${script} replan-features --root <temp-repo> --dependency ${featA}:${featB} --dependency ${featB}:${featA}`,
-              `bash ${script} replan-features --root <temp-repo> --clear-dependencies ${featA} --clear-dependencies ${featB}`,
-            ],
-            artifacts: [
-              { label: "features-dag", path: dagPath },
-              { label: "dag-archive-dir", path: archiveDir },
-            ],
-            outputs: {
-              feat_a: featA,
-              feat_b: featB,
             },
             replacements,
           };

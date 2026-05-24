@@ -36,13 +36,16 @@ Canonical dependency truth lives in feature-owned state:
   - `depends_on`
 
 That truth may be edited through tracker commands.
-It must not be inferred backward from a generated DAG file.
+It must not be inferred backward from generated projection output.
 
 ## Dependency Projection
 
-Current stable dependency projection:
+The stable dependency projection is the output of:
 
-- `.bagakit/feature-tracker/index/FEATURES_DAG.json`
+- `feature-tracker.sh show-feature-dag`
+
+It is computed on demand from canonical Feature state and is not persisted as
+tracker truth or cache.
 
 Purpose:
 
@@ -55,8 +58,7 @@ It should answer:
 - what depends on what
 - what other active features each feature unlocks
 - how the active graph layers topologically
-- whether the currently checked-in projection still matches canonical feature
-  state
+- whether canonical dependency state forms a valid active graph
 
 It should not answer:
 
@@ -77,7 +79,8 @@ Examples:
 - next runnable items under current scheduling rules
 
 If Bagakit later stabilizes one execution-plan surface, that surface must be
-defined independently instead of being added ad hoc into `FEATURES_DAG.json`.
+defined independently instead of being added ad hoc to dependency projection
+output.
 
 ## Runtime History Boundary
 
@@ -100,22 +103,12 @@ If such a surface becomes stable, it must remain distinct from both:
 A good projection boundary makes these statements true:
 
 - truth can be edited without hand-editing the projection
-- projection can be regenerated at any time
+- projection can be computed at any time without a cache-repair step
 - graph-affecting commands can preflight the resulting projection before they
   perform destructive side effects
-- commands that directly overwrite the current projection should also reject a
-  missing DAG file or broken DAG target path up front and route recovery
-  through `replan-features` while they are still mutating live feature state
-- already-closed archive/discard reruns may heal a missing or malformed DAG
-  path only after confirming the feature already lives in the matching closed
-  directory
-- already-closed archive/discard reruns do not rewrite a present schema-valid
-  DAG surface just to clear drift
-- if unrelated active-graph errors block recomputing a missing or malformed DAG
-  surface, already-closed reruns warn and leave recovery to `replan-features`
-- successful graph-affecting tracker commands refresh the current projection
-- validation can detect projection drift
-- validation fails when the projection file is missing instead of silently
-  skipping graph checks
+- validation computes the graph from canonical state and rejects invalid
+  dependency values, discarded dependencies, and cycles
+- `replan-features` validates the complete proposed graph before persisting any
+  dependency mutation
 - users do not have to guess whether one field is graph truth or execution
   policy

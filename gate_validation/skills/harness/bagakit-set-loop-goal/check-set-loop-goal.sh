@@ -17,7 +17,6 @@ trap 'rm -rf "$tmp"' EXIT
 
 source "$lib/feature-tracker-testlib.sh"
 feature_tracker_init_temp_repo "$tmp"
-bash "$tracker/scripts/feature-tracker.sh" check-reference-readiness --root "$tmp" >/dev/null
 bash "$tracker/scripts/feature-tracker.sh" initialize-tracker --root "$tmp" >/dev/null
 
 create_feature() {

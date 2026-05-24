@@ -25,6 +25,35 @@ function featureId(tempRepo: string): string {
   return payload.features[0].feat_id;
 }
 
+function reviewedTaskPlan(objective: string): Record<string, unknown> {
+  return {
+    schema: "bagakit.feature-task-plan.v1",
+    review: {
+      status: "approved",
+      evidence_ref: "gate_eval/skills/harness/bagakit-flow-runner/validation.toml",
+    },
+    source_refs: ["gate_eval/skills/harness/bagakit-flow-runner/suite.ts"],
+    tasks: [
+      {
+        id: "T-001",
+        title: "Execute bounded flow eval",
+        objective,
+        outcome: "The eval reaches a runnable Flow Runner activation packet.",
+        acceptance: ["The tracker-backed item is execution-ready."],
+        verification: [
+          {
+            kind: "command",
+            ref: "gate_eval/skills/harness/bagakit-flow-runner/validation.toml",
+            proves: "The deterministic eval exercises the public tracker-to-flow boundary.",
+          },
+        ],
+        source_refs: ["gate_eval/skills/harness/bagakit-flow-runner/suite.ts"],
+        supersedes: [],
+      },
+    ],
+  };
+}
+
 export const SUITE: EvalSuiteDefinition = {
   id: "bagakit-flow-runner-shared-runner-eval",
   owner: "gate_eval/skills/harness/bagakit-flow-runner",
@@ -46,10 +75,12 @@ export const SUITE: EvalSuiteDefinition = {
 
         const trackerScript = path.join(repoRoot, "skills", "harness", "bagakit-feature-tracker", "scripts", "feature-tracker.sh");
         const flowScript = path.join(repoRoot, "skills", "harness", "bagakit-flow-runner", "scripts", "flow-runner.sh");
-        expectOk(runCommand("bash", [trackerScript, "check-reference-readiness", "--root", tempRepo], { cwd: repoRoot, replacements }), "check-reference-readiness");
         expectOk(runCommand("bash", [trackerScript, "initialize-tracker", "--root", tempRepo], { cwd: repoRoot, replacements }), "initialize-tracker");
         expectOk(runCommand("bash", [trackerScript, "create-feature", "--root", tempRepo, "--title", "Flow source", "--slug", "flow-source", "--goal", "Drive flow", "--workspace-mode", "proposal_only"], { cwd: repoRoot, replacements }), "create-feature");
         const featId = featureId(tempRepo);
+        const taskPlanPath = path.join(tempRepo, ".bagakit", "feature-tracker", "artifacts", "flow-eval-task-plan.json");
+        writeTextFile(taskPlanPath, `${JSON.stringify(reviewedTaskPlan("Drive one tracker-backed flow session."), null, 2)}\n`);
+        expectOk(runCommand("bash", [trackerScript, "set-task-plan", "--root", tempRepo, "--feature", featId, "--tasks-file", taskPlanPath, "--expected-revision", "0"], { cwd: repoRoot, replacements }), "set-task-plan");
         expectOk(runCommand("bash", [trackerScript, "assign-feature-workspace", "--root", tempRepo, "--feature", featId, "--workspace-mode", "worktree"], { cwd: repoRoot, replacements }), "assign-feature-workspace");
         expectOk(runCommand("bash", [flowScript, "apply", "--root", tempRepo], { cwd: repoRoot, replacements }), "apply");
         expectOk(runCommand("bash", [flowScript, "ingest-feature-tracker", "--root", tempRepo], { cwd: repoRoot, replacements }), "ingest-feature-tracker");
@@ -133,7 +164,6 @@ export const SUITE: EvalSuiteDefinition = {
 
           const trackerScript = path.join(repoRoot, "skills", "harness", "bagakit-feature-tracker", "scripts", "feature-tracker.sh");
           const flowScript = path.join(repoRoot, "skills", "harness", "bagakit-flow-runner", "scripts", "flow-runner.sh");
-          expectOk(runCommand("bash", [trackerScript, "check-reference-readiness", "--root", tempRepo], { cwd: repoRoot, replacements }), "check-reference-readiness");
           expectOk(runCommand("bash", [trackerScript, "initialize-tracker", "--root", tempRepo], { cwd: repoRoot, replacements }), "initialize-tracker");
           expectOk(runCommand("bash", [flowScript, "apply", "--root", tempRepo], { cwd: repoRoot, replacements }), "apply");
 
@@ -170,6 +200,7 @@ export const SUITE: EvalSuiteDefinition = {
                 "expert_forum.md#Decision-Target-And-Exit",
                 "outcome_and_handoff.md#Outcome-Summary",
               ],
+              task_plan: reviewedTaskPlan("Activate one planning-entry Feature through Flow Runner."),
             }, null, 2)}\n`,
           );
 

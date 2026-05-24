@@ -35,7 +35,6 @@ git -C "$TMP_DIR" commit -q -m "init"
 mkdir -p "$TMP_DIR/skills/harness"
 ln -s "$FLOW_RUNNER_DIR" "$TMP_DIR/skills/harness/bagakit-flow-runner"
 
-bash "$FEATURE_TRACKER_DIR/scripts/feature-tracker.sh" check-reference-readiness --root "$TMP_DIR" >/dev/null
 bash "$FEATURE_TRACKER_DIR/scripts/feature-tracker.sh" initialize-tracker --root "$TMP_DIR" >/dev/null
 bash "$FEATURE_TRACKER_DIR/scripts/feature-tracker.sh" create-feature --root "$TMP_DIR" --title "Tracker source" --slug "tracker-source" --goal "Drive tracker-backed loop" --workspace-mode proposal_only >/dev/null
 

@@ -24,7 +24,6 @@ trap 'rm -rf "$TMP_DIR"' EXIT
 source "$LIB_DIR/feature-tracker-testlib.sh"
 
 feature_tracker_init_temp_repo "$TMP_DIR"
-bash "$SKILL_DIR/scripts/feature-tracker.sh" check-reference-readiness --root "$TMP_DIR" >/dev/null
 bash "$SKILL_DIR/scripts/feature-tracker.sh" initialize-tracker --root "$TMP_DIR" >/dev/null
 TASK_PLAN_JSON="$TMP_DIR/.bagakit/feature-tracker/artifacts/reviewed-task-plan.json"
 feature_tracker_write_reviewed_task_plan "$TASK_PLAN_JSON" "Exercise worktree execution from a reviewed task plan."
@@ -105,26 +104,5 @@ commands = task.get("last_gate_commands") or []
 if not commands or commands[0].get("command") != "test -f worktree-only/gate-sentinel.txt":
     raise SystemExit("gate command record missing worktree-only sentinel check")
 PY
-
-bash "$SKILL_DIR/scripts/feature-tracker.sh" create-feature --root "$TMP_DIR" --title "Worktree commit feature" --slug "worktree-commit-feature" --goal "Commit from the feature worktree branch" --workspace-mode worktree --tasks-file "$TASK_PLAN_JSON" >/dev/null
-WORKTREE_COMMIT_ID="$(feature_tracker_feature_id_by_title "$TMP_DIR" "Worktree commit feature")"
-WORKTREE_COMMIT_PATH="$(feature_tracker_worktree_path "$TMP_DIR" "$WORKTREE_COMMIT_ID")"
-WORKTREE_COMMIT_BRANCH="$(feature_tracker_worktree_branch "$TMP_DIR" "$WORKTREE_COMMIT_ID")"
-mkdir -p "$WORKTREE_COMMIT_PATH/worktree-only"
-cat > "$WORKTREE_COMMIT_PATH/worktree-only/commit-sentinel.txt" <<'EOF'
-commit should be created from the feature worktree
-EOF
-git -C "$WORKTREE_COMMIT_PATH" add worktree-only/commit-sentinel.txt
-feature_tracker_set_non_ui_gate "$TMP_DIR" "test -f worktree-only/commit-sentinel.txt"
-bash "$SKILL_DIR/scripts/feature-tracker.sh" start-task --root "$TMP_DIR" --feature "$WORKTREE_COMMIT_ID" --task T-001 >/dev/null
-bash "$SKILL_DIR/scripts/feature-tracker.sh" run-task-gate --root "$TMP_DIR" --feature "$WORKTREE_COMMIT_ID" --task T-001 >/dev/null
-bash "$SKILL_DIR/scripts/feature-tracker.sh" prepare-task-commit --root "$TMP_DIR" --feature "$WORKTREE_COMMIT_ID" --task T-001 --summary "Commit worktree sentinel" --task-status done --execute >/dev/null
-LAST_COMMIT_HASH="$(feature_tracker_last_commit_hash "$TMP_DIR" "$WORKTREE_COMMIT_ID")"
-git -C "$TMP_DIR" merge-base --is-ancestor "$LAST_COMMIT_HASH" "$WORKTREE_COMMIT_BRANCH"
-git -C "$TMP_DIR" cat-file -e "$LAST_COMMIT_HASH^{commit}"
-git -C "$TMP_DIR" ls-tree -r --name-only "$LAST_COMMIT_HASH" | grep -q '^worktree-only/commit-sentinel.txt$'
-test "$(git -C "$WORKTREE_COMMIT_PATH" rev-parse HEAD)" = "$LAST_COMMIT_HASH"
-test "$(git -C "$TMP_DIR" rev-parse "$WORKTREE_COMMIT_BRANCH")" = "$LAST_COMMIT_HASH"
-test "$(git -C "$TMP_DIR" rev-parse HEAD)" != "$LAST_COMMIT_HASH"
 
 echo "ok: bagakit-feature-tracker concurrency regression passed"

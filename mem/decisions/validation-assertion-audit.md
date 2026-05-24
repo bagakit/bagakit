@@ -50,7 +50,7 @@ Examples:
   - mostly typed assertions over structured fixture payloads
 - `gate_validation/skills/harness/bagakit-flow-runner/test-flow-runner.ts`
   - typed state and payload assertions over runner-owned json
-- `gate_validation/skills/harness/bagakit-feature-tracker/check-feature-tracker-regression.sh`
+- `gate_validation/skills/harness/bagakit-feature-tracker/check-feature-tracker-state-contract.sh`
   - heavy use of json parsing against tracker-owned state
 - `gate_validation/dev/agent_loop/check-agent-loop.sh`
   - mostly checks structured json payloads and host exhaust

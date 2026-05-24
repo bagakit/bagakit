@@ -22,7 +22,6 @@ trap 'rm -rf "$TMP_DIR"' EXIT
 
 source "$LIB_DIR/feature-tracker-testlib.sh"
 feature_tracker_init_temp_repo "$TMP_DIR"
-bash "$SKILL_DIR/scripts/feature-tracker.sh" check-reference-readiness --root "$TMP_DIR" >/dev/null
 bash "$SKILL_DIR/scripts/feature-tracker.sh" initialize-tracker --root "$TMP_DIR" >/dev/null
 
 bash "$SKILL_DIR/scripts/feature-tracker.sh" create-feature \
@@ -33,49 +32,18 @@ bash "$SKILL_DIR/scripts/feature-tracker.sh" create-feature \
 FEATURE_ID="$(feature_tracker_feature_id_by_title "$TMP_DIR" "Semantic task truth")"
 
 python3 - "$TMP_DIR" "$FEATURE_ID" <<'PY'
-import hashlib
 import json
 import sys
-from pathlib import Path, PurePosixPath
+from pathlib import Path
 
 root = Path(sys.argv[1])
 feature_id = sys.argv[2]
 feature_dir = root / ".bagakit" / "feature-tracker" / "features" / feature_id
 tasks = json.loads((feature_dir / "tasks.json").read_text(encoding="utf-8"))
-receipt = json.loads((feature_dir / "owner-receipt.json").read_text(encoding="utf-8"))
 assert tasks["plan_status"] == "draft"
 assert tasks["plan_revision"] == 0
 assert tasks["tasks"] == []
-assert receipt["schema"] == "bagakit.execution-owner-receipt.v1"
-assert receipt["owner_kind"] == "feature_tracker"
-assert receipt["owner_id"] == feature_id
-assert receipt["lifecycle_status"] == "proposal"
-assert receipt["continuation"] == "blocked"
-assert receipt["blocker"]["class"] == "task_plan_missing"
-feature_ref_root = PurePosixPath(".bagakit", "feature-tracker", "features", feature_id)
-expected_refs = [str(feature_ref_root / "state.json"), str(feature_ref_root / "tasks.json")]
-assert receipt["evidence_refs"] == expected_refs
-assert receipt["evidence_hashes"] == {
-    ref: hashlib.sha256((root / ref).read_bytes()).hexdigest()
-    for ref in expected_refs
-}
-semantic_payload = {
-    key: receipt[key]
-    for key in (
-        "owner_kind",
-        "owner_id",
-        "lifecycle_status",
-        "continuation",
-        "current_item_id",
-        "blocker",
-        "replacement_ref",
-        "evidence_hashes",
-    )
-}
-expected_revision = hashlib.sha256(
-    json.dumps(semantic_payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
-).hexdigest()
-assert receipt["semantic_revision"] == expected_revision
+assert not (feature_dir / "owner-receipt.json").exists()
 PY
 
 if bash "$SKILL_DIR/scripts/feature-tracker.sh" assign-feature-workspace \

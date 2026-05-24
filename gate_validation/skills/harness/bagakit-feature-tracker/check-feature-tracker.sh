@@ -30,7 +30,6 @@ printf '# demo\n' > "$TMP_DIR/README.md"
 git -C "$TMP_DIR" add README.md
 git -C "$TMP_DIR" commit -q -m "init"
 
-bash "$SKILL_DIR/scripts/feature-tracker.sh" check-reference-readiness --root "$TMP_DIR" >/dev/null
 bash "$SKILL_DIR/scripts/feature-tracker.sh" initialize-tracker --root "$TMP_DIR"
 ISSUER_NAMESPACE_BEFORE="$(python3 - "$TMP_DIR" <<'PY'
 import json
@@ -69,8 +68,41 @@ if not isinstance(items, list):
 print(items[0]["feat_id"])
 PY
 )"
+FAMILY_STATE="$TMP_DIR/.bagakit/feature-tracker/features/$FEATURE_ID/state.json"
+FAMILY_TASKS="$TMP_DIR/.bagakit/feature-tracker/features/$FEATURE_ID/tasks.json"
+FAMILY_INDEX="$TMP_DIR/.bagakit/feature-tracker/index/features.json"
+FAMILY_ISSUER="$TMP_DIR/.bagakit/feature-tracker/local/issuer.json"
+test ! -e "$TMP_DIR/.bagakit/feature-tracker/features/$FEATURE_ID/owner-receipt.json"
+FAMILY_STATE_SHA="$(shasum "$FAMILY_STATE" | awk '{print $1}')"
+FAMILY_TASKS_SHA="$(shasum "$FAMILY_TASKS" | awk '{print $1}')"
+FAMILY_INDEX_SHA="$(shasum "$FAMILY_INDEX" | awk '{print $1}')"
+FAMILY_ISSUER_SHA="$(shasum "$FAMILY_ISSUER" | awk '{print $1}')"
+bash "$SKILL_DIR/scripts/feature-tracker.sh" create-feature \
+  --root "$TMP_DIR" \
+  --title "Demo feature extension" \
+  --slug "Demo Feature" \
+  --goal "Extend the same stable goal through Tasks" \
+  --workspace-mode current_tree >"$TMP_DIR/family-reuse.out"
+grep -F "reuse: active feature family demo-feature => $FEATURE_ID" "$TMP_DIR/family-reuse.out" >/dev/null
+grep -F "feature_id: $FEATURE_ID" "$TMP_DIR/family-reuse.out" >/dev/null
+test "$FAMILY_STATE_SHA" = "$(shasum "$FAMILY_STATE" | awk '{print $1}')"
+test "$FAMILY_TASKS_SHA" = "$(shasum "$FAMILY_TASKS" | awk '{print $1}')"
+test "$FAMILY_INDEX_SHA" = "$(shasum "$FAMILY_INDEX" | awk '{print $1}')"
+test "$FAMILY_ISSUER_SHA" = "$(shasum "$FAMILY_ISSUER" | awk '{print $1}')"
 TASK_PLAN_JSON="$TMP_DIR/.bagakit/feature-tracker/artifacts/reviewed-task-plan.json"
 feature_tracker_write_reviewed_task_plan "$TASK_PLAN_JSON" "Ship the demo feature through a reviewed task plan."
+if bash "$SKILL_DIR/scripts/feature-tracker.sh" create-feature \
+  --root "$TMP_DIR" \
+  --title "Demo feature reviewed extension" \
+  --slug "demo-feature" \
+  --goal "Do not silently merge reviewed Task semantics" \
+  --workspace-mode current_tree \
+  --tasks-file "$TASK_PLAN_JSON" >"$TMP_DIR/family-reviewed.out" 2>"$TMP_DIR/family-reviewed.err"; then
+  echo "same-family reviewed create unexpectedly succeeded" >&2
+  exit 1
+fi
+grep -F "active feature family already exists" "$TMP_DIR/family-reviewed.err" >/dev/null
+grep -F "set-task-plan" "$TMP_DIR/family-reviewed.err" >/dev/null
 
 HANDOFF_JSON="$TMP_DIR/.bagakit/planning-entry/handoffs/demo-approved.json"
 mkdir -p "$(dirname "$HANDOFF_JSON")"
@@ -111,6 +143,15 @@ cat >"$HANDOFF_JSON" <<'JSON'
 JSON
 
 bash "$SKILL_DIR/scripts/feature-tracker.sh" create-feature-from-planning-entry-handoff --root "$TMP_DIR" --handoff "$HANDOFF_JSON" --workspace-mode proposal_only >/dev/null
+if bash "$SKILL_DIR/scripts/feature-tracker.sh" create-feature-from-planning-entry-handoff \
+  --root "$TMP_DIR" \
+  --handoff "$HANDOFF_JSON" \
+  --workspace-mode proposal_only >"$TMP_DIR/family-handoff.out" 2>"$TMP_DIR/family-handoff.err"; then
+  echo "same-family planning-entry handoff unexpectedly succeeded" >&2
+  exit 1
+fi
+grep -F "existing active feature family" "$TMP_DIR/family-handoff.err" >/dev/null
+grep -F "route the extension through its Task plan" "$TMP_DIR/family-handoff.err" >/dev/null
 
 python3 - "$TMP_DIR" "$HANDOFF_JSON" <<'PY'
 import json
@@ -147,18 +188,19 @@ assert tasks_payload["plan_status"] == "draft"
 assert tasks_payload["tasks"] == []
 PY
 
-python3 - "$TMP_DIR" "$FEATURE_ID" <<'PY'
+bash "$SKILL_DIR/scripts/feature-tracker.sh" show-feature-dag --root "$TMP_DIR" --json >"$TMP_DIR/feature-dag.json"
+python3 - "$TMP_DIR/feature-dag.json" "$FEATURE_ID" <<'PY'
 import json
 import sys
 from pathlib import Path
 
-root = Path(sys.argv[1])
+dag_path = Path(sys.argv[1])
 feature_id = sys.argv[2]
-dag_path = root / ".bagakit" / "feature-tracker" / "index" / "FEATURES_DAG.json"
 dag_payload = json.loads(dag_path.read_text(encoding="utf-8"))
 assert feature_id in [item["feat_id"] for item in dag_payload["features"]]
 assert any(feature_id in layer["feat_ids"] for layer in dag_payload["layers"])
 PY
+test ! -e "$TMP_DIR/.bagakit/feature-tracker/index/FEATURES_DAG.json"
 
 bash "$SKILL_DIR/scripts/feature-tracker.sh" set-task-plan --root "$TMP_DIR" --feature "$FEATURE_ID" --tasks-file "$TASK_PLAN_JSON" --expected-revision 0
 bash "$SKILL_DIR/scripts/feature-tracker.sh" assign-feature-workspace --root "$TMP_DIR" --feature "$FEATURE_ID" --workspace-mode current_tree
@@ -184,25 +226,17 @@ if not re.fullmatch(r"f-[23456789abcdefghjkmnpqrstuvwxyz]{9}", feature_id):
 index_path = root / ".bagakit" / "feature-tracker" / "index" / "features.json"
 state_path = root / ".bagakit" / "feature-tracker" / "features" / feature_id / "state.json"
 tasks_path = root / ".bagakit" / "feature-tracker" / "features" / feature_id / "tasks.json"
-dag_path = root / ".bagakit" / "feature-tracker" / "index" / "FEATURES_DAG.json"
 issuer_path = root / ".bagakit" / "feature-tracker" / "local" / "issuer.json"
 feature_dir = root / ".bagakit" / "feature-tracker" / "features" / feature_id
 
 index_payload = json.loads(index_path.read_text(encoding="utf-8"))
 state_payload = json.loads(state_path.read_text(encoding="utf-8"))
 tasks_payload = json.loads(tasks_path.read_text(encoding="utf-8"))
-dag_payload = json.loads(dag_path.read_text(encoding="utf-8"))
 issuer_payload = json.loads(issuer_path.read_text(encoding="utf-8"))
 
 assert "updated_at" not in index_payload
 assert index_payload["feature_id_issuance"]["scheme"] == "feature-tracker-id-v1-c3n2g4"
 assert isinstance(index_payload["feature_id_issuance"]["next_cursor"], int)
-assert "generated_at" not in dag_payload
-assert {"features", "generated_by", "layers", "notes", "version"} <= set(dag_payload)
-assert "execution_mode" not in dag_payload
-assert "max_parallel" not in dag_payload
-assert "parallel_recommendation" not in dag_payload
-assert "first_unfinished_layer" not in dag_payload
 assert "created_at" not in state_payload
 assert "updated_at" not in state_payload
 assert "archived_at" not in state_payload
@@ -219,7 +253,7 @@ assert tasks_payload["plan_status"] == "reviewed"
 assert tasks_payload["plan_revision"] == 1
 task = tasks_payload["tasks"][0]
 assert task["objective"] == "Ship the demo feature through a reviewed task plan."
-for key in ("last_gate_at", "started_at", "finished_at", "updated_at"):
+for key in ("last_gate_at", "started_at", "finished_at", "updated_at", "last_commit_hash"):
     assert key not in task
 assert issuer_payload["namespace"] == feature_id[5:7]
 assert issuer_payload["guard_key_source"] == "git-config:bagakit.feature-tracker.guard-key"
@@ -291,10 +325,6 @@ archived_default = run_json("filter-features", "--root", str(root), "--status", 
 assert archived_default["features"] == []
 PY
 
-bash "$SKILL_DIR/scripts/feature-tracker.sh" diagnose-tracker --root "$TMP_DIR" >"$TMP_DIR/doctor-active-done.out"
-grep -F "$FEATURE_ID: status=done remains active; run archive-feature" "$TMP_DIR/doctor-active-done.out" >/dev/null
-bash "$SKILL_DIR/scripts/feature-tracker.sh" archive-feature --root "$TMP_DIR" --feature "$FEATURE_ID" >/dev/null
-
 DISCARD_FEATURE_ID="$(python3 - "$TMP_DIR" <<'PY'
 import json
 import sys
@@ -305,6 +335,27 @@ features = json.loads(index_path.read_text(encoding="utf-8"))["features"]
 print(next(item["feat_id"] for item in features if item["title"] == "Handoff feature"))
 PY
 )"
+python3 - "$TMP_DIR" "$DISCARD_FEATURE_ID" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+root = Path(sys.argv[1])
+feat_id = sys.argv[2]
+tasks_path = root / ".bagakit" / "feature-tracker" / "features" / feat_id / "tasks.json"
+tasks_path.write_text(
+    json.dumps({"version": 1, "feat_id": feat_id, "tasks": []}, indent=2) + "\n",
+    encoding="utf-8",
+)
+PY
+if bash "$SKILL_DIR/scripts/feature-tracker.sh" diagnose-tracker --root "$TMP_DIR" --closeout-plan >"$TMP_DIR/doctor-active-done.out" 2>"$TMP_DIR/doctor-active-done.err"; then
+  echo "doctor unexpectedly hid tracker validation failure" >&2
+  exit 1
+fi
+grep -F "$FEATURE_ID: status=done remains active; run archive-feature" "$TMP_DIR/doctor-active-done.out" >/dev/null
+grep -F "$FEATURE_ID: active done; archive with" "$TMP_DIR/doctor-active-done.out" >/dev/null
+bash "$SKILL_DIR/scripts/feature-tracker.sh" archive-feature --root "$TMP_DIR" --feature "$FEATURE_ID" >/dev/null
+
 bash "$SKILL_DIR/scripts/feature-tracker.sh" discard-feature --root "$TMP_DIR" --feature "$DISCARD_FEATURE_ID" --reason cancelled >/dev/null
 
 python3 - "$TMP_DIR" "$FEATURE_ID" "$DISCARD_FEATURE_ID" "$SKILL_DIR" <<'PY'
@@ -364,6 +415,15 @@ bash "$SKILL_DIR/scripts/feature-tracker.sh" diagnose-tracker --root "$TMP_DIR" 
 grep -F "$CLOSEOUT_FEATURE_ID: task T-001 gate passed; close with" "$TMP_DIR/doctor-closeout-plan.out" >/dev/null
 bash "$SKILL_DIR/scripts/feature-tracker.sh" closeout-feature --root "$TMP_DIR" --feature "$CLOSEOUT_FEATURE_ID" --task T-001 --execute >/dev/null
 test -f "$TMP_DIR/.bagakit/feature-tracker/features-archived/$CLOSEOUT_FEATURE_ID/summary.md"
+bash "$SKILL_DIR/scripts/feature-tracker.sh" create-feature \
+  --root "$TMP_DIR" \
+  --title "Closeout feature next lifecycle" \
+  --slug "closeout-feature" \
+  --goal "Start a new lifecycle only after the prior Feature is archived" \
+  --workspace-mode proposal_only >"$TMP_DIR/family-after-archive.out"
+NEW_CLOSEOUT_FEATURE_ID="$(sed -n 's/^feature_id: //p' "$TMP_DIR/family-after-archive.out")"
+test -n "$NEW_CLOSEOUT_FEATURE_ID"
+test "$NEW_CLOSEOUT_FEATURE_ID" != "$CLOSEOUT_FEATURE_ID"
 python3 - "$TMP_DIR" "$CLOSEOUT_FEATURE_ID" "$SKILL_DIR" <<'PY'
 import json
 import subprocess

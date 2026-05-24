@@ -3,8 +3,10 @@
 `gate_eval/skills/harness/bagakit-feature-tracker/` is the non-gating eval
 slice for `skills/harness/bagakit-feature-tracker/`.
 
-It reuses the shared `dev/eval` runner to capture deterministic quality
-evidence around feature state transitions and status projection coherence.
+It reuses the shared `dev/eval` runner for two high-signal quality surfaces:
+status projection coherence and planning-entry handoff integration. Lifecycle
+correctness remains owned by the skill's gating validation rather than being
+duplicated here.
 
 Primary entrypoint:
 

@@ -3,13 +3,13 @@ version = 2
 [[suite]]
 id = "bagakit-feature-tracker-shared-runner-eval"
 owner = "gate_eval/skills/harness/bagakit-feature-tracker"
-description = "Run deterministic non-gating eval for feature-tracker lifecycle and status projection quality."
+description = "Run deterministic non-gating eval for feature-tracker status projection and planning-entry integration quality."
 default = true
 proof_mode = "runtime"
-protects = ["feature-tracker eval cases for lifecycle semantics, status projection quality, and operator-output usefulness"]
+protects = ["feature-tracker eval cases for status projection quality and planning-entry integration usefulness"]
 oracle = ["shared dev/eval runner executes feature-tracker suite cases and checks generated eval packets from deterministic temporary repos"]
 exercised_surface = ["gate_eval/skills/harness/bagakit-feature-tracker/suite.ts", "dev/eval/src/cli.ts eval runner", "feature-tracker CLI and status outputs"]
-proves = ["bagakit-feature-tracker-shared-runner-eval proves deterministic feature-tracker eval cases execute and record lifecycle/status findings."]
+proves = ["bagakit-feature-tracker-shared-runner-eval proves deterministic status-projection and planning-entry integration cases execute and record findings."]
 does_not_prove = ["bagakit-feature-tracker-shared-runner-eval does not prove every feature-tracker workflow, stochastic agent behavior, or release-blocking correctness."]
 timeout_seconds = 180
 validation_class = "quality"

@@ -13,7 +13,7 @@ metadata:
 - You need a durable feature or task planning surface.
 - You need explicit workspace assignment such as `worktree`,
   `current_tree`, or `proposal_only`.
-- You need task-level gate evidence and structured commit preparation.
+- You need task-level gate evidence.
 - You need archive or discard flows that keep planning state explicit.
 
 ## When Not to Use
@@ -32,7 +32,6 @@ task local instead of creating tracker lifecycle state.
 - reviewed semantic task plans, revisions, supersession, and current task progression
 - workspace mode and worktree assignment
 - task gates
-- task commit protocol
 - execution-owner receipts derived from canonical feature state
 - optional long-running Agent `goal.md` control truth and its revision binding
 - archive and discard state
@@ -73,7 +72,6 @@ multiple tasks or later reuse.
 ```bash
 export BAGAKIT_FEATURE_TRACKER_SKILL_DIR="<path-to-bagakit-feature-tracker-skill>"
 
-bash "$BAGAKIT_FEATURE_TRACKER_SKILL_DIR/scripts/feature-tracker.sh" check-reference-readiness --root .
 bash "$BAGAKIT_FEATURE_TRACKER_SKILL_DIR/scripts/feature-tracker.sh" initialize-tracker --root .
 
 bash "$BAGAKIT_FEATURE_TRACKER_SKILL_DIR/scripts/feature-tracker.sh" create-feature \
@@ -95,13 +93,6 @@ bash "$BAGAKIT_FEATURE_TRACKER_SKILL_DIR/scripts/feature-tracker.sh" set-feature
   --goal-file <reviewed-goal.md> \
   --expected-revision none
 
-# One-time upgrade for an otherwise-valid active version 1 feature.
-bash "$BAGAKIT_FEATURE_TRACKER_SKILL_DIR/scripts/feature-tracker.sh" upgrade-legacy-task-plan \
-  --root . \
-  --feature <legacy-feature-id> \
-  --tasks-file <reviewed-task-plan.json> \
-  --expected-revision 0
-
 bash "$BAGAKIT_FEATURE_TRACKER_SKILL_DIR/scripts/feature-tracker.sh" assign-feature-workspace \
   --root . \
   --feature <feature-id> \
@@ -113,8 +104,12 @@ bash "$BAGAKIT_FEATURE_TRACKER_SKILL_DIR/scripts/feature-tracker.sh" create-feat
   --workspace-mode proposal_only
 ```
 
-`--slug` is planning metadata only.
-It does not affect the public feature id.
+Use `--slug` as the stable active Feature family key. It does not affect the
+opaque public feature id, but two non-closed Features must not share the same
+normalized slug. Creating a proposal for an existing slug reuses that Feature
+without mutation. When new reviewed work targets an existing slug, revise that
+Feature's Task plan with `set-task-plan`; do not create a parallel Feature.
+Archived or discarded history remains immutable and does not reserve the slug.
 
 Optional helper files can be materialized later:
 
@@ -127,15 +122,12 @@ bash "$BAGAKIT_FEATURE_TRACKER_SKILL_DIR/scripts/feature-tracker.sh" materialize
 
 ## Public Commands
 
-- `feature-tracker.sh check-reference-readiness`
-- `feature-tracker.sh validate-reference-report`
 - `feature-tracker.sh initialize-tracker`
 - `feature-tracker.sh rekey-local-issuer`
 - `feature-tracker.sh materialize-feature-artifact`
 - `feature-tracker.sh create-feature`
 - `feature-tracker.sh create-feature-from-planning-entry-handoff`
 - `feature-tracker.sh set-task-plan`
-- `feature-tracker.sh upgrade-legacy-task-plan`
 - `feature-tracker.sh validate-feature-goal`
 - `feature-tracker.sh set-feature-goal`
 - `feature-tracker.sh assign-feature-workspace`
@@ -143,7 +135,6 @@ bash "$BAGAKIT_FEATURE_TRACKER_SKILL_DIR/scripts/feature-tracker.sh" materialize
 - `feature-tracker.sh get-owner-receipt`
 - `feature-tracker.sh start-task`
 - `feature-tracker.sh run-task-gate`
-- `feature-tracker.sh prepare-task-commit`
 - `feature-tracker.sh finish-task`
 - `feature-tracker.sh closeout-feature`
 - `feature-tracker.sh archive-feature`
@@ -172,7 +163,8 @@ operator entrypoint.
 
 Task SSOT lives only in `tasks.json`.
 The default feature directory keeps canonical `state.json` and `tasks.json`
-plus optional canonical `goal.md` and derived `owner-receipt.json`.
+plus optional canonical `goal.md`. Derived `owner-receipt.json` exists only
+for reviewed execution or Goal continuation.
 New features without a reviewed task plan remain `proposal` + `proposal_only`
 with no executable placeholder task.
 Active execution requires explicit version 2 reviewed task truth materialized
@@ -181,16 +173,6 @@ Workspace assignment and task start fail closed until that plan exists.
 Plan replacement uses `--expected-revision`, is rejected during active task
 execution, preserves blocked/done evidence, and requires explicit supersession
 lineage against the immediately prior current plan.
-Pre-v2 active features use the separate one-time `upgrade-legacy-task-plan`
-command. It requires an approved `bagakit.feature-task-plan.v1` file, revision
-`0`, otherwise-valid legacy state, and the exact existing task ids, order, and
-titles with `supersedes=[]`. The command preserves feature status,
-`current_task_id`, task status, gate/commit evidence, notes, and legacy helper
-fields while adding only explicit reviewed semantic fields and revision-1 plan
-history. It cannot add, remove, reorder, rename, supersede, or restart a task,
-and it cannot run against canonical v2 or closed state. Do not synthesize the
-review, acceptance, verification, or source refs from legacy summaries; a
-human- or process-reviewed plan must supply them.
 Historical superseded tasks remain attributable but cannot be restarted.
 Review, source, verification, and evidence refs must be portable repo-relative
 paths and must not use URI, absolute, drive-qualified, UNC, or escaping paths.
@@ -202,46 +184,41 @@ second lifecycle, topology, event stream, or archive.
 Tracker validation checks Goal identity, Feature binding, non-empty content,
 and portability; it does not prescribe headings, prose order, or recovery
 wording.
-`owner-receipt.json` binds `state.json`, `tasks.json`, and `goal.md` when present through SHA-256
-`evidence_hashes`; missing or stale persisted receipts fail closed.
+For reviewed execution or Goal continuation, `owner-receipt.json` binds
+`state.json`, `tasks.json`, and `goal.md` when present through SHA-256
+`evidence_hashes`; missing or stale persisted receipts fail closed. Proposal
+and draft state without a Goal do not materialize a receipt.
 The receipt follows `docs/specs/execution-owner-receipt-contract.md` and remains
 a derived handoff rather than task truth.
-`FEATURES_DAG.json` is a generated dependency projection over active feature
-state; it is not the dependency source of truth and it does not carry
-policy-resolved execution planning.
-Runtime truth and commit truth are separate surfaces.
-Tracker commands may advance tracker runtime state; Git commits should include
-only the implementation and evidence surfaces intentionally prepared for that
-commit.
-Workspace assignment determines where task gate and commit commands execute.
-For `worktree` features, `run-task-gate` and `prepare-task-commit --execute`
-must run from the assigned worktree path and feature branch.
-Commit guidance for these features should spell out commands as
-`git -C <execution-root> ...`, where `<execution-root>` is the assigned
-worktree path, not the root checkout.
-Tracker state mutation is serialized, but long-running gate and commit commands
-release the global state lock while external commands run and revalidate the
+`show-feature-dag` computes the dependency projection on demand from active
+feature state. No persisted DAG is required; `state.json.depends_on` remains
+the only dependency truth and the projection never carries policy-resolved
+execution planning.
+Runtime truth and Git truth are separate surfaces. Feature Tracker does not
+generate commit prose or execute Git commits; use ordinary Git or
+`bagakit-git-message-craft` and keep implementation commits outside tracker
+state. Workspace assignment determines where task gates execute. For
+`worktree` features, `run-task-gate` runs from the assigned worktree path.
+Tracker state mutation is serialized, but long-running gate commands release
+the global state lock while external commands run and revalidate the
 workspace assignment before recording results.
 Do not reassign a feature workspace while a task is `in_progress`; same-feature
 task execution remains single-active-task by contract.
-For tracked features, code commit is not the feature completion boundary.
+For tracked features, a code commit is not the feature completion boundary.
 The completion boundary is closed feature state through `archive-feature`,
 `discard-feature`, or `closeout-feature --execute`.
-`create-feature`, `archive-feature`, and `discard-feature` preflight the
-resulting active graph before they commit tracker state or closeout cleanup.
+`create-feature`, `archive-feature`, `discard-feature`, and
+`replan-features` preflight the resulting active graph before they commit
+tracker state or closeout cleanup.
 `closeout-feature` is the single-feature operator path for completing the
-tracker lifecycle after gate or commit work. It defaults to a dry-run plan and
+tracker lifecycle after gate work. It defaults to a dry-run plan and
 requires `--execute` before it mutates state.
+`diagnose-tracker --closeout-plan` stays read-only and still prints loadable
+closeout candidates when unrelated active state fails validation; its non-zero
+exit keeps that validation failure visible.
 For `current_tree` features, `archive-feature` may proceed with unrelated
 non-harness repo changes because it only closes tracker metadata; `discard-feature`
 still requires a clean non-harness tree before closeout.
-If `FEATURES_DAG.json` is missing or has become a broken path shape, recover it
-with `replan-features` before rerunning live graph-affecting commands.
-Already-closed `archive-feature` or `discard-feature` reruns may heal a missing
-or malformed DAG projection only after confirming the feature is already in the
-matching closed directory.
-Those already-closed reruns leave schema-valid DAG drift alone and warn instead
-of failing if unrelated active-graph breakage blocks recomputation.
 Optional helper markdown files such as `proposal.md`, `spec-delta.md`, and
 `verification.md` can be materialized later at the feature root.
 Unsupported feature-root files such as `PRD.md` and `Changelog.md` are outside

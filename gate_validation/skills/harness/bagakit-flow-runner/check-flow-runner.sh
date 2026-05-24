@@ -29,7 +29,6 @@ printf '# demo\n' > "$TMP_DIR/README.md"
 git -C "$TMP_DIR" add README.md
 git -C "$TMP_DIR" commit -q -m "init"
 
-bash "$FEATURE_TRACKER_DIR/scripts/feature-tracker.sh" check-reference-readiness --root "$TMP_DIR" >/dev/null
 bash "$FEATURE_TRACKER_DIR/scripts/feature-tracker.sh" initialize-tracker --root "$TMP_DIR"
 bash "$FEATURE_TRACKER_DIR/scripts/feature-tracker.sh" create-feature --root "$TMP_DIR" --title "Flow source" --slug "flow-source" --goal "Drive flow" --workspace-mode proposal_only
 

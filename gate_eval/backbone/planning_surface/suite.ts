@@ -103,7 +103,6 @@ function profileFeatureTracker(repoRoot: string, tempRepo: string, replacements:
   const gateEval = path.join(repoRoot, "gate_eval", "skills", "harness", "bagakit-feature-tracker", "suite.ts");
 
   initGitRepo(tempRepo, replacements);
-  expectOk(runCommand("bash", [script, "check-reference-readiness", "--root", tempRepo], { cwd: repoRoot, replacements }), "feature-tracker check-reference-readiness");
   expectOk(runCommand("bash", [script, "initialize-tracker", "--root", tempRepo], { cwd: repoRoot, replacements }), "feature-tracker initialize-tracker");
   expectOk(
     runCommand(
@@ -205,7 +204,6 @@ function comparisonResult(profiles: PlanningProfile[]): EvalCaseResult {
     ],
     commands: [
       "bash <planning-with-files>/scripts/init-session.sh demo",
-      "bash skills/harness/bagakit-feature-tracker/scripts/feature-tracker.sh check-reference-readiness --root <temp-repo>",
       "bash skills/harness/bagakit-feature-tracker/scripts/feature-tracker.sh initialize-tracker --root <temp-repo>",
       "bash skills/harness/bagakit-feature-tracker/scripts/feature-tracker.sh create-feature --root <temp-repo> --title \"Eval feature\" --slug \"eval-feature\" --goal \"Ship eval\" --workspace-mode proposal_only",
       "bash skills/harness/bagakit-feature-tracker/scripts/feature-tracker.sh assign-feature-workspace --root <temp-repo> --feature <id> --workspace-mode current_tree",

@@ -130,22 +130,3 @@ feature_tracker_complete_reviewed_feature() {
   bash "$skill_dir/scripts/feature-tracker.sh" finish-task \
     --root "$repo_root" --feature "$feature_id" --task T-001 --result done >/dev/null
 }
-
-feature_tracker_last_commit_hash() {
-  local repo_root="$1"
-  local feature_id="$2"
-  python3 - "$repo_root" "$feature_id" <<'PY'
-import json
-import sys
-from pathlib import Path
-
-root = Path(sys.argv[1])
-feature_id = sys.argv[2]
-tasks_path = root / ".bagakit" / "feature-tracker" / "features" / feature_id / "tasks.json"
-tasks = json.loads(tasks_path.read_text(encoding="utf-8"))
-commit_hash = tasks["tasks"][0].get("last_commit_hash")
-if not isinstance(commit_hash, str) or not commit_hash:
-    raise SystemExit("last_commit_hash missing after executed worktree commit")
-print(commit_hash)
-PY
-}

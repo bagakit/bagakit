@@ -26,10 +26,6 @@ name = "set-task-plan"
 summary = "Materialize or revise one reviewed semantic task plan with an expected revision guard."
 
 [[command]]
-name = "upgrade-legacy-task-plan"
-summary = "Enrich one otherwise-valid active version 1 task payload with an exact reviewed semantic plan while preserving execution state."
-
-[[command]]
 name = "validate-feature-goal"
 summary = "Validate candidate or installed goal.md identity, Feature binding, content presence, and portability."
 
@@ -56,10 +52,6 @@ summary = "Start one feature task."
 [[command]]
 name = "run-task-gate"
 summary = "Record or run one task gate."
-
-[[command]]
-name = "prepare-task-commit"
-summary = "Prepare task commit evidence."
 
 [[command]]
 name = "finish-task"

@@ -1,6 +1,6 @@
 # Feature Tracker Contract
 
-This document defines the stable runtime and commit contract for
+This document defines the stable runtime and planning contract for
 `bagakit-feature-tracker`.
 
 ## Scope
@@ -12,7 +12,6 @@ This contract covers:
 - local-only issuer boundary
 - source-of-truth rules
 - dependency projection semantics
-- task commit contract
 
 This contract does not define the public feature-id shape.
 
@@ -25,12 +24,12 @@ That belongs to:
 Stable tracker-owned runtime files live under:
 
 - `.bagakit/feature-tracker/index/features.json`
-- `.bagakit/feature-tracker/index/FEATURES_DAG.json`
 - `.bagakit/feature-tracker/runtime-policy.json`
 - `.bagakit/feature-tracker/features/<feature-id>/state.json`
 - `.bagakit/feature-tracker/features/<feature-id>/tasks.json`
 - optional `.bagakit/feature-tracker/features/<feature-id>/goal.md`
-- `.bagakit/feature-tracker/features/<feature-id>/owner-receipt.json`
+- `.bagakit/feature-tracker/features/<feature-id>/owner-receipt.json` for
+  reviewed execution or Goal continuation
 - `.bagakit/feature-tracker/features-archived/<feature-id>/`
 - `.bagakit/feature-tracker/features-discarded/<feature-id>/`
 - `.bagakit/feature-tracker/local/issuer.json`
@@ -40,10 +39,6 @@ Tracked planning truth lives under:
 - `features/`
 - `index/features.json`
 - `runtime-policy.json`
-
-Tracked projections live under:
-
-- `index/FEATURES_DAG.json`
 
 Closed planning truth lives under:
 
@@ -78,15 +73,16 @@ Stable local issuer surfaces are:
   orchestration principles, and bounded context references.
 - `runtime-policy.json` owns tracker policy defaults, gate policy, and doctor
   thresholds.
-- `FEATURES_DAG.json` owns the latest generated dependency projection, not the
-  feature records themselves and not policy-resolved execution planning.
+- `show-feature-dag` computes a read-only dependency projection on demand from
+  canonical feature state; no projection file owns additional truth.
 - archive and discard directories own closed feature records after closeout.
 
 Implications:
 
 - `tasks.json` is the only task source of truth
-- the default feature directory contains `state.json`, `tasks.json`, optional
-  canonical `goal.md`, and the derived `owner-receipt.json`
+- the default feature directory contains `state.json`, `tasks.json`, and
+  optional canonical `goal.md`; reviewed execution or Goal continuation also
+  derives `owner-receipt.json`
 - `state.json.goal_contract` binds the exact Goal schema, repo-relative path,
   and SHA-256 revision; `state.json.goal` remains only a concise index summary
 - Feature Tracker validates Goal identity, binding, content presence, and
@@ -103,6 +99,33 @@ Implications:
 - local issuer state may help create new ids but may not redefine tracked
   feature truth
 - external bridges may read tracker truth but do not become tracker truth
+
+## Feature Family And Task Boundary
+
+Feature is the stable goal boundary. Task is the extension mechanism inside
+that boundary.
+
+Rules:
+
+- normalized `state.json.slug` is the deterministic family key among active
+  Features
+- at most one non-closed Feature may own a family key
+- `create-feature` without reviewed tasks is idempotent for an existing family
+  and must return the existing Feature without mutating state or allocating an
+  id
+- reviewed work aimed at an existing family must use `set-task-plan` with the
+  current revision; create must not silently merge, renumber, or discard Task
+  semantics
+- create a different Feature only when the goal, protected invariants, or
+  acceptance boundary is materially different
+- archived and discarded Features are immutable history and do not reserve the
+  family key for a future lifecycle
+- family matching is exact after slug normalization; the deterministic tracker
+  must not perform fuzzy or embedding-based semantic merges
+
+Planning-entry handoffs that resolve to an existing active family must stop and
+route their extension through that Feature's Task plan.
+
 
 ## Runtime Ownership Split Contract
 
@@ -133,7 +156,8 @@ Projection rule:
 
 - `state.json` remains canonical for these runtime-owner fields
 - `index/features.json` may project them for list/read surfaces
-- `FEATURES_DAG.json` must not carry them because they are not dependency truth
+- dependency projection output must not carry them because they are not
+  dependency truth
 
 Required invariants:
 
@@ -216,8 +240,6 @@ Required behavior:
 
 - `create-feature --tasks-file` materializes revision 1
 - `set-task-plan --expected-revision <n>` fails on stale revision
-- `upgrade-legacy-task-plan --expected-revision 0` is the only supported
-  in-place path from otherwise-valid active version 1 task truth
 - workspace assignment and task start fail closed without canonical reviewed
   version 2 task truth
 - a task may be started only when it belongs to the latest reviewed plan
@@ -230,15 +252,6 @@ Required behavior:
 - active features must use this explicit contract; closed historical features
   may retain their pre-v2 task shape
 
-The legacy upgrade command is semantic enrichment, not plan replacement. Its
-approved `bagakit.feature-task-plan.v1` input must enumerate the exact existing
-task ids in the same order, preserve every title exactly, and use
-`supersedes=[]`. The operator preserves feature status, `current_task_id`, task
-status, gate/commit evidence, notes, and legacy helper fields while adding the
-reviewed semantic fields and revision-1 plan metadata. It rejects closed,
-partially migrated, or already-v2 state and any task addition, removal,
-reordering, rename, or supersession. The tracker must not derive review status,
-acceptance, verification, or source evidence from legacy `summary` or `notes`.
 Normal `set-task-plan` replacement remains forbidden while a task is active.
 
 Review, source, verification, and evidence references are portable
@@ -251,7 +264,9 @@ outer-loop work-item history.
 
 ## Execution Owner Receipt
 
-Feature Tracker writes `owner-receipt.json` beside canonical feature state.
+Feature Tracker writes `owner-receipt.json` beside canonical feature state only
+after a reviewed execution plan exists. Proposal and draft state do not
+materialize a receipt.
 The shared receipt shape is defined by:
 
 - `docs/specs/execution-owner-receipt-contract.md`
@@ -266,8 +281,10 @@ Feature Tracker requirements:
 - `semantic_revision` is the SHA-256 digest of the compact canonical JSON over
   owner identity, lifecycle, continuation, current item, blocker,
   replacement ref, and `evidence_hashes`
-- `save_feat` writes canonical state and tasks before refreshing the receipt
-- a missing receipt, stale receipt, or evidence hash drift fails closed
+- `save_feat` writes canonical state and tasks before refreshing a reviewed
+  execution receipt
+- a missing reviewed-execution receipt, stale receipt, or evidence hash drift
+  fails closed
 - `ready` and valid `in_progress` state map to `continue`
 - missing reviewed plan or missing workspace maps to blocked continuation
 - a replacement points to the repo-relative replacement owner receipt, not a
@@ -334,7 +351,7 @@ Rules:
 
 ## Dependency Projection Contract
 
-`FEATURES_DAG.json` is a generated projection.
+`show-feature-dag` emits an on-demand generated projection.
 
 It is not:
 
@@ -368,7 +385,7 @@ Required generation rules:
 - record missing active dependencies as notes instead of silently inventing
   graph nodes
 
-Forbidden content in `FEATURES_DAG.json`:
+Forbidden content in dependency projection output:
 
 - policy-resolved execution mode
 - parallelism limits
@@ -376,31 +393,18 @@ Forbidden content in `FEATURES_DAG.json`:
 - progress or resume cursors that belong to a separate execution-plan or
   runtime-history surface
 
-Freshness rule:
+Generation and mutation rule:
 
-- the tracker must be able to recompute `FEATURES_DAG.json` from canonical
+- the tracker must compute dependency projection directly from canonical
   feature state
 - graph-affecting commands must validate the resulting active DAG before they
   persist canonical state changes or run destructive closeout cleanup
-- direct graph-affecting commands that overwrite `FEATURES_DAG.json` should also
-  fail before mutation when the current DAG file is missing or the current DAG
-  path is not a writable regular file while they are still mutating live
-  feature state; use `replan-features` to recover missing or malformed DAG
-  targets first
-- already-closed `archive-feature` and `discard-feature` reruns may repair a
-  missing or malformed `FEATURES_DAG.json` only after they verify the feature
-  already lives in the matching closed directory with its closed summary
-- already-closed closeout reruns must not overwrite a present schema-valid DAG
-  surface just to clear projection drift
-- if unrelated active feature state prevents recomputing a missing or malformed
-  DAG surface, already-closed closeout reruns should warn and leave recovery to
-  `replan-features` instead of failing the rerun itself
-- successful graph-affecting tracker commands such as `create-feature`,
-  `archive-feature`, `discard-feature`, and `replan-features` should refresh the
-  current `FEATURES_DAG.json`
-- validation must fail if `FEATURES_DAG.json` is missing
-- validation must be able to detect when the checked-in DAG projection has
-  drifted from that recomputed result
+- `replan-features` must validate the complete proposed graph before persisting
+  any changed `state.json.depends_on` values
+- validation must recompute the active graph and reject invalid dependency
+  values, discarded dependencies, and cycles
+- projection output is disposable and must not be required for later mutation,
+  validation, recovery, or closeout
 
 ## Workspace Mode Contract
 
@@ -416,23 +420,13 @@ Required invariants:
 - `current_tree` carries no dedicated branch or worktree assignment
 - `worktree` carries branch, worktree name, and worktree path together
 
-Workspace assignment determines the execution root for task gate and commit
-commands:
+Workspace assignment determines the execution root for task gates:
 
 - `worktree` features execute task gates from the assigned worktree path
-- `worktree` features execute task commits from the assigned worktree path and
-  branch
-- `current_tree` features execute task gates and commits from the repository
-  root supplied to the tracker command
-- `proposal_only` features must not run task gates or commits against a hidden
+- `current_tree` features execute task gates from the repository root supplied
+  to the tracker command
+- `proposal_only` features must not run task gates against a hidden
   implementation tree
-
-Task commit guidance for worktree features must show commit commands as
-`git -C <execution-root> ...`, where `<execution-root>` is the assigned
-worktree path. Guidance must not imply that a worktree feature commit should be
-created from the root checkout. Closeout merge guidance may still target the
-repository root checkout because Git does not allow the same branch to be
-checked out in multiple worktrees.
 
 The mode set is part of tracker contract, not a transient implementation detail.
 
@@ -443,10 +437,10 @@ Tracker state mutation must be serialized at the repository level.
 Required behavior:
 
 - concurrent tracker commands must not corrupt `features.json`, `state.json`,
-  `tasks.json`, or `FEATURES_DAG.json`
-- long-running task gate and commit execution must not hold the global tracker
+  or `tasks.json`
+- long-running task-gate execution must not hold the global tracker
   state lock for the whole external command duration
-- task gate and commit commands must capture the feature workspace assignment
+- task-gate commands must capture the feature workspace assignment
   before executing external commands and revalidate that assignment before
   writing results back to tracker state
 - workspace assignment must not be changed while a feature has an `in_progress`
@@ -455,9 +449,6 @@ Required behavior:
   `in_progress`; the active task must be finished first
 - worktree execution must verify that the assigned worktree path is a registered
   Git worktree and that its checked-out branch matches feature state
-- tracker-initiated commit execution against the same execution root must be
-  serialized so the recorded `last_commit_hash` refers to the commit just
-  created by that command
 
 Concurrency does not mean multiple simultaneous implementation tasks inside one
 feature. A feature still has at most one `current_task_id`; parallel work should
@@ -512,15 +503,19 @@ Migration note:
 `archive-feature`, `discard-feature`, and `closeout-feature` are public
 closeout commands.
 
-Runtime truth and commit truth are separate surfaces:
+Runtime truth and Git truth are separate surfaces:
 
 - tracker commands may mutate tracker runtime state
-- Git commits should include the implementation and evidence surfaces that the
-  commit command or operator intentionally prepares
+- Feature Tracker does not generate commit prose, execute Git commits, or
+  persist commit identity; ordinary Git or `bagakit-git-message-craft` owns
+  those concerns
 - a code commit is not the tracked feature completion boundary
 
 Stable closeout expectations:
 
+- `diagnose-tracker --closeout-plan` remains read-only and emits loadable
+  closeout candidates even when validation finds unrelated active-state errors;
+  the command must still return non-zero while those errors remain
 - `closeout-feature` defaults to a dry-run plan and requires `--execute` before
   it changes tracker state
 - tracked feature completion means the feature reaches `archived` or
@@ -545,44 +540,13 @@ Stable closeout expectations:
 The tracker must fail closed if active and closed directory placement disagree
 with indexed feature status.
 
-## Commit Contract
-
-Required subject format:
-
-`feature(<feature-id>): task(<task-id>) <summary>`
-
-Required body sections:
-
-- `Plan:`
-- `Check:`
-- `Learn:`
-
-Required trailers:
-
-- `Feature-ID: <feature-id>`
-- `Task-ID: <task-id>`
-- `Gate-Result: pass|fail`
-- `Task-Status: done|blocked`
-
-`Task-Status: done` requires `Gate-Result: pass`.
-
-Executed commit behavior:
-
-- the same workspace execution-root rule applies to `prepare-task-commit
-  --execute`
-- for `worktree` features, the resulting commit must be created on the feature
-  branch checked out by the assigned worktree
-- `last_commit_hash` records that feature-branch commit
-- the recorded commit must include files staged in the feature worktree and must
-  not accidentally commit from the root checkout
-
 ## Protected Boundaries
 
 This contract intentionally rejects several easier but lower-quality shortcuts.
 
 - Feature ids do not carry slug or timestamp semantics.
 - Local issuer state does not become tracked planning truth.
-- DAG output does not replace feature state.
-- DAG output must not embed policy-resolved execution planning.
+- Dependency projection output does not replace feature state or embed
+  policy-resolved execution planning.
 - Unsupported feature-root prose files must not become shadow tracker truth.
 - External bridge logic does not ship inside the canonical tracker contract.

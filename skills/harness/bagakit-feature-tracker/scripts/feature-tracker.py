@@ -14,8 +14,6 @@ import shutil
 import subprocess
 import sys
 import tarfile
-import urllib.error
-import urllib.request
 from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
@@ -59,11 +57,8 @@ PLANNING_ENTRY_HANDOFF_CLARIFICATION_STATUS = {"pending", "in_progress", "comple
 PLANNING_ENTRY_HANDOFF_USER_REVIEW_STATUS = {"pending", "approved", "changes_requested"}
 PLANNING_ENTRY_HANDOFF_SCENES = {"analysis_only", "ambiguous_delivery", "clear_delivery", "execution_ready"}
 PLANNING_ENTRY_FEATURE_RECIPE_IDS = {"planning-entry-brainstorm-to-feature", "planning-entry-brainstorm-feature-flow"}
-UNRESOLVED_ENV_RE = re.compile(r"\$\{?[A-Za-z_][A-Za-z0-9_]*")
-REFERENCE_SKILLS_ENV = "BAGAKIT_REFERENCE_SKILLS_HOME"
 RUNTIME_POLICY_FILENAME = "runtime-policy.json"
 LEGACY_CONFIG_FILENAME = "config.json"
-FEATURES_DAG_FILENAME = "FEATURES_DAG.json"
 FEATURE_PROPOSAL_FILENAME = "proposal.md"
 FEATURE_SPEC_DELTA_FILENAME = "spec-delta.md"
 FEATURE_VERIFICATION_FILENAME = "verification.md"
@@ -76,7 +71,6 @@ OWNER_RECEIPT_SCHEMA = "bagakit.execution-owner-receipt.v1"
 FEATURE_GOAL_SCHEMA = "bagakit.feature-goal.v1"
 TASK_PLAN_STATUSES = {"draft", "reviewed"}
 TASK_VERIFICATION_KINDS = {"command", "artifact", "manual", "owner_receipt"}
-DAG_RECOVERY_HINT = "run feature-tracker.sh replan-features to regenerate FEATURES_DAG.json"
 FEATURE_REQUIRED_ROOT_FILES = frozenset({"state.json", "tasks.json"})
 FEATURE_DERIVED_ROOT_FILES = frozenset({FEATURE_OWNER_RECEIPT_FILENAME})
 FEATURE_CONTROL_ROOT_FILES = frozenset({FEATURE_GOAL_FILENAME})
@@ -935,22 +929,6 @@ class HarnessPaths:
         return self.harness_dir / LEGACY_CONFIG_FILENAME
 
     @property
-    def dag_file(self) -> Path:
-        return self.index_dir / FEATURES_DAG_FILENAME
-
-    @property
-    def dag_archive_dir(self) -> Path:
-        return self.index_dir / "archive"
-
-    @property
-    def ref_report_json(self) -> Path:
-        return self.artifacts_dir / "ref-read-report.json"
-
-    @property
-    def ref_report_md(self) -> Path:
-        return self.artifacts_dir / "ref-read-report.md"
-
-    @property
     def issuer_file(self) -> Path:
         return self.local_dir / LOCAL_ISSUER_FILENAME
 
@@ -1013,19 +991,6 @@ def tracker_state_lock(root: Path, *, allow_create: bool = False) -> Generator[N
             fcntl.flock(lock.fileno(), fcntl.LOCK_UN)
 
 
-@contextmanager
-def workspace_git_lock(root: Path, execution_root: Path) -> Generator[None, None, None]:
-    lock_name = f"feature-tracker-workspace-{short_hash_token(str(execution_root.resolve()), width=8)}.lock"
-    lock_file = git_common_dir(root) / "bagakit" / lock_name
-    lock_file.parent.mkdir(parents=True, exist_ok=True)
-    with lock_file.open("a+", encoding="utf-8") as lock:
-        fcntl.flock(lock.fileno(), fcntl.LOCK_EX)
-        try:
-            yield
-        finally:
-            fcntl.flock(lock.fileno(), fcntl.LOCK_UN)
-
-
 def infer_next_feat_sequence(index_data: dict[str, Any]) -> int:
     max_seen = -1
     for item in index_data.get("features", []):
@@ -1040,7 +1005,10 @@ def infer_next_feat_sequence(index_data: dict[str, Any]) -> int:
 
 def ensure_feature_id_issuance(index_data: dict[str, Any]) -> tuple[dict[str, Any], bool]:
     changed = False
-    legacy_allocator = index_data.pop("id_allocator", None)
+    if "id_allocator" in index_data:
+        raise SystemExit(
+            "error: unsupported feature index field: id_allocator; canonical runtime does not auto-migrate legacy allocators"
+        )
     issuance = index_data.get("feature_id_issuance")
     if not isinstance(issuance, dict):
         issuance = {}
@@ -1054,10 +1022,8 @@ def ensure_feature_id_issuance(index_data: dict[str, Any]) -> tuple[dict[str, An
 
     inferred_next = infer_next_feat_sequence(index_data)
     raw_next = issuance.get("next_cursor")
-    legacy_next = legacy_allocator.get("next") if isinstance(legacy_allocator, dict) else None
     baseline_next = max(
         inferred_next,
-        int(legacy_next) if isinstance(legacy_next, int) else 0,
         int(raw_next) if isinstance(raw_next, int) else 0,
     )
     if issuance.get("next_cursor") != baseline_next:
@@ -1111,7 +1077,7 @@ def normalize_tasks_payload(tasks: dict[str, Any]) -> None:
     for item in tasks["tasks"]:
         if not isinstance(item, dict):
             continue
-        for key in ("last_gate_at", "started_at", "finished_at", "updated_at"):
+        for key in ("last_gate_at", "started_at", "finished_at", "updated_at", "last_commit_hash"):
             item.pop(key, None)
 
 
@@ -1152,7 +1118,6 @@ def task_has_execution_evidence(task: dict[str, Any]) -> bool:
         task.get("status") in {"done", "blocked"}
         or task.get("gate_result") is not None
         or bool(task.get("last_gate_commands"))
-        or bool(task.get("last_commit_hash"))
     )
 
 
@@ -1293,24 +1258,9 @@ def has_reviewed_task_plan(tasks: dict[str, Any]) -> bool:
     return True
 
 
-def is_legacy_task_plan(tasks: dict[str, Any]) -> bool:
-    version = tasks.get("version")
-    return version == 1 and not isinstance(version, bool) and "plan_status" not in tasks
-
-
-def legacy_task_plan_validation_error(feat_id: str) -> str:
-    return (
-        f"{feat_id}: active feature requires an explicit version 2 reviewed task plan; "
-        "run feature-tracker.sh upgrade-legacy-task-plan with an approved plan and "
-        "--expected-revision 0"
-    )
-
-
 def require_reviewed_task_plan(tasks: dict[str, Any], *, feat_id: str, action: str) -> None:
     if has_reviewed_task_plan(tasks):
         return
-    if is_legacy_task_plan(tasks):
-        raise SystemExit(f"error: {legacy_task_plan_validation_error(feat_id)} before {action}")
     raise SystemExit(
         "error: "
         f"feat {feat_id} has no reviewed task plan; run feature-tracker.sh set-task-plan "
@@ -1414,7 +1364,6 @@ def build_reviewed_tasks_payload(
                 "status": "todo",
                 "gate_result": None,
                 "last_gate_commands": [],
-                "last_commit_hash": None,
                 "notes": [],
             }
         )
@@ -1446,101 +1395,6 @@ def build_reviewed_tasks_payload(
         "plan_history": history,
         "tasks": tasks,
     }
-
-
-def build_legacy_task_plan_upgrade_payload(
-    feat_id: str,
-    candidate: dict[str, Any],
-    *,
-    previous: dict[str, Any],
-) -> dict[str, Any]:
-    if not is_legacy_task_plan(previous):
-        raise SystemExit(
-            "error: legacy task-plan upgrade requires version 1 tasks.json without plan_status"
-        )
-    partial_plan_fields = {
-        "plan_revision",
-        "supersedes_revision",
-        "review_ref",
-        "source_refs",
-        "plan_history",
-    }
-    present_partial_fields = sorted(partial_plan_fields & set(previous))
-    if present_partial_fields:
-        raise SystemExit(
-            "error: legacy task-plan upgrade rejects partially materialized plan metadata: "
-            + ", ".join(present_partial_fields)
-        )
-    if previous.get("feat_id") != feat_id:
-        raise SystemExit(f"error: legacy tasks feat_id mismatch for {feat_id}")
-
-    previous_items = previous.get("tasks")
-    if not isinstance(previous_items, list) or not previous_items:
-        raise SystemExit("error: legacy task-plan upgrade requires at least one existing task")
-    previous_ids = [
-        str(task.get("id") or "") if isinstance(task, dict) else ""
-        for task in previous_items
-    ]
-    candidate_ids = [str(task["id"]) for task in candidate["tasks"]]
-    if candidate_ids != previous_ids:
-        raise SystemExit(
-            "error: legacy task-plan upgrade must preserve existing task ids and order exactly; "
-            f"existing={','.join(previous_ids)} candidate={','.join(candidate_ids)}"
-        )
-
-    upgraded_items: list[dict[str, Any]] = []
-    semantic_fields = (
-        "title",
-        "objective",
-        "outcome",
-        "acceptance",
-        "verification",
-        "source_refs",
-        "supersedes",
-    )
-    for previous_task, candidate_task in zip(previous_items, candidate["tasks"]):
-        if not isinstance(previous_task, dict):
-            raise SystemExit("error: legacy task-plan upgrade requires object task entries")
-        task_id = str(candidate_task["id"])
-        if previous_task.get("title") != candidate_task.get("title"):
-            raise SystemExit(
-                "error: legacy task-plan upgrade cannot rename existing task "
-                f"{task_id}; reviewed title must match tasks.json exactly"
-            )
-        if candidate_task.get("supersedes"):
-            raise SystemExit(
-                "error: legacy task-plan upgrade is semantic enrichment, not replacement; "
-                f"task {task_id} must use supersedes=[]"
-            )
-        upgraded_task = dict(previous_task)
-        for field in semantic_fields:
-            upgraded_task[field] = copy.deepcopy(candidate_task[field])
-        upgraded_task["introduced_in_revision"] = 1
-        upgraded_items.append(upgraded_task)
-
-    payload = {
-        "version": 2,
-        "feat_id": feat_id,
-        "plan_status": "reviewed",
-        "plan_revision": 1,
-        "supersedes_revision": None,
-        "review_ref": candidate["review_ref"],
-        "source_refs": candidate["source_refs"],
-        "plan_history": [
-            {
-                "revision": 1,
-                "supersedes_revision": None,
-                "review_ref": candidate["review_ref"],
-                "source_refs": candidate["source_refs"],
-                "task_ids": candidate_ids,
-                "superseded_task_ids": [],
-            }
-        ],
-        "tasks": upgraded_items,
-    }
-    if not has_reviewed_task_plan(payload):
-        raise SystemExit("error: legacy task-plan upgrade did not produce canonical reviewed v2 state")
-    return payload
 
 
 def load_local_issuer(paths: HarnessPaths) -> dict[str, Any] | None:
@@ -2049,60 +1903,6 @@ def preserve_closeout_root_entries(
     return preserved
 
 
-def dag_path_is_non_regular(path: Path) -> bool:
-    return path.is_symlink() or (path.exists() and not path.is_file())
-
-
-def ensure_direct_dag_write_target(paths: HarnessPaths) -> None:
-    dag_path = paths.dag_file
-    parent = dag_path.parent
-    if parent.exists():
-        if not parent.is_dir():
-            raise SystemExit(
-                "error: dag parent path is not a directory: "
-                f"{relative_display(paths.root, parent)}; {DAG_RECOVERY_HINT}"
-            )
-    else:
-        raise SystemExit(
-            "error: dag parent path missing: "
-            f"{relative_display(paths.root, parent)}; run feature-tracker.sh initialize-tracker first"
-        )
-
-    if dag_path_is_non_regular(dag_path):
-        raise SystemExit(
-            "error: dag target is not a regular file: "
-            f"{relative_display(paths.root, dag_path)}; {DAG_RECOVERY_HINT}"
-        )
-
-    if not dag_path.exists():
-        raise SystemExit(
-            f"error: dag file missing: {relative_display(paths.root, dag_path)}; {DAG_RECOVERY_HINT}"
-        )
-
-    try:
-        with dag_path.open("a", encoding="utf-8"):
-            pass
-    except OSError as exc:
-        raise SystemExit(
-            "error: dag target is not writable: "
-            f"{relative_display(paths.root, dag_path)}: {exc}; {DAG_RECOVERY_HINT}"
-        ) from exc
-
-    probe = next_available_path(parent / ".dag-write-probe")
-    try:
-        probe.write_text("", encoding="utf-8")
-    except OSError as exc:
-        raise SystemExit(
-            "error: dag target directory is not writable: "
-            f"{relative_display(paths.root, parent)}: {exc}; {DAG_RECOVERY_HINT}"
-        ) from exc
-    finally:
-        try:
-            probe.unlink()
-        except FileNotFoundError:
-            pass
-
-
 def materialize_feature_artifact(
     paths: HarnessPaths,
     skill_dir: Path,
@@ -2272,10 +2072,11 @@ def save_feat(
     status = str(state.get("status") or "")
     save_json(paths.feat_state(feat_id, status=status), state)
     save_json(paths.feat_tasks(feat_id, status=status), tasks)
-    save_json(
-        paths.feat_owner_receipt(feat_id, status=status),
-        build_owner_receipt(paths, state, tasks),
-    )
+    receipt_path = paths.feat_owner_receipt(feat_id, status=status)
+    if has_reviewed_task_plan(tasks) or state.get("goal_contract") is not None:
+        save_json(receipt_path, build_owner_receipt(paths, state, tasks))
+    elif receipt_path.exists():
+        receipt_path.unlink()
     upsert_feat_index(paths, state, index_data=index_data)
 
 
@@ -2487,355 +2288,22 @@ def copy_template_if_missing(skill_dir: Path, rel: str, dest: Path) -> None:
     print(f"write: {dest}")
 
 
-def manifest_path(skill_dir: Path, path_override: str | None) -> Path:
-    if path_override:
-        return Path(path_override)
-    return skill_dir / "references" / "required-reading-manifest.json"
-
-
-def resolve_manifest_location(raw: str, *, manifest_dir: Path) -> tuple[Path | None, str | None]:
-    expanded = os.path.expanduser(os.path.expandvars(raw))
-    if UNRESOLVED_ENV_RE.search(expanded):
-        return None, "unresolved environment variable in location"
-    path = Path(expanded)
-    if not path.is_absolute():
-        path = (manifest_dir / path).resolve()
-    return path, None
-
-
-def portable_path_for_report(
-    path: Path,
-    *,
-    root: Path,
-    skill_dir: Path,
-    manifest_dir: Path,
-    reference_skills_home: Path | None,
-) -> str:
-    resolved = path.resolve()
-    bases: list[tuple[str, Path]] = [
-        ("<project-root>", root),
-        ("<skill-dir>", skill_dir),
-        ("<manifest-dir>", manifest_dir),
-    ]
-    if reference_skills_home is not None:
-        bases.append((f"${REFERENCE_SKILLS_ENV}", reference_skills_home))
-    bases.append(("$HOME", Path.home()))
-
-    for prefix, base in bases:
-        try:
-            rel = resolved.relative_to(base.resolve())
-        except ValueError:
-            continue
-        rel_text = rel.as_posix()
-        if rel_text in {"", "."}:
-            return prefix
-        return f"{prefix}/{rel_text}"
-    return "<absolute-path-redacted>"
-
-
-def report_location_label(
-    raw: str,
-    *,
-    root: Path,
-    skill_dir: Path,
-    manifest_dir: Path,
-    reference_skills_home: Path | None,
-) -> str:
-    expanded = os.path.expanduser(os.path.expandvars(raw))
-    if UNRESOLVED_ENV_RE.search(expanded):
-        return raw
-    path = Path(expanded)
-    if path.is_absolute():
-        return portable_path_for_report(
-            path,
-            root=root,
-            skill_dir=skill_dir,
-            manifest_dir=manifest_dir,
-            reference_skills_home=reference_skills_home,
-        )
-    return path.as_posix()
-
-
-def default_reference_skills_home() -> Path | None:
-    env_raw = os.environ.get(REFERENCE_SKILLS_ENV, "").strip()
-    if env_raw:
-        return Path(os.path.expanduser(os.path.expandvars(env_raw)))
-    return None
-
-
-def ensure_reference_skills_home() -> Path | None:
-    return default_reference_skills_home()
-
-
-def compute_manifest_hash(path: Path) -> str:
-    return sha256_file(path)
-
-
-def cmd_ref_read_gate(args: argparse.Namespace) -> int:
-    root = Path(args.root).resolve()
-    paths = HarnessPaths(root)
-    skill_dir = Path(args.skill_dir).resolve()
-    mpath = manifest_path(skill_dir, args.manifest)
-    manifest_dir = mpath.parent.resolve()
-    detected_ref_home = ensure_reference_skills_home()
-    manifest_path_label = portable_path_for_report(
-        mpath,
-        root=root,
-        skill_dir=skill_dir,
-        manifest_dir=manifest_dir,
-        reference_skills_home=detected_ref_home,
-    )
-
-    if not mpath.exists():
-        eprint(f"error: manifest not found: {mpath}")
-        return 1
-
-    manifest_data = load_json(mpath)
-    entries = manifest_data.get("entries", [])
-    if not isinstance(entries, list):
-        eprint("error: manifest 'entries' must be list")
-        return 1
-
-    result_entries: list[dict[str, Any]] = []
-    ok = True
-    needs_reference_skills_home = False
-
-    for entry in entries:
-        entry_id = str(entry.get("id", ""))
-        entry_type = str(entry.get("type", ""))
-        location = str(entry.get("location", ""))
-        if REFERENCE_SKILLS_ENV in location:
-            needs_reference_skills_home = True
-        location_label = report_location_label(
-            location,
-            root=root,
-            skill_dir=skill_dir,
-            manifest_dir=manifest_dir,
-            reference_skills_home=detected_ref_home,
-        )
-        resolved_location = location_label
-        required = bool(entry.get("required", True))
-        exists = False
-        digest = ""
-        error = ""
-
-        if not entry_id or entry_type not in {"file", "url"} or not location:
-            ok = False
-            error = "invalid manifest entry"
-        elif entry_type == "file":
-            resolved_path, resolve_error = resolve_manifest_location(location, manifest_dir=manifest_dir)
-            if resolve_error:
-                exists = False
-                error = resolve_error
-            else:
-                resolved_location = portable_path_for_report(
-                    resolved_path,
-                    root=root,
-                    skill_dir=skill_dir,
-                    manifest_dir=manifest_dir,
-                    reference_skills_home=detected_ref_home,
-                )
-                if resolved_path.exists() and resolved_path.is_file():
-                    exists = True
-                    digest = sha256_file(resolved_path)
-                else:
-                    exists = False
-                    error = "file not found"
-        elif entry_type == "url":
-            try:
-                with urllib.request.urlopen(location, timeout=20) as r:
-                    data = r.read()
-                exists = True
-                digest = sha256_bytes(data)
-            except (urllib.error.URLError, TimeoutError) as exc:
-                exists = False
-                error = f"url fetch failed: {exc}"
-
-        if required and not exists:
-            ok = False
-
-        result_entries.append(
-            {
-                "id": entry_id,
-                "type": entry_type,
-                "location": location_label,
-                "resolved_location": resolved_location,
-                "required": required,
-                "exists": exists,
-                "sha256": digest,
-                "error": error,
-            }
-        )
-
-    status = "VALID" if ok else "INVALID"
-    mhash = compute_manifest_hash(mpath)
-
-    payload = {
-        "status": status,
-        "project_root": "<project-root>",
-        "manifest_path": manifest_path_label,
-        "manifest_sha256": mhash,
-        "entries": result_entries,
-    }
-
-    paths.artifacts_dir.mkdir(parents=True, exist_ok=True)
-    save_json(paths.ref_report_json, payload)
-
-    lines = [
-        "# Reference Read Report",
-        "",
-        f"Status: {status}",
-        "Project Root: <project-root>",
-        f"Manifest Path: {manifest_path_label}",
-        f"Manifest SHA256: {mhash}",
-        "",
-        "## Entries",
-        "",
-        "| ID | Type | Required | Exists | SHA256 | Error |",
-        "|---|---|---|---|---|---|",
-    ]
-    for item in result_entries:
-        lines.append(
-            "| {id} | {type} | {required} | {exists} | {sha256} | {error} |".format(
-                id=item["id"],
-                type=item["type"],
-                required="yes" if item["required"] else "no",
-                exists="yes" if item["exists"] else "no",
-                sha256=item["sha256"] or "-",
-                error=(item["error"] or "-").replace("|", "/"),
-            )
-        )
-
-    lines += ["", "## Reading Notes", ""]
-    for item in result_entries:
-        lines += [
-            f"### {item['id']}",
-            "- Summary:",
-            "- Key takeaways:",
-            "",
-        ]
-
-    write_text(paths.ref_report_md, "\n".join(lines))
-
-    print(f"write: {paths.ref_report_json}")
-    print(f"write: {paths.ref_report_md}")
-    if detected_ref_home is not None:
-        detected_ref_home_label = portable_path_for_report(
-            detected_ref_home,
-            root=root,
-            skill_dir=skill_dir,
-            manifest_dir=manifest_dir,
-            reference_skills_home=detected_ref_home,
-        )
-        print(f"info: {REFERENCE_SKILLS_ENV}={detected_ref_home_label}")
-    elif needs_reference_skills_home:
-        eprint(
-            "warn: BAGAKIT_REFERENCE_SKILLS_HOME is required for manifests that reference external skills; "
-            "set it explicitly to the skills root before running this command"
-        )
-    if not ok:
-        eprint("error: reference read gate failed (missing required entries)")
-        return 1
-    print("ok: reference read report generated")
-    return 0
-
-
-def check_ref_report(paths: HarnessPaths, skill_dir: Path, manifest_override: str | None = None) -> list[str]:
-    ensure_reference_skills_home()
-    issues: list[str] = []
-    mpath = manifest_path(skill_dir, manifest_override)
-    if not mpath.exists():
-        issues.append(f"manifest missing: {mpath}")
-        return issues
-
-    if not paths.ref_report_json.exists():
-        issues.append(
-            "missing report: "
-            f"{paths.ref_report_json} "
-            f"(run feature-tracker.sh check-reference-readiness --root {paths.root})"
-        )
-        return issues
-
-    try:
-        report = load_json(paths.ref_report_json)
-    except Exception as exc:  # noqa: BLE001
-        issues.append(f"failed to read report json: {exc}")
-        return issues
-
-    if report.get("status") != "VALID":
-        issues.append("ref-read report status is not VALID")
-
-    expected_hash = compute_manifest_hash(mpath)
-    if report.get("manifest_sha256") != expected_hash:
-        issues.append("manifest hash mismatch; regenerate report")
-
-    entries = report.get("entries", [])
-    if not isinstance(entries, list):
-        issues.append("report entries malformed")
-        return issues
-
-    missing_required = [
-        item.get("id")
-        for item in entries
-        if item.get("required", True) and not item.get("exists", False)
-    ]
-    if missing_required:
-        needs_reference_skills_home = any(
-            REFERENCE_SKILLS_ENV in str(item.get("location", ""))
-            for item in entries
-            if isinstance(item, dict)
-        )
-        issues.append(f"missing required references: {', '.join(str(i) for i in missing_required)}")
-        if needs_reference_skills_home:
-            issues.append(
-                "hint: ensure required skills are installed and "
-                "set BAGAKIT_REFERENCE_SKILLS_HOME to the correct skills directory "
-                "(for one-shot shell calls, set it inline with the command)"
-            )
-        else:
-            issues.append("hint: ensure local manifest file entries exist and are readable")
-
-    return issues
-
-
-def cmd_check_ref_report(args: argparse.Namespace) -> int:
-    root = Path(args.root).resolve()
-    skill_dir = Path(args.skill_dir).resolve()
-    paths = HarnessPaths(root)
-    issues = check_ref_report(paths, skill_dir, args.manifest)
-    if issues:
-        for issue in issues:
-            eprint(f"error: {issue}")
-        return 1
-    print("ok")
-    return 0
-
-
 def cmd_apply(args: argparse.Namespace) -> int:
     root = Path(args.root).resolve()
     skill_dir = Path(args.skill_dir).resolve()
     paths = HarnessPaths(root)
     ensure_git_repo(root)
 
-    if args.strict:
-        issues = check_ref_report(paths, skill_dir, args.manifest)
-        if issues:
-            for issue in issues:
-                eprint(f"error: {issue}")
-            return 1
-
     paths.harness_dir.mkdir(parents=True, exist_ok=True)
     paths.feats_dir.mkdir(parents=True, exist_ok=True)
     paths.feats_archived_dir.mkdir(parents=True, exist_ok=True)
     paths.feats_discarded_dir.mkdir(parents=True, exist_ok=True)
     paths.index_dir.mkdir(parents=True, exist_ok=True)
-    paths.dag_archive_dir.mkdir(parents=True, exist_ok=True)
     paths.artifacts_dir.mkdir(parents=True, exist_ok=True)
 
     copy_template_if_missing(skill_dir, "tpl/features-index-template.json", paths.index_file)
     save_index(paths, load_index(paths))
     ensure_runtime_policy(paths, skill_dir)
-    copy_template_if_missing(skill_dir, "tpl/features-dag-template.json", paths.dag_file)
     ensure_harness_gitignore(paths)
     ensure_local_issuer_state(root, paths)
 
@@ -2935,19 +2403,33 @@ def build_closeout_dag_projection_payload(
     return build_dag_projection_payload(states, all_status_by_feat=all_status_by_feat)
 
 
+def active_feature_family_ids(paths: HarnessPaths, slug: str) -> list[str]:
+    states, _ = load_non_archived_feats(paths)
+    return sorted(
+        (
+            feat_id
+            for feat_id, state in states.items()
+            if str(state.get("slug") or "") == slug
+        ),
+        key=feat_sort_key,
+    )
+
+
+def active_feature_family_id(paths: HarnessPaths, slug: str) -> str | None:
+    matches = active_feature_family_ids(paths, slug)
+    if len(matches) > 1:
+        raise SystemExit(
+            "error: active feature family is not unique: "
+            f"slug={slug}; features={','.join(matches)}"
+        )
+    return matches[0] if matches else None
+
+
 def cmd_feat_new(args: argparse.Namespace) -> int:
     root = Path(args.root).resolve()
-    skill_dir = Path(args.skill_dir).resolve()
     ensure_git_repo(root)
     paths = HarnessPaths(root)
     ensure_harness_exists(paths)
-
-    if args.strict:
-        issues = check_ref_report(paths, skill_dir, args.manifest)
-        if issues:
-            for issue in issues:
-                eprint(f"error: {issue}")
-            return 1
 
     title = args.title.strip()
     goal = args.goal.strip()
@@ -2969,6 +2451,32 @@ def cmd_feat_new(args: argparse.Namespace) -> int:
             root=root,
             label=f"reviewed task plan {relative_display(root, tasks_file)}",
         )
+
+    try:
+        existing_feat_id = active_feature_family_id(paths, slug)
+    except SystemExit as exc:
+        eprint(str(exc))
+        return 1
+    if existing_feat_id is not None:
+        existing_state, existing_tasks = load_feat(paths, existing_feat_id)
+        if task_plan is not None:
+            current_revision = existing_tasks.get("plan_revision")
+            if not isinstance(current_revision, int) or isinstance(current_revision, bool):
+                current_revision = 0
+            eprint(
+                "error: active feature family already exists; extensions must update its Task plan: "
+                f"slug={slug}; feature={existing_feat_id}; current_revision={current_revision}"
+            )
+            eprint(
+                "next: feature-tracker.sh set-task-plan "
+                f"--root {root} --feature {existing_feat_id} --tasks-file <reviewed-task-plan.json> "
+                f"--expected-revision {current_revision}"
+            )
+            return 1
+        print(f"reuse: active feature family {slug} => {existing_feat_id}")
+        print(f"feature_status: {existing_state.get('status', '')}")
+        print(f"feature_id: {existing_feat_id}")
+        return 0
 
     policy = load_runtime_policy(paths)
     workspace_mode = resolve_workspace_mode(policy, args.workspace_mode)
@@ -3031,12 +2539,7 @@ def cmd_feat_new(args: argparse.Namespace) -> int:
     }
 
     try:
-        dag_payload = build_create_dag_projection_payload(paths, feat_id=feat_id, state=state)
-    except SystemExit as exc:
-        eprint(str(exc))
-        return 1
-    try:
-        ensure_direct_dag_write_target(paths)
+        build_create_dag_projection_payload(paths, feat_id=feat_id, state=state)
     except SystemExit as exc:
         eprint(str(exc))
         return 1
@@ -3079,11 +2582,9 @@ def cmd_feat_new(args: argparse.Namespace) -> int:
     feat_dir = paths.feat_dir(feat_id)
     feat_dir.mkdir(parents=True, exist_ok=False)
     save_feat(paths, feat_id, state, tasks, index_data=planned_index_data)
-    save_json(paths.dag_file, dag_payload)
 
     print(f"write: {feat_dir / 'state.json'}")
     print(f"write: {feat_dir / 'tasks.json'}")
-    print(f"write: {relative_display(root, paths.dag_file)}")
     print(f"workspace_mode: {workspace_mode}")
     print(f"branch: {branch}")
     print(f"worktree: {wt_abs if wt_abs is not None else ''}")
@@ -3093,7 +2594,6 @@ def cmd_feat_new(args: argparse.Namespace) -> int:
 
 def cmd_feat_new_from_planning_entry_handoff(args: argparse.Namespace) -> int:
     root = Path(args.root).resolve()
-    skill_dir = Path(args.skill_dir).resolve()
     ensure_git_repo(root)
     paths = HarnessPaths(root)
     ensure_harness_exists(paths)
@@ -3139,12 +2639,22 @@ def cmd_feat_new_from_planning_entry_handoff(args: argparse.Namespace) -> int:
         )
         return 1
 
+    family_slug = slugify(args.slug if args.slug else handoff["title"])
+    try:
+        existing_feat_id = active_feature_family_id(paths, family_slug)
+    except SystemExit as exc:
+        eprint(str(exc))
+        return 1
+    if existing_feat_id is not None:
+        eprint(
+            "error: planning-entry handoff resolves to an existing active feature family; "
+            f"feature={existing_feat_id}; slug={family_slug}; route the extension through its Task plan"
+        )
+        return 1
+
     before_ids = active_feature_ids(paths)
     create_args = argparse.Namespace(
         root=str(root),
-        skill_dir=str(skill_dir),
-        manifest=args.manifest,
-        strict=args.strict,
         title=handoff["title"],
         slug=args.slug,
         goal=handoff["goal"],
@@ -3235,65 +2745,6 @@ def cmd_set_task_plan(args: argparse.Namespace) -> int:
     )
     save_feat(paths, args.feat, state, tasks)
     print(f"ok: task plan set {args.feat} revision={next_revision}")
-    return 0
-
-
-def cmd_upgrade_legacy_task_plan(args: argparse.Namespace) -> int:
-    root = Path(args.root).resolve()
-    paths = HarnessPaths(root)
-    ensure_harness_exists(paths)
-    state, tasks = load_feat(paths, args.feat)
-    status = str(state.get("status") or "")
-    if status in CLOSED_FEAT_STATUS:
-        eprint(f"error: legacy task-plan upgrade is not available for closed feature status={status}")
-        return 1
-    if args.expected_revision != 0:
-        eprint(
-            "error: legacy task-plan upgrade revision conflict: "
-            f"expected {args.expected_revision}, current 0"
-        )
-        return 1
-
-    allowed_legacy_error = legacy_task_plan_validation_error(args.feat)
-    preflight_errors = validate_feat(paths, root, args.feat)
-    unexpected_errors = [error for error in preflight_errors if error != allowed_legacy_error]
-    if allowed_legacy_error not in preflight_errors or unexpected_errors:
-        eprint(
-            "error: legacy task-plan upgrade requires otherwise valid pre-v2 feature state"
-        )
-        for error in preflight_errors:
-            eprint(f"error: preflight: {error}")
-        return 1
-
-    tasks_file = Path(args.tasks_file)
-    if not tasks_file.is_absolute():
-        tasks_file = root / tasks_file
-    if not tasks_file.exists():
-        eprint(f"error: reviewed task plan file not found: {tasks_file}")
-        return 1
-    candidate = parse_task_plan_candidate(
-        load_json(tasks_file),
-        root=root,
-        label=f"reviewed task plan {relative_display(root, tasks_file)}",
-    )
-    try:
-        upgraded_tasks = build_legacy_task_plan_upgrade_payload(
-            args.feat,
-            candidate,
-            previous=tasks,
-        )
-    except SystemExit as exc:
-        eprint(str(exc))
-        return 1
-
-    state.setdefault("history", []).append(
-        history_event(
-            "legacy_task_plan_upgraded",
-            f"version=1->2; revision=1; preserved_status={status}",
-        )
-    )
-    save_feat(paths, args.feat, state, upgraded_tasks)
-    print(f"ok: legacy task plan upgraded {args.feat} revision=1 status={status}")
     return 0
 
 
@@ -3740,205 +3191,6 @@ def cmd_task_gate(args: argparse.Namespace) -> int:
     return 0
 
 
-def build_commit_message(
-    state: dict[str, Any],
-    task: dict[str, Any],
-    summary: str,
-    task_status: str,
-    gate_result: str,
-) -> str:
-    feat_id = state["feat_id"]
-    task_id = task["id"]
-    checks = task.get("last_gate_commands", [])
-    check_lines = []
-    if checks:
-        for rec in checks:
-            check_lines.append(
-                f"- `{rec.get('command','')}` => {rec.get('status','unknown').upper()}"
-            )
-    else:
-        check_lines.append("- No gate command records found")
-
-    body = [
-        f"feature({feat_id}): task({task_id}) {summary}",
-        "",
-        "Plan:",
-        f"- Feat Goal: {state.get('goal','')}",
-        f"- Task: {task.get('title','')}",
-        "",
-        "Check:",
-        *check_lines,
-        "",
-        "Learn:",
-        "- Add key learnings, risks, or follow-up notes here.",
-        "",
-        f"Feature-ID: {feat_id}",
-        f"Task-ID: {task_id}",
-        f"Gate-Result: {gate_result}",
-        f"Task-Status: {task_status}",
-        "",
-    ]
-    return "\n".join(body)
-
-
-def parse_trailers(lines: list[str]) -> dict[str, str]:
-    trailers: dict[str, str] = {}
-    for line in lines:
-        m = re.match(r"^([A-Za-z0-9-]+):\s*(.+)$", line.strip())
-        if m:
-            trailers[m.group(1)] = m.group(2)
-    return trailers
-
-
-def validate_commit_message(
-    text: str,
-    expected_feat: str,
-    expected_task: str,
-    expected_task_status: str,
-    expected_gate_result: str,
-) -> list[str]:
-    errors: list[str] = []
-    lines = text.splitlines()
-    if not lines:
-        return ["empty commit message"]
-
-    subj = lines[0].strip()
-    m = re.match(r"^feature\(([^)]+)\): task\((T-\d{3})\) .+$", subj)
-    if not m:
-        errors.append("invalid subject format")
-    else:
-        if not is_valid_feat_id(m.group(1)):
-            errors.append("invalid subject feature-id")
-        elif m.group(1) != expected_feat:
-            errors.append("subject feature-id mismatch")
-        if m.group(2) != expected_task:
-            errors.append("subject task-id mismatch")
-
-    blob = "\n".join(lines)
-    for marker in ("\nPlan:\n", "\nCheck:\n", "\nLearn:\n"):
-        if marker not in f"\n{blob}\n":
-            errors.append(f"missing section: {marker.strip()}")
-
-    trailers = parse_trailers(lines)
-    required = {
-        "Feature-ID": expected_feat,
-        "Task-ID": expected_task,
-        "Gate-Result": expected_gate_result,
-        "Task-Status": expected_task_status,
-    }
-    for k, v in required.items():
-        if trailers.get(k) != v:
-            errors.append(f"missing or invalid trailer {k}")
-
-    if expected_task_status == "done" and expected_gate_result != "pass":
-        errors.append("done status requires gate_result=pass")
-
-    return errors
-
-
-def cmd_task_commit(args: argparse.Namespace) -> int:
-    root = Path(args.root).resolve()
-    paths = HarnessPaths(root)
-    ensure_harness_exists(paths)
-    ensure_git_repo(root)
-
-    with tracker_state_lock(root):
-        state, tasks = load_feat(paths, args.feat)
-        task = find_task(tasks, args.task)
-        if task.get("status") != "in_progress":
-            eprint(f"error: task must be in_progress before commit: {args.task}")
-            return 1
-
-        gate_result = str(task.get("gate_result") or "")
-        if gate_result not in GATE_STATUS:
-            eprint("error: task gate_result is missing; run feature-tracker.sh run-task-gate first")
-            return 1
-        try:
-            execution = resolve_feature_execution_root(root, state)
-        except SystemExit as exc:
-            eprint(str(exc))
-            return 1
-        execution_sig = workspace_signature(state, execution)
-
-        task_status = args.task_status
-        if task_status == "done" and gate_result != "pass":
-            eprint("error: Task-Status done requires Gate-Result pass")
-            return 1
-
-        msg = build_commit_message(state, task, args.summary.strip(), task_status, gate_result)
-        artifacts_dir = paths.feat_artifacts_dir(args.feat, status=str(state.get("status") or ""))
-        msg_file = (
-            Path(args.message_out).resolve()
-            if args.message_out
-            else artifacts_dir / next_numbered_path(artifacts_dir, prefix=f"commit-{args.task}-", suffix=".msg").name
-        )
-        write_text(msg_file, msg)
-
-        errors = validate_commit_message(
-            msg,
-            expected_feat=args.feat,
-            expected_task=args.task,
-            expected_task_status=task_status,
-            expected_gate_result=gate_result,
-        )
-        if errors:
-            for err in errors:
-                eprint(f"error: {err}")
-            return 1
-
-    print(f"message_file: {msg_file}")
-    print(
-        "next: git -C "
-        f"{shlex.quote(str(execution.path))} add -A && "
-        f"git -C {shlex.quote(str(execution.path))} commit -F {shlex.quote(str(msg_file))}"
-    )
-
-    if args.execute:
-        with workspace_git_lock(root, execution.path):
-            with tracker_state_lock(root):
-                state, tasks = load_feat(paths, args.feat)
-                task = find_task(tasks, args.task)
-                if task.get("status") != "in_progress" or state.get("current_task_id") != args.task:
-                    eprint("error: task state changed before commit; commit was not created")
-                    return 1
-                if str(task.get("gate_result") or "") != gate_result:
-                    eprint("error: task gate_result changed before commit; commit was not created")
-                    return 1
-                if revalidate_workspace_signature(root, state, execution_sig, label="commit") is None:
-                    return 1
-            before_head = run_cmd(["git", "-C", str(execution.path), "rev-parse", "HEAD"])
-            cp = run_cmd(["git", "-C", str(execution.path), "commit", "-F", str(msg_file)])
-            if cp.returncode != 0:
-                eprint(cp.stderr.strip() or cp.stdout.strip() or "git commit failed")
-                return 1
-            head = run_cmd(["git", "-C", str(execution.path), "rev-parse", "HEAD"])
-            if before_head.returncode == 0 and head.returncode == 0 and before_head.stdout.strip() == head.stdout.strip():
-                eprint("error: git commit returned success but HEAD did not change")
-                return 1
-            if head.returncode != 0:
-                eprint(head.stderr.strip() or head.stdout.strip() or "error: failed to resolve committed HEAD")
-                return 1
-        with tracker_state_lock(root):
-            state, tasks = load_feat(paths, args.feat)
-            task = find_task(tasks, args.task)
-            if task.get("status") != "in_progress" or state.get("current_task_id") != args.task:
-                eprint("error: task state changed after commit; commit hash was not recorded")
-                eprint(f"commit_hash: {head.stdout.strip()}")
-                return 1
-            if str(task.get("gate_result") or "") != gate_result:
-                eprint("error: task gate_result changed after commit; commit hash was not recorded")
-                eprint(f"commit_hash: {head.stdout.strip()}")
-                return 1
-            if revalidate_workspace_signature(root, state, execution_sig, label="commit") is None:
-                eprint(f"commit_hash: {head.stdout.strip()}")
-                return 1
-            task["last_commit_hash"] = head.stdout.strip()
-            save_feat(paths, args.feat, state, tasks)
-            print(f"commit_hash: {task['last_commit_hash']}")
-
-    return 0
-
-
 def cmd_task_finish(args: argparse.Namespace) -> int:
     root = Path(args.root).resolve()
     paths = HarnessPaths(root)
@@ -4216,20 +3468,9 @@ def cmd_feat_archive(args: argparse.Namespace) -> int:
     if current_status == "archived":
         try:
             ensure_closed_feat_rerun_state(paths, args.feat, expected_status="archived")
-            archived_path, archived_invalid, wrote, warning = heal_dag_projection(paths)
         except SystemExit as exc:
             eprint(str(exc))
             return 1
-        if archived_path:
-            print(f"archive: {relative_display(root, archived_path)}")
-        if archived_invalid:
-            eprint(
-                "warn: existing FEATURES_DAG.json was malformed; archived the raw file before writing a fresh projection"
-            )
-        if wrote:
-            print(f"write: {relative_display(root, paths.dag_file)}")
-        if warning:
-            eprint(warning)
         print(f"ok: feat already archived {args.feat}")
         return 0
     if current_status not in {"done", "blocked", "archived"}:
@@ -4245,16 +3486,11 @@ def cmd_feat_archive(args: argparse.Namespace) -> int:
     wt_abs = resolve_worktree_abs(root, worktree_path) if worktree_path else None
 
     try:
-        dag_payload = build_closeout_dag_projection_payload(
+        build_closeout_dag_projection_payload(
             paths,
             feat_id=args.feat,
             target_status="archived",
         )
-    except SystemExit as exc:
-        eprint(str(exc))
-        return 1
-    try:
-        ensure_direct_dag_write_target(paths)
     except SystemExit as exc:
         eprint(str(exc))
         return 1
@@ -4358,7 +3594,6 @@ def cmd_feat_archive(args: argparse.Namespace) -> int:
     print(f"write: {summary_file}")
 
     save_feat(paths, args.feat, state, tasks)
-    save_json(paths.dag_file, dag_payload)
     if preserved_root_entries:
         print(f"preserved_root_entries: {len(preserved_root_entries)}")
         print(
@@ -4367,7 +3602,6 @@ def cmd_feat_archive(args: argparse.Namespace) -> int:
                 root, archived_dir / "artifacts" / FEATURE_CLOSEOUT_PRESERVE_DIRNAME
             )
         )
-    print(f"write: {relative_display(root, paths.dag_file)}")
     print(f"ok: feat archived {args.feat}")
     return 0
 
@@ -4383,20 +3617,9 @@ def cmd_feat_discard(args: argparse.Namespace) -> int:
     if current_status == "discarded":
         try:
             ensure_closed_feat_rerun_state(paths, args.feat, expected_status="discarded")
-            archived_path, archived_invalid, wrote, warning = heal_dag_projection(paths)
         except SystemExit as exc:
             eprint(str(exc))
             return 1
-        if archived_path:
-            print(f"archive: {relative_display(root, archived_path)}")
-        if archived_invalid:
-            eprint(
-                "warn: existing FEATURES_DAG.json was malformed; archived the raw file before writing a fresh projection"
-            )
-        if wrote:
-            print(f"write: {relative_display(root, paths.dag_file)}")
-        if warning:
-            eprint(warning)
         print(f"ok: feat already discarded {args.feat}")
         return 0
     if current_status == "archived":
@@ -4429,16 +3652,11 @@ def cmd_feat_discard(args: argparse.Namespace) -> int:
             return 1
 
     try:
-        dag_payload = build_closeout_dag_projection_payload(
+        build_closeout_dag_projection_payload(
             paths,
             feat_id=args.feat,
             target_status="discarded",
         )
-    except SystemExit as exc:
-        eprint(str(exc))
-        return 1
-    try:
-        ensure_direct_dag_write_target(paths)
     except SystemExit as exc:
         eprint(str(exc))
         return 1
@@ -4552,14 +3770,12 @@ def cmd_feat_discard(args: argparse.Namespace) -> int:
     print(f"write: {summary_file}")
 
     save_feat(paths, args.feat, state, tasks)
-    save_json(paths.dag_file, dag_payload)
     if preserved_root_entries:
         print(f"preserved_root_entries: {len(preserved_root_entries)}")
         print(
             "preserved_root_dir: "
             + relative_display(root, discarded_artifacts_dir / FEATURE_CLOSEOUT_PRESERVE_DIRNAME)
         )
-    print(f"write: {relative_display(root, paths.dag_file)}")
     print(f"ok: feat discarded {args.feat}")
     return 0
 
@@ -4759,6 +3975,18 @@ def validate_feat(paths: HarnessPaths, root: Path, feat_id: str) -> list[str]:
         errors.append(f"{feat_id}: state feat_id mismatch")
 
     errors.extend(feature_goal_contract_issues(paths, state))
+
+    raw_slug = state.get("slug")
+    if not isinstance(raw_slug, str) or not raw_slug.strip():
+        errors.append(f"{feat_id}: missing feature slug")
+    else:
+        try:
+            normalized_slug = slugify(raw_slug)
+        except SystemExit as exc:
+            errors.append(f"{feat_id}: {normalize_error_text(exc)}")
+        else:
+            if raw_slug != normalized_slug:
+                errors.append(f"{feat_id}: feature slug is not normalized: {raw_slug}")
 
     try:
         canonical_depends_on(state, feat_id=feat_id)
@@ -4973,10 +4201,7 @@ def validate_feat(paths: HarnessPaths, root: Path, feat_id: str) -> list[str]:
             if not has_reviewed_task_plan(tasks):
                 errors.append(f"{feat_id}: reviewed task plan is not canonical executable v2 state")
     elif status not in CLOSED_FEAT_STATUS:
-        if is_legacy_task_plan(tasks):
-            errors.append(legacy_task_plan_validation_error(feat_id))
-        else:
-            errors.append(f"{feat_id}: active feature requires an explicit version 2 reviewed task plan")
+        errors.append(f"{feat_id}: active feature requires an explicit version 2 reviewed task plan")
 
     seen: set[str] = set()
     in_progress: list[str] = []
@@ -5129,37 +4354,14 @@ def validate_feat(paths: HarnessPaths, root: Path, feat_id: str) -> list[str]:
                 errors.append(f"{feat_id}: closed feat missing summary.md")
 
     receipt_path = paths.feat_owner_receipt(feat_id, status=str(status or ""))
-    if (explicit_plan or state.get("goal_contract") is not None) and not receipt_path.exists():
+    receipt_required = has_reviewed_task_plan(tasks) or state.get("goal_contract") is not None
+    if receipt_required and not receipt_path.exists():
         errors.append(f"{feat_id}: missing owner-receipt.json for canonical Feature control state")
     elif receipt_path.exists():
         try:
             load_current_owner_receipt(paths, state, tasks)
         except SystemExit as exc:
             errors.append(normalize_error_text(exc))
-
-    # Validate tracked commit messages for tasks that have commit hash.
-    for task in task_items:
-        commit_hash = task.get("last_commit_hash")
-        if not commit_hash:
-            continue
-        cp = run_cmd(["git", "-C", str(root), "show", "-s", "--format=%B", str(commit_hash)])
-        if cp.returncode != 0:
-            errors.append(f"{feat_id}/{task.get('id')}: commit hash not found: {commit_hash}")
-            continue
-        text = cp.stdout
-        gate_result = str(task.get("gate_result") or "pass")
-        task_status = str(task.get("status") or "done")
-        msg_errors = validate_commit_message(
-            text,
-            expected_feat=feat_id,
-            expected_task=str(task.get("id")),
-            expected_task_status=task_status if task_status in {"done", "blocked"} else "done",
-            expected_gate_result=gate_result if gate_result in GATE_STATUS else "pass",
-        )
-        if msg_errors:
-            errors.append(
-                f"{feat_id}/{task.get('id')}: commit message invalid ({'; '.join(msg_errors)})"
-            )
 
     return errors
 
@@ -5367,42 +4569,22 @@ def cmd_validate(args: argparse.Namespace) -> int:
             if child.is_dir() and child.name not in feats:
                 errors.append(f"discarded feature directory not indexed: {child.name}")
 
-    expected_dag: dict[str, Any] | None = None
     try:
         active_states, _ = load_non_archived_feats(paths)
-        expected_dag = build_dag_projection_payload(active_states, all_status_by_feat=feat_status_by_id)
+        families: dict[str, list[str]] = {}
+        for feat_id, state in active_states.items():
+            family_slug = str(state.get("slug") or "")
+            if family_slug:
+                families.setdefault(family_slug, []).append(feat_id)
+        for family_slug, family_ids in sorted(families.items()):
+            if len(family_ids) > 1:
+                errors.append(
+                    "active feature family is not unique: "
+                    f"slug={family_slug}; features={','.join(sorted(family_ids, key=feat_sort_key))}"
+                )
+        build_dag_projection_payload(active_states, all_status_by_feat=feat_status_by_id)
     except SystemExit as exc:
         errors.append(normalize_error_text(exc))
-
-    if dag_path_is_non_regular(paths.dag_file):
-        errors.append(
-            f"dag file is not a regular file: {relative_display(root, paths.dag_file)}; {DAG_RECOVERY_HINT}"
-        )
-    elif not paths.dag_file.exists():
-        errors.append(
-            f"missing dag file: {relative_display(root, paths.dag_file)}; {DAG_RECOVERY_HINT}"
-        )
-    else:
-        try:
-            dag = load_json(paths.dag_file)
-        except Exception as exc:  # noqa: BLE001
-            errors.append(f"failed to load dag file: {exc}")
-        else:
-            schema_errors = validate_dag_payload_schema(
-                dag, path=relative_display(root, paths.dag_file)
-            )
-            if schema_errors:
-                errors.extend(schema_errors)
-            else:
-                for forbidden in ("execution_mode", "max_parallel", "parallel_recommendation", "first_unfinished_layer"):
-                    if forbidden in dag:
-                        errors.append(f"dag must not contain execution-planning field: {forbidden}")
-
-                if expected_dag is not None and dag != expected_dag:
-                    errors.append(
-                        "dag projection drift from canonical feature state: "
-                        + DAG_RECOVERY_HINT
-                    )
 
     if errors:
         for err in errors:
@@ -5425,8 +4607,7 @@ def cmd_doctor(args: argparse.Namespace) -> int:
         )
     )
     if val_code != 0:
-        eprint("doctor: validation failed first")
-        return 1
+        eprint("doctor: validation failed; continuing read-only diagnostics")
 
     config = load_runtime_policy(paths)
     thresholds = config.get("stop_thresholds", {}) if isinstance(config, dict) else {}
@@ -5480,7 +4661,7 @@ def cmd_doctor(args: argparse.Namespace) -> int:
 
     print("\nrecommended next steps:")
     print("1) Address threshold warnings before starting next task.")
-    print("2) Run feature-tracker.sh run-task-gate before every task commit.")
+    print("2) Run feature-tracker.sh run-task-gate before finishing every task.")
     print("3) Close completed or superseded feats explicitly with archive-feature or discard-feature.")
     if getattr(args, "closeout_plan", False):
         print("\ncloseout plan:")
@@ -5490,7 +4671,7 @@ def cmd_doctor(args: argparse.Namespace) -> int:
                 print(f"- {line}")
         else:
             print("- no active closeout candidates")
-    return 0
+    return val_code
 
 
 def parse_dependency_spec(raw: str) -> tuple[str, list[str]]:
@@ -5556,184 +4737,6 @@ def build_layered_dag(
                     unresolved[child].discard(feat_id)
 
     return layers
-
-
-def dag_is_complete(payload: dict[str, Any]) -> bool:
-    features = payload.get("features", [])
-    return isinstance(features, list) and len(features) == 0
-
-
-def archive_existing_dag_file(paths: HarnessPaths) -> tuple[Path | None, bool]:
-    if not paths.dag_file.exists():
-        return None, False
-    target = next_numbered_path(paths.dag_archive_dir, prefix="dag-", suffix=".json")
-    try:
-        payload = load_json(paths.dag_file)
-    except Exception:  # noqa: BLE001
-        move_path(paths.dag_file, target)
-        return target, True
-
-    if not isinstance(payload, dict):
-        move_path(paths.dag_file, target)
-        return target, True
-
-    archived = json.loads(json.dumps(payload, ensure_ascii=False))
-    archived.pop("generated_at", None)
-    archived["is_completed_archive"] = dag_is_complete(payload)
-    save_json(target, archived)
-    return target, False
-
-
-def validate_dag_payload_schema(payload: Any, *, path: str) -> list[str]:
-    errors: list[str] = []
-    if not isinstance(payload, dict):
-        return [f"invalid dag schema: {path}"]
-
-    if "version" not in payload:
-        errors.append(f"missing dag version field: {path}")
-    else:
-        version = payload.get("version")
-        if not isinstance(version, int) or isinstance(version, bool) or version != 1:
-            errors.append(f"invalid dag version value: {path}")
-
-    if "generated_by" not in payload:
-        errors.append(f"missing dag generated_by field: {path}")
-    else:
-        generated_by = payload.get("generated_by")
-        if generated_by != "bagakit-feature-tracker":
-            errors.append(f"invalid dag generated_by value: {path}")
-
-    if "features" not in payload:
-        errors.append(f"missing dag features field: {path}")
-        features: Any = None
-    else:
-        features = payload.get("features")
-    if features is not None and not isinstance(features, list):
-        errors.append(f"invalid dag features schema: {path}")
-    elif isinstance(features, list):
-        for index, item in enumerate(features):
-            if not isinstance(item, dict):
-                errors.append(f"invalid dag feature entry[{index}] schema: {path}")
-                continue
-            if "feat_id" not in item:
-                errors.append(f"missing dag feat_id field for feature[{index}]: {path}")
-                feat_id = None
-            else:
-                feat_id = item.get("feat_id")
-            if not isinstance(feat_id, str) or not feat_id.strip():
-                errors.append(f"invalid dag feature feat_id[{index}]: {path}")
-            if "depends_on" not in item:
-                errors.append(f"missing dag depends_on field for feature[{index}]: {path}")
-                depends_on = None
-            else:
-                depends_on = item.get("depends_on")
-            if depends_on is not None and not isinstance(depends_on, list):
-                errors.append(f"invalid dag depends_on schema for feature[{index}]: {path}")
-            elif isinstance(depends_on, list) and any(
-                not isinstance(dep, str) or not dep.strip() for dep in depends_on
-            ):
-                errors.append(f"invalid dag depends_on item types for feature[{index}]: {path}")
-            if "dependents" not in item:
-                errors.append(f"missing dag dependents field for feature[{index}]: {path}")
-                dependents = None
-            else:
-                dependents = item.get("dependents")
-            if dependents is not None and not isinstance(dependents, list):
-                errors.append(f"invalid dag dependents schema for feature[{index}]: {path}")
-            elif isinstance(dependents, list) and any(
-                not isinstance(dep, str) or not dep.strip() for dep in dependents
-            ):
-                errors.append(f"invalid dag dependents item types for feature[{index}]: {path}")
-            if "layer" not in item:
-                errors.append(f"missing dag layer field for feature[{index}]: {path}")
-                layer = None
-            else:
-                layer = item.get("layer")
-            if "layer" in item and (not isinstance(layer, int) or isinstance(layer, bool)):
-                errors.append(f"invalid dag layer value for feature[{index}]: {path}")
-
-    if "layers" not in payload:
-        errors.append(f"missing dag layers field: {path}")
-        layers: Any = None
-    else:
-        layers = payload.get("layers")
-    if layers is not None and not isinstance(layers, list):
-        errors.append(f"invalid dag layers schema: {path}")
-    elif isinstance(layers, list):
-        for index, item in enumerate(layers):
-            if not isinstance(item, dict):
-                errors.append(f"invalid dag layer entry[{index}] schema: {path}")
-                continue
-            if "layer" not in item:
-                errors.append(f"missing dag layer field for layer[{index}]: {path}")
-            elif not isinstance(item.get("layer"), int) or isinstance(item.get("layer"), bool):
-                errors.append(f"invalid dag layer id[{index}]: {path}")
-            if "feat_ids" not in item:
-                errors.append(f"missing dag feat_ids field for layer[{index}]: {path}")
-                feat_ids = None
-            else:
-                feat_ids = item.get("feat_ids")
-            if feat_ids is not None and not isinstance(feat_ids, list):
-                errors.append(f"invalid dag layer feat_ids schema[{index}]: {path}")
-            elif isinstance(feat_ids, list) and any(
-                not isinstance(feat_id, str) or not feat_id.strip() for feat_id in feat_ids
-            ):
-                errors.append(f"invalid dag layer feat_ids item types[{index}]: {path}")
-
-    if "notes" not in payload:
-        errors.append(f"missing dag notes field: {path}")
-        notes: Any = None
-    else:
-        notes = payload.get("notes")
-    if notes is not None and not isinstance(notes, list):
-        errors.append(f"invalid dag notes schema: {path}")
-    elif isinstance(notes, list) and any(not isinstance(note, str) for note in notes):
-        errors.append(f"invalid dag notes item types: {path}")
-
-    return errors
-
-
-def heal_dag_projection(paths: HarnessPaths) -> tuple[Path | None, bool, bool, str | None]:
-    archived_path: Path | None = None
-    archived_invalid = False
-    wrote = False
-    warning: str | None = None
-
-    needs_repair = False
-    if not paths.dag_file.exists():
-        needs_repair = True
-    elif dag_path_is_non_regular(paths.dag_file):
-        needs_repair = True
-    else:
-        try:
-            existing = load_json(paths.dag_file)
-        except Exception:  # noqa: BLE001
-            needs_repair = True
-        else:
-            schema_errors = validate_dag_payload_schema(
-                existing, path=relative_display(paths.root, paths.dag_file)
-            )
-            if not schema_errors:
-                return archived_path, archived_invalid, wrote, warning
-            needs_repair = True
-
-    if not needs_repair:
-        return archived_path, archived_invalid, wrote, warning
-
-    try:
-        payload = compute_dag_projection(paths)
-    except SystemExit as exc:
-        warning = (
-            "warn: skipped FEATURES_DAG.json repair on already-closed rerun; "
-            f"active graph recompute failed: {normalize_error_text(exc)}; {DAG_RECOVERY_HINT}"
-        )
-        return archived_path, archived_invalid, wrote, warning
-
-    if paths.dag_file.exists():
-        archived_path, archived_invalid = archive_existing_dag_file(paths)
-    save_json(paths.dag_file, payload)
-    wrote = True
-    return archived_path, archived_invalid, wrote, warning
 
 
 def feature_status_by_id(paths: HarnessPaths) -> dict[str, str]:
@@ -5833,20 +4836,6 @@ def compute_dag_projection(paths: HarnessPaths) -> dict[str, Any]:
     return build_dag_projection_payload(states, all_status_by_feat=feature_status_by_id(paths))
 
 
-def refresh_dag_projection(
-    paths: HarnessPaths,
-    *,
-    archive_existing: bool = False,
-) -> tuple[dict[str, Any], Path | None, bool]:
-    payload = compute_dag_projection(paths)
-    archived_path: Path | None = None
-    archived_invalid = False
-    if archive_existing:
-        archived_path, archived_invalid = archive_existing_dag_file(paths)
-    save_json(paths.dag_file, payload)
-    return payload, archived_path, archived_invalid
-
-
 def cmd_replan_feats(args: argparse.Namespace) -> int:
     root = Path(args.root).resolve()
     paths = HarnessPaths(root)
@@ -5904,22 +4893,9 @@ def cmd_replan_feats(args: argparse.Namespace) -> int:
     for feat_id in sorted(changed_feats, key=feat_sort_key):
         save_feat(paths, feat_id, proposed_states[feat_id], tasks_by_feat[feat_id])
 
-    archived_path: Path | None = None
-    archived_invalid = False
-    if paths.dag_file.exists():
-        archived_path, archived_invalid = archive_existing_dag_file(paths)
-    save_json(paths.dag_file, payload)
-
-    print(f"write: {relative_display(root, paths.dag_file)}")
-    if archived_path:
-        print(f"archive: {relative_display(root, archived_path)}")
-    if archived_invalid:
-        eprint(
-            "warn: existing FEATURES_DAG.json was malformed; archived the raw file before writing a fresh projection"
-        )
+    print(f"updated_feature_count: {len(changed_feats)}")
     print(f"feature_count: {len(payload.get('features', []))}")
     print(f"layer_count: {len(payload.get('layers', []))}")
-    print("next: feature-tracker.sh show-feature-dag --root .")
 
     if args.json:
         print(json.dumps(payload, ensure_ascii=False, indent=2))
@@ -5930,36 +4906,17 @@ def cmd_show_feat_dag(args: argparse.Namespace) -> int:
     root = Path(args.root).resolve()
     paths = HarnessPaths(root)
     ensure_harness_exists(paths)
-    if dag_path_is_non_regular(paths.dag_file):
-        eprint(
-            f"error: dag file is not a regular file: {relative_display(root, paths.dag_file)}"
-        )
-        eprint(f"hint: {DAG_RECOVERY_HINT}")
-        return 1
-    if not paths.dag_file.exists():
-        eprint(f"error: dag file missing: {relative_display(root, paths.dag_file)}")
-        eprint(f"hint: {DAG_RECOVERY_HINT}")
-        return 1
-
     try:
-        payload = load_json(paths.dag_file)
-    except Exception as exc:  # noqa: BLE001
-        eprint(f"error: failed to read dag file: {exc}")
-        eprint(f"hint: {DAG_RECOVERY_HINT}")
-        return 1
-    schema_errors = validate_dag_payload_schema(
-        payload, path=relative_display(root, paths.dag_file)
-    )
-    if schema_errors:
-        eprint(f"error: {schema_errors[0]}")
-        eprint(f"hint: {DAG_RECOVERY_HINT}")
+        payload = compute_dag_projection(paths)
+    except SystemExit as exc:
+        eprint(str(exc))
         return 1
 
     if args.json:
         print(json.dumps(payload, ensure_ascii=False, indent=2))
         return 0
 
-    print(f"dag_file: {relative_display(root, paths.dag_file)}")
+    print("projection: on-demand")
     features = payload.get("features", [])
     layers = payload.get("layers", [])
     print(f"feature_count: {len(features) if isinstance(features, list) else 0}")
@@ -5973,12 +4930,6 @@ def cmd_show_feat_dag(args: argparse.Namespace) -> int:
                 continue
             layer_id = layer.get("layer")
             feat_ids = layer.get("feat_ids", [])
-            if not isinstance(feat_ids, list):
-                eprint(
-                    "error: invalid dag layer feat_ids schema: "
-                    + relative_display(root, paths.dag_file)
-                )
-                return 1
             print(f"- L{layer_id}: {' '.join(str(fid) for fid in feat_ids)}")
 
     if isinstance(features, list) and features:
@@ -5989,12 +4940,6 @@ def cmd_show_feat_dag(args: argparse.Namespace) -> int:
             feat_id = str(feature.get("feat_id", ""))
             depends_on = feature.get("depends_on", [])
             dependents = feature.get("dependents", [])
-            if not isinstance(depends_on, list):
-                eprint(f"error: invalid dag depends_on schema for {feat_id or '<unknown>'}")
-                return 1
-            if not isinstance(dependents, list):
-                eprint(f"error: invalid dag dependents schema for {feat_id or '<unknown>'}")
-                return 1
             layer = feature.get("layer")
             print(
                 f"- {feat_id} | layer={layer} | depends_on={','.join(str(item) for item in depends_on) or 'none'} | "
@@ -6122,22 +5067,9 @@ def build_parser() -> argparse.ArgumentParser:
         sp.add_argument("--root", default=".")
         sp.add_argument("--skill-dir", default=str(Path(__file__).resolve().parent.parent))
 
-    sp = sub.add_parser("check-reference-readiness", help="generate reference read report")
-    add_common(sp)
-    sp.add_argument("--manifest", default=None)
-    sp.set_defaults(func=cmd_ref_read_gate)
-
-    sp = sub.add_parser("validate-reference-report", help="validate strict ref-read report")
-    add_common(sp)
-    sp.add_argument("--manifest", default=None)
-    sp.set_defaults(func=cmd_check_ref_report)
-
     sp = sub.add_parser("initialize-tracker", help="apply tracker files into project")
     add_common(sp)
-    sp.add_argument("--manifest", default=None)
-    sp.add_argument("--strict", dest="strict", action="store_true")
-    sp.add_argument("--no-strict", dest="strict", action="store_false")
-    sp.set_defaults(strict=True, func=cmd_apply)
+    sp.set_defaults(func=cmd_apply)
 
     sp = sub.add_parser("rekey-local-issuer", help="rotate the local issuer namespace and git-local guard key")
     add_common(sp)
@@ -6152,30 +5084,24 @@ def build_parser() -> argparse.ArgumentParser:
 
     sp = sub.add_parser("create-feature", help="create feature with explicit workspace mode")
     add_common(sp)
-    sp.add_argument("--manifest", default=None)
-    sp.add_argument("--strict", dest="strict", action="store_true")
-    sp.add_argument("--no-strict", dest="strict", action="store_false")
     sp.add_argument("--title", required=True)
     sp.add_argument("--slug", default="")
     sp.add_argument("--goal", required=True)
     sp.add_argument("--workspace-mode", choices=sorted(WORKSPACE_MODES), default=None)
     sp.add_argument("--branch-prefix", default=None)
     sp.add_argument("--tasks-file", default="")
-    sp.set_defaults(strict=True, func=cmd_feat_new)
+    sp.set_defaults(func=cmd_feat_new)
 
     sp = sub.add_parser(
         "create-feature-from-planning-entry-handoff",
         help="create feature from an approved planning-entry handoff",
     )
     add_common(sp)
-    sp.add_argument("--manifest", default=None)
-    sp.add_argument("--strict", dest="strict", action="store_true")
-    sp.add_argument("--no-strict", dest="strict", action="store_false")
     sp.add_argument("--handoff", required=True)
     sp.add_argument("--slug", default="")
     sp.add_argument("--workspace-mode", choices=sorted(WORKSPACE_MODES), default=None)
     sp.add_argument("--branch-prefix", default=None)
-    sp.set_defaults(strict=True, func=cmd_feat_new_from_planning_entry_handoff)
+    sp.set_defaults(func=cmd_feat_new_from_planning_entry_handoff)
 
     sp = sub.add_parser("set-task-plan", help="materialize or replace one reviewed semantic task plan")
     add_common(sp)
@@ -6183,16 +5109,6 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--tasks-file", required=True)
     sp.add_argument("--expected-revision", type=int, required=True)
     sp.set_defaults(func=cmd_set_task_plan)
-
-    sp = sub.add_parser(
-        "upgrade-legacy-task-plan",
-        help="upgrade one otherwise-valid active version 1 task payload with explicit reviewed semantics",
-    )
-    add_common(sp)
-    sp.add_argument("--feature", dest="feat", required=True)
-    sp.add_argument("--tasks-file", required=True)
-    sp.add_argument("--expected-revision", type=int, required=True)
-    sp.set_defaults(func=cmd_upgrade_legacy_task_plan)
 
     sp = sub.add_parser("validate-feature-goal", help="validate a candidate or installed feature-owned goal.md")
     add_common(sp)
@@ -6238,16 +5154,6 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--task", required=True)
     sp.set_defaults(func=cmd_task_gate)
 
-    sp = sub.add_parser("prepare-task-commit", help="generate/validate structured commit message")
-    add_common(sp)
-    sp.add_argument("--feature", dest="feat", required=True)
-    sp.add_argument("--task", required=True)
-    sp.add_argument("--summary", required=True)
-    sp.add_argument("--task-status", choices=["done", "blocked"], default="done")
-    sp.add_argument("--message-out", default="")
-    sp.add_argument("--execute", action="store_true")
-    sp.set_defaults(func=cmd_task_commit)
-
     sp = sub.add_parser("finish-task", help="finish task with result")
     add_common(sp)
     sp.add_argument("--feature", dest="feat", required=True)
@@ -6288,7 +5194,7 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--closeout-plan", action="store_true")
     sp.set_defaults(func=cmd_doctor)
 
-    sp = sub.add_parser("replan-features", help="recompute feature dependency projection and archive previous DAG")
+    sp = sub.add_parser("replan-features", help="update dependencies after validating the resulting active graph")
     add_common(sp)
     sp.add_argument(
         "--dependency",
@@ -6300,7 +5206,7 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--json", action="store_true")
     sp.set_defaults(func=cmd_replan_feats)
 
-    sp = sub.add_parser("show-feature-dag", help="show current feature DAG")
+    sp = sub.add_parser("show-feature-dag", help="compute and show the current feature dependency graph")
     add_common(sp)
     sp.add_argument("--json", action="store_true")
     sp.set_defaults(func=cmd_show_feat_dag)
@@ -6338,8 +5244,8 @@ def build_parser() -> argparse.ArgumentParser:
 
 def command_requires_global_tracker_lock(args: argparse.Namespace) -> bool:
     command = str(getattr(args, "cmd", "") or "")
-    # Gate and commit stage their own short tracker locks around long-running
-    # external commands so unrelated tracker readers and writers are not blocked.
+    # Gate stages its own short tracker locks around long-running external
+    # commands so unrelated tracker readers and writers are not blocked.
     return command in {
         "initialize-tracker",
         "rekey-local-issuer",
@@ -6347,7 +5253,6 @@ def command_requires_global_tracker_lock(args: argparse.Namespace) -> bool:
         "create-feature",
         "create-feature-from-planning-entry-handoff",
         "set-task-plan",
-        "upgrade-legacy-task-plan",
         "set-feature-goal",
         "assign-feature-workspace",
         "start-task",
