@@ -10,7 +10,8 @@ monorepo.
 
 - this repo is the long-term source of truth for Bagakit skill authoring
 - the old submodule-hub model must not be reintroduced
-- do not preserve compatibility logic as a design goal
+- remove obsolete behavior directly; do not add compatibility layers,
+  compatibility migrations, or fallbacks
 
 ## Boundary Model
 
@@ -64,6 +65,21 @@ During migration:
 - prefer changing this repo first when setting future structure, metadata, or
   validation rules
 - do not keep compatibility-only entrypoints in the design baseline
+
+## Engineering Principles
+
+- choose the simplest implementation that satisfies the current requirement;
+  do not add speculative abstractions or configuration layers
+- establish the smallest working end-to-end path first, then add layers without
+  dismantling working behavior for unfinished complexity
+- keep components modular and concerns separated
+- make architecture decisions for the long term; reject temporary designs that
+  depend on replacing them later
+- study how mature products solve the same problem and prefer proven patterns;
+  apply the clean-room naming rule when adapting them to Bagakit
+- keep documentation authority explicit and maintain one SSOT; when discussion
+  with the user changes a requirement, update the owning requirement document
+  immediately using language close to the user's original wording
 
 ## Clean-Room Naming Rule
 
@@ -169,6 +185,11 @@ Rules:
    deliberately and state why.
 6. Keep tooling DRY. Shared logic should move into reusable modules instead of
    being copied across scripts.
+7. Inspect existing dependencies before adding a package or writing a custom
+   implementation; do not assume the current libraries lack the needed
+   capability.
+8. Prefer mature, actively maintained libraries. Add a dependency or reimplement
+   a capability only when the reason is explicit.
 
 ## Install Rule
 
