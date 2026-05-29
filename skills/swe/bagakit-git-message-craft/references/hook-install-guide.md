@@ -26,24 +26,26 @@ hook.
   a fallback lookup path.
 - Reinstall the hook after moving the skill, switching from a legacy payload to
   the canonical payload, or replacing the on-disk skill copy.
-- Set `BAGAKIT_GIT_MESSAGE_CRAFT_SKILL_DIR` when you need the hook to prefer a
+- Set `BAGAKIT_GIT_MESSAGE_CRAFT_SKILL_DIR` when a hook should prefer a
   different installed copy without rewriting the template.
 
 ## What the Hook Checks
 
-- subject format
-- `[[BAGAKIT]]` footer anchor and protocol marker
-- required `Context`, `Validation`, and `Key Deltas` or legacy `Key Facts`
-  sections
+- subject format and supported semantic commit type
+- `Context` with a protected `Principle`, plus compact `Why` or expanded
+  `Before`, `Change`, and `Result`
+- required `Key Deltas` or legacy `Key Facts` section
 - compact deltas or ranked facts with normalized refs
-- no absolute paths
-- only supported semantic commit types
-- no known high-confidence credential patterns; diagnostics name categories
-  without echoing matched values
-- no placeholder tokens
+- ordered Keep a Changelog categories when `Changelog` is present
+- at most two certain `User correction` or `Confirmed` Agent Notes
+- one final Verification result with no command or test detail
+- no absolute paths, unresolved placeholders, or known high-confidence
+  credential patterns; credential diagnostics name categories without echoing
+  matched values
+- no frontmatter, `## Validation` section, or legacy workflow footer
 
-Warnings about ambiguous pronouns remain non-blocking. Validation transcript,
-length, and bullet-count limits are deterministic hard invariants.
+Warnings about ambiguous pronouns remain non-blocking. Verification is a final
+conclusion; detailed test execution does not belong in the commit message.
 
 ## Enforcement Boundary
 

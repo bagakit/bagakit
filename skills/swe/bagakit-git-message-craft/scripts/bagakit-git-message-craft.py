@@ -16,9 +16,6 @@ from pathlib import Path, PurePosixPath
 
 
 HOOK_MARKER = "BAGAKIT_GIT_MESSAGE_CRAFT_HOOK"
-FOOTER_PROTOCOL = "bagakit.git-message-craft/v1"
-FOOTER_HEADER = "[[BAGAKIT]]"
-FOOTER_PROTOCOL_LINE = f"- GitMessageCraft: Protocol={FOOTER_PROTOCOL}"
 COMMIT_TYPES = (
     "build",
     "chore",
@@ -40,8 +37,6 @@ DELTA_LINE_RE = re.compile(
     r"(?m)^- (?P<module>[^:\n]+): (?P<before>.+?) -> (?P<after>.+?); why: (?P<why>.+?) Key refs: (?P<refs>.+)$"
 )
 AMBIGUOUS_START_RE = re.compile(r"^(?:it|this|that|these|those|they)\b", re.IGNORECASE)
-FOOTER_PROTOCOL_RE = re.compile(r"(?m)^- GitMessageCraft: Protocol=(?P<protocol>[^\s;]+)(?:;.*)?$")
-VALIDATION_TRANSCRIPT_HINT_RE = re.compile(r"(?:\bfor\b.+\bdo\b|;\s*do\b|\|\|\s*exit|\bGOCACHE=|\bTMPDIR=|--glob\s+)", re.IGNORECASE)
 MR_SUMMARY_START = "<!-- bagakit:git-message-craft:start -->"
 MR_SUMMARY_END = "<!-- bagakit:git-message-craft:end -->"
 SESSION_ARTIFACTS_LOCAL = "local"
@@ -80,6 +75,17 @@ SENSITIVE_CONTENT_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
     ),
 )
 FACT_PRIORITY_ORDER = {"p0": 0, "p1": 1, "p2": 2}
+CHANGELOG_CATEGORIES = ("Added", "Changed", "Deprecated", "Removed", "Fixed", "Security")
+CHANGELOG_CATEGORY_BY_TOKEN = {category.lower(): category for category in CHANGELOG_CATEGORIES}
+CHANGELOG_CATEGORY_ORDER = {category: index for index, category in enumerate(CHANGELOG_CATEGORIES)}
+AGENT_NOTE_KIND_BY_TOKEN = {
+    "user-correction": "User correction",
+    "confirmed": "Confirmed",
+}
+AGENT_NOTE_LINE_RE = re.compile(r"^- (?P<kind>User correction|Confirmed): (?P<detail>.+\S)$")
+AGENT_NOTE_UNCERTAINTY_RE = re.compile(r"(?:\b(?:maybe|likely|perhaps|assume|uncertain)\b|可能|也许|或许|猜测|待确认)", re.IGNORECASE)
+VERIFICATION_RESULTS = ("passed", "not-run", "blocked")
+VERIFICATION_RESULT_SET = frozenset(VERIFICATION_RESULTS)
 SESSION_GITIGNORE_TEXT = (
     "# bagakit-git-message-craft local mode\n"
     "# Keep git-message-craft session artifacts local by default.\n"
@@ -397,6 +403,18 @@ class DeltaEntry:
     refs: str
 
 
+@dataclass
+class ChangelogEntry:
+    category: str
+    detail: str
+
+
+@dataclass
+class AgentNote:
+    kind: str
+    detail: str
+
+
 def parse_status_line(line: str) -> ChangeItem | None:
     if not line.strip():
         return None
@@ -517,6 +535,43 @@ def parse_delta_entry(root: Path, raw: str) -> DeltaEntry:
     return DeltaEntry(module=module, before=before, after=after, why=why, refs=refs)
 
 
+def parse_changelog_entry(root: Path, raw: str) -> ChangelogEntry:
+    category_token, separator, raw_detail = raw.partition("|")
+    if not separator or not category_token.strip() or not raw_detail.strip():
+        raise ValueError("--changelog must be in format 'added|technical change'")
+    category = CHANGELOG_CATEGORY_BY_TOKEN.get(category_token.strip().lower())
+    if category is None:
+        allowed = "|".join(token.lower() for token in CHANGELOG_CATEGORIES)
+        raise ValueError(f"changelog category must be one of: {allowed}")
+    detail = normalize_git_message_text(root, raw_detail, "changelog")
+    if "<" in detail or ">" in detail:
+        raise ValueError("changelog entries must not contain placeholder tokens")
+    return ChangelogEntry(category=category, detail=detail)
+
+
+def parse_agent_note(root: Path, raw: str) -> AgentNote:
+    kind_token, separator, raw_detail = raw.partition("|")
+    if not separator or not kind_token.strip() or not raw_detail.strip():
+        raise ValueError("--agent-note must be in format 'user-correction|certain lesson' or 'confirmed|certain fact'")
+    kind = AGENT_NOTE_KIND_BY_TOKEN.get(kind_token.strip().lower())
+    if kind is None:
+        raise ValueError("agent note kind must be user-correction|confirmed")
+    detail = normalize_git_message_text(root, raw_detail, "agent-note")
+    if "<" in detail or ">" in detail:
+        raise ValueError("agent notes must not contain placeholder tokens")
+    if AGENT_NOTE_UNCERTAINTY_RE.search(detail):
+        raise ValueError("agent notes must record only confirmed facts or direct user corrections")
+    return AgentNote(kind=kind, detail=detail)
+
+
+def normalize_verification_result(value: str, field_label: str) -> str:
+    result = value.strip().lower()
+    if result not in VERIFICATION_RESULT_SET:
+        allowed = "|".join(VERIFICATION_RESULTS)
+        raise ValueError(f"{field_label} must be one of: {allowed}")
+    return result
+
+
 def extract_section(text: str, heading: str) -> str:
     pattern = rf"(?ms)^## {re.escape(heading)}\n(.*?)(?=^## |\Z)"
     match = re.search(pattern, text)
@@ -551,8 +606,9 @@ def render_delta_section(deltas: list[DeltaEntry]) -> list[str]:
     return lines
 
 
-def render_context_section(before: str, change: str, result: str) -> list[str]:
+def render_context_section(principle: str, before: str, change: str, result: str) -> list[str]:
     lines = ["## Context"]
+    lines.append(f"- Principle: {principle}")
     lines.append(f"- Before: {before}")
     lines.append(f"- Change: {change}")
     lines.append(f"- Result: {result}")
@@ -560,12 +616,35 @@ def render_context_section(before: str, change: str, result: str) -> list[str]:
     return lines
 
 
-def render_compact_context_section(why: str) -> list[str]:
-    return ["## Context", f"- Why: {why}", ""]
+def render_compact_context_section(principle: str, why: str) -> list[str]:
+    return ["## Context", f"- Principle: {principle}", f"- Why: {why}", ""]
 
 
-def render_footer() -> list[str]:
-    return ["", FOOTER_HEADER, FOOTER_PROTOCOL_LINE]
+def render_changelog_section(entries: list[ChangelogEntry]) -> list[str]:
+    grouped: dict[str, list[str]] = defaultdict(list)
+    for entry in entries:
+        grouped[entry.category].append(entry.detail)
+
+    lines = ["## Changelog"]
+    for category in CHANGELOG_CATEGORIES:
+        details = grouped.get(category, [])
+        if not details:
+            continue
+        lines.extend(["", f"### {category}"])
+        lines.extend(f"- {detail}" for detail in details)
+    lines.append("")
+    return lines
+
+
+def render_agent_notes_section(notes: list[AgentNote]) -> list[str]:
+    lines = ["## Agent Notes"]
+    lines.extend(f"- {note.kind}: {note.detail}" for note in notes)
+    lines.append("")
+    return lines
+
+
+def render_verification_section(result: str) -> list[str]:
+    return ["## Verification", f"- Result: {result}", ""]
 
 
 def clean_items(values: list[str]) -> list[str]:
@@ -677,40 +756,24 @@ def render_mr_body_status_refresh(
     return "\n".join(lines)
 
 
-def split_body_and_footer(text: str) -> tuple[str, str, list[str]]:
+def parse_message_body(text: str) -> tuple[str, list[str]]:
     errors: list[str] = []
     lines = text.splitlines()
     if not lines:
-        return "", "", ["message is empty"]
+        return "", ["message is empty"]
 
     if len(lines) < 3:
-        return "", "", ["message too short to include markdown body and footer"]
+        return "", ["message too short to include a subject and markdown body"]
 
     if lines[1].strip():
         errors.append("second line must be blank")
 
     if any(line.strip() == "+++" for line in lines):
-        errors.append("frontmatter is no longer supported; move protocol markers to the [[BAGAKIT]] footer")
+        errors.append("frontmatter is not supported; keep workflow metadata in archive or MR artifacts")
     if re.search(r"(?m)^schema\s*=", text):
-        errors.append("schema frontmatter is no longer supported; use the footer protocol marker instead")
+        errors.append("schema frontmatter is not supported; keep workflow metadata in archive or MR artifacts")
 
-    footer_index = None
-    for index, line in enumerate(lines[2:], start=2):
-        if line.strip() == FOOTER_HEADER:
-            footer_index = index
-            break
-
-    if footer_index is None:
-        errors.append(f"missing required footer anchor: {FOOTER_HEADER}")
-        body = "\n".join(lines[2:]).strip("\n")
-        return body, "", errors
-
-    if footer_index > 2 and lines[footer_index - 1].strip():
-        errors.append("blank line required before the [[BAGAKIT]] footer")
-
-    body = "\n".join(lines[2:footer_index]).rstrip("\n")
-    footer = "\n".join(lines[footer_index:])
-    return body, footer, errors
+    return "\n".join(lines[2:]).rstrip("\n"), errors
 
 
 def ambiguous_context_warning(label: str, value: str) -> str | None:
@@ -720,6 +783,71 @@ def ambiguous_context_warning(label: str, value: str) -> str | None:
     if AMBIGUOUS_START_RE.match(stripped):
         return f"{label} should start with an explicit noun instead of an ambiguous pronoun"
     return None
+
+
+def lint_changelog_section(section: str, errors: list[str]) -> None:
+    category_seen: set[str] = set()
+    category_order = -1
+    entry_count = 0
+    current_category = ""
+
+    for line in section.splitlines():
+        if not line.strip():
+            continue
+        if line.startswith("### "):
+            category = line[4:].strip()
+            if category not in CHANGELOG_CATEGORY_ORDER:
+                errors.append("Changelog headings must use Keep a Changelog categories: " + ", ".join(CHANGELOG_CATEGORIES))
+                current_category = ""
+                continue
+            if category in category_seen:
+                errors.append(f"Changelog category must not repeat: {category}")
+            if CHANGELOG_CATEGORY_ORDER[category] < category_order:
+                errors.append("Changelog categories must use Keep a Changelog order")
+            category_seen.add(category)
+            category_order = CHANGELOG_CATEGORY_ORDER[category]
+            current_category = category
+            continue
+        if not line.startswith("- ") or not line[2:].strip():
+            errors.append("Changelog may contain only standard category headings and non-empty bullets")
+            continue
+        if not current_category:
+            errors.append("Changelog bullets must appear under a standard category heading")
+            continue
+        entry_count += 1
+
+    if not category_seen:
+        errors.append("Changelog must include at least one Keep a Changelog category heading")
+    if entry_count == 0:
+        errors.append("Changelog must include at least one technical change bullet")
+    if entry_count > 8:
+        errors.append("Changelog must include at most 8 bullets; move release-scale detail to release notes or MR")
+
+
+def lint_agent_notes_section(section: str, errors: list[str]) -> None:
+    note_lines = [line for line in section.splitlines() if line.strip()]
+    if not note_lines:
+        errors.append("Agent Notes must include at least one confirmed note")
+        return
+    if len(note_lines) > 2:
+        errors.append("Agent Notes must include at most 2 concise notes")
+    for line in note_lines:
+        match = AGENT_NOTE_LINE_RE.match(line)
+        if not match:
+            errors.append("Agent Notes must use '- User correction: ...' or '- Confirmed: ...'")
+            continue
+        if AGENT_NOTE_UNCERTAINTY_RE.search(match.group("detail")):
+            errors.append("Agent Notes must record only confirmed facts or direct user corrections")
+
+
+def lint_verification_section(section: str, errors: list[str]) -> None:
+    lines = [line for line in section.splitlines() if line.strip()]
+    if len(lines) != 1:
+        errors.append("Verification must contain exactly one final result line")
+        return
+    match = re.fullmatch(r"- Result: (?P<result>[a-z-]+)", lines[0])
+    if not match or match.group("result") not in VERIFICATION_RESULT_SET:
+        errors.append("Verification result must be one of: " + "|".join(VERIFICATION_RESULTS))
 
 
 def default_action_dest(root: Path) -> str:
@@ -891,28 +1019,26 @@ def cmd_draft_message(args: argparse.Namespace) -> int:
         raise SystemExit(f"error: {exc}")
     scope = args.scope.strip()
     summary = args.summary.strip()
-    if not ctype or not summary:
-        raise SystemExit("error: --type and --summary are required")
+    principle = args.principle.strip()
+    if not ctype or not summary or not principle:
+        raise SystemExit("error: --type, --summary, and --principle are required")
     compact_why = args.why.strip()
     why_before = args.why_before.strip()
     why_change = args.why_change.strip()
     why_gain = args.why_gain.strip()
+    verification = args.verification.strip()
     try:
         compact_why = normalize_git_message_text(root, compact_why, "why") if compact_why else ""
         why_before = normalize_git_message_text(root, why_before, "why-before") if why_before else ""
         why_change = normalize_git_message_text(root, why_change, "why-change") if why_change else ""
         why_gain = normalize_git_message_text(root, why_gain, "why-gain") if why_gain else ""
+        principle = normalize_git_message_text(root, principle, "principle")
         summary = normalize_git_message_text(root, summary, "summary")
         scope = normalize_git_message_text(root, scope, "scope") if scope else ""
     except ValueError as exc:
         raise SystemExit(f"error: {exc}")
 
-    raw_checks = [item.strip() for item in args.check if item.strip()]
     try:
-        checks = [
-            normalize_git_message_text(root, item, "check")
-            for item in raw_checks
-        ]
         follow_ups = [
             normalize_git_message_text(root, item, "follow-up")
             for item in args.follow_up
@@ -930,8 +1056,6 @@ def cmd_draft_message(args: argparse.Namespace) -> int:
         ]
     except ValueError as exc:
         raise SystemExit(f"error: {exc}")
-    if not checks:
-        raise SystemExit("error: provide at least one --check item with concrete validation evidence")
 
     try:
         deltas = [parse_delta_entry(root, raw) for raw in args.delta]
@@ -941,6 +1065,16 @@ def cmd_draft_message(args: argparse.Namespace) -> int:
         facts = [parse_fact_entry(root, raw) for raw in args.fact]
     except ValueError as exc:
         raise SystemExit(f"error: {exc}")
+    try:
+        changelog_entries = [parse_changelog_entry(root, raw) for raw in args.changelog]
+        agent_notes = [parse_agent_note(root, raw) for raw in args.agent_note]
+        verification = normalize_verification_result(verification, "verification") if verification else ""
+    except ValueError as exc:
+        raise SystemExit(f"error: {exc}")
+    if len(changelog_entries) > 8:
+        raise SystemExit("error: keep Changelog to at most 8 technical bullets; move release-scale detail to release notes or MR")
+    if len(agent_notes) > 2:
+        raise SystemExit("error: keep Agent Notes to at most 2 concise confirmed notes")
     if deltas and facts:
         raise SystemExit("error: use --delta for compact messages or --fact for expanded messages, not both")
     if deltas:
@@ -963,15 +1097,19 @@ def cmd_draft_message(args: argparse.Namespace) -> int:
 
     lines = [subject, ""]
     if deltas:
-        lines.extend(render_compact_context_section(compact_why))
+        lines.extend(render_compact_context_section(principle, compact_why))
         lines.extend(render_delta_section(deltas))
     else:
-        lines.extend(render_context_section(why_before, why_change, why_gain))
+        lines.extend(render_context_section(principle, why_before, why_change, why_gain))
         lines.extend(render_fact_section(facts))
-    lines.extend(render_simple_section("Validation", checks, ""))
+    if changelog_entries:
+        lines.extend(render_changelog_section(changelog_entries))
+    if agent_notes:
+        lines.extend(render_agent_notes_section(agent_notes))
     if follow_ups:
         lines.extend(render_simple_section("Follow-ups", follow_ups, "state remaining actions"))
-    lines.extend(render_footer())
+    if verification:
+        lines.extend(render_verification_section(verification))
 
     if refs:
         for ref in refs:
@@ -1103,17 +1241,14 @@ def cmd_lint_message(args: argparse.Namespace) -> int:
     elif subject_match and subject_match.group("type") not in COMMIT_TYPE_SET:
         errors.append("subject type must be one of: " + ", ".join(COMMIT_TYPES))
 
-    body, footer, parse_errors = split_body_and_footer(text)
+    body, parse_errors = parse_message_body(text)
     errors.extend(parse_errors)
 
     if len(lines) < args.min_lines:
         errors.append(f"message must be at least {args.min_lines} lines to avoid one-line commit")
 
-    protocol_match = FOOTER_PROTOCOL_RE.search(footer)
-    if not protocol_match:
-        errors.append("missing required footer protocol line: - GitMessageCraft: Protocol=<protocol>")
-    elif protocol_match.group("protocol") != FOOTER_PROTOCOL:
-        errors.append(f"footer protocol must be {FOOTER_PROTOCOL}")
+    if "[[BAGAKIT]]" in text or re.search(r"(?m)^- GitMessageCraft: Protocol=", text):
+        errors.append("Bagakit protocol footer is not supported; keep workflow metadata in archive or MR artifacts")
 
     if "<" in body and ">" in body:
         errors.append("body still contains placeholder tokens")
@@ -1128,8 +1263,8 @@ def cmd_lint_message(args: argparse.Namespace) -> int:
 
     if "## Context" not in body:
         errors.append("missing required GFM heading: ## Context")
-    if "## Validation" not in body:
-        errors.append("missing required GFM heading: ## Validation")
+    if "## Validation" in body:
+        errors.append("Validation sections are not supported; use an optional one-line Verification result instead")
     has_key_deltas = "## Key Deltas" in body
     has_key_facts = "## Key Facts" in body
     if not has_key_deltas and not has_key_facts:
@@ -1138,10 +1273,13 @@ def cmd_lint_message(args: argparse.Namespace) -> int:
         errors.append("use either ## Key Deltas or ## Key Facts, not both")
 
     context_section = extract_section(body, "Context")
+    principle_match = re.search(r"(?m)^- Principle: (?P<value>.+\S)$", context_section)
     why_match = re.search(r"(?m)^- Why: (?P<value>.+\S)$", context_section)
     before_match = re.search(r"(?m)^- Before: (?P<value>.+\S)$", context_section)
     change_match = re.search(r"(?m)^- Change: (?P<value>.+\S)$", context_section)
     result_match = re.search(r"(?m)^- Result: (?P<value>.+\S)$", context_section)
+    if not principle_match:
+        errors.append("Context must include '- Principle: <repository product or operating invariant>'")
     if has_key_deltas:
         if not why_match:
             errors.append("Context must include '- Why: <compact rationale>' for Key Deltas")
@@ -1152,7 +1290,7 @@ def cmd_lint_message(args: argparse.Namespace) -> int:
             errors.append("Context must include '- Change: <what changed in this commit>'")
         if not result_match:
             errors.append("Context must include '- Result: <incremental outcome>'")
-    for label, match in (("Why", why_match), ("Before", before_match), ("Change", change_match), ("Result", result_match)):
+    for label, match in (("Principle", principle_match), ("Why", why_match), ("Before", before_match), ("Change", change_match), ("Result", result_match)):
         if match:
             warning = ambiguous_context_warning(label, match.group("value"))
             if warning:
@@ -1224,25 +1362,18 @@ def cmd_lint_message(args: argparse.Namespace) -> int:
         if fact_entries and first_priority != "P0":
             errors.append("Key Facts must start with a primary P0 fact")
 
-    validation_section = extract_section(body, "Validation")
-    validation_bullets = [
-        line[2:].strip()
-        for line in validation_section.splitlines()
-        if line.startswith("- ") and line[2:].strip()
-    ]
-    if not validation_bullets:
-        errors.append("Validation section must include at least one bullet")
-    if len(validation_bullets) > 3:
-        errors.append("Validation must include at most 3 result-digest bullets; move command ledgers to archive/MR")
-    for item in validation_bullets:
-        if len(item) > 160:
-            errors.append("Validation bullet exceeds 160 characters; summarize the outcome and move the full command to archive/MR")
-        if VALIDATION_TRANSCRIPT_HINT_RE.search(item):
-            errors.append("Validation bullet looks like a command transcript; keep only the check outcome in the commit body")
+    if "## Changelog" in body:
+        lint_changelog_section(extract_section(body, "Changelog"), errors)
+
+    if "## Agent Notes" in body:
+        lint_agent_notes_section(extract_section(body, "Agent Notes"), errors)
 
     follow_up_section = extract_section(body, "Follow-ups")
     if "## Follow-ups" in body and not re.search(r"(?m)^- .+\S$", follow_up_section):
         errors.append("Follow-ups must include at least one concrete bullet when present")
+
+    if "## Verification" in body:
+        lint_verification_section(extract_section(body, "Verification"), errors)
 
     if errors:
         for err in errors:
@@ -1325,12 +1456,9 @@ def cmd_archive(args: argparse.Namespace) -> int:
     if not commits:
         raise SystemExit("error: provide at least one --commit as archive evidence")
 
-    raw_checks = [item.strip() for item in args.check_evidence if item.strip()]
-    if not raw_checks:
-        raise SystemExit("error: provide at least one --check-evidence item")
     try:
-        checks = [normalize_archive_text(root, item, "check-evidence") for item in raw_checks]
         action_line = normalize_archive_text(root, action_dest, "action-dest")
+        verification_result = normalize_verification_result(args.verification_result, "verification-result")
     except ValueError as exc:
         raise SystemExit(f"error: {exc}")
 
@@ -1355,13 +1483,7 @@ def cmd_archive(args: argparse.Namespace) -> int:
         "## Commit Evidence",
     ]
     lines.extend(f"- {commit}" for commit in commits)
-    lines.extend(
-        [
-            "",
-            "## Check Evidence",
-        ]
-    )
-    lines.extend(f"- {check}" for check in checks)
+    lines.extend(["", "## Verification", f"- Result: {verification_result}"])
 
     write_text(archive_path, "\n".join(lines) + "\n")
     print(f"wrote: {archive_path}")
@@ -1408,12 +1530,13 @@ def build_parser() -> argparse.ArgumentParser:
     p_inv.add_argument("--write-json", action="store_true", help="also write split-inventory.json when needed")
     p_inv.set_defaults(func=cmd_inventory)
 
-    p_msg = sub.add_parser("draft-message", help="draft a GFM spec-style commit message with a footer protocol marker")
+    p_msg = sub.add_parser("draft-message", help="draft a principle-first GFM commit message")
     p_msg.add_argument("--root", default=".", help="git repo root")
     p_msg.add_argument("--dir", required=True, help="session artifact directory")
     p_msg.add_argument("--type", required=True, help="commit type: " + "|".join(COMMIT_TYPES))
     p_msg.add_argument("--scope", default="", help="commit scope")
     p_msg.add_argument("--summary", required=True, help="short subject summary")
+    p_msg.add_argument("--principle", required=True, help="repository product or operating invariant protected by the commit")
     p_msg.add_argument("--why", default="", help="compact commit rationale for Key Deltas mode")
     p_msg.add_argument("--why-before", default="", help="expanded pre-change state and why change was needed")
     p_msg.add_argument("--why-change", default="", help="expanded what changed in this commit")
@@ -1430,7 +1553,23 @@ def build_parser() -> argparse.ArgumentParser:
         default=[],
         help="expanded ranked fact in format 'p0|self-contained statement|repo-relative key refs'",
     )
-    p_msg.add_argument("--check", action="append", default=[], help="validation evidence bullet (required, repeatable)")
+    p_msg.add_argument(
+        "--changelog",
+        action="append",
+        default=[],
+        help="optional Keep a Changelog entry in format 'added|technical change'",
+    )
+    p_msg.add_argument(
+        "--agent-note",
+        action="append",
+        default=[],
+        help="optional confirmed note in format 'user-correction|lesson' or 'confirmed|fact'",
+    )
+    p_msg.add_argument(
+        "--verification",
+        default="",
+        help="optional final conclusion: passed|not-run|blocked; never list commands",
+    )
     p_msg.add_argument("--follow-up", action="append", default=[], help="optional follow-up bullet")
     p_msg.add_argument("--ref", action="append", default=[], help="reference id/url")
     p_msg.add_argument("--trailer", action="append", default=[], help="raw trailer line")
@@ -1467,7 +1606,7 @@ def build_parser() -> argparse.ArgumentParser:
     p_lint.add_argument("--message", required=True, help="commit message file")
     p_lint.add_argument("--root", default="", help="git repo root (auto-detected when omitted)")
     p_lint.add_argument("--max-subject", type=int, default=72, help="subject length limit")
-    p_lint.add_argument("--min-lines", type=int, default=12, help="minimum message lines")
+    p_lint.add_argument("--min-lines", type=int, default=8, help="minimum message lines")
     p_lint.set_defaults(func=cmd_lint_message)
 
     p_arc = sub.add_parser("archive", help="write completion archive record")
@@ -1478,10 +1617,10 @@ def build_parser() -> argparse.ArgumentParser:
     p_arc.add_argument("--memory-none-reason", default="", help="optional rationale when memory-dest=none")
     p_arc.add_argument("--commit", action="append", default=[], help="commit hash evidence (required, repeatable)")
     p_arc.add_argument(
-        "--check-evidence",
-        action="append",
-        default=[],
-        help="check/validation evidence (required, repeatable)",
+        "--verification-result",
+        required=True,
+        choices=VERIFICATION_RESULTS,
+        help="single final verification conclusion; commands and test lists are omitted",
     )
     p_arc.add_argument("--archive-path", default="", help="custom archive file path")
     p_arc.add_argument(

@@ -32,12 +32,13 @@
         "separates rollback intent instead of grouping only by directory",
         "keeps the regression test with the behavior it proves when that is the coherent rollback unit",
         "does not stage or commit because the prompt authorizes drafting only",
-        "produces a standalone message with concrete validation evidence and repo-relative refs"
+        "produces a standalone message with a repository principle, principle-linked delta, and repo-relative refs"
       ],
       "forbidden_outcomes": [
         "one kitchen-sink commit",
         "machine-local absolute paths",
         "claims that depend on chat context",
+        "validation logs or workflow signatures in the commit message",
         "unauthorized Git mutation"
       ]
     },
@@ -58,6 +59,25 @@
         "hosted MR mutation",
         "omitted pending risk",
         "raw command transcript pasted as the body"
+      ]
+    },
+    {
+      "id": "broad-commit-uses-bounded-optional-sections",
+      "partition": "development",
+      "prompt": "Draft a commit message only for a broad technical change that adds one public capability, changes one compatibility boundary, and fixes one incorrect fallback. The user explicitly corrected the prior convention: use standard changelog categories for broad technical changes and report verification only as a final conclusion. Do not stage or commit anything.",
+      "expected_activation": "activate",
+      "expected_route": "commit-draft-only",
+      "assertions": [
+        "uses ordered Keep a Changelog categories for the broad technical changes",
+        "records the direct user correction as a short Agent Note without inventing further lessons",
+        "uses at most one final verification result and no test-command detail",
+        "does not stage or commit because the prompt authorizes drafting only"
+      ],
+      "forbidden_outcomes": [
+        "non-standard changelog categories",
+        "speculative or diary-style Agent Notes",
+        "validation command transcript",
+        "unauthorized Git mutation"
       ]
     },
     {

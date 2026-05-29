@@ -62,7 +62,7 @@ Choose the requested authority before acting:
 
 Follow `docs/specs/output-discipline.md` for Git-facing text.
 
-- treat ranked facts as the commit's evidence contract
+- treat principle-linked deltas as the commit's retrieval contract
 - keep unresolved uncertainty in `Follow-ups`, not in factual claims
 - lint objective invariants; keep style guidance as review advice
 - if one commit needs too many facts, split by rollback boundary instead of
@@ -91,20 +91,16 @@ Semantic meanings:
   specification-only change; when code and specification change together, use
   the type for the primary behavioral intent.
 
-Footer protocol marker:
-
-- required footer anchor: `[[BAGAKIT]]`
-- required protocol line: `- GitMessageCraft: Protocol=bagakit.git-message-craft/v1`
-- protocol markers belong in the footer, not in frontmatter
-
 Required sections:
 
 - `## Context`
 - `## Key Deltas` by default, or legacy `## Key Facts` for expanded messages
-- `## Validation`
 
 Optional sections:
 
+- `## Changelog`
+- `## Agent Notes`
+- `## Verification`
 - `## Follow-ups`
 
 ### Default compact body
@@ -113,23 +109,26 @@ Use this shape unless the commit genuinely needs an expanded fact list:
 
 ```markdown
 ## Context
-- Why: <one sentence explaining why this commit exists>
+- Principle: <one repository product or operating invariant>
+- Why: <how this change protects that principle>
 
 ## Key Deltas
 - <module>: <before state> -> <after state>; why: <why this transition matters>. Key refs: <path:line>
-
-## Validation
-- pass: <check or review outcome>
 ```
 
 ### `## Context`
 
 Default compact form:
 
-- `Why`: one sentence explaining why this commit exists.
+- `Principle`: one product or operating invariant discovered from the current
+  repository's authoritative context. Do not invent a product vision or copy a
+  generic slogan; when no product principle exists, name the operating
+  invariant this change protects.
+- `Why`: one sentence explaining how this commit protects that principle.
 
 Expanded legacy form:
 
+- `Principle`: the invariant the change protects
 - `Before`: what was wrong or unclear before this commit
 - `Change`: what the commit did
 - `Result`: the concrete outcome of the change
@@ -153,26 +152,47 @@ Context bullets should be self-contained. Do not start them with vague English p
 - Use repo-relative POSIX-style refs only.
 - The first fact must be `P0`.
 
-### `## Validation`
+### `## Changelog`
 
-- Keep 1-3 bullets total by default.
-- Write outcome digests such as `pass: scripts/check.sh` or
-  `pass: warm broad-root acceptance`.
-- Do not paste full command transcripts, shell loops, or every task-gate check
-  into the commit body.
-- At least one concrete check, command, or review statement is required.
-- Validation evidence must use repo-relative paths. If a command only works by
-  naming a machine-local or symlink-source absolute path outside the current
-  project, omit that path or rewrite the evidence around the project-local
-  command shape before drafting.
-- Long validation ledgers belong in archive, MR, or task/session artifacts.
+Use only when a broad technical change would lose important release-facing
+detail in one to three deltas. Format it with Keep a Changelog categories in
+this order: `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
+
+- Keep at most eight bullets total.
+- Describe a technical or consumer-visible surface, not every touched file.
+- Do not record test execution, commands, or validation transcripts here.
+
+### `## Agent Notes`
+
+Use only for one or two certain lessons from the work. Each note must be one of:
+
+- `User correction`: an instruction the user directly corrected or clarified.
+- `Confirmed`: a fact established by direct evidence during the change.
+
+Do not record assumptions, hypotheses, general process narration, or a task
+diary. If it is not certain enough to survive outside the session, omit it.
+
+### `## Verification`
+
+Use only when the commit needs a public final conclusion. It has exactly one
+line: `Result: passed`, `Result: not-run`, or `Result: blocked`. Do not list
+test names, commands, files, or individual outcomes.
+
+### Validation Evidence
+
+- Run at least one concrete check before committing, but do not render it in
+  the commit message.
+- Record only the final conclusion with `archive --verification-result`; use
+  MR or session artifacts when the archive is not the right review surface.
+- Do not add `## Validation` or a command transcript to the commit body or
+  archive.
 
 ### Privacy And Enforcement Boundary
 
 - `draft-message` and `lint-message` hard-reject absolute paths and known
   high-confidence credential patterns across the whole message, including
-  validation and trailers. Diagnostics name categories only and never echo a
-  matched credential.
+  trailers. Diagnostics name categories only and never echo a matched
+  credential.
 - This is a defense-in-depth gate, not an absolute no-leak guarantee. It does
   not classify every secret, personal identifier, hostname, encoded value, or
   raw Git commit path.
@@ -209,7 +229,8 @@ Commit when all are true:
 
 1. One intent boundary is complete.
 2. There is at least one concrete validation item.
-3. The commit can be explained in 1-5 ranked facts.
+3. The commit names the repository principle it protects and can be explained
+   in one to three deltas or one to five ranked facts.
 4. The draft passes lint without unresolved placeholders or path leaks.
 
 Do not commit when:
@@ -248,12 +269,15 @@ sh scripts/bagakit-git-message-craft.sh draft-message \
   --type <feat|fix|refactor|docs|test|chore> \
   --scope <scope> \
   --summary "<summary>" \
+  --principle "<repository product or operating invariant>" \
   --why-before "<pre-change state>" \
   --why-change "<what changed>" \
   --why-gain "<concrete result>" \
   --fact "p0|<self-contained fact>|<repo-relative path:line refs>" \
   --fact "p1|<self-contained fact>|<repo-relative path:line refs>" \
-  --check "<command/evidence>"
+  --changelog "changed|<broad technical change>" \
+  --agent-note "user-correction|<direct user clarification>" \
+  --verification passed
 ```
 
 One draft file represents one planned commit.
@@ -266,20 +290,22 @@ sh scripts/bagakit-git-message-craft.sh lint-message --root . --message <message
 
 Hard gates:
 
-- footer protocol must be `bagakit.git-message-craft/v1`
-- protocol markers must live in the `[[BAGAKIT]]` footer
 - frontmatter is not allowed
 - subject type must be in the supported semantic vocabulary
 - required sections present
+- `Context` must name a repository principle and why the commit protects it
 - 1-3 structured deltas or 1-5 ranked facts only
+- Changelog uses ordered Keep a Changelog categories and at most 8 bullets
+- Agent Notes use only `User correction` or `Confirmed` with no uncertainty
+- Verification contains one final result, never test execution detail
 - facts sorted by `P0 -> P2`
 - repo-relative `path:line` refs only
 - no absolute filesystem paths
 - no high-confidence credential patterns; findings are redacted to categories
-- no machine-local validation commands or references to external skill source
-  paths; Git-facing text must stay meaningful from the current project root
-- validation must be one to three outcome digests, not long or transcript-like
-  command lines
+- no machine-local paths or references to external skill sources; Git-facing
+  text must stay meaningful from the current project root
+- no `## Validation` section or `[[BAGAKIT]]` protocol footer; those belong in
+  archive, MR, or session artifacts
 - no placeholder tokens
 
 Soft guidance:
@@ -304,7 +330,7 @@ sh scripts/bagakit-git-message-craft.sh archive \
   --root . \
   --dir <session-dir> \
   --commit <sha> \
-  --check-evidence "lint-message passed"
+  --verification-result passed
 ```
 
 `archive` defaults:
@@ -339,8 +365,8 @@ sh scripts/bagakit-git-message-craft.sh draft-mr-body \
   --action "refresh the MR body from current evidence"
 ```
 
-MR drafts are template-guided outputs. They do not currently use the commit
-footer protocol or the commit archive command.
+MR drafts are template-guided outputs. They use neither the commit archive
+command nor commit-message workflow metadata.
 
 ## Output Routes
 
@@ -362,15 +388,16 @@ Deliverable archetype:
 Archive is complete only when:
 
 - commit hashes are recorded,
-- validation evidence is recorded,
+- one verification conclusion is recorded,
 - action destination is explicit,
 - memory destination is explicit or explicitly `none`.
 
 ## Complexity Guardrails
 
 - `preset-heavy` / 预设偏多:
-  - Keep one default path: `Context + Key Deltas + Validation`.
-  - Check: optional sections stay limited to `Follow-ups`; workflow-only metadata stays out of the commit.
+  - Keep one default path: `Context + Key Deltas`.
+  - Check: optional sections are limited to Changelog, Agent Notes, Verification,
+    and Follow-ups; workflow-only metadata stays out of the commit.
 - `implementation-heavy` / 实现偏重:
   - Do not solve writing quality by adding more generated templates.
   - Check: `init` creates only the session directory, and each planned commit gets one draft file.
@@ -380,19 +407,21 @@ Archive is complete only when:
 - `over-hard-validation` / 校验过硬:
   - Hard-gate only objective invariants such as schema, section presence, type
     vocabulary, fact/delta count, ordering, refs, sensitive-content/path
-    safety, and deterministic validation-digest limits.
+    safety, and the absence of workflow metadata from the commit body.
   - Check: pronoun/discourse quality stays as warning-level review guidance instead of brittle blocking NLP.
 - `scattered constraints` / 约束分散:
   - Keep the commit contract in this SKILL as the single source, and keep runtime checks in one lint command.
-  - Check: docs and scripts describe the same `v5` structure and ranked-fact rules.
+  - Check: docs and scripts describe the same principle-first structure and ranked-fact rules.
 
 ## Fallback Path
 
 - If not inside a Git repo, stop with setup guidance.
 - If split boundaries are unclear, ask one clarification question about the intended rollback boundary.
 - If a compact commit needs more than 3 deltas, move the wider module map to
-  MR/archive or split the commit.
+  Changelog/MR or split the commit.
 - If an expanded commit needs more than 5 facts, split it or compress the facts before committing.
+- If technical change detail needs more than 8 Changelog bullets, move it to
+  release notes or the MR.
 
 ## Playbook Minimality Principle
 
@@ -405,12 +434,5 @@ Load only the material needed for the selected surface:
 - commit body and lint semantics: `references/commit-message-spec-guide.md`
 - mixed-diff rollback boundaries: `references/split-strategy-guide.md`
 - optional hook installation: `references/hook-install-guide.md`
-- metadata and footer placement: `references/meta-schema.md`
+- commit-body boundary and archive placement: `references/meta-schema.md`
 - MR title/body variants: `templates/mr/README.md`
-
-## `[[BAGAKIT]]` Footer Contract
-
-```text
-[[BAGAKIT]]
-- GitMessageCraft: Protocol=bagakit.git-message-craft/v1
-```

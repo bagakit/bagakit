@@ -23,7 +23,7 @@ summary = "Generate split inventory from the working tree."
 
 [[command]]
 name = "draft-message"
-summary = "Draft a GFM spec-style commit message."
+summary = "Draft a principle-first GFM commit message."
 
 [[command]]
 name = "draft-mr-title"

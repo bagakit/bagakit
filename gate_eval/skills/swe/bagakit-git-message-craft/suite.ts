@@ -161,6 +161,8 @@ export const SUITE: EvalSuiteDefinition = {
               "commit",
               "--summary",
               "preserve git facing evidence",
+              "--principle",
+              "commit history preserves the product or operating invariant behind the change",
               "--why-before",
               "reviewers had to recover intent from mixed local context",
               "--why-change",
@@ -169,8 +171,12 @@ export const SUITE: EvalSuiteDefinition = {
               "history stays readable and archive remains self contained",
               "--fact",
               "p0|drafted message keeps ranked facts only|app.py:1",
-              "--check",
-              "git diff --check",
+              "--changelog",
+              "changed|Commit drafts expose technical change categories for broad changes.",
+              "--agent-note",
+              "user-correction|Keep technical change lists standard when a commit is broad.",
+              "--verification",
+              "passed",
               "--output",
               messageFile,
             ],
@@ -184,18 +190,25 @@ export const SUITE: EvalSuiteDefinition = {
         expectOk(runCommand("git", ["commit", "-q", "-F", messageFile], { cwd: tempRepo, replacements }), "git commit drafted message");
         const commitSha = runCommand("git", ["rev-parse", "--short", "HEAD"], { cwd: tempRepo, replacements });
         expectOk(commitSha, "rev-parse");
-        expectOk(runCommand("sh", [script, "archive", "--root", tempRepo, "--dir", sessionDir, "--commit", commitSha.stdout.trim(), "--check-evidence", `lint-message passed for ${messageFile}`], { cwd: repoRoot, replacements }), "archive");
+        expectOk(runCommand("sh", [script, "archive", "--root", tempRepo, "--dir", sessionDir, "--commit", commitSha.stdout.trim(), "--verification-result", "passed"], { cwd: repoRoot, replacements }), "archive");
         const archiveFile = path.join(tempRepo, ".git", "bagakit", "git-message-craft", "archive", `${path.basename(sessionDir)}.md`);
         const archiveText = fs.readFileSync(archiveFile, "utf8");
-        assert.ok(messageText.split("\n").includes("[[BAGAKIT]]"));
-        assert.ok(messageText.split("\n").includes("- GitMessageCraft: Protocol=bagakit.git-message-craft/v1"));
+        assert.ok(messageText.includes("- Principle: commit history preserves the product or operating invariant behind the change"));
+        assert.ok(messageText.includes("## Changelog"));
+        assert.ok(messageText.includes("### Changed"));
+        assert.ok(messageText.includes("## Agent Notes"));
+        assert.ok(messageText.includes("- User correction: Keep technical change lists standard when a commit is broad."));
+        assert.ok(messageText.includes("## Verification\n- Result: passed"));
+        assert.ok(!messageText.includes("## Validation"));
+        assert.ok(!messageText.includes("[[BAGAKIT]]"));
         assert.ok(archiveText.includes("## Commit Evidence"));
+        assert.ok(archiveText.includes("## Verification\n- Result: passed"));
         assert.ok(!archiveText.includes(tempRepo));
 
           return {
           assertions: [
-            "drafted message keeps the footer protocol marker expected by lint-message",
-            "archive records commit evidence after the drafted message is committed",
+            "drafted message uses standard technical changelog categories and one certain Agent Note without a validation log or protocol footer",
+            "archive records commit evidence and one verification conclusion after the drafted message is committed",
             "archive output stays free of machine-local repo paths",
           ],
           commands: [
@@ -243,16 +256,11 @@ export const SUITE: EvalSuiteDefinition = {
               "release(commit): reject unsafe text",
               "",
               "## Context",
-              "- Why: durable Git text must remain semantic and free of credentials.",
+              "- Principle: commit history remains trustworthy.",
+              `- Why: credential guard ${fakeToken}`,
               "",
               "## Key Deltas",
               "- policy: arbitrary text -> checked semantic draft; why: history remains trustworthy. Key refs: app.py:1",
-              "",
-              "## Validation",
-              `- pass: credential guard ${fakeToken}`,
-              "",
-              "[[BAGAKIT]]",
-              "- GitMessageCraft: Protocol=bagakit.git-message-craft/v1",
               "",
             ].join("\n"),
           );
@@ -266,11 +274,62 @@ export const SUITE: EvalSuiteDefinition = {
           assert.ok(lint.stderr.includes("github-token"));
           assert.ok(!lint.stderr.includes(fakeToken), "credential-like text must not be echoed in diagnostics");
 
+          const missingPrincipleFile = path.join(tempRepo, "missing-principle.txt");
+          writeTextFile(
+            missingPrincipleFile,
+            [
+              "docs(commit): reject unanchored context",
+              "",
+              "## Context",
+              "- Why: every commit needs a repository invariant.",
+              "",
+              "## Key Deltas",
+              "- policy: optional principle -> required invariant; why: history stays explainable. Key refs: app.py:1",
+              "",
+            ].join("\n"),
+          );
+          const missingPrincipleLint = runCommand("sh", [script, "lint-message", "--root", tempRepo, "--message", missingPrincipleFile], {
+            cwd: repoRoot,
+            replacements,
+          });
+          assert.notEqual(missingPrincipleLint.status, 0, "lint should reject Context without Principle");
+          assert.ok(missingPrincipleLint.stderr.includes("Context must include '- Principle:"));
+
+          const legacyMetadataFile = path.join(tempRepo, "legacy-metadata.txt");
+          writeTextFile(
+            legacyMetadataFile,
+            [
+              "docs(commit): reject legacy metadata",
+              "",
+              "## Context",
+              "- Principle: commit history remains readable.",
+              "- Why: delivery evidence belongs outside the commit body.",
+              "",
+              "## Key Deltas",
+              "- policy: commit-body logs -> archive evidence; why: history retains intent. Key refs: app.py:1",
+              "",
+              "## Validation",
+              "- pass: obsolete commit-body evidence",
+              "",
+              "[[BAGAKIT]]",
+              "- GitMessageCraft: Protocol=bagakit.git-message-craft/v1",
+              "",
+            ].join("\n"),
+          );
+          const legacyMetadataLint = runCommand("sh", [script, "lint-message", "--root", tempRepo, "--message", legacyMetadataFile], {
+            cwd: repoRoot,
+            replacements,
+          });
+          assert.notEqual(legacyMetadataLint.status, 0, "lint should reject legacy validation and footer metadata");
+          assert.ok(legacyMetadataLint.stderr.includes("Validation sections are not supported"));
+          assert.ok(legacyMetadataLint.stderr.includes("Bagakit protocol footer is not supported"));
+
           return {
             assertions: [
               "lint rejects a subject outside the finite semantic type vocabulary",
               "lint rejects a high-confidence credential pattern across the message body",
               "the rejection reports a category without echoing the credential-like value",
+              "lint rejects Context without a Principle and legacy commit metadata",
             ],
             commands: ["lint-message against a deterministic unsafe-message fixture"],
             artifacts: [{ label: "blocked-message", path: messageFile }],
