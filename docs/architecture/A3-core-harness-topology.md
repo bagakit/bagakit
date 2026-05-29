@@ -349,6 +349,8 @@ Current canonical runtime units in this topology are:
 - `skills/harness/bagakit-skill-selector/`
 - `skills/harness/bagakit-skill-evolver/`
 - `skills/harness/bagakit-living-knowledge/`
+- `skills/harness/bagakit-researcher/`
+- `skills/harness/bagakit-brainstorm/`
 
 Current canonical project-state surface:
 
@@ -366,11 +368,11 @@ Current maintainer-side outer-driver tool:
 - `dev/agent_loop/`
   - host orchestration around bounded flow-runner sessions
 
-The `researcher` role is architecture-stable even if its final canonical
-harness runtime unit is still evolving.
-
-For now, `brainstorm` is the most visible current evidence-production family
-that makes the role concrete.
+The `researcher` role is implemented by `bagakit-researcher` as the canonical
+source-bound research runtime. `bagakit-brainstorm` is a complementary bounded
+option-exploration capability, not a stand-in for the researcher runtime.
+Both remain independently installable and compose explicitly through selector
+when one task needs both evidence production and option synthesis.
 
 ## Non-Goals
 

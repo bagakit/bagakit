@@ -72,6 +72,7 @@ skills/
 │   ├── swe/
 │   ├── paperwork/
 │   ├── gamemaker/
+│   ├── media-production/
 │   └── human-improvement/
 ├── host-harnesses/
 ├── docs/
@@ -85,8 +86,6 @@ skills/
 │   ├── agent_runner/
 │   ├── agent_loop/
 │   ├── validator/
-│   ├── skill_quality/
-│   ├── release_projection/
 │   └── host_tools/
 ├── gate_validation/
 │   ├── backbone/
@@ -190,7 +189,9 @@ make validate-repo
 Current behavior:
 
 - `make validate` is an alias of `make validate-repo`
-- `make validate-fast` is currently the same check surface
+- `make validate-fast` runs only the universal preflight suites
+- `make validate-repo` selects the release-blocking suites affected by the
+  current change set
 - the default gate is resolved through `dev/validator` plus `gate_validation/`
 
 Command-language target:

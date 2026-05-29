@@ -472,14 +472,29 @@ surface. It is not evidence collection, raw storage, or routing by itself.
 
 ### Durable Surface Flow
 
-Durable truth lands in only a few places:
+Promoted Bagakit truth lands in bounded owner surfaces:
 
+- `docs/architecture/`
+  - system structure, ownership, and cross-surface flows
 - `docs/specs/`
   - stable shared semantics and contracts
 - `docs/stewardship/`
   - maintainer-facing governance and operating guidance
 - `skills/`
   - runtime-facing distributable capabilities
+- `host-harnesses/`
+  - host-defining source units and dedicated workspace semantics
+
+Proof and measurement have separate durable owners:
+
+- `gate_validation/`
+  - release-blocking validation truth
+- `gate_eval/`
+  - non-gating eval assets and observations, not capability truth
+
+`mem/` remains durable but evolving repository memory. It is not promoted
+Bagakit truth until reviewed material moves into one of the owner surfaces
+above.
 
 This means:
 
@@ -487,7 +502,8 @@ This means:
 - decision memory is not yet durable truth
 - promotion is the bridge, not the destination
 
-Only routed and reviewed promotion should enter these surfaces.
+Only routed and reviewed promotion should enter the promoted-truth surfaces.
+Proof and measurement assets follow their own admission and review contracts.
 
 ## Architecture Consequences
 

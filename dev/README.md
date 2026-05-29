@@ -11,8 +11,6 @@ Current split:
 - `agent_runner/`
 - `agent_loop/`
 - `validator/`
-- `skill_quality/`
-- `release_projection/`
 - `host_tools/`
 
 Rule:

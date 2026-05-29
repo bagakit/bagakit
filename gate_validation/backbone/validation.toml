@@ -31,8 +31,6 @@ required_dirs = [
   "dev/eval/types",
   "dev/agent_loop",
   "dev/validator",
-  "dev/skill_quality",
-  "dev/release_projection",
   "dev/host_tools",
   "gate_validation",
   "gate_validation/backbone",
