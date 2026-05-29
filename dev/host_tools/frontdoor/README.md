@@ -10,6 +10,9 @@ and renders the managed `AGENTS.md` region defined by:
 
 - `docs/specs/frontdoor-index-contract.md`
 
+The renderer keeps each skill rule on one line so the root bootstrap remains a
+compact index rather than a copied playbook.
+
 ## Commands
 
 ```bash

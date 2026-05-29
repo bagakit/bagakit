@@ -56,6 +56,13 @@ test("render orders selector first and then lexicographic skill ids", () => {
   assert.match(block, new RegExp(`${FRONTDOOR_START}[\\s\\S]*bagakit-skill-selector[\\s\\S]*alpha[\\s\\S]*zeta[\\s\\S]*${FRONTDOOR_END}`));
   assert.ok(block.indexOf('skill="bagakit-skill-selector"') < block.indexOf('skill="alpha"'));
   assert.ok(block.indexOf('skill="alpha"') < block.indexOf('skill="zeta"'));
+  const lines = block.trim().split("\n");
+  const slash = String.fromCharCode(47);
+  const ruleLinePattern = new RegExp(`^<bagakit-rule skill="[a-z0-9-]+">Trigger: .+ \\| Do: .+ \\| See: \`.+\`<${slash}bagakit-rule>$`);
+  assert.equal(lines.length, 5);
+  for (const line of lines.slice(1, -1)) {
+    assert.match(line, ruleLinePattern);
+  }
 });
 
 test("project validation requires one declaration per installable skill", () => {

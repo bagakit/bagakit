@@ -21,7 +21,7 @@ This file is the SSOT for:
 
 - the `BAGAKIT:FRONTDOOR` managed-region markers
 - the `<bagakit-rule skill="...">` rendered item format
-- the short Markdown body contract inside one rule
+- the compact inline body contract inside one rule
 - the requirement that each installable Bagakit skill declares one frontdoor
   rule
 - frontdoor-rendering constraints and conflict behavior
@@ -73,12 +73,7 @@ one `<bagakit-rule skill="...">` item per installable skill:
 
 ```md
 <!-- BAGAKIT:FRONTDOOR:START -->
-<bagakit-rule skill="bagakit-skill-selector">
-- Trigger: non-trivial Bagakit-shaped work.
-- Do: run selector preflight before major implementation.
-- See: `docs/specs/selector-selection-model.md`
-- Evidence: `.bagakit/skill-selector/tasks/<task-slug>/skill-usage.toml`
-</bagakit-rule>
+<bagakit-rule skill="bagakit-skill-selector">Trigger: non-trivial Bagakit-shaped work. | Do: run selector preflight before major implementation. | See: `docs/specs/selector-selection-model.md` | Evidence: `.bagakit/skill-selector/tasks/<task-slug>/skill-usage.toml`</bagakit-rule>
 <!-- BAGAKIT:FRONTDOOR:END -->
 ```
 
@@ -89,6 +84,7 @@ Rules:
 - a renderer may replace everything between the markers
 - each installable Bagakit skill contributes one rendered
   `<bagakit-rule skill="...">` item
+- each rule item stays on one line with labeled fields separated by ` | `
 - humans and agents may read the region directly
 - durable paths inside the region must be repo-relative
 - the region should stay short enough that it remains bootstrap guidance, not a
@@ -102,11 +98,7 @@ The comment markers already carry the Bagakit frontdoor identity.
 Each rendered skill rule uses:
 
 ```md
-<bagakit-rule skill="<skill-id>">
-- Trigger: <when this rule matters>
-- Do: <one direct instruction>
-- See: `<repo-relative source of truth>`
-</bagakit-rule>
+<bagakit-rule skill="<skill-id>">Trigger: <when this rule matters> | Do: <one direct instruction> | See: `<repo-relative source of truth>`</bagakit-rule>
 ```
 
 Allowed shape:
@@ -116,8 +108,8 @@ Allowed shape:
 - closing tag:
   - `</bagakit-rule>`
 - body:
-  - Markdown bullets
-  - short enough for root bootstrap reading
+  - one inline sequence of labeled fields separated by ` | `
+  - one compact sentence per field
 
 Required body labels:
 
@@ -137,8 +129,8 @@ Rules:
 - `skill` must be a safe Bagakit skill id: lowercase ASCII letters, digits, and
   hyphens, starting with a letter or digit
 - one frontdoor region should contain at most one rule for a given `skill`
-- the body should not contain headings
-- the body should not include nested long procedures
+- the body should not contain headings, lists, or line breaks
+- the body should not include nested procedures
 - the body should point to the owning source of truth instead of copying it
 
 ## Attribute Rule

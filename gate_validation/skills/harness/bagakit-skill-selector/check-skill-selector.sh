@@ -224,6 +224,7 @@ EOF
 "${SELECTOR_BIN[@]}" candidate-survey \
   --file "$TARGET" \
   --root "$ROOT" \
+  --include-all \
   --output "$SURVEY_REPORT"
 
 "${SELECTOR_BIN[@]}" drivers \

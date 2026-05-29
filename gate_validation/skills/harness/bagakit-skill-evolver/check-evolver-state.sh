@@ -33,23 +33,17 @@ EOF
 done
 
 ROOT="$(cd "$ROOT" && pwd)"
-TARGET_ROOT="$ROOT"
-
-if [[ ! -f "$ROOT/.bagakit/evolver/index.json" ]]; then
-  TMP_BASE="${TMPDIR:-${slash}tmp}"
-  TMP_ROOT="$(mktemp -d "${TMP_BASE}${slash}bagakit-evolver-check.XXXXXX")"
-  mkdir -p "$TMP_ROOT/.bagakit/evolver/topics"
-  cat > "$TMP_ROOT/.bagakit/evolver/index.json" <<'EOF'
+TMP_BASE="${TMPDIR:-${slash}tmp}"
+TMP_ROOT="$(mktemp -d "${TMP_BASE}${slash}bagakit-evolver-check.XXXXXX")"
+mkdir -p "$TMP_ROOT/.bagakit/evolver/topics"
+cat > "$TMP_ROOT/.bagakit/evolver/index.json" <<'EOF'
 {
   "version": 1,
   "topics": []
 }
 EOF
-  TARGET_ROOT="$TMP_ROOT"
-  echo "note: repo evolver state not present; validating isolated bootstrap layout instead" >&2
-fi
 
 node --experimental-strip-types \
   "$ROOT/skills/harness/bagakit-skill-evolver/scripts/evolver.ts" \
   check \
-  --root "$TARGET_ROOT"
+  --root "$TMP_ROOT"

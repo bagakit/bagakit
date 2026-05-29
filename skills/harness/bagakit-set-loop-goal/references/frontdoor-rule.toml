@@ -1,7 +1,7 @@
 version = 1
 skill = "bagakit-set-loop-goal"
-trigger = "A Feature Tracker feature needs a compact Agent Goal that can survive restart, compact, handoff, or loop supervision."
-do = "Create or revise the Feature-owned goal.md through Feature Tracker, keep mutable execution truth in state and tasks, and bind the Agent to that exact Feature path."
+trigger = "A Feature Tracker feature needs a compact Agent Goal that survives restart or handoff."
+do = "Write the Feature-owned goal through Feature Tracker and keep mutable execution truth in tracker state."
 see = "skills/harness/bagakit-set-loop-goal/SKILL.md"
 surface = ".bagakit/feature-tracker/features/<feature-id>/goal.md"
-fallback = "Create or resolve the Feature first; use bagakit-spark for an unclear target and Grill only for unresolved decision-bearing Goal truth."
+fallback = "Resolve the Feature first; use Spark for an unclear target and Grill only for unresolved decisions."

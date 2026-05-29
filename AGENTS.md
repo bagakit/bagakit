@@ -311,165 +311,29 @@ reporting, the response footer may use:
 <!-- BAGAKIT:LIVING-KNOWLEDGE:END -->
 
 <!-- BAGAKIT:FRONTDOOR:START -->
-<bagakit-rule skill="bagakit-skill-selector">
-- Trigger: Non-trivial Bagakit-shaped work, skill choice, composition, retries, eval evidence, or possible evolver handoff.
-- Do: Run selector preflight before major implementation; preflight may choose direct execution.
-- See: `docs/specs/selector-selection-model.md`
-- Evidence: `.bagakit/skill-selector/tasks/<task-slug>/skill-usage.toml`
-</bagakit-rule>
-
-<bagakit-rule skill="bagakit-brainstorm">
-- Trigger: Markdown notes need option exploration, trade-offs, expert-forum review, and a next-step handoff.
-- Do: Run the bounded brainstorm workflow and produce explicit handoff artifacts.
-- See: `skills/harness/bagakit-brainstorm/SKILL.md`
-</bagakit-rule>
-
-<bagakit-rule skill="bagakit-codex-webpage-design">
-- Trigger: Codex should create a high-craft webpage or landing page from visual direction through image-generation design reference, frontend implementation, browser debugging, and visual parity iteration.
-- Do: Clarify the design brief, record reference intent, create an image-generation design reference when no stronger reference exists, implement in the host or light mainstream frontend stack, and verify with browser screenshots and visual parity review.
-- See: `skills/design/bagakit-codex-webpage-design/SKILL.md`
-</bagakit-rule>
-
-<bagakit-rule skill="bagakit-coding-agent-principles">
-- Trigger: Codex must make a non-trivial coding or implementation change and should protect the user goal with the smallest project-native, behavior-proven change.
-- Do: State the protected-principle gate, walk the project-native proof-first ladder, keep the diff narrow, and prove public behavior or an owner-owned contract.
-- See: `skills/swe/bagakit-coding-agent-principles/SKILL.md`
-</bagakit-rule>
-
-<bagakit-rule skill="bagakit-consensus-ledger">
-- Trigger: A task needs an explicit agent-user shared-understanding ledger: confirmed consensus, known unknowns, inferred-but-unconfirmed understanding, blind spots, goal dimensions, decision items, evidence requirements, or promotion boundaries.
-- Do: Create or update an embedded ledger in the owner run/session directory when one exists, otherwise use the standalone fallback; keep epistemic class, status, provenance, dimensions, tool-neutral evidence requirements, snapshots, and promotion state explicit without owning route execution.
-- See: `skills/harness/bagakit-consensus-ledger/SKILL.md`
-- Surface: `<owner-dir>/consensus-ledger.json or .bagakit/consensus-ledger/ledgers/<ledger-id>/ledger.json`
-- Fallback: For tiny one-turn tasks, a concise prose note may be enough; for durable shared knowledge use bagakit-living-knowledge after explicit promotion.
-</bagakit-rule>
-
-<bagakit-rule skill="bagakit-daily-media-production">
-- Trigger: Codex should run or design a recurring multi-stage research-to-publication golden path; one-off research, design, deployment, notification, or generic CI/CD should route to its owned peer instead.
-- Do: Compose peers through briefs and receipts without vendoring internals; keep no-publish gates and deployment/notification status explicit, and do not perform live publication side effects from planning-only authority.
-- See: `skills/media-production/bagakit-daily-media-production/SKILL.md`
-- Evidence: `.bagakit/daily-media-production/runs/<run-id>/archive.md`
-</bagakit-rule>
-
-<bagakit-rule skill="bagakit-design-core">
-- Trigger: A design task needs brand-tonality extraction, design-rule coverage, reference-tier reasoning, or draft/plan/result review before implementation.
-- Do: Inspect available design evidence, map tone into concrete axes, apply the design-rule system, write or consume a design packet, and review draft, concrete plan, and final result without owning implementation.
-- See: `skills/design/bagakit-design-core/SKILL.md`
-- Surface: `.bagakit/design/`
-- Fallback: If the target is too vague to design-review, use `bagakit-spark` before creating a design packet.
-</bagakit-rule>
-
-<bagakit-rule skill="bagakit-feature-tracker">
-- Trigger: A repository needs durable feature or task planning truth before implementation or repeated flow execution.
-- Do: Create or update tracker state with explicit workspace mode, task gates, and lifecycle status.
-- See: `skills/harness/bagakit-feature-tracker/SKILL.md`
-</bagakit-rule>
-
-<bagakit-rule skill="bagakit-flow-runner">
-- Trigger: Existing planning truth needs a repeatable runner for one bounded execution item, checkpoint, or resume.
-- Do: Select one item, run the bounded session, and write checkpoint or incident state.
-- See: `skills/harness/bagakit-flow-runner/SKILL.md`
-</bagakit-rule>
-
-<bagakit-rule skill="bagakit-git-message-craft">
-- Trigger: Git changes need intent-based commit splitting, review-quality commit messages, or merge request text; the task is not merely coding, debugging, review, or raw Git operation.
-- Do: Choose draft-only, commit, or MR-refresh authority; plan the Git-facing message from the diff, lint it against the message contract, and preserve validation facts without unauthorized Git or host mutation.
-- See: `skills/swe/bagakit-git-message-craft/SKILL.md`
-</bagakit-rule>
-
-<bagakit-rule skill="bagakit-grill">
-- Trigger: A concrete plan, design, goal snapshot, or implementation direction needs dependency-ordered grilling before execution.
-- Do: Create or resume a grill run, preserve the protected goal or principle, classify each decision as user answer, local inspection, external research, prototype observation, or runtime experiment, ask only user-answer nodes with options plus a recommendation, attach evidence for other routes, and treat multi-round no-branch as convergence pressure before completion.
-- See: `skills/harness/bagakit-grill/SKILL.md`
-- Surface: `.bagakit/grill/runs/<run-id>/`
-- Fallback: If the target is too vague to grill, use `bagakit-spark` for early framing first.
-</bagakit-rule>
-
-<bagakit-rule skill="bagakit-hitl-webutil-design">
-- Trigger: Codex should design or continue a human-in-the-loop web utility page or skill route for understanding, interactive learning, testing, evidence review, comparison, approval, or Agent handoff; continuation includes an existing page submission, attempt packet, stable page ref, or course id with resume intent.
-- Do: Clarify the HITL page brief, select mechanisms, one style route, artifacts, reusable components, and a template; preserve mastery-learning boundaries for course pages, run the hardening audit, and default explicit page or interactive-course handoffs to frontend implementation plus desktop/mobile browser verification through bagakit-codex-webpage-design unless design-only or no-file delivery is explicit; on continuation, target the existing page or emit its versioned import projection and keep chat as notification or fallback.
-- See: `skills/design/bagakit-hitl-webutil-design/SKILL.md`
-</bagakit-rule>
-
-<bagakit-rule skill="bagakit-living-knowledge">
-- Trigger: A repository needs shared checked-in knowledge, deterministic recall, managed bootstrap guidance, or path protocol.
-- Do: Use the living-knowledge operator for indexing, recall, ingestion, and managed guidebook surfaces.
-- See: `skills/harness/bagakit-living-knowledge/SKILL.md`
-</bagakit-rule>
-
-<bagakit-rule skill="bagakit-mastery-learning">
-- Trigger: Codex should turn source material into a course or learning path aimed at thorough understanding, independent application, transfer, retention, or evidence-backed mastery; or should evaluate and continue an existing course from a course id, attempt packet, page-submission receipt, or explicit resume request.
-- Do: Close the source boundary, define a mastery contract, route diagnostics, build active practice and transfer, fade support, and plan re-entry; review learner-facing copy through bagakit-writing-core and its de-AI-tone route; for interactive-course or learning-interface intent, default to a built and browser-verified page through bagakit-hitl-webutil-design and bagakit-codex-webpage-design unless the user explicitly selects a downgrade mode; on continuation, evaluate the new attempt and return a versioned projection to the existing page rather than moving the course into chat.
-- See: `skills/human-improvement/bagakit-mastery-learning/SKILL.md`
-</bagakit-rule>
-
-<bagakit-rule skill="bagakit-paperwork-technical-writing">
-- Trigger: Technical notes, drafts, or transcripts need a publishable article plus execution-ready handoff.
-- Do: Draft or rewrite with explicit quality gates, source evidence, and review output.
-- See: `skills/paperwork/bagakit-paperwork-technical-writing/SKILL.md`
-</bagakit-rule>
-
-<bagakit-rule skill="bagakit-project-chronicle">
-- Trigger: Project sessions need to become an evidence-grounded epic chronicle, cross-session retrospective, origin story, or harness-evolution analysis.
-- Do: Declare the session boundary, build and seal a source census, derive source-bound session cards and generational lineage, then publish a chronicle plus an evolution ledger without turning literary framing into fact.
-- See: `skills/harness/bagakit-project-chronicle/SKILL.md`
-- Surface: `.bagakit/project-chronicle/runs/<run-id>/`
-- Fallback: For one session use an ordinary summary; for repository promotion decisions hand reviewed candidates to the owning evolution or knowledge workflow.
-</bagakit-rule>
-
-<bagakit-rule skill="bagakit-researcher">
-- Trigger: A repository needs a local-first research loop with topic charter, source cards, summaries, claims, or drift checks.
-- Do: Create a topic workspace, preserve source-bound evidence, and synthesize only after quality checks.
-- See: `skills/harness/bagakit-researcher/SKILL.md`
-</bagakit-rule>
-
-<bagakit-rule skill="bagakit-set-loop-goal">
-- Trigger: A Feature Tracker feature needs a compact Agent Goal that can survive restart, compact, handoff, or loop supervision.
-- Do: Create or revise the Feature-owned goal.md through Feature Tracker, keep mutable execution truth in state and tasks, and bind the Agent to that exact Feature path.
-- See: `skills/harness/bagakit-set-loop-goal/SKILL.md`
-- Surface: `.bagakit/feature-tracker/features/<feature-id>/goal.md`
-- Fallback: Create or resolve the Feature first; use bagakit-spark for an unclear target and Grill only for unresolved decision-bearing Goal truth.
-</bagakit-rule>
-
-<bagakit-rule skill="bagakit-skill-evolver">
-- Trigger: A long-lived repository evolution topic spans multiple candidates, decisions, or promotion paths.
-- Do: Open or update evolver topic state before the decision history becomes too large for the current task.
-- See: `skills/harness/bagakit-skill-evolver/SKILL.md`
-</bagakit-rule>
-
-<bagakit-rule skill="bagakit-spark">
-- Trigger: The user wants a thinking partner, deep topic discussion, Socratic exploration, evidence-grounded conceptual exploration, or a discussion that should become an accepted snapshot, MVP eval, or thought experiment.
-- Do: Run the spark dialogue loop, classify the sufficient resolution route before asking, route local facts, research, prototype observations, and runtime experiments to evidence-producing actions, ask only decision-changing user-answer questions, track research sufficiency, question inventory, feedback signals, and rationale, and show option-surface audits before grill-like recommendations.
-- See: `skills/harness/bagakit-spark/SKILL.md`
-</bagakit-rule>
-
-<bagakit-rule skill="bagakit-writing-core">
-- Trigger: A writing task needs generic route, foundation, structure, evidence, low-AI-smell, title, prose-mechanics, rewrite-feedback, or review primitives without adopting a personal style profile.
-- Do: Route the task first, check foundation sufficiency, apply generic writing mechanics, then lint or review with the core surfaces.
-- See: `skills/paperwork/bagakit-writing-core/SKILL.md`
-</bagakit-rule>
-
-<bagakit-rule skill="bagakit-writing-de-ai-tone">
-- Trigger: A writing task specifically needs AI-tone detection, de-AI rewrite protocol, protected-span handling, bilingual AI-smell lexicon checks, or structural rhythm review without adopting a personal style profile.
-- Do: Detect the dominant language, profile, and scene; preserve protected spans; audit P0/P1/P2 AI-tone patterns; rewrite only when requested or needed; mark evidence gaps instead of inventing facts; then run a second-pass audit.
-- See: `skills/paperwork/bagakit-writing-de-ai-tone/SKILL.md`
-</bagakit-rule>
-
-<bagakit-rule skill="bagakit-writing-intake">
-- Trigger: A writing task needs pre-draft intake, evidence-bound language-profile distillation, rewrite-feedback rule candidates, privacy boundaries, style candidates, or Core risk candidates before Core, de-AI-tone, style overlay, or delivery work.
-- Do: Emit an intake_packet with evidence ledger, privacy boundary, protected spans, style candidates, Core risk candidates, rewrite-feedback rule candidates, and a named next owner; do not produce final prose.
-- See: `skills/paperwork/bagakit-writing-intake/SKILL.md`
-</bagakit-rule>
-
-<bagakit-rule skill="qihan-writing">
-- Trigger: Technical, research, planning, weekly-review, or Feishu-oriented prose needs qihan-style rewriting or drafting.
-- Do: Route through the operating surface matrix before drafting, then apply the writing and review references.
-- See: `skills/paperwork/qihan-writing/references/workflow/OPERATING_SURFACE_MATRIX.md`
-</bagakit-rule>
-
-<bagakit-rule skill="topdown-image2-sprite-pipeline">
-- Trigger: Game asset work needs image2-derived top-down sprite source strips, chroma-key-to-alpha runtime sheets, visual-semantic sprite validation, or provenance review.
-- Do: Use an isolated package workspace, run process, independent validation, motion analysis, and reviewer disposition before game integration.
-- See: `skills/gamemaker/topdown-image2-sprite-pipeline/SKILL.md`
-</bagakit-rule>
+<bagakit-rule skill="bagakit-skill-selector">Trigger: Non-trivial Bagakit work needs an explicit skill or composition choice. | Do: Run selector preflight before major implementation; direct execution remains valid. | See: `docs/specs/selector-selection-model.md` | Evidence: `.bagakit/skill-selector/tasks/<task-slug>/skill-usage.toml`</bagakit-rule>
+<bagakit-rule skill="bagakit-brainstorm">Trigger: Markdown notes need option exploration, trade-offs, expert-forum review, and a next-step handoff. | Do: Run the bounded brainstorm workflow and produce explicit handoff artifacts. | See: `skills/harness/bagakit-brainstorm/SKILL.md`</bagakit-rule>
+<bagakit-rule skill="bagakit-codex-webpage-design">Trigger: A task needs a high-craft webpage or landing page built and visually verified. | Do: Clarify the brief and reference intent, implement in the host stack, then verify with browser screenshots and parity review. | See: `skills/design/bagakit-codex-webpage-design/SKILL.md`</bagakit-rule>
+<bagakit-rule skill="bagakit-coding-agent-principles">Trigger: Non-trivial coding needs the smallest project-native, behavior-proven change. | Do: State the protected principle, stop at the first sufficient implementation rung, and prove public behavior or an owned contract. | See: `skills/swe/bagakit-coding-agent-principles/SKILL.md`</bagakit-rule>
+<bagakit-rule skill="bagakit-consensus-ledger">Trigger: Work needs a durable ledger for consensus, unknowns, inferences, blind spots, decisions, dimensions, or evidence requirements. | Do: Embed the ledger in the owner run when possible and keep epistemic class, status, provenance, evidence, and promotion explicit. | See: `skills/harness/bagakit-consensus-ledger/SKILL.md` | Surface: `<owner-dir>/consensus-ledger.json or .bagakit/consensus-ledger/ledgers/<ledger-id>/ledger.json` | Fallback: Use prose for tiny one-turn work; promote durable knowledge through living-knowledge.</bagakit-rule>
+<bagakit-rule skill="bagakit-daily-media-production">Trigger: Work needs a recurring, multi-stage research-to-publication production loop. | Do: Compose peers through briefs and receipts, preserve no-publish gates, and keep deployment and notification status explicit. | See: `skills/media-production/bagakit-daily-media-production/SKILL.md` | Evidence: `.bagakit/daily-media-production/runs/<run-id>/archive.md`</bagakit-rule>
+<bagakit-rule skill="bagakit-design-core">Trigger: A design task needs tone, rule, reference-tier, or draft/plan/result review. | Do: Map design evidence into concrete axes and review a design packet without owning implementation. | See: `skills/design/bagakit-design-core/SKILL.md` | Surface: `.bagakit/design/` | Fallback: Use `bagakit-spark` when the target is too vague to review.</bagakit-rule>
+<bagakit-rule skill="bagakit-feature-tracker">Trigger: A repository needs durable feature or task planning truth before implementation or repeated flow execution. | Do: Create or update tracker state with explicit workspace mode, task gates, and lifecycle status. | See: `skills/harness/bagakit-feature-tracker/SKILL.md`</bagakit-rule>
+<bagakit-rule skill="bagakit-flow-runner">Trigger: Existing planning truth needs a repeatable runner for one bounded execution item, checkpoint, or resume. | Do: Select one item, run the bounded session, and write checkpoint or incident state. | See: `skills/harness/bagakit-flow-runner/SKILL.md`</bagakit-rule>
+<bagakit-rule skill="bagakit-git-message-craft">Trigger: Git changes need intent-based commit splitting, review-quality messages, or merge-request text. | Do: Choose draft, commit, or MR authority, derive the message from the diff, lint it, and preserve validation facts. | See: `skills/swe/bagakit-git-message-craft/SKILL.md`</bagakit-rule>
+<bagakit-rule skill="bagakit-grill">Trigger: A concrete plan, design, goal, or implementation direction needs pressure testing before execution. | Do: Preserve the goal, resolve inspectable nodes with evidence, ask only decision-bearing questions, and require convergence. | See: `skills/harness/bagakit-grill/SKILL.md` | Surface: `.bagakit/grill/runs/<run-id>/` | Fallback: Use `bagakit-spark` when the target is too vague to grill.</bagakit-rule>
+<bagakit-rule skill="bagakit-hitl-webutil-design">Trigger: A task needs or resumes a HITL utility or course page for learning, testing, evidence review, comparison, approval, or handoff. | Do: Define interaction, evidence, and continuity, then route building and desktop/mobile verification through webpage design unless explicitly design-only. | See: `skills/design/bagakit-hitl-webutil-design/SKILL.md`</bagakit-rule>
+<bagakit-rule skill="bagakit-living-knowledge">Trigger: A repository needs shared checked-in knowledge, deterministic recall, managed bootstrap guidance, or path protocol. | Do: Use the living-knowledge operator for indexing, recall, ingestion, and managed guidebook surfaces. | See: `skills/harness/bagakit-living-knowledge/SKILL.md`</bagakit-rule>
+<bagakit-rule skill="bagakit-mastery-learning">Trigger: Source material should become or continue an evidence-backed course or mastery path. | Do: Define source and mastery boundaries, diagnose, practice for transfer, and continue interactive learning through the existing verified page. | See: `skills/human-improvement/bagakit-mastery-learning/SKILL.md`</bagakit-rule>
+<bagakit-rule skill="bagakit-paperwork-technical-writing">Trigger: Technical notes, drafts, or transcripts need a publishable article plus execution-ready handoff. | Do: Draft or rewrite with explicit quality gates, source evidence, and review output. | See: `skills/paperwork/bagakit-paperwork-technical-writing/SKILL.md`</bagakit-rule>
+<bagakit-rule skill="bagakit-project-chronicle">Trigger: Project sessions need an evidence-grounded chronicle, retrospective, origin story, or evolution analysis. | Do: Seal the source census, derive session cards and lineage, then publish the chronicle and evolution ledger without fictionalizing facts. | See: `skills/harness/bagakit-project-chronicle/SKILL.md` | Surface: `.bagakit/project-chronicle/runs/<run-id>/` | Fallback: Use an ordinary summary for one session; hand promotion candidates to the owning workflow.</bagakit-rule>
+<bagakit-rule skill="bagakit-researcher">Trigger: A repository needs a local-first research loop with topic charter, source cards, summaries, claims, or drift checks. | Do: Create a topic workspace, preserve source-bound evidence, and synthesize only after quality checks. | See: `skills/harness/bagakit-researcher/SKILL.md`</bagakit-rule>
+<bagakit-rule skill="bagakit-set-loop-goal">Trigger: A Feature Tracker feature needs a compact Agent Goal that survives restart or handoff. | Do: Write the Feature-owned goal through Feature Tracker and keep mutable execution truth in tracker state. | See: `skills/harness/bagakit-set-loop-goal/SKILL.md` | Surface: `.bagakit/feature-tracker/features/<feature-id>/goal.md` | Fallback: Resolve the Feature first; use Spark for an unclear target and Grill only for unresolved decisions.</bagakit-rule>
+<bagakit-rule skill="bagakit-skill-evolver">Trigger: A long-lived repository evolution topic spans multiple candidates, decisions, or promotion paths. | Do: Open or update evolver topic state before the decision history becomes too large for the current task. | See: `skills/harness/bagakit-skill-evolver/SKILL.md`</bagakit-rule>
+<bagakit-rule skill="bagakit-spark">Trigger: The user wants deep exploratory discussion, a thinking partner, or an accepted conceptual snapshot. | Do: Choose the resolution route, gather the needed evidence, ask only decision-changing questions, and preserve rationale and option coverage. | See: `skills/harness/bagakit-spark/SKILL.md`</bagakit-rule>
+<bagakit-rule skill="bagakit-writing-core">Trigger: Writing needs generic routing, foundation, structure, evidence, prose mechanics, or review without a personal style. | Do: Route first, check the foundation, apply generic mechanics, then lint or review. | See: `skills/paperwork/bagakit-writing-core/SKILL.md`</bagakit-rule>
+<bagakit-rule skill="bagakit-writing-de-ai-tone">Trigger: Writing needs AI-tone detection or rewriting, protected spans, bilingual smell checks, or rhythm review. | Do: Detect language and scene, preserve protected spans, audit by severity, rewrite only as needed, and recheck without inventing evidence. | See: `skills/paperwork/bagakit-writing-de-ai-tone/SKILL.md`</bagakit-rule>
+<bagakit-rule skill="bagakit-writing-intake">Trigger: Writing needs pre-draft intake for evidence, privacy, protected spans, style, or rewrite risks. | Do: Emit an intake packet with evidence and boundaries plus a named next owner; do not write final prose. | See: `skills/paperwork/bagakit-writing-intake/SKILL.md`</bagakit-rule>
+<bagakit-rule skill="qihan-writing">Trigger: Technical, research, planning, weekly-review, or Feishu-oriented prose needs qihan-style rewriting or drafting. | Do: Route through the operating surface matrix before drafting, then apply the writing and review references. | See: `skills/paperwork/qihan-writing/references/workflow/OPERATING_SURFACE_MATRIX.md`</bagakit-rule>
+<bagakit-rule skill="topdown-image2-sprite-pipeline">Trigger: Game work needs image2-derived top-down sprite strips, alpha sheets, motion validation, or provenance review. | Do: Process in an isolated package, validate independently, analyze motion, and record reviewer disposition before integration. | See: `skills/gamemaker/topdown-image2-sprite-pipeline/SKILL.md`</bagakit-rule>
 <!-- BAGAKIT:FRONTDOOR:END -->

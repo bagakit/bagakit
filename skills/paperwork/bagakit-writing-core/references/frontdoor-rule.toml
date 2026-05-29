@@ -1,5 +1,5 @@
 version = 1
 skill = "bagakit-writing-core"
-trigger = "A writing task needs generic route, foundation, structure, evidence, low-AI-smell, title, prose-mechanics, rewrite-feedback, or review primitives without adopting a personal style profile."
-do = "Route the task first, check foundation sufficiency, apply generic writing mechanics, then lint or review with the core surfaces."
+trigger = "Writing needs generic routing, foundation, structure, evidence, prose mechanics, or review without a personal style."
+do = "Route first, check the foundation, apply generic mechanics, then lint or review."
 see = "skills/paperwork/bagakit-writing-core/SKILL.md"

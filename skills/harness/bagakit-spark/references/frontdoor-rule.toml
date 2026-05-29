@@ -1,5 +1,5 @@
 version = 1
 skill = "bagakit-spark"
-trigger = "The user wants a thinking partner, deep topic discussion, Socratic exploration, evidence-grounded conceptual exploration, or a discussion that should become an accepted snapshot, MVP eval, or thought experiment."
-do = "Run the spark dialogue loop, classify the sufficient resolution route before asking, route local facts, research, prototype observations, and runtime experiments to evidence-producing actions, ask only decision-changing user-answer questions, track research sufficiency, question inventory, feedback signals, and rationale, and show option-surface audits before grill-like recommendations."
+trigger = "The user wants deep exploratory discussion, a thinking partner, or an accepted conceptual snapshot."
+do = "Choose the resolution route, gather the needed evidence, ask only decision-changing questions, and preserve rationale and option coverage."
 see = "skills/harness/bagakit-spark/SKILL.md"

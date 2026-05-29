@@ -1,7 +1,7 @@
 version = 1
 skill = "bagakit-grill"
-trigger = "A concrete plan, design, goal snapshot, or implementation direction needs dependency-ordered grilling before execution."
-do = "Create or resume a grill run, preserve the protected goal or principle, classify each decision as user answer, local inspection, external research, prototype observation, or runtime experiment, ask only user-answer nodes with options plus a recommendation, attach evidence for other routes, and treat multi-round no-branch as convergence pressure before completion."
+trigger = "A concrete plan, design, goal, or implementation direction needs pressure testing before execution."
+do = "Preserve the goal, resolve inspectable nodes with evidence, ask only decision-bearing questions, and require convergence."
 see = "skills/harness/bagakit-grill/SKILL.md"
 surface = ".bagakit/grill/runs/<run-id>/"
-fallback = "If the target is too vague to grill, use `bagakit-spark` for early framing first."
+fallback = "Use `bagakit-spark` when the target is too vague to grill."

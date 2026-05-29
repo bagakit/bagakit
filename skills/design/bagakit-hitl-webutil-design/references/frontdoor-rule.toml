@@ -1,5 +1,5 @@
 version = 1
 skill = "bagakit-hitl-webutil-design"
-trigger = "Codex should design or continue a human-in-the-loop web utility page or skill route for understanding, interactive learning, testing, evidence review, comparison, approval, or Agent handoff; continuation includes an existing page submission, attempt packet, stable page ref, or course id with resume intent."
-do = "Clarify the HITL page brief, select mechanisms, one style route, artifacts, reusable components, and a template; preserve mastery-learning boundaries for course pages, run the hardening audit, and default explicit page or interactive-course handoffs to frontend implementation plus desktop/mobile browser verification through bagakit-codex-webpage-design unless design-only or no-file delivery is explicit; on continuation, target the existing page or emit its versioned import projection and keep chat as notification or fallback."
+trigger = "A task needs or resumes a HITL utility or course page for learning, testing, evidence review, comparison, approval, or handoff."
+do = "Define interaction, evidence, and continuity, then route building and desktop/mobile verification through webpage design unless explicitly design-only."
 see = "skills/design/bagakit-hitl-webutil-design/SKILL.md"

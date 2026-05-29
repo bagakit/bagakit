@@ -32,13 +32,13 @@ function valueFor(rule: RuleDeclaration, field: RenderedRuleField): string | und
   return rule[field];
 }
 
-function renderBullet(rule: RuleDeclaration, field: RenderedRuleField): string | null {
+function renderField(rule: RuleDeclaration, field: RenderedRuleField): string | null {
   const value = valueFor(rule, field);
   if (!value?.trim()) {
     return null;
   }
   const rendered = field === "see" || field === "evidence" || field === "surface" ? `\`${value}\`` : value;
-  return `- ${labelFor(field)}: ${rendered}`;
+  return `${labelFor(field)}: ${rendered}`;
 }
 
 export function renderManagedBlock(rules: LoadedRule[]): string {
@@ -46,19 +46,15 @@ export function renderManagedBlock(rules: LoadedRule[]): string {
     if (!SKILL_ID_RE.test(declaration.skill)) {
       throw new Error(`unsafe skill id for frontdoor render: ${declaration.skill}`);
     }
-    const bullets = RENDERED_RULE_FIELDS
-      .map((field) => renderBullet(declaration, field))
+    const fields = RENDERED_RULE_FIELDS
+      .map((field) => renderField(declaration, field))
       .filter((line): line is string => Boolean(line));
-    return [
-      `<bagakit-rule skill="${declaration.skill}">`,
-      ...bullets,
-      "</bagakit-rule>",
-    ].join("\n");
+    return `<bagakit-rule skill="${declaration.skill}">${fields.join(" | ")}</bagakit-rule>`;
   });
 
   return [
     FRONTDOOR_START,
-    renderedRules.join("\n\n"),
+    renderedRules.join("\n"),
     FRONTDOOR_END,
     "",
   ].join("\n");
