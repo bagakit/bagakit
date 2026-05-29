@@ -265,8 +265,8 @@ outer-loop work-item history.
 ## Execution Owner Receipt
 
 Feature Tracker writes `owner-receipt.json` beside canonical feature state only
-after a reviewed execution plan exists. Proposal and draft state do not
-materialize a receipt.
+for reviewed execution or Goal continuation. Proposal and draft state without a
+Goal do not materialize a receipt.
 The shared receipt shape is defined by:
 
 - `docs/specs/execution-owner-receipt-contract.md`
@@ -281,10 +281,10 @@ Feature Tracker requirements:
 - `semantic_revision` is the SHA-256 digest of the compact canonical JSON over
   owner identity, lifecycle, continuation, current item, blocker,
   replacement ref, and `evidence_hashes`
-- `save_feat` writes canonical state and tasks before refreshing a reviewed
-  execution receipt
-- a missing reviewed-execution receipt, stale receipt, or evidence hash drift
-  fails closed
+- `save_feat` writes canonical state and tasks before refreshing the derived
+  receipt
+- a missing required receipt, stale receipt, or evidence hash drift fails
+  closed
 - `ready` and valid `in_progress` state map to `continue`
 - missing reviewed plan or missing workspace maps to blocked continuation
 - a replacement points to the repo-relative replacement owner receipt, not a
