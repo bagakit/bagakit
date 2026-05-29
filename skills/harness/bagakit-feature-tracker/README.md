@@ -191,6 +191,7 @@ Closed feature roots should preserve legacy `ui-verification.md` under
 - `show-feature-status`
 - `get-owner-receipt`
 - `start-task`
+- `unstart-task` (only before gate or blocked/done completion evidence)
 - `run-task-gate`
 - `finish-task`
 - `archive-feature`

@@ -245,10 +245,22 @@ Required behavior:
 - a task may be started only when it belongs to the latest reviewed plan
 - a task already superseded by a later plan cannot be restarted
 - plan replacement is rejected while a task is `in_progress`
+- an accidentally started task may return to `todo` only when it has no gate
+  evidence or prior blocked/done completion, its persisted owner receipt is
+  current, its assigned execution worktree is clean, and its current Git HEAD
+  matches the caller's expected HEAD
 - blocked or done task records with execution evidence remain immutable and
   attributable when later plans supersede them
 - later revisions compare against the immediately prior current-plan task ids,
   not every historical task record retained in `tasks.json`
+- a retained current task may carry supersession lineage already attributed to
+  that same task in an earlier revision; the new history entry records only
+  tasks removed from the immediately prior current plan
+- each revision records supersession ownership by current task; a retained
+  owner cannot drop or transfer earlier edges, while replacing that owner
+  leaves its earlier ownership immutable in historical revisions
+- the expected-HEAD check is an optimistic current-state guard; it does not
+  claim that no commit occurred since task start
 - active features must use this explicit contract; closed historical features
   may retain their pre-v2 task shape
 

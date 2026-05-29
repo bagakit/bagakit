@@ -134,6 +134,7 @@ bash "$BAGAKIT_FEATURE_TRACKER_SKILL_DIR/scripts/feature-tracker.sh" materialize
 - `feature-tracker.sh show-feature-status`
 - `feature-tracker.sh get-owner-receipt`
 - `feature-tracker.sh start-task`
+- `feature-tracker.sh unstart-task`
 - `feature-tracker.sh run-task-gate`
 - `feature-tracker.sh finish-task`
 - `feature-tracker.sh closeout-feature`
@@ -204,6 +205,13 @@ the global state lock while external commands run and revalidate the
 workspace assignment before recording results.
 Do not reassign a feature workspace while a task is `in_progress`; same-feature
 task execution remains single-active-task by contract.
+An accidentally started task may return to `todo` only through `unstart-task`
+when it has no gate evidence or prior blocked/done completion, its persisted
+owner receipt is current, its assigned execution worktree is clean, and the
+current Git HEAD matches the caller's expected HEAD. This optimistic
+current-state guard does not prove that no commit occurred since task start.
+The transition is for evidence-free plan correction, not for erasing attempted
+execution.
 For tracked features, a code commit is not the feature completion boundary.
 The completion boundary is closed feature state through `archive-feature`,
 `discard-feature`, or `closeout-feature --execute`.

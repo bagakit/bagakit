@@ -14,6 +14,10 @@ Read this Feature Goal first; follow only the Feature owner, current task, and c
 
 Context may be stale or belong to another Feature; recover from this file before acting.
 """
+REQUIREMENT_INTAKE_LINES = (
+    "- Before any new optimization or implementation, compare the request with this Goal and current Feature task truth; stop on unexplained drift.",
+    "- Do not implement a chat-only requirement. First record each accepted new requirement in the appropriate reviewed Feature Task through Feature Tracker.",
+)
 
 
 def require(condition: bool, message: str) -> None:
@@ -42,6 +46,7 @@ def main() -> None:
 
     skill = (skill_dir / "SKILL.md").read_text(encoding="utf-8")
     contract = (skill_dir / "references/goal-file-contract.md").read_text(encoding="utf-8")
+    template = (skill_dir / "references/goal-template.md").read_text(encoding="utf-8")
     frontdoor = tomllib.loads(
         (skill_dir / "references/frontdoor-rule.toml").read_text(encoding="utf-8")
     )
@@ -56,6 +61,10 @@ def main() -> None:
 
     require(len(skill.splitlines()) <= 110, "SKILL.md must remain concise")
     require(extract_wrapper(contract) == WRAPPER, "fixed Feature Goal wrapper drifted")
+    require(
+        all(line in template for line in REQUIREMENT_INTAKE_LINES),
+        "Goal template requirement-intake wording drifted",
+    )
     goal_path = ".bagakit/feature-tracker/features/<feature-id>/goal.md"
     require(frontdoor.get("skill") == "bagakit-set-loop-goal", "frontdoor skill identity drifted")
     require(frontdoor.get("surface") == goal_path, "frontdoor Goal surface drifted")

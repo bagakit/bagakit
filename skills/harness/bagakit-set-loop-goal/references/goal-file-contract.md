@@ -105,6 +105,23 @@ and a fully valid replacement.
 `state.json.goal` remains a concise Feature index summary. It does not own the
 long-horizon invariants, acceptance boundary, or authority contract.
 
+## Requirement Intake Gate
+
+Before any new optimization or implementation:
+
+1. Re-read `goal.md`, `owner-receipt.json`, `state.json`, and `tasks.json`.
+2. Compare the request with the Goal, Feature outcome, and reviewed Task truth.
+   Stop for user resolution when the mismatch changes outcome, invariants,
+   acceptance, authority, or an irreversible boundary.
+3. Continue directly only when the requirement is already represented by the
+   appropriate reviewed Task.
+4. If an accepted requirement is absent, record it in the appropriate Feature
+   Task through Feature Tracker before implementation. Never keep executable
+   requirements only in chat or edit `tasks.json` directly.
+5. If active execution prevents a safe Task-plan revision, follow Feature
+   Tracker's valid transition and replan path first. Do not implement now and
+   repair owner truth later.
+
 ## Supervision
 
 Do not materialize a separate `supervisor.md` or packet store. Put stable

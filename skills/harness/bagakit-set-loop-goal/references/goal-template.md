@@ -19,6 +19,8 @@ Before acting, verify `owner-receipt.json`, then recover current execution from 
 
 ## Authority And Orchestration
 - Follow only this Feature's owner receipt, state, and reviewed tasks.
+- Before any new optimization or implementation, compare the request with this Goal and current Feature task truth; stop on unexplained drift.
+- Do not implement a chat-only requirement. First record each accepted new requirement in the appropriate reviewed Feature Task through Feature Tracker.
 - <durable delegation, parallelism, audit, and merge principles>
 
 ## Context References

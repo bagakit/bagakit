@@ -1113,12 +1113,129 @@ def latest_plan_task_ids(tasks: dict[str, Any]) -> list[str]:
     return out
 
 
+def historical_task_first_revisions(tasks: dict[str, Any]) -> dict[str, int]:
+    first_revisions: dict[str, int] = {}
+    history = tasks.get("plan_history")
+    if not isinstance(history, list):
+        return first_revisions
+    for entry in history:
+        if not isinstance(entry, dict):
+            continue
+        revision = entry.get("revision")
+        task_ids = entry.get("task_ids")
+        if (
+            not isinstance(revision, int)
+            or isinstance(revision, bool)
+            or not isinstance(task_ids, list)
+        ):
+            continue
+        for task_id in task_ids:
+            if isinstance(task_id, str) and TASK_ID_RE.fullmatch(task_id):
+                first_revisions.setdefault(task_id, revision)
+    return first_revisions
+
+
+def plan_history_supersedes_by_task(
+    entry: dict[str, Any],
+) -> tuple[bool, dict[str, set[str]] | None]:
+    raw = entry.get("supersedes_by_task")
+    if raw is None:
+        return True, None
+    if not isinstance(raw, dict):
+        return False, None
+    out: dict[str, set[str]] = {}
+    for raw_owner, raw_supersedes in raw.items():
+        owner = str(raw_owner)
+        if (
+            not TASK_ID_RE.fullmatch(owner)
+            or not isinstance(raw_supersedes, list)
+            or not raw_supersedes
+        ):
+            return False, None
+        supersedes = {str(item) for item in raw_supersedes}
+        if (
+            len(supersedes) != len(raw_supersedes)
+            or owner in supersedes
+            or any(not TASK_ID_RE.fullmatch(str(item)) for item in raw_supersedes)
+        ):
+            return False, None
+        out[owner] = supersedes
+    return True, out
+
+
+def latest_supersedes_by_task(tasks: dict[str, Any]) -> dict[str, set[str]]:
+    history = tasks.get("plan_history")
+    if not isinstance(history, list) or not history:
+        return {}
+    valid, explicit = (
+        plan_history_supersedes_by_task(history[-1])
+        if isinstance(history[-1], dict)
+        else (False, None)
+    )
+    if not valid:
+        return {}
+    if explicit is not None:
+        return explicit
+    current_ids = set(latest_plan_task_ids(tasks))
+    out: dict[str, set[str]] = {}
+    for task in tasks.get("tasks", []):
+        if not isinstance(task, dict) or str(task.get("id")) not in current_ids:
+            continue
+        supersedes = task.get("supersedes")
+        if isinstance(supersedes, list) and supersedes:
+            out[str(task["id"])] = {str(item) for item in supersedes}
+    return out
+
+
 def task_has_execution_evidence(task: dict[str, Any]) -> bool:
     return bool(
         task.get("status") in {"done", "blocked"}
         or task.get("gate_result") is not None
         or bool(task.get("last_gate_commands"))
     )
+
+
+def task_has_unstart_evidence(
+    paths: HarnessPaths,
+    state: dict[str, Any],
+    task: dict[str, Any],
+    task_id: str,
+) -> bool:
+    if task.get("gate_result") is not None or bool(task.get("last_gate_commands")):
+        return True
+    for event in state.get("history", []):
+        if (
+            isinstance(event, dict)
+            and event.get("action") == "task_finished"
+            and str(event.get("detail") or "").startswith(f"{task_id} =>")
+        ):
+            return True
+    gate = state.get("gate")
+    if isinstance(gate, dict) and str(gate.get("last_task_id") or "") == task_id:
+        if (
+            gate.get("last_result") is not None
+            or bool(gate.get("last_check_commands"))
+            or bool(str(gate.get("last_log_path") or "").strip())
+        ):
+            return True
+    for event in state.get("history", []):
+        if (
+            isinstance(event, dict)
+            and event.get("action") == "task_gate"
+            and str(event.get("detail") or "").startswith(f"{task_id} =>")
+        ):
+            return True
+    artifacts_dir = paths.feat_artifacts_dir(
+        str(state.get("feat_id") or ""),
+        status=str(state.get("status") or ""),
+    )
+    if artifacts_dir.is_dir() and any(
+        path.is_file()
+        for path in artifacts_dir.iterdir()
+        if re.fullmatch(rf"gate-{re.escape(task_id)}-r[0-9]+-[0-9]{{4}}\.log", path.name)
+    ):
+        return True
+    return False
 
 
 def task_has_canonical_semantics(task: dict[str, Any]) -> bool:
@@ -1198,6 +1315,10 @@ def has_reviewed_task_plan(tasks: dict[str, Any]) -> bool:
     if not isinstance(history, list) or len(history) != revision:
         return False
     previous_history_ids: set[str] = set()
+    cumulative_superseded_ids: set[str] = set()
+    retired_history_ids: set[str] = set()
+    owner_maps_started = False
+    previous_owner_map: dict[str, set[str]] = {}
     for history_index, entry in enumerate(history):
         expected_revision = history_index + 1
         if not isinstance(entry, dict) or entry.get("revision") != expected_revision:
@@ -1226,9 +1347,34 @@ def has_reviewed_task_plan(tasks: dict[str, Any]) -> bool:
             or any(not TASK_ID_RE.fullmatch(str(item)) for item in raw_superseded_ids)
         ):
             return False
+        if entry_ids & retired_history_ids:
+            return False
         expected_removed = previous_history_ids - entry_ids if history_index > 0 else set()
         if superseded_ids != expected_removed:
             return False
+        valid_owner_map, owner_map = plan_history_supersedes_by_task(entry)
+        if not valid_owner_map:
+            return False
+        if owner_map is not None:
+            owner_maps_started = True
+            if set(owner_map) - entry_ids:
+                return False
+            declared = {task_id for supersedes in owner_map.values() for task_id in supersedes}
+            if not superseded_ids.issubset(declared):
+                return False
+            if previous_owner_map:
+                for owner, supersedes in owner_map.items():
+                    prior = previous_owner_map.get(owner, set())
+                    if not (supersedes - superseded_ids).issubset(prior):
+                        return False
+                for owner in set(previous_owner_map) & entry_ids:
+                    if not previous_owner_map[owner].issubset(owner_map.get(owner, set())):
+                        return False
+            previous_owner_map = owner_map
+        elif owner_maps_started:
+            return False
+        cumulative_superseded_ids.update(superseded_ids)
+        retired_history_ids.update(expected_removed)
         previous_history_ids = entry_ids
     if history[-1].get("review_ref") != tasks.get("review_ref") or history[-1].get("source_refs") != source_refs:
         return False
@@ -1253,8 +1399,22 @@ def has_reviewed_task_plan(tasks: dict[str, Any]) -> bool:
         for superseded_id in task_by_id[task_id].get("supersedes", [])
     }
     latest_superseded_ids = {str(item) for item in history[-1].get("superseded_task_ids", [])}
-    if declared_latest_supersedes != latest_superseded_ids:
+    if (
+        not latest_superseded_ids.issubset(declared_latest_supersedes)
+        or not declared_latest_supersedes.issubset(cumulative_superseded_ids)
+    ):
         return False
+    valid_owner_map, latest_owner_map = plan_history_supersedes_by_task(history[-1])
+    if not valid_owner_map:
+        return False
+    if latest_owner_map is not None:
+        declared_by_task = {
+            task_id: set(task_by_id[task_id].get("supersedes", []))
+            for task_id in current_ids
+            if task_by_id[task_id].get("supersedes")
+        }
+        if declared_by_task != latest_owner_map:
+            return False
     return True
 
 
@@ -1287,12 +1447,14 @@ def build_reviewed_tasks_payload(
         if isinstance(task, dict) and str(task.get("id") or "").strip()
     }
     previous_ids = set(previous_by_id)
+    historical_first_revisions = historical_task_first_revisions(previous)
+    historical_ids = set(historical_first_revisions)
     previous_active_ids = set(latest_plan_task_ids(previous)) if has_reviewed_task_plan(previous) else previous_ids
     candidate_ids = {str(task["id"]) for task in candidate["tasks"]}
     reintroduced_historical = {
         task_id
         for task_id in candidate_ids
-        if task_id in previous_ids and task_id not in previous_active_ids
+        if task_id in historical_ids and task_id not in previous_active_ids
     }
     if reintroduced_historical:
         raise SystemExit(
@@ -1300,24 +1462,57 @@ def build_reviewed_tasks_payload(
             + ", ".join(sorted(reintroduced_historical))
         )
     superseded_ids = previous_active_ids - candidate_ids
-    declared_supersedes = {
-        superseded
-        for task in candidate["tasks"]
-        for superseded in task.get("supersedes", [])
-    }
-    unknown_supersedes = declared_supersedes - previous_active_ids
-    if unknown_supersedes:
-        raise SystemExit(
-            "error: reviewed task plan supersedes tasks outside the prior current plan: "
-            + ", ".join(sorted(unknown_supersedes))
+    previous_history = previous.get("plan_history")
+    cumulative_historical_supersedes = (
+        {
+            str(task_id)
+            for entry in previous_history
+            if isinstance(entry, dict)
+            for task_id in entry.get("superseded_task_ids", [])
+            if isinstance(task_id, str)
+        }
+        if isinstance(previous_history, list)
+        else set()
+    )
+    declared_current_supersedes: set[str] = set()
+    invalid_carried_supersedes: set[str] = set()
+    for task in candidate["tasks"]:
+        task_id = str(task["id"])
+        previous_task = previous_by_id.get(task_id)
+        previous_task_supersedes = (
+            set(previous_task.get("supersedes", []))
+            if isinstance(previous_task, dict) and isinstance(previous_task.get("supersedes"), list)
+            else set()
         )
-    retained_supersedes = declared_supersedes & candidate_ids
+        carried_historical = previous_task_supersedes & cumulative_historical_supersedes
+        candidate_supersedes = set(task.get("supersedes", []))
+        dropped_carried = carried_historical - candidate_supersedes
+        if dropped_carried:
+            raise SystemExit(
+                "error: retained task must preserve its historical supersession lineage: "
+                f"{task_id} dropped {', '.join(sorted(dropped_carried))}"
+            )
+        for superseded in task.get("supersedes", []):
+            if superseded in previous_active_ids:
+                declared_current_supersedes.add(superseded)
+                continue
+            if (
+                superseded not in cumulative_historical_supersedes
+                or superseded not in previous_task_supersedes
+            ):
+                invalid_carried_supersedes.add(superseded)
+    if invalid_carried_supersedes:
+        raise SystemExit(
+            "error: reviewed task plan may carry historical supersession only on the same retained task: "
+            + ", ".join(sorted(invalid_carried_supersedes))
+        )
+    retained_supersedes = declared_current_supersedes & candidate_ids
     if retained_supersedes:
         raise SystemExit(
             "error: reviewed task plan cannot supersede tasks retained in the current plan: "
             + ", ".join(sorted(retained_supersedes))
         )
-    missing_lineage = superseded_ids - declared_supersedes
+    missing_lineage = superseded_ids - declared_current_supersedes
     if missing_lineage:
         raise SystemExit(
             "error: reviewed task plan must preserve supersession lineage for removed tasks: "
@@ -1333,6 +1528,11 @@ def build_reviewed_tasks_payload(
             "source_refs": candidate["source_refs"],
             "task_ids": [task["id"] for task in candidate["tasks"]],
             "superseded_task_ids": sorted(superseded_ids),
+            "supersedes_by_task": {
+                task["id"]: sorted(task.get("supersedes", []))
+                for task in candidate["tasks"]
+                if task.get("supersedes")
+            },
         }
     )
     semantic_fields = (
@@ -1357,10 +1557,11 @@ def build_reviewed_tasks_payload(
                 )
             tasks.append(dict(previous_task))
             continue
+        introduced_in_revision = historical_first_revisions.get(task["id"], revision)
         tasks.append(
             {
                 **task,
-                "introduced_in_revision": revision,
+                "introduced_in_revision": introduced_in_revision,
                 "status": "todo",
                 "gate_result": None,
                 "last_gate_commands": [],
@@ -1372,8 +1573,8 @@ def build_reviewed_tasks_payload(
     for task in candidate["tasks"]:
         for superseded in task.get("supersedes", []):
             superseded_by.setdefault(superseded, []).append(task["id"])
-    historical_ids = previous_ids - previous_active_ids
-    for task_id in sorted(historical_ids):
+    preserved_historical_ids = previous_ids - previous_active_ids
+    for task_id in sorted(preserved_historical_ids):
         previous_task = previous_by_id[task_id]
         if task_has_execution_evidence(previous_task):
             tasks.append(dict(previous_task))
@@ -2947,6 +3148,7 @@ def cmd_task_start(args: argparse.Namespace) -> int:
         eprint(f"error: task {task_id} cannot be started from status={target.get('status')}")
         return 1
 
+    execution = resolve_feature_execution_root(root, state)
     target["status"] = "in_progress"
     state["status"] = "in_progress"
     state["current_task_id"] = task_id
@@ -2955,6 +3157,78 @@ def cmd_task_start(args: argparse.Namespace) -> int:
     )
     save_feat(paths, args.feat, state, tasks)
     print(f"ok: task started {args.feat}/{task_id}")
+    return 0
+
+
+def cmd_task_unstart(args: argparse.Namespace) -> int:
+    root = Path(args.root).resolve()
+    paths = HarnessPaths(root)
+    ensure_harness_exists(paths)
+    ensure_git_repo(root)
+    state, tasks = load_feat(paths, args.feat)
+    try:
+        load_current_owner_receipt(paths, state, tasks)
+    except SystemExit as exc:
+        eprint(str(exc))
+        return 1
+    task = find_task(tasks, args.task)
+
+    if task.get("status") != "in_progress":
+        eprint(f"error: task is not in_progress: {args.task}")
+        return 1
+    if state.get("current_task_id") != args.task:
+        eprint("error: state current_task_id mismatch")
+        return 1
+    if task_has_unstart_evidence(paths, state, task, args.task):
+        eprint(f"error: task has execution evidence and cannot be unstarted: {args.task}")
+        return 1
+    try:
+        execution = resolve_feature_execution_root(root, state)
+    except SystemExit as exc:
+        eprint(str(exc))
+        return 1
+
+    try:
+        changes = non_harness_git_status_lines(execution.path)
+    except SystemExit as exc:
+        eprint(str(exc))
+        return 1
+    if changes:
+        eprint(f"error: feature execution worktree is dirty: {execution.path}")
+        return 1
+
+    head = run_cmd(["git", "-C", str(execution.path), "rev-parse", "HEAD"])
+    if head.returncode != 0:
+        eprint(head.stderr.strip() or head.stdout.strip() or "git rev-parse HEAD failed")
+        return 1
+    actual_head = head.stdout.strip()
+    if actual_head != args.expected_head:
+        eprint(
+            "error: feature execution HEAD conflict: "
+            f"expected {args.expected_head}, current {actual_head}"
+        )
+        return 1
+
+    try:
+        final_changes = non_harness_git_status_lines(execution.path)
+    except SystemExit as exc:
+        eprint(str(exc))
+        return 1
+    final_head = run_cmd(["git", "-C", str(execution.path), "rev-parse", "HEAD"])
+    if final_head.returncode != 0:
+        eprint(final_head.stderr.strip() or final_head.stdout.strip() or "git rev-parse HEAD failed")
+        return 1
+    if final_changes or final_head.stdout.strip() != actual_head:
+        eprint(f"error: feature execution Git state changed during task unstart: {execution.path}")
+        return 1
+
+    task["status"] = "todo"
+    state["current_task_id"] = None
+    state["status"] = "ready"
+    state.setdefault("history", []).append(history_event("task_unstarted", args.task))
+    save_feat(paths, args.feat, state, tasks)
+    print(f"ok: task unstarted {args.feat}/{args.task}")
+    print(f"feat_status: {state['status']}")
     return 0
 
 
@@ -4298,10 +4572,20 @@ def validate_feat(paths: HarnessPaths, root: Path, feat_id: str) -> list[str]:
                 else []
             )
         }
-        if declared_latest_supersedes != latest_superseded_ids:
+        history = tasks.get("plan_history")
+        cumulative_superseded_ids = {
+            str(task_id)
+            for entry in history
+            if isinstance(entry, dict)
+            for task_id in entry.get("superseded_task_ids", [])
+            if isinstance(task_id, str)
+        } if isinstance(history, list) else set()
+        if (
+            not latest_superseded_ids.issubset(declared_latest_supersedes)
+            or not declared_latest_supersedes.issubset(cumulative_superseded_ids)
+        ):
             errors.append(f"{feat_id}: current task supersedes lineage drifts from latest plan_history")
         known_plan_task_ids = set(by_id)
-        history = tasks.get("plan_history")
         if isinstance(history, list):
             for entry in history:
                 if isinstance(entry, dict) and isinstance(entry.get("task_ids"), list):
@@ -5148,6 +5432,13 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--task", required=True)
     sp.set_defaults(func=cmd_task_start)
 
+    sp = sub.add_parser("unstart-task", help="return an evidence-free active task to todo")
+    add_common(sp)
+    sp.add_argument("--feature", dest="feat", required=True)
+    sp.add_argument("--task", required=True)
+    sp.add_argument("--expected-head", required=True)
+    sp.set_defaults(func=cmd_task_unstart)
+
     sp = sub.add_parser("run-task-gate", help="execute gate checks")
     add_common(sp)
     sp.add_argument("--feature", dest="feat", required=True)
@@ -5256,6 +5547,7 @@ def command_requires_global_tracker_lock(args: argparse.Namespace) -> bool:
         "set-feature-goal",
         "assign-feature-workspace",
         "start-task",
+        "unstart-task",
         "finish-task",
         "closeout-feature",
         "archive-feature",

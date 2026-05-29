@@ -32,6 +32,9 @@ Core contract:
   irreversible-risk meaning remains unresolved after local inspection.
 - Give the user a plain-language alignment recap before first activation or a
   direction-changing Goal revision.
+- Before any new optimization or implementation, check the request against the
+  Goal and current Feature task truth for drift. Record each accepted new
+  requirement in the appropriate reviewed Feature Task before acting.
 - Install or revise `goal.md` only through Feature Tracker's
   `set-feature-goal` command with an expected revision. Never write Feature
   runtime state directly.
@@ -55,7 +58,9 @@ Minimal workflow:
 6. Emit the fixed wrapper from `render-wrapper`. During execution, read
    `goal.md`, verify `owner-receipt.json`, then recover current work from
    `state.json` and `tasks.json`.
-7. Update `goal.md` only for durable direction changes. Feature task progress
+7. Apply the requirement-intake gate in `references/goal-file-contract.md`
+   before executing a newly introduced requirement.
+8. Update `goal.md` only for durable direction changes. Feature task progress
    must never trigger routine Goal rewrites.
 
 Read references only when needed:

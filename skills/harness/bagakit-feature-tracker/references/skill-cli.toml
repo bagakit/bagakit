@@ -50,6 +50,10 @@ name = "start-task"
 summary = "Start one feature task."
 
 [[command]]
+name = "unstart-task"
+summary = "Return an active task with no gate or prior completion evidence to todo when its receipt is current and its clean execution worktree is at the expected current Git HEAD."
+
+[[command]]
 name = "run-task-gate"
 summary = "Record or run one task gate."
 
