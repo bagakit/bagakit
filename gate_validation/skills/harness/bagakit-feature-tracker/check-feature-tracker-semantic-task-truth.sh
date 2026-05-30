@@ -373,6 +373,52 @@ bash "$SKILL_DIR/scripts/feature-tracker.sh" validate-tracker --root "$TMP_DIR" 
 bash "$SKILL_DIR/scripts/feature-tracker.sh" start-task \
   --root "$TMP_DIR" --feature "$FEATURE_ID" --task T-002 >/dev/null
 
+CONTROL_PATHS=(
+  "$TMP_DIR/.bagakit/feature-tracker/features/$FEATURE_ID/state.json"
+  "$TMP_DIR/.bagakit/feature-tracker/features/$FEATURE_ID/tasks.json"
+  "$TMP_DIR/.bagakit/feature-tracker/features/$FEATURE_ID/owner-receipt.json"
+  "$TMP_DIR/.bagakit/feature-tracker/index/features.json"
+)
+assert_finish_rejected_without_writes() {
+  local case_id="$1"
+  local expected_error="$2"
+  shift 2
+  local control_before
+  control_before="$(shasum "${CONTROL_PATHS[@]}")"
+  if bash "$SKILL_DIR/scripts/feature-tracker.sh" finish-task \
+    --root "$TMP_DIR" --feature "$FEATURE_ID" --task T-002 "$@" \
+    >"$TMP_DIR/$case_id.out" 2>"$TMP_DIR/$case_id.err"; then
+    echo "error: invalid finish-task case unexpectedly succeeded: $case_id" >&2
+    exit 1
+  fi
+  grep -q -- "$expected_error" "$TMP_DIR/$case_id.err"
+  test "$control_before" = "$(shasum "${CONTROL_PATHS[@]}")"
+}
+
+assert_finish_rejected_without_writes \
+  blocked-missing-class "--blocked-reason-class is required" \
+  --result blocked --blocked-reason "missing class must fail"
+assert_finish_rejected_without_writes \
+  blocked-missing-reason "--blocked-reason is required" \
+  --result blocked --blocked-reason-class external_blocker
+assert_finish_rejected_without_writes \
+  blocked-blank-reason "--blocked-reason is required" \
+  --result blocked --blocked-reason-class external_blocker --blocked-reason "   "
+assert_finish_rejected_without_writes \
+  blocked-invalid-parked "parked_context requires runtime_role=frontdoor_context" \
+  --result blocked --blocked-reason-class parked_context \
+  --blocked-reason "standalone cannot park as frontdoor context"
+assert_finish_rejected_without_writes \
+  done-with-blocker "valid only with --result blocked" \
+  --result done --blocked-reason-class internal_blocker \
+  --blocked-reason "done must reject blocker args"
+assert_finish_rejected_without_writes \
+  done-with-class "valid only with --result blocked" \
+  --result done --blocked-reason-class internal_blocker
+assert_finish_rejected_without_writes \
+  done-with-reason "valid only with --result blocked" \
+  --result done --blocked-reason "done must reject a reason alone"
+
 python3 - "$TMP_DIR" "$FEATURE_ID" <<'PY'
 import json
 import sys
@@ -401,21 +447,72 @@ fi
 grep -q "missing persisted owner receipt" "$TMP_DIR/missing-receipt.err"
 
 bash "$SKILL_DIR/scripts/feature-tracker.sh" finish-task \
-  --root "$TMP_DIR" --feature "$FEATURE_ID" --task T-002 --result blocked >/dev/null
+  --root "$TMP_DIR" --feature "$FEATURE_ID" --task T-002 --result blocked \
+  --blocked-reason-class external_blocker \
+  --blocked-reason "upstream capability is unavailable" >/dev/null
 BLOCKED_RECEIPT="$(bash "$SKILL_DIR/scripts/feature-tracker.sh" get-owner-receipt \
   --root "$TMP_DIR" --feature "$FEATURE_ID" --json)"
-python3 - "$BLOCKED_RECEIPT" <<'PY'
+python3 - "$TMP_DIR" "$FEATURE_ID" "$BLOCKED_RECEIPT" <<'PY'
 import json
 import sys
+from pathlib import Path
 
-receipt = json.loads(sys.argv[1])
+root = Path(sys.argv[1])
+feature_id = sys.argv[2]
+receipt = json.loads(sys.argv[3])
+feature_dir = root / ".bagakit" / "feature-tracker" / "features" / feature_id
+state = json.loads((feature_dir / "state.json").read_text(encoding="utf-8"))
+tasks = json.loads((feature_dir / "tasks.json").read_text(encoding="utf-8"))
+index = json.loads(
+    (root / ".bagakit" / "feature-tracker" / "index" / "features.json").read_text(encoding="utf-8")
+)
+index_entry = next(item for item in index["features"] if item["feat_id"] == feature_id)
+assert tasks["tasks"][0]["status"] == "blocked"
+assert tasks["tasks"][0]["last_blocker"] == {
+    "class": "external_blocker",
+    "reason": "upstream capability is unavailable",
+}
+assert state["status"] == "blocked"
+assert state["current_task_id"] is None
+assert state["blocked_reason_class"] == "external_blocker"
+assert state["blocked_reason"] == "upstream capability is unavailable"
+assert state["blocked_task_id"] == "T-002"
+assert index_entry["status"] == "blocked"
+assert index_entry["blocked_reason_class"] == "external_blocker"
 assert receipt["lifecycle_status"] == "blocked"
 assert receipt["continuation"] == "blocked"
-assert receipt["blocker"]["class"] == "internal_blocker"
+assert receipt["blocker"] == {
+    "class": "external_blocker",
+    "reason": "upstream capability is unavailable",
+}
 PY
+bash "$SKILL_DIR/scripts/feature-tracker.sh" validate-tracker --root "$TMP_DIR" >/dev/null
 
 bash "$SKILL_DIR/scripts/feature-tracker.sh" start-task \
   --root "$TMP_DIR" --feature "$FEATURE_ID" --task T-002 >/dev/null
+python3 - "$TMP_DIR" "$FEATURE_ID" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+root = Path(sys.argv[1])
+feature_id = sys.argv[2]
+feature_dir = root / ".bagakit" / "feature-tracker" / "features" / feature_id
+state = json.loads((feature_dir / "state.json").read_text(encoding="utf-8"))
+receipt = json.loads((feature_dir / "owner-receipt.json").read_text(encoding="utf-8"))
+index = json.loads(
+    (root / ".bagakit" / "feature-tracker" / "index" / "features.json").read_text(encoding="utf-8")
+)
+index_entry = next(item for item in index["features"] if item["feat_id"] == feature_id)
+assert state["status"] == "in_progress"
+assert state["blocked_reason_class"] == "none"
+assert "blocked_reason" not in state
+assert "blocked_task_id" not in state
+assert index_entry["status"] == "in_progress"
+assert index_entry["blocked_reason_class"] == "none"
+assert receipt["continuation"] == "continue"
+assert receipt["blocker"] is None
+PY
 BLOCKED_RESTART_HEAD="$(git -C "$TMP_DIR" rev-parse HEAD)"
 if bash "$SKILL_DIR/scripts/feature-tracker.sh" unstart-task \
   --root "$TMP_DIR" --feature "$FEATURE_ID" --task T-002 --expected-head "$BLOCKED_RESTART_HEAD" \
@@ -426,7 +523,28 @@ fi
 grep -q "task has execution evidence and cannot be unstarted" \
   "$TMP_DIR/unstart-blocked-restart.err"
 bash "$SKILL_DIR/scripts/feature-tracker.sh" finish-task \
-  --root "$TMP_DIR" --feature "$FEATURE_ID" --task T-002 --result blocked >/dev/null
+  --root "$TMP_DIR" --feature "$FEATURE_ID" --task T-002 --result blocked \
+  --blocked-reason-class internal_blocker \
+  --blocked-reason "reviewed recovery plan is required" >/dev/null
+python3 - "$TMP_DIR" "$FEATURE_ID" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+root = Path(sys.argv[1])
+feature_id = sys.argv[2]
+feature_dir = root / ".bagakit" / "feature-tracker" / "features" / feature_id
+state = json.loads((feature_dir / "state.json").read_text(encoding="utf-8"))
+tasks = json.loads((feature_dir / "tasks.json").read_text(encoding="utf-8"))
+task = next(item for item in tasks["tasks"] if item["id"] == "T-002")
+assert task["last_blocker"] == {
+    "class": "internal_blocker",
+    "reason": "reviewed recovery plan is required",
+}
+assert state["blocked_reason_class"] == "internal_blocker"
+assert state["blocked_reason"] == "reviewed recovery plan is required"
+assert state["blocked_task_id"] == "T-002"
+PY
 
 PLAN_THREE="$TMP_DIR/plan-three.json"
 cat >"$PLAN_THREE" <<'JSON'
@@ -469,14 +587,30 @@ feature_id = sys.argv[2]
 feature_dir = root / ".bagakit" / "feature-tracker" / "features" / feature_id
 state = json.loads((feature_dir / "state.json").read_text(encoding="utf-8"))
 tasks = json.loads((feature_dir / "tasks.json").read_text(encoding="utf-8"))
+receipt = json.loads((feature_dir / "owner-receipt.json").read_text(encoding="utf-8"))
+index = json.loads(
+    (root / ".bagakit" / "feature-tracker" / "index" / "features.json").read_text(encoding="utf-8")
+)
+index_entry = next(item for item in index["features"] if item["feat_id"] == feature_id)
 by_id = {task["id"]: task for task in tasks["tasks"]}
 assert tasks["plan_revision"] == 3
 assert by_id["T-002"]["status"] == "blocked"
 assert by_id["T-002"]["superseded_by"] == ["T-003"]
+assert by_id["T-002"]["last_blocker"] == {
+    "class": "internal_blocker",
+    "reason": "reviewed recovery plan is required",
+}
 assert by_id["T-003"]["status"] == "todo"
 assert state["status"] == "ready"
 assert state["blocked_reason_class"] == "none"
+assert "blocked_reason" not in state
+assert "blocked_task_id" not in state
+assert index_entry["status"] == "ready"
+assert index_entry["blocked_reason_class"] == "none"
+assert receipt["continuation"] == "continue"
+assert receipt["blocker"] is None
 PY
+bash "$SKILL_DIR/scripts/feature-tracker.sh" validate-tracker --root "$TMP_DIR" >/dev/null
 
 if bash "$SKILL_DIR/scripts/feature-tracker.sh" start-task \
   --root "$TMP_DIR" --feature "$FEATURE_ID" --task T-002 \

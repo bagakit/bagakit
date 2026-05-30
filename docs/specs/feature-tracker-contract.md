@@ -91,9 +91,10 @@ Implications:
 - Goal must not own a second lifecycle, task plan, dependency graph, blocker,
   event stream, completion evidence, review state, or archive
 - `state.json` may also carry runtime-owner semantics such as `runtime_role`,
-  `blocked_reason_class`, and `runtime_relations`; when present,
-  `index/features.json` should project those fields as read-optimized index
-  state rather than inventing them independently
+  `blocked_reason_class`, `blocked_reason`, and `runtime_relations`; when present,
+  `index/features.json` should project the role, blocker class, and relations
+  as read-optimized index state rather than inventing them independently;
+  blocker prose remains out of the index
 - root-level helper markdown files such as `proposal.md`, `spec-delta.md`, and
   `verification.md` are optional operator aids, not authoritative task state
 - local issuer state may help create new ids but may not redefine tracked
@@ -146,6 +147,10 @@ Stable runtime-owner fields:
   - `external_blocker`
   - `internal_blocker`
   - `parked_context`
+- `state.json.blocked_reason`
+  - non-empty human-readable reason owned by the same blocked transition
+- `state.json.blocked_task_id`
+  - task id whose `last_blocker` is the evidence for the current live blocker
 - `state.json.runtime_relations`
   - list of typed feature-to-feature runtime links
   - stable relation values:
@@ -155,13 +160,20 @@ Stable runtime-owner fields:
 Projection rule:
 
 - `state.json` remains canonical for these runtime-owner fields
-- `index/features.json` may project them for list/read surfaces
+- `index/features.json` projects `blocked_reason_class`, but not
+  `blocked_reason`, for list/read surfaces
+- the execution-owner receipt projects the exact current blocker class and
+  reason when the Feature is blocked
 - dependency projection output must not carry them because they are not
   dependency truth
 
 Required invariants:
 
-- non-`none` `blocked_reason_class` requires `status = blocked`
+- `status = blocked` requires a non-`none` `blocked_reason_class` and a
+  non-empty `blocked_reason`, plus a canonical `blocked_task_id` whose blocked
+  task carries the exact pair as `last_blocker`
+- every non-blocked status requires `blocked_reason_class = none` and no
+  `blocked_reason` or `blocked_task_id`
 - `parked_context` requires `runtime_role = frontdoor_context`
 - `frontdoor_context` features may only point outward with
   `runtime_relations[].relation = frontdoor_for`
@@ -173,6 +185,29 @@ Required invariants:
   `frontdoor_for(A -> B)` requires `handoff_from(B -> A)`
 
 These fields describe runtime ownership posture only.
+
+`finish-task --result blocked` is the only task-finish transition that creates
+Feature blocker truth. It requires both `--blocked-reason-class` and
+`--blocked-reason`, writes the exact pair to the blocked task's terminal
+`last_blocker`, records that task as `blocked_task_id`, projects the pair as
+the current Feature blocker, and derives the index and execution-owner receipt
+from that state. Reblocking a restarted task replaces its `last_blocker` with
+the new terminal result. Historical task records retain `last_blocker`; it is
+task evidence, not a second current Feature blocker. History prose is audit
+context only and must not be parsed as blocker authority.
+
+`--result done` rejects blocker arguments. Restarting a blocked task, finishing
+it as done, or replacing a blocked/done Plan with executable todo work clears
+the current Feature blocker projection. Dependency replanning alone does not.
+Archiving or discarding a blocked Feature also clears the live projection;
+the blocked task retains its exact `last_blocker`, while the closed owner
+receipt has no current blocker.
+
+Owner receipts must project the exact canonical blocker and must not invent a
+default class or reason. A blocked Feature with missing or contradictory
+blocker facts or without attributable task-level blocker evidence is invalid.
+Canonical blocker class and reason strings must not carry surrounding
+whitespace.
 They do not replace dependency truth, task truth, or closeout state.
 
 ## Planning Entry Handoff Consumption Rule
@@ -410,7 +445,7 @@ Generation and mutation rule:
 - the tracker must compute dependency projection directly from canonical
   feature state
 - graph-affecting commands must validate the resulting active DAG before they
-  persist canonical state changes or run destructive closeout cleanup
+  persist canonical state changes or move a feature into closed storage
 - `replan-features` must validate the complete proposed graph before persisting
   any changed `state.json.depends_on` values
 - validation must recompute the active graph and reject invalid dependency
@@ -455,12 +490,19 @@ Required behavior:
 - task-gate commands must capture the feature workspace assignment
   before executing external commands and revalidate that assignment before
   writing results back to tracker state
+- a task gate with no non-empty command must record `fail`; an empty UI or
+  non-UI command list is never passing evidence
 - workspace assignment must not be changed while a feature has an `in_progress`
   task
 - feature discard must not close or clean up a feature while a task is
   `in_progress`; the active task must be finished first
 - worktree execution must verify that the assigned worktree path is a registered
   Git worktree and that its checked-out branch matches feature state
+
+Normal locked transitions publish coherent state, task, receipt, and index
+files. They are separate atomic file replacements, not a crash-atomic
+multi-file transaction; receipt/hash drift and validation fail closed after an
+interrupted publication.
 
 Concurrency does not mean multiple simultaneous implementation tasks inside one
 feature. A feature still has at most one `current_task_id`; parallel work should
@@ -486,6 +528,9 @@ Rules:
 - the default gate policy is `verification_policy = on_demand`, which means
   `verification.md` is only checked when the file exists unless a stricter
   policy is configured
+- checked verification evidence must not retain blank template fields; it must
+  include a substantive automated result or manual outcome and an explicit
+  residual-risk disposition
 
 Materialize `verification.md` when:
 
@@ -539,12 +584,28 @@ Stable closeout expectations:
 - live-only or unsupported legacy root entries should be preserved under
   `artifacts/closeout-preserved-root/`
 - archive and discard must validate the post-closeout active DAG before they
-  remove worktrees, delete branches, or move the feature directory
+  move the feature directory
+- archive and discard must construct and validate the complete deterministic
+  closed Feature state, including removal of the live blocker projection,
+  derived index and owner receipt, canonical summary, and preserved-root
+  projection before the directory move
+- closeout stages the complete closed Feature directory before a short
+  directory switch; an ordinary staging or publication failure must restore
+  the active placement and leave the active control files and index unchanged
+- archive and discard do not remove or prune worktrees, delete branches, or
+  export Git patches; explicit ordinary Git commands own Git cleanup before or
+  after Tracker closeout
+- an assigned worktree that still exists must be registered and clean at
+  closeout; a missing unregistered worktree is accepted as already cleaned,
+  while a missing registered worktree fails closed for ordinary Git repair
+- only archive closeout of an `in_progress` task may consume `--task`,
+  `--result`, or blocker arguments; discard and non-active closeout reject
+  those unused arguments
 - `current_tree` archive may proceed with unrelated non-harness repo changes
   because archive only closes tracker metadata and does not preserve or delete
   implementation files
 - `current_tree` discard must still fail closed on non-harness repo changes
-  because discard can otherwise hide unpreserved work
+  because Tracker closeout must not hide unpreserved work
 - archive/discard idempotent reruns must fail closed when directory placement
   disagrees with the claimed closed status
 - closed features must not remain in `features/`

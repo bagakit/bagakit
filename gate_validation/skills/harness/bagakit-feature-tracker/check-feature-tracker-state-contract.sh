@@ -23,33 +23,12 @@ trap 'rm -rf "$TMP_DIR"' EXIT
 
 source "$LIB_DIR/feature-tracker-testlib.sh"
 
-git -C "$TMP_DIR" init -q -b main
-git -C "$TMP_DIR" config user.name "Bagakit"
-git -C "$TMP_DIR" config user.email "bagakit@example.com"
-printf '# demo\n' > "$TMP_DIR/README.md"
-git -C "$TMP_DIR" add README.md
-git -C "$TMP_DIR" commit -q -m "init"
-
-
+feature_tracker_init_temp_repo "$TMP_DIR"
 bash "$SKILL_DIR/scripts/feature-tracker.sh" initialize-tracker --root "$TMP_DIR" >/dev/null
 TASK_PLAN_JSON="$TMP_DIR/.bagakit/feature-tracker/artifacts/reviewed-task-plan.json"
 feature_tracker_write_reviewed_task_plan "$TASK_PLAN_JSON" "Exercise the regression scenario through reviewed task truth."
 bash "$SKILL_DIR/scripts/feature-tracker.sh" create-feature --root "$TMP_DIR" --title "Dirty current tree archive" --slug "dirty-current-tree-archive" --goal "Archive should ignore unrelated dirty work" --workspace-mode proposal_only >/dev/null
-DIRTY_ARCHIVE_ID="$(python3 - "$TMP_DIR" <<'PY'
-import json
-import sys
-from pathlib import Path
-
-index_path = Path(sys.argv[1]) / ".bagakit" / "feature-tracker" / "index" / "features.json"
-payload = json.loads(index_path.read_text(encoding="utf-8"))
-for item in payload.get("features", []):
-    if item.get("title") == "Dirty current tree archive":
-        print(item["feat_id"])
-        break
-else:
-    raise SystemExit("dirty current_tree archive feature not found")
-PY
-)"
+DIRTY_ARCHIVE_ID="$(feature_tracker_feature_id_by_title "$TMP_DIR" "Dirty current tree archive")"
 bash "$SKILL_DIR/scripts/feature-tracker.sh" set-task-plan --root "$TMP_DIR" --feature "$DIRTY_ARCHIVE_ID" --tasks-file "$TASK_PLAN_JSON" --expected-revision 0 >/dev/null
 bash "$SKILL_DIR/scripts/feature-tracker.sh" assign-feature-workspace --root "$TMP_DIR" --feature "$DIRTY_ARCHIVE_ID" --workspace-mode current_tree >/dev/null
 feature_tracker_set_non_ui_gate "$TMP_DIR" "true"
@@ -66,21 +45,7 @@ rm -f "$TMP_DIR/UNRELATED.md"
 
 bash "$SKILL_DIR/scripts/feature-tracker.sh" create-feature --root "$TMP_DIR" --title "Boundary feature" --slug "boundary-feature" --goal "Reject unsupported feature-root files" --workspace-mode proposal_only >/dev/null
 
-BOUNDARY_FEATURE_ID="$(python3 - "$TMP_DIR" <<'PY'
-import json
-import sys
-from pathlib import Path
-
-index_path = Path(sys.argv[1]) / ".bagakit" / "feature-tracker" / "index" / "features.json"
-payload = json.loads(index_path.read_text(encoding="utf-8"))
-for item in payload.get("features", []):
-    if item.get("title") == "Boundary feature":
-        print(item["feat_id"])
-        break
-else:
-    raise SystemExit("boundary feature not found")
-PY
-)"
+BOUNDARY_FEATURE_ID="$(feature_tracker_feature_id_by_title "$TMP_DIR" "Boundary feature")"
 
 BOUNDARY_DIR="$TMP_DIR/.bagakit/feature-tracker/features/$BOUNDARY_FEATURE_ID"
 cat > "$BOUNDARY_DIR/PRD.md" <<'EOF'
@@ -99,31 +64,26 @@ rm -f "$BOUNDARY_DIR/PRD.md" "$BOUNDARY_DIR/Changelog.md"
 bash "$SKILL_DIR/scripts/feature-tracker.sh" create-feature --root "$TMP_DIR" --title "Archive blocked feature" --slug "archive-blocked-feature" --goal "Archive should preflight graph" --workspace-mode proposal_only >/dev/null
 bash "$SKILL_DIR/scripts/feature-tracker.sh" create-feature --root "$TMP_DIR" --title "Discard blocked feature" --slug "discard-blocked-feature" --goal "Discard should preflight graph" --workspace-mode proposal_only >/dev/null
 
-BLOCKED_FEATURE_IDS="$(python3 - "$TMP_DIR" <<'PY'
-import json
-import sys
-from pathlib import Path
-
-index_path = Path(sys.argv[1]) / ".bagakit" / "feature-tracker" / "index" / "features.json"
-payload = json.loads(index_path.read_text(encoding="utf-8"))
-feature_ids = {}
-for item in payload.get("features", []):
-    title = item.get("title")
-    if title == "Archive blocked feature":
-        feature_ids["archive"] = item["feat_id"]
-    elif title == "Discard blocked feature":
-        feature_ids["discard"] = item["feat_id"]
-if set(feature_ids) != {"archive", "discard"}:
-    raise SystemExit("blocked features not found")
-print(feature_ids["archive"])
-print(feature_ids["discard"])
-PY
+ARCHIVE_BLOCKED_ID="$(
+  feature_tracker_feature_id_by_title "$TMP_DIR" "Archive blocked feature"
+)"
+DISCARD_BLOCKED_ID="$(
+  feature_tracker_feature_id_by_title "$TMP_DIR" "Discard blocked feature"
 )"
 
-ARCHIVE_BLOCKED_ID="$(printf '%s\n' "$BLOCKED_FEATURE_IDS" | sed -n '1p')"
-DISCARD_BLOCKED_ID="$(printf '%s\n' "$BLOCKED_FEATURE_IDS" | sed -n '2p')"
-
 feature_tracker_complete_reviewed_feature "$TMP_DIR" "$SKILL_DIR" "$ARCHIVE_BLOCKED_ID" "$TASK_PLAN_JSON"
+bash "$SKILL_DIR/scripts/feature-tracker.sh" set-task-plan \
+  --root "$TMP_DIR" --feature "$DISCARD_BLOCKED_ID" --tasks-file "$TASK_PLAN_JSON" \
+  --expected-revision 0 >/dev/null
+bash "$SKILL_DIR/scripts/feature-tracker.sh" assign-feature-workspace \
+  --root "$TMP_DIR" --feature "$DISCARD_BLOCKED_ID" --workspace-mode current_tree >/dev/null
+feature_tracker_set_non_ui_gate "$TMP_DIR" "true"
+bash "$SKILL_DIR/scripts/feature-tracker.sh" start-task \
+  --root "$TMP_DIR" --feature "$DISCARD_BLOCKED_ID" --task T-001 >/dev/null
+bash "$SKILL_DIR/scripts/feature-tracker.sh" finish-task \
+  --root "$TMP_DIR" --feature "$DISCARD_BLOCKED_ID" --task T-001 --result blocked \
+  --blocked-reason-class internal_blocker \
+  --blocked-reason "discard remains blocked until closeout" >/dev/null
 
 FEATURE_COUNT_BEFORE="$(python3 - "$TMP_DIR" <<'PY'
 import json
@@ -195,6 +155,165 @@ state.pop("depends_on", None)
 state_path.write_text(json.dumps(state, indent=2) + "\n", encoding="utf-8")
 PY
 bash "$SKILL_DIR/scripts/feature-tracker.sh" replan-features --root "$TMP_DIR" >/dev/null
+
+bash "$SKILL_DIR/scripts/feature-tracker.sh" create-feature \
+  --root "$TMP_DIR" --title "Close blocked archive" --slug "close-blocked-archive" \
+  --goal "Archive a real blocked Feature without losing blocker evidence" \
+  --workspace-mode current_tree --tasks-file "$TASK_PLAN_JSON" >/dev/null
+bash "$SKILL_DIR/scripts/feature-tracker.sh" create-feature \
+  --root "$TMP_DIR" --title "Close blocked discard" --slug "close-blocked-discard" \
+  --goal "Discard a real blocked Feature without losing blocker evidence" \
+  --workspace-mode current_tree --tasks-file "$TASK_PLAN_JSON" >/dev/null
+CLOSE_BLOCKED_ARCHIVE_ID="$(
+  feature_tracker_feature_id_by_title "$TMP_DIR" "Close blocked archive"
+)"
+CLOSE_BLOCKED_DISCARD_ID="$(
+  feature_tracker_feature_id_by_title "$TMP_DIR" "Close blocked discard"
+)"
+for feat_id in "$CLOSE_BLOCKED_ARCHIVE_ID" "$CLOSE_BLOCKED_DISCARD_ID"; do
+  bash "$SKILL_DIR/scripts/feature-tracker.sh" start-task \
+    --root "$TMP_DIR" --feature "$feat_id" --task T-001 >/dev/null
+done
+bash "$SKILL_DIR/scripts/feature-tracker.sh" closeout-feature \
+  --root "$TMP_DIR" --feature "$CLOSE_BLOCKED_ARCHIVE_ID" --task T-001 --result blocked \
+  --blocked-reason-class external_blocker \
+  --blocked-reason "archive waits on owner's upstream capability" \
+  >"$TMP_DIR/blocked-closeout-plan.out"
+grep -F "plan: feature-tracker.sh finish-task" "$TMP_DIR/blocked-closeout-plan.out" >/dev/null
+grep -F -- "--blocked-reason-class external_blocker" "$TMP_DIR/blocked-closeout-plan.out" >/dev/null
+grep -F "owner" "$TMP_DIR/blocked-closeout-plan.out" >/dev/null
+bash "$SKILL_DIR/scripts/feature-tracker.sh" closeout-feature \
+  --root "$TMP_DIR" --feature "$CLOSE_BLOCKED_ARCHIVE_ID" --task T-001 --result blocked \
+  --blocked-reason-class external_blocker \
+  --blocked-reason "archive waits on owner's upstream capability" --execute >/dev/null
+bash "$SKILL_DIR/scripts/feature-tracker.sh" finish-task \
+  --root "$TMP_DIR" --feature "$CLOSE_BLOCKED_DISCARD_ID" --task T-001 --result blocked \
+  --blocked-reason-class internal_blocker \
+  --blocked-reason "discard closes an invalid execution route" >/dev/null
+
+cp "$TMP_DIR/.bagakit/feature-tracker/features/$CLOSE_BLOCKED_ARCHIVE_ID/state.json" \
+  "$TMP_DIR/blocked-closeout-state.saved"
+python3 - "$TMP_DIR" "$CLOSE_BLOCKED_ARCHIVE_ID" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+root = Path(sys.argv[1])
+feature_id = sys.argv[2]
+state_path = root / ".bagakit" / "feature-tracker" / "features" / feature_id / "state.json"
+state = json.loads(state_path.read_text(encoding="utf-8"))
+state["blocked_reason"] = " " + state["blocked_reason"]
+state_path.write_text(json.dumps(state, indent=2) + "\n", encoding="utf-8")
+PY
+if bash "$SKILL_DIR/scripts/feature-tracker.sh" archive-feature \
+  --root "$TMP_DIR" --feature "$CLOSE_BLOCKED_ARCHIVE_ID" \
+  >"$TMP_DIR/noncanonical-live-blocker.out" 2>"$TMP_DIR/noncanonical-live-blocker.err"; then
+  echo "error: archive accepted a non-canonical live blocker" >&2
+  exit 1
+fi
+grep -F "blocked_reason must not have surrounding whitespace" \
+  "$TMP_DIR/noncanonical-live-blocker.err" >/dev/null
+test -d "$TMP_DIR/.bagakit/feature-tracker/features/$CLOSE_BLOCKED_ARCHIVE_ID"
+test ! -d "$TMP_DIR/.bagakit/feature-tracker/features-archived/$CLOSE_BLOCKED_ARCHIVE_ID"
+cp "$TMP_DIR/blocked-closeout-state.saved" \
+  "$TMP_DIR/.bagakit/feature-tracker/features/$CLOSE_BLOCKED_ARCHIVE_ID/state.json"
+
+if bash "$SKILL_DIR/scripts/feature-tracker.sh" closeout-feature \
+  --root "$TMP_DIR" --feature "$CLOSE_BLOCKED_ARCHIVE_ID" \
+  --archive-blocked --result blocked \
+  --blocked-reason-class external_blocker --blocked-reason "must not be consumed" \
+  >"$TMP_DIR/blocked-closeout-unused.out" 2>"$TMP_DIR/blocked-closeout-unused.err"; then
+  echo "error: blocked closeout accepted unused task transition arguments" >&2
+  exit 1
+fi
+grep -F "task result and blocker arguments require an in_progress feature" \
+  "$TMP_DIR/blocked-closeout-unused.err" >/dev/null
+test -d "$TMP_DIR/.bagakit/feature-tracker/features/$CLOSE_BLOCKED_ARCHIVE_ID"
+test ! -d "$TMP_DIR/.bagakit/feature-tracker/features-archived/$CLOSE_BLOCKED_ARCHIVE_ID"
+
+if bash "$SKILL_DIR/scripts/feature-tracker.sh" closeout-feature \
+  --root "$TMP_DIR" --feature "$CLOSE_BLOCKED_DISCARD_ID" --mode discard \
+  --reason invalid --blocked-reason-class internal_blocker \
+  >"$TMP_DIR/discard-closeout-unused.out" 2>"$TMP_DIR/discard-closeout-unused.err"; then
+  echo "error: discard closeout accepted unused blocker arguments" >&2
+  exit 1
+fi
+grep -F "valid only for archive closeout of an in_progress task" \
+  "$TMP_DIR/discard-closeout-unused.err" >/dev/null
+test -d "$TMP_DIR/.bagakit/feature-tracker/features/$CLOSE_BLOCKED_DISCARD_ID"
+test ! -d "$TMP_DIR/.bagakit/feature-tracker/features-discarded/$CLOSE_BLOCKED_DISCARD_ID"
+
+assert_closeout_rejected() {
+  local case_id="$1"
+  local feature_id="$2"
+  local expected_error="$3"
+  shift 3
+  local control_before
+  control_before="$(shasum \
+    "$TMP_DIR/.bagakit/feature-tracker/features/$feature_id/state.json" \
+    "$TMP_DIR/.bagakit/feature-tracker/features/$feature_id/tasks.json" \
+    "$TMP_DIR/.bagakit/feature-tracker/features/$feature_id/owner-receipt.json" \
+    "$TMP_DIR/.bagakit/feature-tracker/index/features.json")"
+  if bash "$SKILL_DIR/scripts/feature-tracker.sh" closeout-feature \
+    --root "$TMP_DIR" --feature "$feature_id" "$@" \
+    >"$TMP_DIR/$case_id.out" 2>"$TMP_DIR/$case_id.err"; then
+    echo "error: invalid closeout option scope unexpectedly succeeded: $case_id" >&2
+    exit 1
+  fi
+  grep -F "$expected_error" "$TMP_DIR/$case_id.err" >/dev/null
+  test "$control_before" = "$(shasum \
+    "$TMP_DIR/.bagakit/feature-tracker/features/$feature_id/state.json" \
+    "$TMP_DIR/.bagakit/feature-tracker/features/$feature_id/tasks.json" \
+    "$TMP_DIR/.bagakit/feature-tracker/features/$feature_id/owner-receipt.json" \
+    "$TMP_DIR/.bagakit/feature-tracker/index/features.json")"
+}
+assert_closeout_rejected archive-with-reason "$CLOSE_BLOCKED_ARCHIVE_ID" \
+  "valid only with --mode discard" --reason invalid
+assert_closeout_rejected archive-with-replacement "$CLOSE_BLOCKED_ARCHIVE_ID" \
+  "valid only with --mode discard" --replacement "$CLOSE_BLOCKED_DISCARD_ID"
+assert_closeout_rejected discard-with-archive-blocked "$CLOSE_BLOCKED_DISCARD_ID" \
+  "valid only with --mode archive" --mode discard --reason invalid --archive-blocked
+rm -f "$TMP_DIR"/*.out "$TMP_DIR"/*.err "$TMP_DIR"/*.saved
+
+bash "$SKILL_DIR/scripts/feature-tracker.sh" closeout-feature \
+  --root "$TMP_DIR" --feature "$CLOSE_BLOCKED_ARCHIVE_ID" \
+  --archive-blocked --execute >/dev/null
+bash "$SKILL_DIR/scripts/feature-tracker.sh" closeout-feature \
+  --root "$TMP_DIR" --feature "$CLOSE_BLOCKED_DISCARD_ID" \
+  --mode discard --reason invalid --execute >/dev/null
+python3 - "$TMP_DIR" "$CLOSE_BLOCKED_ARCHIVE_ID" "$CLOSE_BLOCKED_DISCARD_ID" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+root = Path(sys.argv[1])
+cases = (
+    (sys.argv[2], "features-archived", "archived", "external_blocker", "archive waits on owner's upstream capability"),
+    (sys.argv[3], "features-discarded", "discarded", "internal_blocker", "discard closes an invalid execution route"),
+)
+index = json.loads(
+    (root / ".bagakit" / "feature-tracker" / "index" / "features.json").read_text(encoding="utf-8")
+)
+for feat_id, directory, status, reason_class, reason in cases:
+    feature_dir = root / ".bagakit" / "feature-tracker" / directory / feat_id
+    state = json.loads((feature_dir / "state.json").read_text(encoding="utf-8"))
+    tasks = json.loads((feature_dir / "tasks.json").read_text(encoding="utf-8"))
+    receipt = json.loads((feature_dir / "owner-receipt.json").read_text(encoding="utf-8"))
+    entry = next(item for item in index["features"] if item["feat_id"] == feat_id)
+    task = next(item for item in tasks["tasks"] if item["id"] == "T-001")
+    assert state["status"] == status
+    assert state["closed_from_status"] == "blocked"
+    assert state["blocked_reason_class"] == "none"
+    assert "blocked_reason" not in state
+    assert "blocked_task_id" not in state
+    assert task["status"] == "blocked"
+    assert task["last_blocker"] == {"class": reason_class, "reason": reason}
+    assert receipt["lifecycle_status"] == status
+    assert receipt["blocker"] is None
+    assert entry["status"] == status
+    assert entry["blocked_reason_class"] == "none"
+PY
+bash "$SKILL_DIR/scripts/feature-tracker.sh" validate-tracker --root "$TMP_DIR" >/dev/null
 
 WORKTREE_COLLISION_PREVIEW="$(python3 - "$ROOT" "$TMP_DIR" <<'PY'
 import importlib.util
@@ -278,22 +397,49 @@ test "$WORKTREE_COLLISION_NEXT_CURSOR" = "$(printf '%s\n' "$WORKTREE_COLLISION_A
 test "$WORKTREE_COLLISION_WORKTREE_COUNT" = "$(git -C "$TMP_DIR" worktree list --porcelain | grep -c '^worktree ')"
 rm -rf "$WORKTREE_COLLISION_PATH"
 
-
-bash "$SKILL_DIR/scripts/feature-tracker.sh" create-feature --root "$TMP_DIR" --title "Dirty current tree discard" --slug "dirty-current-tree-discard" --goal "Discard should fail without artifacts side effects" --workspace-mode proposal_only >/dev/null
-DIRTY_DISCARD_ID="$(python3 - "$TMP_DIR" <<'PY'
+bash "$SKILL_DIR/scripts/feature-tracker.sh" create-feature \
+  --root "$TMP_DIR" --title "Worktree closeout" --slug "worktree-closeout" \
+  --goal "Close metadata without mutating the assigned Git workspace" \
+  --workspace-mode worktree --tasks-file "$TASK_PLAN_JSON" >/dev/null
+WORKTREE_CLOSEOUT_ID="$(
+  feature_tracker_feature_id_by_title "$TMP_DIR" "Worktree closeout"
+)"
+WORKTREE_CLOSEOUT_FACTS="$(python3 - "$TMP_DIR" "$WORKTREE_CLOSEOUT_ID" <<'PY'
 import json
 import sys
 from pathlib import Path
 
-index_path = Path(sys.argv[1]) / ".bagakit" / "feature-tracker" / "index" / "features.json"
-payload = json.loads(index_path.read_text(encoding="utf-8"))
-for item in payload.get("features", []):
-    if item.get("title") == "Dirty current tree discard":
-        print(item["feat_id"])
-        break
-else:
-    raise SystemExit("dirty current_tree discard feature not found")
+root = Path(sys.argv[1])
+feature_id = sys.argv[2]
+state = json.loads(
+    (root / ".bagakit" / "feature-tracker" / "features" / feature_id / "state.json").read_text(
+        encoding="utf-8"
+    )
+)
+print(state["worktree_path"])
+print(state["branch"])
 PY
+)"
+WORKTREE_CLOSEOUT_PATH="$TMP_DIR/$(printf '%s\n' "$WORKTREE_CLOSEOUT_FACTS" | sed -n '1p')"
+WORKTREE_CLOSEOUT_BRANCH="$(printf '%s\n' "$WORKTREE_CLOSEOUT_FACTS" | sed -n '2p')"
+feature_tracker_set_non_ui_gate "$TMP_DIR" "true"
+bash "$SKILL_DIR/scripts/feature-tracker.sh" start-task \
+  --root "$TMP_DIR" --feature "$WORKTREE_CLOSEOUT_ID" --task T-001 >/dev/null
+bash "$SKILL_DIR/scripts/feature-tracker.sh" run-task-gate \
+  --root "$TMP_DIR" --feature "$WORKTREE_CLOSEOUT_ID" --task T-001 >/dev/null
+bash "$SKILL_DIR/scripts/feature-tracker.sh" finish-task \
+  --root "$TMP_DIR" --feature "$WORKTREE_CLOSEOUT_ID" --task T-001 --result done >/dev/null
+git -C "$TMP_DIR" merge -q --no-ff "$WORKTREE_CLOSEOUT_BRANCH" -m "merge worktree closeout fixture"
+WORKTREE_REGISTRATION_BEFORE="$(git -C "$TMP_DIR" worktree list --porcelain)"
+bash "$SKILL_DIR/scripts/feature-tracker.sh" archive-feature \
+  --root "$TMP_DIR" --feature "$WORKTREE_CLOSEOUT_ID" >/dev/null
+test -d "$WORKTREE_CLOSEOUT_PATH"
+test "$WORKTREE_REGISTRATION_BEFORE" = "$(git -C "$TMP_DIR" worktree list --porcelain)"
+git -C "$TMP_DIR" show-ref --verify --quiet "refs/heads/$WORKTREE_CLOSEOUT_BRANCH"
+
+bash "$SKILL_DIR/scripts/feature-tracker.sh" create-feature --root "$TMP_DIR" --title "Dirty current tree discard" --slug "dirty-current-tree-discard" --goal "Discard should fail without artifacts side effects" --workspace-mode proposal_only >/dev/null
+DIRTY_DISCARD_ID="$(
+  feature_tracker_feature_id_by_title "$TMP_DIR" "Dirty current tree discard"
 )"
 bash "$SKILL_DIR/scripts/feature-tracker.sh" set-task-plan --root "$TMP_DIR" --feature "$DIRTY_DISCARD_ID" --tasks-file "$TASK_PLAN_JSON" --expected-revision 0 >/dev/null
 bash "$SKILL_DIR/scripts/feature-tracker.sh" assign-feature-workspace --root "$TMP_DIR" --feature "$DIRTY_DISCARD_ID" --workspace-mode current_tree >/dev/null
@@ -399,20 +545,8 @@ fi
 bash "$SKILL_DIR/scripts/feature-tracker.sh" replan-features --root "$TMP_DIR" --clear-dependencies "$CYCLE_A_ID" >/dev/null
 
 bash "$SKILL_DIR/scripts/feature-tracker.sh" create-feature --root "$TMP_DIR" --title "Closeout preserve feature" --slug "closeout-preserve-feature" --goal "Preserve root files on archive" --workspace-mode proposal_only >/dev/null
-CLOSEOUT_FEATURE_ID="$(python3 - "$TMP_DIR" <<'PY'
-import json
-import sys
-from pathlib import Path
-
-index_path = Path(sys.argv[1]) / ".bagakit" / "feature-tracker" / "index" / "features.json"
-payload = json.loads(index_path.read_text(encoding="utf-8"))
-for item in payload.get("features", []):
-    if item.get("title") == "Closeout preserve feature":
-        print(item["feat_id"])
-        break
-else:
-    raise SystemExit("closeout feature not found")
-PY
+CLOSEOUT_FEATURE_ID="$(
+  feature_tracker_feature_id_by_title "$TMP_DIR" "Closeout preserve feature"
 )"
 
 feature_tracker_complete_reviewed_feature "$TMP_DIR" "$SKILL_DIR" "$CLOSEOUT_FEATURE_ID" "$TASK_PLAN_JSON"
@@ -434,6 +568,149 @@ mkdir -p "$CLOSEOUT_DIR/notes-dir"
 cat > "$CLOSEOUT_DIR/notes-dir/notes.txt" <<'EOF'
 legacy notes
 EOF
+CLOSEOUT_CONTROL_BEFORE="$(shasum \
+  "$CLOSEOUT_DIR/state.json" \
+  "$CLOSEOUT_DIR/tasks.json" \
+  "$CLOSEOUT_DIR/owner-receipt.json" \
+  "$TMP_DIR/.bagakit/feature-tracker/index/features.json" | awk '{print $1}')"
+for residue in \
+  "$TMP_DIR/.bagakit/feature-tracker/features-archived/.$CLOSEOUT_FEATURE_ID.staging" \
+  "$TMP_DIR/.bagakit/feature-tracker/features/.$CLOSEOUT_FEATURE_ID.closing"; do
+  mkdir -p "$residue"
+  if bash "$SKILL_DIR/scripts/feature-tracker.sh" archive-feature \
+    --root "$TMP_DIR" --feature "$CLOSEOUT_FEATURE_ID" \
+    >"$TMP_DIR/closeout-residue.out" 2>"$TMP_DIR/closeout-residue.err"; then
+    echo "error: closeout unexpectedly accepted publication residue" >&2
+    exit 1
+  fi
+  grep -F "closeout staging residue exists; inspect before retry" \
+    "$TMP_DIR/closeout-residue.err" >/dev/null
+  test "$CLOSEOUT_CONTROL_BEFORE" = "$(shasum \
+    "$CLOSEOUT_DIR/state.json" \
+    "$CLOSEOUT_DIR/tasks.json" \
+    "$CLOSEOUT_DIR/owner-receipt.json" \
+    "$TMP_DIR/.bagakit/feature-tracker/index/features.json" | awk '{print $1}')"
+  rmdir "$residue"
+done
+printf 'must remain unchanged\n' > "$TMP_DIR/outside-closeout.txt"
+ln -s "$TMP_DIR/outside-closeout.txt" "$CLOSEOUT_DIR/unsupported-link"
+if bash "$SKILL_DIR/scripts/feature-tracker.sh" archive-feature \
+  --root "$TMP_DIR" --feature "$CLOSEOUT_FEATURE_ID" \
+  >"$TMP_DIR/staged-symlink-failure.out" 2>"$TMP_DIR/staged-symlink-failure.err"; then
+  echo "error: closeout unexpectedly accepted a feature-tree symlink" >&2
+  exit 1
+fi
+grep -F "feature tree contains unsupported symlink" \
+  "$TMP_DIR/staged-symlink-failure.err" >/dev/null
+test "$(cat "$TMP_DIR/outside-closeout.txt")" = "must remain unchanged"
+test "$CLOSEOUT_CONTROL_BEFORE" = "$(shasum \
+  "$CLOSEOUT_DIR/state.json" \
+  "$CLOSEOUT_DIR/tasks.json" \
+  "$CLOSEOUT_DIR/owner-receipt.json" \
+  "$TMP_DIR/.bagakit/feature-tracker/index/features.json" | awk '{print $1}')"
+rm -f "$CLOSEOUT_DIR/unsupported-link"
+
+mkfifo "$CLOSEOUT_DIR/unsupported.pipe"
+if bash "$SKILL_DIR/scripts/feature-tracker.sh" archive-feature \
+  --root "$TMP_DIR" --feature "$CLOSEOUT_FEATURE_ID" \
+  >"$TMP_DIR/staged-closeout-failure.out" 2>"$TMP_DIR/staged-closeout-failure.err"; then
+  echo "error: closeout unexpectedly copied an unsupported special file" >&2
+  exit 1
+fi
+grep -F "closeout publication failed without changing active state" \
+  "$TMP_DIR/staged-closeout-failure.err" >/dev/null
+test -d "$CLOSEOUT_DIR"
+test ! -d "$TMP_DIR/.bagakit/feature-tracker/features-archived/$CLOSEOUT_FEATURE_ID"
+test "$CLOSEOUT_CONTROL_BEFORE" = "$(shasum \
+  "$CLOSEOUT_DIR/state.json" \
+  "$CLOSEOUT_DIR/tasks.json" \
+  "$CLOSEOUT_DIR/owner-receipt.json" \
+  "$TMP_DIR/.bagakit/feature-tracker/index/features.json" | awk '{print $1}')"
+test ! -e "$TMP_DIR/.bagakit/feature-tracker/features-archived/.$CLOSEOUT_FEATURE_ID.staging"
+rm -f "$CLOSEOUT_DIR/unsupported.pipe" "$TMP_DIR/staged-closeout-failure.out" \
+  "$TMP_DIR/staged-closeout-failure.err"
+
+INDEX_DIR="$TMP_DIR/.bagakit/feature-tracker/index"
+chmod 0555 "$INDEX_DIR"
+if bash "$SKILL_DIR/scripts/feature-tracker.sh" archive-feature \
+  --root "$TMP_DIR" --feature "$CLOSEOUT_FEATURE_ID" \
+  >"$TMP_DIR/index-publication-failure.out" \
+  2>"$TMP_DIR/index-publication-failure.err"; then
+  chmod 0755 "$INDEX_DIR"
+  echo "error: closeout unexpectedly ignored index publication failure" >&2
+  exit 1
+fi
+chmod 0755 "$INDEX_DIR"
+grep -F "closeout publication failed without changing active state" \
+  "$TMP_DIR/index-publication-failure.err" >/dev/null
+test -d "$CLOSEOUT_DIR"
+test ! -d "$TMP_DIR/.bagakit/feature-tracker/features-archived/$CLOSEOUT_FEATURE_ID"
+test "$CLOSEOUT_CONTROL_BEFORE" = "$(shasum \
+  "$CLOSEOUT_DIR/state.json" \
+  "$CLOSEOUT_DIR/tasks.json" \
+  "$CLOSEOUT_DIR/owner-receipt.json" \
+  "$TMP_DIR/.bagakit/feature-tracker/index/features.json" | awk '{print $1}')"
+test ! -e "$TMP_DIR/.bagakit/feature-tracker/features-archived/.$CLOSEOUT_FEATURE_ID.staging"
+test ! -e "$TMP_DIR/.bagakit/feature-tracker/features/.$CLOSEOUT_FEATURE_ID.closing"
+
+FEATURES_DIR="$TMP_DIR/.bagakit/feature-tracker/features"
+ARCHIVED_DIR="$TMP_DIR/.bagakit/feature-tracker/features-archived"
+BACKUP_DIR="$FEATURES_DIR/.$CLOSEOUT_FEATURE_ID.closing"
+STAGE_DIR="$ARCHIVED_DIR/.$CLOSEOUT_FEATURE_ID.staging"
+CLOSED_DIR="$ARCHIVED_DIR/$CLOSEOUT_FEATURE_ID"
+INDEX_TMP="$INDEX_DIR/features.json.tmp"
+mkfifo "$INDEX_TMP"
+(
+  while test ! -d "$CLOSED_DIR"; do
+    sleep 0.01
+  done
+  chmod 0555 "$FEATURES_DIR" "$ARCHIVED_DIR" "$INDEX_DIR"
+  cat "$INDEX_TMP" >/dev/null
+) &
+ROLLBACK_FAULT_PID=$!
+if bash "$SKILL_DIR/scripts/feature-tracker.sh" archive-feature \
+  --root "$TMP_DIR" --feature "$CLOSEOUT_FEATURE_ID" \
+  >"$TMP_DIR/rollback-failure.out" 2>"$TMP_DIR/rollback-failure.err"; then
+  chmod 0755 "$FEATURES_DIR" "$ARCHIVED_DIR" "$INDEX_DIR"
+  wait "$ROLLBACK_FAULT_PID"
+  echo "error: compounded closeout rollback fault unexpectedly succeeded" >&2
+  exit 1
+fi
+wait "$ROLLBACK_FAULT_PID"
+chmod 0755 "$FEATURES_DIR" "$ARCHIVED_DIR" "$INDEX_DIR"
+grep -F "closeout publication failed and rollback is incomplete" \
+  "$TMP_DIR/rollback-failure.err" >/dev/null
+grep -F "manual repair required; ambiguous closeout residues were preserved" \
+  "$TMP_DIR/rollback-failure.err" >/dev/null
+if grep -F "without changing active state" "$TMP_DIR/rollback-failure.err" >/dev/null; then
+  echo "error: incomplete rollback falsely claimed unchanged active state" >&2
+  exit 1
+fi
+test ! -d "$CLOSEOUT_DIR"
+test -d "$BACKUP_DIR"
+test -d "$CLOSED_DIR"
+test "$CLOSEOUT_CONTROL_BEFORE" = "$(shasum \
+  "$BACKUP_DIR/state.json" \
+  "$BACKUP_DIR/tasks.json" \
+  "$BACKUP_DIR/owner-receipt.json" \
+  "$TMP_DIR/.bagakit/feature-tracker/index/features.json" | awk '{print $1}')"
+if bash "$SKILL_DIR/scripts/feature-tracker.sh" validate-tracker --root "$TMP_DIR" \
+  >"$TMP_DIR/rollback-validation.out" 2>"$TMP_DIR/rollback-validation.err"; then
+  echo "error: tracker validation accepted an incomplete closeout rollback" >&2
+  exit 1
+fi
+mv "$CLOSED_DIR" "$STAGE_DIR"
+mv "$BACKUP_DIR" "$CLOSEOUT_DIR"
+python3 - "$STAGE_DIR" "$INDEX_TMP" <<'PY'
+import shutil
+import sys
+from pathlib import Path
+
+shutil.rmtree(Path(sys.argv[1]))
+Path(sys.argv[2]).unlink(missing_ok=True)
+PY
+
+chmod 0555 "$CLOSEOUT_DIR/artifacts"
 bash "$SKILL_DIR/scripts/feature-tracker.sh" archive-feature --root "$TMP_DIR" --feature "$CLOSEOUT_FEATURE_ID" >/dev/null
 ARCHIVED_CLOSEOUT_DIR="$TMP_DIR/.bagakit/feature-tracker/features-archived/$CLOSEOUT_FEATURE_ID"
 test -f "$ARCHIVED_CLOSEOUT_DIR/summary.md"
@@ -471,28 +748,12 @@ rmdir "$TMP_DIR/.bagakit/feature-tracker/feats"
 
 bash "$SKILL_DIR/scripts/feature-tracker.sh" create-feature --root "$TMP_DIR" --title "False archived feature" --slug "false-archived-feature" --goal "Reject false archived fast path" --workspace-mode proposal_only >/dev/null
 bash "$SKILL_DIR/scripts/feature-tracker.sh" create-feature --root "$TMP_DIR" --title "False discarded feature" --slug "false-discarded-feature" --goal "Reject false discarded fast path" --workspace-mode proposal_only >/dev/null
-FALSE_CLOSEOUT_IDS="$(python3 - "$TMP_DIR" <<'PY'
-import json
-import sys
-from pathlib import Path
-
-index_path = Path(sys.argv[1]) / ".bagakit" / "feature-tracker" / "index" / "features.json"
-payload = json.loads(index_path.read_text(encoding="utf-8"))
-feature_ids = {}
-for item in payload.get("features", []):
-    title = item.get("title")
-    if title == "False archived feature":
-        feature_ids["archive"] = item["feat_id"]
-    elif title == "False discarded feature":
-        feature_ids["discard"] = item["feat_id"]
-if set(feature_ids) != {"archive", "discard"}:
-    raise SystemExit("false closeout features not found")
-print(feature_ids["archive"])
-print(feature_ids["discard"])
-PY
+FALSE_ARCHIVE_ID="$(
+  feature_tracker_feature_id_by_title "$TMP_DIR" "False archived feature"
 )"
-FALSE_ARCHIVE_ID="$(printf '%s\n' "$FALSE_CLOSEOUT_IDS" | sed -n '1p')"
-FALSE_DISCARD_ID="$(printf '%s\n' "$FALSE_CLOSEOUT_IDS" | sed -n '2p')"
+FALSE_DISCARD_ID="$(
+  feature_tracker_feature_id_by_title "$TMP_DIR" "False discarded feature"
+)"
 
 python3 - "$TMP_DIR" "$FALSE_ARCHIVE_ID" "$FALSE_DISCARD_ID" <<'PY'
 import json
@@ -524,20 +785,8 @@ test -d "$TMP_DIR/.bagakit/feature-tracker/features/$FALSE_DISCARD_ID"
 test ! -d "$TMP_DIR/.bagakit/feature-tracker/features-discarded/$FALSE_DISCARD_ID"
 
 bash "$SKILL_DIR/scripts/feature-tracker.sh" create-feature --root "$TMP_DIR" --title "Broken active feature" --slug "broken-active-feature" --goal "Break active graph without blocking closed rerun" --workspace-mode proposal_only >/dev/null
-BROKEN_ACTIVE_ID="$(python3 - "$TMP_DIR" <<'PY'
-import json
-import sys
-from pathlib import Path
-
-index_path = Path(sys.argv[1]) / ".bagakit" / "feature-tracker" / "index" / "features.json"
-payload = json.loads(index_path.read_text(encoding="utf-8"))
-for item in payload.get("features", []):
-    if item.get("title") == "Broken active feature":
-        print(item["feat_id"])
-        break
-else:
-    raise SystemExit("broken active feature not found")
-PY
+BROKEN_ACTIVE_ID="$(
+  feature_tracker_feature_id_by_title "$TMP_DIR" "Broken active feature"
 )"
 python3 - "$TMP_DIR" "$BROKEN_ACTIVE_ID" <<'PY'
 import json
@@ -556,5 +805,33 @@ if ! bash "$SKILL_DIR/scripts/feature-tracker.sh" archive-feature --root "$TMP_D
   exit 1
 fi
 bash "$SKILL_DIR/scripts/feature-tracker.sh" replan-features --root "$TMP_DIR" --clear-dependencies "$BROKEN_ACTIVE_ID" >/dev/null
+
+python3 - "$TMP_DIR" "$CLOSE_BLOCKED_ARCHIVE_ID" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+root = Path(sys.argv[1])
+feature_id = sys.argv[2]
+tasks_path = (
+    root
+    / ".bagakit"
+    / "feature-tracker"
+    / "features-archived"
+    / feature_id
+    / "tasks.json"
+)
+tasks = json.loads(tasks_path.read_text(encoding="utf-8"))
+task = next(item for item in tasks["tasks"] if item["id"] == "T-001")
+task["last_blocker"]["reason"] = " archive waits on an upstream capability"
+tasks_path.write_text(json.dumps(tasks, indent=2) + "\n", encoding="utf-8")
+PY
+if bash "$SKILL_DIR/scripts/feature-tracker.sh" validate-tracker --root "$TMP_DIR" \
+  >"$TMP_DIR/noncanonical-blocker.out" 2>"$TMP_DIR/noncanonical-blocker.err"; then
+  echo "error: non-canonical task blocker whitespace unexpectedly validated" >&2
+  exit 1
+fi
+grep -F "last_blocker.reason must not have surrounding whitespace" \
+  "$TMP_DIR/noncanonical-blocker.err" >/dev/null
 
 echo "ok: bagakit-feature-tracker state contract regression passed"

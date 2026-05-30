@@ -13,7 +13,7 @@ import shlex
 import shutil
 import subprocess
 import sys
-import tarfile
+import unicodedata
 from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
@@ -127,12 +127,16 @@ def load_json(path: Path) -> Any:
         return json.load(f)
 
 
+def json_payload_bytes(data: Any) -> bytes:
+    return (
+        json.dumps(data, ensure_ascii=False, indent=2) + "\n"
+    ).encode("utf-8")
+
+
 def save_json(path: Path, data: Any) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp = path.with_suffix(path.suffix + ".tmp")
-    with tmp.open("w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
-        f.write("\n")
+    tmp.write_bytes(json_payload_bytes(data))
     tmp.replace(path)
 
 
@@ -345,7 +349,14 @@ def canonical_runtime_role(value: Any, *, feat_id: str) -> str:
 
 
 def canonical_blocked_reason_class(value: Any, *, feat_id: str, status: str) -> str:
-    raw = str(value or "none").strip()
+    if value is None:
+        raw = "none"
+    elif not isinstance(value, str) or value != value.strip() or not value:
+        raise SystemExit(
+            f"error: {feat_id}: blocked_reason_class must be a canonical non-empty string"
+        )
+    else:
+        raw = value
     if raw not in BLOCKED_REASON_CLASSES:
         raise SystemExit(
             "error: "
@@ -356,6 +367,239 @@ def canonical_blocked_reason_class(value: Any, *, feat_id: str, status: str) -> 
             f"error: {feat_id}: blocked_reason_class `{raw}` requires state status=blocked"
         )
     return raw
+
+
+def canonical_blocker_pair(
+    reason_class: Any,
+    reason: Any,
+    *,
+    class_label: str,
+    reason_label: str,
+) -> tuple[str, str]:
+    if not isinstance(reason_class, str) or not reason_class.strip():
+        raise SystemExit(f"error: {class_label} is required")
+    if reason_class != reason_class.strip():
+        raise SystemExit(f"error: {class_label} must not have surrounding whitespace")
+    if reason_class == "none" or reason_class not in BLOCKED_REASON_CLASSES:
+        allowed = ", ".join(sorted(BLOCKED_REASON_CLASSES - {"none"}))
+        raise SystemExit(f"error: {class_label} must be one of {allowed}")
+    if not isinstance(reason, str) or not reason.strip():
+        raise SystemExit(f"error: {reason_label} is required")
+    if reason != reason.strip():
+        raise SystemExit(f"error: {reason_label} must not have surrounding whitespace")
+    return reason_class, reason
+
+
+def canonical_task_finish_blocker(
+    *,
+    result: str,
+    blocked_reason_class: Any,
+    blocked_reason: Any,
+) -> tuple[str | None, str | None]:
+    if result == "blocked":
+        try:
+            return canonical_blocker_pair(
+                blocked_reason_class,
+                blocked_reason,
+                class_label="--blocked-reason-class",
+                reason_label="--blocked-reason",
+            )
+        except SystemExit as exc:
+            raise SystemExit(f"{exc} with --result blocked") from None
+    if blocked_reason_class is not None or blocked_reason is not None:
+        raise SystemExit(
+            "error: --blocked-reason-class and --blocked-reason are valid only with --result blocked"
+        )
+    return None, None
+
+
+def canonical_feature_blocker(
+    state: dict[str, Any],
+    *,
+    feat_id: str,
+) -> tuple[str, str | None]:
+    status = str(state.get("status") or "")
+    raw_reason = state.get("blocked_reason")
+    blocked_task_id = state.get("blocked_task_id")
+    if status == "blocked":
+        reason_class, raw_reason = canonical_blocker_pair(
+            state.get("blocked_reason_class"),
+            raw_reason,
+            class_label=f"{feat_id}: blocked_reason_class",
+            reason_label=f"{feat_id}: blocked_reason",
+        )
+        if not isinstance(blocked_task_id, str) or not TASK_ID_RE.fullmatch(blocked_task_id):
+            raise SystemExit(f"error: {feat_id}: blocked feature requires a canonical blocked_task_id")
+        runtime_role = canonical_runtime_role(state.get("runtime_role"), feat_id=feat_id)
+        if reason_class == "parked_context" and runtime_role != "frontdoor_context":
+            raise SystemExit(
+                f"error: {feat_id}: blocked_reason_class parked_context requires runtime_role=frontdoor_context"
+            )
+        return reason_class, raw_reason
+    reason_class = canonical_blocked_reason_class(
+        state.get("blocked_reason_class"),
+        feat_id=feat_id,
+        status=status,
+    )
+    if "blocked_reason" in state:
+        raise SystemExit(f"error: {feat_id}: blocked_reason requires state status=blocked")
+    if "blocked_task_id" in state:
+        raise SystemExit(f"error: {feat_id}: blocked_task_id requires state status=blocked")
+    return reason_class, None
+
+
+def canonical_task_last_blocker(
+    task: dict[str, Any],
+    *,
+    feat_id: str,
+) -> tuple[str, str] | None:
+    task_id = str(task.get("id") or "<unknown>")
+    raw = task.get("last_blocker")
+    if raw is None:
+        return None
+    if task.get("status") == "todo":
+        raise SystemExit(f"error: {feat_id}/{task_id}: todo task must not carry last_blocker")
+    if not isinstance(raw, dict) or set(raw) != {"class", "reason"}:
+        raise SystemExit(
+            f"error: {feat_id}/{task_id}: last_blocker must contain exactly class and reason"
+        )
+    return canonical_blocker_pair(
+        raw.get("class"),
+        raw.get("reason"),
+        class_label=f"{feat_id}/{task_id}: last_blocker.class",
+        reason_label=f"{feat_id}/{task_id}: last_blocker.reason",
+    )
+
+
+def require_canonical_task_blockers(tasks: dict[str, Any], *, feat_id: str) -> None:
+    task_items = tasks.get("tasks")
+    if not isinstance(task_items, list):
+        return
+    for task in task_items:
+        if isinstance(task, dict):
+            canonical_task_last_blocker(task, feat_id=feat_id)
+
+
+def require_current_blocker_task_evidence(
+    state: dict[str, Any],
+    tasks: dict[str, Any],
+    *,
+    feat_id: str,
+) -> None:
+    reason_class, reason = canonical_feature_blocker(state, feat_id=feat_id)
+    if str(state.get("status") or "") != "blocked":
+        return
+    assert reason is not None
+    task_id = str(state["blocked_task_id"])
+    task = find_task(tasks, task_id)
+    if task.get("status") != "blocked":
+        raise SystemExit(
+            f"error: {feat_id}/{task_id}: current blocker task must remain blocked"
+        )
+    if canonical_task_last_blocker(task, feat_id=feat_id) != (reason_class, reason):
+        raise SystemExit(
+            f"error: {feat_id}/{task_id}: current blocker drifts from task last_blocker"
+        )
+
+
+@dataclass(frozen=True)
+class CloseoutPublication:
+    state: dict[str, Any]
+    tasks: dict[str, Any]
+    index: dict[str, Any]
+    receipt: dict[str, Any] | None
+    summary: str
+    root_moves: list[tuple[str, str]]
+
+
+def prepare_closed_feature_publication(
+    paths: HarnessPaths,
+    state: dict[str, Any],
+    tasks: dict[str, Any],
+    *,
+    feat_id: str,
+    target_status: str,
+    event_action: str,
+    event_detail: str,
+    discard_reason: str | None = None,
+    replacement_feat_id: str | None = None,
+) -> CloseoutPublication:
+    if target_status not in CLOSED_FEAT_STATUS:
+        raise SystemExit(f"error: unsupported closeout target status: {target_status}")
+    current_status = str(state.get("status") or "")
+    require_valid_feature_goal_contract(paths, state)
+    canonical_feature_blocker(state, feat_id=feat_id)
+    require_canonical_task_blockers(tasks, feat_id=feat_id)
+    if current_status == "blocked":
+        require_current_blocker_task_evidence(state, tasks, feat_id=feat_id)
+
+    candidate_state = copy.deepcopy(state)
+    candidate_tasks = copy.deepcopy(tasks)
+    candidate_state["closed_from_status"] = current_status
+    candidate_state["status"] = target_status
+    candidate_state["blocked_reason_class"] = "none"
+    candidate_state.pop("blocked_reason", None)
+    candidate_state.pop("blocked_task_id", None)
+    if target_status == "discarded":
+        candidate_state["discard_reason"] = discard_reason
+        candidate_state["replacement_feat_id"] = replacement_feat_id
+    candidate_state.setdefault("history", []).append(
+        history_event(event_action, event_detail)
+    )
+    normalize_state_payload(candidate_state)
+    normalize_tasks_payload(candidate_tasks)
+    normalize_feature_goal_ref(paths, candidate_state)
+    canonical_feature_blocker(candidate_state, feat_id=feat_id)
+    require_canonical_task_blockers(candidate_tasks, feat_id=feat_id)
+
+    active_dir = paths.feat_dir(feat_id, status=current_status)
+    root_moves = plan_closeout_root_entries(
+        active_dir,
+        include_closeout_root_files=True,
+    )
+    preserved_root_entries = [target for _, target in root_moves]
+    index_candidate = copy.deepcopy(load_index(paths))
+    upsert_feat_index_entry(index_candidate, candidate_state)
+
+    state_ref = relative_display(
+        paths.root,
+        paths.feat_state(feat_id, status=target_status),
+    )
+    tasks_ref = relative_display(
+        paths.root,
+        paths.feat_tasks(feat_id, status=target_status),
+    )
+    evidence_hashes = {
+        state_ref: sha256_bytes(json_payload_bytes(candidate_state)),
+        tasks_ref: sha256_bytes(json_payload_bytes(candidate_tasks)),
+    }
+    if candidate_state.get("goal_contract") is not None:
+        goal_path = paths.feat_goal(feat_id, status=current_status)
+        evidence_hashes[
+            relative_display(paths.root, paths.feat_goal(feat_id, status=target_status))
+        ] = sha256_file(goal_path)
+    receipt = None
+    if has_reviewed_task_plan(candidate_tasks) or candidate_state.get("goal_contract") is not None:
+        receipt = build_owner_receipt_payload(
+            paths,
+            candidate_state,
+            candidate_tasks,
+            evidence_hashes,
+        )
+
+    summary = render_summary(
+        candidate_state,
+        candidate_tasks,
+        preserved_root_entries=preserved_root_entries,
+    )
+    return CloseoutPublication(
+        state=candidate_state,
+        tasks=candidate_tasks,
+        index=index_candidate,
+        receipt=receipt,
+        summary=summary,
+        root_moves=root_moves,
+    )
 
 
 def canonical_runtime_relations(value: Any, *, feat_id: str) -> list[dict[str, str]]:
@@ -753,25 +997,39 @@ def next_numbered_path(directory: Path, *, prefix: str, suffix: str) -> Path:
     return directory / f"{prefix}{next_number:04d}{suffix}"
 
 
-def next_available_path(path: Path) -> Path:
-    if not path.exists():
-        return path
-    stem = path.stem if path.suffix else path.name
-    suffix = path.suffix if path.suffix else ""
-    counter = 1
-    while True:
-        candidate = path.with_name(f"{stem}-{counter:04d}{suffix}")
-        if not candidate.exists():
-            return candidate
-        counter += 1
-
-
 def move_path(src: Path, dst: Path) -> None:
     dst.parent.mkdir(parents=True, exist_ok=True)
     try:
         src.rename(dst)
     except OSError:
         shutil.move(str(src), str(dst))
+
+
+def first_tree_symlink(root: Path) -> Path | None:
+    for dirpath, dirnames, filenames in os.walk(root, followlinks=False):
+        parent = Path(dirpath)
+        for name in (*dirnames, *filenames):
+            child = parent / name
+            if child.is_symlink():
+                return child
+    return None
+
+
+def make_owned_tree_writable(root: Path) -> None:
+    for dirpath, dirnames, _filenames in os.walk(root):
+        path = Path(dirpath)
+        path.chmod(path.stat().st_mode | 0o700)
+        for dirname in dirnames:
+            child = path / dirname
+            if not child.is_symlink():
+                child.chmod(child.stat().st_mode | 0o700)
+
+
+def remove_owned_tree(root: Path) -> None:
+    if not root.exists():
+        return
+    make_owned_tree_writable(root)
+    shutil.rmtree(root)
 
 
 def run_cmd(cmd: list[str], *, cwd: Path | None = None) -> subprocess.CompletedProcess[str]:
@@ -789,6 +1047,7 @@ def run_shell(command: str, *, cwd: Path) -> subprocess.CompletedProcess[str]:
         command,
         cwd=str(cwd),
         text=True,
+        errors="replace",
         capture_output=True,
         shell=True,
         check=False,
@@ -1726,10 +1985,22 @@ def load_runtime_policy(paths: HarnessPaths) -> dict[str, Any]:
             f"error: missing runtime policy file: {paths.runtime_policy_file}. "
             "run feature-tracker.sh initialize-tracker to scaffold the latest layout."
         )
-    payload = load_json(target)
+    try:
+        payload = load_json(target)
+    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+        raise SystemExit(
+            f"error: invalid runtime policy JSON: {target}: {normalize_error_text(exc)}"
+        ) from None
     if not isinstance(payload, dict):
         raise SystemExit(f"error: invalid runtime policy schema: {target}")
     return payload
+
+
+def runtime_gate_config(config: dict[str, Any]) -> dict[str, Any]:
+    gate_cfg = config.get("gate")
+    if not isinstance(gate_cfg, dict):
+        raise SystemExit("error: runtime policy gate must be an object")
+    return gate_cfg
 
 
 def ensure_runtime_policy(paths: HarnessPaths, skill_dir: Path) -> Path:
@@ -1874,11 +2145,7 @@ def feat_index_payload(state: dict[str, Any]) -> dict[str, Any]:
     feat_id = str(state["feat_id"])
     status = str(state.get("status") or "proposal")
     runtime_role = canonical_runtime_role(state.get("runtime_role"), feat_id=feat_id)
-    blocked_reason_class = canonical_blocked_reason_class(
-        state.get("blocked_reason_class"),
-        feat_id=feat_id,
-        status=status,
-    )
+    blocked_reason_class, _ = canonical_feature_blocker(state, feat_id=feat_id)
     runtime_relations = canonical_runtime_relations(state.get("runtime_relations"), feat_id=feat_id)
 
     payload = {
@@ -2079,16 +2346,17 @@ def canonical_depends_on(state: dict[str, Any], *, feat_id: str) -> list[str]:
     return deps
 
 
-def preserve_closeout_root_entries(
+def plan_closeout_root_entries(
     feat_dir: Path,
     *,
     include_closeout_root_files: bool = False,
-) -> list[str]:
-    preserved: list[str] = []
+) -> list[tuple[str, str]]:
+    moves: list[tuple[str, str]] = []
     if not feat_dir.exists():
-        return preserved
+        return moves
 
     preserve_dir = feat_dir / "artifacts" / FEATURE_CLOSEOUT_PRESERVE_DIRNAME
+    reserved = {path.name for path in preserve_dir.iterdir()} if preserve_dir.exists() else set()
     for child in sorted(feat_dir.iterdir()):
         if child.is_file() and child.name in (
             FEATURE_REQUIRED_ROOT_FILES | FEATURE_DERIVED_ROOT_FILES | FEATURE_CONTROL_ROOT_FILES
@@ -2098,10 +2366,21 @@ def preserve_closeout_root_entries(
             continue
         if child.is_dir() and child.name == "artifacts":
             continue
-        target = next_available_path(preserve_dir / child.name)
-        move_path(child, target)
-        preserved.append(target.relative_to(feat_dir).as_posix())
-    return preserved
+        target_name = child.name
+        stem = child.stem if child.suffix else child.name
+        suffix = child.suffix if child.suffix else ""
+        counter = 1
+        while target_name in reserved:
+            target_name = f"{stem}-{counter:04d}{suffix}"
+            counter += 1
+        reserved.add(target_name)
+        moves.append(
+            (
+                child.name,
+                (Path("artifacts") / FEATURE_CLOSEOUT_PRESERVE_DIRNAME / target_name).as_posix(),
+            )
+        )
+    return moves
 
 
 def materialize_feature_artifact(
@@ -2271,6 +2550,10 @@ def save_feat(
     normalize_feature_goal_ref(paths, state)
     require_valid_feature_goal_contract(paths, state)
     status = str(state.get("status") or "")
+    canonical_feature_blocker(state, feat_id=feat_id)
+    require_canonical_task_blockers(tasks, feat_id=feat_id)
+    if status == "blocked":
+        require_current_blocker_task_evidence(state, tasks, feat_id=feat_id)
     save_json(paths.feat_state(feat_id, status=status), state)
     save_json(paths.feat_tasks(feat_id, status=status), tasks)
     receipt_path = paths.feat_owner_receipt(feat_id, status=status)
@@ -2302,10 +2585,11 @@ def owner_continuation(
     if status in {"ready", "in_progress"}:
         return "continue", None, None
     if status == "blocked":
-        reason_class = str(state.get("blocked_reason_class") or "internal_blocker")
-        if reason_class == "none":
-            reason_class = "internal_blocker"
-        reason = str(state.get("blocked_reason") or "Feature Tracker owner is blocked.")
+        reason_class, reason = canonical_feature_blocker(
+            state,
+            feat_id=str(state.get("feat_id") or ""),
+        )
+        assert reason is not None
         return "blocked", {"class": reason_class, "reason": reason}, None
     return (
         "blocked",
@@ -2322,15 +2606,6 @@ def build_owner_receipt(
     require_valid_feature_goal_contract(paths, state)
     feat_id = str(state.get("feat_id") or "")
     status = str(state.get("status") or "proposal")
-    current_item_id = str(state.get("current_task_id") or "").strip() or None
-    continuation, blocker, replacement_id = owner_continuation(state, tasks)
-    replacement_ref = None
-    if replacement_id:
-        replacement_status = feat_index_status(paths, replacement_id)
-        replacement_ref = relative_display(
-            paths.root,
-            paths.feat_owner_receipt(replacement_id, status=replacement_status),
-        )
     feat_dir = paths.feat_dir(feat_id, status=status)
     evidence_refs = [
         relative_display(paths.root, feat_dir / "state.json"),
@@ -2344,6 +2619,27 @@ def build_owner_receipt(
         if not evidence_path.is_file():
             raise SystemExit(f"error: owner receipt evidence missing: {evidence_ref}")
         evidence_hashes[evidence_ref] = sha256_file(evidence_path)
+    return build_owner_receipt_payload(paths, state, tasks, evidence_hashes)
+
+
+def build_owner_receipt_payload(
+    paths: HarnessPaths,
+    state: dict[str, Any],
+    tasks: dict[str, Any],
+    evidence_hashes: dict[str, str],
+) -> dict[str, Any]:
+    feat_id = str(state.get("feat_id") or "")
+    status = str(state.get("status") or "proposal")
+    current_item_id = str(state.get("current_task_id") or "").strip() or None
+    continuation, blocker, replacement_id = owner_continuation(state, tasks)
+    replacement_ref = None
+    if replacement_id:
+        replacement_status = feat_index_status(paths, replacement_id)
+        replacement_ref = relative_display(
+            paths.root,
+            paths.feat_owner_receipt(replacement_id, status=replacement_status),
+        )
+    evidence_refs = list(evidence_hashes)
     semantic_projection = {
         "owner_kind": "feature_tracker",
         "owner_id": feat_id,
@@ -2406,13 +2702,59 @@ def count_tasks(tasks: dict[str, Any], status: str) -> int:
     return sum(1 for t in tasks.get("tasks", []) if t.get("status") == status)
 
 
-def task_count_after_finish(tasks: dict[str, Any], task_id: str, result: str, status: str) -> int:
-    count = 0
-    for task in tasks.get("tasks", []):
-        task_status = result if task.get("id") == task_id else task.get("status")
-        if task_status == status:
-            count += 1
-    return count
+def apply_task_finish_transition(
+    state: dict[str, Any],
+    tasks: dict[str, Any],
+    *,
+    feat_id: str,
+    task_id: str,
+    result: str,
+    blocked_reason_class: Any = None,
+    blocked_reason: Any = None,
+) -> None:
+    task = find_task(tasks, task_id)
+    if task.get("status") != "in_progress":
+        raise SystemExit(f"error: task is not in_progress: {task_id}")
+    if state.get("current_task_id") != task_id:
+        raise SystemExit("error: state current_task_id mismatch")
+
+    reason_class, reason = canonical_task_finish_blocker(
+        result=result,
+        blocked_reason_class=blocked_reason_class,
+        blocked_reason=blocked_reason,
+    )
+    if result == "done" and task.get("gate_result") != "pass":
+        raise SystemExit("error: cannot finish task as done without gate pass")
+
+    task["status"] = result
+    state["current_task_id"] = None
+    state.setdefault("counters", {})["no_progress_rounds"] = 0
+    state.setdefault("history", []).append(
+        history_event("task_finished", f"{task_id} => {result}")
+    )
+
+    if result == "blocked":
+        assert reason_class is not None and reason is not None
+        task["last_blocker"] = {"class": reason_class, "reason": reason}
+        state["status"] = "blocked"
+        state["blocked_reason_class"] = reason_class
+        state["blocked_reason"] = reason
+        state["blocked_task_id"] = task_id
+        state.setdefault("history", []).append(
+            history_event("blocked_reason_set", f"{task_id} => {reason_class}")
+        )
+        canonical_feature_blocker(state, feat_id=feat_id)
+        canonical_task_last_blocker(task, feat_id=feat_id)
+        return
+
+    state["blocked_reason_class"] = "none"
+    state.pop("blocked_reason", None)
+    state.pop("blocked_task_id", None)
+    if count_tasks(tasks, "todo") == 0 and count_tasks(tasks, "in_progress") == 0:
+        state["status"] = "done"
+    else:
+        state["status"] = "ready"
+    canonical_feature_blocker(state, feat_id=feat_id)
 
 
 def feature_scope_for_status(status: str) -> str:
@@ -2938,6 +3280,8 @@ def cmd_set_task_plan(args: argparse.Namespace) -> int:
     if count_tasks(tasks, "todo") > 0 and status in {"blocked", "done"}:
         state["status"] = "proposal" if workspace_mode_of(state) == "proposal_only" else "ready"
         state["blocked_reason_class"] = "none"
+        state.pop("blocked_reason", None)
+        state.pop("blocked_task_id", None)
     state.setdefault("history", []).append(
         history_event(
             "task_plan_set",
@@ -3151,6 +3495,9 @@ def cmd_task_start(args: argparse.Namespace) -> int:
     execution = resolve_feature_execution_root(root, state)
     target["status"] = "in_progress"
     state["status"] = "in_progress"
+    state["blocked_reason_class"] = "none"
+    state.pop("blocked_reason", None)
+    state.pop("blocked_task_id", None)
     state["current_task_id"] = task_id
     state.setdefault("history", []).append(
         history_event("task_started", task_id)
@@ -3233,48 +3580,60 @@ def cmd_task_unstart(args: argparse.Namespace) -> int:
 
 
 def detect_project_type(root: Path, config: dict[str, Any]) -> str:
-    gate_cfg = config.get("gate", {}) if isinstance(config, dict) else {}
-    explicit = str(gate_cfg.get("project_type", "auto"))
+    gate_cfg = runtime_gate_config(config)
+    explicit_value = gate_cfg.get("project_type", "auto")
+    if not isinstance(explicit_value, str):
+        raise SystemExit("error: gate.project_type must be auto, ui, or non_ui")
+    explicit = explicit_value.strip()
     if explicit in {"ui", "non_ui"}:
         return explicit
+    if explicit != "auto":
+        raise SystemExit("error: gate.project_type must be auto, ui, or non_ui")
 
     rules = gate_cfg.get("project_type_rules", {})
-    if isinstance(rules, dict):
-        ui_rules = rules.get("ui", {})
-        non_ui_rules = rules.get("non_ui", {})
-        default_type = str(rules.get("default", "non_ui"))
-        if default_type not in {"ui", "non_ui"}:
-            default_type = "non_ui"
+    if not isinstance(rules, dict):
+        raise SystemExit("error: gate.project_type_rules must be an object")
+    ui_rules = rules.get("ui", {})
+    non_ui_rules = rules.get("non_ui", {})
+    default_type = rules.get("default", "non_ui")
+    if default_type not in {"ui", "non_ui"}:
+        raise SystemExit("error: gate.project_type_rules.default must be ui or non_ui")
 
-        def matches(rule_set: Any) -> bool:
-            if not isinstance(rule_set, dict):
-                return False
-            any_paths = rule_set.get("any_path_exists", [])
-            if isinstance(any_paths, list) and any_paths:
-                for rel in any_paths:
-                    if (root / str(rel)).exists():
-                        return True
-            all_paths = rule_set.get("all_paths_exist", [])
-            if isinstance(all_paths, list) and all_paths:
-                if all((root / str(rel)).exists() for rel in all_paths):
-                    return True
-            return False
+    def matches(rule_set: Any, *, label: str) -> bool:
+        if not isinstance(rule_set, dict):
+            raise SystemExit(f"error: gate.project_type_rules.{label} must be an object")
+        matched = False
+        for field in ("any_path_exists", "all_paths_exist"):
+            paths = rule_set.get(field, [])
+            if not isinstance(paths, list) or any(
+                not isinstance(rel, str) or not rel.strip() for rel in paths
+            ):
+                raise SystemExit(
+                    f"error: gate.project_type_rules.{label}.{field} must be a list of non-empty paths"
+                )
+            if field == "any_path_exists" and paths:
+                matched = matched or any((root / rel).exists() for rel in paths)
+            if field == "all_paths_exist" and paths:
+                matched = matched or all((root / rel).exists() for rel in paths)
+        return matched
 
-        if matches(ui_rules):
-            return "ui"
-        if matches(non_ui_rules):
-            return "non_ui"
-        return default_type
-
-    # Default behavior when no detection rules are configured.
-    return "non_ui"
+    if matches(ui_rules, label="ui"):
+        return "ui"
+    if matches(non_ui_rules, label="non_ui"):
+        return "non_ui"
+    return default_type
 
 
 def collect_non_ui_commands(root: Path, config: dict[str, Any]) -> list[str]:
-    gate_cfg = config.get("gate", {}) if isinstance(config, dict) else {}
+    gate_cfg = runtime_gate_config(config)
     custom = gate_cfg.get("non_ui_commands", [])
-    if isinstance(custom, list) and custom:
-        return [str(c) for c in custom]
+    if not isinstance(custom, list):
+        raise SystemExit("error: gate.non_ui_commands must be a list of non-empty commands")
+    if custom:
+        commands = [item.strip() for item in custom if isinstance(item, str) and item.strip()]
+        if len(commands) != len(custom):
+            raise SystemExit("error: gate.non_ui_commands must be a list of non-empty commands")
+        return commands
 
     commands: list[str] = []
     if (root / "pyproject.toml").exists() or (root / "requirements.txt").exists() or (root / "pytest.ini").exists():
@@ -3297,7 +3656,7 @@ def collect_non_ui_commands(root: Path, config: dict[str, Any]) -> list[str]:
 
 
 def resolve_verification_policy(config: dict[str, Any]) -> str:
-    gate_cfg = config.get("gate", {}) if isinstance(config, dict) else {}
+    gate_cfg = runtime_gate_config(config)
     raw = str(gate_cfg.get("verification_policy", "on_demand")).strip().lower()
     allowed = {"never", "on_demand", "auto_ui", "required"}
     if raw not in allowed:
@@ -3322,10 +3681,67 @@ def validate_verification_evidence(evidence_file: Path) -> list[str]:
     errors: list[str] = []
     if not evidence_file.exists():
         return [f"missing verification file: {evidence_file}"]
-    text = read_text(evidence_file)
-    for heading in ("## Automated Checks", "## Manual Checks", "## Residual Risks"):
-        if heading not in text:
+    try:
+        text = read_text(evidence_file)
+    except (OSError, UnicodeError) as exc:
+        return [f"invalid verification evidence: {normalize_error_text(exc)}"]
+
+    lines = text.splitlines()
+    headings = ("## Automated Checks", "## Manual Checks", "## Residual Risks")
+    heading_positions: list[int] = []
+    for heading in headings:
+        positions = [index for index, line in enumerate(lines) if line.strip() == heading]
+        if not positions:
             errors.append(f"missing heading in verification evidence: {heading}")
+        else:
+            heading_positions.append(positions[0])
+    if errors:
+        return errors
+    if heading_positions != sorted(heading_positions):
+        return ["verification evidence headings must use canonical order"]
+
+    automated_start, manual_start, residual_start = heading_positions
+    sections = {
+        "Command": lines[automated_start + 1 : manual_start],
+        "Result": lines[automated_start + 1 : manual_start],
+        "Step": lines[manual_start + 1 : residual_start],
+        "Outcome": lines[manual_start + 1 : residual_start],
+    }
+    placeholder_labels = ("Command", "Result", "Step", "Outcome")
+    values: dict[str, list[str]] = {label: [] for label in placeholder_labels}
+    for label, section_lines in sections.items():
+        prefix = f"- {label}:"
+        for line in section_lines:
+            stripped = line.strip()
+            if stripped.startswith(prefix):
+                value = stripped[len(prefix) :].strip()
+                if not value:
+                    errors.append(f"blank verification evidence field: {label}")
+                values[label].append(value)
+    placeholder_tokens = {"todo", "tbd", "pending", "unknown", "n/a"}
+
+    def substantive(value: str) -> bool:
+        normalized = unicodedata.normalize("NFKC", value).strip().casefold()
+        normalized = re.sub(r"^[\W_]+|[\W_]+$", "", normalized)
+        return normalized not in placeholder_tokens and any(
+            character.isalnum() for character in normalized
+        )
+
+    if not any(
+        substantive(value)
+        for label in ("Result", "Outcome")
+        for value in values[label]
+        if value
+    ):
+        errors.append("verification evidence requires a substantive Result or Outcome")
+
+    residual_lines = [
+        line.strip().removeprefix("-").strip()
+        for line in lines[residual_start + 1 :]
+        if line.strip() and not line.startswith("#")
+    ]
+    if not any(substantive(line) for line in residual_lines):
+        errors.append("verification evidence requires an explicit residual-risk disposition")
     return errors
 
 
@@ -3356,30 +3772,56 @@ def cmd_task_gate(args: argparse.Namespace) -> int:
             return 1
         execution_sig = workspace_signature(state, execution)
 
-        config = load_runtime_policy(paths)
-        project_type = detect_project_type(execution.path, config)
-        verification_policy = resolve_verification_policy(config)
-        verification_file = paths.feat_verification(args.feat, status=str(state.get("status") or ""))
+        project_type = "invalid"
+        try:
+            config = load_runtime_policy(paths)
+            project_type = detect_project_type(execution.path, config)
+            verification_policy = resolve_verification_policy(config)
+            verification_file = paths.feat_verification(
+                args.feat, status=str(state.get("status") or "")
+            )
 
-        if verification_required(verification_policy, project_type=project_type, evidence_file=verification_file):
-            verification_errors = validate_verification_evidence(verification_file)
-            if verification_errors:
-                failed = True
-                fail_reasons.extend(verification_errors)
+            if verification_required(
+                verification_policy,
+                project_type=project_type,
+                evidence_file=verification_file,
+            ):
+                verification_errors = validate_verification_evidence(verification_file)
+                if verification_errors:
+                    failed = True
+                    fail_reasons.extend(verification_errors)
 
-        if project_type == "ui":
-            ui_cmds = config.get("gate", {}).get("ui_commands", []) if isinstance(config, dict) else []
-            if isinstance(ui_cmds, list):
-                commands = [str(cmd) for cmd in ui_cmds]
-            command_failure_prefix = "ui command failed"
-        else:
-            commands = collect_non_ui_commands(execution.path, config)
-            if not commands:
-                failed = True
-                fail_reasons.append(
-                    "no non-ui gate command available; "
-                    f"set gate.non_ui_commands in {paths.runtime_policy_file.relative_to(root)}"
-                )
+            if project_type == "ui":
+                ui_cmds = runtime_gate_config(config).get("ui_commands", [])
+                if isinstance(ui_cmds, list):
+                    commands = [
+                        item.strip()
+                        for item in ui_cmds
+                        if isinstance(item, str) and item.strip()
+                    ]
+                    if len(commands) != len(ui_cmds):
+                        commands = []
+                command_failure_prefix = "ui command failed"
+                if not commands:
+                    failed = True
+                    fail_reasons.append(
+                        "no UI gate command available; "
+                        f"set gate.ui_commands in {paths.runtime_policy_file.relative_to(root)}"
+                    )
+            else:
+                commands = collect_non_ui_commands(execution.path, config)
+                if not commands:
+                    failed = True
+                    fail_reasons.append(
+                        "no non-ui gate command available; "
+                        f"set gate.non_ui_commands in {paths.runtime_policy_file.relative_to(root)}"
+                    )
+        except SystemExit as exc:
+            commands = []
+            if project_type not in {"ui", "non_ui"}:
+                project_type = "invalid"
+            failed = True
+            fail_reasons.append(normalize_error_text(exc))
 
     for cmd in commands:
         cp = run_shell(cmd, cwd=execution.path)
@@ -3470,39 +3912,23 @@ def cmd_task_finish(args: argparse.Namespace) -> int:
     paths = HarnessPaths(root)
     ensure_harness_exists(paths)
 
-    state, tasks = load_feat(paths, args.feat)
-    task = find_task(tasks, args.task)
-
-    if task.get("status") != "in_progress":
-        eprint(f"error: task is not in_progress: {args.task}")
+    try:
+        state, tasks = load_feat(paths, args.feat)
+        apply_task_finish_transition(
+            state,
+            tasks,
+            feat_id=args.feat,
+            task_id=args.task,
+            result=args.result,
+            blocked_reason_class=args.blocked_reason_class,
+            blocked_reason=args.blocked_reason,
+        )
+    except SystemExit as exc:
+        eprint(str(exc))
         return 1
-    if state.get("current_task_id") != args.task:
-        eprint("error: state current_task_id mismatch")
-        return 1
-
-    result = args.result
-    if result == "done" and task.get("gate_result") != "pass":
-        eprint("error: cannot finish task as done without gate pass")
-        return 1
-
-    task["status"] = result
-
-    state["current_task_id"] = None
-    state.setdefault("counters", {})["no_progress_rounds"] = 0
-    state.setdefault("history", []).append(
-        history_event("task_finished", f"{args.task} => {result}")
-    )
-
-    if result == "blocked":
-        state["status"] = "blocked"
-    else:
-        if count_tasks(tasks, "todo") == 0 and count_tasks(tasks, "in_progress") == 0:
-            state["status"] = "done"
-        else:
-            state["status"] = "ready"
 
     save_feat(paths, args.feat, state, tasks)
-    print(f"ok: task finished {args.feat}/{args.task} => {result}")
+    print(f"ok: task finished {args.feat}/{args.task} => {args.result}")
     print(f"feat_status: {state['status']}")
     if state["status"] == "done":
         root_q = shlex.quote(str(root))
@@ -3530,7 +3956,12 @@ def cmd_task_finish(args: argparse.Namespace) -> int:
     return 0
 
 
-def render_summary(state: dict[str, Any], tasks: dict[str, Any]) -> str:
+def render_summary(
+    state: dict[str, Any],
+    tasks: dict[str, Any],
+    *,
+    preserved_root_entries: list[str] | None = None,
+) -> str:
     feat_id = state["feat_id"]
     workspace_mode = state.get("workspace_mode", "")
     todo = count_tasks(tasks, "todo")
@@ -3538,15 +3969,7 @@ def render_summary(state: dict[str, Any], tasks: dict[str, Any]) -> str:
     done = count_tasks(tasks, "done")
     blocked = count_tasks(tasks, "blocked")
     counters = state.get("counters", {})
-    cleanup = {}
-    for key in ("archived_cleanup", "discarded_cleanup"):
-        val = state.get(key)
-        if isinstance(val, dict):
-            cleanup = val
-            break
-    preserved_root_entries = cleanup.get("preserved_root_entries", [])
-    if not isinstance(preserved_root_entries, list):
-        preserved_root_entries = []
+    preserved = preserved_root_entries or []
 
     return "\n".join(
         [
@@ -3563,17 +3986,9 @@ def render_summary(state: dict[str, Any], tasks: dict[str, Any]) -> str:
             f"- Discard Reason: {state.get('discard_reason') or ''}",
             f"- Replacement Feat: {state.get('replacement_feat_id') or ''}",
             "",
-            "## Closure Cleanup",
-            f"- Branch Merged: {cleanup.get('branch_merged', '')}",
-            f"- Worktree Removed: {cleanup.get('worktree_removed', '')}",
-            f"- Worktree Pruned: {cleanup.get('worktree_pruned', '')}",
-            f"- Branch Deleted: {cleanup.get('branch_deleted', '')}",
-            f"- Worktree Patch: {cleanup.get('worktree_patch', '')}",
-            f"- Worktree Staged Patch: {cleanup.get('worktree_staged_patch', '')}",
-            f"- Branch Patch: {cleanup.get('branch_patch', '')}",
-            f"- Untracked Archive: {cleanup.get('untracked_archive', '')}",
-            f"- Preserved Root Entries: {', '.join(str(item) for item in preserved_root_entries) if preserved_root_entries else ''}",
-            f"- Cleanup Note: {cleanup.get('note', '')}",
+            "## Closure",
+            "- Git Workspace: unchanged; use ordinary Git commands for worktree or branch cleanup",
+            f"- Preserved Root Entries: {', '.join(preserved) if preserved else ''}",
             "",
             "## Task Stats",
             f"- todo: {todo}",
@@ -3676,58 +4091,237 @@ def resolve_feature_execution_root(root: Path, state: dict[str, Any]) -> Feature
     raise SystemExit(f"error: feat {feat_id} is not execution-ready: workspace_mode={workspace_mode}")
 
 
-def export_discard_artifacts(
+def preflight_closeout_workspace(
     root: Path,
-    feat_dir: Path,
+    state: dict[str, Any],
     *,
-    base_ref: str,
-    branch: str,
-    wt_abs: Path | None,
-) -> dict[str, str]:
-    cleanup: dict[str, str] = {}
-    artifacts_dir = feat_dir / "artifacts"
-    artifacts_dir.mkdir(parents=True, exist_ok=True)
+    target_status: str,
+) -> None:
+    workspace_mode = workspace_mode_of(state)
+    branch = str(state.get("branch") or "")
+    base_ref = str(state.get("base_ref") or pick_base_branch(root))
+    worktree_path = str(state.get("worktree_path") or "")
+    wt_abs = resolve_worktree_abs(root, worktree_path) if worktree_path else None
 
-    if wt_abs is not None and wt_abs.exists():
-        cp = run_cmd(["git", "-C", str(wt_abs), "diff", "--binary"])
+    branch_exists = bool(branch) and git_local_branch_exists(root, branch)
+    if (
+        target_status == "archived"
+        and workspace_mode == "worktree"
+        and branch_exists
+        and not git_branch_merged_into(root, branch, base_ref)
+    ):
+        raise SystemExit(
+            f"error: feature branch is not merged into {base_ref}: {branch}; "
+            "merge it before archiving"
+        )
+
+    if workspace_mode == "current_tree":
+        changes = non_harness_git_status_lines(root)
+        if changes and target_status == "archived":
+            eprint("warn: current_tree archive leaves unrelated non-harness repo changes untouched")
+        if changes and target_status == "discarded":
+            raise SystemExit(
+                "error: current_tree feature has non-harness changes; preserve or clean "
+                "the root tree before discarding"
+            )
+
+    if workspace_mode == "worktree" and wt_abs is not None:
+        registered = wt_abs in git_worktree_paths(root)
+        if not wt_abs.exists():
+            if registered:
+                raise SystemExit(
+                    f"error: missing registered worktree requires ordinary Git repair: {wt_abs}"
+                )
+            return
+        if not registered:
+            raise SystemExit(f"error: feature worktree is not registered under tracker root: {wt_abs}")
+        cp = run_cmd(["git", "-C", str(wt_abs), "status", "--porcelain"])
         if cp.returncode != 0:
-            raise SystemExit(cp.stderr.strip() or cp.stdout.strip() or "git diff failed in worktree")
+            raise SystemExit(cp.stderr.strip() or cp.stdout.strip() or "git status failed")
         if cp.stdout.strip():
-            patch_file = artifacts_dir / "discard-worktree.patch"
-            write_text(patch_file, cp.stdout)
-            cleanup["worktree_patch"] = patch_file.name
+            raise SystemExit(
+                f"error: worktree has uncommitted changes: {wt_abs}; "
+                "preserve or clean it with ordinary Git before closeout"
+            )
 
-        cp = run_cmd(["git", "-C", str(wt_abs), "diff", "--cached", "--binary"])
-        if cp.returncode != 0:
-            raise SystemExit(cp.stderr.strip() or cp.stdout.strip() or "git diff --cached failed in worktree")
-        if cp.stdout.strip():
-            patch_file = artifacts_dir / "discard-worktree-staged.patch"
-            write_text(patch_file, cp.stdout)
-            cleanup["worktree_staged_patch"] = patch_file.name
 
-        cp = run_cmd(["git", "-C", str(wt_abs), "ls-files", "--others", "--exclude-standard", "-z"])
-        if cp.returncode != 0:
-            raise SystemExit(cp.stderr.strip() or cp.stdout.strip() or "git ls-files failed in worktree")
-        untracked = [item for item in cp.stdout.split("\0") if item]
-        if untracked:
-            archive_file = artifacts_dir / "discard-untracked.tar.gz"
-            with tarfile.open(archive_file, "w:gz") as tf:
-                for rel in untracked:
-                    target = wt_abs / rel
-                    if target.exists():
-                        tf.add(target, arcname=rel, recursive=True)
-            cleanup["untracked_archive"] = archive_file.name
+def publish_closeout(
+    root: Path,
+    paths: HarnessPaths,
+    feat_id: str,
+    *,
+    current_status: str,
+    target_status: str,
+    publication: CloseoutPublication,
+) -> int:
+    src_dir = paths.feat_dir(feat_id, status=current_status)
+    dst_dir = paths.feat_dir(feat_id, status=target_status)
+    stage_dir = dst_dir.with_name(f".{dst_dir.name}.staging")
+    backup_dir = src_dir.with_name(f".{src_dir.name}.closing")
+    if not src_dir.exists():
+        eprint(f"error: missing feature directory: {src_dir}")
+        return 1
+    if dst_dir.exists():
+        eprint(f"error: closed feature directory already exists: {dst_dir}")
+        return 1
+    if stage_dir.exists() or backup_dir.exists():
+        eprint(
+            "error: closeout staging residue exists; inspect before retry: "
+            f"{stage_dir if stage_dir.exists() else backup_dir}"
+        )
+        return 1
 
-    if branch and git_local_branch_exists(root, branch):
-        cp = run_cmd(["git", "-C", str(root), "diff", "--binary", f"{base_ref}...{branch}"])
-        if cp.returncode != 0:
-            raise SystemExit(cp.stderr.strip() or cp.stdout.strip() or "git branch diff failed")
-        if cp.stdout.strip():
-            patch_file = artifacts_dir / "discard-branch.patch"
-            write_text(patch_file, cp.stdout)
-            cleanup["branch_patch"] = patch_file.name
+    try:
+        dst_dir.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copytree(src_dir, stage_dir, symlinks=True)
+        staged_symlink = first_tree_symlink(stage_dir)
+        if staged_symlink is not None:
+            raise OSError(
+                "feature tree contains unsupported symlink: "
+                f"{staged_symlink.relative_to(stage_dir)}"
+            )
+        make_owned_tree_writable(stage_dir)
+        for source_name, target_rel in publication.root_moves:
+            move_path(stage_dir / source_name, stage_dir / target_rel)
+        save_json(stage_dir / "state.json", publication.state)
+        save_json(stage_dir / "tasks.json", publication.tasks)
+        receipt_path = stage_dir / FEATURE_OWNER_RECEIPT_FILENAME
+        if publication.receipt is None:
+            receipt_path.unlink(missing_ok=True)
+        else:
+            save_json(receipt_path, publication.receipt)
+        write_text_atomic(stage_dir / FEATURE_SUMMARY_FILENAME, publication.summary)
+    except BaseException as exc:
+        if stage_dir.exists():
+            try:
+                remove_owned_tree(stage_dir)
+            except OSError as cleanup_exc:
+                eprint(f"warn: closeout staging cleanup pending: {cleanup_exc}")
+        eprint(f"error: closeout publication failed without changing active state: {exc}")
+        return 1
 
-    return cleanup
+    try:
+        src_dir.rename(backup_dir)
+    except BaseException as exc:
+        try:
+            remove_owned_tree(stage_dir)
+        except OSError as cleanup_exc:
+            eprint(f"warn: closeout staging cleanup pending: {cleanup_exc}")
+        eprint(f"error: closeout publication failed without changing active state: {exc}")
+        return 1
+
+    try:
+        stage_dir.rename(dst_dir)
+        save_index(paths, publication.index)
+    except BaseException as exc:
+        rollback_errors: list[str] = []
+        if dst_dir.exists() and not stage_dir.exists():
+            try:
+                dst_dir.rename(stage_dir)
+            except BaseException as rollback_exc:
+                rollback_errors.append(
+                    f"closed placement restore failed: {normalize_error_text(rollback_exc)}"
+                )
+        if backup_dir.exists() and not src_dir.exists():
+            try:
+                backup_dir.rename(src_dir)
+            except BaseException as rollback_exc:
+                rollback_errors.append(
+                    f"active placement restore failed: {normalize_error_text(rollback_exc)}"
+                )
+
+        restored = (
+            src_dir.exists()
+            and not dst_dir.exists()
+            and not backup_dir.exists()
+        )
+        if restored:
+            if stage_dir.exists():
+                try:
+                    remove_owned_tree(stage_dir)
+                except OSError as cleanup_exc:
+                    eprint(f"warn: closeout staging cleanup pending: {cleanup_exc}")
+            eprint(f"error: closeout publication failed without changing active state: {exc}")
+            return 1
+
+        eprint(f"error: closeout publication failed and rollback is incomplete: {exc}")
+        for rollback_error in rollback_errors:
+            eprint(f"error: {rollback_error}")
+        eprint("error: manual repair required; ambiguous closeout residues were preserved")
+        eprint(f"active_path: {src_dir}")
+        eprint(f"active_backup_path: {backup_dir}")
+        eprint(f"closed_path: {dst_dir}")
+        eprint(f"staging_path: {stage_dir}")
+        eprint(f"index_path: {paths.index_file}")
+        eprint("index_publication: unknown; validate index before manual repair")
+        return 1
+
+    try:
+        remove_owned_tree(backup_dir)
+    except OSError as exc:
+        eprint(f"warn: closed feature published; active backup cleanup pending: {exc}")
+    preserved_root_entries = [target for _, target in publication.root_moves]
+    if preserved_root_entries:
+        print(f"preserved_root_entries: {len(preserved_root_entries)}")
+        print(
+            "preserved_root_dir: "
+            + relative_display(
+                root, dst_dir / "artifacts" / FEATURE_CLOSEOUT_PRESERVE_DIRNAME
+            )
+        )
+    print(f"ok: feat {target_status} {feat_id}")
+    return 0
+
+
+def archive_feature(
+    root: Path,
+    paths: HarnessPaths,
+    feat_id: str,
+    state: dict[str, Any],
+    tasks: dict[str, Any],
+) -> int:
+    current_status = str(state.get("status") or "")
+    if current_status == "archived":
+        try:
+            ensure_closed_feat_rerun_state(paths, feat_id, expected_status="archived")
+        except SystemExit as exc:
+            eprint(str(exc))
+            return 1
+        print(f"ok: feat already archived {feat_id}")
+        return 0
+    if current_status not in {"done", "blocked"}:
+        eprint(
+            "error: feat must be done/blocked before archive "
+            f"(current={current_status})"
+        )
+        return 1
+    try:
+        build_closeout_dag_projection_payload(
+            paths,
+            feat_id=feat_id,
+            target_status="archived",
+        )
+        preflight_closeout_workspace(root, state, target_status="archived")
+        publication = prepare_closed_feature_publication(
+            paths,
+            state,
+            tasks,
+            feat_id=feat_id,
+            target_status="archived",
+            event_action="feat_archived",
+            event_detail="tracker metadata closed; Git workspace unchanged",
+        )
+    except SystemExit as exc:
+        eprint(str(exc))
+        return 1
+    return publish_closeout(
+        root,
+        paths,
+        feat_id,
+        current_status=current_status,
+        target_status="archived",
+        publication=publication,
+    )
 
 
 def cmd_feat_archive(args: argparse.Namespace) -> int:
@@ -3735,149 +4329,8 @@ def cmd_feat_archive(args: argparse.Namespace) -> int:
     paths = HarnessPaths(root)
     ensure_harness_exists(paths)
     ensure_git_repo(root)
-
     state, tasks = load_feat(paths, args.feat)
-    workspace_mode = workspace_mode_of(state)
-    current_status = str(state.get("status") or "")
-    if current_status == "archived":
-        try:
-            ensure_closed_feat_rerun_state(paths, args.feat, expected_status="archived")
-        except SystemExit as exc:
-            eprint(str(exc))
-            return 1
-        print(f"ok: feat already archived {args.feat}")
-        return 0
-    if current_status not in {"done", "blocked", "archived"}:
-        eprint(
-            "error: feat must be done/blocked before archive "
-            f"(current={current_status})"
-        )
-        return 1
-
-    branch = str(state.get("branch") or "")
-    base_ref = str(state.get("base_ref") or pick_base_branch(root))
-    worktree_path = str(state.get("worktree_path") or "")
-    wt_abs = resolve_worktree_abs(root, worktree_path) if worktree_path else None
-
-    try:
-        build_closeout_dag_projection_payload(
-            paths,
-            feat_id=args.feat,
-            target_status="archived",
-        )
-    except SystemExit as exc:
-        eprint(str(exc))
-        return 1
-
-    branch_exists = bool(branch) and git_local_branch_exists(root, branch)
-    branch_merged = bool(branch_exists and git_branch_merged_into(root, branch, base_ref))
-    if workspace_mode == "worktree" and branch and not branch_merged:
-        eprint(f"error: feature branch is not merged into {base_ref}: {branch}")
-        eprint(
-            "hint: merge the feature branch into base before archiving"
-        )
-        return 1
-
-    if workspace_mode == "current_tree":
-        changes = non_harness_git_status_lines(root)
-        if changes:
-            eprint("warn: current_tree archive leaves unrelated non-harness repo changes untouched")
-
-    # Safety: don't remove a dirty worktree.
-    if wt_abs is not None and wt_abs.exists():
-        cp = run_cmd(["git", "-C", str(wt_abs), "status", "--porcelain"])
-        if cp.returncode != 0:
-            eprint(cp.stderr.strip() or cp.stdout.strip() or "git status failed")
-            return 1
-        if cp.stdout.strip():
-            eprint(f"error: worktree has uncommitted changes: {wt_abs}")
-            eprint("hint: commit/stash/clean the worktree before archiving this feat")
-            return 1
-
-    # Remove worktree first (branch deletion is blocked while checked out).
-    worktree_removed = False
-    worktree_pruned = False
-    if wt_abs is not None and wt_abs.exists():
-        cp = run_cmd(["git", "-C", str(root), "worktree", "remove", str(wt_abs)])
-        if cp.returncode != 0:
-            eprint(cp.stderr.strip() or cp.stdout.strip() or "git worktree remove failed")
-            return 1
-        worktree_removed = True
-        print(f"ok: worktree removed {wt_abs}")
-        cp = run_cmd(["git", "-C", str(root), "worktree", "prune"])
-        if cp.returncode != 0:
-            eprint(cp.stderr.strip() or cp.stdout.strip() or "git worktree prune failed")
-            return 1
-        worktree_pruned = True
-
-    # Verify no stale worktree registration remains.
-    if wt_abs is not None and wt_abs in git_worktree_paths(root):
-        eprint(f"error: worktree entry still registered after cleanup: {wt_abs}")
-        return 1
-
-    branch_deleted = False
-    if branch_exists and branch_merged:
-        cp = run_cmd(["git", "-C", str(root), "branch", "-D", branch])
-        if cp.returncode != 0:
-            eprint(cp.stderr.strip() or cp.stdout.strip() or "git branch delete failed")
-            return 1
-        branch_deleted = True
-        print(f"ok: branch deleted {branch}")
-
-    state["closed_from_status"] = current_status
-    state["status"] = "archived"
-    state["archived_cleanup"] = {
-        "workspace_mode": workspace_mode,
-        "base_ref": base_ref,
-        "branch_merged": branch_merged,
-        "worktree_removed": worktree_removed,
-        "worktree_pruned": worktree_pruned,
-        "branch_deleted": branch_deleted,
-        "note": (
-            "worktree mode removes/prunes worktree and deletes merged branch; "
-            "current_tree/proposal_only only archive feat metadata"
-        ),
-    }
-    state.setdefault("history", []).append(
-        history_event("feat_archived", "moved + cleaned")
-    )
-
-    # Physical archive: move feat dir into features-archived/.
-    src_dir = paths.feat_dir(args.feat, status=current_status)
-    dst_dir = paths.feat_dir(args.feat, status="archived")
-    if not src_dir.exists():
-        eprint(f"error: missing feature directory: {src_dir}")
-        return 1
-    if dst_dir.exists():
-        eprint(f"error: archived feature directory already exists: {dst_dir}")
-        return 1
-    move_path(src_dir, dst_dir)
-    print(f"ok: feat dir moved {src_dir} -> {dst_dir}")
-
-    archived_dir = paths.feat_dir(args.feat, status="archived")
-    preserved_root_entries = preserve_closeout_root_entries(
-        archived_dir,
-        include_closeout_root_files=True,
-    )
-
-    # Write summary into the archived directory (source of truth after move).
-    state["archived_cleanup"]["preserved_root_entries"] = preserved_root_entries
-    summary = render_summary(state, tasks)
-    summary_file = paths.feat_summary(args.feat, status="archived")
-    write_text(summary_file, summary)
-    print(f"write: {summary_file}")
-
-    save_feat(paths, args.feat, state, tasks)
-    if preserved_root_entries:
-        print(f"preserved_root_entries: {len(preserved_root_entries)}")
-        print(
-            "preserved_root_dir: "
-            + relative_display(
-                root, archived_dir / "artifacts" / FEATURE_CLOSEOUT_PRESERVE_DIRNAME
-            )
-        )
-    print(f"ok: feat archived {args.feat}")
-    return 0
+    return archive_feature(root, paths, args.feat, state, tasks)
 
 
 def cmd_feat_discard(args: argparse.Namespace) -> int:
@@ -3907,7 +4360,7 @@ def cmd_feat_discard(args: argparse.Namespace) -> int:
         eprint("hint: finish the active task as blocked or done before discard-feature")
         return 1
 
-    replacement = str(args.replacement or "").strip()
+    replacement = str(args.replacement).strip()
     if replacement:
         if replacement == args.feat:
             eprint("error: replacement feat must differ from discarded feat")
@@ -3931,127 +4384,30 @@ def cmd_feat_discard(args: argparse.Namespace) -> int:
             feat_id=args.feat,
             target_status="discarded",
         )
+        preflight_closeout_workspace(root, state, target_status="discarded")
+        publication = prepare_closed_feature_publication(
+            paths,
+            state,
+            tasks,
+            feat_id=args.feat,
+            target_status="discarded",
+            event_action="feat_discarded",
+            event_detail=f"reason={args.reason}; replacement={replacement or 'none'}",
+            discard_reason=args.reason,
+            replacement_feat_id=replacement or None,
+        )
     except SystemExit as exc:
         eprint(str(exc))
         return 1
 
-    workspace_mode = workspace_mode_of(state)
-    branch = str(state.get("branch") or "")
-    base_ref = str(state.get("base_ref") or pick_base_branch(root))
-    worktree_path = str(state.get("worktree_path") or "")
-    wt_abs = resolve_worktree_abs(root, worktree_path) if worktree_path else None
-    feat_dir = paths.feat_dir(args.feat, status=current_status)
-
-    if workspace_mode == "current_tree":
-        changes = non_harness_git_status_lines(root)
-        if changes:
-            eprint("error: current_tree feature has non-harness changes; discard is not fail-closed")
-            eprint("hint: preserve or clean the root tree before discarding this feature")
-            return 1
-
-    cleanup = export_discard_artifacts(root, feat_dir, base_ref=base_ref, branch=branch, wt_abs=wt_abs)
-
-    worktree_removed = False
-    worktree_pruned = False
-    if wt_abs is not None and wt_abs.exists():
-        cp = run_cmd(["git", "-C", str(root), "worktree", "remove", "--force", str(wt_abs)])
-        if cp.returncode != 0:
-            eprint(cp.stderr.strip() or cp.stdout.strip() or "git worktree remove failed")
-            return 1
-        worktree_removed = True
-        print(f"ok: worktree removed {wt_abs}")
-        cp = run_cmd(["git", "-C", str(root), "worktree", "prune"])
-        if cp.returncode != 0:
-            eprint(cp.stderr.strip() or cp.stdout.strip() or "git worktree prune failed")
-            return 1
-        worktree_pruned = True
-
-    if wt_abs is not None and wt_abs in git_worktree_paths(root):
-        eprint(f"error: worktree entry still registered after discard cleanup: {wt_abs}")
-        return 1
-
-    branch_deleted = False
-    branch_merged = bool(branch and git_local_branch_exists(root, branch) and git_branch_merged_into(root, branch, base_ref))
-    if branch and git_local_branch_exists(root, branch):
-        cp = run_cmd(["git", "-C", str(root), "branch", "-D", branch])
-        if cp.returncode != 0:
-            eprint(cp.stderr.strip() or cp.stdout.strip() or "git branch delete failed")
-            return 1
-        branch_deleted = True
-        print(f"ok: branch deleted {branch}")
-
-    state["closed_from_status"] = current_status
-    state["status"] = "discarded"
-    state["discard_reason"] = args.reason
-    state["replacement_feat_id"] = replacement or None
-    state.setdefault("history", []).append(
-        history_event("feat_discarded", f"reason={args.reason}; replacement={replacement or 'none'}")
+    return publish_closeout(
+        root,
+        paths,
+        args.feat,
+        current_status=current_status,
+        target_status="discarded",
+        publication=publication,
     )
-
-    src_dir = paths.feat_dir(args.feat, status=current_status)
-    dst_dir = paths.feat_dir(args.feat, status="discarded")
-    if not src_dir.exists():
-        eprint(f"error: missing feature directory: {src_dir}")
-        return 1
-    if dst_dir.exists():
-        eprint(f"error: discarded feature directory already exists: {dst_dir}")
-        return 1
-    move_path(src_dir, dst_dir)
-    print(f"ok: feat dir moved {src_dir} -> {dst_dir}")
-
-    discarded_artifacts_dir = dst_dir / "artifacts"
-    preserved_root_entries = preserve_closeout_root_entries(
-        dst_dir,
-        include_closeout_root_files=True,
-    )
-    state["discarded_cleanup"] = {
-        "workspace_mode": workspace_mode,
-        "base_ref": base_ref,
-        "branch_merged": branch_merged,
-        "worktree_removed": worktree_removed,
-        "worktree_pruned": worktree_pruned,
-        "branch_deleted": branch_deleted,
-        "worktree_patch": (
-            str((discarded_artifacts_dir / cleanup["worktree_patch"]).relative_to(root))
-            if cleanup.get("worktree_patch")
-            else ""
-        ),
-        "worktree_staged_patch": (
-            str((discarded_artifacts_dir / cleanup["worktree_staged_patch"]).relative_to(root))
-            if cleanup.get("worktree_staged_patch")
-            else ""
-        ),
-        "branch_patch": (
-            str((discarded_artifacts_dir / cleanup["branch_patch"]).relative_to(root))
-            if cleanup.get("branch_patch")
-            else ""
-        ),
-        "untracked_archive": (
-            str((discarded_artifacts_dir / cleanup["untracked_archive"]).relative_to(root))
-            if cleanup.get("untracked_archive")
-            else ""
-        ),
-        "preserved_root_entries": preserved_root_entries,
-        "note": (
-            "discard closes stale/superseded work while preserving feat artifacts; "
-            "worktree mode force-removes worktree and deletes branch after exporting patches when available"
-        ),
-    }
-
-    summary = render_summary(state, tasks)
-    summary_file = paths.feat_summary(args.feat, status="discarded")
-    write_text(summary_file, summary)
-    print(f"write: {summary_file}")
-
-    save_feat(paths, args.feat, state, tasks)
-    if preserved_root_entries:
-        print(f"preserved_root_entries: {len(preserved_root_entries)}")
-        print(
-            "preserved_root_dir: "
-            + relative_display(root, discarded_artifacts_dir / FEATURE_CLOSEOUT_PRESERVE_DIRNAME)
-        )
-    print(f"ok: feat discarded {args.feat}")
-    return 0
 
 
 def closeout_plan_lines(root: Path, state: dict[str, Any], tasks: dict[str, Any]) -> list[str]:
@@ -4126,26 +4482,53 @@ def cmd_feat_closeout(args: argparse.Namespace) -> int:
     status = str(state.get("status") or "")
     feat_id = str(state.get("feat_id") or args.feat)
 
+    mode = args.mode
+    task_id = args.task.strip()
+    result = args.result if args.result is not None else "done"
+    has_task_transition_args = bool(
+        task_id
+        or args.result is not None
+        or args.blocked_reason_class is not None
+        or args.blocked_reason is not None
+    )
+
+    if mode == "archive" and (args.reason or args.replacement):
+        eprint("error: --reason and --replacement are valid only with --mode discard")
+        return 1
+    if mode == "discard" and args.archive_blocked:
+        eprint("error: --archive-blocked is valid only with --mode archive")
+        return 1
+    if mode == "discard" and has_task_transition_args:
+        eprint(
+            "error: --task, --result, and blocker arguments are valid only "
+            "for archive closeout of an in_progress task"
+        )
+        return 1
+    if status != "blocked" and args.archive_blocked:
+        eprint("error: --archive-blocked requires a blocked feature")
+        return 1
     if status in CLOSED_FEAT_STATUS:
+        if has_task_transition_args:
+            eprint("error: closed feature cannot consume task result or blocker arguments")
+            return 1
+        if mode != "archive":
+            eprint("error: closed feature rerun requires the matching direct closeout command")
+            return 1
         print(f"ok: feat already {status} {args.feat}")
         return 0
 
-    mode = str(args.mode or "archive")
-    execute = bool(args.execute)
-
     if mode == "discard":
-        reason = str(args.reason or "").strip()
-        if not reason:
+        if not args.reason:
             eprint("error: --reason is required with --mode discard")
             return 1
         if status == "in_progress" and count_tasks(tasks, "in_progress") > 0:
             eprint("error: cannot discard feat while a task is in_progress")
             eprint("hint: finish the active task as blocked or done before discard closeout")
             return 1
-        if not execute:
+        if not args.execute:
             print(
                 "plan: feature-tracker.sh discard-feature "
-                f"--root {shlex.quote(str(root))} --feature {feat_id} --reason {reason}"
+                f"--root {shlex.quote(str(root))} --feature {feat_id} --reason {args.reason}"
             )
             print("next: rerun closeout-feature with --execute")
             return 0
@@ -4153,77 +4536,74 @@ def cmd_feat_closeout(args: argparse.Namespace) -> int:
             argparse.Namespace(
                 root=str(root),
                 feat=feat_id,
-                reason=reason,
+                reason=args.reason,
                 replacement=args.replacement,
             )
         )
+
+    if status != "in_progress" and has_task_transition_args:
+        eprint(
+            "error: task result and blocker arguments require an in_progress feature"
+        )
+        return 1
 
     if status == "blocked" and not args.archive_blocked:
         eprint("error: blocked feat closeout requires --archive-blocked or --mode discard --reason <reason>")
         return 1
 
-    task_id = str(args.task or "").strip()
-    result = str(args.result or "done")
-
     if status == "in_progress":
-        if not task_id:
-            task_id = str(state.get("current_task_id") or "")
+        candidate_state = copy.deepcopy(state)
+        candidate_tasks = copy.deepcopy(tasks)
+        task_id = task_id or str(state.get("current_task_id") or "")
         if not task_id:
             eprint("error: --task is required when closing an in_progress feat without current_task_id")
             return 1
-        task = find_task(tasks, task_id)
-        if task.get("status") != "in_progress":
-            eprint(f"error: task is not in_progress: {task_id}")
+        try:
+            apply_task_finish_transition(
+                candidate_state,
+                candidate_tasks,
+                feat_id=feat_id,
+                task_id=task_id,
+                result=result,
+                blocked_reason_class=args.blocked_reason_class,
+                blocked_reason=args.blocked_reason,
+            )
+        except SystemExit as exc:
+            eprint(str(exc))
             return 1
-        if state.get("current_task_id") != task_id:
-            eprint("error: state current_task_id mismatch")
-            return 1
-        if result == "done" and task.get("gate_result") != "pass":
-            eprint("error: cannot closeout task as done without gate pass")
-            return 1
-        would_finish_feature = (
-            result == "done"
-            and task_count_after_finish(tasks, task_id, result, "todo") == 0
-            and task_count_after_finish(tasks, task_id, result, "in_progress") == 0
+        blocker_args = ""
+        if result == "blocked":
+            blocker_args = (
+                f" --blocked-reason-class {shlex.quote(args.blocked_reason_class)}"
+                f" --blocked-reason {shlex.quote(args.blocked_reason)}"
+            )
+        finish_plan = (
+            "plan: feature-tracker.sh finish-task "
+            f"--root {shlex.quote(str(root))} --feature {feat_id} --task {task_id} "
+            f"--result {result}{blocker_args}"
         )
-        if result == "blocked" or not would_finish_feature:
-            if not execute:
+        if not args.execute:
+            print(finish_plan)
+            if candidate_state["status"] == "done":
                 print(
-                    "plan: feature-tracker.sh finish-task "
-                    f"--root {shlex.quote(str(root))} --feature {feat_id} --task {task_id} --result {result}"
+                    "then: feature-tracker.sh archive-feature "
+                    f"--root {shlex.quote(str(root))} --feature {feat_id}"
                 )
-                print("next: rerun closeout-feature with --execute")
-                return 0
-            return cmd_task_finish(
-                argparse.Namespace(root=str(root), feat=feat_id, task=task_id, result=result)
-            )
-
-        if not execute:
-            print(
-                "plan: feature-tracker.sh finish-task "
-                f"--root {shlex.quote(str(root))} --feature {feat_id} --task {task_id} --result done"
-            )
-            print(
-                "then: feature-tracker.sh archive-feature "
-                f"--root {shlex.quote(str(root))} --feature {feat_id}"
-            )
             print("next: rerun closeout-feature with --execute")
             return 0
-
-        finish_code = cmd_task_finish(
-            argparse.Namespace(root=str(root), feat=feat_id, task=task_id, result="done")
-        )
-        if finish_code != 0:
-            return finish_code
-        state, tasks = load_feat(paths, feat_id)
-        status = str(state.get("status") or "")
+        if candidate_state["status"] != "done":
+            save_feat(paths, feat_id, candidate_state, candidate_tasks)
+            print(f"ok: task finished {feat_id}/{task_id} => {result}")
+            print(f"feat_status: {candidate_state['status']}")
+            return 0
+        state, tasks, status = candidate_state, candidate_tasks, "done"
 
     if status not in {"done", "blocked"}:
         for line in closeout_plan_lines(root, state, tasks):
             print(f"plan: {line}")
         return 1
 
-    if not execute:
+    if not args.execute:
         print(
             "plan: feature-tracker.sh archive-feature "
             f"--root {shlex.quote(str(root))} --feature {feat_id}"
@@ -4231,7 +4611,7 @@ def cmd_feat_closeout(args: argparse.Namespace) -> int:
         print("next: rerun closeout-feature with --execute")
         return 0
 
-    return cmd_feat_archive(argparse.Namespace(root=str(root), feat=feat_id))
+    return archive_feature(root, paths, feat_id, state, tasks)
 
 
 def validate_feat(paths: HarnessPaths, root: Path, feat_id: str) -> list[str]:
@@ -4274,14 +4654,16 @@ def validate_feat(paths: HarnessPaths, root: Path, feat_id: str) -> list[str]:
         state_runtime_role = "standalone"
 
     try:
-        state_blocked_reason = canonical_blocked_reason_class(
-            state.get("blocked_reason_class"),
-            feat_id=feat_id,
-            status=str(status or ""),
-        )
+        state_blocked_reason, _ = canonical_feature_blocker(state, feat_id=feat_id)
     except SystemExit as exc:
         errors.append(normalize_error_text(exc))
         state_blocked_reason = "none"
+    try:
+        require_canonical_task_blockers(tasks, feat_id=feat_id)
+        if status == "blocked":
+            require_current_blocker_task_evidence(state, tasks, feat_id=feat_id)
+    except SystemExit as exc:
+        errors.append(normalize_error_text(exc))
 
     try:
         state_runtime_relations = canonical_runtime_relations(state.get("runtime_relations"), feat_id=feat_id)
@@ -4794,7 +5176,6 @@ def cmd_validate(args: argparse.Namespace) -> int:
         errors.extend(validate_runtime_relation_consistency(paths, feats))
 
     # Validate physical archive layout.
-    registered_worktrees = git_worktree_paths(root)
     for feat_id, status in feat_status_by_id.items():
         active_dir = paths.feat_dir(feat_id)
         archived_dir = paths.feat_dir(feat_id, status="archived")
@@ -4810,19 +5191,6 @@ def cmd_validate(args: argparse.Namespace) -> int:
                 errors.append(
                     f"{feat_id}: {status} feat dir missing: {relative_display(root, closed_dir)}"
                 )
-            try:
-                state, _ = load_feat(paths, feat_id)
-            except SystemExit as exc:
-                errors.append(str(exc))
-                continue
-            wt_raw = str(state.get("worktree_path") or "").strip()
-            if wt_raw:
-                wt_abs = resolve_worktree_abs(root, wt_raw)
-                if wt_abs in registered_worktrees:
-                    errors.append(
-                        f"{feat_id}: closed feat still has registered git worktree entry: "
-                        f"{relative_display(root, wt_abs)}"
-                    )
         else:
             if not active_dir.exists():
                 errors.append(
@@ -5450,13 +5818,25 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--feature", dest="feat", required=True)
     sp.add_argument("--task", required=True)
     sp.add_argument("--result", choices=["done", "blocked"], required=True)
+    sp.add_argument(
+        "--blocked-reason-class",
+        choices=sorted(BLOCKED_REASON_CLASSES - {"none"}),
+        default=None,
+    )
+    sp.add_argument("--blocked-reason", default=None)
     sp.set_defaults(func=cmd_task_finish)
 
     sp = sub.add_parser("closeout-feature", help="plan or execute feature closeout")
     add_common(sp)
     sp.add_argument("--feature", dest="feat", required=True)
     sp.add_argument("--task", default="")
-    sp.add_argument("--result", choices=["done", "blocked"], default="done")
+    sp.add_argument("--result", choices=["done", "blocked"], default=None)
+    sp.add_argument(
+        "--blocked-reason-class",
+        choices=sorted(BLOCKED_REASON_CLASSES - {"none"}),
+        default=None,
+    )
+    sp.add_argument("--blocked-reason", default=None)
     sp.add_argument("--mode", choices=["archive", "discard"], default="archive")
     sp.add_argument("--reason", choices=["stale", "superseded", "cancelled", "invalid"], default="")
     sp.add_argument("--replacement", default="")
@@ -5464,12 +5844,12 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--execute", action="store_true")
     sp.set_defaults(func=cmd_feat_closeout)
 
-    sp = sub.add_parser("archive-feature", help="archive feature (move dir + cleanup worktree)")
+    sp = sub.add_parser("archive-feature", help="archive feature metadata without changing Git workspace")
     add_common(sp)
     sp.add_argument("--feature", dest="feat", required=True)
     sp.set_defaults(func=cmd_feat_archive)
 
-    sp = sub.add_parser("discard-feature", help="discard feature and preserve reference artifacts")
+    sp = sub.add_parser("discard-feature", help="discard feature metadata without changing Git workspace")
     add_common(sp)
     sp.add_argument("--feature", dest="feat", required=True)
     sp.add_argument("--reason", choices=["stale", "superseded", "cancelled", "invalid"], required=True)

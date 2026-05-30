@@ -200,6 +200,8 @@ generate commit prose or execute Git commits; use ordinary Git or
 `bagakit-git-message-craft` and keep implementation commits outside tracker
 state. Workspace assignment determines where task gates execute. For
 `worktree` features, `run-task-gate` runs from the assigned worktree path.
+Task gates fail closed when the resolved UI or non-UI command list is empty;
+an empty gate is never passing evidence.
 Tracker state mutation is serialized, but long-running gate commands release
 the global state lock while external commands run and revalidate the
 workspace assignment before recording results.
@@ -212,18 +214,30 @@ current Git HEAD matches the caller's expected HEAD. This optimistic
 current-state guard does not prove that no commit occurred since task start.
 The transition is for evidence-free plan correction, not for erasing attempted
 execution.
-For tracked features, a code commit is not the feature completion boundary.
-The completion boundary is closed feature state through `archive-feature`,
-`discard-feature`, or `closeout-feature --execute`.
-`create-feature`, `archive-feature`, `discard-feature`, and
-`replan-features` preflight the resulting active graph before they commit
-tracker state or closeout cleanup.
+Finishing a task as blocked requires canonical blocker truth in the same
+transition:
+
+```bash
+bash "$BAGAKIT_FEATURE_TRACKER_SKILL_DIR/scripts/feature-tracker.sh" finish-task \
+  --root . \
+  --feature <feature-id> \
+  --task <task-id> \
+  --result blocked \
+  --blocked-reason-class <external_blocker|internal_blocker|parked_context> \
+  --blocked-reason "<non-empty reason>"
+```
+
+The Tracker stores the exact pair as task evidence and projects it as the
+current blocker; the complete blocker lifecycle is normative in
+`docs/specs/feature-tracker-contract.md`.
+For tracked features, a code commit is not the feature completion boundary;
+close through `archive-feature`, `discard-feature`, or
+`closeout-feature --execute`.
 `closeout-feature` is the single-feature operator path for completing the
 tracker lifecycle after gate work. It defaults to a dry-run plan and
 requires `--execute` before it mutates state.
-`diagnose-tracker --closeout-plan` stays read-only and still prints loadable
-closeout candidates when unrelated active state fails validation; its non-zero
-exit keeps that validation failure visible.
+Closeout validation, option scope, staged publication, and Git-cleanup
+boundaries are normative in `docs/specs/feature-tracker-contract.md`.
 For `current_tree` features, `archive-feature` may proceed with unrelated
 non-harness repo changes because it only closes tracker metadata; `discard-feature`
 still requires a clean non-harness tree before closeout.

@@ -1,6 +1,8 @@
 version = 1
 skill = "bagakit-feature-tracker"
 cli_id = "bagakit-feature-tracker"
+# Discovery inventory only. Argparse and the durable Tracker contract own the
+# complete option and lifecycle semantics.
 entrypoint = "scripts/feature-tracker.sh"
 runner = "shell"
 usage = "sh scripts/feature-tracker.sh <command> [args...]"
@@ -55,15 +57,15 @@ summary = "Return an active task with no gate or prior completion evidence to to
 
 [[command]]
 name = "run-task-gate"
-summary = "Record or run one task gate."
+summary = "Run one non-empty task gate and record fail-closed evidence."
 
 [[command]]
 name = "finish-task"
-summary = "Finish one task with gate evidence."
+summary = "Finish one task, requiring canonical class and reason when blocked."
 
 [[command]]
 name = "closeout-feature"
-summary = "Close out one feature lifecycle."
+summary = "Plan or execute closeout; task-result arguments apply only to archive of an active task."
 
 [[command]]
 name = "archive-feature"
