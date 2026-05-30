@@ -1,3 +1,12 @@
+FEATURE_TRACKER_CLOSEOUT_REVIEW_ARGS=(
+  --documentation-disposition not_applicable
+  --documentation-rationale "The fixture changes no project documentation contract."
+  --learning-disposition no_reusable_learning
+  --learning-rationale "The fixture exercises an already-owned lifecycle invariant."
+  --promotion-disposition not_needed
+  --promotion-rationale "The fixture produces no reusable project learning."
+)
+
 feature_tracker_init_temp_repo() {
   local repo_root="$1"
   git -C "$repo_root" init -q -b main

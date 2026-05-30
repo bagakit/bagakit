@@ -38,7 +38,8 @@ bash "$SKILL_DIR/scripts/feature-tracker.sh" finish-task --root "$TMP_DIR" --fea
 cat > "$TMP_DIR/UNRELATED.md" <<'EOF'
 unrelated dirty work
 EOF
-bash "$SKILL_DIR/scripts/feature-tracker.sh" archive-feature --root "$TMP_DIR" --feature "$DIRTY_ARCHIVE_ID" >/dev/null 2>&1
+bash "$SKILL_DIR/scripts/feature-tracker.sh" archive-feature --root "$TMP_DIR" --feature "$DIRTY_ARCHIVE_ID" \
+  "${FEATURE_TRACKER_CLOSEOUT_REVIEW_ARGS[@]}" >/dev/null 2>&1
 test -d "$TMP_DIR/.bagakit/feature-tracker/features-archived/$DIRTY_ARCHIVE_ID"
 test -f "$TMP_DIR/UNRELATED.md"
 rm -f "$TMP_DIR/UNRELATED.md"
@@ -128,14 +129,16 @@ WORKTREE_COUNT_AFTER="$(git -C "$TMP_DIR" worktree list --porcelain | grep -c '^
 test "$FEATURE_COUNT_BEFORE" = "$FEATURE_COUNT_AFTER"
 test "$WORKTREE_COUNT_BEFORE" = "$WORKTREE_COUNT_AFTER"
 
-if bash "$SKILL_DIR/scripts/feature-tracker.sh" archive-feature --root "$TMP_DIR" --feature "$ARCHIVE_BLOCKED_ID" >/dev/null 2>&1; then
+if bash "$SKILL_DIR/scripts/feature-tracker.sh" archive-feature --root "$TMP_DIR" --feature "$ARCHIVE_BLOCKED_ID" \
+  "${FEATURE_TRACKER_CLOSEOUT_REVIEW_ARGS[@]}" >/dev/null 2>&1; then
   echo "error: archive-feature unexpectedly cleaned up before graph preflight" >&2
   exit 1
 fi
 test -d "$TMP_DIR/.bagakit/feature-tracker/features/$ARCHIVE_BLOCKED_ID"
 test ! -d "$TMP_DIR/.bagakit/feature-tracker/features-archived/$ARCHIVE_BLOCKED_ID"
 
-if bash "$SKILL_DIR/scripts/feature-tracker.sh" discard-feature --root "$TMP_DIR" --feature "$DISCARD_BLOCKED_ID" --reason superseded >/dev/null 2>&1; then
+if bash "$SKILL_DIR/scripts/feature-tracker.sh" discard-feature --root "$TMP_DIR" --feature "$DISCARD_BLOCKED_ID" --reason superseded \
+  "${FEATURE_TRACKER_CLOSEOUT_REVIEW_ARGS[@]}" >/dev/null 2>&1; then
   echo "error: discard-feature unexpectedly cleaned up before graph preflight" >&2
   exit 1
 fi
@@ -207,6 +210,7 @@ state_path.write_text(json.dumps(state, indent=2) + "\n", encoding="utf-8")
 PY
 if bash "$SKILL_DIR/scripts/feature-tracker.sh" archive-feature \
   --root "$TMP_DIR" --feature "$CLOSE_BLOCKED_ARCHIVE_ID" \
+  "${FEATURE_TRACKER_CLOSEOUT_REVIEW_ARGS[@]}" \
   >"$TMP_DIR/noncanonical-live-blocker.out" 2>"$TMP_DIR/noncanonical-live-blocker.err"; then
   echo "error: archive accepted a non-canonical live blocker" >&2
   exit 1
@@ -277,10 +281,12 @@ rm -f "$TMP_DIR"/*.out "$TMP_DIR"/*.err "$TMP_DIR"/*.saved
 
 bash "$SKILL_DIR/scripts/feature-tracker.sh" closeout-feature \
   --root "$TMP_DIR" --feature "$CLOSE_BLOCKED_ARCHIVE_ID" \
-  --archive-blocked --execute >/dev/null
+  --archive-blocked --execute \
+  "${FEATURE_TRACKER_CLOSEOUT_REVIEW_ARGS[@]}" >/dev/null
 bash "$SKILL_DIR/scripts/feature-tracker.sh" closeout-feature \
   --root "$TMP_DIR" --feature "$CLOSE_BLOCKED_DISCARD_ID" \
-  --mode discard --reason invalid --execute >/dev/null
+  --mode discard --reason invalid --execute \
+  "${FEATURE_TRACKER_CLOSEOUT_REVIEW_ARGS[@]}" >/dev/null
 python3 - "$TMP_DIR" "$CLOSE_BLOCKED_ARCHIVE_ID" "$CLOSE_BLOCKED_DISCARD_ID" <<'PY'
 import json
 import sys
@@ -432,7 +438,8 @@ bash "$SKILL_DIR/scripts/feature-tracker.sh" finish-task \
 git -C "$TMP_DIR" merge -q --no-ff "$WORKTREE_CLOSEOUT_BRANCH" -m "merge worktree closeout fixture"
 WORKTREE_REGISTRATION_BEFORE="$(git -C "$TMP_DIR" worktree list --porcelain)"
 bash "$SKILL_DIR/scripts/feature-tracker.sh" archive-feature \
-  --root "$TMP_DIR" --feature "$WORKTREE_CLOSEOUT_ID" >/dev/null
+  --root "$TMP_DIR" --feature "$WORKTREE_CLOSEOUT_ID" \
+  "${FEATURE_TRACKER_CLOSEOUT_REVIEW_ARGS[@]}" >/dev/null
 test -d "$WORKTREE_CLOSEOUT_PATH"
 test "$WORKTREE_REGISTRATION_BEFORE" = "$(git -C "$TMP_DIR" worktree list --porcelain)"
 git -C "$TMP_DIR" show-ref --verify --quiet "refs/heads/$WORKTREE_CLOSEOUT_BRANCH"
@@ -446,7 +453,8 @@ bash "$SKILL_DIR/scripts/feature-tracker.sh" assign-feature-workspace --root "$T
 cat > "$TMP_DIR/DIRTY.md" <<'EOF'
 root dirty change
 EOF
-if bash "$SKILL_DIR/scripts/feature-tracker.sh" discard-feature --root "$TMP_DIR" --feature "$DIRTY_DISCARD_ID" --reason superseded >/dev/null 2>&1; then
+if bash "$SKILL_DIR/scripts/feature-tracker.sh" discard-feature --root "$TMP_DIR" --feature "$DIRTY_DISCARD_ID" --reason superseded \
+  "${FEATURE_TRACKER_CLOSEOUT_REVIEW_ARGS[@]}" >/dev/null 2>&1; then
   echo "error: dirty current_tree discard unexpectedly succeeded" >&2
   exit 1
 fi
@@ -579,6 +587,7 @@ for residue in \
   mkdir -p "$residue"
   if bash "$SKILL_DIR/scripts/feature-tracker.sh" archive-feature \
     --root "$TMP_DIR" --feature "$CLOSEOUT_FEATURE_ID" \
+    "${FEATURE_TRACKER_CLOSEOUT_REVIEW_ARGS[@]}" \
     >"$TMP_DIR/closeout-residue.out" 2>"$TMP_DIR/closeout-residue.err"; then
     echo "error: closeout unexpectedly accepted publication residue" >&2
     exit 1
@@ -596,6 +605,7 @@ printf 'must remain unchanged\n' > "$TMP_DIR/outside-closeout.txt"
 ln -s "$TMP_DIR/outside-closeout.txt" "$CLOSEOUT_DIR/unsupported-link"
 if bash "$SKILL_DIR/scripts/feature-tracker.sh" archive-feature \
   --root "$TMP_DIR" --feature "$CLOSEOUT_FEATURE_ID" \
+  "${FEATURE_TRACKER_CLOSEOUT_REVIEW_ARGS[@]}" \
   >"$TMP_DIR/staged-symlink-failure.out" 2>"$TMP_DIR/staged-symlink-failure.err"; then
   echo "error: closeout unexpectedly accepted a feature-tree symlink" >&2
   exit 1
@@ -613,6 +623,7 @@ rm -f "$CLOSEOUT_DIR/unsupported-link"
 mkfifo "$CLOSEOUT_DIR/unsupported.pipe"
 if bash "$SKILL_DIR/scripts/feature-tracker.sh" archive-feature \
   --root "$TMP_DIR" --feature "$CLOSEOUT_FEATURE_ID" \
+  "${FEATURE_TRACKER_CLOSEOUT_REVIEW_ARGS[@]}" \
   >"$TMP_DIR/staged-closeout-failure.out" 2>"$TMP_DIR/staged-closeout-failure.err"; then
   echo "error: closeout unexpectedly copied an unsupported special file" >&2
   exit 1
@@ -634,6 +645,7 @@ INDEX_DIR="$TMP_DIR/.bagakit/feature-tracker/index"
 chmod 0555 "$INDEX_DIR"
 if bash "$SKILL_DIR/scripts/feature-tracker.sh" archive-feature \
   --root "$TMP_DIR" --feature "$CLOSEOUT_FEATURE_ID" \
+  "${FEATURE_TRACKER_CLOSEOUT_REVIEW_ARGS[@]}" \
   >"$TMP_DIR/index-publication-failure.out" \
   2>"$TMP_DIR/index-publication-failure.err"; then
   chmod 0755 "$INDEX_DIR"
@@ -670,6 +682,7 @@ mkfifo "$INDEX_TMP"
 ROLLBACK_FAULT_PID=$!
 if bash "$SKILL_DIR/scripts/feature-tracker.sh" archive-feature \
   --root "$TMP_DIR" --feature "$CLOSEOUT_FEATURE_ID" \
+  "${FEATURE_TRACKER_CLOSEOUT_REVIEW_ARGS[@]}" \
   >"$TMP_DIR/rollback-failure.out" 2>"$TMP_DIR/rollback-failure.err"; then
   chmod 0755 "$FEATURES_DIR" "$ARCHIVED_DIR" "$INDEX_DIR"
   wait "$ROLLBACK_FAULT_PID"
@@ -711,7 +724,8 @@ Path(sys.argv[2]).unlink(missing_ok=True)
 PY
 
 chmod 0555 "$CLOSEOUT_DIR/artifacts"
-bash "$SKILL_DIR/scripts/feature-tracker.sh" archive-feature --root "$TMP_DIR" --feature "$CLOSEOUT_FEATURE_ID" >/dev/null
+bash "$SKILL_DIR/scripts/feature-tracker.sh" archive-feature --root "$TMP_DIR" --feature "$CLOSEOUT_FEATURE_ID" \
+  "${FEATURE_TRACKER_CLOSEOUT_REVIEW_ARGS[@]}" >/dev/null
 ARCHIVED_CLOSEOUT_DIR="$TMP_DIR/.bagakit/feature-tracker/features-archived/$CLOSEOUT_FEATURE_ID"
 test -f "$ARCHIVED_CLOSEOUT_DIR/summary.md"
 test ! -f "$ARCHIVED_CLOSEOUT_DIR/proposal.md"

@@ -179,7 +179,8 @@ bash "$FLOW_RUNNER_DIR/scripts/flow-runner.sh" resolve-incident --root "$TMP_DIR
   exit 1
 } || true
 
-bash "$FEATURE_TRACKER_DIR/scripts/feature-tracker.sh" discard-feature --root "$TMP_DIR" --feature "$FEATURE_ID" --reason stale >/dev/null
+bash "$FEATURE_TRACKER_DIR/scripts/feature-tracker.sh" discard-feature --root "$TMP_DIR" --feature "$FEATURE_ID" --reason stale \
+  "${FEATURE_TRACKER_CLOSEOUT_REVIEW_ARGS[@]}" >/dev/null
 bash "$FLOW_RUNNER_DIR/scripts/flow-runner.sh" ingest-feature-tracker --root "$TMP_DIR" >/dev/null
 test -d "$TMP_DIR/.bagakit/flow-runner/archive/$ITEM_ID"
 test ! -d "$TMP_DIR/.bagakit/flow-runner/items/$ITEM_ID"

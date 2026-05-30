@@ -65,15 +65,15 @@ summary = "Finish one task, requiring canonical class and reason when blocked."
 
 [[command]]
 name = "closeout-feature"
-summary = "Plan or execute closeout; task-result arguments apply only to archive of an active task."
+summary = "Plan or execute closeout after resolving documentation, learning, and promotion review choices; task-result arguments apply only to archive of an active task."
 
 [[command]]
 name = "archive-feature"
-summary = "Archive a completed feature."
+summary = "Archive a completed feature with explicit closeout review choices."
 
 [[command]]
 name = "discard-feature"
-summary = "Discard a feature with rationale."
+summary = "Discard a feature with lifecycle rationale and explicit closeout review choices."
 
 [[command]]
 name = "validate-tracker"

@@ -69,8 +69,12 @@ LEGACY_UI_VERIFICATION_FILENAME = "ui-verification.md"
 TASK_PLAN_SCHEMA = "bagakit.feature-task-plan.v1"
 OWNER_RECEIPT_SCHEMA = "bagakit.execution-owner-receipt.v1"
 FEATURE_GOAL_SCHEMA = "bagakit.feature-goal.v1"
+FEATURE_CLOSEOUT_REVIEW_SCHEMA = "bagakit.feature-closeout-review.v1"
 TASK_PLAN_STATUSES = {"draft", "reviewed"}
 TASK_VERIFICATION_KINDS = {"command", "artifact", "manual", "owner_receipt"}
+CLOSEOUT_DOCUMENTATION_DISPOSITIONS = {"updated", "verified_current", "not_applicable"}
+CLOSEOUT_LEARNING_DISPOSITIONS = {"no_reusable_learning", "candidates_reviewed"}
+CLOSEOUT_PROMOTION_DISPOSITIONS = {"not_needed", "routed_for_review", "promoted"}
 FEATURE_REQUIRED_ROOT_FILES = frozenset({"state.json", "tasks.json"})
 FEATURE_DERIVED_ROOT_FILES = frozenset({FEATURE_OWNER_RECEIPT_FILENAME})
 FEATURE_CONTROL_ROOT_FILES = frozenset({FEATURE_GOAL_FILENAME})
@@ -249,6 +253,153 @@ def require_repo_relative_ref(root: Path, value: Any, label: str) -> str:
 def require_repo_relative_refs(root: Path, value: Any, label: str) -> list[str]:
     refs = require_string_list(value, label)
     return [require_repo_relative_ref(root, ref, f"{label}[{index}]") for index, ref in enumerate(refs)]
+
+
+def canonical_closeout_review(
+    root: Path,
+    value: Any,
+    *,
+    feat_id: str,
+) -> dict[str, Any]:
+    label = f"{feat_id}: closeout_review"
+    review = require_record(value, label)
+    expected_keys = {"schema", "documentation", "learning", "promotion"}
+    if set(review) != expected_keys:
+        raise SystemExit(
+            f"error: {label} must contain exactly {', '.join(sorted(expected_keys))}"
+        )
+    if review.get("schema") != FEATURE_CLOSEOUT_REVIEW_SCHEMA:
+        raise SystemExit(
+            f"error: {label}.schema must be {FEATURE_CLOSEOUT_REVIEW_SCHEMA}"
+        )
+
+    options = {
+        "documentation": CLOSEOUT_DOCUMENTATION_DISPOSITIONS,
+        "learning": CLOSEOUT_LEARNING_DISPOSITIONS,
+        "promotion": CLOSEOUT_PROMOTION_DISPOSITIONS,
+    }
+    normalized: dict[str, Any] = {"schema": FEATURE_CLOSEOUT_REVIEW_SCHEMA}
+    for group, allowed in options.items():
+        group_label = f"{label}.{group}"
+        item = require_record(review.get(group), group_label)
+        if set(item) != {"disposition", "rationale", "refs"}:
+            raise SystemExit(
+                f"error: {group_label} must contain exactly disposition, rationale, and refs"
+            )
+        disposition = require_nonempty_string(
+            item.get("disposition"), f"{group_label}.disposition"
+        )
+        if disposition not in allowed:
+            raise SystemExit(
+                f"error: {group_label}.disposition must be one of {', '.join(sorted(allowed))}"
+            )
+        rationale = require_nonempty_string(item.get("rationale"), f"{group_label}.rationale")
+        if MACHINE_LOCAL_PATH_RE.search(rationale):
+            raise SystemExit(
+                f"error: {group_label}.rationale contains a machine-local absolute path or file URI"
+            )
+        refs = require_optional_string_list(item.get("refs"), f"{group_label}.refs")
+        refs = [
+            require_repo_relative_ref(root, ref, f"{group_label}.refs[{index}]")
+            for index, ref in enumerate(refs)
+        ]
+        normalized[group] = {
+            "disposition": disposition,
+            "rationale": rationale,
+            "refs": refs,
+        }
+
+    documentation = normalized["documentation"]
+    if documentation["disposition"] in {"updated", "verified_current"} and not documentation["refs"]:
+        raise SystemExit(
+            f"error: {label}.documentation.refs is required when documentation is "
+            f"{documentation['disposition']}"
+        )
+    learning = normalized["learning"]
+    if learning["disposition"] == "candidates_reviewed" and not learning["refs"]:
+        raise SystemExit(
+            f"error: {label}.learning.refs is required when learning is candidates_reviewed"
+        )
+    promotion = normalized["promotion"]
+    if promotion["disposition"] in {"routed_for_review", "promoted"} and not promotion["refs"]:
+        raise SystemExit(
+            f"error: {label}.promotion.refs is required when promotion is "
+            f"{promotion['disposition']}"
+        )
+    if (
+        learning["disposition"] == "no_reusable_learning"
+        and promotion["disposition"] != "not_needed"
+    ):
+        raise SystemExit(
+            f"error: {label} cannot route or promote learning after declaring no_reusable_learning"
+        )
+    return normalized
+
+
+def closeout_review_guidance_lines() -> list[str]:
+    return [
+        "closeout review checklist:",
+        "- documentation: updated | verified_current | not_applicable",
+        "  arguments: --documentation-disposition <choice> --documentation-rationale <why> [--documentation-ref <repo-relative-ref>]",
+        "  method: identify changed public behavior or contracts, update the owning SSOT, or cite the reviewed owner; do not edit docs only to satisfy closeout",
+        "- learning: candidates_reviewed | no_reusable_learning",
+        "  arguments: --learning-disposition <choice> --learning-rationale <why> [--learning-ref <repo-relative-ref>]",
+        "  method: inspect bounded plan revisions, gate failures, user corrections, and final evidence; compare original intent and non-goals with delivered scope; check that the shortest useful vertical closure came before expansion and that later work raised quality rather than only task count; keep raw sessions with their host",
+        "- promotion: routed_for_review | promoted | not_needed",
+        "  arguments: --promotion-disposition <choice> --promotion-rationale <why> [--promotion-ref <repo-relative-ref>]",
+        "  method: check repository principles, merge same-class candidates, and use the existing Chronicle, Evolver, Principle Layer, or Living Knowledge owner; remove obsolete guidance instead of appending a competing rule",
+        "required: one disposition and non-empty rationale per item; add repo-relative refs for updated/verified_current, candidates_reviewed, routed_for_review, or promoted",
+    ]
+
+
+def closeout_review_from_args(
+    root: Path,
+    args: argparse.Namespace,
+    *,
+    feat_id: str,
+) -> dict[str, Any]:
+    raw = {
+        "schema": FEATURE_CLOSEOUT_REVIEW_SCHEMA,
+        "documentation": {
+            "disposition": str(getattr(args, "documentation_disposition", "") or ""),
+            "rationale": str(getattr(args, "documentation_rationale", "") or ""),
+            "refs": list(getattr(args, "documentation_ref", []) or []),
+        },
+        "learning": {
+            "disposition": str(getattr(args, "learning_disposition", "") or ""),
+            "rationale": str(getattr(args, "learning_rationale", "") or ""),
+            "refs": list(getattr(args, "learning_ref", []) or []),
+        },
+        "promotion": {
+            "disposition": str(getattr(args, "promotion_disposition", "") or ""),
+            "rationale": str(getattr(args, "promotion_rationale", "") or ""),
+            "refs": list(getattr(args, "promotion_ref", []) or []),
+        },
+    }
+    try:
+        return canonical_closeout_review(root, raw, feat_id=feat_id)
+    except SystemExit as exc:
+        detail = normalize_error_text(exc)
+        raise SystemExit(
+            "error: " + detail + "\n" + "\n".join(closeout_review_guidance_lines())
+        ) from exc
+
+
+def has_closeout_review_args(args: argparse.Namespace) -> bool:
+    return any(
+        getattr(args, name, None)
+        for name in (
+            "documentation_disposition",
+            "documentation_rationale",
+            "documentation_ref",
+            "learning_disposition",
+            "learning_rationale",
+            "learning_ref",
+            "promotion_disposition",
+            "promotion_rationale",
+            "promotion_ref",
+        )
+    )
 
 
 def parse_task_plan_candidate(
@@ -521,6 +672,7 @@ def prepare_closed_feature_publication(
     target_status: str,
     event_action: str,
     event_detail: str,
+    closeout_review: dict[str, Any],
     discard_reason: str | None = None,
     replacement_feat_id: str | None = None,
 ) -> CloseoutPublication:
@@ -535,6 +687,7 @@ def prepare_closed_feature_publication(
 
     candidate_state = copy.deepcopy(state)
     candidate_tasks = copy.deepcopy(tasks)
+    candidate_tasks["closeout_review"] = copy.deepcopy(closeout_review)
     candidate_state["closed_from_status"] = current_status
     candidate_state["status"] = target_status
     candidate_state["blocked_reason_class"] = "none"
@@ -2316,6 +2469,12 @@ def ensure_closed_feat_rerun_state(
         raise SystemExit(
             f"error: closed feat state status drift for {feat_id}: expected {expected_status}, found {actual_status or '<missing>'}"
         )
+    closed_tasks = load_json(tasks_file)
+    canonical_closeout_review(
+        paths.root,
+        closed_tasks.get("closeout_review"),
+        feat_id=feat_id,
+    )
 
 
 def canonical_depends_on(state: dict[str, Any], *, feat_id: str) -> list[str]:
@@ -3932,10 +4091,10 @@ def cmd_task_finish(args: argparse.Namespace) -> int:
     print(f"feat_status: {state['status']}")
     if state["status"] == "done":
         root_q = shlex.quote(str(root))
-        archive_cmd = f"feature-tracker.sh archive-feature --root {root_q} --feature {args.feat}"
+        closeout_cmd = f"feature-tracker.sh closeout-feature --root {root_q} --feature {args.feat}"
         discard_cmd = (
-            "feature-tracker.sh discard-feature "
-            f"--root {root_q} --feature {args.feat} --reason superseded"
+            "feature-tracker.sh closeout-feature "
+            f"--root {root_q} --feature {args.feat} --mode discard --reason superseded"
         )
         if workspace_mode_of(state) == "worktree":
             branch = str(state.get("branch") or "")
@@ -3947,11 +4106,11 @@ def cmd_task_finish(args: argparse.Namespace) -> int:
                     f"{root_q} checkout {shlex.quote(base_ref)} "
                     f"&& git -C {root_q} merge --no-ff {shlex.quote(branch)}"
                 )
-                print(f"after_merge: {archive_cmd}")
+                print(f"after_merge: {closeout_cmd}")
             else:
-                print(f"next: {archive_cmd}")
+                print(f"next: {closeout_cmd}")
         else:
-            print(f"next: {archive_cmd}")
+            print(f"next: {closeout_cmd}")
         print(f"alternative: {discard_cmd}")
     return 0
 
@@ -3970,6 +4129,26 @@ def render_summary(
     blocked = count_tasks(tasks, "blocked")
     counters = state.get("counters", {})
     preserved = preserved_root_entries or []
+    closeout_review = tasks.get("closeout_review")
+    review_lines: list[str] = []
+    if isinstance(closeout_review, dict):
+        for group, title in (
+            ("documentation", "Documentation"),
+            ("learning", "Learning"),
+            ("promotion", "Promotion"),
+        ):
+            item = closeout_review.get(group)
+            if not isinstance(item, dict):
+                continue
+            rationale = " ".join(str(item.get("rationale") or "").split())
+            refs = item.get("refs") if isinstance(item.get("refs"), list) else []
+            review_lines.extend(
+                [
+                    f"- {title}: {item.get('disposition', '')}",
+                    f"  - Rationale: {rationale}",
+                    f"  - Refs: {', '.join(str(ref) for ref in refs)}",
+                ]
+            )
 
     return "\n".join(
         [
@@ -3996,13 +4175,16 @@ def render_summary(
             f"- done: {done}",
             f"- blocked: {blocked}",
             "",
+            "## Closeout Review",
+            *review_lines,
+            "",
             "## Counters",
             f"- gate_fail_streak: {counters.get('gate_fail_streak', 0)}",
             f"- no_progress_rounds: {counters.get('no_progress_rounds', 0)}",
             f"- round_count: {counters.get('round_count', 0)}",
             "",
             "## Notes",
-            "- Promote durable decisions and gotchas to living docs memory when applicable.",
+            "- Closeout review is final planning truth; durable knowledge remains with its existing project owner.",
             "",
         ]
     )
@@ -4279,6 +4461,7 @@ def archive_feature(
     feat_id: str,
     state: dict[str, Any],
     tasks: dict[str, Any],
+    closeout_review: dict[str, Any] | None,
 ) -> int:
     current_status = str(state.get("status") or "")
     if current_status == "archived":
@@ -4295,6 +4478,11 @@ def archive_feature(
             f"(current={current_status})"
         )
         return 1
+    if closeout_review is None:
+        eprint(f"error: {feat_id}: closeout review is required before archive")
+        for line in closeout_review_guidance_lines():
+            eprint(line)
+        return 1
     try:
         build_closeout_dag_projection_payload(
             paths,
@@ -4310,6 +4498,7 @@ def archive_feature(
             target_status="archived",
             event_action="feat_archived",
             event_detail="tracker metadata closed; Git workspace unchanged",
+            closeout_review=closeout_review,
         )
     except SystemExit as exc:
         eprint(str(exc))
@@ -4330,7 +4519,17 @@ def cmd_feat_archive(args: argparse.Namespace) -> int:
     ensure_harness_exists(paths)
     ensure_git_repo(root)
     state, tasks = load_feat(paths, args.feat)
-    return archive_feature(root, paths, args.feat, state, tasks)
+    if str(state.get("status") or "") == "archived" and has_closeout_review_args(args):
+        eprint("error: closed feature review is immutable; rerun archive-feature without review arguments")
+        return 1
+    closeout_review = None
+    if str(state.get("status") or "") in {"done", "blocked"}:
+        try:
+            closeout_review = closeout_review_from_args(root, args, feat_id=args.feat)
+        except SystemExit as exc:
+            eprint(str(exc))
+            return 1
+    return archive_feature(root, paths, args.feat, state, tasks, closeout_review)
 
 
 def cmd_feat_discard(args: argparse.Namespace) -> int:
@@ -4342,6 +4541,9 @@ def cmd_feat_discard(args: argparse.Namespace) -> int:
     state, tasks = load_feat(paths, args.feat)
     current_status = str(state.get("status") or "")
     if current_status == "discarded":
+        if has_closeout_review_args(args):
+            eprint("error: closed feature review is immutable; rerun discard-feature without review arguments")
+            return 1
         try:
             ensure_closed_feat_rerun_state(paths, args.feat, expected_status="discarded")
         except SystemExit as exc:
@@ -4358,6 +4560,12 @@ def cmd_feat_discard(args: argparse.Namespace) -> int:
     if current_status == "in_progress" and count_tasks(tasks, "in_progress") > 0:
         eprint("error: cannot discard feat while a task is in_progress")
         eprint("hint: finish the active task as blocked or done before discard-feature")
+        return 1
+
+    try:
+        closeout_review = closeout_review_from_args(root, args, feat_id=args.feat)
+    except SystemExit as exc:
+        eprint(str(exc))
         return 1
 
     replacement = str(args.replacement).strip()
@@ -4393,6 +4601,7 @@ def cmd_feat_discard(args: argparse.Namespace) -> int:
             target_status="discarded",
             event_action="feat_discarded",
             event_detail=f"reason={args.reason}; replacement={replacement or 'none'}",
+            closeout_review=closeout_review,
             discard_reason=args.reason,
             replacement_feat_id=replacement or None,
         )
@@ -4422,15 +4631,15 @@ def closeout_plan_lines(root: Path, state: dict[str, Any], tasks: dict[str, Any]
 
     if status == "done":
         lines.append(
-            f"{feat_id}: active done; archive with "
-            f"feature-tracker.sh archive-feature --root {root_q} --feature {feat_id}"
+            f"{feat_id}: active done; review and close with "
+            f"feature-tracker.sh closeout-feature --root {root_q} --feature {feat_id}"
         )
         return lines
 
     if status == "blocked":
         lines.append(
-            f"{feat_id}: blocked; choose archive-feature or "
-            "discard-feature --reason stale|superseded|cancelled|invalid"
+            f"{feat_id}: blocked; review and choose closeout-feature --archive-blocked or "
+            "--mode discard --reason stale|superseded|cancelled|invalid"
         )
         return lines
 
@@ -4448,9 +4657,9 @@ def closeout_plan_lines(root: Path, state: dict[str, Any], tasks: dict[str, Any]
             )
             return lines
         lines.append(
-            f"{feat_id}: task {task_id} gate passed; close with "
+            f"{feat_id}: task {task_id} gate passed; review and close with "
             f"feature-tracker.sh closeout-feature --root {root_q} --feature {feat_id} "
-            f"--task {task_id} --result done --execute"
+            f"--task {task_id} --result done"
         )
         return lines
 
@@ -4508,11 +4717,19 @@ def cmd_feat_closeout(args: argparse.Namespace) -> int:
         eprint("error: --archive-blocked requires a blocked feature")
         return 1
     if status in CLOSED_FEAT_STATUS:
+        if has_closeout_review_args(args):
+            eprint("error: closed feature review is immutable; rerun closeout-feature without review arguments")
+            return 1
         if has_task_transition_args:
             eprint("error: closed feature cannot consume task result or blocker arguments")
             return 1
         if mode != "archive":
             eprint("error: closed feature rerun requires the matching direct closeout command")
+            return 1
+        try:
+            ensure_closed_feat_rerun_state(paths, feat_id, expected_status=status)
+        except SystemExit as exc:
+            eprint(str(exc))
             return 1
         print(f"ok: feat already {status} {args.feat}")
         return 0
@@ -4526,11 +4743,9 @@ def cmd_feat_closeout(args: argparse.Namespace) -> int:
             eprint("hint: finish the active task as blocked or done before discard closeout")
             return 1
         if not args.execute:
-            print(
-                "plan: feature-tracker.sh discard-feature "
-                f"--root {shlex.quote(str(root))} --feature {feat_id} --reason {args.reason}"
-            )
-            print("next: rerun closeout-feature with --execute")
+            for line in closeout_review_guidance_lines():
+                print(line)
+            print("next: rerun closeout-feature with all review choices and --execute")
             return 0
         return cmd_feat_discard(
             argparse.Namespace(
@@ -4538,6 +4753,15 @@ def cmd_feat_closeout(args: argparse.Namespace) -> int:
                 feat=feat_id,
                 reason=args.reason,
                 replacement=args.replacement,
+                documentation_disposition=args.documentation_disposition,
+                documentation_rationale=args.documentation_rationale,
+                documentation_ref=args.documentation_ref,
+                learning_disposition=args.learning_disposition,
+                learning_rationale=args.learning_rationale,
+                learning_ref=args.learning_ref,
+                promotion_disposition=args.promotion_disposition,
+                promotion_rationale=args.promotion_rationale,
+                promotion_ref=args.promotion_ref,
             )
         )
 
@@ -4585,11 +4809,11 @@ def cmd_feat_closeout(args: argparse.Namespace) -> int:
         if not args.execute:
             print(finish_plan)
             if candidate_state["status"] == "done":
-                print(
-                    "then: feature-tracker.sh archive-feature "
-                    f"--root {shlex.quote(str(root))} --feature {feat_id}"
-                )
-            print("next: rerun closeout-feature with --execute")
+                for line in closeout_review_guidance_lines():
+                    print(line)
+                print("next: rerun closeout-feature with all review choices and --execute")
+            else:
+                print("next: rerun closeout-feature with --execute")
             return 0
         if candidate_state["status"] != "done":
             save_feat(paths, feat_id, candidate_state, candidate_tasks)
@@ -4604,14 +4828,17 @@ def cmd_feat_closeout(args: argparse.Namespace) -> int:
         return 1
 
     if not args.execute:
-        print(
-            "plan: feature-tracker.sh archive-feature "
-            f"--root {shlex.quote(str(root))} --feature {feat_id}"
-        )
-        print("next: rerun closeout-feature with --execute")
+        for line in closeout_review_guidance_lines():
+            print(line)
+        print("next: rerun closeout-feature with all review choices and --execute")
         return 0
 
-    return archive_feature(root, paths, feat_id, state, tasks)
+    try:
+        closeout_review = closeout_review_from_args(root, args, feat_id=feat_id)
+    except SystemExit as exc:
+        eprint(str(exc))
+        return 1
+    return archive_feature(root, paths, feat_id, state, tasks, closeout_review)
 
 
 def validate_feat(paths: HarnessPaths, root: Path, feat_id: str) -> list[str]:
@@ -4993,6 +5220,18 @@ def validate_feat(paths: HarnessPaths, root: Path, feat_id: str) -> list[str]:
     if workspace_mode == "proposal_only" and in_progress:
         errors.append(f"{feat_id}: proposal_only feat must not have in_progress tasks")
 
+    if status in CLOSED_FEAT_STATUS:
+        try:
+            canonical_closeout_review(
+                root,
+                tasks.get("closeout_review"),
+                feat_id=feat_id,
+            )
+        except SystemExit as exc:
+            errors.append(normalize_error_text(exc))
+    elif "closeout_review" in tasks:
+        errors.append(f"{feat_id}: closeout_review is valid only in final closed tasks.json")
+
     feat_dir = paths.feat_dir(feat_id, status=str(state.get("status") or ""))
     if feat_dir.exists():
         is_closed = str(state.get("status") or "") in CLOSED_FEAT_STATUS
@@ -5286,7 +5525,7 @@ def cmd_doctor(args: argparse.Namespace) -> int:
             continue
 
         if status == "done":
-            warnings.append(f"{feat_id}: status=done remains active; run archive-feature")
+            warnings.append(f"{feat_id}: status=done remains active; run closeout-feature")
 
         if fail_streak >= gate_fail_limit:
             warnings.append(
@@ -5719,6 +5958,29 @@ def build_parser() -> argparse.ArgumentParser:
         sp.add_argument("--root", default=".")
         sp.add_argument("--skill-dir", default=str(Path(__file__).resolve().parent.parent))
 
+    def add_closeout_review(sp: argparse.ArgumentParser) -> None:
+        sp.add_argument(
+            "--documentation-disposition",
+            choices=sorted(CLOSEOUT_DOCUMENTATION_DISPOSITIONS),
+            default="",
+        )
+        sp.add_argument("--documentation-rationale", default="")
+        sp.add_argument("--documentation-ref", action="append", default=[])
+        sp.add_argument(
+            "--learning-disposition",
+            choices=sorted(CLOSEOUT_LEARNING_DISPOSITIONS),
+            default="",
+        )
+        sp.add_argument("--learning-rationale", default="")
+        sp.add_argument("--learning-ref", action="append", default=[])
+        sp.add_argument(
+            "--promotion-disposition",
+            choices=sorted(CLOSEOUT_PROMOTION_DISPOSITIONS),
+            default="",
+        )
+        sp.add_argument("--promotion-rationale", default="")
+        sp.add_argument("--promotion-ref", action="append", default=[])
+
     sp = sub.add_parser("initialize-tracker", help="apply tracker files into project")
     add_common(sp)
     sp.set_defaults(func=cmd_apply)
@@ -5842,11 +6104,13 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--replacement", default="")
     sp.add_argument("--archive-blocked", action="store_true")
     sp.add_argument("--execute", action="store_true")
+    add_closeout_review(sp)
     sp.set_defaults(func=cmd_feat_closeout)
 
     sp = sub.add_parser("archive-feature", help="archive feature metadata without changing Git workspace")
     add_common(sp)
     sp.add_argument("--feature", dest="feat", required=True)
+    add_closeout_review(sp)
     sp.set_defaults(func=cmd_feat_archive)
 
     sp = sub.add_parser("discard-feature", help="discard feature metadata without changing Git workspace")
@@ -5854,6 +6118,7 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--feature", dest="feat", required=True)
     sp.add_argument("--reason", choices=["stale", "superseded", "cancelled", "invalid"], required=True)
     sp.add_argument("--replacement", default="")
+    add_closeout_review(sp)
     sp.set_defaults(func=cmd_feat_discard)
 
     sp = sub.add_parser("validate-tracker", help="validate tracker consistency")

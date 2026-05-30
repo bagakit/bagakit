@@ -39,6 +39,7 @@ required_files = [
   "gate_eval/skills/harness/bagakit-feature-tracker/results/runs/.gitkeep",
   "gate_validation/skills/harness/bagakit-feature-tracker/validation.toml",
   "gate_validation/skills/harness/bagakit-feature-tracker/check-feature-tracker.sh",
+  "gate_validation/skills/harness/bagakit-feature-tracker/check-feature-tracker-closeout-review.sh",
   "gate_validation/skills/harness/bagakit-feature-tracker/check-feature-tracker-concurrency.sh",
   "gate_validation/skills/harness/bagakit-feature-tracker/check-feature-tracker-goal-contract.sh",
   "gate_validation/skills/harness/bagakit-feature-tracker/check-feature-tracker-semantic-task-truth.sh",
@@ -84,6 +85,29 @@ groups = ["skills", "harness", "feature-tracker", "smoke"]
 [suite.runner]
 kind = "bash_script"
 script = "gate_validation/skills/harness/bagakit-feature-tracker/check-feature-tracker.sh"
+args = [
+  "--root",
+  "{repo_root}",
+]
+
+[[suite]]
+id = "bagakit-feature-tracker-closeout-review"
+owner = "skills/harness/bagakit-feature-tracker"
+description = "Require explicit documentation, execution-learning, and principle-conformant promotion choices before Feature closeout."
+default = true
+proof_mode = "state_machine"
+protects = ["feature-tracker closeout review completeness, option consistency, atomic publication, summary projection, and existing receipt binding"]
+oracle = ["public CLI fixture rejects missing or contradictory review choices without mutating active control truth, closes archive and discard with valid choices, and inspects final tasks, summary, and receipt hashes"]
+exercised_surface = ["feature-tracker closeout-feature, archive-feature, discard-feature, and validate-tracker commands", "final tasks.json closeout_review, summary.md, and owner-receipt.json"]
+proves = ["bagakit-feature-tracker-closeout-review proves all public closeout paths require three resolved review items, publish one canonical review atomically, project it into the summary, and bind it through the existing receipt."]
+does_not_prove = ["bagakit-feature-tracker-closeout-review does not prove that a rationale is insightful, that a document is semantically complete, or that a promoted lesson generalizes beyond its evidence."]
+timeout_seconds = 300
+validation_class = "quality"
+groups = ["skills", "harness", "feature-tracker", "quality", "closeout"]
+
+[suite.runner]
+kind = "bash_script"
+script = "gate_validation/skills/harness/bagakit-feature-tracker/check-feature-tracker-closeout-review.sh"
 args = [
   "--root",
   "{repo_root}",

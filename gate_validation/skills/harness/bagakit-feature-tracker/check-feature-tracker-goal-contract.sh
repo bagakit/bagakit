@@ -128,7 +128,8 @@ PLAN="$TMP_DIR/reviewed-plan.json"
 feature_tracker_write_reviewed_task_plan "$PLAN" "Complete a Feature that owns goal.md."
 feature_tracker_complete_reviewed_feature "$TMP_DIR" "$SKILL_DIR" "$FEATURE_ID" "$PLAN"
 bash "$SKILL_DIR/scripts/feature-tracker.sh" archive-feature \
-  --root "$TMP_DIR" --feature "$FEATURE_ID" >/dev/null
+  --root "$TMP_DIR" --feature "$FEATURE_ID" \
+  "${FEATURE_TRACKER_CLOSEOUT_REVIEW_ARGS[@]}" >/dev/null
 
 python3 - "$TMP_DIR" "$FEATURE_ID" "$REVISION_TWO" <<'PY'
 import hashlib

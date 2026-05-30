@@ -575,6 +575,38 @@ Stable closeout expectations:
   the command must still return non-zero while those errors remain
 - `closeout-feature` defaults to a dry-run plan and requires `--execute` before
   it changes tracker state
+- every archive or discard requires one explicit closeout review with three
+  resolved items:
+  - `documentation`: `updated`, `verified_current`, or `not_applicable`
+  - `learning`: `candidates_reviewed` or `no_reusable_learning`
+  - `promotion`: `routed_for_review`, `promoted`, or `not_needed`
+- every item requires a non-empty rationale; `updated`, `verified_current`,
+  `candidates_reviewed`, `routed_for_review`, and `promoted` also require one
+  or more portable repo-relative evidence refs
+- `no_reusable_learning` may pair only with `not_needed`; Tracker rejects a
+  claim that learning was both absent and routed or promoted
+- documentation review starts from changed behavior and the owning project
+  SSOT; it must not force an unrelated document edit merely to close a Feature
+- learning review is bounded to useful execution evidence such as task-plan
+  revisions, gate failures, user corrections, and final receipts or artifacts;
+  it compares the original intent and non-goals with delivered scope, checks
+  whether the shortest useful vertical closure preceded expansion, and treats
+  repeated scope growth, missing stop rules, or task-count growth without a
+  quality gain as corrected-belief candidates
+- raw session transcripts remain with their host and are not copied into
+  Feature Tracker; only bounded refs and reviewed candidate conclusions may
+  cross into closeout truth
+- before durable promotion, merge same-class candidates and route the result
+  through the repository's existing Chronicle, Evolver, Principle Layer, or
+  Living Knowledge owner as applicable; Feature Tracker does not create a
+  competing knowledge or policy store
+- the canonical review is written once as `tasks.json.closeout_review` using
+  schema `bagakit.feature-closeout-review.v1`; `summary.md` projects it, and
+  the existing execution-owner receipt binds it through the final
+  `tasks.json` hash
+- closeout review publication is part of the existing staged closeout
+  transaction; a rejected or failed closeout must not leave review state in
+  the active Feature
 - tracked feature completion means the feature reaches `archived` or
   `discarded`, or the operator leaves an explicit active reason such as
   `blocked`
@@ -608,6 +640,8 @@ Stable closeout expectations:
   because Tracker closeout must not hide unpreserved work
 - archive/discard idempotent reruns must fail closed when directory placement
   disagrees with the claimed closed status
+- idempotent reruns reuse and validate the already published closeout review;
+  they do not require or accept a second review record
 - closed features must not remain in `features/`
 
 The tracker must fail closed if active and closed directory placement disagree

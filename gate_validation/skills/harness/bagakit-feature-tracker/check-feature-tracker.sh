@@ -591,11 +591,13 @@ if bash "$SKILL_DIR/scripts/feature-tracker.sh" diagnose-tracker --root "$TMP_DI
   echo "doctor unexpectedly hid tracker validation failure" >&2
   exit 1
 fi
-grep -F "$FEATURE_ID: status=done remains active; run archive-feature" "$TMP_DIR/doctor-active-done.out" >/dev/null
-grep -F "$FEATURE_ID: active done; archive with" "$TMP_DIR/doctor-active-done.out" >/dev/null
-bash "$SKILL_DIR/scripts/feature-tracker.sh" archive-feature --root "$TMP_DIR" --feature "$FEATURE_ID" >/dev/null
+grep -F "$FEATURE_ID: status=done remains active; run closeout-feature" "$TMP_DIR/doctor-active-done.out" >/dev/null
+grep -F "$FEATURE_ID: active done; review and close with" "$TMP_DIR/doctor-active-done.out" >/dev/null
+bash "$SKILL_DIR/scripts/feature-tracker.sh" archive-feature --root "$TMP_DIR" --feature "$FEATURE_ID" \
+  "${FEATURE_TRACKER_CLOSEOUT_REVIEW_ARGS[@]}" >/dev/null
 
-bash "$SKILL_DIR/scripts/feature-tracker.sh" discard-feature --root "$TMP_DIR" --feature "$DISCARD_FEATURE_ID" --reason cancelled >/dev/null
+bash "$SKILL_DIR/scripts/feature-tracker.sh" discard-feature --root "$TMP_DIR" --feature "$DISCARD_FEATURE_ID" --reason cancelled \
+  "${FEATURE_TRACKER_CLOSEOUT_REVIEW_ARGS[@]}" >/dev/null
 
 python3 - "$TMP_DIR" "$FEATURE_ID" "$DISCARD_FEATURE_ID" "$SKILL_DIR" <<'PY'
 import json
@@ -640,10 +642,11 @@ bash "$SKILL_DIR/scripts/feature-tracker.sh" start-task --root "$TMP_DIR" --feat
 bash "$SKILL_DIR/scripts/feature-tracker.sh" run-task-gate --root "$TMP_DIR" --feature "$CLOSEOUT_FEATURE_ID" --task T-001 >/dev/null
 bash "$SKILL_DIR/scripts/feature-tracker.sh" closeout-feature --root "$TMP_DIR" --feature "$CLOSEOUT_FEATURE_ID" --task T-001 >"$TMP_DIR/closeout-plan.out"
 grep -F "plan: feature-tracker.sh finish-task" "$TMP_DIR/closeout-plan.out" >/dev/null
-grep -F "then: feature-tracker.sh archive-feature" "$TMP_DIR/closeout-plan.out" >/dev/null
+grep -F "closeout review checklist:" "$TMP_DIR/closeout-plan.out" >/dev/null
 bash "$SKILL_DIR/scripts/feature-tracker.sh" diagnose-tracker --root "$TMP_DIR" --closeout-plan >"$TMP_DIR/doctor-closeout-plan.out"
-grep -F "$CLOSEOUT_FEATURE_ID: task T-001 gate passed; close with" "$TMP_DIR/doctor-closeout-plan.out" >/dev/null
-bash "$SKILL_DIR/scripts/feature-tracker.sh" closeout-feature --root "$TMP_DIR" --feature "$CLOSEOUT_FEATURE_ID" --task T-001 --execute >/dev/null
+grep -F "$CLOSEOUT_FEATURE_ID: task T-001 gate passed; review and close with" "$TMP_DIR/doctor-closeout-plan.out" >/dev/null
+bash "$SKILL_DIR/scripts/feature-tracker.sh" closeout-feature --root "$TMP_DIR" --feature "$CLOSEOUT_FEATURE_ID" --task T-001 --execute \
+  "${FEATURE_TRACKER_CLOSEOUT_REVIEW_ARGS[@]}" >/dev/null
 test -f "$TMP_DIR/.bagakit/feature-tracker/features-archived/$CLOSEOUT_FEATURE_ID/summary.md"
 bash "$SKILL_DIR/scripts/feature-tracker.sh" create-feature \
   --root "$TMP_DIR" \

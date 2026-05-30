@@ -194,6 +194,7 @@ Closed feature roots should preserve legacy `ui-verification.md` under
 - `unstart-task` (only before gate or blocked/done completion evidence)
 - `run-task-gate`
 - `finish-task`
+- `closeout-feature`
 - `archive-feature`
 - `discard-feature`
 - `validate-tracker`

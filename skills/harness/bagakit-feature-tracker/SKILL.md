@@ -236,6 +236,26 @@ close through `archive-feature`, `discard-feature`, or
 `closeout-feature` is the single-feature operator path for completing the
 tracker lifecycle after gate work. It defaults to a dry-run plan and
 requires `--execute` before it mutates state.
+Use that dry run to resolve all three closeout review items before archive or
+discard:
+
+- documentation: `updated`, `verified_current`, or `not_applicable`
+- learning: `candidates_reviewed` or `no_reusable_learning`
+- promotion: `routed_for_review`, `promoted`, or `not_needed`
+
+Give each item a rationale and add repo-relative refs when the selected option
+claims an update, verification, reviewed candidate, route, or promotion.
+For documentation, inspect changed behavior and update only the owning SSOT.
+For learning, review bounded plan revisions, failures, corrections, and final
+evidence; compare original intent and non-goals with delivered scope; ask
+whether the shortest useful vertical closure came first and whether later work
+improved quality instead of only expanding task count. Keep raw sessions with
+their host. For promotion, merge same-class candidates, check repository
+principles, and route through existing Chronicle, Evolver, Principle Layer, or
+Living Knowledge ownership instead of creating another store.
+Tracker writes the normalized result only to final
+`tasks.json.closeout_review`; `summary.md` projects it and the existing owner
+receipt binds it. A failed closeout leaves no active review record.
 Closeout validation, option scope, staged publication, and Git-cleanup
 boundaries are normative in `docs/specs/feature-tracker-contract.md`.
 For `current_tree` features, `archive-feature` may proceed with unrelated
