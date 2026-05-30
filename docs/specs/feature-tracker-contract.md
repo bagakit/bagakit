@@ -261,6 +261,12 @@ Reviewed task-plan input schema:
 - non-empty repo-relative source references
 - one or more semantic tasks
 
+`approved` is an authority claim, not an Agent quality judgment. It means the
+user confirmed the requirements during discussion or explicitly delegated the
+review decision. The review evidence ref records that confirmation boundary.
+An Agent may draft or revise a plan, but it must not self-approve inferred
+requirements or treat implementation discoveries as user-authorized scope.
+
 Each reviewed task requires:
 
 - `id`, `title`, `objective`, and `outcome`
@@ -375,6 +381,13 @@ Rules:
 - `summary.md` is a closeout artifact and must not appear in active feature
   roots
 - closed feature roots must contain `summary.md`
+- the canonical `summary.md` must not restate `state.json.goal` or synthesize
+  requirement prose from execution; it points to the reviewed `tasks.json`
+  plan revision and its review evidence ref instead
+- when no reviewed plan exists, `summary.md` records no confirmed plan revision
+  and must not infer requirements from proposal or discard context
+- Agent-authored closeout learning must be labeled as execution learning and
+  must not redefine confirmed requirements
 - closeout keeps canonical `goal.md` at the closed Feature root and updates
   `goal_contract.ref` plus owner receipt hashes to the closed path
 - live-feature helper files such as `proposal.md`, `spec-delta.md`, and
@@ -586,13 +599,17 @@ Stable closeout expectations:
 - `no_reusable_learning` may pair only with `not_needed`; Tracker rejects a
   claim that learning was both absent and routed or promoted
 - documentation review starts from changed behavior and the owning project
-  SSOT; it must not force an unrelated document edit merely to close a Feature
+  SSOT; requirement changes may be written only from user-confirmed discussion
+  or explicitly delegated review evidence, never from Agent inference; it must
+  not force an unrelated document edit merely to close a Feature
 - learning review is bounded to useful execution evidence such as task-plan
   revisions, gate failures, user corrections, and final receipts or artifacts;
   it compares the original intent and non-goals with delivered scope, checks
   whether the shortest useful vertical closure preceded expansion, and treats
   repeated scope growth, missing stop rules, or task-count growth without a
-  quality gain as corrected-belief candidates
+  quality gain as corrected-belief candidates; the Agent may summarize these
+  candidates independently, but must merge duplicates, keep them concise, and
+  never promote them into requirements without user confirmation
 - raw session transcripts remain with their host and are not copied into
   Feature Tracker; only bounded refs and reviewed candidate conclusions may
   cross into closeout truth

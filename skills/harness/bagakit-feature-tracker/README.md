@@ -132,6 +132,8 @@ Without reviewed task truth, a new feature remains `proposal` in
 `proposal_only` mode and has no executable placeholder.
 Active execution requires version 2 `tasks.json` materialized from an approved
 `bagakit.feature-task-plan.v1` payload.
+Approval means user confirmation or an explicitly delegated review decision;
+Agent-authored plans and execution discoveries cannot self-authorize scope.
 `set-task-plan` uses optimistic `--expected-revision` checks, rejects plan
 replacement while a task is active, preserves blocked/done evidence, and
 records explicit supersession against the immediately prior current plan.
@@ -166,6 +168,10 @@ change history in repo or release surfaces rather than in active feature roots.
 Closed feature roots keep `summary.md` instead; live-only or unsupported legacy
 root entries are preserved under `artifacts/closeout-preserved-root/` during
 archive/discard so the closed feature stays contract-valid.
+The canonical closeout summary does not restate the Feature Goal as a
+requirement summary. It points to the confirmed task-plan revision and review
+evidence, while Agent-authored execution learning remains non-authoritative for
+requirements.
 If an operator already wrote `summary.md` in an active feature root, closeout
 preserves that draft under `artifacts/closeout-preserved-root/summary.md`
 before writing the canonical closed summary.

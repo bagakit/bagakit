@@ -48,6 +48,10 @@ bash "$SKILL_DIR/scripts/feature-tracker.sh" closeout-feature \
 grep -F "closeout review checklist:" "$TMP_DIR/closeout-plan.out" >/dev/null
 grep -F "shortest useful vertical closure" "$TMP_DIR/closeout-plan.out" >/dev/null
 grep -F "merge same-class candidates" "$TMP_DIR/closeout-plan.out" >/dev/null
+grep -F "requirement changes must come from user-confirmed discussion" \
+  "$TMP_DIR/closeout-plan.out" >/dev/null
+grep -F "never promote Agent-authored learning into a requirement" \
+  "$TMP_DIR/closeout-plan.out" >/dev/null
 
 if bash "$SKILL_DIR/scripts/feature-tracker.sh" archive-feature \
   --root "$TMP_DIR" --feature "$FEATURE_ID" \
@@ -123,8 +127,19 @@ ARCHIVED_DIR="$TMP_DIR/.bagakit/feature-tracker/features-archived/$FEATURE_ID"
 test ! -d "$FEATURE_DIR"
 test -f "$ARCHIVED_DIR/summary.md"
 grep -F "## Closeout Review" "$ARCHIVED_DIR/summary.md" >/dev/null
+grep -F "## Requirement Authority" "$ARCHIVED_DIR/summary.md" >/dev/null
+grep -F -- "- Canonical Truth: tasks.json" "$ARCHIVED_DIR/summary.md" >/dev/null
+grep -F -- "- Confirmed Plan Revision: 1" "$ARCHIVED_DIR/summary.md" >/dev/null
+grep -F -- "- Confirmation Ref: test/reviewed-task-plan" \
+  "$ARCHIVED_DIR/summary.md" >/dev/null
+if grep -F "Close only after documentation, learning, and promotion review" \
+  "$ARCHIVED_DIR/summary.md" >/dev/null; then
+  echo "error: archive summary restated unconfirmed Feature Goal as requirement truth" >&2
+  exit 1
+fi
 grep -F -- "- Documentation: updated" "$ARCHIVED_DIR/summary.md" >/dev/null
-grep -F -- "- Learning: candidates_reviewed" "$ARCHIVED_DIR/summary.md" >/dev/null
+grep -F -- "- Execution Learning (Agent-authored): candidates_reviewed" \
+  "$ARCHIVED_DIR/summary.md" >/dev/null
 grep -F -- "- Promotion: routed_for_review" "$ARCHIVED_DIR/summary.md" >/dev/null
 
 python3 - "$ARCHIVED_DIR" <<'PY'
@@ -183,6 +198,13 @@ bash "$SKILL_DIR/scripts/feature-tracker.sh" discard-feature \
   --root "$TMP_DIR" --feature "$DISCARD_ID" --reason cancelled \
   "${FEATURE_TRACKER_CLOSEOUT_REVIEW_ARGS[@]}" >/dev/null
 test -f "$TMP_DIR/.bagakit/feature-tracker/features-discarded/$DISCARD_ID/summary.md"
+DISCARDED_SUMMARY="$TMP_DIR/.bagakit/feature-tracker/features-discarded/$DISCARD_ID/summary.md"
+grep -F -- "- Confirmed Plan Revision: none" "$DISCARDED_SUMMARY" >/dev/null
+grep -Fx -- "- Confirmation Ref: " "$DISCARDED_SUMMARY" >/dev/null
+if grep -F "Prove discard cannot bypass closeout review" "$DISCARDED_SUMMARY" >/dev/null; then
+  echo "error: discarded proposal Goal became archived requirement truth" >&2
+  exit 1
+fi
 
 bash "$SKILL_DIR/scripts/feature-tracker.sh" validate-tracker --root "$TMP_DIR" >/dev/null
 

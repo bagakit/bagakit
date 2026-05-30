@@ -341,10 +341,10 @@ def closeout_review_guidance_lines() -> list[str]:
         "closeout review checklist:",
         "- documentation: updated | verified_current | not_applicable",
         "  arguments: --documentation-disposition <choice> --documentation-rationale <why> [--documentation-ref <repo-relative-ref>]",
-        "  method: identify changed public behavior or contracts, update the owning SSOT, or cite the reviewed owner; do not edit docs only to satisfy closeout",
+        "  method: identify changed public behavior or contracts and update only the owning SSOT; requirement changes must come from user-confirmed discussion or explicitly delegated review evidence, never Agent inference; do not edit docs only to satisfy closeout",
         "- learning: candidates_reviewed | no_reusable_learning",
         "  arguments: --learning-disposition <choice> --learning-rationale <why> [--learning-ref <repo-relative-ref>]",
-        "  method: inspect bounded plan revisions, gate failures, user corrections, and final evidence; compare original intent and non-goals with delivered scope; check that the shortest useful vertical closure came before expansion and that later work raised quality rather than only task count; keep raw sessions with their host",
+        "  method: the Agent may summarize bounded plan revisions, gate failures, user corrections, and final evidence; compare original intent and non-goals with delivered scope; check that the shortest useful vertical closure came before expansion and that later work raised quality rather than only task count; merge duplicates, keep the result concise, and never promote Agent-authored learning into a requirement without user confirmation; keep raw sessions with their host",
         "- promotion: routed_for_review | promoted | not_needed",
         "  arguments: --promotion-disposition <choice> --promotion-rationale <why> [--promotion-ref <repo-relative-ref>]",
         "  method: check repository principles, merge same-class candidates, and use the existing Chronicle, Evolver, Principle Layer, or Living Knowledge owner; remove obsolete guidance instead of appending a competing rule",
@@ -4129,12 +4129,15 @@ def render_summary(
     blocked = count_tasks(tasks, "blocked")
     counters = state.get("counters", {})
     preserved = preserved_root_entries or []
+    reviewed_plan = has_reviewed_task_plan(tasks)
+    reviewed_revision = str(tasks.get("plan_revision")) if reviewed_plan else "none"
+    confirmation_ref = str(tasks.get("review_ref") or "") if reviewed_plan else ""
     closeout_review = tasks.get("closeout_review")
     review_lines: list[str] = []
     if isinstance(closeout_review, dict):
         for group, title in (
             ("documentation", "Documentation"),
-            ("learning", "Learning"),
+            ("learning", "Execution Learning (Agent-authored)"),
             ("promotion", "Promotion"),
         ):
             item = closeout_review.get(group)
@@ -4155,7 +4158,6 @@ def render_summary(
             f"# Feature Summary: {feat_id}",
             "",
             f"- Title: {state.get('title', '')}",
-            f"- Goal: {state.get('goal', '')}",
             f"- Final Status: {state.get('status', '')}",
             f"- Closed From Status: {state.get('closed_from_status', '')}",
             f"- Workspace Mode: {workspace_mode}",
@@ -4164,6 +4166,12 @@ def render_summary(
             f"- Worktree: {state.get('worktree_path', '')}",
             f"- Discard Reason: {state.get('discard_reason') or ''}",
             f"- Replacement Feat: {state.get('replacement_feat_id') or ''}",
+            "",
+            "## Requirement Authority",
+            "- Archive Synthesis: none; archive does not reinterpret or rewrite requirements",
+            "- Canonical Truth: tasks.json",
+            f"- Confirmed Plan Revision: {reviewed_revision}",
+            f"- Confirmation Ref: {confirmation_ref}",
             "",
             "## Closure",
             "- Git Workspace: unchanged; use ordinary Git commands for worktree or branch cleanup",
@@ -4185,6 +4193,7 @@ def render_summary(
             "",
             "## Notes",
             "- Closeout review is final planning truth; durable knowledge remains with its existing project owner.",
+            "- Agent-authored execution learning is not requirement authority and must not redefine confirmed scope.",
             "",
         ]
     )

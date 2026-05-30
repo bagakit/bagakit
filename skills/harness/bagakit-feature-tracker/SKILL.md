@@ -170,6 +170,9 @@ New features without a reviewed task plan remain `proposal` + `proposal_only`
 with no executable placeholder task.
 Active execution requires explicit version 2 reviewed task truth materialized
 from `bagakit.feature-task-plan.v1` through `--tasks-file` or `set-task-plan`.
+Plan approval means the user confirmed the requirements during discussion or
+explicitly delegated the review decision. An Agent may draft the plan but must
+not self-approve inferred requirements or implementation discoveries.
 Workspace assignment and task start fail closed until that plan exists.
 Plan replacement uses `--expected-revision`, is rejected during active task
 execution, preserves blocked/done evidence, and requires explicit supersession
@@ -245,17 +248,25 @@ discard:
 
 Give each item a rationale and add repo-relative refs when the selected option
 claims an update, verification, reviewed candidate, route, or promotion.
-For documentation, inspect changed behavior and update only the owning SSOT.
-For learning, review bounded plan revisions, failures, corrections, and final
-evidence; compare original intent and non-goals with delivered scope; ask
-whether the shortest useful vertical closure came first and whether later work
-improved quality instead of only expanding task count. Keep raw sessions with
-their host. For promotion, merge same-class candidates, check repository
-principles, and route through existing Chronicle, Evolver, Principle Layer, or
-Living Knowledge ownership instead of creating another store.
+For documentation, inspect changed behavior and update only the owning SSOT;
+write requirement changes only from user-confirmed discussion or explicitly
+delegated review evidence, never from Agent inference. For learning, the Agent
+may review bounded plan revisions, failures, corrections, and final evidence;
+compare original intent and non-goals with delivered scope; ask whether the
+shortest useful vertical closure came first and whether later work improved
+quality instead of only expanding task count. Merge duplicate lessons, keep
+them concise, and do not turn them into requirements without user confirmation.
+Keep raw sessions with their host. For promotion, merge same-class candidates,
+check repository principles, and route through existing Chronicle, Evolver,
+Principle Layer, or Living Knowledge ownership instead of creating another
+store.
 Tracker writes the normalized result only to final
 `tasks.json.closeout_review`; `summary.md` projects it and the existing owner
 receipt binds it. A failed closeout leaves no active review record.
+The canonical `summary.md` does not restate the Feature Goal or regenerate
+requirements. It points to the confirmed `tasks.json` plan revision and review
+evidence; Agent-authored execution learning remains explicitly non-authoritative
+for requirements.
 Closeout validation, option scope, staged publication, and Git-cleanup
 boundaries are normative in `docs/specs/feature-tracker-contract.md`.
 For `current_tree` features, `archive-feature` may proceed with unrelated
