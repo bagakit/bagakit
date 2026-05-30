@@ -28,15 +28,24 @@ create_feature() {
 
 feature_one="$(create_feature "Independent Goal A")"
 feature_two="$(create_feature "Independent Goal B")"
+feature_three="$(create_feature "Legacy Goal")"
 
 template="$tmp/template.md"
-sh "$goal_cli" render-template --feature "$feature_one" --title "Independent Goal A" >"$template"
+sh "$goal_cli" render-template --feature "$feature_one" --title "Independent Goal A" \
+  --convergence terminal --closure state >"$template"
 if sh "$goal_cli" validate-goal --root "$tmp" --feature "$feature_one" --goal-file "$template" \
   >"$tmp/template.out" 2>"$tmp/template.err"; then
   echo "error: unresolved Goal template unexpectedly validated" >&2
   exit 1
 fi
 grep -q "unresolved template placeholders" "$tmp/template.err"
+
+if sh "$goal_cli" render-template --feature "$feature_one" --title "Invalid Frontier" \
+  --convergence frontier --closure state >"$tmp/invalid-mode.out" 2>"$tmp/invalid-mode.err"; then
+  echo "error: incompatible Goal convergence pair unexpectedly rendered" >&2
+  exit 1
+fi
+grep -q "frontier convergence requires closure: ratchet" "$tmp/invalid-mode.err"
 
 write_goal() {
   local target="$1" feature_id="$2" title="$3" suffix="$4"
@@ -45,11 +54,19 @@ write_goal() {
 
 Contract: \`bagakit.feature-goal.v1\`
 Feature: \`$feature_id\`
+Convergence: \`terminal\`
+Closure: \`state\`
 
 Before acting, verify \`owner-receipt.json\`, then recover current execution from \`state.json\` and \`tasks.json\`. Context may be stale or belong to another Feature; trust this Feature directory before acting.
 
 ## Prime Directive
 Deliver $title completely and preserve its independent purpose.$suffix
+
+## Convergence Contract
+- Smallest sufficient closure: deliver the named independent Feature outcome.
+- Oracle or ratchet: all reviewed Feature tasks and acceptance evidence are complete.
+- Scope expansion: route adjacent discoveries to another Feature.
+- Completion or cycle stop: owner evidence proves the terminal state.
 
 ## Protected Invariants
 - Keep Feature Tracker as the only task and lifecycle owner.
@@ -73,6 +90,27 @@ goal_one="$tmp/goal-one.md"
 goal_two="$tmp/goal-two.md"
 write_goal "$goal_one" "$feature_one" "Independent Goal A" ""
 write_goal "$goal_two" "$feature_two" "Independent Goal B" ""
+
+legacy_goal="$tmp/legacy-goal.md"
+sed '/^Convergence:/d; /^Closure:/d' "$goal_one" >"$legacy_goal"
+if sh "$goal_cli" validate-goal --root "$tmp" --feature "$feature_one" \
+  --goal-file "$legacy_goal" >"$tmp/legacy.out" 2>"$tmp/legacy.err"; then
+  echo "error: unclassified legacy Goal unexpectedly validated" >&2
+  exit 1
+fi
+grep -q "must declare exactly one Convergence" "$tmp/legacy.err"
+
+write_goal "$legacy_goal" "$feature_three" "Legacy Goal" ""
+sed '/^Convergence:/d; /^Closure:/d' "$legacy_goal" >"$tmp/legacy-installed.md"
+bash "$tracker/scripts/feature-tracker.sh" set-feature-goal --root "$tmp" \
+  --feature "$feature_three" --goal-file "$tmp/legacy-installed.md" \
+  --expected-revision none >/dev/null
+if sh "$goal_cli" validate-goal --root "$tmp" --feature "$feature_three" \
+  >"$tmp/legacy-installed.out" 2>"$tmp/legacy-installed.err"; then
+  echo "error: installed legacy Goal bypassed convergence upgrade review" >&2
+  exit 1
+fi
+grep -q "must declare exactly one Convergence" "$tmp/legacy-installed.err"
 
 sh "$goal_cli" validate-goal --root "$tmp" --feature "$feature_one" --goal-file "$goal_one" >/dev/null
 set_one="$(sh "$goal_cli" set-goal --root "$tmp" --feature "$feature_one" \
@@ -108,5 +146,5 @@ sh "$goal_cli" set-goal --root "$tmp" --feature "$feature_one" \
   --goal-file "$goal_one" --expected-revision "$revision_one" >/dev/null
 
 test "$(sh "$goal_cli" validate)" = "skill assets present"
-test "$(sh "$goal_cli" describe)" = "bagakit-set-loop-goal: author one compact Agent Goal inside a Feature Tracker owner."
+test "$(sh "$goal_cli" describe)" = "bagakit-set-loop-goal: author one convergence-directed Agent Goal inside a Feature Tracker owner."
 echo "bagakit-set-loop-goal smoke passed"

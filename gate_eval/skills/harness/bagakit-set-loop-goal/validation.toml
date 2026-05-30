@@ -1,0 +1,29 @@
+version = 2
+
+[[suite]]
+id = "bagakit-set-loop-goal-convergence-eval"
+owner = "gate_eval/skills/harness/bagakit-set-loop-goal"
+description = "Exercise public convergence-mode admission and preserve the known semantic Goal failure matrix."
+default = true
+proof_mode = "runtime"
+protects = ["terminal and frontier classification, closure compatibility, host activation distinction, stale Goal replacement, Feature sizing, vertical-first proof, scope expansion routing, and engineering entropy control"]
+oracle = ["dev/eval invokes render-template through the public CLI for every supported mode pair, rejects an incompatible pair, and requires the sanitized semantic forward-case inventory"]
+exercised_surface = ["skills/harness/bagakit-set-loop-goal/scripts/bagakit-set-loop-goal-cli.sh", "gate_eval/skills/harness/bagakit-set-loop-goal/cases/convergence-cases.json"]
+proves = ["The deterministic authoring surface admits only supported convergence marker pairs and the semantic forward-test inventory covers all identified serious moments."]
+does_not_prove = ["This eval does not prove that a live model authored a truthful oracle, activated a host Goal, or reduced entropy in a real project; those require model trials and project evidence."]
+timeout_seconds = 120
+validation_class = "quality"
+groups = ["skills", "harness", "set-loop-goal", "eval", "quality"]
+
+[suite.runner]
+kind = "executable"
+command = "{node}"
+args = [
+  "--experimental-strip-types",
+  "dev/eval/src/cli.ts",
+  "run",
+  "--root",
+  "{repo_root}",
+  "--suite",
+  "gate_eval/skills/harness/bagakit-set-loop-goal/suite.ts",
+]

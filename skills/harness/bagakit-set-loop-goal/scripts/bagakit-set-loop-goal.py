@@ -14,7 +14,13 @@ from typing import Iterable
 sys.dont_write_bytecode = True
 
 FEATURE_ID_RE = re.compile(r"^f-[23456789abcdefghjkmnpqrstuvwxyz]{9}$")
-TEMPLATE_TOKEN_RE = re.compile(r"<[^>\n]+>|\$\{(?:title|feature_id)\}")
+TEMPLATE_TOKEN_RE = re.compile(r"<[^>\n]+>|\$\{[a-z_]+\}")
+CONVERGENCE_RE = re.compile(r"^Convergence: `(terminal|frontier)`$", re.MULTILINE)
+CLOSURE_RE = re.compile(r"^Closure: `(state|threshold|budget|ratchet)`$", re.MULTILINE)
+VALID_CLOSURES = {
+    "terminal": {"state", "threshold", "budget"},
+    "frontier": {"ratchet"},
+}
 WRAPPER_PATH = PurePosixPath(
     ".bagakit", "feature-tracker", "features", "{feature_id}", "goal.md"
 ).as_posix()
@@ -62,11 +68,28 @@ def goal_template_source() -> str:
     return (skill_root() / "references" / "goal-template.md").read_text(encoding="utf-8")
 
 
-def render_goal_template(feature_id: str, title: str) -> str:
+def require_convergence_pair(convergence: str, closure: str) -> tuple[str, str]:
+    mode = convergence.strip().lower()
+    kind = closure.strip().lower()
+    if mode not in VALID_CLOSURES:
+        raise SystemExit("error: convergence must be terminal or frontier")
+    if kind not in VALID_CLOSURES[mode]:
+        allowed = ", ".join(sorted(VALID_CLOSURES[mode]))
+        raise SystemExit(f"error: {mode} convergence requires closure: {allowed}")
+    return mode, kind
+
+
+def render_goal_template(feature_id: str, title: str, convergence: str, closure: str) -> str:
     clean_title = title.strip()
     if not clean_title:
         raise SystemExit("error: title must be non-empty")
-    return Template(goal_template_source()).substitute(title=clean_title, feature_id=feature_id)
+    mode, kind = require_convergence_pair(convergence, closure)
+    return Template(goal_template_source()).substitute(
+        title=clean_title,
+        feature_id=feature_id,
+        convergence=mode,
+        closure=kind,
+    )
 
 
 def require_resolved_goal_file(root: str, raw_path: str) -> None:
@@ -76,14 +99,37 @@ def require_resolved_goal_file(root: str, raw_path: str) -> None:
     path = path.resolve()
     if not path.is_file():
         raise SystemExit(f"error: goal file does not exist: {path}")
-    template_tokens = set(TEMPLATE_TOKEN_RE.findall(goal_template_source()))
-    unresolved = sorted(token for token in template_tokens if token in path.read_text(encoding="utf-8"))
+    text = path.read_text(encoding="utf-8")
+    unresolved = sorted(set(TEMPLATE_TOKEN_RE.findall(text)))
     if unresolved:
         raise SystemExit("error: goal file contains unresolved template placeholders: " + ", ".join(unresolved))
+    convergence = CONVERGENCE_RE.findall(text)
+    closure = CLOSURE_RE.findall(text)
+    if len(convergence) != 1:
+        raise SystemExit("error: goal file must declare exactly one Convergence: `terminal|frontier` marker")
+    if len(closure) != 1:
+        raise SystemExit("error: goal file must declare exactly one Closure: `state|threshold|budget|ratchet` marker")
+    require_convergence_pair(convergence[0], closure[0])
+
+
+def require_active_installed_goal_if_present(root: str, feature_id: str) -> None:
+    goal_path = (
+        Path(root).resolve()
+        / ".bagakit"
+        / "feature-tracker"
+        / "features"
+        / feature_id
+        / "goal.md"
+    )
+    if goal_path.is_file():
+        require_resolved_goal_file(root, str(goal_path))
 
 
 def cmd_describe(_args: argparse.Namespace) -> int:
-    print("bagakit-set-loop-goal: author one compact Agent Goal inside a Feature Tracker owner.")
+    print(
+        "bagakit-set-loop-goal: author one convergence-directed Agent Goal "
+        "inside a Feature Tracker owner."
+    )
     return 0
 
 
@@ -99,6 +145,7 @@ def cmd_validate(_args: argparse.Namespace) -> int:
         skill_root() / "SKILL.md",
         skill_root() / "agents" / "openai.yaml",
         skill_root() / "references" / "frontdoor-rule.toml",
+        skill_root() / "references" / "convergence-contract.md",
         skill_root() / "references" / "goal-file-contract.md",
         skill_root() / "references" / "goal-template.md",
         skill_root() / "references" / "skill-cli.toml",
@@ -113,22 +160,33 @@ def cmd_validate(_args: argparse.Namespace) -> int:
 
 
 def cmd_render_template(args: argparse.Namespace) -> int:
-    print(render_goal_template(require_feature_id(args.feature), args.title), end="")
+    print(
+        render_goal_template(
+            require_feature_id(args.feature),
+            args.title,
+            args.convergence,
+            args.closure,
+        ),
+        end="",
+    )
     return 0
 
 
 def cmd_validate_goal(args: argparse.Namespace) -> int:
     cli = resolve_feature_tracker_cli(args.feature_tracker_cli)
+    feature_id = require_feature_id(args.feature)
     command = [
         "validate-feature-goal",
         "--root",
         args.root,
         "--feature",
-        require_feature_id(args.feature),
+        feature_id,
     ]
     if args.goal_file:
         require_resolved_goal_file(args.root, args.goal_file)
         command.extend(["--goal-file", args.goal_file])
+    else:
+        require_active_installed_goal_if_present(args.root, feature_id)
     return run_feature_tracker(cli, command)
 
 
@@ -167,6 +225,12 @@ def build_parser() -> argparse.ArgumentParser:
     command = sub.add_parser("render-template")
     command.add_argument("--feature", required=True)
     command.add_argument("--title", required=True)
+    command.add_argument("--convergence", choices=sorted(VALID_CLOSURES), required=True)
+    command.add_argument(
+        "--closure",
+        choices=sorted({kind for kinds in VALID_CLOSURES.values() for kind in kinds}),
+        required=True,
+    )
     command.set_defaults(func=cmd_render_template)
 
     command = sub.add_parser("validate-goal")

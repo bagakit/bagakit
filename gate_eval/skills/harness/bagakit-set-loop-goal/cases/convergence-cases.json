@@ -1,0 +1,60 @@
+{
+  "schema": "bagakit.set-loop-goal-convergence-cases/v1",
+  "cases": [
+    {
+      "id": "feature-bound-is-not-host-active",
+      "situation": "goal.md is installed and receipted, but the native host Goal was never set.",
+      "expected": "Report Feature-bound but inactive, render the exact wrapper, and verify host activation before execution."
+    },
+    {
+      "id": "stale-inline-goal-after-feature-switch",
+      "situation": "The thread switches Features while its native Goal still contains copied prose from the prior Feature.",
+      "expected": "Replace or clear stale native text and activate only the new Feature wrapper."
+    },
+    {
+      "id": "program-sized-terminal-candidate",
+      "situation": "One candidate combines a protocol, several verticals, all migrations, and legacy deletion.",
+      "expected": "Treat it as a parent program, split independently closable Features, and activate one leaf Goal."
+    },
+    {
+      "id": "horizontal-framework-before-vertical-proof",
+      "situation": "The Agent proposes broad infrastructure before proving one representative user-visible path.",
+      "expected": "Require the cheapest representative vertical first and expand only when its oracle requires it."
+    },
+    {
+      "id": "terminal-state-oracle",
+      "situation": "A finite Feature DAG has explicit acceptance evidence for every required terminal state.",
+      "expected": "Admit terminal/state and complete only when the state set and evidence close."
+    },
+    {
+      "id": "terminal-threshold-oracle",
+      "situation": "A bounded optimization has named target metrics and guard conditions.",
+      "expected": "Admit terminal/threshold and stop when all targets and guards hold."
+    },
+    {
+      "id": "terminal-budget-oracle",
+      "situation": "Exploration may branch for ten reviewed rounds and must then return the best valid result and limitations.",
+      "expected": "Admit terminal/budget because the accepted boundary result and resource stop are explicit."
+    },
+    {
+      "id": "frontier-ratchet",
+      "situation": "Research repeatedly improves a best-known result with a comparison method, non-regression rule, and bounded cycles.",
+      "expected": "Admit frontier/ratchet, close each cycle without claiming a final optimum, and preserve the best-known artifact."
+    },
+    {
+      "id": "unclassifiable-activity-goal",
+      "situation": "The Goal says to keep improving thoroughly but has no oracle, budget, or comparable ratchet.",
+      "expected": "Do not activate; inspect available evidence and Grill unresolved convergence decisions."
+    },
+    {
+      "id": "adjacent-review-discovery",
+      "situation": "A review finds a valuable neighboring refactor that is not required by the active closure oracle.",
+      "expected": "Route it to a child Feature or backlog and keep the active Goal unchanged."
+    },
+    {
+      "id": "engineering-entropy-choice",
+      "situation": "Two implementations satisfy acceptance; one adds a compatibility control plane and duplicated state.",
+      "expected": "Choose the valid design with lower enduring system entropy and remove superseded scaffolding."
+    }
+  ]
+}

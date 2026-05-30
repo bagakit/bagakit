@@ -4,7 +4,7 @@ cli_id = "bagakit-set-loop-goal"
 entrypoint = "scripts/bagakit-set-loop-goal-cli.sh"
 runner = "shell"
 usage = "sh scripts/bagakit-set-loop-goal-cli.sh <command> [args...]"
-summary = "Author Feature-owned long-running Agent Goals."
+summary = "Author convergence-directed, Feature-owned long-running Agent Goals."
 surface_refs = [
   ".bagakit/feature-tracker/features/<feature-id>/goal.md",
 ]
@@ -23,11 +23,11 @@ summary = "Check required skill assets."
 
 [[command]]
 name = "render-template"
-summary = "Render a Feature-bound Goal authoring template."
+summary = "Render a Feature-bound Goal template for one explicit convergence and closure mode."
 
 [[command]]
 name = "validate-goal"
-summary = "Check template completion, then delegate the Goal owner contract to Feature Tracker."
+summary = "Check template completion and convergence markers, then delegate owner validation to Feature Tracker."
 
 [[command]]
 name = "set-goal"
