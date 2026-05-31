@@ -67,6 +67,9 @@ alone.
    receives the smallest control-level correction that preserves valid work.
    Keep one control question and at most one unresolved corrective effect per
    target attempt. Delivery is not consumption, and consumption is not effect.
+   When repeated same-symptom attempts add no discriminating evidence, reopen
+   the premise or causal boundary before another patch or retry; attempt count
+   is a suspicion signal, not a mechanical threshold.
    Resolve unknown external effect, writer authority, and failure scope before
    retry or replacement. Treat raw time, token, tool, or failed-hypothesis
    counts as suspicion until a credible same-constraint better path is shown.
@@ -185,7 +188,9 @@ trigger a proactive report; do not request timed status chatter.
    expires first, send an honest interim update without claiming the round
    completed. Reporting must not stall independent execution.
 9. Observe delivery, consumption, and effect before another correction. An
-   unresolved effect returns to inspection with a changed hypothesis.
+   unresolved effect returns to inspection with a changed hypothesis. Do not
+   replay the same assumption when the prior attempt produced no new
+   discriminating evidence; reopen the premise or causal boundary first.
 10. Before retry or replacement, resolve safety in this order:
    external effect → writer authority → failure scope → cause and budget.
 11. Report readiness only when the current identities and required evidence

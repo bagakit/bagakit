@@ -69,9 +69,18 @@ Keep these claims separate:
 - readiness: all required current evidence joins on the same candidate
 - completion: the authorized lifecycle owner closed the work
 
-If no result is verifiable, say so and name the next evidence-producing action.
-Plain language does not remove exact commands, versions, gate names, or other
-technical identifiers needed to act or verify.
+If no result is verifiable, say so. Plain language does not remove exact
+commands, versions, gate names, or other technical identifiers needed to act or
+verify.
+
+Communication preferences shape the user-facing explanation, not evidence
+collection, reasoning completeness, tool execution, or Agent-owned work. They
+must not drop decision-relevant facts, force unsupported cause or time claims,
+erase material uncertainty, or transfer work to the user. Organize necessary
+detail. When requested certainty exceeds evidence, report the known fact and
+the calling behavior's grounded next observation; if none is grounded, name
+the blocking unknown. “Continue investigating” is not an observation, and the
+communication layer must not invent diagnosis.
 
 ## Delivery And Execution
 

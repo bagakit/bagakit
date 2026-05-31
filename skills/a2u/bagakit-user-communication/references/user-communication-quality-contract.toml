@@ -11,8 +11,8 @@ does_not_prove = "Case registration does not establish one universal cadence, re
 
 [[guard]]
 id = "TRUTHFUL_RESULT_FIRST_EXPLANATION"
-protects = "User updates lead with the current result or honest non-result, preserve decision-relevant evidence and uncertainty, and keep activity, progress, readiness, and completion distinct in plain language."
-oracle = "Paired cases reject activity inflation and unexplained Harness jargon while preserving exact technical identifiers needed to act."
+protects = "User updates lead with the current result or honest non-result, preserve decision-relevant evidence and uncertainty, keep activity, progress, readiness, and completion distinct in plain language, and shape only the explanation rather than constraining Agent-owned work."
+oracle = "Paired cases preserve every mandatory result while coalescing non-decision detail, and distinguish unsupported from grounded cause, fix, and time claims while keeping the next diagnostic observation owned by the calling behavior."
 does_not_prove = "Readability, labels, or a plausible evidence statement cannot prove the underlying fact or user understanding."
 
 [[guard]]

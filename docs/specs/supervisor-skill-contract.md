@@ -167,6 +167,12 @@ These principles govern behavior; they do not replace the identity, authority,
 effect, evidence, and readiness predicates below. A host or eval must judge the
 real decision boundary, not whether an Agent repeats the principle names.
 
+Under control by exception, repeated same-symptom attempts that add no
+discriminating evidence reopen the premise or causal boundary before another
+patch, retry, or correction. Attempt count may raise suspicion but is not an
+automatic stop rule; a failed experiment that resolves a distinct uncertainty
+may still be productive convergence.
+
 ## Ownership
 
 `bagakit-supervisor` owns portable guard behavior:
@@ -779,6 +785,11 @@ Disposition priority is safety-first:
 4. shared provider domain: open or hold the scoped circuit
 5. only then use cause, recurrence, and budget to choose method change, retry,
    restart cone, handback, or stop
+
+Recurrence without new discriminating evidence requires inspection of the
+premise or causal boundary before another cause-based attempt. Recurrence with
+bounded information gain remains evidence and must not be stopped by count
+alone.
 
 A logic defect can coexist with an unknown side effect. The unknown effect wins;
 repair or retry must not bypass readback.

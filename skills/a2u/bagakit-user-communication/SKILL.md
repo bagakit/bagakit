@@ -88,6 +88,14 @@ Owner revision, candidate identity, result predicate, control question, or
 topology unless the exact term is necessary for a decision. Preserve useful
 technical names, commands, versions, and gate names.
 
+Shape the explanation, not the work. Presentation preferences may reorder or
+compress the message, but never cap decision-relevant evidence, force an
+unsupported cause or time estimate, hide uncertainty, or hand Agent-owned work
+to the user. Organize necessary detail. When requested certainty exceeds
+current evidence, report the known fact and the calling behavior's grounded
+next observation; if none is grounded, name the blocking unknown. “Continue
+investigating” is not an observation, and this skill does not invent diagnosis.
+
 Distinguish these claims:
 
 - activity: work happened
@@ -96,9 +104,8 @@ Distinguish these claims:
 - completion: the authorized lifecycle owner closed the work
 
 Never turn activity, elapsed time, message volume, a commit, or test count into
-progress by itself. If no result is verifiable, say so directly and state the
-next evidence-producing action. State uncertainty when it changes how much the
-user should rely on the message.
+progress by itself. If no result is verifiable, say so directly. State
+uncertainty when it changes how much the user should rely on the message.
 
 ## Deliver Without Stalling Work
 

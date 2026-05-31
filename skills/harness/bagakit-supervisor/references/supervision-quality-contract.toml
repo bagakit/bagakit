@@ -12,8 +12,8 @@ does_not_prove = "The receipt checker does not observe critical-path scheduling,
 
 [[guard]]
 id = "EXECUTOR_EFFICIENCY_WITHOUT_MICROMANAGEMENT"
-protects = "Supervisor corrects evidence-backed avoidable executor waste while preserving necessary deep diagnosis, expensive proof, Worker implementation ownership, and hard terminal constraints."
-oracle = "Paired fresh-context cases contrast repeated nondiscriminating work with necessary expensive proof and bounded information gain; live evaluation separately measures verified progress, decision-changing information, delay, tokens, tool calls, restarts, and rework without a blended efficiency score."
+protects = "Supervisor corrects evidence-backed avoidable executor waste, reopens a premise when repeated same-symptom attempts add no discriminating evidence, and preserves necessary deep diagnosis, productive failed experiments, Worker implementation ownership, and hard terminal constraints."
+oracle = "Paired fresh-context cases contrast repeated command churn and repeated same-premise patches with necessary expensive proof, bounded information gain, and productive failed experiments; live evaluation separately measures verified progress, decision-changing information, delay, tokens, tool calls, restarts, and rework without a blended efficiency score."
 does_not_prove = "The receipt checker and raw cost counts cannot prove that a lower-cost path was available ex ante, compare unlike tasks, or identify the optimal implementation method."
 
 [[guard]]
