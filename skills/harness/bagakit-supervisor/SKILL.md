@@ -108,8 +108,9 @@ Before execution or intervention, bind only what changes control:
 - stop, return, observation, intervention, restart, and cost bounds
 - for a topology change, current role capacity, authority, result predicates,
   liveness, load, duplication, and conflicts
-- user communication binding: logical route, review-report cadence, language,
-  explanation level, emphasis, special constraints, and source revision
+- user communication binding: logical route, review-report cadence, maximum
+  staleness, language, explanation level, emphasis, special constraints,
+  source revision, and last report state when recovery needs it
 
 Re-admit from primary truth after compact, resume, handoff, takeover, Owner
 revision, writer or candidate change, unresolved external effect, or before a
@@ -178,8 +179,11 @@ trigger a proactive report; do not request timed status chatter.
    plain language through the current communication binding. Lead with real
    result and progress, say honestly when none is verifiable, and state the
    next control focus. A low-level observation or poll is not a completed
-   round. Report a blocker, material risk, correction, or needed user decision
-   immediately. Reporting must not stall independent execution.
+   round. Coalesce ordinary facts from the same open question into this
+   conclusion. Report a blocker, material risk, correction, route failure, or
+   needed user decision immediately. If the user's maximum-staleness bound
+   expires first, send an honest interim update without claiming the round
+   completed. Reporting must not stall independent execution.
 9. Observe delivery, consumption, and effect before another correction. An
    unresolved effect returns to inspection with a changed hypothesis.
 10. Before retry or replacement, resolve safety in this order:
@@ -193,6 +197,11 @@ Default to one user update after every completed supervision review round.
 This means one admitted control question reached a conclusion such as continue,
 inspect, steer, escalate, or ready—not that another timer fired or another
 observation arrived. User instructions may choose a different cadence.
+
+Treat a user-selected maximum-staleness interval as a silence fallback. It
+does not complete a review round, prove progress, or replace material-event
+observation. Coalesce ordinary same-question facts into the next round report;
+do not coalesce distinct decisions or urgent exceptions.
 
 Use `bagakit-user-communication` to preserve the user's logical route and
 explanation requirements across compact or resume and to write the update.

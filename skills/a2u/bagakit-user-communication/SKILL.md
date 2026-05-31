@@ -30,11 +30,13 @@ the message or its delivery:
 
 - logical route or audience
 - cadence or event trigger
+- maximum staleness before an interim update
 - language
 - explanation level
 - result or risk emphasis
 - special constraints
 - the user or Owner revision that supplied them
+- the last admitted conclusion and delivery state when recovery needs them
 
 Prefer explicit user requirements over defaults. Remember the binding in the
 task's compact-safe control context when continuity matters. Re-read current
@@ -44,8 +46,19 @@ credentials or provider-local secrets in it.
 
 ## Admit A Useful Update
 
-Send an update when the calling behavior says one is due and the message does
-at least one of these jobs:
+Reduce the Host's event stream through four questions:
+
+1. **Urgency.** If delay would hide a blocker, material risk, correction, route
+   failure, or expiring user decision, report immediately.
+2. **Semantic breakpoint.** If the calling behavior finished a meaningful unit
+   such as a review round or reached a result, report its conclusion.
+3. **Maximum staleness.** If the user-selected silence bound expires while the
+   unit remains open, send an honest interim update without claiming the unit
+   completed.
+4. **Coalescing scope.** Otherwise, merge related ordinary facts into the next
+   conclusion for the same logical work and open question, or remain silent.
+
+A useful update does at least one of these jobs:
 
 - orients the user at a meaningful start or plan boundary
 - reports a completed progress or review interval
@@ -54,8 +67,9 @@ at least one of these jobs:
 - reports completion, readiness, or a bounded stop
 
 Do not turn low-level polling, tool narration, or every observation into user
-messages. Coalesce related facts into the next admitted update unless delay
-would hide a decision, material risk, or changed outcome.
+messages. Do not coalesce across incompatible urgency, distinct user decisions,
+or different logical outcomes. A timer is a silence fallback, not the primary
+scheduler and not evidence of progress.
 
 ## Write The Message
 
@@ -97,3 +111,8 @@ route only when current user or Host truth permits it.
 For Agent recipients, use `bagakit-agent-messaging`; this skill is for a human
 user. A Supervisor composes both: A2A for Worker control and A2U for user
 visibility.
+
+For stable ownership and proof boundaries, read
+`docs/specs/user-communication-contract.md` in the canonical repository. For
+audited quality claims, read
+`references/user-communication-quality-contract.toml`.

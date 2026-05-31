@@ -1,6 +1,6 @@
 version = 1
 skill = "bagakit-user-communication"
 trigger = "An Agent must keep a user oriented with a timely start, progress, decision, blocker, correction, or completion update in plain language."
-do = "Bind the user's current communication requirements, lead with the real result, distinguish progress from activity, and leave channel authentication and delivery to the Host."
+do = "Bind the user's current communication requirements, surface urgent exceptions immediately, coalesce ordinary facts at semantic breakpoints, lead with the real result, and leave channel authentication and delivery to the Host."
 see = "skills/a2u/bagakit-user-communication/SKILL.md"
 fallback = "Use the current Host-authenticated user channel with the same result-first, plain-language, truth-calibrated semantics."

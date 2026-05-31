@@ -111,7 +111,7 @@ They do not replace the stable concept registry below.
 | `checkpoint` | a durable stop or resume marker inside execution |
 | `handoff_note` | a compact close or resume handoff for the next session or operator |
 | `agent_message_protocol` | the L1 visible envelope, source citation, plain-language exchange, and event-driven report profile for one concrete Agent-to-Agent message; Host authentication, authority, transport, and effect remain external |
-| `user_communication` | the L1 result-first, plain-language Agent-to-user explanation and task-local communication binding; calling behaviors own when to report and Hosts own identity, concrete channels, authentication, and delivery |
+| `user_communication` | the L1 result-first, plain-language Agent-to-user explanation, semantic report admission, and task-local communication binding; calling behaviors own why to report and Hosts own identity, concrete channels, authentication, and delivery |
 | `skill_selector` | the task-level or host-level skill coverage preflight, repo-aware candidate discovery, explicit skill composition, usage-evidence, and task-local evaluation loop |
 | `feature_tracker` | the execution-system surface that owns feature or ticket planning truth and lifecycle state |
 | `feature_id_cursor` | the tracked ordered issuance counter that gives feature ids stable lexical order inside one tracker repository |

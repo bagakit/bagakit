@@ -8,6 +8,7 @@ Current A2U skill sources:
 - `bagakit-user-communication`
 
 The family owns plain-language user explanation, truthful progress semantics,
-and task-local communication preference binding. It does not own user identity,
-authentication, concrete channels, delivery, credentials, task truth, or
-lifecycle closure; those remain Host or existing owner responsibilities.
+semantic report admission, and task-local communication preference binding. It
+does not own user identity, authentication, concrete channels, delivery,
+credentials, task truth, or lifecycle closure; those remain Host or existing
+owner responsibilities.

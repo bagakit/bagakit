@@ -44,11 +44,13 @@ Supervisor health is a vector, not a blended score:
   result or problem, needed action, and settling proof in receiver-language
   terms while preserving necessary technical identifiers
 - `communication_binding_freshness`: the current logical user route, cadence,
-  language, explanation level, emphasis, and special constraints are bound to
-  a current user or Owner revision and refreshed after recovery or failure
+  maximum staleness, language, explanation level, emphasis, and special
+  constraints are bound to a current user or Owner revision and refreshed
+  after recovery or failure
 - `user_visibility`: every completed review round produces one truthful,
   result-first user conclusion; low-level observations do not create chatter,
-  while blockers, material risks, corrections, and decisions surface promptly
+  same-question facts coalesce, a maximum-staleness fallback prevents silence,
+  and blockers, material risks, corrections, and decisions surface promptly
 - `report_admission`: startup establishes an event-driven Worker return channel
   for results, evidence, mismatches, blockers, decisions, and assigned verdicts
   without timer-based narration or repeated alignment ceremony
@@ -130,7 +132,7 @@ Authorized outcome: <result + constraints + acceptance + resolution refs>
 Outcome candidates: <candidate id + evidence + expected value + path effect + decision deadline + status>
 Supervisor epoch: <identity>
 Supervisor binding: <active-run-unique visible name + Host controller identity>
-User communication: <logical route + cadence + language + explanation + emphasis + constraints + source revision + last report>
+User communication: <logical route + cadence + maximum staleness + language + explanation + emphasis + constraints + source revision + last report>
 Question: <one current control question + gated decision + stop condition>
 Target: <logical task + attempt/generation + writer capability>
 Artifact candidate: <artifact identity + accepted/reviewed identity>

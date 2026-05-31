@@ -999,18 +999,26 @@ updates; it does not own a provider-specific channel or private style guide.
 The Host owns user identity, authentication, concrete delivery, credentials,
 and readback.
 
-At admission, bind the current logical route, cadence, language, explanation
-level, result or risk emphasis, special constraints, and the user or Owner
-revision that supplied them. Preserve that binding in compact-safe control
-context when continuity matters, but re-read primary truth after compact,
-resume, handoff, user revision, route failure, or apparent conflict. Do not
-persist provider-local credentials in the binding.
+At admission, bind the current logical route, cadence, maximum staleness,
+language, explanation level, result or risk emphasis, special constraints, the
+user or Owner revision that supplied them, and the last admitted report state
+when recovery needs it. Preserve that binding in compact-safe control context
+when continuity matters, but re-read primary truth after compact, resume,
+handoff, user revision, route failure, or apparent conflict. Do not persist
+provider-local credentials in the binding.
 
 Unless the user asks for another cadence, send one update after every completed
 supervision review round. A round completes when one admitted control question
 reaches a conclusion such as continue, inspect, steer, escalate, or ready. A
 timer, poll, wait snapshot, tool call, or low-level observation alone does not
 complete a round and does not earn a message.
+
+Coalesce ordinary facts from the same logical work and open control question
+into that conclusion. Do not coalesce distinct user decisions, incompatible
+urgency, or different outcomes. If the user's maximum-staleness bound expires
+while the round remains open, send an honest interim update without claiming
+the round completed. The bound prevents silence; it is not the primary
+scheduler and does not prove progress.
 
 Report a real blocker, material risk, correction, route failure, or needed user
 decision immediately. Coalesce other facts into the round conclusion. Lead
@@ -1025,6 +1033,9 @@ verifiable progress occurred and name the next evidence-producing action.
 Reporting must not serialize independent safe execution. A send attempt does
 not prove delivery, and failed delivery does not erase the conclusion or
 authorize an unbound alternative channel.
+
+The general L1 semantics and proof boundary live in
+`docs/specs/user-communication-contract.md`.
 
 ### Checkpoint
 

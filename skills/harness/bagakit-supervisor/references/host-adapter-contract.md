@@ -25,11 +25,12 @@ A host adapter may provide:
 The skill must inspect available capabilities instead of assuming all exist.
 
 For user communication, the adapter should preserve the current logical route,
-cadence, language, explanation level, emphasis, special constraints, and source
-revision separately from provider-local channel configuration. The Host owns
-user identity, authentication, credentials, concrete delivery, and readback.
-Do not claim delivery from invocation alone. A failed or unknown delivery does
-not erase the Supervisor's conclusion or silently authorize an unbound route.
+cadence, maximum staleness, language, explanation level, emphasis, special
+constraints, source revision, and last admitted report state separately from
+provider-local channel configuration. The Host owns user identity,
+authentication, credentials, concrete delivery, and readback. Do not claim
+delivery from invocation alone. A failed or unknown delivery does not erase the
+Supervisor's conclusion or silently authorize an unbound route.
 
 ## Required Topology Evidence
 

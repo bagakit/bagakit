@@ -1,0 +1,22 @@
+version = 1
+skill = "bagakit-user-communication"
+capability_review_status = "candidate"
+primary_metric = "user orientation and decision value under truthful progress, bounded interruption, continuity, and delivery-cost constraints"
+
+[[guard]]
+id = "SEMANTIC_REPORT_ADMISSION"
+protects = "Urgent decision-bearing exceptions report immediately, ordinary facts coalesce at semantic breakpoints, a maximum-staleness fallback prevents indefinite silence, and unchanged observations do not become chatter."
+oracle = "Paired fresh-context cases contrast a completed review round with a low-level observation, an urgent blocker with an ordinary fact, and a stale open round with a still-fresh one."
+does_not_prove = "Case registration does not establish one universal cadence, real interruption cost, or live user preference."
+
+[[guard]]
+id = "TRUTHFUL_RESULT_FIRST_EXPLANATION"
+protects = "User updates lead with the current result or honest non-result, preserve decision-relevant evidence and uncertainty, and keep activity, progress, readiness, and completion distinct in plain language."
+oracle = "Paired cases reject activity inflation and unexplained Harness jargon while preserving exact technical identifiers needed to act."
+does_not_prove = "Readability, labels, or a plausible evidence statement cannot prove the underlying fact or user understanding."
+
+[[guard]]
+id = "CONTINUITY_WITHOUT_TRANSPORT_CAPTURE"
+protects = "Communication preferences survive compact and recovery as a revision-bound index while user identity, credentials, concrete delivery, and readback remain Host-owned."
+oracle = "Recovery cases require primary-truth refresh, reject stale binding authority, preserve failed-delivery state, and continue independent safe work."
+does_not_prove = "A saved binding does not authenticate a user, deliver a message, or establish consumption and effect."

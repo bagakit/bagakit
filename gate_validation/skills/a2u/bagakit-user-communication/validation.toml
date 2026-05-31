@@ -6,9 +6,9 @@ owner = "skills/a2u/bagakit-user-communication"
 description = "Require the installable A2U user-communication skill and discovery metadata."
 default = true
 proof_mode = "structural"
-protects = ["one channel-neutral user-communication surface for result-first updates and task-local communication binding"]
-oracle = ["filesystem checks require the family index, public skill, UI metadata, frontdoor declaration, and validation registration"]
-exercised_surface = ["skills/a2u/bagakit-user-communication"]
+protects = ["one channel-neutral user-communication surface for result-first updates, semantic admission, and task-local communication binding"]
+oracle = ["filesystem checks require the family index, stable contract, public skill, quality contract, UI metadata, frontdoor declaration, and validation registration"]
+exercised_surface = ["skills/a2u/bagakit-user-communication", "docs/specs/user-communication-contract.md"]
 proves = ["The canonical A2U source and discovery surfaces exist."]
 does_not_prove = ["Layout does not prove message clarity, progress truth, user understanding, channel delivery, or Agent compliance."]
 validation_class = "structure"
@@ -25,10 +25,12 @@ required_dirs = [
   "gate_validation/skills/a2u/bagakit-user-communication",
 ]
 required_files = [
+  "docs/specs/user-communication-contract.md",
   "skills/a2u/README.md",
   "skills/a2u/bagakit-user-communication/SKILL.md",
   "skills/a2u/bagakit-user-communication/agents/openai.yaml",
   "skills/a2u/bagakit-user-communication/references/frontdoor-rule.toml",
+  "skills/a2u/bagakit-user-communication/references/user-communication-quality-contract.toml",
   "gate_validation/skills/a2u/README.md",
   "gate_validation/skills/a2u/bagakit-user-communication/validation.toml",
 ]

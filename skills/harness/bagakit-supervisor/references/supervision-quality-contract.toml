@@ -41,6 +41,12 @@ oracle = "Paired semantic cases contrast a jargon-heavy user status with a preci
 does_not_prove = "A valid envelope, citation, report shape, readability heuristic, or vocabulary score cannot authenticate the claimed source, prove the report true, show that a message was necessary, or establish delivery, understanding, and effect."
 
 [[guard]]
+id = "TRUTHFUL_ROUND_BOUND_USER_VISIBILITY"
+protects = "Supervisor reports one result-first conclusion at each completed semantic review round, coalesces ordinary same-question facts, uses maximum staleness only as an honest silence fallback, surfaces urgent exceptions immediately, and never turns activity or delivery into progress or effect."
+oracle = "Paired fresh-context cases contrast a round conclusion with a low-level observation, an open fresh round with a stale one, an ordinary fact with an urgent blocker, activity inflation with an honest non-result, current binding recovery with stale snapshot authority, and independent continuation with a genuinely blocked transition."
+does_not_prove = "Registered semantic cases do not prove real message truth, interruption cost, delivery, user understanding, calibrated trust, task improvement, or one universal reporting cadence."
+
+[[guard]]
 id = "FIT_BEFORE_FANOUT"
 protects = "Aligned direct work is not burdened with delegation or corrective intervention when supervision cannot earn its cost."
 oracle = "A trivial owner-ready fixture selects direct execution with zero delegated spawns; live evaluation separately measures zero false intervention and overhead."

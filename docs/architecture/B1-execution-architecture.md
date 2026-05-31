@@ -79,10 +79,12 @@ because plain-language explanation, truthful progress semantics, and task-local
 communication preference binding co-evolve across Supervisor and other calling
 behaviors.
 
-It owns message clarity and the logical route, cadence, language, explanation,
-emphasis, constraint, and source-revision binding. The calling behavior owns
-why and when an update is due. The Host owns user identity, authentication,
-concrete channel implementation, credentials, delivery, and readback.
+It owns message clarity, semantic admission, and the logical route, cadence,
+maximum-staleness, language, explanation, emphasis, constraint, and
+source-revision binding. The calling behavior owns why an update is due. The
+Host owns user identity, authentication, concrete channel implementation,
+credentials, delivery, and readback. Stable semantics live in
+`docs/specs/user-communication-contract.md`.
 
 ### execution runtime
 

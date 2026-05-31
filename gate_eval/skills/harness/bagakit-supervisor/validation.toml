@@ -3,12 +3,12 @@ version = 2
 [[suite]]
 id = "bagakit-supervisor-failure-matrix-eval"
 owner = "gate_eval/skills/harness/bagakit-supervisor"
-description = "Run every registered deterministic Supervisor case for owner binding, aligned direct execution, read-only source stability, stale premise, recovery, provider-domain circuits, composite failure safety, identity-bound completion and review, prior-writer fencing, writer authority, cost drift, optional-task readiness, observation and execution budgets, ordered safety locks, and final closure."
+description = "Run every registered deterministic Supervisor case for owner binding, aligned direct execution, read-only source stability, stale premise, recovery, provider-domain circuits, composite failure safety, identity-bound completion and review, prior-writer fencing, writer authority, cost drift, user-visibility semantics, optional-task readiness, observation and execution budgets, ordered safety locks, and final closure."
 default = true
 proof_mode = "runtime"
 protects = ["Supervisor quality cases mapped to structured guards and named direct-execution plus dispatch-only baselines"]
 oracle = ["dev/eval registers every uniquely identified case in supervision-cases.json, invokes decide or validate --final through the public checker, and where declared asserts exact task/action projections, ordered safety locks, forbidden actions, complete issue-code sets, exit status, and case-specific proof and non-proof boundaries"]
-exercised_surface = ["gate_eval/skills/harness/bagakit-supervisor/suite.ts", "gate_eval/skills/harness/bagakit-supervisor/cases/supervision-cases.json", "skills/harness/bagakit-supervisor/references/supervision-quality-contract.toml", "skills/harness/bagakit-supervisor/scripts/supervision_check.ts"]
+exercised_surface = ["gate_eval/skills/harness/bagakit-supervisor/suite.ts", "gate_eval/skills/harness/bagakit-supervisor/cases/supervision-cases.json", "gate_eval/skills/harness/bagakit-supervisor/cases/outcome-ownership-cases.json", "skills/a2u/bagakit-user-communication/references/user-communication-quality-contract.toml", "skills/harness/bagakit-supervisor/references/supervision-quality-contract.toml", "skills/harness/bagakit-supervisor/scripts/supervision_check.ts"]
 proves = ["bagakit-supervisor-failure-matrix-eval proves the deterministic guard surface covers research-derived serious moments, rejects unsafe identity and closure claims, and distinguishes aligned continuation, safety locks, intervention follow-up, and owner readiness."]
 does_not_prove = ["bagakit-supervisor-failure-matrix-eval does not run live Agents, measure real correction gain or overhead, prove host events or permissions, or establish a frontier capability claim."]
 timeout_seconds = 120
