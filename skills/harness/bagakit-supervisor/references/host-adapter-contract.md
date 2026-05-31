@@ -14,13 +14,44 @@ A host adapter may provide:
 - `observe`: return current process or task evidence
 - `wait`: block until a material event or bounded deadline
 - `message`: steer an active attempt without changing its identity when the
-  host supports that behavior; preserve the Supervisor message envelope and
+  host supports that behavior; preserve the L1 Agent message envelope and
   expose sender and controller-binding evidence separately
+- `notify_user`: deliver one user-facing update through the current logical
+  route while exposing accepted, delivered, failed, or unknown state
 - `cancel`: stop or freeze an attempt
 - `fence`: reject completion from a stale attempt capability
 - `read_state`: return authoritative host task and attempt state
 
 The skill must inspect available capabilities instead of assuming all exist.
+
+For user communication, the adapter should preserve the current logical route,
+cadence, language, explanation level, emphasis, special constraints, and source
+revision separately from provider-local channel configuration. The Host owns
+user identity, authentication, credentials, concrete delivery, and readback.
+Do not claim delivery from invocation alone. A failed or unknown delivery does
+not erase the Supervisor's conclusion or silently authorize an unbound route.
+
+## Required Topology Evidence
+
+Before Supervisor changes team topology, the adapter should expose a bounded
+current view of the relevant attempts or roles:
+
+- role, target attempt, candidate identity, and current authority
+- current assignment and declared result predicate
+- material liveness state and latest artifact, evidence, verdict, or absence
+- waiting predicate or maximum-staleness boundary
+- current workload or blocking predicate when known
+- duplicate assignment, stale target, authority conflict, and write overlap
+
+This view is admission evidence for one dispatch decision, not a portable team
+registry. The Host remains the authority for live identities, capabilities,
+load, cancellation, and fencing. Missing telemetry is unknown, not idle.
+
+A role is not usable capacity merely because it was spawned, acknowledged a
+prompt, has a process, emitted tool activity, or reached process completion.
+Its declared result predicate must be current or still credibly in progress.
+When a result is missing, expose enough failure state for the Supervisor to
+inspect before duplicate dispatch, reassignment, or replacement.
 
 ## Required Dispatch Evidence
 
@@ -38,6 +69,17 @@ Before treating an attempt as running, establish:
 
 A returned task id, tmux session, pane, process id, or tool call alone does not
 prove the worker received the prompt, has correct permissions, or is current.
+
+After dispatch, preserve the current Owner, assignment, and acceptance refs
+alongside the Worker's first material response when the Host can expose it.
+That evidence lets the Supervisor check bounded goal assimilation without
+turning the Host into a semantic grader. The Host need not parse a fixed
+template; it only preserves attribution and current target identity.
+
+For later Worker reports, preserve sender, target attempt, candidate identity,
+and receipt time separately from the visible L1 message. The semantic report
+profile may help the Supervisor read the result, evidence, mismatch, and next
+action; it does not replace Host attribution or prove the reported fact.
 
 Before delivering a Supervisor message, the Host should bind:
 
@@ -69,12 +111,12 @@ bound to the current attempt and candidate identity. The portable
 `intervention_refs[]` and `effect_refs[]` may point at these Host receipts; do
 not copy the Host ledger into visible XML or a second Agent-authored truth.
 
-The XML envelope is visible recognition metadata. Host identities, Owner
-revision, target attempt, correlation, deduplication, and controller authority
-stay outside it. Do not infer sender identity or authority from its text. If
-the Host cannot authenticate sender and current controller binding, label the
-message unproven and do not use it as an action-bearing correction or closure
-evidence.
+The L1 Agent message envelope is visible recognition metadata. Host identities,
+Owner revision, target attempt, correlation, deduplication, and controller
+authority stay outside it. A nested citation is also attributed text rather
+than source authentication. If the Host cannot authenticate sender and current
+controller binding, label the message unproven and do not use it as an
+action-bearing correction or closure evidence.
 
 Before replacement, require a host acknowledgement that the prior writer
 capability is revoked, released, or isolated. Persist that evidence before a
@@ -147,6 +189,7 @@ Host adapters own provider-specific mechanics such as:
 - tmux or terminal operation
 - worktree creation and isolation
 - transport retries and heartbeats
+- user-channel authentication, delivery, and readback
 - capability token enforcement
 - host logs and trace storage
 

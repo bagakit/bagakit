@@ -39,6 +39,22 @@ interface CaseBank {
   cases: CaseDefinition[];
 }
 
+interface SemanticCaseDefinition {
+  id: string;
+  contrast_pair: string;
+  prompt: string;
+  expected_disposition: string;
+  must: string[];
+  must_not: string[];
+  critical_failure: string;
+}
+
+interface SemanticCaseBank {
+  schema: string;
+  quality_vectors: string[];
+  cases: SemanticCaseDefinition[];
+}
+
 function artifact(ref = "artifacts/result.md", identity = "sha256:result-v1"): JsonRecord {
   return { ref, identity, evidence_refs: [`host://artifact/${identity.slice(7)}`] };
 }
@@ -558,6 +574,21 @@ const canonicalIds = caseBank.cases.map((definition) => definition.id);
 assert.equal(new Set(canonicalIds).size, canonicalIds.length, "supervision eval case ids must be unique");
 for (const definition of caseBank.cases) assert.ok(new Set(["decide", "validate_final"]).has(definition.command ?? "decide"), `${definition.id}: unsupported command`);
 assert.ok(caseBank.cases.some((definition) => definition.command === "validate_final"), "case bank must exercise validate --final");
+
+const semanticCasesPath = path.join(suiteDir, "cases", "outcome-ownership-cases.json");
+const semanticCaseBank = JSON.parse(fs.readFileSync(semanticCasesPath, "utf8")) as SemanticCaseBank;
+assert.equal(semanticCaseBank.schema, "bagakit/supervisor-outcome-ownership-cases/v1");
+assert.ok(semanticCaseBank.quality_vectors.length > 0, "semantic case bank must name quality vectors");
+const semanticIds = semanticCaseBank.cases.map((definition) => definition.id);
+assert.equal(new Set(semanticIds).size, semanticIds.length, "semantic case ids must be unique");
+for (const definition of semanticCaseBank.cases) {
+  assert.ok(definition.contrast_pair.trim(), `${definition.id}: missing contrast pair`);
+  assert.ok(definition.prompt.trim(), `${definition.id}: missing prompt`);
+  assert.ok(definition.expected_disposition.trim(), `${definition.id}: missing expected disposition`);
+  assert.ok(definition.must.length > 0, `${definition.id}: missing must rules`);
+  assert.ok(definition.must_not.length > 0, `${definition.id}: missing must_not rules`);
+  assert.ok(definition.critical_failure.trim(), `${definition.id}: missing critical failure`);
+}
 
 export const SUITE: EvalSuiteDefinition = {
   id: "bagakit-supervisor-failure-matrix",

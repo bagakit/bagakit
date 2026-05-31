@@ -1,3 +1,0 @@
-<bagakit-msg type="supervisor-v1" name="Cedar-7K2M" time="2000-01-01T00:00:00+00:00">
-Please preserve the verified parser fix and revert only the response-shape change.
-</bagakit-msg>

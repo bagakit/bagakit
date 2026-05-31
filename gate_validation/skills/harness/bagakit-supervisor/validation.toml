@@ -3,10 +3,10 @@ version = 2
 [[suite]]
 id = "bagakit-supervisor-layout"
 owner = "skills/harness/bagakit-supervisor"
-description = "Require the installable Supervisor public surface, stable owner-bound contract, read-only checker, receipt and message templates, and discovery declarations."
+description = "Require the installable Supervisor public surface, stable owner-bound contract, read-only checker, receipt template, and discovery declarations."
 default = true
 proof_mode = "structural"
-protects = ["bagakit-supervisor canonical install identity, stable semantic contract, public receipt/checker boundary, worker-facing message-envelope template, and discovery declarations"]
+protects = ["bagakit-supervisor canonical install identity, stable semantic contract, public receipt/checker boundary, L1 Agent-messaging delegation, and discovery declarations"]
 oracle = ["filesystem runner checks only stable public and install contract files while excluding compatibility payloads; runtime behavior and non-gating eval remain owned by their separate suites"]
 exercised_surface = ["skills/harness/bagakit-supervisor public install surface", "docs/specs/supervisor-skill-contract.md"]
 proves = ["bagakit-supervisor-layout proves the canonical installable and repository-owned proof surfaces are present."]
@@ -28,11 +28,9 @@ required_files = [
   "skills/harness/bagakit-supervisor/SKILL.md",
   "skills/harness/bagakit-supervisor/agents/openai.yaml",
   "skills/harness/bagakit-supervisor/assets/supervision-receipt.template.json",
-  "skills/harness/bagakit-supervisor/assets/supervisor-message.template.xml",
   "skills/harness/bagakit-supervisor/references/frontdoor-rule.toml",
   "skills/harness/bagakit-supervisor/references/skill-cli.toml",
   "skills/harness/bagakit-supervisor/scripts/supervision_check.ts",
-  "skills/harness/bagakit-supervisor/scripts/supervisor_message_check.py",
 ]
 forbidden_paths = [
   "skills/harness/bagakit-supervisor/SKILL_PAYLOAD.json",
@@ -46,14 +44,14 @@ forbidden_paths = [
 [[suite]]
 id = "bagakit-supervisor-receipt-runtime"
 owner = "skills/harness/bagakit-supervisor"
-description = "Exercise public receipt inspection, decision, and final validation plus the compact worker-facing Supervisor message-envelope shape and fail-stop stdin emission across owner binding, route axes, identity, intervention effects, failure safety, false completion, recovery, and message source fields."
+description = "Exercise public receipt inspection, decision, and final validation across owner binding, route axes, identity, intervention effects, failure safety, false completion, and recovery; generic Agent message validation belongs to the L1 Agent-messaging gate."
 default = true
 proof_mode = "runtime"
-protects = ["portable supervisor receipt semantics and the source-identifiable worker-message envelope without confusing visible XML identity with Host authority or emitting malformed input toward actuation"]
-oracle = ["TypeScript runtime test invokes the receipt checker and XML envelope helper through file and stdin boundaries, asserting safety actions, identity joins, exact issue codes, exact valid emission, empty invalid emission, required type/name/time/body fields, and rejection of self-asserted priority or unsafe XML constructs"]
-exercised_surface = ["skills/harness/bagakit-supervisor/scripts/supervision_check.ts public CLI", "skills/harness/bagakit-supervisor/scripts/supervisor_message_check.py public helper", "bagakit/supervision-receipt/v1 and bagakit-msg supervisor-v1 fixtures"]
-proves = ["bagakit-supervisor-receipt-runtime proves deterministic receipt guards, the compact XML envelope shape, and fail-stop stdin emission that exposes no invalid actuation payload."]
-does_not_prove = ["bagakit-supervisor-receipt-runtime does not authenticate a Supervisor, reserve a unique name, establish controller authority, prove message freshness or effect, grade artifact quality, or establish comparative superiority."]
+protects = ["portable Supervisor receipt semantics without duplicating L1 Agent-message syntax or transport authority"]
+oracle = ["TypeScript runtime test invokes the receipt checker through file boundaries and asserts safety actions, identity joins, exact issue codes, and current readiness rules"]
+exercised_surface = ["skills/harness/bagakit-supervisor/scripts/supervision_check.ts public CLI", "bagakit/supervision-receipt/v1 fixtures"]
+proves = ["bagakit-supervisor-receipt-runtime proves its deterministic receipt guards and readiness projections."]
+does_not_prove = ["bagakit-supervisor-receipt-runtime does not validate the L1 Agent-message protocol, authenticate a Supervisor, enforce Host authority, grade artifact quality, or establish comparative superiority."]
 timeout_seconds = 120
 validation_class = "smoke"
 groups = ["skills", "harness", "supervisor", "runtime"]

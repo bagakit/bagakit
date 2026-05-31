@@ -4,6 +4,8 @@ This directory is the long-term home for installable Bagakit skill sources.
 
 The required layout is family-based:
 
+- `skills/a2a/`
+- `skills/a2u/`
 - `skills/harness/`
 - `skills/design/`
 - `skills/swe/`

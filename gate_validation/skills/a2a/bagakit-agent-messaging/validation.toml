@@ -1,0 +1,72 @@
+version = 2
+
+[[suite]]
+id = "bagakit-agent-messaging-layout"
+owner = "skills/a2a/bagakit-agent-messaging"
+description = "Require the installable L1 Agent messaging skill, stable contract, visible message templates, public validator, and discovery metadata."
+default = true
+proof_mode = "structural"
+protects = ["one canonical L1 Agent-message protocol surface instead of role-private envelope implementations"]
+oracle = ["filesystem checks require the public skill, stable spec, templates, guide, validator, and UI metadata"]
+exercised_surface = ["skills/a2a/bagakit-agent-messaging", "docs/specs/agent-message-contract.md"]
+proves = ["The canonical source and validation surfaces exist."]
+does_not_prove = ["Layout does not prove message clarity, sender authority, transport behavior, or Agent compliance."]
+validation_class = "structure"
+groups = ["skills", "a2a", "agent-messaging", "structure"]
+
+[suite.runner]
+kind = "fs"
+required_dirs = [
+  "skills/a2a",
+  "skills/a2a/bagakit-agent-messaging",
+  "skills/a2a/bagakit-agent-messaging/agents",
+  "skills/a2a/bagakit-agent-messaging/assets",
+  "skills/a2a/bagakit-agent-messaging/references",
+  "skills/a2a/bagakit-agent-messaging/scripts",
+  "gate_validation/skills/a2a",
+  "gate_validation/skills/a2a/bagakit-agent-messaging",
+]
+required_files = [
+  "docs/specs/agent-message-contract.md",
+  "skills/a2a/README.md",
+  "skills/a2a/bagakit-agent-messaging/SKILL.md",
+  "skills/a2a/bagakit-agent-messaging/agents/openai.yaml",
+  "skills/a2a/bagakit-agent-messaging/assets/agent-message.template.xml",
+  "skills/a2a/bagakit-agent-messaging/assets/worker-report.template.xml",
+  "skills/a2a/bagakit-agent-messaging/references/agent-message-contract.md",
+  "skills/a2a/bagakit-agent-messaging/references/frontdoor-rule.toml",
+  "skills/a2a/bagakit-agent-messaging/references/skill-cli.toml",
+  "skills/a2a/bagakit-agent-messaging/scripts/agent_message_check.py",
+  "gate_validation/skills/a2a/README.md",
+  "gate_validation/skills/a2a/bagakit-agent-messaging/validation.toml",
+  "gate_validation/skills/a2a/bagakit-agent-messaging/check-agent-messaging.py",
+]
+forbidden_paths = [
+  "skills/a2a/bagakit-agent-messaging/SKILL_PAYLOAD.json",
+  "skills/a2a/bagakit-agent-messaging/README.md",
+  "skills/a2a/bagakit-agent-messaging/AGENTS.md",
+]
+
+[[suite]]
+id = "bagakit-agent-messaging-runtime"
+owner = "skills/a2a/bagakit-agent-messaging"
+description = "Exercise generic Agent sender profiles, direct citations, forbidden nested markup, required identity metadata, XML safety, and fail-stop exact emission."
+default = true
+proof_mode = "runtime"
+protects = ["compact source-attributable Agent messages without visible self-asserted authority or malformed actuation payloads"]
+oracle = ["public CLI cases validate both Agent and Worker templates, mixed cite content, exact issue codes, unsafe XML rejection, and zero invalid stdout on emit"]
+exercised_surface = ["scripts/agent_message_check.py public CLI", "bagakit-msg Agent profiles", "cite source attribution"]
+proves = ["The validator enforces its declared visible XML grammar and fail-stop emission behavior."]
+does_not_prove = ["The validator does not authenticate a sender or citation, grant authority, grade plain language, prove delivery or effect, or show that a message was necessary."]
+timeout_seconds = 30
+validation_class = "smoke"
+groups = ["skills", "a2a", "agent-messaging", "runtime"]
+
+[suite.runner]
+kind = "executable"
+command = "{python}"
+args = [
+  "gate_validation/skills/a2a/bagakit-agent-messaging/check-agent-messaging.py",
+  "--root",
+  "{repo_root}",
+]

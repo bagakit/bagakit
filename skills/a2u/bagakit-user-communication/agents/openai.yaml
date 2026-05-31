@@ -1,0 +1,4 @@
+interface:
+  display_name: "Bagakit User Communication"
+  short_description: "Clear, timely, result-first user updates"
+  default_prompt: "Use $bagakit-user-communication to give the user a clear, timely, result-first update in plain language."

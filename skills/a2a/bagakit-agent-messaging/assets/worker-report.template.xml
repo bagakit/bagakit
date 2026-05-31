@@ -1,0 +1,7 @@
+<bagakit-msg type="worker-v1" name="Worker-4P2A" time="2000-01-01T00:00:00+00:00">
+Goal: Deliver the user-visible command behavior without changing the API.
+Result: The failure is reproduced on the current version.
+Evidence: The public command fails the existing negative fixture.
+Mismatch or blocker: none
+Next: Trace the response-shape path and make the smallest behavior-preserving fix.
+</bagakit-msg>

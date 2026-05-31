@@ -11,7 +11,8 @@ ordinary skills without turning those skills into host definitions.
 
 It focuses on three things:
 
-- the concrete runtime topology under `skills/harness/`
+- the concrete runtime topology across `skills/harness/` and cross-role
+  capability families such as `skills/a2a/` and `skills/a2u/`
 - the paired knowledge and memory surfaces those runtime units work with
 - the composition rule that allows deep coupling without breaking independent
   distribution
@@ -55,6 +56,8 @@ flowchart LR
     subgraph L1["L1 execution"]
         SEL["bagakit-skill-selector"]
         RUN["feature-tracker / flow-runner"]
+        MSG["bagakit-agent-messaging"]
+        USER["bagakit-user-communication"]
     end
 
     subgraph L2A["L2 evidence and host knowledge"]
@@ -70,6 +73,8 @@ flowchart LR
     SEL -->|explicit task composition| LIV
     SEL -->|explicit task composition| EVO
     SEL -->|execution selection| RUN
+    SEL -->|explicit task composition| MSG
+    SEL -->|explicit task composition| USER
 
     RUN -->|task and run evidence| EVO
     RUN -->|project-facing artifacts| LIV
@@ -80,6 +85,8 @@ flowchart LR
     RES <-.standalone-first optional composition.-> LIV
     HOST -->|defines host layout and loop| SEL
     HOST -->|selects execution capabilities| RUN
+    HOST -->|authenticates and transports| MSG
+    HOST -->|authenticates and delivers| USER
 ```
 
 The L4 arrows mean composition and host purpose, not ownership transfer. Stable
@@ -130,6 +137,16 @@ The pairs mean:
 - `feature-tracker / flow-runner`
   - the current execution-surface naming direction for planning truth and
     repeated execution flow
+- `bagakit-agent-messaging`
+  - the L1 visible exchange protocol used by L2 behaviors while the Host keeps
+    authentication, authority, transport, and effect truth
+  - its canonical runtime source lives under `skills/a2a/`, not inside one
+    calling behavior's family
+- `bagakit-user-communication`
+  - the L1 result-first user explanation and communication-binding capability
+    used by calling behaviors while the Host keeps user identity, concrete
+    channel, authentication, delivery, and credentials
+  - its canonical runtime source lives under `skills/a2u/`
 
 In this document:
 
@@ -346,6 +363,8 @@ It only means the canonical repository can act as both:
 
 Current canonical runtime units in this topology are:
 
+- `skills/a2a/bagakit-agent-messaging/`
+- `skills/a2u/bagakit-user-communication/`
 - `skills/harness/bagakit-skill-selector/`
 - `skills/harness/bagakit-skill-evolver/`
 - `skills/harness/bagakit-living-knowledge/`

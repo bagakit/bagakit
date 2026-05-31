@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate or emit one portable Bagakit Supervisor message envelope."""
+"""Validate or emit one portable Bagakit Agent message envelope."""
 
 from __future__ import annotations
 
@@ -13,7 +13,17 @@ from pathlib import Path
 
 
 ROOT_ATTRIBUTES = {"type", "name", "time"}
-MESSAGE_TYPE = "supervisor-v1"
+MESSAGE_TYPES = {
+    "agent-v1",
+    "supervisor-v1",
+    "worker-v1",
+    "reviewer-v1",
+    "tester-v1",
+    "auditor-v1",
+    "researcher-v1",
+}
+CITE_ATTRIBUTES = {"from", "ref"}
+CITE_SOURCES = {"user", "supervisor", "worker", "host", "reviewer", "tester", "evidence"}
 
 
 def issue(code: str, path: str, message: str) -> dict[str, str]:
@@ -27,6 +37,27 @@ def valid_time(value: str) -> bool:
     except ValueError:
         return False
     return "T" in value and parsed.tzinfo is not None
+
+
+def validate_cite(element: ET.Element, index: int) -> list[dict[str, str]]:
+    path = f"$.cite[{index}]"
+    issues: list[dict[str, str]] = []
+    actual_attributes = set(element.attrib)
+    for name in sorted({"from"} - actual_attributes):
+        issues.append(issue("cite.attribute.missing", f"{path}.@{name}", "required cite attribute is missing"))
+    for name in sorted(actual_attributes - CITE_ATTRIBUTES):
+        issues.append(issue("cite.attribute.unknown", f"{path}.@{name}", "unknown cite attribute is forbidden"))
+    for name in sorted(CITE_ATTRIBUTES & actual_attributes):
+        if not element.attrib[name].strip():
+            issues.append(issue("cite.attribute.empty", f"{path}.@{name}", "cite attribute must be non-empty"))
+    source = element.attrib.get("from")
+    if source and source not in CITE_SOURCES:
+        issues.append(issue("cite.from.invalid", f"{path}.@from", f"unsupported cite source: {source}"))
+    if list(element):
+        issues.append(issue("cite.nested", path, "cite content must be plain text without nested elements"))
+    if not "".join(element.itertext()).strip():
+        issues.append(issue("cite.content.empty", path, "cite content must be non-empty"))
+    return issues
 
 
 def validate(text: str) -> list[dict[str, str]]:
@@ -55,13 +86,20 @@ def validate(text: str) -> list[dict[str, str]]:
         if not root.attrib[name].strip():
             issues.append(issue("attribute.empty", f"$.@{name}", "attribute must be non-empty"))
 
-    if root.attrib.get("type") not in {None, MESSAGE_TYPE}:
-        issues.append(issue("type.invalid", "$.@type", f"must equal {MESSAGE_TYPE}"))
+    message_type = root.attrib.get("type")
+    if message_type and message_type not in MESSAGE_TYPES:
+        issues.append(issue("type.invalid", "$.@type", f"unsupported Agent message type: {message_type}"))
     if "time" in root.attrib and not valid_time(root.attrib["time"]):
         issues.append(issue("time.invalid", "$.@time", "time must be an ISO 8601 timestamp with a timezone"))
 
-    if list(root):
-        issues.append(issue("content.nested", "$", "message body must be plain text without nested elements"))
+    cite_index = 0
+    for child_index, child in enumerate(root):
+        if child.tag != "cite":
+            issues.append(issue("content.element", f"$[{child_index}]", "only direct cite elements are allowed in the message body"))
+            continue
+        issues.extend(validate_cite(child, cite_index))
+        cite_index += 1
+
     if not "".join(root.itertext()).strip():
         issues.append(issue("content.empty", "$", "message body must be non-empty"))
 
@@ -69,7 +107,7 @@ def validate(text: str) -> list[dict[str, str]]:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Validate a Bagakit Supervisor XML message envelope.")
+    parser = argparse.ArgumentParser(description="Validate one Bagakit Agent message envelope.")
     parser.add_argument("--input", required=True, help="Path to one bagakit-msg XML file, or - for stdin.")
     output = parser.add_mutually_exclusive_group()
     output.add_argument("--json", action="store_true", help="Emit structured validation JSON.")
@@ -81,7 +119,7 @@ def main() -> int:
         print(f"error: {error}", file=sys.stderr)
         return 2
     issues = validate(text)
-    payload = {"schema": "bagakit/supervisor-message-validation/v1", "valid": not issues, "issues": issues}
+    payload = {"schema": "bagakit/agent-message-validation/v1", "valid": not issues, "issues": issues}
     if args.emit:
         if issues:
             for item in issues:

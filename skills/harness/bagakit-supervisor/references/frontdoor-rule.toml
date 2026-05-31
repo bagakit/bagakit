@@ -1,6 +1,6 @@
 version = 1
 skill = "bagakit-supervisor"
 trigger = "Capable Agent execution may run long, become passive or wasteful, drift from its goal, lose convergence, serialize behind assurance, delegate, recover, or claim completion."
-do = "Actively own efficient, high-quality convergence to current Owner truth: understand the user's real desired result, surface evidence-backed unarticulated outcomes as candidates rather than silent scope, seek the best permission-valid path to reach authorized truth better and faster, and require exact-current-candidate readiness without taking over implementation."
+do = "Actively own efficient, high-quality convergence to current Owner truth: understand the user's real desired result, keep Worker method ownership intact, use A2A for Worker control and A2U for result-first user visibility after each review round, and require exact-current-candidate readiness."
 see = "skills/harness/bagakit-supervisor/SKILL.md"
 fallback = "Use the same harness around one direct Agent without fan-out; let the host own provider and process mechanics."

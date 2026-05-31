@@ -52,8 +52,11 @@ The distributable runtime surface of the Bagakit system is:
 
 - `skills/`
 
-More specifically, the system-owned runtime units live under:
+More specifically, system-owned runtime units live under capability families
+such as:
 
+- `skills/a2a/`
+- `skills/a2u/`
 - `skills/harness/`
 
 Those runtime units must satisfy both conditions:
@@ -66,6 +69,10 @@ This means:
 - `skills/` is the broad distributable runtime surface
 - `skills/harness/` is the canonical home for the runtime units that compose
   the Bagakit system itself
+- `skills/a2a/` is the canonical home for role-neutral Agent communication
+  capabilities that co-evolve across harness behaviors and hosts
+- `skills/a2u/` is the canonical home for role-neutral user-communication
+  capabilities that co-evolve across harness behaviors and hosts
 - install and link distribution should project directly from those skill
   directories into runtime pickup directories such as repo-local `.codex/skills/`
   or global `$AGENTS_HOME/skills` or `~/.agents/skills`
@@ -170,7 +177,9 @@ Canonical landing surfaces are:
 
 This structure implies:
 
-1. `skills/harness/` should be treated as the system-owned runtime surface.
+1. `skills/` families, including `skills/harness/`, `skills/a2a/`, and
+   `skills/a2u/`, should be treated as the system-owned runtime surface for
+   their declared co-evolution boundaries.
 2. Architecture, contracts, routing, and promotion authority should stay
    outside runtime payloads unless a specific capability truly requires them.
 3. Self-hosting should be discussed under stewardship and governance, not as a

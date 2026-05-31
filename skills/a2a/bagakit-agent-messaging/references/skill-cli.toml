@@ -1,0 +1,8 @@
+version = 1
+skill = "bagakit-agent-messaging"
+cli_id = "bagakit-agent-message-check"
+entrypoint = "scripts/agent_message_check.py"
+runner = "python"
+usage = "python3 scripts/agent_message_check.py --input <message.xml|-> [--json|--emit]"
+summary = "Validate one visible Bagakit Agent-message envelope or emit its exact input only after a successful check."
+surface_refs = ["<caller-chosen-message.xml>"]

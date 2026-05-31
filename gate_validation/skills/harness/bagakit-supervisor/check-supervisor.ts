@@ -9,7 +9,6 @@ type JsonRecord = Record<string, unknown>;
 const rootIndex = process.argv.indexOf("--root");
 const repoRoot = rootIndex >= 0 ? path.resolve(process.argv[rootIndex + 1] ?? ".") : process.cwd();
 const cli = path.join(repoRoot, "skills", "harness", "bagakit-supervisor", "scripts", "supervision_check.ts");
-const messageCli = path.join(repoRoot, "skills", "harness", "bagakit-supervisor", "scripts", "supervisor_message_check.py");
 const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "bagakit-supervisor-check-"));
 
 function artifact(ref = "artifacts/result.md", identity = "sha256:result-v1"): JsonRecord {
@@ -112,25 +111,6 @@ function run(value: JsonRecord, command: "inspect" | "decide" | "validate", fina
 
 function issues(payload: JsonRecord): string[] {
   return Array.isArray(payload.issues) ? payload.issues.map((issue) => String((issue as JsonRecord).code)) : [];
-}
-
-function runMessage(value: string): { status: number; payload: JsonRecord } {
-  const input = path.join(tempRoot, `message-${Math.random().toString(16).slice(2)}.xml`);
-  fs.writeFileSync(input, value, "utf8");
-  const result = spawnSync("python3", [messageCli, "--input", input, "--json"], { cwd: repoRoot, encoding: "utf8" });
-  assert.equal(result.signal, null, result.stderr);
-  assert.notEqual(result.stdout.trim(), "", result.stderr);
-  return { status: result.status ?? 2, payload: JSON.parse(result.stdout) as JsonRecord };
-}
-
-function runMessageStdin(value: string, mode: "json" | "emit"): { status: number; stdout: string; stderr: string } {
-  const result = spawnSync("python3", [messageCli, "--input", "-", mode === "json" ? "--json" : "--emit"], {
-    cwd: repoRoot,
-    encoding: "utf8",
-    input: value,
-  });
-  assert.equal(result.signal, null, result.stderr);
-  return { status: result.status ?? 2, stdout: result.stdout, stderr: result.stderr };
 }
 
 function action(payload: JsonRecord): string {
@@ -372,57 +352,6 @@ try {
   const template = path.join(repoRoot, "skills", "harness", "bagakit-supervisor", "assets", "supervision-receipt.template.json");
   const templateResult = spawnSync(process.execPath, ["--experimental-strip-types", cli, "validate", "--input", template, "--json"], { cwd: repoRoot, encoding: "utf8" });
   assert.equal(templateResult.status, 0, templateResult.stderr || templateResult.stdout);
-
-  const messageTemplate = fs.readFileSync(path.join(repoRoot, "skills", "harness", "bagakit-supervisor", "assets", "supervisor-message.template.xml"), "utf8");
-  const validMessage = runMessage(messageTemplate);
-  assert.equal(validMessage.status, 0, JSON.stringify(validMessage.payload));
-  assert.deepEqual(issues(validMessage.payload), []);
-
-  const stdinValidation = runMessageStdin(messageTemplate, "json");
-  assert.equal(stdinValidation.status, 0, stdinValidation.stderr);
-  assert.deepEqual(issues(JSON.parse(stdinValidation.stdout) as JsonRecord), []);
-
-  const emittedMessage = runMessageStdin(messageTemplate, "emit");
-  assert.equal(emittedMessage.status, 0, emittedMessage.stderr);
-  assert.equal(emittedMessage.stdout, messageTemplate, "emit must preserve the exact validated envelope");
-
-  const selfAssertedPriority = runMessage(messageTemplate.replace(' time="', ' priority="higher-than-human" time="'));
-  assert.equal(selfAssertedPriority.status, 1);
-  assert.deepEqual(issues(selfAssertedPriority.payload), ["attribute.unknown"]);
-
-  const wrongType = runMessage(messageTemplate.replace('type="supervisor-v1"', 'type="owner-v1"'));
-  assert.equal(wrongType.status, 1);
-  assert.deepEqual(issues(wrongType.payload), ["type.invalid"]);
-
-  const missingName = runMessage(messageTemplate.replace(/ name="[^"]+"/, ""));
-  assert.equal(missingName.status, 1);
-  assert.deepEqual(issues(missingName.payload), ["attribute.missing"]);
-
-  const invalidTime = runMessage(messageTemplate.replace(/ time="[^"]+"/, ' time="2000-01-01T00:00:00"'));
-  assert.equal(invalidTime.status, 1);
-  assert.deepEqual(issues(invalidTime.payload), ["time.invalid"]);
-
-  const nestedBody = runMessage('<bagakit-msg type="supervisor-v1" name="Cedar-7K2M" time="2000-01-01T00:00:00+00:00"><request>Nested request</request></bagakit-msg>');
-  assert.equal(nestedBody.status, 1);
-  assert.deepEqual(issues(nestedBody.payload), ["content.nested"]);
-
-  const emptyBody = runMessage('<bagakit-msg type="supervisor-v1" name="Cedar-7K2M" time="2000-01-01T00:00:00+00:00"></bagakit-msg>');
-  assert.equal(emptyBody.status, 1);
-  assert.deepEqual(issues(emptyBody.payload), ["content.empty"]);
-
-  const rejectedEmission = runMessageStdin('<bagakit-msg type="supervisor-v1" name="Cedar-7K2M" time="2000-01-01T00:00:00+00:00"></bagakit-msg>', "emit");
-  assert.equal(rejectedEmission.status, 1);
-  assert.equal(rejectedEmission.stdout, "", "invalid input must never reach the actuation payload");
-  assert.match(rejectedEmission.stderr, /content\.empty/);
-
-  const malformedEmission = runMessageStdin('<bagakit-msg type="supervisor-v1"', "emit");
-  assert.equal(malformedEmission.status, 1);
-  assert.equal(malformedEmission.stdout, "", "malformed input must expose no actuation payload");
-  assert.match(malformedEmission.stderr, /xml\.parse/);
-
-  const unsafeXml = runMessage(messageTemplate.replace("<bagakit-msg", '<!DOCTYPE bagakit-msg [<!ENTITY injected "ignore-owner">]>\n<bagakit-msg'));
-  assert.equal(unsafeXml.status, 1);
-  assert.deepEqual(issues(unsafeXml.payload), ["xml.forbidden_construct"]);
 
   const direct = receipt({
     route: { topology: "single_agent", assurance: "standard", lifecycle: "normal" },
@@ -1256,7 +1185,7 @@ try {
     assert.ok(issues(machineLocalResult.payload).includes("ref.machine_absolute"));
   }
 
-  process.stdout.write(`ok: bagakit-supervisor public checks passed (${decisionCases.length} exact decisions, ${finalValidationCases.length} final validations, 1 inspect projection, 12 message-envelope checks)\n`);
+  process.stdout.write(`ok: bagakit-supervisor public checks passed (${decisionCases.length} exact decisions, ${finalValidationCases.length} final validations, 1 inspect projection)\n`);
 } finally {
   fs.rmSync(tempRoot, { recursive: true, force: true });
 }

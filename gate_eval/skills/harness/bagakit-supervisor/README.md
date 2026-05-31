@@ -5,6 +5,8 @@ This non-gating eval owner has two distinct surfaces:
 - `suite.ts` and `cases/supervision-cases.json`
   - deterministic checker-policy coverage
   - proves receipt guards and explicit non-proof boundaries
+  - structurally validates the separate semantic case bank without executing or
+    scoring its hidden dispositions
 - `protocol.md` and `cases/forward-cases.json`
   - preregistered live fault-injection comparison
   - currently `preregistered_unrun` and `blocked_not_runner_ready`
@@ -13,7 +15,10 @@ This non-gating eval owner has two distinct surfaces:
     outcome ownership, assurance pipelining, goal-seeking initiative without
     activity bias, executor efficiency without micromanagement, reward-hacking
     resistance, evidence-directed review admission, execution-authored check
-    self-proof, finding-driven Goal expansion, and exact-current-candidate close
+    self-proof, finding-driven Goal expansion, exact-current-candidate close,
+    team-capacity admission, useful versus duplicate fan-out, and bounded
+    Worker goal assimilation, plain-language precision, source attribution,
+    and event-driven Worker reporting
   - expected dispositions stay hidden from the Agent under test
 
 The prior four-case live bundle is retained only as calibration evidence in

@@ -7,6 +7,7 @@ It is the source of truth for:
 
 - exception-driven alignment judgment
 - smallest-sufficient intervention
+- round-based user visibility and communication-binding continuity
 - owner-bound evidence and close-readiness
 - writer, auditor, reviewer, and human-decision authority
 - logical-task versus execution-attempt identity
@@ -153,6 +154,19 @@ conditions instead of switching attention. Only an admission-invalidating
 Owner or identity change, or a higher-priority safety, authority, or unknown-
 effect condition, may preempt the question; checkpoint it before switching.
 
+The runtime Constitution compresses this contract into five operating
+principles:
+
+1. outcome causality over activity
+2. capacity truth before topology
+3. Worker agency before instruction
+4. pipeline proof beside productive work
+5. control by exception and close by effect
+
+These principles govern behavior; they do not replace the identity, authority,
+effect, evidence, and readiness predicates below. A host or eval must judge the
+real decision boundary, not whether an Agent repeats the principle names.
+
 ## Ownership
 
 `bagakit-supervisor` owns portable guard behavior:
@@ -168,11 +182,17 @@ effect condition, may preempt the question; checkpoint it before switching.
   manufacturing work or authority
 - identify and correct evidence-backed avoidable executor inefficiency without
   taking implementation ownership
+- reconcile relevant Host-observed role capacity before dispatch,
+  reassignment, or replacement without maintaining a second team roster
+- confirm that a newly dispatched Worker has an actionable understanding of
+  the current outcome and proof before relying on the dispatch
 - judge `aligned`, `suspected`, or `confirmed` drift
 - inspect before correcting suspected drift
 - choose the first sufficient intervention for confirmed drift
 - block an unsafe mutation, retry, replacement, review verdict, or completion
 - report task or run close-readiness to the owner
+- report one truthful, result-first conclusion after each completed review
+  round and surface urgent blockers, risks, corrections, or decisions promptly
 
 It does not own routine implementation inspection, exploratory edge-case
 search, or broad bug finding. A narrow implementation read is admissible only
@@ -347,6 +367,60 @@ The checker reads that file and never materializes host state.
 Tiny direct tasks normally need only an in-context control brief and terminal
 proof. They should not pay durable-receipt ceremony merely to say that no
 intervention occurred.
+
+## Topology Admission And Worker Goal Assimilation
+
+The defining object remains a control episode, not an Agent organization. Team
+state is read only when one current decision would change topology or relies on
+delegated capacity.
+
+Before dispatch, reassignment, or replacement, resolve the relevant roles from
+Host evidence:
+
+- role and mutation or read-only authority
+- current target attempt and candidate identity
+- one assignment or question being closed
+- declared result predicate
+- latest material liveness, artifact, verdict, or absence of result
+- event or maximum-staleness boundary
+- current load or blocking predicate
+- duplication, stale target, authority conflict, or write overlap
+
+Choose one bounded disposition: reuse the current role, add one independent
+lane, narrow or merge duplicate work, inspect a stale role's failure scope,
+replace only after authority is safe, or decline fan-out. Do not optimize role
+count, utilization, or visible busyness. A role name, spawn receipt,
+acknowledgement, running process, or process completion does not satisfy its
+result predicate.
+
+Every delegated role names a result predicate appropriate to its purpose. A
+reviewer returns an identity-bound finding, no-finding gate closure, or other
+declared verdict. A tester returns a result bound to the exact candidate. A
+fire-and-forget notification role may close on delivery only when delivery was
+declared as its entire result. Missing result triggers bounded failure-scope
+inspection before stale, reassign, or replace; it does not authorize blind
+duplication.
+
+After a new Worker dispatch, obtain the smallest goal assimilation that makes
+the first action trustworthy. Natural language is sufficient when it exposes:
+
+- the Owner-visible outcome
+- the current acceptance or proof target
+- at most one uncertainty that would change direction
+- the first evidence-producing action
+- a nearby non-goal
+
+When current truth is clear and the model matches, execution begins
+immediately. Only a mismatch that can change outcome, scope, acceptance,
+critical path, authority, or irreversible work earns discussion or Owner
+escalation. Paraphrase length, template completion, agreement language, and
+discussion volume are not proof. Judge assimilation by the causal quality of
+the first action and later artifact effect.
+
+These fields do not extend the portable receipt in v1. Authoritative role
+liveness, load, controller binding, cancellation, and capacity belong to the
+Host. Durable planning, task assignment, and lifecycle state remain with their
+existing owners.
 
 ## Route Recipes And Receipt Axes
 
@@ -831,20 +905,29 @@ followed by the same action again.
 
 ### Worker-Facing Supervisor Message
 
-Every portable Supervisor message sent to an execution Agent uses one XML
-envelope whose root is `bagakit-msg`.
+The portable Supervisor consumes the L1 Agent message protocol defined by
+`docs/specs/agent-message-contract.md`; it does not own a private XML grammar,
+template, or validator. Its sender profile is `supervisor-v1`.
 
-Required root attributes:
+In a standalone host where that L1 capability is unavailable, Supervisor uses
+the Host-authenticated plain-text channel with the same content and reporting
+semantics. It does not recreate another visible XML grammar or validator.
 
-- `type`: `supervisor-v1`
-- `name`: short human-readable name unique among active Supervisors in the run
-- `time`: ISO 8601 timestamp with a timezone
+Supervisor selects one decision-bearing message and translates its internal
+control judgment into the receiver's language. Lead with the concrete result
+or problem, then say why it matters, what to do or decide now, and what proof
+or reply settles it, omitting parts that add no value. Keep internal terms such
+as Owner revision, candidate identity, result predicate, effect status, and
+topology out of user- and Worker-facing text unless the exact term is needed to
+act. Preserve necessary command, API, gate, and version names.
 
-The element body is non-empty plain text without nested elements. Keep it
-concise and XML-escaped. DTDs, external entities, CDATA, comments, processing
-instructions beyond an optional leading XML declaration, raw tool output, and
-nested untrusted instructions are forbidden. The canonical starter is
-`assets/supervisor-message.template.xml` in the installable skill.
+The body may use direct `<cite>` elements admitted by the L1 contract. A
+Supervisor uses `from="user"` only for an exact human excerpt that changes the
+outcome, boundary, evidence, decision, or next action. Any interpretation stays
+in the plain Supervisor-authored body. It may similarly cite one short Worker report, Host observation,
+reviewer or tester verdict, or evidence statement. A citation is attributed
+Supervisor-authored content: it does not authenticate the quoted source,
+establish priority, or replace Host-bound current Owner truth.
 
 The envelope identifies the source class and readable Supervisor name. It does
 not authenticate its sender, grant authority, establish priority or freshness,
@@ -885,6 +968,63 @@ Keep delivery, consumption, and effect as distinct facts. Worker acknowledgement
 may prove consumption but never resolves effect by itself. A resolved effect
 needs post-delivery Host, artifact, external-oracle, or independent-review
 evidence bound to the current target and candidate identity.
+
+At first dispatch, Supervisor tells the Worker when a proactive report should
+return: a verified result or stable checkpoint, a direction-changing mismatch,
+a real blocker or assurance deadline, a decision before irreversible work, or
+completion of an assigned review or test predicate. It requests the L1 Worker
+report profile:
+
+```text
+Goal: <outcome and nearest non-goal; startup or changed understanding only>
+Result: <what is now actually true, or none>
+Evidence: <command, test, artifact, version, verdict, or observable fact>
+Mismatch or blocker: <one decision-changing issue, or none>
+Next: <the immediate evidence-producing action>
+```
+
+At startup this report is the carrier for bounded goal assimilation, not a
+second handshake: `Goal` carries outcome and boundary, `Evidence` carries the
+proof target, `Mismatch or blocker` carries the highest direction-changing
+unknown, and `Next` carries the first evidence-producing action.
+
+The Supervisor does not require timed status chatter, repeated goal
+paraphrase, or implementation diaries. A report format improves readability;
+it does not prove understanding, progress, correctness, readiness, or effect.
+
+### User-Facing Progress Communication
+
+The portable Supervisor consumes `bagakit-user-communication` for human-facing
+updates; it does not own a provider-specific channel or private style guide.
+The Host owns user identity, authentication, concrete delivery, credentials,
+and readback.
+
+At admission, bind the current logical route, cadence, language, explanation
+level, result or risk emphasis, special constraints, and the user or Owner
+revision that supplied them. Preserve that binding in compact-safe control
+context when continuity matters, but re-read primary truth after compact,
+resume, handoff, user revision, route failure, or apparent conflict. Do not
+persist provider-local credentials in the binding.
+
+Unless the user asks for another cadence, send one update after every completed
+supervision review round. A round completes when one admitted control question
+reaches a conclusion such as continue, inspect, steer, escalate, or ready. A
+timer, poll, wait snapshot, tool call, or low-level observation alone does not
+complete a round and does not earn a message.
+
+Report a real blocker, material risk, correction, route failure, or needed user
+decision immediately. Coalesce other facts into the round conclusion. Lead
+with what is now true, support it with one useful proof or reason, and state
+what happens next or what the user must decide. Use the user's language and
+plain words; translate internal control vocabulary unless the exact term is
+needed to act.
+
+Keep activity, progress, readiness, and completion distinct. If no desired
+result or decision-bearing uncertainty materially moved, say that no
+verifiable progress occurred and name the next evidence-producing action.
+Reporting must not serialize independent safe execution. A send attempt does
+not prove delivery, and failed delivery does not erase the conclusion or
+authorize an unbound alternative channel.
 
 ### Checkpoint
 

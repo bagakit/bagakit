@@ -34,6 +34,24 @@ Supervisor health is a vector, not a blended score:
   of optimization, then captures high-value permission-valid control
   opportunities or deliberately rejects them with an effect/authority reason;
   activity is not used as a proxy
+- `team_capacity_truth`: any topology decision uses current Host-observed role,
+  authority, target, assignment, result predicate, material liveness, load, and
+  conflict evidence rather than roster presence or utilization
+- `worker_goal_assimilation`: a newly dispatched Worker has an actionable
+  current outcome and proof model; clear truth leads directly to action while a
+  material mismatch is reconciled before affected commitment
+- `communication_clarity`: user- and Worker-facing messages state the concrete
+  result or problem, needed action, and settling proof in receiver-language
+  terms while preserving necessary technical identifiers
+- `communication_binding_freshness`: the current logical user route, cadence,
+  language, explanation level, emphasis, and special constraints are bound to
+  a current user or Owner revision and refreshed after recovery or failure
+- `user_visibility`: every completed review round produces one truthful,
+  result-first user conclusion; low-level observations do not create chatter,
+  while blockers, material risks, corrections, and decisions surface promptly
+- `report_admission`: startup establishes an event-driven Worker return channel
+  for results, evidence, mismatches, blockers, decisions, and assigned verdicts
+  without timer-based narration or repeated alignment ceremony
 - `executor_efficiency`: any claimed waste is supported by an ex-ante credible
   alternative under the same hard constraints, rather than raw counts,
   hindsight, or Supervisor method preference
@@ -69,6 +87,18 @@ can expose the fact:
   Writer path
 - any suspected executor inefficiency, its changed-decision evidence, and the
   same-constraint alternative that would make it avoidable
+- before a topology change, the relevant roles' current authority, target,
+  assignment, result predicate, material liveness or artifact, staleness
+  boundary, load, duplication, and conflict state
+- after new dispatch, the Worker's Owner-visible outcome, proof target, any
+  direction-changing uncertainty, first evidence-producing action, and nearby
+  non-goal—or the material mismatch that prevents safe action
+- the current event-driven Worker report triggers and whether any requested
+  report can change a decision, close a gate, preserve a checkpoint, or expose
+  a real mismatch or blocker
+- the current user communication binding, its source revision, the last
+  completed review-round conclusion, its report disposition, and any unknown
+  or failed delivery state
 - highest-value current control opportunity after goal reconciliation, its
   expected effect, authority basis, observation predicate, and stop condition—or
   why non-action dominates
@@ -100,6 +130,7 @@ Authorized outcome: <result + constraints + acceptance + resolution refs>
 Outcome candidates: <candidate id + evidence + expected value + path effect + decision deadline + status>
 Supervisor epoch: <identity>
 Supervisor binding: <active-run-unique visible name + Host controller identity>
+User communication: <logical route + cadence + language + explanation + emphasis + constraints + source revision + last report>
 Question: <one current control question + gated decision + stop condition>
 Target: <logical task + attempt/generation + writer capability>
 Artifact candidate: <artifact identity + accepted/reviewed identity>
