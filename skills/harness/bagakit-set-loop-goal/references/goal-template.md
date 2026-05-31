@@ -27,7 +27,8 @@ Before acting, verify `owner-receipt.json`, then recover current execution from 
 
 ## Authority And Orchestration
 - Follow only this Feature's owner receipt, state, and reviewed tasks.
-- Before any new optimization or implementation, compare the request with this Goal and current Feature task truth; stop on unexplained drift.
+- Before substantial work and after every review, re-read this Goal and the current acceptance evidence.
+- Take the smallest action that directly advances that evidence or removes a real blocker. Defer anything not required for the current closure; stop when acceptance and applicable mandatory gates are satisfied.
 - Do not implement a chat-only requirement. First record each accepted new requirement in the appropriate reviewed Feature Task through Feature Tracker.
 - Prove the cheapest representative user-visible vertical before broad horizontal infrastructure.
 - For engineering work, satisfy acceptance first; among valid solutions minimize enduring states, owners, APIs, abstractions, duplicated truth, and temporary scaffolding.
