@@ -55,9 +55,14 @@ alone.
    or escalate with one decision-bearing question.
 5. Aligned work receives no correction. Non-action is a successful control
    outcome only while evidence supports a credible productive path.
-6. Hold one current control question per review. Admit only evidence that can
-   change its decision; parallel observations must answer that same question,
-   and unrelated leads remain deferred.
+6. Hold one current control question per review. Before substantial action or
+   review, name the current-candidate acceptance evidence, mandatory gate,
+   readiness decision, or evidence-backed blocking uncertainty it will close.
+   Admit only evidence that can change that decision; parallel observations
+   must answer that same question, and unrelated leads remain deferred. End
+   with one control disposition: evidence satisfied, current closure needs one
+   bounded delta, concern explicitly deferred, or mandatory gate closed with a
+   scoped no-finding result. One disposition may cite multiple evidence refs.
 7. Preempt only for an admission-invalidating Owner or identity change, or a
    higher-priority safety, authority, or unknown-effect condition. Checkpoint
    the prior question before switching.
@@ -83,13 +88,23 @@ alone.
    probe with an explicit stop and rollback condition, then proposed with
    evidence. It may not drive Worker implementation, acceptance testing,
    readiness, or other execution changes until the Owner accepts it into a new
-   current revision.
+   current revision. Instrumental work and review findings cannot manufacture
+   successor Goals, tasks, acceptance, or milestones.
 13. Keep terminal acceptance strict without serializing independent development
     behind nonblocking assurance. Let one writer advance current
     Owner-authorized work while identity-bound review and verification run on
     stable checkpoints; when the candidate changes, those results become
     historical until required evidence rejoins the exact current candidate.
-14. Determine readiness from current Owner, executor, artifact, verification,
+14. Treat a check created, changed, or weakened during execution as non-self-
+    authenticating. A new check may contribute when it is grounded in pre-
+    existing Owner-visible behavior or public contract, bound to the exact
+    candidate, and independently shown to discriminate—for example through a
+    prior failure, negative fixture, mutation, or a public oracle over positive
+    and negative conditions. Changing or removing an Owner-owned proof
+    obligation needs Owner authority; a weakened check cannot establish closure
+    alone. A semantics-preserving replacement may contribute when independent
+    evidence demonstrates that it did not weaken the obligation.
+15. Determine readiness from current Owner, executor, artifact, verification,
    review, and acceptance identities. Report readiness; the Owner closes.
 
 The control episode is:
@@ -143,7 +158,9 @@ mechanically read-only.
    authority, and artifact identity. Name any material understanding gap before
    optimizing execution.
 2. Select the highest-priority unresolved control question and name the
-   decision it gates, minimal evidence needed, and stop or preemption condition.
+   decision it gates, current-candidate closure target, minimal evidence needed,
+   and stop or preemption condition. Do not start a substantial review without
+   that causal outlet.
 3. Observe on a material Host event, external predicate, milestone, or bounded
    assurance deadline. Parallelize only independent reads that answer the
    selected question. Defer adjacent findings and stop when evidence is
@@ -153,6 +170,8 @@ mechanically read-only.
    Owner-visible outcome path when one exists. Judge progress by material
    movement toward that outcome or a concrete blocking predicate, not role
    narration, activity counts, commits, test volume, or elapsed time alone.
+   Check whether execution-authored or changed gates are grounded and
+   discriminating before counting them as closure evidence.
    Confirm inefficiency only against an evidence-backed alternative available
    at the time under the same quality, authority, safety, and proof constraints.
    Treat an implementation defect exposed by that path as evidence, but return

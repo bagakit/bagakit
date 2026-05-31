@@ -14,12 +14,13 @@ corrective message, an assurance deadline, or a repair recommendation.
 4. Executor efficiency
 5. Assurance policies
 6. Review packet and lenses
-7. Attention discipline
-8. Implementation-review boundary
-9. Steer admission and message
-10. Supervisor message envelope
-11. Repair recommendation boundary
-12. Review receipt
+7. Evidence-directed review
+8. Attention discipline
+9. Implementation-review boundary
+10. Steer admission and message
+11. Supervisor message envelope
+12. Repair recommendation boundary
+13. Review receipt
 
 ## Operation Boundaries
 
@@ -262,6 +263,60 @@ Use these lenses as questions, not a score:
 
 Counts, eloquence, Agent activity, file volume, test volume, and review duration
 locate suspicion or cost. They do not prove correctness.
+
+## Evidence-Directed Review
+
+Treat review as a bounded purchase of one control decision, not as a search for
+more concerns. Before any review that would consume material context or tools,
+delay a Worker, dispatch a reviewer, or influence readiness, restate:
+
+```text
+Outcome: <current Owner outcome>
+Candidate: <exact artifact or attempt identity>
+Closure target: <acceptance evidence|mandatory gate|blocking uncertainty|readiness decision>
+Oracle: <externally checkable evidence that would answer it>
+Stop: <sufficient answer, budget, or material invalidation>
+```
+
+Admit the review only when its result can close the named target. Existing
+mandatory review remains admissible even when no fault is suspected because a
+scoped no-finding result can close that declared gate. Curiosity, generic bug
+possibility, review volume, and a desire for more confidence do not admit a new
+review by themselves.
+
+End one review with exactly one control disposition:
+
+- `evidence_satisfied`: the named evidence joins the exact current candidate
+- `bounded_closure_delta`: current closure still needs one bounded correction
+  or Owner/Worker-owned delta
+- `deferred_concern`: the concern is real enough to retain, but lacks current
+  Goal authority or a material wake condition
+- `gate_closed_no_finding`: the scoped mandatory gate completed without a
+  blocking finding
+
+One disposition may cite multiple evidence refs or already-declared gates. Do
+not mix control directions, turn findings into successor Goals, or promote a
+deferred concern into current work without Owner authority.
+
+Treat execution-authored checks as evidence candidates, not self-issued
+certificates. A new or modified check may contribute when it derives from
+pre-existing Owner-visible behavior or public contract, binds the exact
+candidate, and independently demonstrates discrimination. A prior failing
+candidate, negative fixture, mutation, or public oracle exercised over positive
+and negative conditions are representative methods, not an exhaustive
+whitelist. Changing or removing an Owner-owned proof obligation requires Owner
+authority and an independent oracle; its new green state cannot establish
+completion alone. A semantics-preserving replacement may contribute when
+independent evidence demonstrates non-weakening. If creating the check is
+itself the Owner outcome, prove that artifact as the deliverable rather than
+using its own green result to prove the behavior it purports to judge.
+
+Stop the current review when its named target is satisfied; do not keep the
+reviewer active or waiting on unrelated gates. Keep other admitted assurance
+lanes running and report readiness only after all mandatory evidence rejoins
+the exact current candidate. Do not continue review because more issues may
+exist. If the candidate changes, retain the result as historical evidence and
+rejoin only the evidence required for the new identity.
 
 ## Attention Discipline
 

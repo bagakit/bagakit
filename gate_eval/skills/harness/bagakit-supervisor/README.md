@@ -12,7 +12,8 @@ This non-gating eval owner has two distinct surfaces:
   - fresh-context semantic cases for goal understanding before optimization,
     outcome ownership, assurance pipelining, goal-seeking initiative without
     activity bias, executor efficiency without micromanagement, reward-hacking
-    resistance, and exact-current-candidate close
+    resistance, evidence-directed review admission, execution-authored check
+    self-proof, finding-driven Goal expansion, and exact-current-candidate close
   - expected dispositions stay hidden from the Agent under test
 
 The prior four-case live bundle is retained only as calibration evidence in

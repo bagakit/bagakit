@@ -258,6 +258,61 @@ proof-bearing intervention joins:
 Do not issue a second corrective intervention while the prior effect is still
 pending. An unresolved effect returns to inspection rather than blind replay.
 
+## Evidence-Directed Review
+
+Before a substantial control action or review, bind one closure target to the
+exact current candidate. The target is one of:
+
+- required acceptance evidence
+- a mandatory gate
+- an evidence-backed blocking uncertainty
+- a readiness decision
+
+Name the externally checkable oracle, the decision its result can change, and
+the stop or invalidation condition. A review that cannot close one of these
+targets is not admissible merely because it may discover more concerns. A
+mandatory review may still be admitted without prior fault suspicion because a
+scoped no-finding result closes an already-authorized gate.
+
+One review produces one control disposition, which may cite multiple evidence
+refs or already-declared gates:
+
+- `evidence_satisfied`
+  - the named evidence joins the exact current candidate
+- `bounded_closure_delta`
+  - current closure still requires one bounded Owner- or Worker-owned delta
+- `deferred_concern`
+  - retain the concern outside current work until Owner authority or a material
+    wake condition exists
+- `gate_closed_no_finding`
+  - the scoped mandatory gate completed without a blocking finding
+
+The single-disposition rule constrains control direction, not evidence count.
+Findings, reviews, probes, and other instrumental work do not create successor
+Goals, tasks, acceptance criteria, or milestones. They may expose a gap in
+current authorized closure or surface a candidate outcome through the existing
+Owner-decision boundary.
+
+A check created, changed, or weakened during execution is not self-
+authenticating. A new or modified check may contribute to completion evidence
+when it is grounded in pre-existing Owner-visible behavior or public contract,
+bound to the exact current candidate, and independently shown to discriminate.
+A prior failing candidate, negative fixture, mutation, or public oracle
+exercised over positive and negative conditions are representative methods,
+not an exhaustive whitelist. Changing or removing an Owner-owned proof
+obligation requires Owner authority and an independent oracle; its green state
+cannot establish closure alone. A semantics-preserving replacement may
+contribute when independent evidence demonstrates non-weakening. When creating
+a check is itself the requested outcome, verify the check artifact as the
+deliverable without treating its own verdict as proof of the behavior under
+test.
+
+Stop the current review when its named target is satisfied. Do not keep that
+review active or waiting for unrelated assurance. Readiness remains separate
+and requires every mandatory gate and evidence item to join the exact current
+candidate. A result bound to an older candidate remains historical evidence
+and cannot prove current readiness.
+
 ## Pipelined Convergence
 
 Strict terminal acceptance and continuous development are compatible.
