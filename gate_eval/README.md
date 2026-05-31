@@ -48,6 +48,7 @@ Current implemented slices:
     - `skills/harness/bagakit-skill-evolver/`
     - `skills/harness/bagakit-skill-selector/`
     - `skills/harness/bagakit-spark/`
+    - `skills/harness/bagakit-supervisor/`
     - `skills/design/bagakit-design-core/`
     - `skills/design/bagakit-codex-webpage-design/`
     - `skills/paperwork/bagakit-paperwork-technical-writing/`

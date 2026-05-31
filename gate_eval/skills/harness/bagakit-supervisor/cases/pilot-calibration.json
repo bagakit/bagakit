@@ -1,0 +1,186 @@
+{
+  "schema": "bagakit/supervisor-pilot-calibration/v1",
+  "pilot_id": "supervisor-forward-test-pass-002",
+  "status": "calibration_only",
+  "classification": "artifact-correctness-smoke",
+  "claim_boundary": "All current public fixture checks passed. The bundle does not establish Supervisor quality, efficiency, recovery, safety, or causal intervention advantage.",
+  "design": {
+    "cases": 4,
+    "conditions": [
+      "direct",
+      "dispatch_only",
+      "supervisor"
+    ],
+    "runs_per_cell": 1,
+    "total_runs": 12,
+    "execution_order": "fixed-direct-then-dispatch-then-supervisor",
+    "condition_isolation": "fresh-agent-logical-only-shared-parent-filesystem",
+    "telemetry_source": "agent_claim",
+    "cost_telemetry": "not-sealed-with-run"
+  },
+  "validity_flags": {
+    "automated_score_ceiling": true,
+    "highly_scripted_tasks": true,
+    "treatment_fidelity_host_observed": false,
+    "prompt_model_and_environment_hash_bound": false,
+    "staged_and_untracked_scope_covered_by_grader": false,
+    "candidate_oracles_immutable": false,
+    "blind_packet_sealed_before_review": false,
+    "blind_packet_repaired_in_place": true,
+    "strict_blind_comparison_valid": false
+  },
+  "automated_rows": [
+    {
+      "condition": "direct",
+      "case_id": "stale-premise",
+      "quality_score": 10,
+      "delegated_workers_claim": 0,
+      "route_claim": null,
+      "intervention_claim_count": 0
+    },
+    {
+      "condition": "direct",
+      "case_id": "trivial-direct",
+      "quality_score": 10,
+      "delegated_workers_claim": 0,
+      "route_claim": null,
+      "intervention_claim_count": 0
+    },
+    {
+      "condition": "direct",
+      "case_id": "recovery-review",
+      "quality_score": 10,
+      "delegated_workers_claim": 0,
+      "route_claim": null,
+      "intervention_claim_count": 0
+    },
+    {
+      "condition": "direct",
+      "case_id": "disjoint-audit",
+      "quality_score": 10,
+      "delegated_workers_claim": 0,
+      "route_claim": null,
+      "intervention_claim_count": 0
+    },
+    {
+      "condition": "dispatch_only",
+      "case_id": "stale-premise",
+      "quality_score": 10,
+      "delegated_workers_claim": 1,
+      "route_claim": null,
+      "intervention_claim_count": 0
+    },
+    {
+      "condition": "dispatch_only",
+      "case_id": "trivial-direct",
+      "quality_score": 10,
+      "delegated_workers_claim": 1,
+      "route_claim": null,
+      "intervention_claim_count": 0
+    },
+    {
+      "condition": "dispatch_only",
+      "case_id": "recovery-review",
+      "quality_score": 10,
+      "delegated_workers_claim": 1,
+      "route_claim": null,
+      "intervention_claim_count": 0
+    },
+    {
+      "condition": "dispatch_only",
+      "case_id": "disjoint-audit",
+      "quality_score": 10,
+      "delegated_workers_claim": 1,
+      "route_claim": null,
+      "intervention_claim_count": 0
+    },
+    {
+      "condition": "supervisor",
+      "case_id": "stale-premise",
+      "quality_score": 10,
+      "delegated_workers_claim": 0,
+      "route_claim": "direct",
+      "intervention_claim_count": 0
+    },
+    {
+      "condition": "supervisor",
+      "case_id": "trivial-direct",
+      "quality_score": 10,
+      "delegated_workers_claim": 0,
+      "route_claim": "direct",
+      "intervention_claim_count": 0
+    },
+    {
+      "condition": "supervisor",
+      "case_id": "recovery-review",
+      "quality_score": 10,
+      "delegated_workers_claim": 0,
+      "route_claim": "recovery",
+      "intervention_claim_count": 4
+    },
+    {
+      "condition": "supervisor",
+      "case_id": "disjoint-audit",
+      "quality_score": 10,
+      "delegated_workers_claim": 2,
+      "route_claim": "audit",
+      "intervention_claim_count": 0
+    }
+  ],
+  "condition_summary": [
+    {
+      "condition": "direct",
+      "quality_total": 40,
+      "quality_max": 40,
+      "delegated_workers_claim": 0
+    },
+    {
+      "condition": "dispatch_only",
+      "quality_total": 40,
+      "quality_max": 40,
+      "delegated_workers_claim": 4
+    },
+    {
+      "condition": "supervisor",
+      "quality_total": 40,
+      "quality_max": 40,
+      "delegated_workers_claim": 2
+    }
+  ],
+  "corrected_blind_reviews": [
+    {
+      "reviewer": "blind-quality-1",
+      "scores": {
+        "A": 40,
+        "B": 40,
+        "C": 40
+      },
+      "interpretation": "complete artifact-quality tie"
+    },
+    {
+      "reviewer": "blind-quality-2",
+      "scores": {
+        "A": 39.6,
+        "B": 39.4,
+        "C": 39.8
+      },
+      "interpretation": "small rubric-sensitive evidence and recovery-lineage separation; all tasks passed"
+    }
+  ],
+  "anonymization_incident": {
+    "initial_fault": "The first sanitizer removed the complete required RUN_RESULT.json artifact.",
+    "repair": "Receipts were restored and treatment-specific fields were redacted.",
+    "usable_for": "descriptive corrected artifact review",
+    "not_usable_for": "strict sealed blind comparison",
+    "future_rule": "Invalidate a defective packet version, regenerate every condition from an allowlist, and use fresh graders."
+  },
+  "preserved_digests": {
+    "scores_json": "sha256:157e13ea46f8b5b6e24c811df5b8a6a214466e4f9a0e44f900732de60ec6b1e2",
+    "blind_quality_1_json": "sha256:9cd720544e27827978b3b671339bc4c83abb214a0cc1d8bd422ac2f5c8c1e3a9",
+    "blind_quality_2_json": "sha256:93267e2555edeb96e45fb993af3d8dcd1e1c7c6ddabb977c62b2e4e89ac71689",
+    "methodology_md": "sha256:a9605794de85c54d8dad6ed700b37b9cf1931745471c242615bf24a03c92e469",
+    "grade_mjs": "sha256:14486b1e26a44ed12b88338b23ff9c481d842330d8f5440f5562085afec8ff83",
+    "sanitize_blind_mjs": "sha256:67d227893f3f20d6efdf52b70b1ddf02aa0fc5d21aa5afa4e00cde8d1d11ac6e"
+  },
+  "next_dataset": "cases/forward-cases.json"
+}

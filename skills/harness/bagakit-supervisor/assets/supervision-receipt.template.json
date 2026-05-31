@@ -1,0 +1,107 @@
+{
+  "schema": "bagakit/supervision-receipt/v1",
+  "run_id": "replace-with-stable-run-id",
+  "objective": "Produce the exact accepted outcome and preserve proof-bearing evidence.",
+  "route": {
+    "topology": "delegated",
+    "assurance": "blocking_review",
+    "lifecycle": "normal"
+  },
+  "run_status": "active",
+  "owner_snapshot": {
+    "ref": "host-task://replace-with-owner-ref",
+    "revision": "replace-with-owner-revision",
+    "evidence_refs": [
+      "host://replace-with-owner-snapshot-evidence"
+    ]
+  },
+  "authority": {
+    "integration_writer": "worker-1",
+    "reviewers": [
+      "reviewer-1"
+    ],
+    "allow_parallel_writers": false
+  },
+  "budgets": {
+    "spawn_max": 3,
+    "spawn_used": 1,
+    "observation_max": 8,
+    "observation_used": 0,
+    "intervention_max": 2,
+    "intervention_used": 0,
+    "restart_max": 2,
+    "restart_used": 0,
+    "human_gate_max": 1,
+    "human_gate_used": 0
+  },
+  "circuits": [],
+  "tasks": [
+    {
+      "task_id": "task-1",
+      "objective": "Produce the required artifact within the declared mutation boundary.",
+      "execution_domain": "default-agent-provider",
+      "required": true,
+      "status": "running",
+      "depends_on": [],
+      "mutation_boundary": [
+        "artifacts/"
+      ],
+      "source_scope": [],
+      "method_boundary_refs": [],
+      "required_artifacts": [
+        "artifacts/result.md"
+      ],
+      "requires_review": true,
+      "current_attempt_id": "attempt-1",
+      "attempts": [
+        {
+          "attempt_id": "attempt-1",
+          "worker_id": "worker-1",
+          "role": "writer",
+          "write_root": "artifacts/",
+          "status": "running",
+          "failure": {
+            "cause": "none",
+            "scope": "none",
+            "effect_state": "not_applicable",
+            "authority_state": "current",
+            "domain": "",
+            "evidence_refs": []
+          },
+          "artifacts": [],
+          "evidence_refs": [],
+          "authority_evidence_refs": [
+            "host://replace-with-writer-capability-evidence"
+          ],
+          "source_identity": {
+            "before": "",
+            "after": "",
+            "evidence_refs": []
+          }
+        }
+      ],
+      "drift": {
+        "status": "aligned",
+        "kind": "none",
+        "evidence_refs": []
+      },
+      "verification": {
+        "target_attempt_id": "",
+        "status": "not_run",
+        "artifacts": [],
+        "evidence_refs": []
+      },
+      "reviews": [],
+      "interventions": [],
+      "acceptance_evidence": [],
+      "next_observation_condition": "Observe attempt-1 on its next material host transition."
+    }
+  ],
+  "checkpoint": {
+    "accepted_artifacts": [],
+    "unresolved_findings": [],
+    "stale_attempt_ids": [],
+    "next_safe_action": "Observe attempt-1 on its next material host transition.",
+    "terminal": false
+  }
+}

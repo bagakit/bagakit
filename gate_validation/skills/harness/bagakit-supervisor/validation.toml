@@ -1,0 +1,69 @@
+version = 2
+
+[[suite]]
+id = "bagakit-supervisor-layout"
+owner = "skills/harness/bagakit-supervisor"
+description = "Require the installable Supervisor public surface, stable owner-bound contract, read-only checker, receipt and message templates, and discovery declarations."
+default = true
+proof_mode = "structural"
+protects = ["bagakit-supervisor canonical install identity, stable semantic contract, public receipt/checker boundary, worker-facing message-envelope template, and discovery declarations"]
+oracle = ["filesystem runner checks only stable public and install contract files while excluding compatibility payloads; runtime behavior and non-gating eval remain owned by their separate suites"]
+exercised_surface = ["skills/harness/bagakit-supervisor public install surface", "docs/specs/supervisor-skill-contract.md"]
+proves = ["bagakit-supervisor-layout proves the canonical installable and repository-owned proof surfaces are present."]
+does_not_prove = ["bagakit-supervisor-layout does not prove receipt behavior, Agent compliance, host adapter correctness, or comparative quality."]
+validation_class = "structure"
+groups = ["skills", "harness", "supervisor", "structure"]
+
+[suite.runner]
+kind = "fs"
+required_dirs = [
+  "skills/harness/bagakit-supervisor",
+  "skills/harness/bagakit-supervisor/agents",
+  "skills/harness/bagakit-supervisor/assets",
+  "skills/harness/bagakit-supervisor/references",
+  "skills/harness/bagakit-supervisor/scripts",
+]
+required_files = [
+  "docs/specs/supervisor-skill-contract.md",
+  "skills/harness/bagakit-supervisor/SKILL.md",
+  "skills/harness/bagakit-supervisor/agents/openai.yaml",
+  "skills/harness/bagakit-supervisor/assets/supervision-receipt.template.json",
+  "skills/harness/bagakit-supervisor/assets/supervisor-message.template.xml",
+  "skills/harness/bagakit-supervisor/references/frontdoor-rule.toml",
+  "skills/harness/bagakit-supervisor/references/skill-cli.toml",
+  "skills/harness/bagakit-supervisor/scripts/supervision_check.ts",
+  "skills/harness/bagakit-supervisor/scripts/supervisor_message_check.py",
+]
+forbidden_paths = [
+  "skills/harness/bagakit-supervisor/SKILL_PAYLOAD.json",
+  "skills/harness/bagakit-supervisor/AGENTS.md",
+  "skills/harness/bagakit-supervisor/Makefile",
+  "skills/harness/bagakit-supervisor/docs",
+  "skills/harness/bagakit-supervisor/gate",
+  "skills/harness/bagakit-supervisor/scripts_dev",
+]
+
+[[suite]]
+id = "bagakit-supervisor-receipt-runtime"
+owner = "skills/harness/bagakit-supervisor"
+description = "Exercise public receipt inspection, decision, and final validation plus the compact worker-facing Supervisor message-envelope shape and fail-stop stdin emission across owner binding, route axes, identity, intervention effects, failure safety, false completion, recovery, and message source fields."
+default = true
+proof_mode = "runtime"
+protects = ["portable supervisor receipt semantics and the source-identifiable worker-message envelope without confusing visible XML identity with Host authority or emitting malformed input toward actuation"]
+oracle = ["TypeScript runtime test invokes the receipt checker and XML envelope helper through file and stdin boundaries, asserting safety actions, identity joins, exact issue codes, exact valid emission, empty invalid emission, required type/name/time/body fields, and rejection of self-asserted priority or unsafe XML constructs"]
+exercised_surface = ["skills/harness/bagakit-supervisor/scripts/supervision_check.ts public CLI", "skills/harness/bagakit-supervisor/scripts/supervisor_message_check.py public helper", "bagakit/supervision-receipt/v1 and bagakit-msg supervisor-v1 fixtures"]
+proves = ["bagakit-supervisor-receipt-runtime proves deterministic receipt guards, the compact XML envelope shape, and fail-stop stdin emission that exposes no invalid actuation payload."]
+does_not_prove = ["bagakit-supervisor-receipt-runtime does not authenticate a Supervisor, reserve a unique name, establish controller authority, prove message freshness or effect, grade artifact quality, or establish comparative superiority."]
+timeout_seconds = 120
+validation_class = "smoke"
+groups = ["skills", "harness", "supervisor", "runtime"]
+
+[suite.runner]
+kind = "executable"
+command = "{node}"
+args = [
+  "--experimental-strip-types",
+  "gate_validation/skills/harness/bagakit-supervisor/check-supervisor.ts",
+  "--root",
+  "{repo_root}",
+]

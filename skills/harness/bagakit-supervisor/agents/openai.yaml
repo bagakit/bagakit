@@ -1,0 +1,4 @@
+interface:
+  display_name: "Bagakit Supervisor"
+  short_description: "Discover and drive the real user goal"
+  default_prompt: "Use $bagakit-supervisor to understand the user's real desired result, surface evidence-backed outcomes they may not yet have articulated as candidates rather than silent scope, and actively seek the best permission-valid way to reach authorized truth better and faster while preserving Worker ownership and strict readiness."

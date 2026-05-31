@@ -1,0 +1,107 @@
+version = 1
+skill = "bagakit-supervisor"
+capability_review_status = "candidate"
+primary_metric = "rate of verified convergence under terminal-quality, Owner-authority, and safety constraints, with aligned non-interference, fault-lane correction, risk, control, and cost reported as separate vectors"
+named_baselines = ["direct_execution", "dispatch_only"]
+
+[[guard]]
+id = "OUTCOME_OWNED_CONVERGENCE"
+protects = "Supervision remains responsible for efficient, high-quality progress toward the current Owner outcome instead of accepting role ceremony, repeated assurance, or avoidable serial waiting as success."
+oracle = "Held-out and live semantic cases distinguish nonblocking checkpoint assurance from a real premise or safety blocker, reject process-theater stagnation, and preserve strict exact-current-candidate acceptance; current stale-verification and review-identity fixtures cover the final structural join."
+does_not_prove = "The receipt checker does not observe critical-path scheduling, material progress, or whether a Supervisor chose the fastest safe Owner-authorized route."
+
+[[guard]]
+id = "EXECUTOR_EFFICIENCY_WITHOUT_MICROMANAGEMENT"
+protects = "Supervisor corrects evidence-backed avoidable executor waste while preserving necessary deep diagnosis, expensive proof, Worker implementation ownership, and hard terminal constraints."
+oracle = "Paired fresh-context cases contrast repeated nondiscriminating work with necessary expensive proof and bounded information gain; live evaluation separately measures verified progress, decision-changing information, delay, tokens, tool calls, restarts, and rework without a blended efficiency score."
+does_not_prove = "The receipt checker and raw cost counts cannot prove that a lower-cost path was available ex ante, compare unlike tasks, or identify the optimal implementation method."
+
+[[guard]]
+id = "GOAL_SEEKING_INITIATIVE"
+protects = "Supervisor continually grounds its understanding of the user's real desired result, discovers evidence-backed candidate outcomes the user may not yet have articulated, keeps them distinct from authorized truth, and seeks the best permission-valid path to reach the authorized outcome better and faster without manufacturing work or authority."
+oracle = "Paired fresh-context cases contrast material goal ambiguity with inspectable current truth, evidence-backed latent outcome discovery with speculative enhancement, and resolvable blockers or missing representative proof with aligned silence; live evaluation records goal-fidelity failures, missed material candidates, false goal proposals, unauthorized adoption, disturbance, and realized effect separately."
+does_not_prove = "Action counts, worker messages, paraphrase similarity, or the receipt checker cannot prove the user's real desired result, candidate-goal value, initiative quality, or that a different path would improve the outcome."
+
+[[guard]]
+id = "FIT_BEFORE_FANOUT"
+protects = "Aligned direct work is not burdened with delegation or corrective intervention when supervision cannot earn its cost."
+oracle = "A trivial owner-ready fixture selects direct execution with zero delegated spawns; live evaluation separately measures zero false intervention and overhead."
+does_not_prove = "The deterministic guard does not measure live overhead or prove route judgment on unseen tasks."
+
+[[guard]]
+id = "OWNER_BOUND_READINESS"
+protects = "Supervisor decisions stay conditional on current owner revision and never schedule around blocked or merely planned owner truth."
+oracle = "Receipts require owner revision and freshness evidence; blocked and planned fixtures do not produce dispatch actions."
+does_not_prove = "The checker cannot query whether an external owner revision is actually current."
+
+[[guard]]
+id = "SINGLE_WRITER_AUTHORITY"
+protects = "Concurrent mutation has one integration writer unless write roots and merge ownership are explicitly isolated."
+oracle = "Receipt validation rejects overlapping running writers and a missing integration owner; decision fixtures hold a second ready writer while exclusive authority is occupied."
+does_not_prove = "Declared roots and identities do not enforce host filesystem isolation."
+
+[[guard]]
+id = "CURRENT_ATTEMPT_FENCE"
+protects = "A replacement cannot become safe current truth while a prior running or succeeded writer retains unfenced authority."
+oracle = "Validation and decision fixtures require stale identity, fenced or released authority, and fence evidence before replacement or close."
+does_not_prove = "Portable evidence does not revoke a host capability."
+
+[[guard]]
+id = "SEMANTIC_COMPLETION"
+protects = "Worker success cannot close a task without current artifact identity, verification, independent review when required, and owner acceptance."
+oracle = "False-completion, ghost-review, stale-artifact, and moving-review fixtures fail close-readiness."
+does_not_prove = "Identity and evidence refs do not prove artifact content quality or reviewer competence."
+
+[[guard]]
+id = "BLOCKING_REVIEW_REPAIR"
+protects = "Blocking findings force bounded repair and a new artifact-bound review cycle before readiness."
+oracle = "A real reviewer identity and stable target identity produce repair_then_reverify only with remaining correction capacity; missing reviewer or correction budget fails closed."
+does_not_prove = "The guard does not grade finding truth or severity."
+
+[[guard]]
+id = "READ_ONLY_SOURCE_STABILITY"
+protects = "Audit and review evidence cannot claim a stable read-only target from role prose alone."
+oracle = "Auditor and review fixtures require protected scope plus matching before/after identities and authority evidence; a changed identity invalidates the verdict."
+does_not_prove = "An identity mismatch cannot attribute which actor caused the mutation."
+
+[[guard]]
+id = "COMPOSITE_FAILURE_SAFETY"
+protects = "Unknown external effect, ambiguous authority, and unknown scope preempt cause-based retry or repair."
+oracle = "Whole-lineage fixtures keep unknown and known-applied external effects ahead of repair, retry, dependent dispatch, and final closure."
+does_not_prove = "The checker cannot determine whether a real external effect occurred."
+
+[[guard]]
+id = "PROVIDER_CIRCUIT_BREAK"
+protects = "A host-evidenced shared provider fault blocks only the affected execution domain while healthy domains remain admissible."
+oracle = "A newly observed shared-domain provider failure recommends opening one scoped circuit; an existing evidenced circuit is held, and a separate fixture keeps a healthy domain admissible."
+does_not_prove = "One projected circuit does not prove every affected host launch stopped."
+
+[[guard]]
+id = "BOUNDED_OBSERVATION"
+protects = "Monitoring waits for a material predicate and stops at its observation budget."
+oracle = "Running work requires a next observation condition; the exhausted fixture returns checkpoint_and_stop."
+does_not_prove = "The guard does not optimize the predicate, deadline, or observation cost."
+
+[[guard]]
+id = "ATTENTION_COHERENCE"
+protects = "One semantic review answers one current control question instead of accumulating unrelated investigations."
+oracle = "Live and held-out review packets name one gated decision, bind every parallel observation to it, defer unrelated leads with wake conditions, and checkpoint before an authorized preemption."
+does_not_prove = "The structural receipt checker does not grade whether a named question is the best one or whether an observation truly contributed to it."
+
+[[guard]]
+id = "MINIMAL_DRIFT_INTERVENTION"
+protects = "Aligned work receives no correction, suspected drift receives inspection, and confirmed drift receives the first sufficient bounded action."
+oracle = "Confirmed scope drift selects one steer; method drift without an owner or evidence boundary is invalid."
+does_not_prove = "The guard does not prove drift evidence is correct or that a worker obeys the intervention."
+
+[[guard]]
+id = "INTERVENTION_EFFECT_RECONCILIATION"
+protects = "Supervisor observes a delivered correction before issuing another and returns unresolved effects to diagnosis."
+oracle = "Pending and unresolved intervention fixtures select observation and inspection rather than repeated steering."
+does_not_prove = "Evidence refs do not prove host delivery without the audited host trace."
+
+[[guard]]
+id = "FRESH_EXECUTOR_RECOVERY"
+protects = "A replacement supervisor can continue from owner-bound current truth without replaying accepted work."
+oracle = "Recovery fixtures preserve current accepted artifact identities, fence stale writers, and expose only owner-ready missing work."
+does_not_prove = "Deterministic projections do not prove live fresh-Agent compliance or a realized late-result race."

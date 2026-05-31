@@ -95,6 +95,7 @@ Current examples include:
 - `living-knowledge-system.md`
 - `selector-evolver-boundary.md`
 - `selector-planning-entry-routes.md`
+- `supervisor-skill-contract.md`
 - `tooling-rules.md`
 - `validation-system.md`
 

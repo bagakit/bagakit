@@ -177,6 +177,46 @@ So the architecture rule is:
 - L1 still decides when that cooperation is composed for one task or host case
 - L1 composition does not transfer L2 ownership downward
 
+### `supervisor`
+
+`supervisor` is the portable exception-driven harness around one accepted
+outcome and one or more capable execution Agents:
+
+- own efficient, high-quality convergence to the current owner outcome at the
+  control layer without taking over Worker implementation
+- understand the user's real desired result, surface evidence-backed
+  unarticulated outcomes as candidates distinct from authorized truth, then
+  actively seek the best permission-valid path to reach authorized truth better
+  and faster while preserving aligned silence when action adds no decision value
+- manage evidence-backed avoidable executor inefficiency without reducing
+  efficiency to speed, utilization, or raw cost counts
+- decide whether delegation, audit, repair review, or recovery can earn its cost
+- keep logical work separate from individual attempts
+- constrain writer, reviewer, and human-decision authority
+- resolve side-effect, authority, and failure-scope uncertainty before cause-based
+  retry or restart
+- report close-readiness only from current artifact, verification, review, and
+  owner-acceptance identities; the existing owner performs lifecycle close
+- let aligned work continue, pipeline independent assurance beside one writer,
+  and apply the smallest sufficient correction to a named drift
+
+The canonical runtime unit is:
+
+- `bagakit-supervisor`
+
+It owns no top-level persistent runtime by default. It consumes a revision-bound
+current owner surface and may validate one owner-chosen task-local receipt.
+Projected task status, dependencies, circuits, and checkpoints remain owner
+truth rather than a second Supervisor runtime. Provider
+launch, process health, queues, transport fencing, and host storage remain with
+the execution host. Feature planning truth remains with Feature Tracker, and
+work-item runtime remains with Flow Runner.
+
+This keeps the same general harness semantics reusable across a single Agent,
+writer-reviewer pair, Agent team, native Agent tools, structured orchestration
+hosts, and external process supervisors without introducing a second control
+plane.
+
 ### `outer_driver`
 
 `outer_driver` owns repeated-run behavior around execution.

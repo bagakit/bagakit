@@ -133,6 +133,7 @@ They do not replace the stable concept registry below.
 | `mem_inbox` | an optional intake buffer for upstream-worthy memory that is not yet ready to become structured evolver topic state |
 | `outer_driver` | the repeated-run or repeated-round orchestrator around execution |
 | `execution_host` | the host-side orchestration surface that owns live-run focus, continuation, recovery, and operator-attention decisions |
+| `supervisor` | the general exception-driven Agent guard that seeks the user's real desired result, surfaces evidence-backed unarticulated outcomes as candidates distinct from authorized truth, actively drives the best permission-valid convergence path, and reports exact-current close-readiness without owning Worker implementation, lifecycle, provider, or planning runtime |
 | `flow_protocol` | the execution-facing mutation and projection protocol that owns accepted state changes, receipts, checkpoints, incidents, and next-action semantics |
 | `flow_runner` | the adjustable runtime surface that carries one outer-driver flow over normalized work items and currently provides Bagakit's main flow protocol surface |
 

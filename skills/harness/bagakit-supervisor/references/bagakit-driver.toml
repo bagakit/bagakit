@@ -1,0 +1,33 @@
+version = 1
+insert_target = "bagakit_footer"
+summary_line = "- Supervisor: Owner=<ref@revision>; Route=<topology+assurance+lifecycle>; Task=<logical task>; Attempt=<current attempt>; Drift=<state+kind>; Evidence=<artifact, verification, and review identities>; Readiness=<ready|blocked>; Next=<one safe action>"
+
+[[directive]]
+id = "FIT"
+when = "delegation or multi-agent work is being considered"
+instruction = "compare expected outcome or risk reduction with spawn, observation, synthesis, and recovery cost; choose direct when the delta is not credible"
+
+[[directive]]
+id = "AUTHORITY"
+when = "one or more workers may mutate shared state"
+instruction = "keep one integration writer unless isolated write roots and merge ownership are proven; keep reviewers read-only"
+
+[[directive]]
+id = "RECONCILE"
+when = "an attempt reports success, failure, staleness, or recovery state"
+instruction = "rebuild current owner and artifact truth, resolve effect and authority uncertainty before cause, fence prior writers before replacement, and authorize one useful next action"
+
+[[directive]]
+id = "EFFICIENCY"
+when = "execution appears slow, repetitive, expensive, or stalled"
+instruction = "compare material progress and decision-bearing information with a credible same-constraint alternative available ex ante; correct only confirmed avoidable inefficiency, not raw cost, difficulty, or method preference"
+
+[[directive]]
+id = "INITIATIVE"
+when = "a material event, blocker, assurance boundary, open intervention, or decision opportunity appears"
+instruction = "first reconcile the user's real desired result and distinguish authorized truth from any evidence-backed unarticulated candidate; validate or surface only a decision-bearing candidate, then select the permission-valid action that reaches the authorized outcome better and faster with a named expected effect, observation predicate, and stop condition; deliberate non-action is valid when no action earns its disturbance"
+
+[[directive]]
+id = "CLOSE"
+when = "the logical task may be complete"
+instruction = "join current attempt, artifact identity, verification, independent review, resolved interventions, and owner acceptance before reporting close-readiness; the owner performs closure"

@@ -1,0 +1,753 @@
+{
+  "schema": "bagakit/supervisor-eval-cases/v2",
+  "comparison_baselines": [
+    "direct_execution",
+    "dispatch_only"
+  ],
+  "cases": [
+    {
+      "id": "trivial-direct-cost",
+      "title": "Trivial work declines delegation",
+      "fixture": "direct",
+      "guard": "FIT_BEFORE_FANOUT",
+      "expected_action": "execute_direct",
+      "expected_exit": 0,
+      "proves": "The deterministic single-Agent route selects direct execution with zero delegated spawns.",
+      "does_not_prove": "The case does not measure real model quality, route-selection transfer, or live overhead."
+    },
+    {
+      "id": "single-agent-running-host-identity",
+      "title": "Single-Agent execution accepts a host-native worker identity",
+      "fixture": "direct_running",
+      "guard": "SINGLE_WRITER_AUTHORITY",
+      "expected_action": "observe_on_next_condition",
+      "expected_issues": [],
+      "expected_exit": 0,
+      "proves": "A running direct writer remains valid when its worker identity is supplied by the Host rather than a reserved self token.",
+      "does_not_prove": "The receipt cannot independently prove that the Host identity belongs to a non-delegated actor."
+    },
+    {
+      "id": "single-agent-succeeded-host-identity",
+      "title": "Single-Agent completion accepts a host-native worker identity",
+      "fixture": "direct_succeeded",
+      "guard": "OWNER_BOUND_READINESS",
+      "command": "validate_final",
+      "expected_issues": [],
+      "expected_exit": 0,
+      "proves": "A completed direct writer can satisfy current-identity readiness with an arbitrary non-empty Host worker identity and zero delegated spawns.",
+      "does_not_prove": "The structural identity join does not prove artifact quality or live Host authority."
+    },
+    {
+      "id": "disjoint-read-only-audit",
+      "title": "Audit lanes bind a protected source identity",
+      "fixture": "audit",
+      "guard": "READ_ONLY_SOURCE_STABILITY",
+      "expected_action": "observe_on_next_condition",
+      "expected_exit": 0,
+      "proves": "Running auditor attempts carry explicit source scopes and host-backed before identities without writer roots.",
+      "does_not_prove": "A before identity does not yet prove the source stayed unchanged or that parallel audit improves evidence coverage."
+    },
+    {
+      "id": "moving-audit-target-invalidates-result",
+      "title": "Changed source invalidates read-only audit evidence",
+      "fixture": "audit_changed",
+      "guard": "READ_ONLY_SOURCE_STABILITY",
+      "expected_action": "reconcile_owner_state",
+      "expected_exit": 0,
+      "proves": "A succeeded audit whose protected source identity changed is treated as stale evidence rather than accepted as read-only proof.",
+      "does_not_prove": "The identity mismatch alone cannot attribute the mutation to the auditor."
+    },
+    {
+      "id": "stale-premise-before-mutation",
+      "title": "Stale premise returns to owner reconciliation",
+      "fixture": "stale_premise",
+      "guard": "FRESH_EXECUTOR_RECOVERY",
+      "expected_action": "reconcile_owner_state",
+      "expected_exit": 0,
+      "proves": "A stale-premise attempt with no artifacts is routed to owner-state reconciliation.",
+      "does_not_prove": "The case does not prove an Agent will discover a stale premise without correct evidence."
+    },
+    {
+      "id": "writer-crash-preserves-completed-cone",
+      "title": "Recovery exposes only the missing owner-ready work",
+      "fixture": "recovery",
+      "guard": "FRESH_EXECUTOR_RECOVERY",
+      "expected_action": "dispatch_task",
+      "expected_exit": 0,
+      "proves": "A recovery projection preserves a current accepted artifact and recommends execution only for the incomplete dependent task.",
+      "does_not_prove": "The case does not run a real crashed writer or prove the owner dependency projection is fresh."
+    },
+    {
+      "id": "provider-global-circuit",
+      "title": "Shared provider failure holds an existing scoped circuit",
+      "fixture": "provider_global",
+      "guard": "PROVIDER_CIRCUIT_BREAK",
+      "expected_action": "hold_open_circuit",
+      "expected_exit": 0,
+      "proves": "A host-evidenced provider fault in a domain whose circuit is already open holds that circuit instead of reopening it or retrying.",
+      "does_not_prove": "The case does not prove the host stopped every affected process or classified the domain correctly."
+    },
+    {
+      "id": "provider-shared-fault-opens-circuit",
+      "title": "New shared provider failure opens one scoped circuit",
+      "fixture": "provider_unbound",
+      "guard": "PROVIDER_CIRCUIT_BREAK",
+      "expected_action": "circuit_break_and_wait",
+      "expected_issue": "circuit.not_open",
+      "expected_exit": 0,
+      "proves": "A host-evidenced shared provider fault with no matching open circuit recommends opening the affected-domain circuit before more work starts.",
+      "does_not_prove": "The case does not enact the host circuit or prove every affected call stopped."
+    },
+    {
+      "id": "provider-circuit-domain-isolation",
+      "title": "Open circuit blocks only its execution domain",
+      "fixture": "scoped_circuit",
+      "guard": "PROVIDER_CIRCUIT_BREAK",
+      "expected_action": "hold_open_circuit",
+      "expected_task_action_views": [
+        {
+          "task_id": "task-1",
+          "action": "hold_open_circuit"
+        },
+        {
+          "task_id": "task-2",
+          "action": "dispatch_task"
+        }
+      ],
+      "expected_safety_lock_views": [
+        {
+          "task_id": "task-1",
+          "action": "hold_open_circuit"
+        }
+      ],
+      "forbidden_actions": [
+        "retry_attempt"
+      ],
+      "expected_exit": 0,
+      "proves": "An open provider-a circuit blocks the affected task while an independent provider-b task remains admissible.",
+      "does_not_prove": "The case does not prove the host execution-domain mapping is correct."
+    },
+    {
+      "id": "unknown-side-effect-preempts-repair",
+      "title": "Unknown external effect blocks method repair and retry",
+      "fixture": "side_effect_unknown",
+      "guard": "COMPOSITE_FAILURE_SAFETY",
+      "expected_action": "inspect_side_effect",
+      "expected_task_action_views": [
+        { "task_id": "task-1", "action": "inspect_side_effect" }
+      ],
+      "expected_safety_lock_views": [
+        { "task_id": "task-1", "action": "inspect_side_effect" }
+      ],
+      "forbidden_actions": ["retry_attempt", "repair_with_method_change", "report_task_ready"],
+      "expected_exit": 0,
+      "proves": "Unknown effect state has priority over a simultaneous logic-defect cause, forcing readback before repair or retry.",
+      "does_not_prove": "The case does not execute a real non-idempotent external mutation."
+    },
+    {
+      "id": "unknown-effect-preempts-provider-circuit",
+      "title": "Unknown external effect outranks shared provider cause",
+      "fixture": "provider_effect_unknown",
+      "guard": "COMPOSITE_FAILURE_SAFETY",
+      "expected_action": "inspect_side_effect",
+      "expected_issue": "circuit.not_open",
+      "expected_exit": 0,
+      "proves": "Unknown external-effect state forces authoritative readback even when the same failed attempt also carries a shared provider-fault classification.",
+      "does_not_prove": "The case cannot determine whether a real provider request committed an external effect."
+    },
+    {
+      "id": "worker-success-false-completion",
+      "title": "Worker success cannot close missing identities and verification",
+      "fixture": "false_completion",
+      "guard": "SEMANTIC_COMPLETION",
+      "expected_action": "block_false_completion",
+      "expected_issue": "close.artifacts_missing",
+      "expected_exit": 1,
+      "proves": "A complete task with a succeeded worker but missing artifact identity and verification evidence fails closed.",
+      "does_not_prove": "Present identities and evidence refs do not prove artifact content quality."
+    },
+    {
+      "id": "replacement-requires-prior-fence",
+      "title": "Non-current writer must be fenced before closure",
+      "fixture": "old_attempt",
+      "guard": "CURRENT_ATTEMPT_FENCE",
+      "expected_action": "freeze_and_rebind",
+      "expected_issue": "attempt.replacement_unfenced",
+      "expected_exit": 1,
+      "proves": "A prior running or succeeded writer without stale identity, released authority, and fence evidence forces authority fencing before closure is reconsidered.",
+      "does_not_prove": "Portable evidence does not itself revoke a host capability."
+    },
+    {
+      "id": "blocking-review-repair",
+      "title": "Artifact-bound blocking review forces repair",
+      "fixture": "blocking_review",
+      "guard": "BLOCKING_REVIEW_REPAIR",
+      "expected_action": "repair_then_reverify",
+      "expected_task_action_views": [
+        { "task_id": "task-1", "action": "repair_then_reverify" }
+      ],
+      "expected_safety_lock_views": [],
+      "forbidden_actions": ["report_task_ready", "retry_attempt"],
+      "expected_exit": 0,
+      "proves": "A real reviewer identity, stable review scope, target attempt, and target artifact identity carry a blocking verdict into repair.",
+      "does_not_prove": "The case does not grade reviewer competence or finding truth."
+    },
+    {
+      "id": "ghost-review-cannot-close",
+      "title": "A handwritten pass without a reviewer cannot close",
+      "fixture": "ghost_review",
+      "guard": "BLOCKING_REVIEW_REPAIR",
+      "expected_action": "block_false_completion",
+      "expected_issue": "close.review_missing",
+      "expected_exit": 1,
+      "proves": "Declaring a reviewer in authority is insufficient without an artifact-bound review record and read-only evidence.",
+      "does_not_prove": "A structurally present review record is not evidence that the reviewer was competent."
+    },
+    {
+      "id": "observation-budget-exhausted",
+      "title": "Monitoring stops at its declared budget",
+      "fixture": "observation_exhausted",
+      "guard": "BOUNDED_OBSERVATION",
+      "expected_action": "checkpoint_and_stop",
+      "expected_exit": 0,
+      "proves": "A running attempt at the observation ceiling stops instead of polling again.",
+      "does_not_prove": "The guard does not optimize the chosen predicate or deadline."
+    },
+    {
+      "id": "confirmed-scope-drift",
+      "title": "Confirmed scope drift gets one bounded correction",
+      "fixture": "scope_drift",
+      "guard": "MINIMAL_DRIFT_INTERVENTION",
+      "expected_action": "steer_to_boundary",
+      "expected_exit": 0,
+      "proves": "A capable running worker with confirmed scope drift receives a narrow steer instead of immediate replacement or fan-out.",
+      "does_not_prove": "The case does not prove the Agent obeys the steer or that the drift evidence is correct."
+    },
+    {
+      "id": "confirmed-cost-drift",
+      "title": "Confirmed supervision cost drift reduces control activity",
+      "fixture": "cost_drift",
+      "guard": "MINIMAL_DRIFT_INTERVENTION",
+      "expected_action": "reduce_or_stop_supervision",
+      "expected_exit": 0,
+      "proves": "Confirmed cost drift produces an explicit reduction or stop action instead of falling behind ordinary execution and readiness actions.",
+      "does_not_prove": "The case does not determine whether the cited observation cost is truly avoidable."
+    },
+    {
+      "id": "pending-intervention-is-observed",
+      "title": "Pending correction effect prevents repeated steering",
+      "fixture": "intervention_pending",
+      "guard": "INTERVENTION_EFFECT_RECONCILIATION",
+      "expected_action": "observe_on_next_condition",
+      "expected_task_action_views": [
+        { "task_id": "task-1", "action": "observe_on_next_condition" }
+      ],
+      "expected_safety_lock_views": [],
+      "forbidden_actions": ["steer_to_boundary", "steer_method_change", "report_task_ready"],
+      "expected_exit": 0,
+      "proves": "After a bounded steer, Supervisor observes the effect before issuing another correction.",
+      "does_not_prove": "The fixture does not prove the host delivered the intervention beyond its cited evidence ref."
+    },
+    {
+      "id": "unresolved-intervention-changes-method",
+      "title": "Unresolved correction is inspected instead of repeated",
+      "fixture": "intervention_unresolved",
+      "guard": "INTERVENTION_EFFECT_RECONCILIATION",
+      "expected_action": "inspect_drift",
+      "expected_exit": 0,
+      "proves": "An ineffective intervention does not trigger an identical blind steer; it returns to diagnosis.",
+      "does_not_prove": "The case does not select the next successful method."
+    },
+    {
+      "id": "resolved-intervention-enables-current-readiness-exact",
+      "title": "Resolved correction with current effect evidence can return to readiness",
+      "fixture": "intervention_resolved_ready",
+      "guard": "INTERVENTION_EFFECT_RECONCILIATION",
+      "expected_action": "report_task_ready",
+      "expected_task_action_views": [
+        { "task_id": "task-1", "action": "report_task_ready" }
+      ],
+      "expected_safety_lock_views": [],
+      "forbidden_actions": ["steer_to_boundary", "inspect_drift"],
+      "expected_issues": [],
+      "expected_exit": 0,
+      "proves": "A resolved correction with non-empty effect evidence no longer blocks current-attempt artifact, verification, and acceptance readiness.",
+      "does_not_prove": "The portable checker proves only the structural join; it cannot prove that an effect ref describes a real behavioral improvement."
+    },
+    {
+      "id": "resolved-intervention-without-effect-evidence-rejected-exact",
+      "title": "Resolved correction without effect evidence fails closed",
+      "fixture": "intervention_resolved_without_effect",
+      "guard": "INTERVENTION_EFFECT_RECONCILIATION",
+      "expected_action": "repair_receipt",
+      "expected_task_action_views": [],
+      "expected_safety_lock_views": [],
+      "forbidden_actions": ["steer_to_boundary", "report_task_ready", "report_run_ready"],
+      "expected_issues": ["intervention.effect_evidence_missing"],
+      "expected_exit": 1,
+      "proves": "A correction cannot be marked resolved and disappear from readiness without post-intervention effect evidence.",
+      "does_not_prove": "A non-empty ref is not proof that worker acknowledgement, artifact change, or external behavior actually occurred."
+    },
+    {
+      "id": "second-intervention-before-first-effect-rejected-exact",
+      "title": "A second correction cannot overtake an open effect",
+      "fixture": "second_intervention_before_effect",
+      "guard": "INTERVENTION_EFFECT_RECONCILIATION",
+      "expected_action": "repair_receipt",
+      "expected_task_action_views": [],
+      "expected_safety_lock_views": [],
+      "forbidden_actions": ["steer_to_boundary", "steer_method_change", "report_task_ready"],
+      "expected_issues": ["intervention.effect_order"],
+      "expected_exit": 1,
+      "proves": "The portable ledger rejects another recorded correction while the preceding correction effect is still open.",
+      "does_not_prove": "This does not deduplicate transport calls or prevent a Host from sending bytes before it records the receipt."
+    },
+    {
+      "id": "review-artifact-mismatch-invalidates-verdict-exact",
+      "title": "A verdict on the wrong candidate cannot satisfy review",
+      "fixture": "review_artifact_mismatch",
+      "guard": "READ_ONLY_SOURCE_STABILITY",
+      "expected_action": "dispatch_reviewer",
+      "expected_task_action_views": [
+        { "task_id": "task-1", "action": "dispatch_reviewer" }
+      ],
+      "expected_safety_lock_views": [],
+      "forbidden_actions": ["report_task_ready", "report_run_ready"],
+      "expected_issues": ["review.artifact_identity_mismatch"],
+      "expected_exit": 0,
+      "proves": "A pass verdict bound to a stale artifact identity is rejected and the current candidate remains unreviewed.",
+      "does_not_prove": "The receipt cannot force a live reviewer to open the correct worktree; the Host must bind and attest that target identity."
+    },
+    {
+      "id": "blocked-owner-forbids-dispatch",
+      "title": "Supervisor does not schedule around blocked owner truth",
+      "fixture": "blocked_owner",
+      "guard": "OWNER_BOUND_READINESS",
+      "expected_action": "checkpoint_and_stop",
+      "expected_exit": 0,
+      "proves": "A blocked owner snapshot cannot be bypassed by dispatching an otherwise ready projected task.",
+      "does_not_prove": "The checker cannot determine whether the owner should remain blocked."
+    },
+    {
+      "id": "parallel-writers-freeze-authority",
+      "title": "Unauthorized parallel writers freeze before observation",
+      "fixture": "parallel_writers",
+      "guard": "SINGLE_WRITER_AUTHORITY",
+      "expected_action": "freeze_and_rebind",
+      "expected_task_action_views": [
+        { "task_id": "", "action": "freeze_and_rebind" }
+      ],
+      "expected_safety_lock_views": [
+        { "task_id": "", "action": "freeze_and_rebind" }
+      ],
+      "forbidden_actions": ["observe_on_next_condition", "dispatch_task"],
+      "expected_issue": "authority.parallel_writers",
+      "expected_exit": 1,
+      "proves": "Two current writers without explicit isolated-writer authority produce a freeze action rather than ordinary observation of both attempts.",
+      "does_not_prove": "The portable checker cannot revoke either writer capability at the host boundary."
+    },
+    {
+      "id": "parallel-writer-dot-alias-overlap-exact",
+      "title": "Canonical path aliases cannot fake isolated writer roots",
+      "fixture": "parallel_alias_writers",
+      "guard": "SINGLE_WRITER_AUTHORITY",
+      "command": "decide",
+      "expected_action": "freeze_and_rebind",
+      "expected_task_action_views": [
+        { "task_id": "", "action": "freeze_and_rebind" }
+      ],
+      "expected_safety_lock_views": [
+        { "task_id": "", "action": "freeze_and_rebind" }
+      ],
+      "forbidden_actions": ["observe_on_next_condition", "dispatch_task"],
+      "expected_issues": ["authority.writer_roots_overlap"],
+      "expected_exit": 1,
+      "proves": "Writer roots that differ only by a dot segment normalize to the same protected path and force authority repair.",
+      "does_not_prove": "Logical normalization does not prove host filesystem isolation or symlink behavior."
+    },
+    {
+      "id": "ambiguous-authority-blocks-secondary-writer-exact",
+      "title": "Ambiguous writer authority cannot coexist with secondary dispatch",
+      "fixture": "ambiguous_authority_sibling",
+      "guard": "SINGLE_WRITER_AUTHORITY",
+      "command": "decide",
+      "expected_action": "freeze_and_rebind",
+      "expected_task_action_views": [
+        { "task_id": "task-1", "action": "freeze_and_rebind" },
+        { "task_id": "task-2", "action": "wait_owner_transition" }
+      ],
+      "expected_safety_lock_views": [
+        { "task_id": "task-1", "action": "freeze_and_rebind" }
+      ],
+      "forbidden_actions": ["dispatch_task", "retry_attempt"],
+      "expected_issues": ["authority.current_attempt_not_current"],
+      "expected_exit": 1,
+      "proves": "An ambiguous writer lock is decision-wide for exclusive mutation and delays another ready writer.",
+      "does_not_prove": "The checker cannot fence the ambiguous host capability itself."
+    },
+    {
+      "id": "unknown-scope-blocks-same-domain-sibling-exact",
+      "title": "Unknown failure scope contains same-domain sibling starts",
+      "fixture": "unknown_scope_sibling",
+      "guard": "COMPOSITE_FAILURE_SAFETY",
+      "command": "decide",
+      "expected_action": "inspect_failure_scope",
+      "expected_task_action_views": [
+        { "task_id": "task-1", "action": "inspect_failure_scope" },
+        { "task_id": "task-2", "action": "inspect_failure_scope" }
+      ],
+      "expected_safety_lock_views": [
+        { "task_id": "task-1", "action": "inspect_failure_scope" },
+        { "task_id": "task-2", "action": "inspect_failure_scope" }
+      ],
+      "forbidden_actions": ["dispatch_task", "repair_with_method_change"],
+      "expected_issues": [],
+      "expected_exit": 0,
+      "proves": "An unresolved failure scope blocks an otherwise ready sibling in the same execution domain while scope is inspected.",
+      "does_not_prove": "The receipt cannot determine the true failure scope without external evidence."
+    },
+    {
+      "id": "optional-work-blocks-run-readiness",
+      "title": "Open optional work blocks run readiness",
+      "fixture": "optional_open",
+      "guard": "OWNER_BOUND_READINESS",
+      "expected_action": "wait_owner_transition",
+      "expected_run_ready": false,
+      "expected_exit": 0,
+      "proves": "A complete required task does not make the run ready while an optional owner task remains neither complete nor cancelled.",
+      "does_not_prove": "The checker cannot decide whether the owner should cancel or execute the optional task."
+    },
+    {
+      "id": "retained-effect-blocks-dependent-exact",
+      "title": "Retained unknown effect blocks its dependent cone",
+      "fixture": "retained_effect_dependency",
+      "guard": "COMPOSITE_FAILURE_SAFETY",
+      "command": "decide",
+      "expected_action": "inspect_side_effect",
+      "expected_task_action_views": [
+        { "task_id": "task-1", "action": "inspect_side_effect" },
+        { "task_id": "task-2", "action": "wait_dependency" }
+      ],
+      "expected_safety_lock_views": [
+        { "task_id": "task-1", "action": "inspect_side_effect" }
+      ],
+      "forbidden_actions": ["dispatch_task", "retry_attempt", "report_task_ready"],
+      "expected_issues": ["close.external_effect_missing"],
+      "expected_exit": 1,
+      "proves": "An unknown effect retained anywhere in a completed task lineage stays first in the ordered safety locks and leaves its dependent waiting.",
+      "does_not_prove": "The fixture does not perform authoritative external readback."
+    },
+    {
+      "id": "retained-known-applied-blocks-dependent-exact",
+      "title": "Retained applied effect blocks replay and dependent work",
+      "fixture": "retained_applied_dependency",
+      "guard": "COMPOSITE_FAILURE_SAFETY",
+      "command": "decide",
+      "expected_action": "reconcile_owner_state",
+      "expected_task_action_views": [
+        { "task_id": "task-1", "action": "reconcile_owner_state" },
+        { "task_id": "task-2", "action": "wait_dependency" }
+      ],
+      "expected_safety_lock_views": [
+        { "task_id": "task-1", "action": "reconcile_owner_state" }
+      ],
+      "forbidden_actions": ["dispatch_task", "retry_attempt", "restart_dependency_cone", "report_task_ready"],
+      "expected_issues": ["close.effect_reconciliation_missing"],
+      "expected_exit": 1,
+      "proves": "A known-applied effect retained anywhere in the lineage cannot authorize replay, satisfy a dependent task, or disappear behind a replacement attempt.",
+      "does_not_prove": "The receipt does not express owner-bound idempotency or replay authorization."
+    },
+    {
+      "id": "new-circuit-blocks-domain-siblings-exact",
+      "title": "A new shared fault contains same-domain siblings first",
+      "fixture": "circuit_new_siblings",
+      "guard": "PROVIDER_CIRCUIT_BREAK",
+      "command": "decide",
+      "expected_action": "circuit_break_and_wait",
+      "expected_task_action_views": [
+        { "task_id": "task-fault", "action": "circuit_break_and_wait" },
+        { "task_id": "task-sibling", "action": "hold_open_circuit" },
+        { "task_id": "task-independent", "action": "dispatch_task" }
+      ],
+      "expected_safety_lock_views": [
+        { "task_id": "task-fault", "action": "circuit_break_and_wait" },
+        { "task_id": "task-sibling", "action": "hold_open_circuit" }
+      ],
+      "forbidden_actions": ["retry_attempt"],
+      "expected_issues": ["circuit.not_open"],
+      "expected_exit": 0,
+      "proves": "The decision orders new circuit creation and sibling containment ahead of an independent-domain dispatch.",
+      "does_not_prove": "The checker does not enact the provider circuit at the host boundary."
+    },
+    {
+      "id": "known-applied-forbids-retry-exact",
+      "title": "Known applied effect reconciles instead of replaying",
+      "fixture": "known_applied",
+      "guard": "COMPOSITE_FAILURE_SAFETY",
+      "command": "decide",
+      "expected_action": "reconcile_owner_state",
+      "expected_task_action_views": [
+        { "task_id": "task-1", "action": "reconcile_owner_state" }
+      ],
+      "expected_safety_lock_views": [
+        { "task_id": "task-1", "action": "reconcile_owner_state" }
+      ],
+      "forbidden_actions": ["retry_attempt", "repair_with_method_change", "restart_dependency_cone"],
+      "expected_issues": [],
+      "expected_exit": 0,
+      "proves": "A known-applied effect is represented as an explicit safety lock and never converted into a retry action.",
+      "does_not_prove": "The receipt cannot prove the external effect contents are correct."
+    },
+    {
+      "id": "retained-known-applied-preempts-new-retry-exact",
+      "title": "Retained applied effect preempts a newer transient retry",
+      "fixture": "retained_applied_retry",
+      "guard": "COMPOSITE_FAILURE_SAFETY",
+      "command": "decide",
+      "expected_action": "reconcile_owner_state",
+      "expected_task_action_views": [
+        { "task_id": "task-1", "action": "reconcile_owner_state" }
+      ],
+      "expected_safety_lock_views": [
+        { "task_id": "task-1", "action": "reconcile_owner_state" }
+      ],
+      "forbidden_actions": ["retry_attempt", "repair_with_method_change", "restart_dependency_cone"],
+      "expected_issues": [],
+      "expected_exit": 0,
+      "proves": "A known-applied effect in an old fenced attempt still blocks retry of a newer transient failure in the same logical lineage.",
+      "does_not_prove": "The fixture does not read back or reconcile a real external effect."
+    },
+    {
+      "id": "blocking-pass-same-identity-rejected-exact",
+      "title": "A same-identity pass cannot erase a blocking review",
+      "fixture": "blocking_same_identity",
+      "guard": "BLOCKING_REVIEW_REPAIR",
+      "command": "decide",
+      "expected_action": "repair_then_reverify",
+      "expected_task_action_views": [
+        { "task_id": "task-1", "action": "repair_then_reverify" }
+      ],
+      "expected_safety_lock_views": [],
+      "forbidden_actions": ["report_task_ready", "no_action"],
+      "expected_issues": ["review.repair_identity_unchanged"],
+      "expected_exit": 0,
+      "proves": "A later pass on the unchanged blocked artifact identity remains a repair disposition.",
+      "does_not_prove": "Artifact identity change alone would not prove finding quality."
+    },
+    {
+      "id": "blocking-pass-changed-identity-final",
+      "title": "A changed identity with a fresh pass can validate final closure",
+      "fixture": "blocking_changed_identity",
+      "guard": "BLOCKING_REVIEW_REPAIR",
+      "command": "validate_final",
+      "expected_issues": [],
+      "expected_exit": 0,
+      "proves": "Final validation accepts a repaired identity only after the current verification and later independent pass bind to that identity.",
+      "does_not_prove": "The structural final check does not grade the repair or reviewer competence."
+    },
+    {
+      "id": "stale-verification-final-rejected",
+      "title": "Final closure rejects verification of a stale attempt",
+      "fixture": "stale_verification_final",
+      "guard": "SEMANTIC_COMPLETION",
+      "command": "validate_final",
+      "expected_issues": ["verification.target_not_current", "close.verification_missing"],
+      "expected_exit": 1,
+      "proves": "Final validation reports both the stale verification target and the missing current verification close evidence.",
+      "does_not_prove": "The checker does not rerun verification itself."
+    },
+    {
+      "id": "cancelled-live-optional-final-rejected",
+      "title": "Cancelled optional work cannot retain a live writer at final close",
+      "fixture": "cancelled_live_optional",
+      "guard": "CURRENT_ATTEMPT_FENCE",
+      "command": "validate_final",
+      "expected_issues": ["authority.cancelled_writer_active"],
+      "expected_exit": 1,
+      "proves": "Optional cancellation is terminal only after its current running or succeeded writer authority is gone.",
+      "does_not_prove": "Portable validation cannot revoke the writer capability."
+    },
+    {
+      "id": "unknown-effect-survives-unrelated-error-exact",
+      "title": "Unknown effect remains visible beside unrelated invalid input",
+      "fixture": "unknown_effect_unrelated_error",
+      "guard": "COMPOSITE_FAILURE_SAFETY",
+      "command": "decide",
+      "expected_action": "inspect_side_effect",
+      "expected_task_action_views": [
+        { "task_id": "task-1", "action": "inspect_side_effect" }
+      ],
+      "expected_safety_lock_views": [
+        { "task_id": "task-1", "action": "inspect_side_effect" }
+      ],
+      "forbidden_actions": ["repair_receipt", "repair_with_method_change", "retry_attempt"],
+      "expected_issues": ["owner.evidence_missing"],
+      "expected_exit": 1,
+      "proves": "A normal receipt error cannot demote an unknown external effect to generic receipt repair.",
+      "does_not_prove": "The case cannot identify the real external effect."
+    },
+    {
+      "id": "audit-synthesis-overlap-freezes-exact",
+      "title": "Audit synthesis cannot write inside protected source scope",
+      "fixture": "audit_overlap",
+      "guard": "READ_ONLY_SOURCE_STABILITY",
+      "command": "decide",
+      "expected_action": "freeze_and_rebind",
+      "expected_task_action_views": [
+        { "task_id": "", "action": "freeze_and_rebind" }
+      ],
+      "expected_safety_lock_views": [
+        { "task_id": "", "action": "freeze_and_rebind" }
+      ],
+      "forbidden_actions": ["observe_on_next_condition"],
+      "expected_issues": ["authority.audit_writer_overlap"],
+      "expected_exit": 1,
+      "proves": "An audit synthesis writer overlapping any protected audit source scope freezes global writer authority.",
+      "does_not_prove": "Declared logical paths do not enforce filesystem permissions."
+    },
+    {
+      "id": "missing-observation-predicate-exact",
+      "title": "Running work without a predicate requires evidence",
+      "fixture": "missing_observation",
+      "guard": "BOUNDED_OBSERVATION",
+      "command": "decide",
+      "expected_action": "require_evidence",
+      "expected_task_action_views": [
+        { "task_id": "task-1", "action": "require_evidence" }
+      ],
+      "expected_safety_lock_views": [],
+      "forbidden_actions": ["observe_on_next_condition"],
+      "expected_issues": ["observation.next_condition_missing"],
+      "expected_exit": 0,
+      "proves": "A missing next-observation predicate cannot silently become another poll.",
+      "does_not_prove": "The checker does not choose the best future predicate."
+    },
+    {
+      "id": "restart-budget-forbids-retry-exact",
+      "title": "Restart exhaustion stops a transient retry",
+      "fixture": "restart_budget",
+      "guard": "FRESH_EXECUTOR_RECOVERY",
+      "command": "decide",
+      "expected_action": "checkpoint_and_stop",
+      "expected_task_action_views": [
+        { "task_id": "task-1", "action": "checkpoint_and_stop" }
+      ],
+      "expected_safety_lock_views": [
+        { "task_id": "task-1", "action": "checkpoint_and_stop" }
+      ],
+      "forbidden_actions": ["retry_attempt"],
+      "expected_issues": [],
+      "expected_exit": 0,
+      "proves": "A transient failure cannot recommend retry after the declared restart budget is exhausted.",
+      "does_not_prove": "The fixture does not optimize the declared budget."
+    },
+    {
+      "id": "spawn-budget-forbids-dispatch-exact",
+      "title": "Spawn exhaustion stops ready dispatch",
+      "fixture": "spawn_budget",
+      "guard": "FIT_BEFORE_FANOUT",
+      "command": "decide",
+      "expected_action": "checkpoint_and_stop",
+      "expected_task_action_views": [
+        { "task_id": "task-1", "action": "checkpoint_and_stop" }
+      ],
+      "expected_safety_lock_views": [
+        { "task_id": "task-1", "action": "checkpoint_and_stop" }
+      ],
+      "forbidden_actions": ["dispatch_task"],
+      "expected_issues": [],
+      "expected_exit": 0,
+      "proves": "A ready delegated task cannot dispatch beyond the declared spawn budget.",
+      "does_not_prove": "The case does not determine whether the owner should enlarge the budget."
+    },
+    {
+      "id": "exclusive-writer-occupancy-forbids-second-dispatch",
+      "title": "Occupied exclusive writer authority delays another writer",
+      "fixture": "exclusive_writer_occupied",
+      "guard": "SINGLE_WRITER_AUTHORITY",
+      "command": "decide",
+      "expected_action": "observe_on_next_condition",
+      "expected_task_action_views": [
+        { "task_id": "task-1", "action": "observe_on_next_condition" },
+        { "task_id": "task-2", "action": "wait_owner_transition" }
+      ],
+      "expected_safety_lock_views": [],
+      "forbidden_actions": ["dispatch_task"],
+      "expected_issues": [],
+      "expected_exit": 0,
+      "proves": "A ready writer does not dispatch while another current writer still occupies exclusive integration authority.",
+      "does_not_prove": "The checker cannot observe when the host actually releases writer authority."
+    },
+    {
+      "id": "blocking-repair-budget-exhaustion-stops-mutation",
+      "title": "Blocking repair stops when correction budget is exhausted",
+      "fixture": "blocking_repair_budget",
+      "guard": "BLOCKING_REVIEW_REPAIR",
+      "command": "decide",
+      "expected_action": "checkpoint_and_stop",
+      "expected_task_action_views": [
+        { "task_id": "task-1", "action": "checkpoint_and_stop" }
+      ],
+      "expected_safety_lock_views": [
+        { "task_id": "task-1", "action": "checkpoint_and_stop" }
+      ],
+      "forbidden_actions": ["repair_then_reverify", "dispatch_reviewer"],
+      "expected_issues": ["review.repair_identity_unchanged"],
+      "expected_exit": 0,
+      "proves": "A blocking review cannot silently authorize another correction after the intervention budget is exhausted.",
+      "does_not_prove": "The fixture does not decide whether the owner should grant more budget."
+    },
+    {
+      "id": "reviewer-spawn-budget-exhaustion-stops-dispatch",
+      "title": "Reviewer dispatch stops when spawn budget is exhausted",
+      "fixture": "reviewer_spawn_budget",
+      "guard": "BLOCKING_REVIEW_REPAIR",
+      "command": "decide",
+      "expected_action": "checkpoint_and_stop",
+      "expected_task_action_views": [
+        { "task_id": "task-1", "action": "checkpoint_and_stop" }
+      ],
+      "expected_safety_lock_views": [
+        { "task_id": "task-1", "action": "checkpoint_and_stop" }
+      ],
+      "forbidden_actions": ["dispatch_reviewer"],
+      "expected_issues": [],
+      "expected_exit": 0,
+      "proves": "A required independent review cannot dispatch beyond the declared spawn budget.",
+      "does_not_prove": "The fixture does not decide whether an existing reviewer process could be reused."
+    },
+    {
+      "id": "retained-effect-final-rejected",
+      "title": "Final validation rejects retained unknown effect history",
+      "fixture": "retained_effect_final",
+      "guard": "COMPOSITE_FAILURE_SAFETY",
+      "command": "validate_final",
+      "expected_issues": ["close.external_effect_missing"],
+      "expected_exit": 1,
+      "proves": "A complete current attempt cannot erase unresolved unknown effect state retained in the logical task lineage.",
+      "does_not_prove": "The structural receipt does not perform the required effect readback."
+    },
+    {
+      "id": "retained-applied-final-rejected",
+      "title": "Final validation rejects retained applied-effect reconciliation",
+      "fixture": "retained_applied_final",
+      "guard": "COMPOSITE_FAILURE_SAFETY",
+      "command": "validate_final",
+      "expected_issues": ["close.effect_reconciliation_missing"],
+      "expected_exit": 1,
+      "proves": "A succeeded replacement cannot make a retained known-applied effect close-ready in receipt v1.",
+      "does_not_prove": "The receipt cannot express a later owner-authorized replay contract."
+    },
+    {
+      "id": "machine-local-reference-final-rejected",
+      "title": "Final validation rejects a machine-local owner reference",
+      "fixture": "machine_local_ref",
+      "guard": "OWNER_BOUND_READINESS",
+      "command": "validate_final",
+      "expected_issues": ["ref.machine_absolute"],
+      "expected_exit": 1,
+      "proves": "A local file URI cannot enter a portable owner-bound supervision receipt.",
+      "does_not_prove": "Reference hygiene does not prove the external owner evidence is truthful."
+    }
+  ]
+}

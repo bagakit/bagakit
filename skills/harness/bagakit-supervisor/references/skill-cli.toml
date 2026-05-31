@@ -1,0 +1,20 @@
+version = 1
+skill = "bagakit-supervisor"
+cli_id = "bagakit-supervision-check"
+entrypoint = "scripts/supervision_check.ts"
+runner = "node"
+usage = "node --experimental-strip-types scripts/supervision_check.ts <inspect|decide|validate> --input <receipt.json> [--final] [--json]"
+summary = "Inspect, validate, and recommend safety guards or close-readiness from an explicit owner-bound supervision receipt without launching or mutating host state."
+surface_refs = ["<owner-chosen-receipt.json>"]
+
+[[command]]
+name = "inspect"
+summary = "Render owner revision, route axes, authority, checkpoint, task and attempt lineage, artifact and source identities, verification, review, intervention, circuit, budget, close problems, and diagnostics."
+
+[[command]]
+name = "decide"
+summary = "Recommend deterministic safety guards and admissible next actions from the current owner snapshot."
+
+[[command]]
+name = "validate"
+summary = "Validate receipt invariants; --final also requires coherent owner-reported closure."

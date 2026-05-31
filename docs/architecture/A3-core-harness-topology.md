@@ -351,6 +351,7 @@ Current canonical runtime units in this topology are:
 - `skills/harness/bagakit-living-knowledge/`
 - `skills/harness/bagakit-researcher/`
 - `skills/harness/bagakit-brainstorm/`
+- `skills/harness/bagakit-supervisor/`
 
 Current canonical project-state surface:
 

@@ -1,0 +1,54 @@
+version = 2
+
+[[suite]]
+id = "bagakit-supervisor-failure-matrix-eval"
+owner = "gate_eval/skills/harness/bagakit-supervisor"
+description = "Run every registered deterministic Supervisor case for owner binding, aligned direct execution, read-only source stability, stale premise, recovery, provider-domain circuits, composite failure safety, identity-bound completion and review, prior-writer fencing, writer authority, cost drift, optional-task readiness, observation and execution budgets, ordered safety locks, and final closure."
+default = true
+proof_mode = "runtime"
+protects = ["Supervisor quality cases mapped to structured guards and named direct-execution plus dispatch-only baselines"]
+oracle = ["dev/eval registers every uniquely identified case in supervision-cases.json, invokes decide or validate --final through the public checker, and where declared asserts exact task/action projections, ordered safety locks, forbidden actions, complete issue-code sets, exit status, and case-specific proof and non-proof boundaries"]
+exercised_surface = ["gate_eval/skills/harness/bagakit-supervisor/suite.ts", "gate_eval/skills/harness/bagakit-supervisor/cases/supervision-cases.json", "skills/harness/bagakit-supervisor/references/supervision-quality-contract.toml", "skills/harness/bagakit-supervisor/scripts/supervision_check.ts"]
+proves = ["bagakit-supervisor-failure-matrix-eval proves the deterministic guard surface covers research-derived serious moments, rejects unsafe identity and closure claims, and distinguishes aligned continuation, safety locks, intervention follow-up, and owner readiness."]
+does_not_prove = ["bagakit-supervisor-failure-matrix-eval does not run live Agents, measure real correction gain or overhead, prove host events or permissions, or establish a frontier capability claim."]
+timeout_seconds = 120
+validation_class = "quality"
+groups = ["skills", "harness", "supervisor", "eval", "quality"]
+
+[suite.runner]
+kind = "executable"
+command = "{node}"
+args = [
+  "--experimental-strip-types",
+  "dev/eval/src/cli.ts",
+  "run",
+  "--root",
+  "{repo_root}",
+  "--suite",
+  "gate_eval/skills/harness/bagakit-supervisor/suite.ts",
+]
+
+[[suite]]
+id = "bagakit-supervisor-pass003-protocol-eval"
+owner = "gate_eval/skills/harness/bagakit-supervisor"
+description = "Validate the sealed paired pass-003 preregistration and the normalized smoke-only pass-002 calibration packet before any expensive live run."
+default = true
+proof_mode = "runtime"
+protects = ["four high-discrimination forward cases, paired three-condition design, separate aligned and fault lanes, trace-oracle requirements, unknown telemetry semantics, and the pilot claim boundary"]
+oracle = ["owner-local TypeScript checker loads the shared eval dataset contract and asserts run-cell accounting, the policy-bundle estimand, treatment capsules, explicit order plan, aligned and fault variant maps, contrast eligibility, candidate allowlist, condition-scoped oracle groups, case-specific hard oracles, calibration row uniqueness and totals, validity flags, required protocol sections, and durable path hygiene"]
+exercised_surface = ["gate_eval/skills/harness/bagakit-supervisor/protocol.md", "gate_eval/skills/harness/bagakit-supervisor/cases/forward-cases.json", "gate_eval/skills/harness/bagakit-supervisor/cases/pilot-calibration.json", "gate_eval/skills/harness/bagakit-supervisor/check-forward-protocol.ts"]
+proves = ["bagakit-supervisor-pass003-protocol-eval proves the unrun comparison preregistration is structurally consistent and that the prior automated-ceiling run remains explicitly calibration-only."]
+does_not_prove = ["bagakit-supervisor-pass003-protocol-eval does not implement the isolated host, trigger faults, run Agents, calibrate graders, or produce comparative capability evidence."]
+timeout_seconds = 120
+validation_class = "quality"
+groups = ["skills", "harness", "supervisor", "eval", "protocol"]
+
+[suite.runner]
+kind = "executable"
+command = "{node}"
+args = [
+  "--experimental-strip-types",
+  "gate_eval/skills/harness/bagakit-supervisor/check-forward-protocol.ts",
+  "--root",
+  "{repo_root}",
+]
