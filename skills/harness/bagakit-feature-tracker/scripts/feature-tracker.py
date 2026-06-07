@@ -5026,7 +5026,7 @@ body { margin:0; background:var(--canvas); color:var(--ink); font-size:14px; }
 .metric { min-width:86px; }
 .metric strong { display:block; font-size:23px; line-height:1.15; font-variant-numeric:tabular-nums; }
 .metric span { color:var(--muted); font-size:11px; text-transform:uppercase; letter-spacing:.055em; }
-.status-board { display:grid; grid-template-columns:repeat(5,minmax(280px,320px)); grid-auto-flow:column; grid-auto-columns:320px; gap:16px; align-items:stretch; overflow-x:auto; padding:0 2px 12px; scroll-snap-type:x proximity; }
+.status-board { display:grid; grid-template-columns:repeat(5,320px); grid-auto-flow:column; grid-auto-columns:320px; gap:16px; align-items:start; overflow-x:auto; padding:0 2px 12px; scroll-snap-type:x proximity; }
 .status-column { --tone:#8b8c86; --tint:#ecece7; width:320px; min-width:320px; min-height:220px; display:flex; flex-direction:column; border-radius:15px; background:color-mix(in srgb,var(--tint) 72%,var(--canvas)); padding:9px; scroll-snap-align:start; }
 .status-column--amber { --tone:#b98313; --tint:#fbf5e5; }
 .status-column--red { --tone:#c4413b; --tint:#fbefee; }

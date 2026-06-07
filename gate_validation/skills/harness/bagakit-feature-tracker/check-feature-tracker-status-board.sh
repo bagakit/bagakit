@@ -96,6 +96,9 @@ feature_id = sys.argv[2]
 # board does not resize when the frontier changes.
 assert html.count('class="status-column ') == 5
 assert html.count('class="column-empty"') == 4
+assert "grid-template-columns:repeat(5,320px)" in html
+assert "grid-auto-columns:320px" in html
+assert "align-items:start" in html
 
 # A focused Feature id is reflected in markup and opens the active review.
 assert f'data-focus-feature="{feature_id}"' in html
