@@ -72,7 +72,8 @@ Files:
   - token and visual-system source of truth inferred from the reference:
     typography, color palette, spacing, hierarchy, borders/elevation/radius,
     state styling, density, motion, brand tone, page grid, control geometry,
-    component density, source/usage for repeated values, gaps or
+    component density, selected/current signal choice (including any
+    one-sided-rail exception), source/usage for repeated values, gaps or
     inconsistencies, and accepted uncertainty
 - `design-core-plan-review.md`
   - concrete design plan review that maps packet tone and design rules into

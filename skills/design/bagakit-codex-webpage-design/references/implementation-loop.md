@@ -197,12 +197,14 @@ role, density level, responsive implication, and frame label. The
 family, material language, imagery grade, icon style, and voice in one brand
 world while allowing each section to vary rhythm deliberately.
 
-Generic-output tells are risks, not universal bans. In `ambition-bar.md`,
+Generic-output tells remain evidence-bound risks. In `ambition-bar.md`,
 `design-core-design-packet.toml`, or the local review artifacts, record each
 anti-default risk with evidence, mitigation, and `override_reason` when kept.
-Do not accept default card stacks, split heroes, one-note palettes, decorative
-icon noise, vague copy, or library-default controls merely because they are
-common; also do not forbid them when the target register and user task give a
+The shared selected-state rule is a scoped default ban: do not use a thin
+one-sided rail as the sole selected/current signal or repeat it as generic card
+chrome. Other patterns, such as default card stacks, split heroes, one-note
+palettes, decorative icon noise, vague copy, or library-default controls, are
+not automatically forbidden when the target register and user task give a
 clear reason.
 
 ## Design Spec Gate
@@ -227,7 +229,9 @@ Record concrete standards for:
 - component density: card size, card padding, media ratio, list row height,
   badge shape, table or feed density, and repeated module spacing
 - state treatment: hover, selected, active, disabled, focus, loading, empty,
-  pressed, modal/drawer, and responsive variants
+  pressed, modal/drawer, and responsive variants; selected/current states must
+  not rely solely on a thin one-sided rail unless the semantic exception and
+  paired cue are recorded
 - motion and transition tokens: duration, easing, affordance feedback,
   reduced-motion fallback, and which motion claims need browser proof
 - accepted uncertainty: details that cannot be measured exactly from the

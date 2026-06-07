@@ -404,6 +404,11 @@ protects = "design rules and tonality must be considered while reviewing the dra
 proof_surface = "design-core-draft-review plus design-core-plan-review plus design-core-result-review"
 
 [[guard]]
+id = "selected-state-signal"
+protects = "selected, current, and active states must not default to a thin one-sided bar as their only signal; retained side rails need a semantic job, a paired non-color cue, and an override reason when they also mark selection"
+proof_surface = "state-reference-set plus design-spec-ledger plus visual-quality-rubric plus visual-parity-ledger"
+
+[[guard]]
 id = "skill-quality-no-reference-invalid"
 protects = "skill-quality validation experiments must stop as invalid when neither external_strong nor image2_filesystem reference exists"
 proof_surface = "reference-provenance-ledger plus design-reference artifact"
@@ -849,3 +854,7 @@ guard_ids = ["design-core-optional-composition", "brand-tonality-preservation", 
 [[historical_failure_guard]]
 case_id = "toy-single-page-false-mvp-proof"
 guard_ids = ["mvp-complexity"]
+
+[[historical_failure_guard]]
+case_id = "one-sided-selection-rail-reads-as-ai-chrome"
+guard_ids = ["selected-state-signal", "anti-default-risk-overrides", "design-spec-fidelity"]

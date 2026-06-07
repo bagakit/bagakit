@@ -31,6 +31,7 @@ This guidebook is the reading map for the shared knowledge root.
 - `docs/README.md` — Docs
 - `docs/architecture` — architecture
 - `docs/norms-maintaining-reusable-items.md` — Maintaining Reusable Items
+- `docs/notes-reusable-items-design.md` — Reusable Items - Design
 - `docs/notes-reusable-items-knowledge.md` — Reusable Items - Knowledge
 - `docs/skill-development.md` — BAGAKIT Skill Development Guide
 - `docs/specs` — Specs

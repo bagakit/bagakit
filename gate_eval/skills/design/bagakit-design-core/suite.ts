@@ -70,6 +70,7 @@ export const SUITE: EvalSuiteDefinition = {
         for (const id of [
           "tone-axis-concreteness",
           "observed-derived-split",
+          "selected-state-signal",
           "full-surface-rule-coverage",
           "three-checkpoint-review",
           "reference-tier-honesty",
@@ -81,6 +82,7 @@ export const SUITE: EvalSuiteDefinition = {
           assertions: [
             "contract preserves brand tonality stage",
             "contract preserves full design-rule coverage stage",
+            "contract exposes the scoped selected-state signal rule",
             "contract preserves draft, plan, and result checkpoint review",
           ],
           artifacts: [
@@ -108,6 +110,10 @@ export const SUITE: EvalSuiteDefinition = {
         assert.ok(tonality.includes("derived"), "tonality synthesis should preserve derived provenance");
         assert.ok(tonality.includes("fallback"), "tonality synthesis should preserve fallback provenance");
         assert.ok(rules.includes("Draft Review"), "rule synthesis should preserve draft review checkpoint");
+        assert.ok(
+          rules.includes("selected/current state signals should not default to a thin one-sided bar"),
+          "rule synthesis should preserve the selected-state signal default ban",
+        );
         assert.ok(rules.includes("concrete design plan review"), "rule synthesis should preserve concrete-plan checkpoint");
         assert.ok(rules.includes("result review"), "rule synthesis should preserve result checkpoint");
         assert.ok(
@@ -124,6 +130,7 @@ export const SUITE: EvalSuiteDefinition = {
           assertions: [
             "tonality synthesis keeps observed/derived/fallback provenance",
             "rule synthesis keeps three checkpoint reviews",
+            "rule synthesis keeps the scoped selected-state signal default",
             "review protocol keeps one design packet as the cross-checkpoint object",
           ],
           artifacts: [

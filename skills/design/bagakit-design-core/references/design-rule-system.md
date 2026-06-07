@@ -100,6 +100,32 @@ Review every serious design across these dimensions:
 - originality, signature detail, and reference-tier comparison
 - implementation readiness and drift from the design packet
 
+## Selected-State Signal Rule
+
+Apply this as a scoped default ban across product, tool, data, editorial, and
+HITL surfaces:
+
+- Do not use a thin single-edge bar or rail (for example, a 1–4px colored
+  strip on the left or right) as the only signal that an item is selected,
+  current, or active.
+- Do not repeat that rail as a generic accent on every metric card, list row,
+  panel, or navigation item. Repeated side rails read as template chrome and
+  often look AI-generated rather than product-specific.
+- Prefer a state-bearing treatment that belongs to the component: whole-surface
+  contrast or fill, a change in shape or weight, a selected icon or badge, a
+  contextual marker, or a clearly scoped underline/outline where the control
+  convention supports it. Pair color changes with a non-color cue so the state
+  remains legible without color perception.
+- A side rail may remain when it is an observed requirement of an existing
+  design system or carries a structural meaning such as severity, timeline,
+  ownership, or status. It must not silently imply selection; if it also marks
+  selection, pair it with another state cue and record an `override_reason` in
+  the anti-default risk scan.
+
+This is a default ban on a generic selected-state shortcut, not a ban on every
+vertical edge in every visual system. The design packet and checkpoint reviews
+must make the semantic job of any retained edge explicit.
+
 ## Semantic Economy
 
 Every major visual expression should own a distinct job. During review, ask:
@@ -133,11 +159,12 @@ work.
 
 Use `anti-default-risk-scan.md` when the work is high-craft, generated,
 reference-light, premium, frontier, or especially opinionated. This scan
-should not say that a pattern is always forbidden. Each row should record:
+should keep generic-output tells evidence-bound while applying the scoped
+selected-state default ban above. Each row should record:
 
 - risk pattern, such as generic hero rhythm, repeated rounded cards, one-note
-  palette, decorative icon noise, vague copy, stock-like image treatment, or
-  pasted component defaults
+  palette, decorative icon noise, vague copy, stock-like image treatment,
+  pasted component defaults, or a repeated one-sided selection rail
 - evidence in the brief, reference, draft, or implementation
 - likely user harm: lower comprehension, weaker trust, slower workflow,
   brand drift, inaccessible state, or reduced memorability

@@ -530,6 +530,18 @@
       "contract_guard_ids": [
         "mvp-complexity"
       ]
+    },
+    {
+      "id": "one-sided-selection-rail-reads-as-ai-chrome",
+      "source_refs": [
+        ".bagakit/skill-selector/tasks/design-selection-rail-ban/skill-usage.toml"
+      ],
+      "failure": "A dashboard repeats narrow colored left or right rails on metric cards or uses one as the sole selected/current cue, producing generic AI-like chrome instead of a component-owned state signal.",
+      "contract_guard_ids": [
+        "selected-state-signal",
+        "anti-default-risk-overrides",
+        "design-spec-fidelity"
+      ]
     }
   ]
 }

@@ -34,8 +34,8 @@ state as an independently editable source of truth.
     geometry, copy voice, and fallback confidence
 - `rule-coverage-map.md`
   - coverage across hierarchy, information architecture, typography, layout,
-    color, product-model fit, interaction states, accessibility, motion, copy,
-    and generic-output risks
+    color, product-model fit, interaction states (including the selected-state
+    signal rule), accessibility, motion, copy, and generic-output risks
 - `design-packet.toml`
   - structured SSOT for design decisions, evidence refs, confidence, accepted
     uncertainty, blockers, and downstream consumption hints

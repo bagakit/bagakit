@@ -11,7 +11,8 @@ Before implementation or final image prompting, check:
 - tone axes are concrete enough to build from
 - reference tier and cannot-lose qualities are named
 - design rules cover hierarchy, density, copy, states, accessibility, and
-  generic-output risks
+  generic-output risks; selected/current states do not rely on a generic
+  one-sided rail without an explicit semantic job and paired cue
 
 ## Concrete Plan Review
 

@@ -145,6 +145,11 @@ protects = "major visual expressions should own distinct object, state, action, 
 proof_surface = "rule-coverage-map plus design-packet plus checkpoint reviews"
 
 [[guard]]
+id = "selected-state-signal"
+protects = "selected, current, and active states must not default to a thin one-sided bar as their only signal; retained side rails need a semantic job, a paired non-color cue, and an override reason when they also mark selection"
+proof_surface = "rule-coverage-map plus anti-default-risk-scan plus design-packet plus checkpoint reviews"
+
+[[guard]]
 id = "full-surface-rule-coverage"
 protects = "review must cover hierarchy, information architecture, typography, layout, color, interaction states, accessibility, motion, copy, and generic-output risks"
 proof_surface = "rule-coverage-map plus checkpoint reviews"

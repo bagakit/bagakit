@@ -57,9 +57,9 @@ early ambiguous ideation that still needs `bagakit-spark`.
      high-craft work also record variance, motion, and density dials
 6. `design-rule-coverage`
    - review hierarchy, information architecture, typography, layout, color,
-     product model fit, interaction states, accessibility, motion, copy,
-     semantic economy, reference-tier fit, and generic-output risks with
-     override reasons
+     product model fit, interaction states (including the selected-state
+     signal rule), accessibility, motion, copy, semantic economy,
+     reference-tier fit, and generic-output risks with override reasons
 7. `design-packet`
    - write one structured packet as the task SSOT; Markdown reviews are
      narrative projections, not duplicate state
@@ -83,6 +83,9 @@ Owns `.bagakit/design/` when a repository materializes project-local design
 synthesis, design packets, or review artifacts.
 
 Root-adjacent protocol files: none.
+
+Read `references/design-rule-system.md` for the full review dimensions,
+selected-state signal rule, and evidence-bound anti-default risk handling.
 
 Stable contract:
 

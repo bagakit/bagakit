@@ -82,6 +82,10 @@ Scenario pages are cross-products, not atomic modules.
 4. Select one style route.
    - style owns layout, density, pane treatment, scanning behavior, and visual
      language
+   - make selected/current case, pane, tab, or mode states legible without
+     defaulting to a thin one-sided rail as the only cue; apply the shared
+     `bagakit-design-core` selected-state rule and record any semantic
+     exception
    - keep cognitive and export semantics in mechanisms or artifacts
 5. Select artifacts.
    - define what the human will copy, export, or hand back to the agent
@@ -177,7 +181,7 @@ Read by route:
     and parity iteration
 - `bagakit-design-core`
   - owns brand or tone review when a design packet or design-rule pass is
-    needed
+    needed, including the shared selected-state signal rule
 - `bagakit-spark`
   - use when the page purpose, scene boundary, or eval meaning is still too
     unclear to scaffold

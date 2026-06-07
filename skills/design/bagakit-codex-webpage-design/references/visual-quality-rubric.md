@@ -163,6 +163,10 @@ For interactive pages and product-like work, add deeper checks:
 22. Anti-Default Risk Handling
    - Are generic-output risks named with evidence, mitigation, and
      `override_reason` when intentionally kept?
+   - Apply the shared selected-state signal rule: do not default to a thin
+     single-edge rail as the only selected/current cue or repeat it as generic
+     card chrome. If a rail is retained for a documented semantic reason,
+     require a paired non-color cue and an `override_reason`.
 
 Then add implementation checks:
 
@@ -317,6 +321,9 @@ Watch for:
 - broken or oversized SVG/icons caused by broad CSS selectors
 - default, hover, selected, empty, loading, modal, or error states that look
   unrelated to the reference frame
+- thin single-edge rails repeated across cards, rows, or navigation as generic
+  chrome, or used as the sole selected/current signal without a semantic
+  exception and paired non-color cue
 - generated state boards that look like the failed implementation rather than
   the strong original reference
 - multi-section generated references collapsed into one tall image, one

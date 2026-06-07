@@ -76,8 +76,10 @@ adapt to the project:
    - page frame, regions, typography, palette, material, component treatment,
      information compression, surface composition, density, copy/icon budget,
      semantic visual ownership, hierarchy, signature details, and
-     image-extraction checklist when implementing from screenshots, Figma,
-     generated references, or state boards
+     selected-state signal treatment; apply the shared scoped ban on a thin
+     one-sided rail as the only selected/current cue, and record any semantic
+     exception; include the image-extraction checklist when implementing from
+     screenshots, Figma, generated references, or state boards
 8. `design-spec-ledger`
    - visual-system source of truth for grid, type, color, hierarchy, spacing,
      control geometry, borders, material, density, motion, brand tone, and
@@ -217,6 +219,9 @@ Before final handoff, verify:
   agent-authored browser page is not reference authority
 - `design-spec-ledger` exists and the implementation uses its token and
   geometry standards instead of ad hoc visual guesses
+- selected/current/active states do not default to a thin one-sided bar as the
+  only signal; any retained side rail has a documented semantic job, a paired
+  non-color cue, and an `override_reason` in the anti-default risk scan
 - existing-project redesigns have a preservation audit for host stack, routes,
   tokens, components, IA, content, accessibility, and sensitive labels
 - image-like references have an extraction checklist; important unclear
@@ -311,6 +316,8 @@ Use bench cases for failures such as:
 - vague webpage starts that skip startup clarification and collapse into a
   generic template before project logic, reference fit, skeleton, or asset
   slots are clear
+- selected-state styling that repeats a narrow left/right rail as generic
+  dashboard chrome or uses it as the sole selected/current cue
 
 ## References
 
@@ -321,5 +328,8 @@ Use bench cases for failures such as:
 - `references/design-archetypes.md` - archetype router and reference comparison targets
 - `references/asset-pipeline.md` - generated asset roles and slice/mask/crop
 - `references/visual-quality-rubric.md` - aesthetic review, parity rating, judge scoring, blockers
+- `../bagakit-design-core/references/design-rule-system.md` - shared design
+  rules, including the scoped selected-state signal ban, when the sibling
+  design-core skill is available
 - `references/artifact-contract.md` - artifact names, blocking artifacts, final handoff format
 - `references/workflow-contract.toml` - stages, completion artifacts, guards, failure coverage

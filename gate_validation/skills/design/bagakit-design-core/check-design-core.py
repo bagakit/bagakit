@@ -55,6 +55,7 @@ REQUIRED_GUARD_IDS = {
     "target-register-fit",
     "first-frame-fit",
     "semantic-economy",
+    "selected-state-signal",
     "full-surface-rule-coverage",
     "anti-default-risk-overrides",
     "brand-system-board-transfer",

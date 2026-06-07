@@ -76,6 +76,7 @@ REQUIRED_GUARD_IDS = {
     "design-packet-provenance",
     "brand-tonality-preservation",
     "design-rule-three-checkpoint-review",
+    "selected-state-signal",
     "skill-quality-no-reference-invalid",
     "state-reference-authority",
     "section-reference-count",

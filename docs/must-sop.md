@@ -19,6 +19,10 @@ Source: `docs/norms-maintaining-reusable-items.md`
 - When one pattern, checklist, or example becomes a stable project default, add or update the matching reusable-items catalog entry in the same change.
 - When reusable-items route guidance changes, refresh `docs/must-sop.md` by running `sh "$BAGAKIT_LIVING_KNOWLEDGE_SKILL_DIR/scripts/bagakit-living-knowledge.sh" index --root .`.
 
+### Reusable Items - Design
+Source: `docs/notes-reusable-items-design.md`
+- Update this catalog when a design token, component pattern, or review rule becomes a project default.
+
 ### Reusable Items - Knowledge
 Source: `docs/notes-reusable-items-knowledge.md`
 - Update this catalog when one note, index, or query pattern becomes worth reusing across tasks.

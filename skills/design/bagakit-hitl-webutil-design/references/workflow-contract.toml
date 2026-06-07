@@ -18,6 +18,7 @@ required_reference_links = [
 ]
 optional_peer_contracts = [
   "skills/design/bagakit-codex-webpage-design/references/workflow-contract.toml",
+  "skills/design/bagakit-design-core/references/design-core-contract.toml",
   "skills/human-improvement/bagakit-mastery-learning/references/mastery-learning-contract.toml",
 ]
 

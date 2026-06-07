@@ -23,6 +23,9 @@ Then review the whole surface, not only the visible polish:
 - hierarchy, first action, and workflow legibility
 - typography, layout rhythm, density, and responsive behavior
 - color semantics, contrast, and state treatment
+- selected/current state signals should not default to a thin one-sided bar;
+  repeated rails should not become generic card chrome, and any retained rail
+  needs a semantic job and a paired non-color cue
 - component geometry, affordance grouping, focus, and touch targets
 - loading, empty, error, disabled, hover, selected, and modal states
 - motion purpose and reduced-motion fallback
