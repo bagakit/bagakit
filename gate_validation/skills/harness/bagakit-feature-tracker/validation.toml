@@ -252,3 +252,164 @@ args = [
   "--root",
   "{repo_root}",
 ]
+
+[[suite]]
+id = "bagakit-feature-tracker-plan-shaping-entry"
+owner = "skills/harness/bagakit-feature-tracker"
+description = "Expose the plan-shaping reference entrypoint and keep its initial links and routing pointer discoverable."
+default = true
+proof_mode = "wording_contract"
+timeout_seconds = 30
+protects = ["plan-shaping guidance entry surface and its Feature Tracker routing pointer"]
+oracle = ["entry check verifies the When to use contract, five child link stubs, and the single Task Decomposition pointer"]
+exercised_surface = ["skills/harness/bagakit-feature-tracker/references/plan-shaping/GUIDE.md", "skills/harness/bagakit-feature-tracker/SKILL.md"]
+proves = ["bagakit-feature-tracker-plan-shaping-entry proves the plan-shaping guide is discoverable from Task Decomposition and indexes the five child reference stubs."]
+does_not_prove = ["bagakit-feature-tracker-plan-shaping-entry passing does not prove Agents apply the plan-shaping guidance."]
+validation_class = "contract"
+groups = ["skills", "harness", "feature-tracker", "plan-shaping", "contract"]
+
+[suite.runner]
+kind = "bash_script"
+script = "gate_validation/skills/harness/bagakit-feature-tracker/check-feature-tracker-plan-shaping-entry.sh"
+args = [
+  "--root",
+  "{repo_root}",
+]
+
+[[suite]]
+id = "bagakit-feature-tracker-plan-shaping-node-kinds"
+owner = "skills/harness/bagakit-feature-tracker"
+description = "Keep the five plan-shaping node kinds, negative boundaries, test-split criterion, and SSOT proof-node variant explicit."
+default = true
+proof_mode = "wording_contract"
+timeout_seconds = 30
+protects = ["plan-shaping node typology, per-kind must-not boundaries, test-split criterion, and SSOT drift-audit variant"]
+oracle = ["node-kinds check verifies the five headings and required boundary, split, SSOT, and restore statements"]
+exercised_surface = ["skills/harness/bagakit-feature-tracker/references/plan-shaping/node-kinds.md"]
+proves = ["bagakit-feature-tracker-plan-shaping-node-kinds proves the node-kinds wording contract is present and the gate fails closed when required statements are missing."]
+does_not_prove = ["bagakit-feature-tracker-plan-shaping-node-kinds passing does not prove Agents classify or apply node kinds correctly."]
+validation_class = "contract"
+groups = ["skills", "harness", "feature-tracker", "plan-shaping", "contract"]
+
+[suite.runner]
+kind = "bash_script"
+script = "gate_validation/skills/harness/bagakit-feature-tracker/check-feature-tracker-plan-shaping-node-kinds.sh"
+args = [
+  "--root",
+  "{repo_root}",
+]
+
+[[suite]]
+id = "bagakit-feature-tracker-plan-shaping-granularity"
+owner = "skills/harness/bagakit-feature-tracker"
+description = "Keep plan-shaping split signals, one-intent commit correspondence, and execution-wave order explicit."
+default = true
+proof_mode = "wording_contract"
+timeout_seconds = 30
+protects = ["plan-shaping granularity signals, commit correspondence, do-not-split conditions, and wave order"]
+oracle = ["granularity check verifies the four too-big signals, commit rule, do-not-split headings, and spine/fan-out/join order"]
+exercised_surface = ["skills/harness/bagakit-feature-tracker/references/plan-shaping/granularity.md"]
+proves = ["bagakit-feature-tracker-plan-shaping-granularity proves the granularity wording contract is present and the gate fails closed when required statements are missing."]
+does_not_prove = ["bagakit-feature-tracker-plan-shaping-granularity passing does not prove Agents choose correct Task boundaries."]
+validation_class = "contract"
+groups = ["skills", "harness", "feature-tracker", "plan-shaping", "contract"]
+
+[suite.runner]
+kind = "bash_script"
+script = "gate_validation/skills/harness/bagakit-feature-tracker/check-feature-tracker-plan-shaping-granularity.sh"
+args = [
+  "--root",
+  "{repo_root}",
+]
+
+[[suite]]
+id = "bagakit-feature-tracker-plan-shaping-isolation"
+owner = "skills/harness/bagakit-feature-tracker"
+description = "Keep parallel-writer conflict boundaries and the Host/Supervisor merge boundary explicit in plan shaping."
+default = true
+proof_mode = "wording_contract"
+timeout_seconds = 30
+protects = ["plan-shaping isolation devices, true-parallelism test, and Host/Supervisor boundary"]
+oracle = ["isolation check verifies the three in-schema devices, true-parallelism conditions, and worktree/merge ownership statement"]
+exercised_surface = ["skills/harness/bagakit-feature-tracker/references/plan-shaping/isolation.md"]
+proves = ["bagakit-feature-tracker-plan-shaping-isolation proves the isolation wording contract is present and the gate fails closed when required statements are missing."]
+does_not_prove = ["bagakit-feature-tracker-plan-shaping-isolation passing does not prove execution-time conflict cones shrink or merges are conflict-free."]
+validation_class = "contract"
+groups = ["skills", "harness", "feature-tracker", "plan-shaping", "contract"]
+
+[suite.runner]
+kind = "bash_script"
+script = "gate_validation/skills/harness/bagakit-feature-tracker/check-feature-tracker-plan-shaping-isolation.sh"
+args = [
+  "--root",
+  "{repo_root}",
+]
+
+[[suite]]
+id = "bagakit-feature-tracker-plan-shaping-antipatterns"
+owner = "skills/harness/bagakit-feature-tracker"
+description = "Keep the negative plan-shaping catalog structurally complete, including SSOT and oracle-less decision failures."
+default = true
+proof_mode = "wording_contract"
+timeout_seconds = 30
+protects = ["plan-shaping antipattern catalog with observable symptoms and corrective shapes"]
+oracle = ["antipatterns check verifies at least ten complete named entries including ritual SSOT audit and oracle-less decision Task"]
+exercised_surface = ["skills/harness/bagakit-feature-tracker/references/plan-shaping/antipatterns.md"]
+proves = ["bagakit-feature-tracker-plan-shaping-antipatterns proves the antipattern catalog has the required structural entries and the gate fails closed when an entry is incomplete."]
+does_not_prove = ["bagakit-feature-tracker-plan-shaping-antipatterns passing does not prove the catalog prevents the plan failures it names."]
+validation_class = "contract"
+groups = ["skills", "harness", "feature-tracker", "plan-shaping", "contract"]
+
+[suite.runner]
+kind = "bash_script"
+script = "gate_validation/skills/harness/bagakit-feature-tracker/check-feature-tracker-plan-shaping-antipatterns.sh"
+args = [
+  "--root",
+  "{repo_root}",
+]
+
+[[suite]]
+id = "bagakit-feature-tracker-plan-shaping-join"
+owner = "skills/harness/bagakit-feature-tracker"
+description = "Join plan-shaping references at the earliest coherent candidate with preflight coverage, resolving links, and a named restore point."
+default = true
+proof_mode = "wording_contract"
+timeout_seconds = 30
+protects = ["plan-shaping cross-link join, preflight coverage, and named restore tag"]
+oracle = ["join check verifies eight-to-ten Yes/No preflight questions, required SSOT and join-placement coverage, resolving GUIDE links, and the restore tag"]
+exercised_surface = ["skills/harness/bagakit-feature-tracker/references/plan-shaping/GUIDE.md", "skills/harness/bagakit-feature-tracker/references/plan-shaping/preflight.md", "Git tag restore/plan-shaping-bootstrap-join"]
+proves = ["bagakit-feature-tracker-plan-shaping-join proves the integrated reference links, preflight wording contract, and named restore handle are present on the candidate."]
+does_not_prove = ["bagakit-feature-tracker-plan-shaping-join passing does not prove Agents apply the checklist or that runtime integration decisions are correct."]
+validation_class = "contract"
+groups = ["skills", "harness", "feature-tracker", "plan-shaping", "contract", "integration"]
+
+[suite.runner]
+kind = "bash_script"
+script = "gate_validation/skills/harness/bagakit-feature-tracker/check-feature-tracker-plan-shaping-join.sh"
+args = [
+  "--root",
+  "{repo_root}",
+]
+
+[[suite]]
+id = "bagakit-feature-tracker-plan-shaping-ssot"
+owner = "skills/harness/bagakit-feature-tracker"
+description = "SSOT drift detector for structural synchronization between live plan-shaping references, GUIDE links, SKILL routing, and validation suite registrations."
+default = true
+proof_mode = "structural"
+timeout_seconds = 30
+protects = ["plan-shaping SSOT synchronization across live child references, GUIDE links, SKILL pointer, and check-suite registrations"]
+oracle = ["SSOT drift check derives child, link, and runner.script sets from live surfaces and fails closed when they diverge"]
+exercised_surface = ["skills/harness/bagakit-feature-tracker/references/plan-shaping directory and GUIDE.md", "skills/harness/bagakit-feature-tracker/SKILL.md", "gate_validation/skills/harness/bagakit-feature-tracker/validation.toml and check scripts"]
+proves = ["bagakit-feature-tracker-plan-shaping-ssot proves every live markdown child is linked by GUIDE.md and exists, the SKILL.md pointer is singular, and plan-shaping check scripts and validation registrations remain synchronized."]
+does_not_prove = ["bagakit-feature-tracker-plan-shaping-ssot passing does not prove the guidance content is semantically consistent; it proves only that the surfaces are structurally synchronized."]
+validation_class = "contract"
+groups = ["skills", "harness", "feature-tracker", "plan-shaping", "ssot", "contract"]
+
+[suite.runner]
+kind = "bash_script"
+script = "gate_validation/skills/harness/bagakit-feature-tracker/check-feature-tracker-plan-shaping-ssot.sh"
+args = [
+  "--root",
+  "{repo_root}",
+]

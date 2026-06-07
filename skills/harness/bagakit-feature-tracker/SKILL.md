@@ -138,6 +138,8 @@ replan or rewrite control state unless a user-confirmed requirement changes.
 
 ## Task Decomposition And Parallelism
 
+Plan-shaping guidance: read [references/plan-shaping/GUIDE.md](references/plan-shaping/GUIDE.md) while drafting `tasks.json`, before `set-task-plan`.
+
 Treat one Feature as one user goal, then make its Task plan as fine-grained as
 the acceptance evidence allows:
 
