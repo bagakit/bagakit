@@ -1,6 +1,6 @@
 ---
 name: bagakit-hitl-webutil-design
-description: Design or continue human-in-the-loop web utility pages that help a person understand, learn, inspect, test, compare, judge evidence, or report back to an agent. Use when Codex should decompose a HITL page into reusable mechanisms, style routes, artifact contracts, components, templates, and scene crosswalks; project or resume an interactive course from a mastery-learning handoff, attempt packet, or page-submission receipt; preserve stable case/run history; define review-mode reveal policies and copyable human-to-agent handoff outputs; or prepare a HITL page brief before handing frontend implementation to bagakit-codex-webpage-design. Explicit HITL page requests and mastery interactive-course handoffs default to implemented, browser-verified frontend delivery unless the user explicitly requests design-only or no-file work.
+description: Design or continue human-in-the-loop web utility pages that help a person understand, learn, inspect, test, compare, judge evidence, or report back to an agent. Use when Codex should decompose a HITL page into reusable mechanisms, style routes, artifact contracts, components, templates, and scene crosswalks; compose an optional bagakit-explain foundation so a human can understand what is happening before acting; project or resume an interactive course from a mastery-learning handoff, attempt packet, or page-submission receipt; preserve stable case/run history; define review-mode reveal policies and copyable human-to-agent handoff outputs; or prepare a HITL page brief before handing frontend implementation to bagakit-codex-webpage-design. Explicit HITL page requests and mastery interactive-course handoffs default to implemented, browser-verified frontend delivery unless the user explicitly requests design-only or no-file work.
 ---
 
 # Bagakit HITL Webutil Design
@@ -75,6 +75,9 @@ Scenario pages are cross-products, not atomic modules.
    - start from `references/composition-crosswalk.md`
    - if no row fits, extend the crosswalk instead of inventing a scene-first
      mechanism
+   - if the human must first understand an unfamiliar system, select the
+     optional `bagakit-explain` explanatory foundation before the HITL action
+     surface
    - for an interactive course, consume the mastery-learning handoff when
      present; otherwise keep page and mastery claims separate
 3. Select mechanisms.
@@ -120,6 +123,8 @@ Always read:
 Read by route:
 
 - explanation, briefing, or repo-understanding page
+  - `skills/human-improvement/bagakit-explain/SKILL.md` when the selected
+    explanation foundation is `explain`
   - `references/mechanisms/knowledge-transfer.md`
   - `references/mechanisms/evidence-context.md`
   - `references/mechanisms/interaction-result-packet.md`
@@ -155,6 +160,8 @@ Read by route:
   - `references/artifacts/page-manifest.md`
   - `references/artifacts/report-export.md`
 - interactive course or learning workbench
+  - `skills/human-improvement/bagakit-explain/SKILL.md` when the selected
+    explanation foundation is `explain_after_diagnostic`
   - `references/templates/interactive-learning-course.md`
   - `references/mechanisms/knowledge-transfer.md`
   - `references/mechanisms/evidence-context.md`
@@ -179,6 +186,12 @@ Read by route:
 - `bagakit-codex-webpage-design`
   - owns frontend implementation, visual reference workflow, browser evidence,
     and parity iteration
+- `bagakit-explain`
+  - owns novice-first visual explanation, architecture maps, causal depth,
+    boundaries, and changed-case understanding when the selected scene needs
+    explanatory context
+  - does not own HITL actions, evidence capture, judgment, history, handoff,
+    continuity, or mastery status
 - `bagakit-design-core`
   - owns brand or tone review when a design packet or design-rule pass is
     needed, including the shared selected-state signal rule

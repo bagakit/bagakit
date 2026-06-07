@@ -16,6 +16,8 @@ rather than a static checklist or report page.
 ## Crosswalk Binding
 
 - scene: `manual-test-execution`
+- explanation foundation: `native` by default; select `explain` only when the
+  operator needs a causal model before running the case
 - mechanisms:
   - `case-inventory`
   - `procedure-runbook`

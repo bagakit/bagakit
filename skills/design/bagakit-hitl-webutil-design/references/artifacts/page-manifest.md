@@ -10,6 +10,7 @@
 
 - `page_id`
 - `scene`
+- `explanation_foundation`
 - `template_id`
 - `operator_mode`
 - `primary_interaction_surface`
@@ -36,7 +37,8 @@
 - Another Agent can inspect the manifest and understand the page route without
   reopening the full design discussion.
 - The manifest scene, template id, and selected data contracts match the
-  renderer and export route.
+  renderer and export route; its explanation foundation is compatible with
+  the crosswalk route default or an explicitly justified override.
 - A multi-turn page declares how Agent feedback returns to the primary surface
   and how projection versions reconcile with local state.
 
@@ -45,4 +47,6 @@
 - The manifest omits selected mechanisms, components, or artifacts.
 - The page cannot be re-entered or reviewed from the manifest alone.
 - The manifest names a stale scene or template.
+- The manifest silently requires or omits Explain contrary to the selected
+  crosswalk route.
 - The renderer or export references fields outside the selected data contract.

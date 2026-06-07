@@ -2,14 +2,19 @@
 
 ## Owns
 
-- Structure the page so the human can absorb and reconstruct the key model.
-- Use chunking, anchors, examples, and media only when they improve recall.
-- Present problem-generated relationships between prerequisites, constraints,
-  failure modes, and applications when the source provides them.
+- Bind an explanatory model to the HITL page's current task and evidence
+  context so the human can understand what is happening before acting.
+- Select or consume `bagakit-explain` for novice-first whole-system maps,
+  causal mechanisms, boundaries, and changed-case understanding when the scene
+  needs that foundation.
+- Keep the explanation's current question, source context, and next human
+  action adjacent without taking ownership of the action or evidence result.
 
 ## Does Not Own
 
 - Overall page skin, pane layout, or scene-specific chrome.
+- The generic visual-explanation method, which belongs to
+  `bagakit-explain` when that optional foundation is selected.
 - Learning diagnostics, mastery claims, transfer policy, or retention evidence.
 
 ## Design Checks

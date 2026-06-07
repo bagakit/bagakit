@@ -211,6 +211,7 @@ id = "page-export-alignment"
 owner = "references/artifacts/page-manifest.md"
 required_fields = [
   "scene",
+  "explanation_foundation",
   "template_id",
   "data_contract_refs",
   "operator_mode",
@@ -220,6 +221,7 @@ required_fields = [
 ]
 invariants = [
   "manifest_route_matches_template",
+  "explanation_foundation_is_route_compatible",
   "renderer_fields_exist_in_data_contract",
   "copy_and_download_share_payload_semantics",
 ]
@@ -323,6 +325,19 @@ labels = [
   "stale",
 ]
 rule = "Do not mix observations, inferences, and generated summaries without visible labels."
+
+[shared_guard.explanation_foundation]
+values = [
+  "native",
+  "explain",
+  "explain_after_diagnostic",
+]
+requirements = [
+  "explain route provides architecture map, causal mechanism, boundary, and changed case",
+  "explain_after_diagnostic defers foundation until upstream diagnostic permits it",
+  "explain never owns judgment, history, continuity, or mastery",
+  "native route does not require explanation layer",
+]
 
 [shared_guard.local_session_state]
 requirements = [
@@ -452,6 +467,14 @@ skill_owns = "HITL decomposition, mechanisms, styles, artifacts, hardening audit
 peer_owns = "frontend implementation, reference-first workflow, browser evidence, and parity review"
 default_when = "explicit HITL page request or mastery interactive-course handoff"
 completion_evidence = "implementation entrypoint, running page location, and desktop plus mobile browser evidence"
+
+[[composition_boundary]]
+id = "hitl-design-vs-explain"
+peer = "bagakit-explain"
+skill_owns = "novice-first visual explanation, architecture maps, causal mechanisms, boundaries, and changed-case understanding"
+peer_owns = "HITL page actions, evidence capture, judgment policy, case/run history, handoff export, and multi-turn continuity"
+default_when = "an unfamiliar human must understand what is happening before a selected HITL action or judgment"
+completion_evidence = "the selected route names its explanation foundation and preserves the HITL action and handoff proof"
 
 [[composition_boundary]]
 id = "hitl-design-vs-design-review"

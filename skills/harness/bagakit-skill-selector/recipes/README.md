@@ -136,6 +136,7 @@ Keep it out of `recipes/` when it is still only:
 - `brainstorm-with-research.md`
 - `research-to-knowledge.md`
 - `brainstorm-review-loop.md`
+- `explain-backed-hitl.md`
 - `planning-entry-brainstorm-only.md`
 - `planning-entry-brainstorm-to-feature.md`
 - `planning-entry-feature-to-flow.md`

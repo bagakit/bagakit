@@ -20,6 +20,10 @@ Do not create a scene-first mechanism when a crosswalk composition is enough.
 
 Current mechanisms include:
 
+- `knowledge-transfer.md`
+  - bind an optional Explain foundation to the current HITL task and evidence
+    context without owning the action result
+
 - `adaptive-session-continuity.md`
   - page-first multi-turn submission, Agent feedback, reprojection, and fallback
 - `human-judgment-guidance.md`

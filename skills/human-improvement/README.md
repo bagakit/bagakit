@@ -17,5 +17,7 @@ Current skills:
 Boundary:
 
 - visual explanation helps a person form a durable mental model
+- HITL may project that explanation into a human action or evidence surface;
+  HITL still owns interaction, judgment, history, and handoff
 - mastery learning adds diagnostics, adaptive practice, transfer evidence, and
   bounded mastery claims

@@ -99,6 +99,7 @@ REQUIRED_DATA_CONTRACT_IDS = {
 
 REQUIRED_BOUNDARY_IDS = {
     "hitl-design-vs-webpage-implementation",
+    "hitl-design-vs-explain",
     "hitl-design-vs-design-review",
     "hitl-design-vs-spark",
     "hitl-design-vs-mastery-learning",
@@ -116,6 +117,7 @@ REQUIRED_SHARED_GUARDS = {
     "learning_claim_honesty",
     "learner_facing_chrome",
     "adaptive_session_continuity",
+    "explanation_foundation",
 }
 
 REQUIRED_CROSSWALK_SCENES = {
@@ -209,6 +211,7 @@ REQUIRED_PAGE_LOCATOR_FIELDS = {
 
 REQUIRED_PAGE_EXPORT_FIELDS = {
     "scene",
+    "explanation_foundation",
     "template_id",
     "data_contract_refs",
     "operator_mode",
@@ -219,6 +222,16 @@ REQUIRED_PAGE_EXPORT_FIELDS = {
 
 REQUIRED_HISTORICAL_CASE_IDS = {
     "adaptive-course-chat-drift",
+}
+
+REQUIRED_CROSSWALK_FOUNDATIONS = {
+    "manual-test-execution": "native",
+    "human-evidence-review": "native",
+    "final-qa-report-review": "native",
+    "concept-understanding": "explain",
+    "interactive-course-learning": "explain_after_diagnostic",
+    "repository-understanding": "explain",
+    "news-intelligence-entry": "explain",
 }
 
 
@@ -397,6 +410,22 @@ def crosswalk_scenes(text: str) -> set[str]:
     for match in re.finditer(r"^\|\s*`([^`]+)`\s*\|", text, flags=re.MULTILINE):
         scenes.add(match.group(1))
     return scenes
+
+
+def crosswalk_foundations(text: str) -> dict[str, str]:
+    foundations: dict[str, str] = {}
+    for raw_line in text.splitlines():
+        line = raw_line.strip()
+        if not line.startswith("|") or "|" not in line[1:]:
+            continue
+        cells = [cell.strip() for cell in line.strip("|").split("|")]
+        if len(cells) < 2:
+            continue
+        scene = cells[0].strip("`")
+        foundation = cells[1].strip("`")
+        if scene in REQUIRED_CROSSWALK_FOUNDATIONS:
+            foundations[scene] = foundation
+    return foundations
 
 
 def skill_routes_to_reference(skill_text: str, rel_link: str) -> bool:
@@ -743,6 +772,14 @@ def main() -> int:
             failures.append("HITL/webpage boundary must default for explicit page delivery")
         if not isinstance(webpage_boundary.get("completion_evidence"), str):
             failures.append("HITL/webpage boundary must declare completion evidence")
+
+        explain_boundary = records_by_id(
+            contract.get("composition_boundary"), "composition_boundary"
+        ).get("hitl-design-vs-explain", {})
+        if explain_boundary.get("peer") != "bagakit-explain":
+            failures.append("HITL/Explain boundary must name bagakit-explain as peer")
+        if not (root / "skills/human-improvement/bagakit-explain/SKILL.md").is_file():
+            failures.append("HITL/Explain boundary peer skill is missing")
     except ValueError as exc:
         failures.append(str(exc))
 
@@ -771,12 +808,43 @@ def main() -> int:
             values = []
         failures.extend(require_superset(set(values), expected, f"adaptive continuity {key}"))
 
+    explanation_guard = contract.get("shared_guard", {}).get("explanation_foundation", {})
+    if not isinstance(explanation_guard, dict):
+        failures.append("explanation_foundation guard must be a table")
+        explanation_guard = {}
+    explanation_values = explanation_guard.get("values", [])
+    if not isinstance(explanation_values, list):
+        failures.append("explanation_foundation.values must be an array")
+        explanation_values = []
+    failures.extend(
+        require_superset(
+            set(explanation_values),
+            {"native", "explain", "explain_after_diagnostic"},
+            "explanation foundation values",
+        )
+    )
+    explanation_requirements = explanation_guard.get("requirements", [])
+    if not isinstance(explanation_requirements, list):
+        failures.append("explanation_foundation.requirements must be an array")
+        explanation_requirements = []
+    if not explanation_requirements:
+        failures.append("explanation_foundation.requirements must not be empty")
+
     failures.extend(
         require_superset(crosswalk_scenes(crosswalk_text), REQUIRED_CROSSWALK_SCENES, "crosswalk scene")
     )
+    actual_foundations = crosswalk_foundations(crosswalk_text)
+    for scene, expected in REQUIRED_CROSSWALK_FOUNDATIONS.items():
+        actual = actual_foundations.get(scene)
+        if actual != expected:
+            failures.append(
+                f"crosswalk explanation foundation mismatch for {scene}: expected {expected}, got {actual}"
+            )
 
     if "bagakit-codex-webpage-design" not in skill_text:
         failures.append("SKILL.md must name the webpage-design implementation handoff peer")
+    if "bagakit-explain" not in skill_text or "explanatory foundation" not in skill_text:
+        failures.append("SKILL.md must name the optional bagakit-explain explanatory foundation")
     if "Lean V0 Rule" not in skill_text:
         failures.append("SKILL.md must preserve the Lean V0 Rule")
     if "Explicit Invocation Contract" not in skill_text or "request for a HITL page" not in skill_text:
@@ -823,6 +891,7 @@ def main() -> int:
         "report-export",
         "agent-handoff-packet",
         "copy-result-control",
+        "explanation foundation",
         "Component Boundaries",
         "does not create the QA strategy",
     ]:
@@ -839,6 +908,7 @@ def main() -> int:
         "adjudication",
         "approval",
         "case_run_id",
+        "explanation foundation",
         "Component Boundaries",
         "does not create the QA strategy",
     ]:
@@ -847,6 +917,7 @@ def main() -> int:
 
     for required in [
         "mastery_packet_ref",
+        "explanation foundation",
         "learner-event",
         "dimension-evidence",
         "primary_interaction_surface",

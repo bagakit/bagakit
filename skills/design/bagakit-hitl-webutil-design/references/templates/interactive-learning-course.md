@@ -25,6 +25,7 @@ selects `design_only` or `no_file_mutation`.
 ## Crosswalk Binding
 
 - scene: `interactive-course-learning`
+- explanation foundation: `explain_after_diagnostic`
 - mechanisms:
   - `knowledge-transfer`
   - `evidence-context`
@@ -64,8 +65,10 @@ invent delayed-retention or transfer evidence.
 - navigation and progress zone
   - course graph, current objective, attention state, and re-entry points
 - explanation and action zone
-  - minimal explanation, coordinated media, retrieval, teach-back, application,
-    and transfer tasks supplied by the course input
+  - Explain-backed minimal explanation and causal context only after the
+    upstream blind diagnostic permits it, followed by coordinated media,
+    retrieval, teach-back, application, and transfer tasks supplied by the
+    course input
 - evidence and handoff zone
   - attempt state, Agent feedback, sync state, support level, questions,
     evidence status, blockers, next action, copy, and download

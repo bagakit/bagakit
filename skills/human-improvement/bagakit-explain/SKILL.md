@@ -53,5 +53,21 @@ pictures teach; "few words" applies per scene, not to the number of ideas.
 Return the artifact path, language, motion decision, desktop/mobile evidence,
 and limits. Artifact completion never proves learner understanding or mastery.
 
+## HITL Composition Boundary
+
+When a human must inspect, test, compare, judge, or approve something they do
+not yet understand, Explain may provide the explanatory foundation before the
+HITL action surface.
+
+- Explain owns the whole-system map, causal mechanism, boundary, and changed
+  case that let the human understand what is happening.
+- The HITL page owns the human action, evidence capture, judgment policy,
+  case/run history, handoff export, and multi-turn continuity.
+- For an interactive course, render the explanatory foundation only after the
+  upstream blind diagnostic permits it; Explain never supplies mastery status.
+- Keep this composition optional and route-conditioned. Expert operators and
+  pages whose evidence already supplies sufficient context should not pay for
+  an extra explanation layer.
+
 This skill owns no persistent runtime surface; put ad hoc intermediates under
 `.tmp/`.

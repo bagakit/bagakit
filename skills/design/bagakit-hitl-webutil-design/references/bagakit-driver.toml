@@ -1,6 +1,6 @@
 version = 1
 insert_target = "bagakit_footer"
-summary_line = "- HitlWebutilDesign: Brief=<design brief ref or none>; Scene=<crosswalk row or none>; OperatorMode=<operator mode or none>; LearningContract=<handoff ref|fallback|not_needed>; ReviewMode=<independent|adjudication|approval|not_needed>; RevealPolicy=<policy or not_needed>; Mechanisms=<selected mechanism ids>; Style=<selected style id>; Artifacts=<selected artifact ids>; History=<retained|not_needed|blocked>; Hardening=<passed|partial|blocked>; Delivery=<built_page|design_only|no_file_mutation>; BrowserEvidence=<refs|blocked|not_required>; Next=<one deterministic next action>"
+summary_line = "- HitlWebutilDesign: Brief=<design brief ref or none>; Scene=<crosswalk row or none>; Explanation=<native|explain|explain_after_diagnostic>; OperatorMode=<operator mode or none>; LearningContract=<handoff ref|fallback|not_needed>; ReviewMode=<independent|adjudication|approval|not_needed>; RevealPolicy=<policy or not_needed>; Mechanisms=<selected mechanism ids>; Style=<selected style id>; Artifacts=<selected artifact ids>; History=<retained|not_needed|blocked>; Hardening=<passed|partial|blocked>; Delivery=<built_page|design_only|no_file_mutation>; BrowserEvidence=<refs|blocked|not_required>; Next=<one deterministic next action>"
 
 [[directive]]
 id = "HITL_WEBUTIL_DESIGN"

@@ -11,6 +11,8 @@ experiment plan, or evaluation rubric.
 ## Crosswalk Binding
 
 - scene: `human-evidence-review`
+- explanation foundation: `native` by default; select `explain` only when the
+  reviewer needs causal context before inspecting evidence
 - mechanisms:
   - `case-inventory`
   - `human-judgment-guidance`
