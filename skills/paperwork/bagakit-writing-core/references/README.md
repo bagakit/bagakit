@@ -56,6 +56,7 @@ they do not duplicate the full de-AI-tone taxonomy.
 - `review/AUDIENCE_PANEL_REVIEW_TEMPLATE.md`
 - `review/ANTI_RATIONALIZATION_TABLE.md`
 - `review/REVIEW_PACKET_TEMPLATE.md`
+- `review/PORTFOLIO_REVIEW.md`
 
 ## Boundary Notes
 

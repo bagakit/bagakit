@@ -127,6 +127,36 @@ bad_example = "A short judgment verb opens the sentence, then drags a long objec
 non_goal = "Do not overturn claim-first structure or force every Chinese sentence into a `把` construction."
 
 [[rule]]
+id = "portfolio-spine-distinctness"
+source = "user-feedback"
+source_refs = ["references/review/PORTFOLIO_REVIEW.md"]
+scope = ["structure", "portfolio"]
+severity = "advisory"
+enforcement_tier = "review"
+proof_mode = "review_packet"
+owner = "bagakit-writing-core"
+applies_when = ["series", "batch_review", "portfolio"]
+exempt_when = ["unrelated_drafts", "format_bound_procedure", "shared_domain_order"]
+good_example = "Related articles declare distinct promises and functional spines, while justified shared constraints are recorded."
+bad_example = "Unrelated articles reuse the same section-function sequence and only change the topic nouns."
+non_goal = "Do not require novelty of structure when a procedure, audience, or evidence contract requires the same order."
+
+[[rule]]
+id = "emphasis-carries-judgment"
+source = "user-feedback"
+source_refs = ["references/review/QA_HARD_METRICS.md"]
+scope = ["review", "emphasis"]
+severity = "advisory"
+enforcement_tier = "review"
+proof_mode = "review_packet"
+owner = "bagakit-writing-core"
+applies_when = ["longform", "public_writing", "review"]
+exempt_when = ["navigation_label", "technical_name", "quoted_source"]
+good_example = "The prose carries its judgment without needing bold to announce that a sentence is important."
+bad_example = "Bold markers substitute for a clear claim, boundary, or action in the surrounding prose."
+non_goal = "Do not ban emphasis or optimize for a fixed bold count."
+
+[[rule]]
 id = "terminology-stability-one-concept"
 source = "asd-ste100-issue-9"
 source_refs = ["https://www.asd-ste100.org/about_STE.html", "references/writing/PRECISION_AND_READER_BURDEN.md"]

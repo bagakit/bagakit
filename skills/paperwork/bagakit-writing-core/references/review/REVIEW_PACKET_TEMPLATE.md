@@ -46,6 +46,19 @@ This packet follows `docs/specs/review-packet-contract.md`.
 - merge_rule:
 - synthesis_artifact:
 
+## Portfolio Review (Optional)
+
+- use: `not_applicable` | `reviewed` | `exempt`
+- articles:
+  - artifact:
+    - unique_promise:
+    - spine:
+    - shared_constraints:
+- shared_structure_observed:
+- justified_by_constraint:
+- per_article_differentiator:
+- disposition: `keep` | `vary` | `rebuild_spine`
+
 ## Risks And Next Action
 
 - unresolved_risks:

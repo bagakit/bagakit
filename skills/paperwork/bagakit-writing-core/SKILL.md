@@ -32,7 +32,8 @@ This skill owns generic writing primitives:
 - prose-mechanics lint and publishable-prose review discipline
 - Core validation of Intake-extracted rewrite-feedback rule candidates for
   clarity, structure, evidence, semantic preservation, and no-regression
-- generic longform review, audience-fit checks, and review packet shape
+- generic longform review, audience-fit checks, optional portfolio/series
+  structure review, and review packet shape
 - anti-rationalization discipline for common agent excuses
 
 It does not own:
@@ -110,6 +111,10 @@ compose the core explicitly.
    - Run `scripts/writing_core_lint.py`.
    - For rewrites, run `scripts/writing_core_inventory.py compare` before
      accepting a smoother but thinner draft.
+   - For two or more related articles, use
+     `references/review/PORTFOLIO_REVIEW.md` before accepting a shared outline.
+     Require a per-article `unique_promise` and `spine`; treat overlap as an
+     advisory unless a format or domain constraint explains it.
    - Use `references/review/QA_HARD_METRICS.md`,
      `references/review/LONGFORM_RUBRIC.md`, and
      `references/review/ANTI_RATIONALIZATION_TABLE.md`.
@@ -151,3 +156,4 @@ bash scripts/bagakit-writing-core-cli.sh print-intake-handoff
 - `references/review/QA_HARD_METRICS.md`
 - `references/review/ANTI_RATIONALIZATION_TABLE.md`
 - `references/review/REVIEW_PACKET_TEMPLATE.md`
+- `references/review/PORTFOLIO_REVIEW.md`

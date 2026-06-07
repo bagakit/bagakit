@@ -133,6 +133,7 @@ def main() -> int:
     rule_registry = SKILL_DIR / "references/rules/core-rule-registry.toml"
     precision_reference = SKILL_DIR / "references/writing/PRECISION_AND_READER_BURDEN.md"
     review_template = SKILL_DIR / "references/review/REVIEW_PACKET_TEMPLATE.md"
+    portfolio_review = SKILL_DIR / "references/review/PORTFOLIO_REVIEW.md"
     anti_rationalization = SKILL_DIR / "references/review/ANTI_RATIONALIZATION_TABLE.md"
     de_ai_cli = Path("skills/paperwork/bagakit-writing-de-ai-tone/scripts/bagakit-writing-de-ai-tone-cli.sh")
     readme = SKILL_DIR / "README.md"
@@ -150,6 +151,7 @@ def main() -> int:
         rule_registry,
         precision_reference,
         review_template,
+        portfolio_review,
         anti_rationalization,
         Path("skills/paperwork/bagakit-writing-de-ai-tone/references/lexicon.json"),
         de_ai_cli,
@@ -222,8 +224,29 @@ def main() -> int:
         "counterevidence",
         "reviewer_ownership",
         "docs/specs/review-packet-contract.md",
+        "Portfolio Review (Optional)",
+        "unique_promise",
+        "rebuild_spine",
     ]:
         require(token in review_proc.stdout, f"review packet template missing token: {token}", failures)
+
+    portfolio_text = read_text(root / portfolio_review)
+    for token in [
+        "Before drafting",
+        "functional spines",
+        "editorial scaffolding",
+        "keep",
+        "vary",
+        "rebuild_spine",
+    ]:
+        require(token in portfolio_text, f"portfolio review reference missing token: {token}", failures)
+
+    for portfolio_rule_id in ["portfolio-spine-distinctness", "emphasis-carries-judgment"]:
+        portfolio_rule = run(["bash", str(cli), "rules", "show", portfolio_rule_id], root)
+        require(portfolio_rule.returncode == 0, f"rules show should find {portfolio_rule_id}", failures)
+        portfolio_payload = load_json(portfolio_rule.stdout, portfolio_rule_id, failures)
+        require(portfolio_payload.get("owner") == "bagakit-writing-core", f"{portfolio_rule_id} should keep Core ownership", failures)
+        require(portfolio_payload.get("proof_mode") == "review_packet", f"{portfolio_rule_id} should use review_packet proof", failures)
 
     anti_proc = run(["bash", str(cli), "print-anti-rationalization-table"], root)
     require(anti_proc.returncode == 0, "print-anti-rationalization-table failed", failures)
