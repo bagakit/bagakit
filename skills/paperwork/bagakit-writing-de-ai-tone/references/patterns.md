@@ -20,6 +20,8 @@ These should normally be removed or rewritten before release.
 - process filler: `进行分析`, `进行优化`, `进行讨论`
 - list scaffolding where prose should connect the ideas
 - excessive bold, emoji headers, or too many headings in a short section
+- bold count is only a triage signal; whether emphasis has replaced a claim is a
+  Core review question under `emphasis-carries-judgment`
 - PR inflation: `开创性`, `引领行业`, `game-changer`
 - synonym cycling: rotating equivalent nouns instead of repeating the precise one
 - forced rule-of-three or parallel slogans without added information
@@ -40,6 +42,9 @@ These should normally be removed or rewritten before release.
 - generic endings: `未来可期`, `only time will tell`
 - action hidden in a noun shell: `conduct a comprehensive evaluation`,
   `实现了对体验的显著提升`
+- author-ranking meta: `最值得学的一点`, `最强的收敛证据`,
+  `信息密度最高的一处`, or equivalent English superlatives that declare
+  importance instead of showing the evidence
 
 ## Controlled-Clarity Overlap
 
@@ -84,3 +89,13 @@ review targets, not as goals:
 - sources turned into vague authority
 - accountability removed from status updates
 - detector-focused rhythm variation that makes the text less precise
+
+## Author Corrections Are Content
+
+First-person admissions and corrections are not AI smells by themselves. In a
+rewrite, preserve the actor, the earlier judgment, what was found to be wrong,
+the corrected judgment, and any evidence or uncertainty attached to it.
+
+Do not remove “I/we” or turn a correction into a passive abstract summary just
+to sound more objective. The correction records how the judgment changed and
+often carries more credibility than a polished conclusion.

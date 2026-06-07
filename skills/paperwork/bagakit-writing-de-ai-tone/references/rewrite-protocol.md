@@ -79,6 +79,21 @@ Do not invent missing evidence while removing AI-tone:
 - Do not turn protected quoted text into the author's claim. Keep the quote
   intact and write any assessment outside it.
 
+## Author-Correction Preservation
+
+Treat a first-person error admission, correction, changed judgment, or stated
+uncertainty as substantive content. Preserve:
+
+- who made the earlier judgment
+- what the earlier judgment was
+- what evidence exposed the mismatch
+- the corrected judgment and its remaining uncertainty
+
+Do not delete first-person responsibility or replace a concrete correction with
+an impersonal “the issue was clarified” sentence. Rewrite only to make the
+sequence easier to follow. If the correction conflicts with another fact,
+surface that factual issue instead of smoothing it away.
+
 ## Rewrite Threshold
 
 Prefer patching when the draft has isolated word or phrase issues.

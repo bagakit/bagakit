@@ -91,6 +91,13 @@ NOMINALIZED_ACTION_SHELL_RE = re.compile(
     r"(?:analysis|evaluation|assessment|review|optimization)\b)",
     re.I,
 )
+IMPORTANCE_META_RE = re.compile(
+    r"(?:最值得(?:学|借鉴|保留)的(?:一点|地方)|"
+    r"最强的(?:收敛证据|证据|信号)|"
+    r"信息密度最高的(?:一处|一段|地方)|"
+    r"the most important takeaway|the strongest evidence|the highest-signal)",
+    re.I,
+)
 LIST_RE = re.compile(r"^\s*(?:[-*+]\s+|\d+\.\s+)", re.M)
 HEADING_RE = re.compile(r"^#{1,6}\s+", re.M)
 BOLD_RE = re.compile(r"\*\*[^*\n]{1,80}\*\*")
@@ -427,6 +434,24 @@ def pattern_findings(text: str, profile: str) -> list[Finding]:
             )
         )
 
+    importance_meta_items = snippets(text, IMPORTANCE_META_RE)
+    if importance_meta_items:
+        findings.append(
+            Finding(
+                "ADVISORY",
+                "P2",
+                "P2_IMPORTANCE_META",
+                "Importance framing may announce a rank instead of making the evidence carry the judgment",
+                {
+                    "items": importance_meta_items,
+                    "review_questions": [
+                        "Would the surrounding prose still state the judgment if the ranking phrase were removed?",
+                        "Can the evidence or consequence carry the emphasis without an author-assigned superlative?",
+                    ],
+                },
+            )
+        )
+
     dash_count = len(DASH_RE.findall(mask_protected_spans(text)))
     if dash_count > max(1, len(text) // 1000):
         findings.append(
@@ -444,7 +469,21 @@ def pattern_findings(text: str, profile: str) -> list[Finding]:
     if heading_count >= heading_threshold and len(text) < 1200:
         findings.append(Finding("ADVISORY", "P2", "P2_OVER_STRUCTURED", "Too many headings for a short text", {"count": heading_count}))
     if bold_count >= bold_threshold:
-        findings.append(Finding("ADVISORY", "P2", "P2_BOLD_OVERUSE", "Bold formatting may be doing the work of structure", {"count": bold_count}))
+        findings.append(
+            Finding(
+                "ADVISORY",
+                "P2",
+                "P2_BOLD_OVERUSE",
+                "Bold formatting may be doing the work of structure",
+                {
+                    "count": bold_count,
+                    "review_questions": [
+                        "Does the sentence still carry its judgment, boundary, or action without bold markers?",
+                        "Is bold serving navigation, a short label, or a protected technical name?",
+                    ],
+                },
+            )
+        )
 
     four_char_count = len(FOUR_CHAR_RE.findall(text))
     if four_char_count >= 12:

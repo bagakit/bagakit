@@ -69,6 +69,7 @@ def main() -> int:
         SKILL_DIR / "references/skill-cli.toml",
         SKILL_DIR / "scripts/de_ai_tone_lint.py",
         cli,
+        FIXTURE_DIR / "importance-meta.md",
     ]:
         require((root / path).is_file(), f"missing required file: {path}", failures)
 
@@ -86,7 +87,7 @@ def main() -> int:
 
     protocol = run(["bash", str(cli), "print-rewrite-protocol"], root)
     require(protocol.returncode == 0, "print-rewrite-protocol failed", failures)
-    for token in ["Detect Mode", "Rewrite Mode", "Protected-Span Pass", "Precision Cross-Check", "Second-pass audit", "Evidence Gap Guard"]:
+    for token in ["Detect Mode", "Rewrite Mode", "Protected-Span Pass", "Precision Cross-Check", "Second-pass audit", "Evidence Gap Guard", "Author-Correction Preservation"]:
         require(token in protocol.stdout, f"rewrite protocol missing token: {token}", failures)
 
     protected_protocol = run(["bash", str(cli), "print-protected-spans"], root)
@@ -194,6 +195,31 @@ def main() -> int:
             "nominalized-action advisory should expose both high-signal shells without flagging precise deployment prose",
             failures,
         )
+
+    importance_meta = run(
+        [
+            "bash",
+            str(cli),
+            "lint",
+            "--profile",
+            "blog",
+            "--fail-on",
+            "none",
+            str(FIXTURE_DIR / "importance-meta.md"),
+        ],
+        root,
+    )
+    require(importance_meta.returncode == 0, f"importance-meta lint failed: {importance_meta.stderr}", failures)
+    importance_payload = load_json(importance_meta.stdout, "importance-meta lint", failures)
+    importance_findings = [
+        item
+        for item in importance_payload.get("findings", [])
+        if item.get("code") == "P2_IMPORTANCE_META"
+    ]
+    require(len(importance_findings) == 1, "importance-meta fixture should emit one aggregate advisory", failures)
+    if importance_findings:
+        require(importance_findings[0].get("level") == "ADVISORY", "importance-meta should stay advisory", failures)
+        require(len(importance_findings[0].get("meta", {}).get("items", [])) == 3, "importance-meta should expose the three ranking phrases", failures)
 
     advisory = run(
         [

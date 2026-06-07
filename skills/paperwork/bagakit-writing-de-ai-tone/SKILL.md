@@ -26,6 +26,10 @@ Owns:
   responsibility-bearing identifiers
 - structural AI tells: uniform rhythm, template phrases, fake contrast,
   parallelism without information gain, vague authority, PR inflation
+- importance-ranking meta language that announces what is “most important”
+  instead of letting evidence carry the judgment
+- preservation of first-person corrections, error admissions, changed
+  judgments, and explicit uncertainty during rewrites
 - AI-tone overlap with hidden actions or decorative nominalization, while
   generic terminology, referent, actor, and instruction clarity remain owned
   by `bagakit-writing-core`
@@ -57,7 +61,7 @@ Does not own:
    - change summary
    - second-pass audit
    - a precision cross-check for stable terms, actors, referents, sequence,
-     qualifiers, and protected facts
+     qualifiers, protected facts, and author-owned corrections
 
 ## Modes
 
