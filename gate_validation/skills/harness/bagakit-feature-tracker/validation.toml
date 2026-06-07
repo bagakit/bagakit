@@ -46,6 +46,7 @@ required_files = [
   "gate_validation/skills/harness/bagakit-feature-tracker/check-feature-tracker-task-plan-repair.sh",
   "gate_validation/skills/harness/bagakit-feature-tracker/check-feature-tracker-state-contract.sh",
   "gate_validation/skills/harness/bagakit-feature-tracker/check-feature-tracker-task-dag.sh",
+  "gate_validation/skills/harness/bagakit-feature-tracker/check-feature-tracker-status-board.sh",
   "gate_validation/skills/harness/bagakit-feature-tracker/lib/feature-tracker-testlib.sh",
 ]
 forbidden_paths = [
@@ -409,6 +410,29 @@ groups = ["skills", "harness", "feature-tracker", "plan-shaping", "ssot", "contr
 [suite.runner]
 kind = "bash_script"
 script = "gate_validation/skills/harness/bagakit-feature-tracker/check-feature-tracker-plan-shaping-ssot.sh"
+args = [
+  "--root",
+  "{repo_root}",
+]
+
+[[suite]]
+id = "bagakit-feature-tracker-status-board"
+owner = "skills/harness/bagakit-feature-tracker"
+description = "Keep the human status board spatially stable and make focused Feature, title-copy, compact Task, and topology interactions readable."
+default = true
+proof_mode = "runtime"
+timeout_seconds = 60
+protects = ["Feature Tracker status-board layout stability, tracker-id focus, title copying, compact Task summaries, and routed topology edges"]
+oracle = ["status-board check renders all canonical status columns including empty states, focused markup, copy affordances, compact title hooks, independently routed topology lanes, and the live focus refresh hook"]
+exercised_surface = ["feature-tracker show-feature-status HTML projection", "feature-tracker serve-feature-status HTML projection", "status-board regression fixture"]
+proves = ["bagakit-feature-tracker-status-board proves the requested status-board presentation and interaction hooks remain present on the canonical projection fixture."]
+does_not_prove = ["bagakit-feature-tracker-status-board does not prove browser clipboard permissions, subjective visual taste, or arbitrary user-created graph readability beyond the deterministic fixture."]
+validation_class = "quality"
+groups = ["skills", "harness", "feature-tracker", "status-board", "quality"]
+
+[suite.runner]
+kind = "bash_script"
+script = "gate_validation/skills/harness/bagakit-feature-tracker/check-feature-tracker-status-board.sh"
 args = [
   "--root",
   "{repo_root}",

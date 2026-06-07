@@ -4430,13 +4430,38 @@ def render_task_topology_html(
     feat_id = str(state.get("feat_id") or "")
     if not has_reviewed_task_plan(tasks):
         return ""
-    by_id, layers = task_topology_layers(tasks, feat_id=feat_id)
+    by_id, raw_layers = task_topology_layers(tasks, feat_id=feat_id)
+    # Keep each layer in dependency order before routing edges.  Sorting by
+    # dependency barycenter makes the common fan-out/fan-in shape readable and
+    # avoids crossing edges merely because Task ids were authored in a
+    # different order.
+    layers: list[list[str]] = []
+    rank_by_id: dict[str, int] = {}
+    for raw_layer in raw_layers:
+        layer = list(raw_layer)
+        if layers:
+            layer.sort(
+                key=lambda task_id: (
+                    sum(rank_by_id.get(dep, 0) for dep in canonical_task_dependencies(
+                        by_id[task_id],
+                        label=f"{feat_id}/{task_id}",
+                    ))
+                    / max(1, len(canonical_task_dependencies(
+                        by_id[task_id],
+                        label=f"{feat_id}/{task_id}",
+                    ))),
+                    task_id,
+                )
+            )
+        layers.append(layer)
+        for rank, task_id in enumerate(layer):
+            rank_by_id[task_id] = rank
     if not layers:
         return ""
 
     node_width = 176
     node_height = 94
-    column_gap = 76
+    column_gap = 96
     row_gap = 16
     padding_x = 18
     padding_y = 18
@@ -4452,6 +4477,17 @@ def render_task_topology_html(
         for row_index, task_id in enumerate(layer):
             positions[task_id] = (x, offset_y + row_index * (node_height + row_gap))
 
+    outgoing: dict[str, list[str]] = {task_id: [] for task_id in by_id}
+    incoming: dict[str, list[str]] = {task_id: [] for task_id in by_id}
+    for target_id, task in by_id.items():
+        for source_id in canonical_task_dependencies(task, label=f"{feat_id}/{target_id}"):
+            outgoing[source_id].append(target_id)
+            incoming[target_id].append(source_id)
+    for task_id in outgoing:
+        outgoing[task_id].sort(key=lambda item: positions[item][1])
+    for task_id in incoming:
+        incoming[task_id].sort(key=lambda item: positions[item][1])
+
     edge_items: list[str] = []
     edge_count = 0
     for target_id, task in by_id.items():
@@ -4462,12 +4498,21 @@ def render_task_topology_html(
             start_y = source_y + node_height / 2
             end_x = target_x
             end_y = target_y + node_height / 2
-            bend = max(24, (end_x - start_x) / 2)
+            bend = max(28, (end_x - start_x) / 2)
+            source_edges = outgoing[source_id]
+            target_edges = incoming[target_id]
+            source_lane = source_y + (
+                source_edges.index(target_id) - (len(source_edges) - 1) / 2
+            ) * 10
+            target_lane = target_y + (
+                target_edges.index(source_id) - (len(target_edges) - 1) / 2
+            ) * 10
             edge_items.append(
                 f'<path class="topology-edge" data-from="{html_text(source_id)}" '
                 f'data-to="{html_text(target_id)}" '
-                f'd="M {start_x:g} {start_y:g} C {start_x + bend:g} {start_y:g}, '
-                f'{end_x - bend:g} {end_y:g}, {end_x:g} {end_y:g}" '
+                f'data-source-lane="{source_lane:g}" data-target-lane="{target_lane:g}" '
+                f'd="M {start_x:g} {start_y:g} C {start_x + bend:g} {source_lane:g}, '
+                f'{end_x - bend:g} {target_lane:g}, {end_x:g} {end_y:g}" '
                 f'marker-end="url(#{html_text(feat_id)}-task-arrow)" />'
             )
             edge_count += 1
@@ -4633,7 +4678,10 @@ def render_task_review_html(
         f"{html_text(status.replace('_', ' ').title())}</span>"
         + gate_html
         + "</div>"
-        f'<h4>{html_text(task.get("title"))}</h4>'
+        '<div class="task-title-row">'
+        f'<h4 title="{html_text(task.get("title"))}">{html_text(task.get("title"))}</h4>'
+        f'<button type="button" class="copy-title" data-copy-text="{html_text(task.get("title"))}" aria-label="Copy Task title">Copy</button>'
+        '</div>'
         f'<p class="task-dependencies"><strong>Depends on</strong> {html_text(", ".join(dependencies) or "none")}</p>'
         '<span class="review-task-toggle">Details <span aria-hidden="true">↓</span></span>'
         '</summary><div class="review-task-body">'
@@ -4771,7 +4819,10 @@ def render_feature_card_html(
         f'<span class="feature-id">{html_text(state.get("feat_id"))}</span>'
         f'<span class="workspace-chip">{html_text(state.get("workspace_mode") or "unassigned")}</span>'
         "</div>"
-        f'<h3>{html_text(state.get("title"))}</h3>'
+        '<div class="feature-title-row">'
+        f'<h3 title="{html_text(state.get("title"))}">{html_text(state.get("title"))}</h3>'
+        f'<button type="button" class="copy-title" data-copy-text="{html_text(state.get("title"))}" aria-label="Copy Feature title">Copy</button>'
+        '</div>'
         + (f'<p class="goal">{html_text(goal)}</p>' if goal else "")
         + blocker_html
         + active_task_html
@@ -4790,18 +4841,32 @@ def render_feature_card_html(
     )
 
 
-def render_closed_features_html(items: list[dict[str, Any]]) -> str:
+def render_closed_features_html(
+    items: list[dict[str, Any]],
+    *,
+    focus_feat_id: str | None = None,
+) -> str:
     if not items:
         return ""
     rows = []
     for item in items:
+        item_feat_id = str(item.get("feat_id") or "")
+        focused = item_feat_id == str(focus_feat_id or "")
         rows.append(
-            '<li><span class="closed-id">'
-            f'{html_text(item.get("feat_id"))}</span><strong>{html_text(item.get("title"))}</strong>'
+            f'<li id="closed-{html_text(item_feat_id)}" data-closed-feature-id="{html_text(item_feat_id)}"'
+            f' class="{"closed-feature--focused" if focused else ""}">'
+            '<span class="closed-id">'
+            f'{html_text(item_feat_id)}</span>'
+            f'<strong title="{html_text(item.get("title"))}">{html_text(item.get("title"))}</strong>'
+            f'<button type="button" class="copy-title" data-copy-text="{html_text(item.get("title"))}" aria-label="Copy Feature title">Copy</button>'
             f'<span class="closed-status">{html_text(human_status_label(item.get("status")))}</span></li>'
         )
+    history_open = any(
+        str(item.get("feat_id") or "") == str(focus_feat_id or "")
+        for item in items
+    )
     return (
-        '<section class="closed-section"><details><summary>Closed history '
+        f'<section class="closed-section"><details{" open" if history_open else ""}><summary>Closed history '
         f'<span>{len(items)}</span></summary><ul>{"".join(rows)}</ul></details></section>'
     )
 
@@ -4886,8 +4951,6 @@ def render_feature_status_html(
     columns = []
     for status in status_order:
         records = by_status.get(status, [])
-        if not records:
-            continue
         tone = FEATURE_STATUS_PRESENTATION.get(status, ("", "slate"))[1]
         cards_parts = []
         for state, tasks in records:
@@ -4912,7 +4975,7 @@ def render_feature_status_html(
                         normalize_error_text(exc),
                     )
                 )
-        cards = "".join(cards_parts)
+        cards = "".join(cards_parts) or '<p class="column-empty">No features in this state.</p>'
         columns.append(
             f'<section class="status-column status-column--{html_text(tone)}">'
             '<header><div class="status-title">'
@@ -4927,11 +4990,7 @@ def render_feature_status_html(
     in_progress_count = len(by_status.get("in_progress", []))
     blocked_count = len(by_status.get("blocked", []))
     closeout_count = len(by_status.get("done", []))
-    board_html = (
-        f'<main class="status-board">{"".join(columns)}</main>'
-        if columns
-        else '<main class="status-board status-board--empty"><p class="empty">No active features.</p></main>'
-    )
+    board_html = f'<main class="status-board">{"".join(columns)}</main>'
     projection_note = (
         f"Live read-only view; refreshes every {refresh_ms // 1000}s from canonical files."
         if live
@@ -4967,20 +5026,22 @@ body { margin:0; background:var(--canvas); color:var(--ink); font-size:14px; }
 .metric { min-width:86px; }
 .metric strong { display:block; font-size:23px; line-height:1.15; font-variant-numeric:tabular-nums; }
 .metric span { color:var(--muted); font-size:11px; text-transform:uppercase; letter-spacing:.055em; }
-.status-board { display:grid; grid-auto-flow:column; grid-auto-columns:auto; gap:10px; align-items:start; overflow-x:auto; padding-bottom:12px; }
-.status-column { --tone:#8b8c86; --tint:#ecece7; width:266px; min-height:180px; border-radius:15px; background:color-mix(in srgb,var(--tint) 72%,var(--canvas)); padding:9px; }
+.status-board { display:grid; grid-template-columns:repeat(5,minmax(280px,320px)); grid-auto-flow:column; grid-auto-columns:320px; gap:16px; align-items:stretch; overflow-x:auto; padding:0 2px 12px; scroll-snap-type:x proximity; }
+.status-column { --tone:#8b8c86; --tint:#ecece7; width:320px; min-width:320px; min-height:220px; display:flex; flex-direction:column; border-radius:15px; background:color-mix(in srgb,var(--tint) 72%,var(--canvas)); padding:9px; scroll-snap-align:start; }
 .status-column--amber { --tone:#b98313; --tint:#fbf5e5; }
 .status-column--red { --tone:#c4413b; --tint:#fbefee; }
 .status-column--blue { --tone:#3578c7; --tint:#edf4fb; }
 .status-column--green { --tone:#2f8a5c; --tint:#edf7f1; }
-.status-column:has(.feature-review[open]) { width:min(720px,calc(100vw - 64px)); }
+.status-column:has(.feature-review[open]) { width:320px; }
 .status-column > header { padding:6px 6px 10px; }
 .status-title { display:flex; align-items:center; gap:7px; }
 .status-title h2 { margin:0; font-size:12px; font-weight:650; }
 .status-dot { width:8px; height:8px; border:2px solid var(--tone); border-radius:999px; }
 .status-count { color:var(--muted); font-size:12px; font-variant-numeric:tabular-nums; }
-.feature-list { display:grid; gap:8px; }
+.feature-list { display:grid; flex:1; align-content:start; gap:8px; }
+.column-empty { margin:auto 8px; color:var(--muted); font-size:11px; text-align:center; }
 .feature-card { border-radius:12px; background:var(--surface); box-shadow:var(--shadow); overflow:hidden; }
+.feature-card--focused { outline:2px solid color-mix(in srgb,var(--tone) 68%,transparent); outline-offset:2px; }
 .feature-review { display:block; }
 .feature-summary { cursor:pointer; list-style:none; padding:12px; }
 .feature-summary::-webkit-details-marker { display:none; }
@@ -4989,7 +5050,11 @@ body { margin:0; background:var(--canvas); color:var(--ink); font-size:14px; }
 .card-kicker,.task-heading { display:flex; align-items:center; gap:6px; min-width:0; }
 .feature-id,.task-id { color:var(--muted); font-size:11px; font-variant-numeric:tabular-nums; }
 .workspace-chip,.task-status,.gate { margin-left:auto; border-radius:999px; background:#f0f0ed; color:#5f605b; padding:2px 6px; font-size:10px; white-space:nowrap; }
+.feature-title-row,.task-title-row { display:flex; align-items:flex-start; gap:8px; min-width:0; }
+.feature-title-row h3,.task-title-row h4 { min-width:0; flex:1; }
 .feature-card h3 { margin:7px 0 0; font-size:14px; line-height:1.35; letter-spacing:-.01em; }
+.copy-title { flex:0 0 auto; border:1px solid #d6d8d0; border-radius:6px; background:#fff; color:#6b6d67; cursor:pointer; padding:3px 5px; font:inherit; font-size:9px; line-height:1.1; opacity:.82; }
+.copy-title:hover,.copy-title:focus-visible { border-color:#9ca198; color:var(--ink); opacity:1; }
 .feature-card--projection-error { border:1px solid #e7b2ae; }
 .projection-error { margin:8px 0 0; border-radius:7px; background:#fff7f6; color:#8e2d29; padding:7px; font-size:11px; line-height:1.45; }
 .projection-error-links { margin:7px 0 0; color:var(--muted); font-size:10px; line-height:1.45; overflow-wrap:anywhere; }
@@ -5018,6 +5083,7 @@ body { margin:0; background:var(--canvas); color:var(--ink); font-size:14px; }
 .review-facts div { display:grid; grid-template-columns:76px 1fr; gap:8px; }
 .review-facts dt { color:var(--muted); font-size:10px; text-transform:uppercase; }
 .review-facts dd { margin:0; overflow-wrap:anywhere; font-size:11px; }
+.status-column .review-facts,.status-column .review-grid { grid-template-columns:1fr; }
 .runtime-activity { margin-top:14px; border-radius:9px; background:#f0f7f2; padding:10px; color:#315c45; }
 .runtime-activity-header { display:flex; align-items:flex-start; justify-content:space-between; gap:10px; }
 .runtime-activity-header strong { display:block; margin-top:2px; font-size:12px; }
@@ -5051,7 +5117,7 @@ body { margin:0; background:var(--canvas); color:var(--ink); font-size:14px; }
 .topology-legend--done i { background:#2f8a5c; }
 .task-topology-scroll { max-height:420px; margin-top:10px; overflow:auto; overscroll-behavior:contain; scrollbar-gutter:stable; border-radius:8px; background:#f5f5f2; }
 .task-topology-svg { display:block; }
-.topology-edge { fill:none; stroke:#bfc2ba; stroke-width:1.5; }
+.topology-edge { fill:none; stroke:#8f9489; stroke-width:1.35; stroke-linecap:round; opacity:.72; vector-effect:non-scaling-stroke; }
 .task-topology marker path { fill:#bfc2ba; }
 .topology-node { cursor:pointer; outline:none; }
 .topology-node rect { fill:#fff; stroke:#d9dad4; stroke-width:1; transition:stroke .14s ease,fill .14s ease; }
@@ -5088,12 +5154,12 @@ body[data-modal-open="true"]::before { content:""; position:fixed; inset:0; z-in
 .review-tasks { margin-top:10px; }
 .review-task + .review-task { margin-top:7px; }
 .review-task { scroll-margin-top:18px; border-radius:9px; background:#fff; box-shadow:inset 0 0 0 1px rgb(31 32 28 / .045); }
-.review-task-summary { cursor:pointer; list-style:none; padding:10px 11px; }
+.review-task-summary { cursor:pointer; list-style:none; padding:8px 10px; }
 .review-task-summary::-webkit-details-marker { display:none; }
 .review-task-summary:focus-visible { outline:2px solid #8ba8bf; outline-offset:-2px; border-radius:9px; }
-.review-task-summary h4 { margin:7px 0 0; font-size:13px; line-height:1.35; }
-.review-task-summary .task-dependencies { margin:4px 0 0; }
-.review-task-toggle { display:inline-flex; align-items:center; gap:4px; margin-top:7px; color:#356f9e; font-size:10px; font-weight:600; }
+.review-task-summary h4 { margin:4px 0 0; font-size:12px; line-height:1.25; display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; overflow:hidden; }
+.review-task-summary .task-dependencies { margin:3px 0 0; font-size:10px; }
+.review-task-toggle { display:inline-flex; align-items:center; gap:4px; margin-top:4px; color:#356f9e; font-size:10px; font-weight:600; }
 .review-task[open] .review-task-toggle span { transform:rotate(180deg); }
 .review-task-body { padding:0 11px 12px; }
 .review-task-body > .runtime-activity { margin-top:0; }
@@ -5131,11 +5197,12 @@ body[data-modal-open="true"]::before { content:""; position:fixed; inset:0; z-in
 .closed-section summary { cursor:pointer; color:var(--muted); font-size:11px; font-weight:600; }
 .closed-section summary span { font-weight:400; }
 .closed-section ul { display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:5px 12px; margin:10px 0 0; padding:0; list-style:none; }
-.closed-section li { display:grid; grid-template-columns:auto 1fr auto; gap:7px; align-items:center; color:var(--muted); font-size:11px; }
+.closed-section li { display:grid; grid-template-columns:auto minmax(0,1fr) auto auto; gap:7px; align-items:center; color:var(--muted); font-size:11px; }
 .closed-section li strong { overflow:hidden; color:var(--ink); font-weight:500; text-overflow:ellipsis; white-space:nowrap; }
+.closed-feature--focused { border-radius:6px; outline:2px solid #9aa7a0; outline-offset:2px; }
 .closed-status { color:var(--muted); }
 .empty { color:var(--muted); }
-@media (max-width:720px) { .shell{padding:18px 12px}.page-header{align-items:flex-start;flex-direction:column}.projection-meta{justify-items:start}.projection-note{text-align:left}.metrics{gap:12px 22px}.status-board{grid-auto-flow:row;grid-auto-columns:auto;grid-template-columns:1fr;overflow:visible}.status-column,.status-column:has(.feature-review[open]){width:auto}.review-header,.claim-dialog-header,.topology-dialog-header{flex-direction:column}.canonical-links{justify-content:flex-start}.review-facts,.review-grid{grid-template-columns:1fr}.claim-bar{align-items:flex-start;flex-direction:column}.claim-dialog-shell{padding:15px}.claim-message{min-height:270px}.claim-actions{align-items:stretch;flex-direction:column}.claim-status{margin:0;text-align:center}.task-topology-header{align-items:flex-start;flex-direction:column}.task-topology-header-actions{justify-content:flex-start;flex-wrap:wrap}.topology-dialog{width:calc(100vw - 16px);height:calc(100vh - 16px)}.topology-dialog-header,.topology-dialog-body{padding-left:14px;padding-right:14px}.topology-dialog-body .task-topology-scroll{min-height:280px} }
+@media (max-width:720px) { .shell{padding:18px 12px}.page-header{align-items:flex-start;flex-direction:column}.projection-meta{justify-items:start}.projection-note{text-align:left}.metrics{gap:12px 22px}.status-board{grid-auto-flow:row;grid-auto-columns:auto;grid-template-columns:1fr;overflow:visible;scroll-snap-type:none}.status-column,.status-column:has(.feature-review[open]){width:auto;min-width:0}.review-header,.claim-dialog-header,.topology-dialog-header{flex-direction:column}.canonical-links{justify-content:flex-start}.review-facts,.review-grid{grid-template-columns:1fr}.claim-bar{align-items:flex-start;flex-direction:column}.claim-dialog-shell{padding:15px}.claim-message{min-height:270px}.claim-actions{align-items:stretch;flex-direction:column}.claim-status{margin:0;text-align:center}.task-topology-header{align-items:flex-start;flex-direction:column}.task-topology-header-actions{justify-content:flex-start;flex-wrap:wrap}.topology-dialog{width:calc(100vw - 16px);height:calc(100vh - 16px)}.topology-dialog-header,.topology-dialog-body{padding-left:14px;padding-right:14px}.topology-dialog-body .task-topology-scroll{min-height:280px} }
 </style>
 </head>
 <body>
@@ -5187,6 +5254,39 @@ body[data-modal-open="true"]::before { content:""; position:fixed; inset:0; z-in
     status.textContent = "已复制；请通过 Host 发送给目标 Agent";
   }
 
+  async function copyTitle(button) {
+    const text = button.dataset.copyText || "";
+    if (!text) return;
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(text);
+      } else {
+        throw new Error("clipboard API unavailable");
+      }
+    } catch (_) {
+      const helper = document.createElement("textarea");
+      helper.value = text;
+      helper.setAttribute("readonly", "");
+      helper.style.position = "fixed";
+      helper.style.opacity = "0";
+      document.body.appendChild(helper);
+      helper.select();
+      document.execCommand("copy");
+      helper.remove();
+    }
+    const previous = button.textContent;
+    button.textContent = "Copied";
+    window.setTimeout(() => { button.textContent = previous; }, 1200);
+  }
+
+  document.addEventListener("click", (event) => {
+    const button = event.target.closest(".copy-title");
+    if (!button) return;
+    event.preventDefault();
+    event.stopPropagation();
+    copyTitle(button);
+  });
+
   document.addEventListener("click", (event) => {
     const trigger = event.target.closest(".claim-trigger");
     if (!trigger) return;
@@ -5228,6 +5328,37 @@ body[data-modal-open="true"]::before { content:""; position:fixed; inset:0; z-in
       status.textContent = "系统分享失败，已复制";
     }
   });
+
+  function focusFeature(root) {
+    const content = root && root.id === "status-content"
+      ? root
+      : root && root.querySelector
+        ? root.querySelector("#status-content")
+        : document.querySelector("#status-content");
+    const featureId = content && content.dataset.focusFeature;
+    if (!content || !featureId) return;
+    const escapedId = typeof CSS !== "undefined" && CSS.escape
+      ? CSS.escape(featureId)
+      : featureId.replace(new RegExp("[^a-zA-Z0-9_-]", "g"), "\\$&");
+    const card = content.querySelector(`#${escapedId}`);
+    if (card && card.classList.contains("feature-card")) {
+      const details = card.querySelector(".feature-review");
+      if (details) details.open = true;
+      card.classList.add("feature-card--focused");
+      window.setTimeout(() => card.scrollIntoView({block: "center", inline: "nearest"}), 0);
+      return;
+    }
+    const closed = content.querySelector(`[data-closed-feature-id="${escapedId}"]`);
+    if (closed) {
+      const history = closed.closest("details");
+      if (history) history.open = true;
+      closed.classList.add("closed-feature--focused");
+      window.setTimeout(() => closed.scrollIntoView({block: "center", inline: "nearest"}), 0);
+    }
+  }
+
+  window.__bagakitFocusFeature = focusFeature;
+  focusFeature(document);
 })();
 </script>
 """
@@ -5549,6 +5680,7 @@ body[data-modal-open="true"]::before { content:""; position:fixed; inset:0; z-in
       if (window.__bagakitBindTopologyTriggers) window.__bagakitBindTopologyTriggers(nextContent);
       restoreOpenFeatures(openIds);
       restoreOpenTasks(openTaskIdsBeforeRefresh);
+      if (window.__bagakitFocusFeature) window.__bagakitFocusFeature(nextContent);
       restoreTopologyViews(topologyViews);
       restoreTopology(topologyFeatureId, dialogView);
       restoreBoardScroll(boardScroll);
@@ -5567,6 +5699,11 @@ body[data-modal-open="true"]::before { content:""; position:fixed; inset:0; z-in
 </script>
 """
 
+    focus_attr = (
+        f' data-focus-feature="{html_text(focus_feat_id)}"'
+        if focus_feat_id
+        else ""
+    )
     return (
         document_head
         + '<div class="shell"><header class="page-header"><div><p>Bagakit · read-only projection</p>'
@@ -5578,14 +5715,14 @@ body[data-modal-open="true"]::before { content:""; position:fixed; inset:0; z-in
             if live
             else "</div></header>"
         )
-        + '<div id="status-content"><section class="metrics" aria-label="Feature summary">'
+        + f'<div id="status-content"{focus_attr}><section class="metrics" aria-label="Feature summary">'
         f'<div class="metric"><strong>{active_count}</strong><span>Active</span></div>'
         f'<div class="metric"><strong>{in_progress_count}</strong><span>In progress</span></div>'
         f'<div class="metric"><strong>{blocked_count}</strong><span>Blocked</span></div>'
         f'<div class="metric"><strong>{closeout_count}</strong><span>Needs closeout</span></div>'
         "</section>"
         + board_html
-        + render_closed_features_html(closed_items)
+        + render_closed_features_html(closed_items, focus_feat_id=focus_feat_id)
         + "</div></div>"
         + topology_dialog
         + claim_dialog
