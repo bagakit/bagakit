@@ -134,7 +134,7 @@ rewrite examples remain the local overlay.
 - **Step 1.15：先判定基础够不够写**
   如果 route memo 暴露出对象边界不稳、样本边界不稳、关键证据缺失，或 reverse outline 说明原材料本身没有稳定主线，就不要继续选卡；转去 `references/workflow/DEPTH_ESCALATION_LOOP.md`，并按需补 `references/knowledge/DEPTH_RESEARCH_PACKET_TEMPLATE.md`、`references/knowledge/REVERSE_OUTLINE_TEMPLATE.md`、`references/knowledge/RESEARCH_TO_DRAFT_HANDOFF_TEMPLATE.md`。需要快速判断时，可先跑 `python3 scripts/qihan_route_tools.py check-foundation <artifact.md>`。
 - **Step 1.2：先选主叙事视角**
-  只有基础稳定后，才按 `references/writing/NARRATIVE_ANGLE_SELECTION.md` 先选一个主叙事视角，再加载对应卡片。至少要明确：这篇文章先立什么主张、先回答哪个问题、按什么 H2 骨架推进。
+  只有基础稳定后，才按 `references/writing/NARRATIVE_ANGLE_SELECTION.md` 先选一个主叙事视角，再加载对应卡片。至少要明确：这篇文章先立什么主张、先回答哪个问题、按什么 H2 骨架推进；不要默认复用上一稿或固定的六段骨架。
 - **Step 1.25：跑一轮视角复核**
   按 `references/writing/NARRATIVE_ANGLE_REVIEW_HEURISTIC.md` 做一轮写前复核。至少要回答：这篇文章的标题承诺是什么、标题是否有刊物感、第一问题是什么、证据如何移动、H2/H3 结构如何推进、为什么不是 runner-up 卡。
 - **Step 1.3：必要时确认视角**
@@ -168,6 +168,9 @@ rewrite examples remain the local overlay.
   `references/review/REVIEW_PACKET_TEMPLATE.md` 生成独立 `review_packet.md`。
   packet 必须写清 route memo、样本边界、counterevidence、accepted deviations、
   reviewer ownership、merge rule 和 next action，避免把 reviewer 结论只留在聊天里。
+  如果一次评审包含多篇相关文章，再按 Core 的
+  `references/review/PORTFOLIO_REVIEW.md` 记录每篇的 `unique_promise` 和
+  `spine`，把合理的共同约束与模板化重复制区分开。
 
 ### D. 交付与回扫
 - **Step 5：交付结构**
