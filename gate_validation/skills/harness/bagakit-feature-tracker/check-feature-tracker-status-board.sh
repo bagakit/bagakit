@@ -100,9 +100,12 @@ assert "grid-template-columns:repeat(5,320px)" in html
 assert "grid-auto-columns:320px" in html
 assert "align-items:start" in html
 
-# A focused Feature id is reflected in markup and opens the active review.
+# A focused Feature id is reflected in markup and targets the details panel.
 assert f'data-focus-feature="{feature_id}"' in html
-assert '<details class="feature-review" open>' in html
+assert '<details class="feature-review" open>' not in html
+assert f'data-feature-open="{feature_id}"' in html
+assert 'id="feature-review-dialog"' in html
+assert 'class="feature-review-template"' in html
 
 # Feature and Task titles carry the same compact, copyable affordance.
 assert html.count('class="copy-title"') == 4

@@ -3049,8 +3049,18 @@ def owner_continuation(
 ) -> tuple[str, list[dict[str, str | None]], str | None]:
     status = str(state.get("status") or "proposal")
     replacement = str(state.get("replacement_feat_id") or "").strip() or None
-    if status in {"done", "archived"}:
+    if status == "archived":
         return "complete", [], None
+    if status == "done":
+        return (
+            "blocked",
+            [{
+                "item_id": None,
+                "class": "closeout_required",
+                "reason": "All current-plan Tasks are done; archive or discard the Feature.",
+            }],
+            None,
+        )
     if status == "discarded":
         if replacement:
             return "superseded", [], replacement
@@ -4769,7 +4779,7 @@ def render_feature_card_html(
     state: dict[str, Any],
     tasks: dict[str, Any],
     *,
-    open_review: bool,
+    focus_feature: bool,
 ) -> str:
     feat_id = str(state.get("feat_id") or "")
     frontier = feature_task_frontier(state, tasks)
@@ -4807,14 +4817,14 @@ def render_feature_card_html(
         )
     )
     goal = str(state.get("goal") or "").strip()
-    open_attr = " open" if open_review else ""
+    focused_class = " feature-card--focused" if focus_feature else ""
     claim_message = build_agent_claim_message(paths, state, tasks)
     feature_title = str(state.get("title") or state.get("feat_id") or "Feature")
 
     return (
-        f'<article class="feature-card" id="{html_text(state.get("feat_id"))}">'
-        f'<details class="feature-review"{open_attr}>'
-        '<summary class="feature-summary">'
+        f'<article class="feature-card{focused_class}" id="{html_text(state.get("feat_id"))}">'
+        f'<div class="feature-summary" role="button" tabindex="0" data-feature-open="{html_text(feat_id)}" '
+        f'aria-label="Open details for {html_text(feature_title)}">'
         '<div class="card-kicker">'
         f'<span class="feature-id">{html_text(state.get("feat_id"))}</span>'
         f'<span class="workspace-chip">{html_text(state.get("workspace_mode") or "unassigned")}</span>'
@@ -4829,10 +4839,9 @@ def render_feature_card_html(
         + runnable_task_html
         + runtime_summary_html
         + f'<div class="task-counts">{render_task_stats_html(tasks)}</div>'
-        + '<span class="review-hint">Review <span aria-hidden="true">↓</span></span>'
-        + "</summary>"
-        + render_feature_review_html(paths, state, tasks)
-        + "</details>"
+        + '<span class="review-hint">Open details <span aria-hidden="true">↗</span></span>'
+        + "</div>"
+        + f'<template class="feature-review-template">{render_feature_review_html(paths, state, tasks)}</template>'
         + '<div class="claim-bar"><button type="button" class="claim-trigger" '
         f'data-feature-title="{html_text(feature_title)}">Agent 认领</button>'
         '<span>生成 agent-set-v1 认领消息</span></div>'
@@ -4913,9 +4922,10 @@ def render_feature_status_html(
     index_items = load_index(paths).get("features", [])
     focus_feat_id = str(feat_id or "").strip() or None
     if focus_feat_id:
-        # `--feature` is a focus selector for the human HTML projection.  Load
+        # `--feature` is a focus selector for the human HTML projection. Load
         # it once up front so an invalid id still fails closed, then render the
-        # complete active board below with only this Feature expanded.
+        # complete active board below with this Feature targeted by the details
+        # panel.
         load_feat(paths, focus_feat_id)
 
     active_records = []
@@ -4964,7 +4974,7 @@ def render_feature_status_html(
                         paths,
                         state,
                         tasks,
-                        open_review=focus_feat_id == str(state.get("feat_id") or ""),
+                        focus_feature=focus_feat_id == str(state.get("feat_id") or ""),
                     )
                 )
             except SystemExit as exc:
@@ -5032,7 +5042,6 @@ body { margin:0; background:var(--canvas); color:var(--ink); font-size:14px; }
 .status-column--red { --tone:#c4413b; --tint:#fbefee; }
 .status-column--blue { --tone:#3578c7; --tint:#edf4fb; }
 .status-column--green { --tone:#2f8a5c; --tint:#edf7f1; }
-.status-column:has(.feature-review[open]) { width:320px; }
 .status-column > header { padding:6px 6px 10px; }
 .status-title { display:flex; align-items:center; gap:7px; }
 .status-title h2 { margin:0; font-size:12px; font-weight:650; }
@@ -5042,11 +5051,9 @@ body { margin:0; background:var(--canvas); color:var(--ink); font-size:14px; }
 .column-empty { margin:auto 8px; color:var(--muted); font-size:11px; text-align:center; }
 .feature-card { border-radius:12px; background:var(--surface); box-shadow:var(--shadow); overflow:hidden; }
 .feature-card--focused { outline:2px solid color-mix(in srgb,var(--tone) 68%,transparent); outline-offset:2px; }
-.feature-review { display:block; }
-.feature-summary { cursor:pointer; list-style:none; padding:12px; }
-.feature-summary::-webkit-details-marker { display:none; }
+.feature-summary { cursor:pointer; padding:12px; }
+.feature-summary:hover { background:#fcfcfa; }
 .feature-summary:focus-visible { outline:2px solid var(--tone); outline-offset:-3px; border-radius:12px; }
-.feature-card:has(.feature-review[open]) { box-shadow:0 8px 24px rgb(28 28 24 / .09); }
 .card-kicker,.task-heading { display:flex; align-items:center; gap:6px; min-width:0; }
 .feature-id,.task-id { color:var(--muted); font-size:11px; font-variant-numeric:tabular-nums; }
 .workspace-chip,.task-status,.gate { margin-left:auto; border-radius:999px; background:#f0f0ed; color:#5f605b; padding:2px 6px; font-size:10px; white-space:nowrap; }
@@ -5072,7 +5079,6 @@ body { margin:0; background:var(--canvas); color:var(--ink); font-size:14px; }
 .task-count--blocked { background:#fff0ef; color:#8e2d29; }
 .task-count--done { background:#eaf7ef; color:#256746; }
 .review-hint { display:inline-flex; align-items:center; gap:4px; margin-top:10px; color:var(--tone); font-size:11px; font-weight:650; }
-.feature-review[open] .review-hint span { transform:rotate(180deg); }
 .review-panel { margin:0 8px 8px; border-radius:10px; background:#f8f8f5; padding:14px; }
 .review-header { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; }
 .review-header h3 { margin:2px 0 0; font-size:15px; }
@@ -5139,8 +5145,8 @@ body { margin:0; background:var(--canvas); color:var(--ink); font-size:14px; }
 .task-topology-note { margin:8px 1px 0; color:var(--muted); font-size:10px; }
 .topology-dialog { width:min(1180px,calc(100vw - 28px)); height:min(90vh,820px); border:0; border-radius:16px; background:#fff; color:var(--ink); padding:0; box-shadow:0 24px 80px rgb(20 20 16 / .24); }
 .topology-dialog::backdrop { background:rgb(20 20 16 / .36); backdrop-filter:blur(2px); }
-.topology-dialog:not([open]):not([data-open="true"]),.claim-dialog:not([open]):not([data-open="true"]) { display:none; }
-.topology-dialog[data-open="true"],.claim-dialog[data-open="true"] { display:block; position:fixed; top:5vh; left:50%; z-index:100; transform:translateX(-50%); }
+.topology-dialog:not([open]):not([data-open="true"]),.feature-review-dialog:not([open]):not([data-open="true"]),.claim-dialog:not([open]):not([data-open="true"]) { display:none; }
+.topology-dialog[data-open="true"],.feature-review-dialog[data-open="true"],.claim-dialog[data-open="true"] { display:block; position:fixed; top:5vh; left:50%; z-index:100; transform:translateX(-50%); }
 body[data-modal-open="true"]::before { content:""; position:fixed; inset:0; z-index:90; background:rgb(20 20 16 / .28); backdrop-filter:blur(2px); }
 .topology-dialog-shell { display:grid; grid-template-rows:auto 1fr; height:100%; }
 .topology-dialog-header { display:flex; align-items:flex-start; justify-content:space-between; gap:18px; padding:18px 20px 12px; }
@@ -5150,6 +5156,14 @@ body[data-modal-open="true"]::before { content:""; position:fixed; inset:0; z-in
 .topology-dialog-body .task-topology-scroll { max-height:none; min-height:400px; }
 .topology-dialog-body .task-topology-svg { margin:auto; }
 .topology-dialog-body .topology-expand { display:none; }
+.feature-review-dialog { width:min(920px,calc(100vw - 28px)); height:min(88vh,860px); border:0; border-radius:16px; background:#fff; color:var(--ink); padding:0; box-shadow:0 24px 80px rgb(20 20 16 / .24); }
+.feature-review-dialog::backdrop { background:rgb(20 20 16 / .36); backdrop-filter:blur(2px); }
+.feature-review-dialog-shell { display:grid; grid-template-rows:auto 1fr; height:100%; }
+.feature-review-dialog-header { display:flex; align-items:flex-start; justify-content:space-between; gap:18px; padding:18px 20px 12px; }
+.feature-review-dialog-header h2 { margin:2px 0 0; font-size:18px; }
+.feature-review-dialog-body { min-height:0; overflow:auto; padding:0 20px 20px; }
+.feature-review-dialog-body .review-panel { margin:0; box-shadow:none; }
+.feature-review-dialog-body .review-header h3 { display:none; }
 .review-task-fold-note { margin:16px 0 0; color:var(--muted); font-size:10px; }
 .review-tasks { margin-top:10px; }
 .review-task + .review-task { margin-top:7px; }
@@ -5202,10 +5216,97 @@ body[data-modal-open="true"]::before { content:""; position:fixed; inset:0; z-in
 .closed-feature--focused { border-radius:6px; outline:2px solid #9aa7a0; outline-offset:2px; }
 .closed-status { color:var(--muted); }
 .empty { color:var(--muted); }
-@media (max-width:720px) { .shell{padding:18px 12px}.page-header{align-items:flex-start;flex-direction:column}.projection-meta{justify-items:start}.projection-note{text-align:left}.metrics{gap:12px 22px}.status-board{grid-auto-flow:row;grid-auto-columns:auto;grid-template-columns:1fr;overflow:visible;scroll-snap-type:none}.status-column,.status-column:has(.feature-review[open]){width:auto;min-width:0}.review-header,.claim-dialog-header,.topology-dialog-header{flex-direction:column}.canonical-links{justify-content:flex-start}.review-facts,.review-grid{grid-template-columns:1fr}.claim-bar{align-items:flex-start;flex-direction:column}.claim-dialog-shell{padding:15px}.claim-message{min-height:270px}.claim-actions{align-items:stretch;flex-direction:column}.claim-status{margin:0;text-align:center}.task-topology-header{align-items:flex-start;flex-direction:column}.task-topology-header-actions{justify-content:flex-start;flex-wrap:wrap}.topology-dialog{width:calc(100vw - 16px);height:calc(100vh - 16px)}.topology-dialog-header,.topology-dialog-body{padding-left:14px;padding-right:14px}.topology-dialog-body .task-topology-scroll{min-height:280px} }
+@media (max-width:720px) { .shell{padding:18px 12px}.page-header{align-items:flex-start;flex-direction:column}.projection-meta{justify-items:start}.projection-note{text-align:left}.metrics{gap:12px 22px}.status-board{grid-auto-flow:row;grid-auto-columns:auto;grid-template-columns:1fr;overflow:visible;scroll-snap-type:none}.status-column{width:auto;min-width:0}.review-header,.claim-dialog-header,.topology-dialog-header,.feature-review-dialog-header{flex-direction:column}.canonical-links{justify-content:flex-start}.review-facts,.review-grid{grid-template-columns:1fr}.claim-bar{align-items:flex-start;flex-direction:column}.claim-dialog-shell{padding:15px}.claim-message{min-height:270px}.claim-actions{align-items:stretch;flex-direction:column}.claim-status{margin:0;text-align:center}.task-topology-header{align-items:flex-start;flex-direction:column}.task-topology-header-actions{justify-content:flex-start;flex-wrap:wrap}.topology-dialog,.feature-review-dialog{width:calc(100vw - 16px);height:calc(100vh - 16px)}.topology-dialog-header,.topology-dialog-body,.feature-review-dialog-header,.feature-review-dialog-body{padding-left:14px;padding-right:14px}.topology-dialog-body .task-topology-scroll{min-height:280px} }
 </style>
 </head>
 <body>
+"""
+
+    feature_review_dialog = r"""
+<dialog class="feature-review-dialog" id="feature-review-dialog" aria-labelledby="feature-review-dialog-title">
+  <div class="feature-review-dialog-shell">
+    <header class="feature-review-dialog-header">
+      <div><span class="eyebrow">Feature details</span><h2 id="feature-review-dialog-title">Current plan and proof</h2></div>
+      <form method="dialog"><button class="dialog-close" aria-label="Close Feature details">×</button></form>
+    </header>
+    <div class="feature-review-dialog-body" id="feature-review-dialog-body"></div>
+  </div>
+</dialog>
+<script>
+(() => {
+  const dialogApi = window.__bagakitStatusDialogs;
+  const dialog = document.getElementById("feature-review-dialog");
+  const body = document.getElementById("feature-review-dialog-body");
+  const title = document.getElementById("feature-review-dialog-title");
+
+  function cardFor(featureId) {
+    if (!featureId) return null;
+    return document.getElementById(featureId);
+  }
+
+  function templateFor(card) {
+    const template = card && card.querySelector(".feature-review-template");
+    return template ? template.innerHTML : "";
+  }
+
+  function escapeSelector(value) {
+    return typeof CSS !== "undefined" && CSS.escape
+      ? CSS.escape(value)
+      : value.replace(new RegExp("[^a-zA-Z0-9_-]", "g"), "\\$&");
+  }
+
+  function openFeatureReview(featureId, taskId) {
+    const card = cardFor(featureId);
+    const markup = templateFor(card);
+    if (!card || !markup) return;
+    dialog.dataset.featureId = featureId;
+    body.innerHTML = markup;
+    const cardTitle = card.querySelector("h3");
+    title.textContent = cardTitle ? cardTitle.textContent.trim() : "Feature details";
+    dialogApi.open(dialog);
+    if (taskId) {
+      const task = body.querySelector(`#${escapeSelector(featureId + "-task-" + taskId)}`);
+      if (task) {
+        task.open = true;
+        window.setTimeout(() => task.scrollIntoView({behavior: "smooth", block: "start"}), 0);
+      }
+    }
+  }
+
+  function closeFeatureReview() {
+    dialogApi.close(dialog);
+  }
+
+  document.addEventListener("click", (event) => {
+    const trigger = event.target.closest("[data-feature-open]");
+    if (!trigger) return;
+    if (event.target.closest("button, a")) return;
+    event.preventDefault();
+    openFeatureReview(trigger.dataset.featureOpen);
+  });
+
+  document.addEventListener("keydown", (event) => {
+    const trigger = event.target.closest && event.target.closest("[data-feature-open]");
+    if (!trigger || (event.key !== "Enter" && event.key !== " ")) return;
+    event.preventDefault();
+    openFeatureReview(trigger.dataset.featureOpen);
+  });
+
+  dialog.addEventListener("click", (event) => {
+    if (event.target.closest(".dialog-close")) {
+      event.preventDefault();
+      closeFeatureReview();
+    }
+  });
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && dialogApi.isOpen(dialog)) closeFeatureReview();
+  });
+
+  window.__bagakitOpenFeatureReview = openFeatureReview;
+  window.__bagakitFeatureReviewTemplateFor = templateFor;
+})();
+</script>
 """
 
     claim_dialog = r"""
@@ -5342,9 +5443,13 @@ body[data-modal-open="true"]::before { content:""; position:fixed; inset:0; z-in
       : featureId.replace(new RegExp("[^a-zA-Z0-9_-]", "g"), "\\$&");
     const card = content.querySelector(`#${escapedId}`);
     if (card && card.classList.contains("feature-card")) {
-      const details = card.querySelector(".feature-review");
-      if (details) details.open = true;
       card.classList.add("feature-card--focused");
+      const reviewDialog = document.getElementById("feature-review-dialog");
+      const dialogApi = window.__bagakitStatusDialogs;
+      if (window.__bagakitOpenFeatureReview &&
+          !(reviewDialog && dialogApi && dialogApi.isOpen(reviewDialog))) {
+        window.setTimeout(() => window.__bagakitOpenFeatureReview(featureId), 0);
+      }
       window.setTimeout(() => card.scrollIntoView({block: "center", inline: "nearest"}), 0);
       return;
     }
@@ -5440,7 +5545,8 @@ body[data-modal-open="true"]::before { content:""; position:fixed; inset:0; z-in
 
   function openTopology(trigger) {
     const source = trigger && trigger.closest(".task-topology");
-    const card = trigger && trigger.closest(".feature-card");
+    const card = trigger && (trigger.closest(".feature-card")
+      || document.getElementById(source && source.dataset.featureId));
     if (!source || !card) return;
     dialog.dataset.featureId = card.id;
     dialogBody.innerHTML = source.outerHTML;
@@ -5500,8 +5606,13 @@ body[data-modal-open="true"]::before { content:""; position:fixed; inset:0; z-in
     const node = event.target.closest(".topology-node");
     if (!node) return;
     const taskId = node.dataset.taskId;
+    const featureId = dialog.dataset.featureId;
     const target = document.getElementById(`${dialog.dataset.featureId}-task-${taskId}`);
     dialogApi.close(dialog);
+    if (window.__bagakitOpenFeatureReview) {
+      window.__bagakitOpenFeatureReview(featureId, taskId);
+      return;
+    }
     if (target) {
       if (target.tagName === "DETAILS") target.open = true;
       target.scrollIntoView({behavior: "smooth", block: "start"});
@@ -5544,36 +5655,42 @@ body[data-modal-open="true"]::before { content:""; position:fixed; inset:0; z-in
     indicatorText.textContent = text;
   }}
 
+  function escapeSelector(value) {{
+    return typeof CSS !== "undefined" && CSS.escape
+      ? CSS.escape(value)
+      : value.replace(new RegExp("[^a-zA-Z0-9_-]", "g"), "\\\\$&");
+  }}
+
   function openFeatureIds() {{
-    return Array.from(document.querySelectorAll("#status-content .feature-review[open]"))
-      .map((details) => details.closest(".feature-card"))
-      .filter(Boolean)
-      .map((card) => card.id);
+    const featureDialog = document.getElementById("feature-review-dialog");
+    if (!featureDialog || !dialogApi.isOpen(featureDialog)) return [];
+    return featureDialog.dataset.featureId ? [featureDialog.dataset.featureId] : [];
   }}
 
   function restoreOpenFeatures(ids) {{
-    for (const id of ids) {{
-      const details = document.querySelector(`#${{CSS.escape(id)}} .feature-review`);
-      if (details) details.open = true;
-    }}
+    const id = ids[0];
+    if (id && window.__bagakitOpenFeatureReview) window.__bagakitOpenFeatureReview(id);
   }}
 
   function openTaskIds() {{
-    return Array.from(document.querySelectorAll("#status-content .review-task[open]"))
+    const featureDialog = document.getElementById("feature-review-dialog");
+    if (!featureDialog || !dialogApi.isOpen(featureDialog)) return [];
+    return Array.from(featureDialog.querySelectorAll(".review-task[open]"))
       .map((task) => task.id)
       .filter(Boolean);
   }}
 
   function restoreOpenTasks(ids) {{
     for (const id of ids) {{
-      const task = document.getElementById(id);
+      const featureDialog = document.getElementById("feature-review-dialog");
+      const task = featureDialog && featureDialog.querySelector(`#${{escapeSelector(id)}}`);
       if (task && task.tagName === "DETAILS") task.open = true;
     }}
   }}
 
   function captureTopologyViews() {{
     const views = new Map();
-    for (const topology of document.querySelectorAll("#status-content .task-topology")) {{
+    for (const topology of document.querySelectorAll("#status-content .task-topology, #feature-review-dialog-body .task-topology")) {{
       const featureId = topology.dataset.featureId;
       const scroller = topology.querySelector(".task-topology-scroll");
       if (!featureId || !scroller) continue;
@@ -5609,7 +5726,7 @@ body[data-modal-open="true"]::before { content:""; position:fixed; inset:0; z-in
   }}
 
   function restoreTopologyViews(views) {{
-    for (const topology of document.querySelectorAll("#status-content .task-topology")) {{
+    for (const topology of document.querySelectorAll("#status-content .task-topology, #feature-review-dialog-body .task-topology")) {{
       const featureId = topology.dataset.featureId;
       if (featureId) restoreTopologyView(topology, views.get(featureId));
     }}
@@ -5644,7 +5761,14 @@ body[data-modal-open="true"]::before { content:""; position:fixed; inset:0; z-in
   function restoreTopology(featureId, view) {{
     if (!featureId || !topologyDialog || !dialogApi.isOpen(topologyDialog)) return;
     const card = document.getElementById(featureId);
-    const fresh = card && card.querySelector(".task-topology");
+    const template = card && card.querySelector(".feature-review-template");
+    if (!template) {{
+      dialogApi.close(topologyDialog);
+      return;
+    }}
+    const templateHost = document.createElement("div");
+    templateHost.innerHTML = template.innerHTML;
+    const fresh = templateHost.querySelector(".task-topology");
     if (!fresh) {{
       dialogApi.close(topologyDialog);
       return;
@@ -5725,6 +5849,7 @@ body[data-modal-open="true"]::before { content:""; position:fixed; inset:0; z-in
         + render_closed_features_html(closed_items, focus_feat_id=focus_feat_id)
         + "</div></div>"
         + topology_dialog
+        + feature_review_dialog
         + claim_dialog
         + live_script
         + "</body></html>"
@@ -6638,6 +6763,11 @@ def cmd_task_finish(args: argparse.Namespace) -> int:
     print(f"ok: task finished {args.feat}/{args.task} => {args.result}")
     print(f"feat_status: {state['status']}")
     if state["status"] == "done":
+        # Task completion is not Feature completion. Keep this explicit and
+        # machine-readable so a Host/Agent can continue the same convergence
+        # loop instead of treating a successful finish as a terminal result.
+        print("feature_completion: pending_closeout")
+        print("closeout_required: true")
         root_q = shlex.quote(str(root))
         closeout_cmd = f"feature-tracker.sh closeout-feature --root {root_q} --feature {args.feat}"
         discard_cmd = (
@@ -6649,6 +6779,7 @@ def cmd_task_finish(args: argparse.Namespace) -> int:
             base_ref = str(state.get("base_ref") or pick_base_branch(root))
             branch_merged = bool(branch and git_local_branch_exists(root, branch) and git_branch_merged_into(root, branch, base_ref))
             if branch and not branch_merged:
+                print("next_action_kind: merge_then_closeout")
                 print(
                     "next: git -C "
                     f"{root_q} checkout {shlex.quote(base_ref)} "
@@ -6656,8 +6787,10 @@ def cmd_task_finish(args: argparse.Namespace) -> int:
                 )
                 print(f"after_merge: {closeout_cmd}")
             else:
+                print("next_action_kind: closeout_feature")
                 print(f"next: {closeout_cmd}")
         else:
+            print("next_action_kind: closeout_feature")
             print(f"next: {closeout_cmd}")
         print(f"alternative: {discard_cmd}")
     return 0

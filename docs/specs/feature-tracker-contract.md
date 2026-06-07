@@ -676,6 +676,12 @@ Stable closeout expectations:
 - tracked feature completion means the feature reaches `archived` or
   `discarded`, or the operator leaves an explicit active reason such as
   `blocked`
+- `finish-task` returning `feat_status=done` is a closeout-pending result, not
+  terminal Feature completion; the command emits `closeout_required=true` and
+  the next closeout action so a Host can keep the convergence loop alive
+- an active `done` Feature's owner receipt uses `continuation=blocked` with the
+  owner-level `closeout_required` blocker; `continuation=complete` is reserved
+  for an archived Feature
 - archived features move into `features-archived/`
 - discarded features move into `features-discarded/`
 - closeout summaries live with the closed feature directory

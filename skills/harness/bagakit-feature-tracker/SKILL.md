@@ -131,6 +131,12 @@ if an old `pass` value is present. This transition check is deliberately not a
 retroactive migration: historical completed Tasks remain readable without
 claiming that their older gate receipts satisfy the new proof rule.
 
+When the last current-plan Task finishes, `finish-task` reports
+`feature_completion: pending_closeout`, `closeout_required: true`, and a
+machine-readable `next_action_kind`. Treat that result as an unfinished Feature
+until `closeout-feature` has completed and the Feature is `archived` or
+`discarded`; do not report Feature completion from `feat_status: done` alone.
+
 When implementation is delegated, the Owner or Supervisor maintains Feature,
 workspace, Goal, and Task transitions. The implementation Worker consumes the
 current receipt and Task, produces code and evidence, and does not repeatedly
@@ -144,8 +150,16 @@ Treat one Feature as one user goal, then make its Task plan as fine-grained as
 the acceptance evidence allows:
 
 - split work at independently implementable and independently verifiable
-  outcomes; a Task should be small enough to close in one bounded execution
-  loop, not a broad phase such as “finish the backend”
+  outcomes; a Task must not be larger than one independently closable
+  substructure, and should be small enough to close in one bounded execution
+  loop rather than a broad phase such as “finish the backend”
+- prefer substructures that take about 30 minutes or less of focused Agent
+  work; when any substructure is expected to take longer than 30 minutes,
+  provide a mandatory estimate in Agent execution hours (not human hours or
+  wall-clock time). When it is genuinely indivisible, also mark it as a heavy
+  object and state why it cannot be safely split. Use that signal when choosing
+  execution waves, concurrency, and the critical path; do not use it as a
+  second lifecycle or gate truth
 - declare only real prerequisites in `depends_on`; do not add edges merely to
   preserve the order in which Tasks were written
 - inspect the derived runnable frontier before each claim and start independent
@@ -162,9 +176,9 @@ real parallelism, not the largest possible Task count.
 ## Human Visibility
 
 After Feature creation, a Host may present one stable, disposable status page
-that derives the active and runnable Task frontier. Expanding a Feature shows
-the same file-derived Task topology and links its nodes to acceptance and proof
-detail:
+that derives the active and runnable Task frontier. Clicking a Feature card
+opens a details panel with the same file-derived Task topology and links its
+nodes to acceptance and proof detail:
 
 ```bash
 bash "$BAGAKIT_FEATURE_TRACKER_SKILL_DIR/scripts/feature-tracker.sh" \
@@ -175,8 +189,9 @@ bash "$BAGAKIT_FEATURE_TRACKER_SKILL_DIR/scripts/feature-tracker.sh" \
   --output .tmp/feature-tracker/status.html
 ```
 
-The HTML `--feature` option focuses and expands one Feature while retaining the
-complete active overview; text and JSON forms continue to inspect one Feature.
+The HTML `--feature` option focuses and opens one Feature's details panel while
+retaining the complete active overview; text and JSON forms continue to inspect
+one Feature.
 If one active record is malformed, the overview shows a minimal repair-needed
 card with canonical links and leaves strict diagnosis to `validate-tracker`.
 The page is a static snapshot computed from canonical Tracker files plus an
@@ -206,7 +221,7 @@ it also reads the latest `progress.ndjson` receipt for the mirrored Feature;
 only an explicit `task_ref` can attach that informational activity to a Task.
 The page's JavaScript only fetches and replaces the status region; it does not
 read browser-local files, mutate Tracker state, or provide a write endpoint.
-It preserves expanded Features and the topology dialog while showing refresh
+It preserves the selected Feature details panel and the topology dialog while showing refresh
 state, and preserves topology scroll and
 zoom position and the board's horizontal scroll position across those
 replacements. The fullscreen control has a bounded
@@ -271,8 +286,9 @@ checkpoint through Flow Runner instead.
 
 ## Closeout
 
-A code commit is not Feature completion. Run `closeout-feature` first as a dry
-run, resolve the three review items it prints, then rerun with `--execute`:
+A code commit or a successful final `finish-task` is not Feature completion.
+Run `closeout-feature` first as a dry-run, resolve the three review items it
+prints, then rerun with `--execute`:
 
 - documentation: update or verify only the owning SSOT; never turn Agent
   inference into requirements

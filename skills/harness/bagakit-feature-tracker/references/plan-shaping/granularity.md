@@ -1,9 +1,37 @@
 # Task Granularity
 
 Granularity gives “one bounded execution loop” a practical upper bound while
-drafting `tasks.json`. A Task should close one independently verifiable result
-with a small, coherent change surface. Use the signals below before accepting
-an outline; one signal is enough to redraw the boundary.
+drafting `tasks.json`. A Task must fit within one independently closable
+substructure of the problem: it must not bundle two sibling substructures that
+could each be implemented, verified, and submitted on their own. Prefer
+substructures that an Agent can finish in about 30 minutes of focused work.
+Use the signals below before accepting an outline; one signal is enough to
+redraw the boundary.
+
+## Hard boundary and effort sizing
+
+The independently closable substructure is the Task's hard upper boundary. A
+broader feature slice may be decomposed into several smaller Tasks, but one Task
+must never span multiple independently closable substructures. This is a
+planning invariant, not a request to create ceremony-only nodes.
+
+Thirty minutes is a shaping target, not a hard split requirement or a wall-clock
+promise. If a substructure is expected to take longer than 30 minutes, an
+effort estimate is mandatory and must be written in Agent execution hours (for
+example, `0.5h`, `1h`, or `2-4h`), even when the substructure is not yet known to
+be indivisible. If it is genuinely indivisible, also label the Task as a
+**heavy object** and state briefly why a safe independent split is not
+possible; if it can be split without violating ownership, shared-file
+isolation, or independent proof, split it instead of accepting the larger Task.
+
+Use Agent development effort as the estimate standard: focused inspection,
+implementation, local tests, and the Task's own gate for one bounded loop. Do
+not use a human engineer's estimate, calendar duration, external waiting time,
+or unrelated merge and Feature-level acceptance work. The estimate helps the
+Host or Supervisor choose the topology's execution wave, concurrency, and
+critical path; it does not change lifecycle truth, gate evidence, or completion
+semantics. Tasks expected to finish within 30 minutes may omit an estimate, but
+any estimate that is present still uses hours.
 
 ## Four too-big signals
 

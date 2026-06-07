@@ -271,24 +271,29 @@ assert feature_id in overview
 assert "In progress" in overview
 assert "T-001" in overview
 assert "Current plan" in detail
-assert detail.count('<article class="feature-card"') == 2
-assert detail.count('<details class="feature-review" open>') == 1
+assert detail.count('<article class="feature-card') == 2
+assert detail.count('<details class="feature-review" open>') == 0
 assert re.search(
-    rf'<article class="feature-card" id="{re.escape(feature_id)}">.*?'
-    r'<details class="feature-review" open>',
+    rf'<article class="feature-card feature-card--focused" id="{re.escape(feature_id)}">.*?'
+    r'<div class="feature-summary" role="button" tabindex="0" data-feature-open="'
+    + re.escape(feature_id)
+    + r'"',
     detail,
     re.S,
 )
 assert "Handoff feature" in detail
 assert overview.index("<h2>Proposal</h2>") < overview.index("<h2>In progress</h2>")
-assert '<summary class="feature-summary">' in overview
-assert "Review" in overview
+assert 'data-feature-open=' in overview
+assert "Open details" in overview
 assert "file://" in detail
 assert "prefers-color-scheme:dark" not in overview
 assert "&lt;literal&gt;" in detail
 assert "<literal>" not in detail
-assert overview.count("<script>") == 2
-assert detail.count("<script>") == 2
+assert overview.count("<script>") == 3
+assert detail.count("<script>") == 3
+assert 'id="feature-review-dialog"' in overview
+assert 'class="feature-review-template"' in detail
+assert 'window.__bagakitOpenFeatureReview' in detail
 assert "Agent 认领" in overview
 assert "复制认领消息" in overview
 parser = ClaimDraftParser()
@@ -692,7 +697,26 @@ bash "$SKILL_DIR/scripts/feature-tracker.sh" run-task-gate \
   --root "$TMP_DIR" --feature "$FEATURE_ID" --task T-001 >/dev/null
 assert_gate pass "$PASSING_TASK_RECORDS" "true => pass (0)"
 bash "$SKILL_DIR/scripts/feature-tracker.sh" finish-task \
-  --root "$TMP_DIR" --feature "$FEATURE_ID" --task T-001 --result done >/dev/null
+  --root "$TMP_DIR" --feature "$FEATURE_ID" --task T-001 --result done >"$TMP_DIR/final-task-finish.out"
+grep -F "feature_completion: pending_closeout" "$TMP_DIR/final-task-finish.out" >/dev/null
+grep -F "closeout_required: true" "$TMP_DIR/final-task-finish.out" >/dev/null
+grep -F "next_action_kind: closeout_feature" "$TMP_DIR/final-task-finish.out" >/dev/null
+bash "$SKILL_DIR/scripts/feature-tracker.sh" get-owner-receipt \
+  --root "$TMP_DIR" --feature "$FEATURE_ID" --json >"$TMP_DIR/pending-closeout-receipt.json"
+python3 - "$TMP_DIR/pending-closeout-receipt.json" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+receipt = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+assert receipt["lifecycle_status"] == "done"
+assert receipt["continuation"] == "blocked"
+assert receipt["blockers"] == [{
+    "item_id": None,
+    "class": "closeout_required",
+    "reason": "All current-plan Tasks are done; archive or discard the Feature.",
+}]
+PY
 bash "$SKILL_DIR/scripts/feature-tracker.sh" show-feature-status --root "$TMP_DIR" --format html --output "$STATUS_PAGE_REL" >"$TMP_DIR/feature-status-page-refreshed.out"
 cmp "$TMP_DIR/feature-status-page.out" "$TMP_DIR/feature-status-page-refreshed.out"
 python3 - "$STATUS_PAGE" "$FEATURE_ID" <<'PY'

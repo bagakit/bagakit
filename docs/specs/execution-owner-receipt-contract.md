@@ -49,6 +49,10 @@ Required behavior:
   Timestamps, logs, and rendered projections do not affect it.
 - `continuation` is one of `continue`, `blocked`, `complete`, `superseded`, or
   `unavailable`.
+- an active Feature with `lifecycle_status = done` uses
+  `continuation = blocked` and one owner-level blocker with
+  `class = closeout_required`; this means all Tasks are done but the Feature
+  still requires archive/discard review
 - `active_item_ids` is the sorted set of current-plan Tasks whose status is
   `in_progress`; it is derived from `tasks.json` and is empty when no Task is
   active.
@@ -83,6 +87,8 @@ Recovery rules:
 - `blocked` requires following the owner's blockers and independent-work rules
 - `complete` means the Feature lifecycle is complete; the Goal does not carry
   its own completion flag
+- `closeout_required` is an owner-level blocker, not a Task blocker; resolve it
+  through the Feature closeout flow rather than restarting implementation
 - `superseded` routes to `replacement_ref`
 - `unavailable` blocks execution until an authoritative owner is restored
 - a changed receipt revision requires re-reading owner state, not rewriting the

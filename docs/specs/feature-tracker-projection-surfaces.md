@@ -105,7 +105,8 @@ read-only status page on stdout. `--output <path>` instead writes the same page
 atomically and prints its local file URI so a Host can present it to a human.
 
 For the HTML projection, `--feature <feature-id>` is a focus selector: the
-page still renders every non-closed Feature and expands only the selected one.
+page still renders every non-closed Feature, keeps all cards compact, and opens
+the selected Feature in its read-only details panel.
 The text and JSON forms keep their single-Feature detail meaning. A malformed
 active Feature is represented by a minimal repair-needed card with canonical
 links so one bad record does not hide the rest of the overview; `validate-tracker`
@@ -113,8 +114,8 @@ remains the strict diagnostic surface.
 
 It may present canonical Feature identity, lifecycle status, workspace,
 active and runnable Tasks, Task blockers, dependencies, Task counts, and
-current-plan Task detail. When a reviewed Task plan exists, the expanded
-Feature review should also render its derived Task topology: roots, dependency
+current-plan Task detail. When a reviewed Task plan exists, the Feature details
+panel should also render its derived Task topology: roots, dependency
 edges, convergence points, and each Task's current derived status. Selecting a
 topology node opens its collapsible Task detail before scrolling to that Task's
 acceptance and verification detail. The
@@ -145,17 +146,17 @@ scraped into this page: they are delivery or host-exhaust surfaces, not a
 durable Task binding. A Worker report becomes visible here only when its
 execution owner records a Flow Runner progress receipt with `task_ref`.
 
-The default human overview places proposals before execution statuses. A
-Feature card opens its review in place, showing current-plan objectives,
-outcomes, acceptance, verification, and links to canonical files. The default
-surface stays light and visually quiet instead of following the host into a
-dark, heavily outlined dashboard.
+The default human overview places proposals before execution statuses. Feature
+cards stay compact; clicking a card opens one read-only details panel showing
+current-plan objectives, outcomes, acceptance, verification, and links to
+canonical files. The default surface stays light and visually quiet instead of
+following the host into a dark, heavily outlined dashboard.
 
-Within an expanded Feature, each reviewed Task is an independent collapsible
-detail. Active and blocked Tasks open by default; larger plans leave the other
-Task details collapsed, and the user may open any Task without changing
-Tracker state. The live route preserves those Task disclosure choices across
-refreshes.
+Within the Feature details panel, each reviewed Task is an independent
+collapsible detail. Active and blocked Tasks open by default; larger plans
+leave the other Task details collapsed, and the user may open any Task without
+changing Tracker state. The live route preserves the selected Feature panel
+and those Task disclosure choices across refreshes.
 
 A relative `--output` path resolves from `--root`. The recommended stable
 scratch path is `.tmp/feature-tracker/status.html`. The operator must reject an
@@ -167,7 +168,7 @@ rerunning the command against canonical files and reloading the page.
 route. It binds only to loopback, serves no mutation endpoint, and regenerates
 the same HTML from canonical files on each request. Its bounded page JavaScript
 fetches the current projection and replaces only the status-content region,
-preserving expanded Features, topology dialogs, and anchors while showing an
+preserving the selected Feature details panel, topology dialogs, and anchors while showing an
 updating/updated/error indicator. It also preserves each topology viewport and
 the full-screen dialog's scroll/zoom position, as well as the board's
 horizontal scroll position, across those content updates,

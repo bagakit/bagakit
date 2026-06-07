@@ -58,3 +58,11 @@ join before it is materialized.
 - **Yes/No:** For each pair of allegedly parallel Tasks, is there no dependency
   path between them, no unsettled shared hotspot in their declared surfaces,
   and no gate that consumes the other Task's result?
+
+## 10. Granularity and heavy objects are explicit
+
+- **Yes/No:** Does every Task fit within one independently closable
+  substructure, with an effort target of about 30 minutes or less; and whenever
+  any substructure is expected to exceed 30 minutes, does it carry a mandatory
+  estimate in Agent execution hours, while every genuinely indivisible one is
+  additionally marked heavy with a brief reason that it cannot be safely split?
