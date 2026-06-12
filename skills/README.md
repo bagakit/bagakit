@@ -22,7 +22,7 @@ skills/
 │   ├── generate/                 skill/change candidate creation (planned)
 │   ├── evaluate/                 review and evaluation methods
 │   └── adapt/                    decision memory, adoption, routing, promotion
-└── rsi/                          M2: improve M1; Dreaming RSI is planned
+└── rsi/                          M2: improve M1 (navigation; no M2 skill yet)
 ```
 
 Groups may have different depths. A small group can contain skills directly;
