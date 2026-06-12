@@ -85,7 +85,7 @@ summary = "Run the current Task's declared command verification entries in order
 
 [[command]]
 name = "finish-task"
-summary = "Finish one task, requiring canonical class and reason when blocked."
+summary = "Finish one task as done, a genuine execution blocker, or a failed assumption that requires reviewed replanning."
 
 [[command]]
 name = "closeout-feature"
@@ -126,6 +126,10 @@ summary = "List tracked features."
 [[command]]
 name = "get-feature"
 summary = "Show one Feature record with its derived active, runnable, blocked, cancelled, transferred, waiting, and done Task frontier."
+
+[[command]]
+name = "review-task-plan"
+summary = "Audit waiting dependency edges and failed assumptions without changing Tracker state."
 
 [[command]]
 name = "filter-features"

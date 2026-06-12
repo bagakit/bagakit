@@ -135,6 +135,46 @@ route their extension through that Feature's Task plan.
 
 ## Runtime Ownership Split Contract
 
+### Failure, blocking, and replanning
+
+`blocked` means the Agent has no executable recovery within the currently
+authorized scope and available resources. It is relative to that boundary,
+not a claim that the goal is permanently impossible. The reason must identify
+the unavailable condition. New blocker records should also carry optional
+`last_blocker.owner` and `last_blocker.resume_when` strings identifying who or
+what can change it and what evidence permits resumption; the projection marks
+missing values as `unspecified` so ambiguity is visible instead of hidden. A normal code defect, failed gate, difficult optimization, or
+untried approach is not sufficient to stop as blocked.
+
+When evidence disproves the Task's assumed solution or acceptance path, mark
+the old node `failed` and rethink the plan. `finish-task --result failed`
+requires `--failure-assumption` and `--failure-reason` (the observation that
+disproved it). It accepts a current `in_progress` or `blocked` Task, replacing
+any current blocker with `failure = {assumption, reason}` in `tasks.json`.
+The failed node is terminal, cannot restart, and never satisfies dependents.
+A failing gate alone leaves the Task active so ordinary repair can continue.
+
+The execution owner must inspect affected descendants, preserve the user's
+goal, distinguish user constraints from Agent assumptions, and install a
+reviewed successor through `set-task-plan --expected-revision`. Existing user
+authorization or delegated planning authority remains sufficient; changing a
+user constraint requires a specific user decision. Merely saying "replanning"
+in chat or a progress receipt does not install a plan.
+
+The next reviewed revision must remove each current failed node and declare
+its replacement through the existing `supersedes` relation. The old node and
+its failure evidence remain immutable with derived `superseded_by` links;
+there is no second successor field and no requirement to invent future Task
+ids before rethinking. The new plan records its revision and review ref.
+Independent active/runnable work may continue; when that frontier is exhausted,
+failed Tasks require Feature status `replanning` and owner continuation
+`blocked` with `replan_required`, even if a separate real blocker also exists.
+This owner-level handoff asks for planning work, not passive waiting.
+
+Read-only queries expose pending failed nodes and installed successor revisions
+from canonical Task lineage. Installed, started, and done successors remain
+distinct observations. Tracker does not launch an Agent or guarantee recovery.
+
 Some features are runtime frontdoors only.
 Others own the currently executing lane.
 
@@ -275,12 +315,13 @@ Runtime status vocabulary:
   blocked frontier; it means a cancelled current Task needs a reviewed plan
   revision before the DAG can continue, and `transferred` for a closed partial
   Feature whose remaining work moved to a successor
-- Task statuses include `cancelled` for an intentionally abandoned or replaced
-  current node; it is terminal evidence, not a passing result or a blocker
+- Task statuses include `failed` for a disproved approach and `cancelled` for
+  an intentionally abandoned or replaced current node; both are terminal
+  evidence, not passing results or execution blockers
 - Task status `transferred` records an unfinished current-plan node moved with
   its Feature to a reviewed successor; it is terminal historical evidence and
   carries no destination mapping
-- `waiting`, `runnable`, `active`, `blocked`, `cancelled`, `transferred`, and `done` Task sets
+- `waiting`, `runnable`, `active`, `blocked`, `failed`, `cancelled`, `transferred`, and `done` Task sets
   remain derived from `tasks.json`; only the Task status and its owned reason
   are persisted
 
@@ -289,6 +330,12 @@ Each reviewed task requires:
 - `id`, `title`, `objective`, and `outcome`
 - optional `depends_on`; omission is canonically equivalent to `[]` and means
   the Task is a graph root
+- optional `estimate_hours`, a positive numeric estimate in focused Agent
+  execution hours; it is not a human-hours, calendar-time, or queue-time
+  estimate
+- optional `heavy = true` for an indivisible substructure that is expected to
+  exceed the 30-minute shaping target; a heavy Task must also carry a
+  non-empty `heavy_reason` and `estimate_hours`
 - non-empty acceptance statements
 - non-empty verification mappings with `kind`, repo-relative `ref`, and
   `proves`
@@ -312,7 +359,7 @@ Required behavior:
   version 2 task truth
 - a task may be started only when it belongs to the latest reviewed plan
 - Task array order and Task id order carry no execution-order meaning
-- `depends_on` is the only within-Feature ordering truth; every dependency
+- `depends_on` is the only within-Feature ordering truth and a start gate; every dependency
   names a distinct current-plan Task, self-dependencies and cycles are invalid
 - a `todo` Task is runnable only when every direct dependency is `done`
 - `start-task` atomically claims one runnable Task by moving it to
@@ -321,8 +368,17 @@ Required behavior:
   its direct dependencies to remain `done`
 - `runnable`, active, waiting, blocked-frontier, and completed Task sets are
   derived from `tasks.json` and must not be persisted in `state.json`
+- effort fields are planning semantics, not lifecycle or gate truth. They are
+  retained in `tasks.json` when supplied, compared during plan revision, and
+  may be omitted for Tasks that fit the 30-minute shaping target. A projection
+  may use them for a clearly labelled estimated chain, but must not infer
+  execution duration from them.
 - a task already superseded by a later plan cannot be restarted
-- plan replacement is rejected while a task is `in_progress`
+- a reviewed plan revision may be installed while Tasks are `in_progress` when
+  every active Task remains in the new current plan with identical semantic
+  fields and `depends_on`; the revision may add or rewire only Tasks that have
+  not started, and removed unstarted Tasks still require explicit supersession
+  lineage
 - an accidentally started task may return to `todo` only when it has no gate
   evidence or prior blocked/done completion, its persisted owner receipt is
   current, its assigned execution worktree is clean, and its current Git HEAD
@@ -356,12 +412,18 @@ Required behavior:
   replaces only `tasks.json` plus the derived receipt in one rollback-safe
   boundary
 
-Normal `set-task-plan` replacement remains forbidden while any Task is active.
-Executed Task dependency semantics are immutable across revisions.
+`set-task-plan` remains a reviewed-plan mutation, not a scheduler. During a
+mid-run revision, active Tasks continue under their existing semantics while
+newly runnable Tasks are derived from the replacement plan. Executed Task
+dependency semantics are immutable across revisions, and an active Task may
+not be removed, retitled, or have its acceptance, verification, or direct
+dependencies changed by that revision.
 
 Review, source, verification, and evidence references are portable
 repo-relative paths. They must reject repository escape, URI paths, drive
 absolute paths, and UNC paths.
+
+`review-task-plan` is the read-only plan-quality checkpoint. It enumerates waiting direct edges and failed assumptions, marks waiting edges as requiring a counterfactual decision, and emits the next planning action. It must not infer that an edge is unnecessary, mutate the DAG, or schedule an Agent. A reviewed revision is still required to remove or rewire an edge; its review evidence should cite the checkpoint and the decision-bearing counterfactual.
 
 Feature Tracker owns semantic planning truth and task gate evidence. It does
 not own Flow Runner checkpoints, repeated execution scheduling, or normalized

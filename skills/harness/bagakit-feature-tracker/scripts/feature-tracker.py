@@ -8,6 +8,7 @@ import fcntl
 import hashlib
 import html
 import json
+import math
 import os
 import re
 import shlex
@@ -44,7 +45,7 @@ TASK_ID_RE = re.compile(r"^T-\d{3}$")
 URI_SCHEME_RE = re.compile(r"^[A-Za-z][A-Za-z0-9+.-]*:")
 WINDOWS_DRIVE_ABSOLUTE_RE = re.compile(r"^[A-Za-z]:[\\/]")
 FEAT_STATUS = {"proposal", "ready", "in_progress", "replanning", "blocked", "done", "archived", "discarded", "transferred"}
-TASK_STATUS = {"todo", "in_progress", "done", "blocked", "cancelled", "transferred"}
+TASK_STATUS = {"todo", "in_progress", "done", "blocked", "failed", "cancelled", "transferred"}
 GATE_STATUS = {"pass", "fail"}
 WORKSPACE_MODES = {"worktree", "current_tree", "proposal_only"}
 CLOSED_FEAT_STATUS = {"archived", "discarded", "transferred"}
@@ -494,19 +495,25 @@ def parse_task_plan_candidate(
             if superseded_id == task_id:
                 raise SystemExit(f"error: {task_label} must not supersede itself")
 
-        tasks.append(
-            {
-                "id": task_id,
-                "depends_on": canonical_task_dependencies(task, label=task_label),
-                "title": require_nonempty_string(task.get("title"), f"{task_label}.title"),
-                "objective": require_nonempty_string(task.get("objective"), f"{task_label}.objective"),
-                "outcome": require_nonempty_string(task.get("outcome"), f"{task_label}.outcome"),
-                "acceptance": require_string_list(task.get("acceptance"), f"{task_label}.acceptance"),
-                "verification": verification,
-                "source_refs": require_repo_relative_refs(root, task.get("source_refs"), f"{task_label}.source_refs"),
-                "supersedes": supersedes,
-            }
-        )
+        estimate_hours, heavy, heavy_reason = canonical_task_effort(task, label=task_label)
+        normalized_task = {
+            "id": task_id,
+            "depends_on": canonical_task_dependencies(task, label=task_label),
+            "title": require_nonempty_string(task.get("title"), f"{task_label}.title"),
+            "objective": require_nonempty_string(task.get("objective"), f"{task_label}.objective"),
+            "outcome": require_nonempty_string(task.get("outcome"), f"{task_label}.outcome"),
+            "acceptance": require_string_list(task.get("acceptance"), f"{task_label}.acceptance"),
+            "verification": verification,
+            "source_refs": require_repo_relative_refs(root, task.get("source_refs"), f"{task_label}.source_refs"),
+            "supersedes": supersedes,
+        }
+        if estimate_hours is not None:
+            normalized_task["estimate_hours"] = estimate_hours
+        if heavy:
+            normalized_task["heavy"] = True
+            assert heavy_reason is not None
+            normalized_task["heavy_reason"] = heavy_reason
+        tasks.append(normalized_task)
 
     current_plan_task_graph(
         {
@@ -560,6 +567,8 @@ def canonical_task_finish_blocker(
     result: str,
     blocked_reason_class: Any,
     blocked_reason: Any,
+    blocked_owner: Any = None,
+    blocked_resume_when: Any = None,
     cancel_reason: Any = None,
 ) -> tuple[str | None, str | None]:
     if result == "blocked":
@@ -576,9 +585,42 @@ def canonical_task_finish_blocker(
         raise SystemExit(
             "error: --blocked-reason-class and --blocked-reason are valid only with --result blocked"
         )
+    if blocked_owner is not None or blocked_resume_when is not None:
+        raise SystemExit("error: --blocked-owner and --blocked-resume-when are valid only with --result blocked")
     if result != "cancelled" and cancel_reason is not None:
         raise SystemExit("error: --cancel-reason is valid only with --result cancelled")
     return None, None
+
+
+def canonical_task_finish_failure(
+    *,
+    result: str,
+    failure_reason: Any,
+    failure_assumption: Any,
+) -> tuple[str, str] | None:
+    """Validate the explicit failed-assumption handoff.
+
+    ``failed`` means the reviewed approach was disproved.  It is terminal
+    evidence that forces a reviewed successor plan; it is deliberately
+    separate from ``blocked``, which means the current approach is still
+    viable but cannot proceed right now.
+    """
+    supplied = any(value is not None for value in (failure_reason, failure_assumption))
+    if result != "failed":
+        if supplied:
+            raise SystemExit(
+                "error: failure arguments are valid only with --result failed"
+            )
+        return None
+    if not isinstance(failure_reason, str) or not failure_reason.strip():
+        raise SystemExit("error: --failure-reason is required with --result failed")
+    if failure_reason != failure_reason.strip():
+        raise SystemExit("error: --failure-reason must not have surrounding whitespace")
+    if not isinstance(failure_assumption, str) or not failure_assumption.strip():
+        raise SystemExit("error: --failure-assumption is required with --result failed")
+    if failure_assumption != failure_assumption.strip():
+        raise SystemExit("error: --failure-assumption must not have surrounding whitespace")
+    return failure_reason, failure_assumption
 
 
 def canonical_task_finish_cancellation(
@@ -608,18 +650,42 @@ def canonical_task_last_blocker(
         return None
     if task.get("status") == "todo":
         raise SystemExit(f"error: {feat_id}/{task_id}: todo task must not carry last_blocker")
-    if task.get("status") == "cancelled":
-        raise SystemExit(f"error: {feat_id}/{task_id}: cancelled task must not carry last_blocker")
-    if not isinstance(raw, dict) or set(raw) != {"class", "reason"}:
+    if task.get("status") in {"cancelled", "failed"}:
+        raise SystemExit(f"error: {feat_id}/{task_id}: {task.get('status')} task must not carry last_blocker")
+    if not isinstance(raw, dict) or not {"class", "reason"}.issubset(set(raw)) or set(raw) - {"class", "reason", "owner", "resume_when"}:
         raise SystemExit(
-            f"error: {feat_id}/{task_id}: last_blocker must contain exactly class and reason"
+            f"error: {feat_id}/{task_id}: last_blocker must contain class/reason and optional owner/resume_when"
         )
-    return canonical_blocker_pair(
+    pair = canonical_blocker_pair(
         raw.get("class"),
         raw.get("reason"),
         class_label=f"{feat_id}/{task_id}: last_blocker.class",
         reason_label=f"{feat_id}/{task_id}: last_blocker.reason",
     )
+    for key in ("owner", "resume_when"):
+        if key in raw and (not isinstance(raw[key], str) or not raw[key].strip() or raw[key] != raw[key].strip()):
+            raise SystemExit(f"error: {feat_id}/{task_id}: last_blocker.{key} must be a trimmed non-empty string")
+    return pair
+
+
+def canonical_task_failure(task: dict[str, Any], *, feat_id: str) -> tuple[str, str] | None:
+    task_id = str(task.get("id") or "<unknown>")
+    raw = task.get("failure")
+    if task.get("status") == "failed":
+        if not isinstance(raw, dict) or set(raw) != {"reason", "assumption"}:
+            raise SystemExit(
+                f"error: {feat_id}/{task_id}: failed task requires failure reason and assumption"
+            )
+        reason = raw.get("reason")
+        assumption = raw.get("assumption")
+        if not isinstance(reason, str) or not reason.strip() or reason != reason.strip():
+            raise SystemExit(f"error: {feat_id}/{task_id}: failure.reason must be a trimmed non-empty string")
+        if not isinstance(assumption, str) or not assumption.strip() or assumption != assumption.strip():
+            raise SystemExit(f"error: {feat_id}/{task_id}: failure.assumption must be a trimmed non-empty string")
+        return reason, assumption
+    if raw is not None:
+        raise SystemExit(f"error: {feat_id}/{task_id}: non-failed task must not carry failure")
+    return None
 
 
 def canonical_task_cancel_reason(
@@ -648,6 +714,7 @@ def require_canonical_task_blockers(tasks: dict[str, Any], *, feat_id: str) -> N
         if isinstance(task, dict):
             canonical_task_last_blocker(task, feat_id=feat_id)
             canonical_task_cancel_reason(task, feat_id=feat_id)
+            canonical_task_failure(task, feat_id=feat_id)
 
 
 def current_task_blockers(tasks: dict[str, Any], *, feat_id: str) -> list[dict[str, str]]:
@@ -662,10 +729,26 @@ def current_task_blockers(tasks: dict[str, Any], *, feat_id: str) -> list[dict[s
         blocker = canonical_task_last_blocker(task, feat_id=feat_id)
         assert blocker is not None
         reason_class, reason = blocker
-        blockers.append(
-            {"item_id": task_id, "class": reason_class, "reason": reason}
-        )
+        blocker_item = {"item_id": task_id, "class": reason_class, "reason": reason}
+        for key in ("owner", "resume_when"):
+            if isinstance(task.get("last_blocker"), dict) and key in task["last_blocker"]:
+                blocker_item[key] = str(task["last_blocker"][key])
+        blockers.append(blocker_item)
     return sorted(blockers, key=lambda item: item["item_id"])
+
+
+def current_task_failures(tasks: dict[str, Any], *, feat_id: str) -> list[dict[str, Any]]:
+    current_ids = set(latest_plan_task_ids(tasks))
+    failures: list[dict[str, Any]] = []
+    for task in tasks.get("tasks", []):
+        if not isinstance(task, dict) or str(task.get("id") or "") not in current_ids:
+            continue
+        failure = canonical_task_failure(task, feat_id=feat_id)
+        if failure is None:
+            continue
+        reason, assumption = failure
+        failures.append({"item_id": str(task.get("id")), "reason": reason, "assumption": assumption})
+    return sorted(failures, key=lambda item: item["item_id"])
 
 
 def require_task_blocker_runtime_role(
@@ -1651,6 +1734,59 @@ def canonical_task_dependencies(task: dict[str, Any], *, label: str) -> list[str
     return sorted(dependencies)
 
 
+def canonical_task_effort(
+    task: dict[str, Any],
+    *,
+    label: str,
+) -> tuple[float | int | None, bool, str | None]:
+    """Validate the optional effort signal owned by a Task plan.
+
+    ``estimate_hours`` is deliberately numeric and uses Agent execution hours.
+    The field is optional for small Tasks; a heavy Task must carry both an
+    estimate and a concise reason why it cannot be safely split.  Older
+    reviewed plans omit these fields and remain valid.
+    """
+    raw_estimate = task.get("estimate_hours")
+    estimate: float | int | None = None
+    if raw_estimate is not None:
+        if isinstance(raw_estimate, bool) or not isinstance(raw_estimate, (int, float)):
+            raise SystemExit(f"error: {label}.estimate_hours must be a positive number of Agent hours")
+        if not math.isfinite(float(raw_estimate)) or float(raw_estimate) <= 0:
+            raise SystemExit(f"error: {label}.estimate_hours must be a positive number of Agent hours")
+        estimate = raw_estimate
+
+    raw_heavy = task.get("heavy", False)
+    if not isinstance(raw_heavy, bool):
+        raise SystemExit(f"error: {label}.heavy must be boolean")
+    heavy = raw_heavy
+
+    raw_reason = task.get("heavy_reason")
+    reason: str | None = None
+    if raw_reason is not None:
+        if not isinstance(raw_reason, str) or not raw_reason.strip():
+            raise SystemExit(f"error: {label}.heavy_reason must be a non-empty string when present")
+        if raw_reason != raw_reason.strip():
+            raise SystemExit(f"error: {label}.heavy_reason must not have surrounding whitespace")
+        reason = raw_reason
+
+    if heavy:
+        if estimate is None:
+            raise SystemExit(f"error: {label}.heavy requires estimate_hours in Agent hours")
+        if float(estimate) <= 0.5:
+            raise SystemExit(f"error: {label}.heavy requires estimate_hours greater than 0.5 Agent hours")
+        if reason is None:
+            raise SystemExit(f"error: {label}.heavy requires heavy_reason")
+    elif reason is not None:
+        raise SystemExit(f"error: {label}.heavy_reason is only valid when heavy=true")
+
+    return estimate, heavy, reason
+
+
+def task_effort_fingerprint(task: dict[str, Any], *, label: str) -> tuple[float | int | None, bool, str | None]:
+    """Return normalized optional effort fields for plan revision comparison."""
+    return canonical_task_effort(task, label=label)
+
+
 def canonical_transferred_from(
     raw: Any,
     *,
@@ -1788,6 +1924,7 @@ def task_frontier(tasks: dict[str, Any], *, feat_id: str) -> dict[str, list[str]
     blocked: list[str] = []
     cancelled: list[str] = []
     transferred: list[str] = []
+    failed: list[str] = []
     waiting: list[str] = []
     done: list[str] = []
     for task_id in topological_order:
@@ -1802,7 +1939,7 @@ def task_frontier(tasks: dict[str, Any], *, feat_id: str) -> dict[str, list[str]
             for dependency in dependencies
             if str(by_id[dependency].get("status") or "") != "done"
         ]
-        if status in {"in_progress", "blocked", "done"} and unfinished_dependencies:
+        if status in {"in_progress", "blocked", "failed", "done"} and unfinished_dependencies:
             raise SystemExit(
                 f"error: {feat_id}/{task_id}: status={status} requires done dependencies: "
                 + ", ".join(unfinished_dependencies)
@@ -1811,6 +1948,8 @@ def task_frontier(tasks: dict[str, Any], *, feat_id: str) -> dict[str, list[str]
             active.append(task_id)
         elif status == "blocked":
             blocked.append(task_id)
+        elif status == "failed":
+            failed.append(task_id)
         elif status == "cancelled":
             cancelled.append(task_id)
         elif status == "transferred":
@@ -1826,6 +1965,7 @@ def task_frontier(tasks: dict[str, Any], *, feat_id: str) -> dict[str, list[str]
         "active": active,
         "runnable": runnable,
         "blocked": blocked,
+        "failed": failed,
         "cancelled": cancelled,
         "transferred": transferred,
         "waiting": waiting,
@@ -1839,7 +1979,7 @@ def feature_task_frontier(
 ) -> dict[str, list[str]]:
     if str(state.get("status") or "") not in CLOSED_FEAT_STATUS and has_reviewed_task_plan(tasks):
         return task_frontier(tasks, feat_id=str(state.get("feat_id") or ""))
-    return {"active": [], "runnable": [], "blocked": [], "cancelled": [], "transferred": [], "waiting": [], "done": []}
+    return {"active": [], "runnable": [], "blocked": [], "failed": [], "cancelled": [], "transferred": [], "waiting": [], "done": []}
 
 
 def derived_feature_status(state: dict[str, Any], tasks: dict[str, Any]) -> str:
@@ -1856,6 +1996,8 @@ def derived_feature_status(state: dict[str, Any], tasks: dict[str, Any]) -> str:
         return "in_progress"
     if frontier["runnable"]:
         return "ready"
+    if frontier["failed"]:
+        return "replanning"
     if frontier["cancelled"] and not frontier["blocked"]:
         return "replanning"
     return "blocked"
@@ -1941,7 +2083,7 @@ def latest_supersedes_by_task(tasks: dict[str, Any]) -> dict[str, set[str]]:
 
 def task_has_execution_evidence(task: dict[str, Any]) -> bool:
     return bool(
-        task.get("status") in {"done", "blocked", "cancelled", "transferred"}
+        task.get("status") in {"done", "blocked", "failed", "cancelled", "transferred"}
         or task.get("gate_result") is not None
         or bool(task.get("last_gate_commands"))
     )
@@ -1998,6 +2140,7 @@ def task_has_canonical_semantics(task: dict[str, Any]) -> bool:
     try:
         canonical_task_last_blocker(task, feat_id=str(task.get("feat_id") or "<unknown>"))
         canonical_task_cancel_reason(task, feat_id=str(task.get("feat_id") or "<unknown>"))
+        canonical_task_failure(task, feat_id=str(task.get("feat_id") or "<unknown>"))
     except SystemExit:
         return False
     if not isinstance(task.get("introduced_in_revision"), int) or isinstance(
@@ -2025,6 +2168,7 @@ def task_has_canonical_semantics(task: dict[str, Any]) -> bool:
         return False
     try:
         canonical_task_dependencies(task, label=f"task {task.get('id')}")
+        canonical_task_effort(task, label=f"task {task.get('id')}")
     except SystemExit:
         return False
     verification = task.get("verification")
@@ -2227,8 +2371,6 @@ def build_reviewed_tasks_payload(
 ) -> dict[str, Any]:
     previous = previous or draft_tasks_payload(feat_id)
     previous_items = previous.get("tasks") if isinstance(previous.get("tasks"), list) else []
-    if any(isinstance(task, dict) and task.get("status") == "in_progress" for task in previous_items):
-        raise SystemExit("error: task plan cannot be replaced while a task is in_progress")
 
     previous_by_id = {
         str(task.get("id")): task
@@ -2239,7 +2381,18 @@ def build_reviewed_tasks_payload(
     historical_first_revisions = historical_task_first_revisions(previous)
     historical_ids = set(historical_first_revisions)
     previous_active_ids = set(latest_plan_task_ids(previous)) if has_reviewed_task_plan(previous) else previous_ids
+    previous_in_progress_ids = {
+        str(task.get("id"))
+        for task in previous_items
+        if isinstance(task, dict) and task.get("status") == "in_progress"
+    }
     candidate_ids = {str(task["id"]) for task in candidate["tasks"]}
+    missing_in_progress = previous_in_progress_ids - candidate_ids
+    if missing_in_progress:
+        raise SystemExit(
+            "error: reviewed task plan must preserve active Tasks during a mid-run revision: "
+            + ", ".join(sorted(missing_in_progress))
+        )
     reintroduced_historical = {
         task_id
         for task_id in candidate_ids
@@ -2308,6 +2461,19 @@ def build_reviewed_tasks_payload(
             + ", ".join(sorted(missing_lineage))
         )
 
+    def edges(records: list[dict[str, Any]], ids: set[str]) -> set[tuple[str, str]]:
+        return {
+            (source, str(task["id"]))
+            for task in records if str(task["id"]) in ids
+            for source in canonical_task_dependencies(task, label=f"{feat_id}/{task['id']}")
+        }
+
+    prior_edges = edges(previous_items, previous_active_ids)
+    next_edges = edges(candidate["tasks"], candidate_ids)
+    dependency_changes = {
+        "added": [{"from": source, "to": target} for source, target in sorted(next_edges - prior_edges)],
+        "removed": [{"from": source, "to": target} for source, target in sorted(prior_edges - next_edges)],
+    }
     history = list(previous.get("plan_history") or [])
     history.append(
         {
@@ -2324,6 +2490,8 @@ def build_reviewed_tasks_payload(
             },
         }
     )
+    if supersedes_revision is not None:
+        history[-1]["dependency_changes"] = dependency_changes
     semantic_fields = (
         "title",
         "objective",
@@ -2336,7 +2504,13 @@ def build_reviewed_tasks_payload(
     tasks = []
     for task in candidate["tasks"]:
         previous_task = previous_by_id.get(task["id"])
-        previous_has_evidence = bool(previous_task and task_has_execution_evidence(previous_task))
+        previous_has_evidence = bool(
+            previous_task
+            and (
+                task_has_execution_evidence(previous_task)
+                or previous_task.get("status") == "in_progress"
+            )
+        )
         if previous_task and previous_has_evidence:
             changed = [field for field in semantic_fields if previous_task.get(field) != task.get(field)]
             if canonical_task_dependencies(
@@ -2347,6 +2521,14 @@ def build_reviewed_tasks_payload(
                 label=f"{feat_id}/{task['id']}",
             ):
                 changed.append("depends_on")
+            if task_effort_fingerprint(
+                previous_task,
+                label=f"{feat_id}/{task['id']}",
+            ) != task_effort_fingerprint(
+                task,
+                label=f"{feat_id}/{task['id']}",
+            ):
+                changed.append("effort")
             if changed:
                 raise SystemExit(
                     "error: executed task semantics are immutable across plan revisions: "
@@ -3208,7 +3390,12 @@ def owner_continuation(
             [{
                 "item_id": None,
                 "class": "replan_required",
-                "reason": "A current Task was cancelled; install the reviewed successor plan before continuing.",
+                "reason": (
+                    "Failed Tasks " + ", ".join(item["item_id"] for item in current_task_failures(tasks, feat_id=str(state.get("feat_id") or "")))
+                    + " require a reviewed successor plan; preserve independent work."
+                    if current_task_failures(tasks, feat_id=str(state.get("feat_id") or ""))
+                    else "A current Task was cancelled; install the reviewed successor plan before continuing."
+                ),
             }],
             None,
         )
@@ -3353,26 +3540,51 @@ def apply_task_finish_transition(
     result: str,
     blocked_reason_class: Any = None,
     blocked_reason: Any = None,
+    blocked_owner: Any = None,
+    blocked_resume_when: Any = None,
     cancel_reason: Any = None,
+    failure_reason: Any = None,
+    failure_assumption: Any = None,
 ) -> None:
+    if str(state.get("status") or "") in CLOSED_FEAT_STATUS:
+        raise SystemExit("error: cannot finish a Task in a closed Feature")
+    if task_id not in set(latest_plan_task_ids(tasks)):
+        raise SystemExit(f"error: task {task_id} is not part of the current reviewed task plan")
     task = find_task(tasks, task_id)
-    if task.get("status") != "in_progress":
+    if result == "failed":
+        if task.get("status") not in {"in_progress", "blocked"}:
+            raise SystemExit(f"error: task must be in_progress or blocked to mark failed: {task_id}")
+    elif task.get("status") != "in_progress":
         raise SystemExit(f"error: task is not in_progress: {task_id}")
 
     reason_class, reason = canonical_task_finish_blocker(
         result=result,
         blocked_reason_class=blocked_reason_class,
         blocked_reason=blocked_reason,
+        blocked_owner=blocked_owner,
+        blocked_resume_when=blocked_resume_when,
         cancel_reason=cancel_reason,
     )
     normalized_cancel_reason = canonical_task_finish_cancellation(
         result=result,
         cancel_reason=cancel_reason,
     )
+    normalized_failure = canonical_task_finish_failure(
+        result=result,
+        failure_reason=failure_reason,
+        failure_assumption=failure_assumption,
+    )
     if result == "done":
         if task.get("gate_result") != "pass":
             raise SystemExit("error: cannot finish task as done without gate pass")
         require_task_gate_receipt(task, feat_id=feat_id)
+
+    blocker_metadata = {}
+    for key, value in (("owner", blocked_owner), ("resume_when", blocked_resume_when)):
+        if value is not None:
+            if not isinstance(value, str) or not value.strip() or value != value.strip():
+                raise SystemExit(f"error: --blocked-{key.replace('_', '-')} must be a trimmed non-empty string")
+            blocker_metadata[key] = value
 
     task["status"] = result
     state.setdefault("counters", {})["no_progress_rounds"] = 0
@@ -3383,6 +3595,7 @@ def apply_task_finish_transition(
     if result == "blocked":
         assert reason_class is not None and reason is not None
         task["last_blocker"] = {"class": reason_class, "reason": reason}
+        task["last_blocker"].update(blocker_metadata)
         state.setdefault("history", []).append(
             history_event("task_blocker_set", f"{task_id} => {reason_class}")
         )
@@ -3395,6 +3608,19 @@ def apply_task_finish_transition(
             history_event("task_cancelled", f"{task_id} => plan rework")
         )
         canonical_task_cancel_reason(task, feat_id=feat_id)
+    elif result == "failed":
+        assert normalized_failure is not None
+        reason, assumption = normalized_failure
+        task.pop("last_blocker", None)
+        task.pop("cancel_reason", None)
+        task["failure"] = {
+            "reason": reason,
+            "assumption": assumption,
+        }
+        state.setdefault("history", []).append(
+            history_event("task_failed", f"{task_id} => assumption disproved; replan required")
+        )
+        canonical_task_failure(task, feat_id=feat_id)
     refresh_feature_status(state, tasks)
 
 
@@ -3920,11 +4146,8 @@ def cmd_set_task_plan(args: argparse.Namespace) -> int:
     ensure_harness_exists(paths)
     state, tasks = load_feat(paths, args.feat)
     status = str(state.get("status") or "")
-    if status in CLOSED_FEAT_STATUS or status == "in_progress":
+    if status in CLOSED_FEAT_STATUS:
         eprint(f"error: task plan cannot be replaced while feature status is {status}")
-        return 1
-    if count_tasks(tasks, "in_progress") > 0:
-        eprint("error: task plan cannot be replaced while Tasks are in_progress")
         return 1
 
     current_revision = tasks.get("plan_revision")
@@ -3966,6 +4189,17 @@ def cmd_set_task_plan(args: argparse.Namespace) -> int:
     )
     save_feat(paths, args.feat, state, tasks)
     print(f"ok: task plan set {args.feat} revision={next_revision}")
+    audit = build_task_plan_audit(state, tasks)
+    print(f"plan_revision: {next_revision}")
+    print(f"review_ref: {tasks['review_ref']}")
+    print("replan_required_from: " + (",".join(audit["replan_required_from"]) or "none"))
+    for kind, edges in audit["latest_dependency_changes"].items():
+        for edge in edges:
+            print(f"dependency_{kind}: {edge['from']} -> {edge['to']}")
+    for replacement in audit["installed_replacements"]:
+        if replacement["plan_revision"] == next_revision:
+            successors = ",".join(item["task_id"] for item in replacement["successors"])
+            print(f"replanned: {replacement['failed_task_id']} -> {successors}")
     return 0
 
 
@@ -4287,6 +4521,7 @@ TASK_FRONTIER_LABELS = (
     ("runnable", "Runnable"),
     ("waiting", "Waiting"),
     ("blocked", "Blocked"),
+    ("failed", "Failed · replan"),
     ("cancelled", "Cancelled"),
     ("transferred", "Transferred"),
     ("done", "Done"),
@@ -4317,7 +4552,7 @@ def task_records_by_id(tasks: dict[str, Any], task_ids: Iterable[str]) -> list[d
 
 def render_task_stats_html(tasks: dict[str, Any]) -> str:
     parts = []
-    for status in ("in_progress", "blocked", "cancelled", "transferred", "todo", "done"):
+    for status in ("in_progress", "blocked", "failed", "cancelled", "transferred", "todo", "done"):
         count = count_current_tasks(tasks, status)
         if count:
             parts.append(
@@ -4394,12 +4629,253 @@ def load_feature_runtime_activity(
 
     latest = activity_for(valid_records[-1])
     by_task: dict[str, dict[str, Any]] = {}
+    task_records: dict[str, list[dict[str, Any]]] = {}
     for record in valid_records:
         task_ref = str(record.get("task_ref") or "").strip()
         if task_ref in task_ids:
-            by_task[task_ref] = activity_for(record)
+            task_records.setdefault(task_ref, []).append(record)
+    for task_ref, records in task_records.items():
+        item = activity_for(records[-1])
+        item["checkpoint_count"] = len(records)
+        times = []
+        for record in records:
+            raw_time = str(record.get("recorded_at") or "").strip()
+            if raw_time:
+                try:
+                    times.append(datetime.fromisoformat(raw_time.replace("Z", "+00:00")))
+                except (TypeError, ValueError):
+                    continue
+        if len(times) >= 2:
+            span_seconds = (max(times) - min(times)).total_seconds()
+            if span_seconds >= 0:
+                item["observed_span_seconds"] = span_seconds
+        by_task[task_ref] = item
     latest["by_task"] = by_task
     return latest
+
+
+def task_execution_stats(
+    task: dict[str, Any],
+    activity: dict[str, Any] | None,
+) -> str:
+    """Return compact evidence-backed stats for one topology node.
+
+    Duration is shown only when explicit start/finish fields or multiple
+    timestamped Flow Runner checkpoints exist. A checkpoint span is labelled
+    observed rather than presented as active execution time.
+    """
+    verification = task.get("verification") if isinstance(task.get("verification"), list) else []
+    proof_kinds = []
+    proof_labels = {
+        "command": "cmd",
+        "artifact": "artifact",
+        "manual": "manual",
+        "owner_receipt": "owner",
+    }
+    for item in verification:
+        if not isinstance(item, dict):
+            continue
+        kind = str(item.get("kind") or "").strip()
+        label = proof_labels.get(kind)
+        if label and label not in proof_kinds:
+            proof_kinds.append(label)
+    declared_commands = sum(
+        1 for item in verification if isinstance(item, dict) and item.get("kind") == "command"
+    )
+    gate_runs = task.get("last_gate_commands") if isinstance(task.get("last_gate_commands"), list) else []
+    passed_runs = sum(
+        1 for item in gate_runs if isinstance(item, dict) and str(item.get("status") or "") == "pass"
+    )
+    gate_stat = f"gate {passed_runs}/{len(gate_runs) or declared_commands}" if (gate_runs or declared_commands) else "gate —"
+    proof_stat = f"proof {'+'.join(proof_kinds)}" if proof_kinds else "proof —"
+
+    value = task.get("estimate_hours")
+    estimate = str(value).strip() if value not in (None, "") else None
+    if estimate and re.fullmatch(r"\d+(?:\.\d+)?", estimate):
+        estimate = f"{estimate}h"
+    estimate_stat = f"est {estimate}" if estimate else ""
+    heavy_stat = "heavy" if task.get("heavy") is True else ""
+
+    duration_stat = ""
+    started = task.get("started_at")
+    finished = task.get("finished_at")
+    if started and finished:
+        try:
+            duration = (
+                datetime.fromisoformat(str(finished).replace("Z", "+00:00"))
+                - datetime.fromisoformat(str(started).replace("Z", "+00:00"))
+            ).total_seconds()
+            if duration >= 0:
+                duration_stat = f"run {format_duration(duration)}"
+        except (TypeError, ValueError):
+            pass
+    if not duration_stat and isinstance(activity, dict):
+        span = activity.get("observed_span_seconds")
+        if isinstance(span, (int, float)) and span >= 0:
+            duration_stat = f"observed {format_duration(float(span))}"
+    checkpoint_count = int(activity.get("checkpoint_count") or 0) if isinstance(activity, dict) else 0
+    update_stat = f"updates {checkpoint_count}" if checkpoint_count else ""
+    primary = " · ".join(
+        part
+        for part in (gate_stat, proof_stat, estimate_stat, heavy_stat, duration_stat, update_stat)
+        if part
+    )
+    return primary
+
+
+def runtime_activity_reports_progress(activity: dict[str, Any] | None) -> bool:
+    """Return whether an explicit Flow Runner receipt reports ongoing work."""
+    if not isinstance(activity, dict):
+        return False
+    record = activity.get("record")
+    if not isinstance(record, dict):
+        return False
+    return str(record.get("session_status") or "").strip().lower() == "progress"
+
+
+def format_duration(seconds: float) -> str:
+    minutes = max(0, round(seconds / 60))
+    if minutes < 60:
+        return f"{minutes}m"
+    hours, remainder = divmod(minutes, 60)
+    return f"{hours}h" if remainder == 0 else f"{hours}h {remainder}m"
+
+
+def task_dependency_summary(
+    task: dict[str, Any],
+    by_id: dict[str, dict[str, Any]],
+    display_status_by_id: dict[str, str],
+    *,
+    layer_index: int,
+    label: str,
+) -> str:
+    """Describe direct dependency readiness without adding graph truth."""
+    dependencies = canonical_task_dependencies(task, label=label)
+    if not dependencies:
+        return "Root task"
+    ready_count = sum(
+        1
+        for dependency in dependencies
+        if str(by_id[dependency].get("status") or "") == "done"
+    )
+    summary = f"deps {ready_count}/{len(dependencies)}"
+    pending = [
+        dependency
+        for dependency in dependencies
+        if str(by_id[dependency].get("status") or "") != "done"
+    ]
+    if not pending:
+        return summary
+
+    blocked_statuses = {"blocked", "failed", "cancelled", "transferred"}
+    blocked = [
+        f"{dependency} ({display_status_by_id.get(dependency, str(by_id[dependency].get('status') or 'unknown')).replace('_', ' ')})"
+        for dependency in pending
+        if display_status_by_id.get(dependency, str(by_id[dependency].get("status") or "")) in blocked_statuses
+    ]
+    if blocked:
+        summary += " · blocked by " + ", ".join(blocked)
+    else:
+        summary += " · waiting on " + ", ".join(pending)
+    pending_states = {
+        display_status_by_id.get(
+            dependency,
+            str(by_id[dependency].get("status") or "unknown"),
+        )
+        for dependency in pending
+    }
+    if (
+        display_status_by_id.get(str(task.get("id") or "")) == "waiting"
+        and not pending_states.intersection(blocked_statuses)
+    ):
+        summary += f" · eligible W{layer_index + 1:02d}"
+    return summary
+
+
+def estimated_task_critical_path(
+    by_id: dict[str, dict[str, Any]],
+    topological_order: list[str],
+    *,
+    feat_id: str,
+) -> tuple[list[str], float | None]:
+    """Return one deterministic longest weighted dependency chain.
+
+    A critical-path claim is only meaningful when every current Task has an
+    explicit Agent-hour estimate.  If one is missing, return no path rather
+    than pretending Task count or array order is elapsed time.
+    """
+    durations: dict[str, float] = {}
+    for task_id in topological_order:
+        raw = by_id[task_id].get("estimate_hours")
+        if isinstance(raw, bool) or not isinstance(raw, (int, float)):
+            return [], None
+        if not math.isfinite(float(raw)) or float(raw) <= 0:
+            return [], None
+        durations[task_id] = float(raw)
+    if not topological_order:
+        return [], None
+
+    best_hours: dict[str, float] = {}
+    previous: dict[str, str] = {}
+    outgoing: dict[str, list[str]] = {task_id: [] for task_id in topological_order}
+    for task_id in topological_order:
+        dependencies = canonical_task_dependencies(
+            by_id[task_id],
+            label=f"{feat_id}/{task_id}",
+        )
+        if dependencies:
+            predecessor = max(
+                dependencies,
+                key=lambda candidate: (best_hours[candidate], candidate),
+            )
+            previous[task_id] = predecessor
+            best_hours[task_id] = best_hours[predecessor] + durations[task_id]
+            for dependency in dependencies:
+                outgoing[dependency].append(task_id)
+        else:
+            best_hours[task_id] = durations[task_id]
+    terminals = [task_id for task_id in topological_order if not outgoing[task_id]]
+    endpoint = max(terminals, key=lambda task_id: (best_hours[task_id], task_id))
+    path: list[str] = []
+    current: str | None = endpoint
+    while current is not None:
+        path.append(current)
+        current = previous.get(current)
+    path.reverse()
+    return path, best_hours[endpoint]
+
+
+def stable_done_task_ids(
+    by_id: dict[str, dict[str, Any]],
+    topological_order: list[str],
+    *,
+    feat_id: str,
+) -> set[str]:
+    """Return completed Tasks outside the dependency cone of unfinished work."""
+    unfinished = {
+        task_id
+        for task_id in topological_order
+        if str(by_id[task_id].get("status") or "") != "done"
+    }
+    if not unfinished:
+        return set()
+    required: set[str] = set()
+    stack = list(unfinished)
+    while stack:
+        task_id = stack.pop()
+        for dependency in canonical_task_dependencies(
+            by_id[task_id],
+            label=f"{feat_id}/{task_id}",
+        ):
+            if dependency not in required:
+                required.add(dependency)
+                stack.append(dependency)
+    return {
+        task_id
+        for task_id in topological_order
+        if str(by_id[task_id].get("status") or "") == "done"
+        and task_id not in required
+    }
 
 
 def render_runtime_activity_html(
@@ -4421,10 +4897,11 @@ def render_runtime_activity_html(
     next_action = str(record.get("next_action") or "").strip()
     attempted = str(record.get("attempted") or "").strip()
     recorded_at = str(record.get("recorded_at") or "").strip()
-    source = (
-        f'<a href="{html_text(activity.get("href"))}" target="_blank" rel="noreferrer">'
-        f"{html_text(activity.get('path'))}</a>"
-    )
+    # The projection cannot serve a local receipt file to the browser. Keep
+    # provenance visible as portable repository-relative text instead of a
+    # misleading file:// affordance that static exports commonly cannot open.
+    source_path = str(activity.get("path") or "progress.ndjson").strip()
+    source = f'<code class="runtime-activity-ref">{html_text(source_path)}</code>'
     if compact:
         summary = " · ".join(part for part in (scope, stage, session_status, result) if part)
         return (
@@ -4482,6 +4959,9 @@ def build_agent_claim_message(
     cancelled_count = count_current_tasks(tasks, "cancelled")
     if cancelled_count:
         task_count_parts.append(f"cancelled={cancelled_count}")
+    failed_count = count_current_tasks(tasks, "failed")
+    if failed_count:
+        task_count_parts.append(f"failed={failed_count}")
     task_counts = ", ".join(task_count_parts)
     feature_dir = relative_display(
         paths.root,
@@ -4501,8 +4981,11 @@ def build_agent_claim_message(
     canonical_text = "\n".join(f"{index}. {ref}" for index, ref in enumerate(canonical_refs, 1))
     generated_time = datetime.now(timezone.utc).isoformat(timespec="seconds")
     name = tracker_name_for(feat_id)
+    failed_ids = [item["item_id"] for item in current_task_failures(tasks, feat_id=feat_id)]
     nearest_action = (
-        "当前需要先安装 reviewed successor plan。"
+        "需要重规划的失败节点：" + ", ".join(failed_ids) + "。读取 failure，保持用户目标，安装 reviewed successor plan；独立工作继续。"
+        if failed_ids
+        else "当前需要先安装 reviewed successor plan。"
         if feature_status == "replanning"
         else f"当前 active Tasks：{active_text}；可认领 Tasks：{runnable_text}。"
     )
@@ -4559,6 +5042,30 @@ def local_ref_href(root: Path, ref: Any) -> str | None:
         # A command verification is not a repository-relative file reference.
         # Long commands can exceed the host path limit; render them as code.
         return None
+
+
+def render_file_preview_entry(root: Path, path: Path, label: str) -> str:
+    """Render one read-only, repo-relative file preview without a file URI."""
+    if not path.is_file():
+        return ""
+    try:
+        repo_ref = path.resolve().relative_to(root.resolve()).as_posix()
+        content = path.read_text(encoding="utf-8")
+    except (OSError, UnicodeError, ValueError):
+        return ""
+    preview_language = {
+        ".json": "json",
+        ".md": "markdown",
+    }.get(path.suffix.lower(), "text")
+    return (
+        '<span class="file-preview-entry">'
+        f'<button type="button" class="file-preview-trigger" data-file-preview '
+        f'data-preview-label="{html_text(label)}" data-preview-ref="{html_text(repo_ref)}" '
+        f'data-preview-language="{preview_language}">'
+        f'{html_text(label)}</button>'
+        f'<template class="file-preview-source"><pre>{html_text(content)}</pre></template>'
+        "</span>"
+    )
 
 
 def task_review_anchor(feat_id: str, task_id: str) -> str:
@@ -4640,6 +5147,201 @@ def topology_title_lines(
     return lines or [""]
 
 
+TOPOLOGY_STAGE_LABELS = (
+    ("candidate", "找评", "寻找和评估可行项目"),
+    ("ownership", "权责", "issue / ownership 读回"),
+    ("implementation", "开发", "开发与 RED→GREEN"),
+    ("review", "双审", "主控 + 非作者交叉 review"),
+    ("delivery", "交付", "PR 交付与实时检查"),
+)
+
+
+def topology_stage_for_title(title: str) -> str | None:
+    for stage, _, prefix in TOPOLOGY_STAGE_LABELS:
+        if title.startswith(f"[{prefix}]"):
+            return stage
+    return None
+
+
+def render_task_group_overview(
+    by_id: dict[str, dict[str, Any]],
+    frontier: dict[str, list[str]],
+    *,
+    feat_id: str,
+) -> str:
+    """Render a compact derived group/slot view before the full DAG.
+
+    The full dependency graph remains canonical.  This presentation-only
+    overview groups the 100 delivery slots into the ten reviewed acceptance
+    joins and exposes each slot's five real stages without adding Tracker
+    state, dependencies, or a second source of truth.
+    """
+    display_status_by_id = {
+        task_id: group
+        for group in ("active", "runnable", "blocked", "failed", "cancelled", "transferred", "waiting", "done")
+        for task_id in frontier[group]
+    }
+    slot_tasks: dict[int, dict[str, dict[str, Any]]] = {}
+    slot_pattern = re.compile(r"\bMR-(\d{3})\b")
+    for task_id, task in by_id.items():
+        title = str(task.get("title") or "")
+        match = slot_pattern.search(title)
+        stage = topology_stage_for_title(title)
+        if not match or stage is None:
+            continue
+        slot_tasks.setdefault(int(match.group(1)), {})[stage] = task
+
+    # Completed slots from earlier plan revisions intentionally retain their
+    # immutable one-task anchors.  Show them as anchors instead of fabricating
+    # five historical stage Tasks.
+    legacy_done: dict[int, dict[str, Any]] = {}
+    for task_id, task in by_id.items():
+        title = str(task.get("title") or "")
+        match = slot_pattern.fullmatch(title.split(" ", 1)[0])
+        if match and title.endswith("外部技术贡献目标"):
+            legacy_done[int(match.group(1))] = task
+
+    group_nodes: list[tuple[int, int, int, dict[str, Any]]] = []
+    group_pattern = re.compile(r"\[分组验收\]\s+G(\d{2})\s+·\s+MR-(\d{3})\.\.(?:MR-)?(\d{3})")
+    for task_id, task in by_id.items():
+        match = group_pattern.search(str(task.get("title") or ""))
+        if match:
+            group_nodes.append((int(match.group(1)), int(match.group(2)), int(match.group(3)), task))
+    if not group_nodes:
+        return ""
+    group_nodes.sort(key=lambda item: item[1])
+
+    stage_by_token = {stage: (label, prefix) for stage, label, prefix in TOPOLOGY_STAGE_LABELS}
+    stage_tokens = list(stage_by_token)
+
+    def chip(task: dict[str, Any] | None, stage: str, slot: int) -> str:
+        label, prefix = stage_by_token[stage]
+        if task is None:
+            if slot in legacy_done:
+                return '<span class="topology-stage-chip topology-stage-chip--done" title="已完成历史锚点">已锚定</span>'
+            return (
+                f'<span class="topology-stage-chip topology-stage-chip--waiting" '
+                f'title="{html_text(prefix)}">{html_text(label)}</span>'
+            )
+        task_id = str(task.get("id") or "")
+        status = display_status_by_id.get(task_id, str(task.get("status") or "todo"))
+        status_class = status.replace("_", "-")
+        return (
+            f'<a class="topology-stage-chip topology-stage-chip--{html_text(status_class)}" '
+            f'href="#{html_text(task_review_anchor(feat_id, task_id))}" '
+            f'title="{html_text(str(task.get("title") or ""))}">{html_text(label)}</a>'
+        )
+
+    cards: list[str] = []
+    for group_id, start, end, group_task in group_nodes:
+        slots = list(range(start, end + 1))
+        done_slots = 0
+        active_slots = 0
+        blocked_slots = 0
+        failed_slots = 0
+        rows: list[str] = []
+        for slot in slots:
+            stages = slot_tasks.get(slot, {})
+            if slot in legacy_done:
+                done_slots += 1
+                slot_state = "历史锚点"
+            else:
+                statuses = [
+                    display_status_by_id.get(str(stages[stage].get("id") or ""), "todo")
+                    for stage in stage_tokens
+                    if stage in stages
+                ]
+                if len(stages) == len(stage_tokens) and all(status == "done" for status in statuses):
+                    done_slots += 1
+                if "active" in statuses:
+                    active_slots += 1
+                if "blocked" in statuses:
+                    blocked_slots += 1
+                if "failed" in statuses:
+                    failed_slots += 1
+                slot_state = next(
+                    (state.replace("_", " ") for state in ("failed", "active", "blocked", "runnable", "waiting") if state in statuses),
+                    "待候选",
+                )
+            chips = "".join(chip(stages.get(stage), stage, slot) for stage in stage_tokens)
+            rows.append(
+                f'<div class="topology-slot-row"><strong>MR-{slot:03d}</strong>'
+                f'<span class="topology-slot-state topology-slot-state--{html_text(slot_state.replace(" ", "-"))}">{html_text(slot_state)}</span>'
+                f'<span class="topology-stage-chips">{chips}</span></div>'
+            )
+        group_status = display_status_by_id.get(str(group_task.get("id") or ""), str(group_task.get("status") or "todo"))
+        group_status_label = group_status.replace("_", " ").title()
+        cards.append(
+            f'<details class="topology-group-card"><summary><span class="topology-group-id">G{group_id:02d}</span>'
+            f'<span class="topology-group-range">MR-{start:03d}..MR-{end:03d}</span>'
+            f'<span class="topology-group-progress">{done_slots}/{len(slots)} done · {html_text(group_status_label)}</span></summary>'
+            f'<div class="topology-group-body"><div class="topology-group-metrics">'
+            f'<span>active {active_slots}</span><span>blocked {blocked_slots}</span><span>failed {failed_slots}</span><span>join {html_text(str(group_task.get("id") or ""))}</span>'
+            f'</div>{"".join(rows)}</div></details>'
+        )
+    return (
+        '<section class="topology-group-overview" aria-label="Grouped MR slot overview">'
+        '<div class="topology-group-overview-header"><div><span class="eyebrow">Grouped acceptance</span>'
+        '<h5>10 组 × 10 槽位 · 每槽位五阶段</h5></div>'
+        '<span>展开分组查看：找评 → 权责 → 开发 → 双审 → 交付</span></div>'
+        f'<div class="topology-group-grid">{"".join(cards)}</div></section>'
+    )
+
+
+def render_task_wave_overview(
+    layers: list[list[str]],
+    by_id: dict[str, dict[str, Any]],
+    frontier: dict[str, list[str]],
+    *,
+    feat_id: str,
+) -> str:
+    """Render a compact generic overview for large plans without new truth.
+
+    Topological waves are a derived reading aid. They group many Tasks by the
+    same dependency depth while keeping the primary graph concise; the wave
+    list is collapsed by default and opens only when a human needs a locator.
+    """
+    if len(by_id) < 12:
+        return ""
+    display_status_by_id = {
+        task_id: group
+        for group in ("active", "runnable", "blocked", "failed", "cancelled", "transferred", "waiting", "done")
+        for task_id in frontier[group]
+    }
+    cards: list[str] = []
+    for wave, task_ids in enumerate(layers):
+        counts = {
+            status: sum(1 for task_id in task_ids if display_status_by_id.get(task_id) == status)
+            for status in ("active", "runnable", "waiting", "blocked", "failed", "done")
+        }
+        status_summary = " · ".join(
+            f"{label} {counts[status]}"
+            for status, label in (("active", "active"), ("runnable", "ready"), ("waiting", "waiting"), ("blocked", "blocked"), ("failed", "failed"), ("done", "done"))
+            if counts[status]
+        ) or "no current status"
+        rows = "".join(
+            f'<a class="topology-wave-row" data-task-id="{html_text(task_id)}" href="#{html_text(task_review_anchor(feat_id, task_id))}">'
+            f'<strong>{html_text(task_id)}</strong><span>{html_text(str(by_id[task_id].get("title") or task_id))}</span>'
+            f'<em>{html_text(display_status_by_id.get(task_id, str(by_id[task_id].get("status") or "todo")).replace("_", " ").upper())}</em></a>'
+            for task_id in task_ids
+        )
+        cards.append(
+            f'<details class="topology-group-card"><summary><span class="topology-group-id">W{wave + 1:02d}</span>'
+            f'<span class="topology-group-range">{len(task_ids)} Tasks</span>'
+            f'<span class="topology-group-progress">{html_text(status_summary)}</span></summary>'
+            f'<div class="topology-group-body"><div class="topology-wave-rows">{rows}</div></div></details>'
+        )
+    return (
+        '<details class="topology-group-overview topology-wave-overview">'
+        '<summary class="topology-wave-overview-summary">'
+        '<div><span class="eyebrow">Execution waves</span>'
+        f'<strong>{len(layers)} waves · {len(by_id)} Tasks</strong></div>'
+        '<span>Derived schedule · 展开定位 Task</span></summary>'
+        f'<div class="topology-wave-overview-body"><div class="topology-group-grid">{"".join(cards)}</div></div>'
+        '</details>'
+    )
+
+
 def render_task_topology_html(
     state: dict[str, Any],
     tasks: dict[str, Any],
@@ -4655,6 +5357,7 @@ def render_task_topology_html(
     # different order.
     layers: list[list[str]] = []
     rank_by_id: dict[str, int] = {}
+    layer_by_id: dict[str, int] = {}
     for raw_layer in raw_layers:
         layer = list(raw_layer)
         if layers:
@@ -4674,23 +5377,112 @@ def render_task_topology_html(
         layers.append(layer)
         for rank, task_id in enumerate(layer):
             rank_by_id[task_id] = rank
+            layer_by_id[task_id] = len(layers) - 1
     if not layers:
         return ""
 
-    node_width = 176
-    node_height = 94
-    column_gap = 96
-    row_gap = 16
+    critical_path, critical_hours = estimated_task_critical_path(
+        by_id,
+        [task_id for layer in raw_layers for task_id in layer],
+        feat_id=feat_id,
+    )
+    critical_ids = set(critical_path)
+    critical_edges = set(zip(critical_path, critical_path[1:]))
+    stable_done_ids = stable_done_task_ids(
+        by_id,
+        [task_id for layer in raw_layers for task_id in layer],
+        feat_id=feat_id,
+    )
+    frontier = feature_task_frontier(state, tasks)
+    if str(state.get("status") or "") in CLOSED_FEAT_STATUS and has_reviewed_task_plan(tasks):
+        frontier = task_frontier(tasks, feat_id=feat_id)
+    display_status_by_id = {
+        task_id: group
+        for group in ("active", "runnable", "blocked", "failed", "cancelled", "transferred", "waiting", "done")
+        for task_id in frontier[group]
+    }
+    task_activities = (
+        runtime_activity.get("by_task", {})
+        if isinstance(runtime_activity, dict)
+        else {}
+    )
+    active_activity_task_ids = {
+        task_id
+        for task_id, activity in task_activities.items()
+        if display_status_by_id.get(task_id, str(by_id.get(task_id, {}).get("status") or "")) == "active"
+        and runtime_activity_reports_progress(activity)
+    }
+
+    compact_graph = len(by_id) > 30
+    node_width = 164 if compact_graph else 176
+    node_height = 104 if compact_graph else 112
+    row_gap = 10 if compact_graph else 16
     padding_x = 18
     padding_y = 18
+    wave_header_height = 32
+
+    # Reserve a small number of outside rails for edges that skip a layer.
+    # Keeping those rails outside the node area prevents a long dependency from
+    # cutting through an unrelated opaque node.  Adjacent-layer edges get their
+    # own channel in the gap, so fan-in/fan-out no longer collapses onto one
+    # vertical elbow.
+    adjacent_by_gap: dict[int, list[tuple[str, str]]] = {}
+    long_edges: list[tuple[str, str]] = []
+    for target_id, task in by_id.items():
+        target_layer = layer_by_id[target_id]
+        for source_id in canonical_task_dependencies(task, label=f"{feat_id}/{target_id}"):
+            source_layer = layer_by_id[source_id]
+            if target_layer - source_layer == 1:
+                adjacent_by_gap.setdefault(source_layer, []).append((source_id, target_id))
+            elif target_layer > source_layer + 1:
+                long_edges.append((source_id, target_id))
+
+    max_channels = max((len(edges) for edges in adjacent_by_gap.values()), default=1)
+    long_incoming_counts: dict[str, int] = {}
+    long_outgoing_counts: dict[str, int] = {}
+    long_edges_by_source: dict[str, list[str]] = {}
+    long_edges_by_target: dict[str, list[str]] = {}
+    for source_id, target_id in long_edges:
+        long_incoming_counts[target_id] = long_incoming_counts.get(target_id, 0) + 1
+        long_outgoing_counts[source_id] = long_outgoing_counts.get(source_id, 0) + 1
+        long_edges_by_source.setdefault(source_id, []).append(target_id)
+        long_edges_by_target.setdefault(target_id, []).append(source_id)
+    # A rail alone is not enough for a dense fan-in: if every long edge turns
+    # down at the same x-coordinate immediately before its target, their last
+    # vertical segments become one indistinguishable stroke. Reserve enough
+    # horizontal gap for independent source/target approach channels too.
+    max_long_bundle = max(
+        max(long_incoming_counts.values(), default=1),
+        max(long_outgoing_counts.values(), default=1),
+    )
+    lane_capacity = max(max_channels, max_long_bundle)
+    column_gap = max(96, 26 + lane_capacity * 18)
     max_rows = max(len(layer) for layer in layers)
+    grid_height = max_rows * node_height + max(0, max_rows - 1) * row_gap
+    rail_step = 22
+    rail_clearance = 20
+    # In a dense graph, putting half of the long rails above the nodes creates
+    # a wall of lines before the user can see the Tasks. Keep those rails below
+    # the node grid; the dedicated target approach channels still distinguish
+    # every edge at the destination. Small graphs retain the balanced layout.
+    top_rail_count = 0 if len(long_edges) >= 4 else (len(long_edges) + 1) // 2
+    bottom_rail_count = len(long_edges) // 2
+    if top_rail_count == 0:
+        bottom_rail_count = len(long_edges)
+    node_origin_y = padding_y + wave_header_height + top_rail_count * rail_step + rail_clearance
+    canvas_height = (
+        node_origin_y
+        + grid_height
+        + rail_clearance
+        + bottom_rail_count * rail_step
+        + padding_y
+    )
     canvas_width = padding_x * 2 + len(layers) * node_width + (len(layers) - 1) * column_gap
-    canvas_height = padding_y * 2 + max_rows * node_height + max(0, max_rows - 1) * row_gap
 
     positions: dict[str, tuple[float, float]] = {}
     for layer_index, layer in enumerate(layers):
         column_height = len(layer) * node_height + max(0, len(layer) - 1) * row_gap
-        offset_y = padding_y + (canvas_height - padding_y * 2 - column_height) / 2
+        offset_y = node_origin_y + (grid_height - column_height) / 2
         x = padding_x + layer_index * (node_width + column_gap)
         for row_index, task_id in enumerate(layer):
             positions[task_id] = (x, offset_y + row_index * (node_height + row_gap))
@@ -4702,55 +5494,236 @@ def render_task_topology_html(
             outgoing[source_id].append(target_id)
             incoming[target_id].append(source_id)
     for task_id in outgoing:
-        outgoing[task_id].sort(key=lambda item: positions[item][1])
+        outgoing[task_id].sort(key=lambda item: (positions[item][1], item))
     for task_id in incoming:
-        incoming[task_id].sort(key=lambda item: positions[item][1])
+        incoming[task_id].sort(key=lambda item: (positions[item][1], item))
+
+    # Long edges get distinct approach channels at both ends. The channels are
+    # local to a source/target bundle, so a large fan-in does not collapse into
+    # one vertical corridor near the destination. They remain inside the
+    # reserved inter-layer gap and never alter dependency truth.
+    long_source_slots: dict[str, dict[str, int]] = {}
+    for source_id, targets in long_edges_by_source.items():
+        ordered = sorted(
+            targets,
+            key=lambda target_id: (positions[target_id][1], target_id),
+        )
+        long_source_slots[source_id] = {
+            target_id: slot for slot, target_id in enumerate(ordered)
+        }
+    long_target_slots: dict[str, dict[str, int]] = {}
+    for target_id, sources in long_edges_by_target.items():
+        ordered = sorted(
+            sources,
+            key=lambda source_id: (positions[source_id][1], source_id),
+        )
+        long_target_slots[target_id] = {
+            source_id: slot for slot, source_id in enumerate(ordered)
+        }
+    approach_step = min(16, max(8, (column_gap - 36) / max(1, lane_capacity)))
+
+    source_slots = {
+        source_id: {target_id: slot for slot, target_id in enumerate(targets)}
+        for source_id, targets in outgoing.items()
+    }
+    target_slots = {
+        target_id: {source_id: slot for slot, source_id in enumerate(sources)}
+        for target_id, sources in incoming.items()
+    }
+
+    edge_order: list[tuple[str, str, str, int | None, float | None]] = []
+    for gap_index, edges in adjacent_by_gap.items():
+        ordered = sorted(
+            edges,
+            key=lambda edge: (
+                positions[edge[0]][1],
+                positions[edge[1]][1],
+                edge[0],
+                edge[1],
+            ),
+        )
+        channel_count = len(ordered)
+        for channel_slot, (source_id, target_id) in enumerate(ordered):
+            source_x, _ = positions[source_id]
+            channel_x = source_x + node_width + column_gap * (channel_slot + 1) / (channel_count + 1)
+            edge_order.append((source_id, target_id, "channel", channel_slot, channel_x))
+
+    ordered_long_edges = sorted(
+        long_edges,
+        key=lambda edge: (
+            layer_by_id[edge[0]],
+            layer_by_id[edge[1]],
+            positions[edge[0]][1],
+            positions[edge[1]][1],
+            edge[0],
+            edge[1],
+        ),
+    )
+    top_slot = 0
+    bottom_slot = 0
+    for index, (source_id, target_id) in enumerate(ordered_long_edges):
+        use_top = (index % 2 == 0 and top_slot < top_rail_count) or bottom_slot >= bottom_rail_count
+        if use_top:
+            rail_y = padding_y + wave_header_height + (top_rail_count - top_slot) * rail_step
+            top_slot += 1
+        else:
+            rail_y = node_origin_y + grid_height + rail_clearance + bottom_slot * rail_step
+            bottom_slot += 1
+        edge_order.append((source_id, target_id, "outside-rail", index, rail_y))
 
     edge_items: list[str] = []
+    edge_label_items: list[str] = []
+    labelled_waiting_targets: set[str] = set()
+    critical_label_rendered = False
     edge_count = 0
-    for target_id, task in by_id.items():
+    for source_id, target_id, route_kind, route_slot, route_value in edge_order:
+        source_x, source_y = positions[source_id]
         target_x, target_y = positions[target_id]
-        for source_id in canonical_task_dependencies(task, label=f"{feat_id}/{target_id}"):
-            source_x, source_y = positions[source_id]
-            start_x = source_x + node_width
-            end_x = target_x
-            # Route edges as orthogonal lanes.  The previous cubic curve used
-            # the node's top edge for fan-out control points, which made edges
-            # visibly jump up/down before reaching their target.  Keeping the
-            # lane on the node midline and using one shared elbow per edge is
-            # deterministic, readable, and needs no graph dependency.
-            source_edges = outgoing[source_id]
-            target_edges = incoming[target_id]
-            source_lane = source_y + node_height / 2 + (
-                source_edges.index(target_id) - (len(source_edges) - 1) / 2
-            ) * 10
-            target_lane = target_y + node_height / 2 + (
-                target_edges.index(source_id) - (len(target_edges) - 1) / 2
-            ) * 10
-            elbow_x = start_x + max(28, (end_x - start_x) / 2)
-            edge_items.append(
-                f'<path class="topology-edge" data-from="{html_text(source_id)}" '
-                f'data-to="{html_text(target_id)}" '
-                f'data-source-lane="{source_lane:g}" data-target-lane="{target_lane:g}" '
-                f'd="M {start_x:g} {source_lane:g} H {elbow_x:g} '
-                f'V {target_lane:g} H {end_x:g}" '
-                f'marker-end="url(#{html_text(feat_id)}-task-arrow)" />'
+        start_x = source_x + node_width
+        end_x = target_x
+        source_edges = outgoing[source_id]
+        target_edges = incoming[target_id]
+        source_lane = source_y + node_height / 2 + (
+            source_slots[source_id][target_id] - (len(source_edges) - 1) / 2
+        ) * 12
+        target_lane = target_y + node_height / 2 + (
+            target_slots[target_id][source_id] - (len(target_edges) - 1) / 2
+        ) * 12
+        if route_kind == "channel":
+            channel_x = float(route_value)
+            source_approach_x = channel_x
+            target_approach_x = channel_x
+            path = (
+                f"M {start_x:g} {source_lane:g} H {channel_x:g} "
+                f"V {target_lane:g} H {end_x:g}"
             )
-            edge_count += 1
+            segments = [
+                ((start_x, source_lane), (channel_x, source_lane)),
+                ((channel_x, source_lane), (channel_x, target_lane)),
+                ((channel_x, target_lane), (end_x, target_lane)),
+            ]
+        else:
+            rail_y = float(route_value)
+            source_approach_slot = long_source_slots.get(source_id, {}).get(target_id, 0)
+            target_approach_slot = long_target_slots.get(target_id, {}).get(source_id, 0)
+            bridge_start_x = start_x + 12 + source_approach_slot * approach_step
+            bridge_end_x = end_x - 12 - target_approach_slot * approach_step
+            source_approach_x = bridge_start_x
+            target_approach_x = bridge_end_x
+            path = (
+                f"M {start_x:g} {source_lane:g} H {bridge_start_x:g} "
+                f"V {rail_y:g} H {bridge_end_x:g} V {target_lane:g} H {end_x:g}"
+            )
+            segments = [
+                ((start_x, source_lane), (bridge_start_x, source_lane)),
+                ((bridge_start_x, source_lane), (bridge_start_x, rail_y)),
+                ((bridge_start_x, rail_y), (bridge_end_x, rail_y)),
+                ((bridge_end_x, rail_y), (bridge_end_x, target_lane)),
+                ((bridge_end_x, target_lane), (end_x, target_lane)),
+            ]
+        horizontal_segments = [segment for segment in segments if segment[0][1] == segment[1][1]]
+        label_start, label_end = max(
+            horizontal_segments or segments,
+            key=lambda segment: abs(segment[1][0] - segment[0][0]) + abs(segment[1][1] - segment[0][1]),
+        )
+        label_x = (label_start[0] + label_end[0]) / 2
+        label_y = (label_start[1] + label_end[1]) / 2
+        edge_class = f"topology-edge topology-edge--{html_text(route_kind)} topology-edge--direct"
+        if (source_id, target_id) in critical_edges:
+            edge_class += " topology-edge--critical"
+        if source_id in stable_done_ids and target_id in stable_done_ids:
+            edge_class += " topology-edge--stable-done"
+        edge_has_activity = target_id in active_activity_task_ids
+        if edge_has_activity:
+            edge_class += " topology-edge--activity"
+        edge_title = (
+            f"{source_id} → {target_id} · direct depends_on · "
+            f"{display_status_by_id.get(target_id, str(by_id[target_id].get('status') or 'todo'))}"
+        )
+        if edge_has_activity:
+            edge_title += " · execution activity reported"
+        edge_key = f"{source_id}--{target_id}"
+        edge_items.append(
+            f'<g class="topology-edge-group" data-edge-key="{html_text(edge_key)}" '
+            f'data-edge-from="{html_text(source_id)}" data-edge-to="{html_text(target_id)}">'
+            f'<path class="{edge_class}" '
+            f'data-from="{html_text(source_id)}" data-to="{html_text(target_id)}" '
+            'data-edge-kind="direct-dependency" '
+            f'data-route-kind="{html_text(route_kind)}" data-route-slot="{route_slot}" '
+            f'data-source-lane="{source_lane:g}" data-target-lane="{target_lane:g}" '
+            f'data-source-approach="{source_approach_x:g}" '
+            f'data-target-approach="{target_approach_x:g}" '
+            f'data-edge-activity="{str(edge_has_activity).lower()}" '
+            f'd="{path}" marker-end="url(#{html_text(feat_id)}-task-arrow)">'
+            f'<title>{xml_text(edge_title)}</title></path>'
+            f'<path class="edge-hit-target" d="{path}"><title>{xml_text(edge_title)}</title></path>'
+            '</g>'
+        )
+        target_status = display_status_by_id.get(target_id, str(by_id[target_id].get("status") or "todo"))
+        target_dependencies = canonical_task_dependencies(
+            by_id[target_id],
+            label=f"{feat_id}/{target_id}",
+        )
+        ready_dependencies = sum(
+            1
+            for dependency in target_dependencies
+            if str(by_id[dependency].get("status") or "") == "done"
+        )
+        edge_label = ""
+        edge_label_class = ""
+        if (source_id, target_id) in critical_edges and not critical_label_rendered:
+            edge_label = "critical path"
+            edge_label_class = " topology-edge-label--critical"
+            critical_label_rendered = True
+        elif target_status in {"waiting", "blocked"} and target_id not in labelled_waiting_targets:
+            edge_label = f"deps {ready_dependencies}/{len(target_dependencies)}"
+            edge_label_class = " topology-edge-label--waiting"
+            labelled_waiting_targets.add(target_id)
+        if edge_label:
+            label_width = max(54, len(edge_label) * 5.5 + 12)
+            edge_label_items.append(
+                f'<g class="topology-edge-label{edge_label_class}" aria-label="{html_text(edge_label)}" '
+                f'transform="translate({label_x:g} {label_y:g})">'
+                f'<rect x="{-label_width / 2:g}" y="-9" width="{label_width:g}" height="18" rx="5" />'
+                f'<text x="0" y="3" text-anchor="middle">{xml_text(edge_label)}</text></g>'
+            )
+        edge_count += 1
 
-    frontier = feature_task_frontier(state, tasks)
-    display_status_by_id = {
-        task_id: group
-        for group in ("active", "runnable", "blocked", "cancelled", "transferred", "waiting", "done")
-        for task_id in frontier[group]
-    }
+    wave_items: list[str] = []
+    for wave_index, layer in enumerate(layers):
+        x = padding_x + wave_index * (node_width + column_gap)
+        wave_active = sum(1 for task_id in layer if display_status_by_id.get(task_id) == "active")
+        wave_waiting = sum(1 for task_id in layer if display_status_by_id.get(task_id) == "waiting")
+        wave_done = sum(1 for task_id in layer if display_status_by_id.get(task_id) == "done")
+        wave_state = "active" if wave_active else "waiting" if wave_waiting else "done" if wave_done == len(layer) else "ready"
+        wave_summary = (
+            f"{len(layer)} · {wave_active} active" if wave_active else
+            f"{len(layer)} · {wave_waiting} waiting" if wave_waiting else
+            f"{len(layer)} · done" if wave_done == len(layer) else
+            f"{len(layer)} tasks"
+        )
+        wave_items.append(
+            f'<g class="topology-wave-marker" data-wave="W{wave_index + 1:02d}" '
+            f'data-wave-status="{html_text(wave_state)}">'
+            f'<rect class="topology-wave-group-bg" x="{x:g}" y="{node_origin_y - 8:g}" '
+            f'width="{node_width:g}" height="{grid_height + 16:g}" rx="10" />'
+            f'<rect class="topology-wave-header" x="{x:g}" y="{padding_y:g}" '
+            f'width="{node_width:g}" height="21" rx="5" />'
+            f'<text class="topology-wave-label" x="{x + 9:g}" y="{padding_y + 14:g}">'
+            f'W{wave_index + 1:02d}</text>'
+            f'<text class="topology-wave-count" x="{x + node_width - 9:g}" y="{padding_y + 14:g}" '
+            f'text-anchor="end">{html_text(wave_summary)}</text>'
+            f'<path class="topology-wave-rule" d="M {x:g} {padding_y + 27:g} H {x + node_width:g}" />'
+            '</g>'
+        )
+
     node_items: list[str] = []
     for layer in layers:
         for task_id in layer:
             task = by_id[task_id]
             x, y = positions[task_id]
             display_status = display_status_by_id.get(task_id, str(task.get("status") or "todo"))
-            status_label = display_status.replace("_", " ").title()
+            status_label = display_status.replace("_", " ").upper()
             full_title = str(task.get("title") or task_id)
             dependencies = canonical_task_dependencies(
                 task,
@@ -4761,84 +5734,157 @@ def render_task_topology_html(
                 "pass": "Gate pass",
                 "fail": "Gate fail",
             }.get(gate_result, "Gate pending")
-            if not dependencies:
-                dependency_label = "Root task"
-            elif display_status == "waiting":
-                done_dependencies = sum(
-                    1
-                    for dependency in dependencies
-                    if str(by_id[dependency].get("status") or "") == "done"
-                )
-                dependency_label = f"Waiting · {done_dependencies}/{len(dependencies)} deps"
-            else:
-                dependency_label = f"{len(dependencies)} dep" + ("s" if len(dependencies) != 1 else "")
+            dependency_label = task_dependency_summary(
+                task,
+                by_id,
+                display_status_by_id,
+                layer_index=layer_by_id[task_id],
+                label=f"{feat_id}/{task_id}",
+            )
             title_lines = topology_title_lines(full_title)
             title_tspans = "".join(
                 f'<tspan x="{x + 13:g}" dy="{0 if index == 0 else 15}">{xml_text(line)}</tspan>'
                 for index, line in enumerate(title_lines)
             )
-            task_activities = (
-                runtime_activity.get("by_task", {})
-                if isinstance(runtime_activity, dict)
-                else {}
-            )
-            live_marker = task_id in task_activities
+            task_activity = task_activities.get(task_id)
+            has_progress_activity = task_id in active_activity_task_ids
+            has_any_activity = task_activity is not None
             node_class = f"topology-node--{display_status.replace('_', '-')}"
-            if live_marker:
-                node_class += " topology-node--live"
-            node_meta = f"{gate_label} · {dependency_label}"
-            if live_marker:
-                node_meta += " · Update"
+            if task_id in critical_ids:
+                node_class += " topology-node--critical"
+            if task_id in stable_done_ids:
+                node_class += " topology-node--stable-done"
+            if has_progress_activity:
+                node_class += " topology-node--activity"
+            node_stats = task_execution_stats(task, task_activity)
+            node_stats_lines = topology_title_lines(
+                node_stats,
+                max_units=22 if compact_graph else 25,
+                max_lines=2 if compact_graph else 1,
+            )
+            node_meta = dependency_label
+            if has_progress_activity:
+                node_meta += " · Activity"
+            elif has_any_activity:
+                node_meta += " · Activity"
+            status_badge_width = max(48, min(86, len(status_label) * 6 + 14))
+            status_badge_x = x + node_width - status_badge_width - 9
+            critical_label = " · Critical path" if task_id in critical_ids else ""
+            activity_ring = (
+                f'<rect class="topology-node-activity-ring" x="{x - 2:g}" y="{y - 2:g}" '
+                f'width="{node_width + 4:g}" height="{node_height + 4:g}" rx="12" />'
+                if has_progress_activity
+                else ""
+            )
             node_items.append(
                 f'<a class="topology-node {html_text(node_class)}" '
-                f'data-task-id="{html_text(task_id)}" href="#{html_text(task_review_anchor(feat_id, task_id))}">'
+                f'data-task-id="{html_text(task_id)}" data-wave="W{layer_by_id[task_id] + 1:02d}" '
+                f'data-task-status="{html_text(display_status)}" data-task-dependency-summary="{html_text(dependency_label)}" '
+                f'data-task-evidence-summary="{html_text(node_stats)}" '
+                f'href="#{html_text(task_review_anchor(feat_id, task_id))}">'
                 f'<title>{xml_text(task_id)} · {xml_text(full_title)} · {xml_text(status_label)} · '
-                f'{xml_text(gate_label)} · {xml_text(dependency_label)}</title>'
-                f'<rect x="{x:g}" y="{y:g}" width="{node_width}" height="{node_height}" rx="10" />'
-                f'<circle cx="{x + 13:g}" cy="{y + 17:g}" r="4" />'
-                f'<text class="topology-node-id" x="{x + 24:g}" y="{y + 20:g}">{xml_text(task_id)}</text>'
-                f'<text class="topology-node-status" x="{x + node_width - 10:g}" y="{y + 20:g}" '
+                f'{xml_text(gate_label)} · {xml_text(dependency_label)} · {xml_text(node_stats)}{xml_text(critical_label)}</title>'
+                f'{activity_ring}'
+                f'<rect class="topology-node-card" x="{x:g}" y="{y:g}" width="{node_width}" height="{node_height}" rx="10" />'
+                f'<rect class="topology-node-status-bg" x="{status_badge_x:g}" y="{y + 9:g}" '
+                f'width="{status_badge_width:g}" height="19" rx="4" />'
+                f'<text class="topology-node-id" x="{x + 13:g}" y="{y + 20:g}">{xml_text(task_id)}</text>'
+                f'<text class="topology-node-status" x="{x + node_width - 18:g}" y="{y + 22:g}" '
                 f'text-anchor="end">{xml_text(status_label)}</text>'
                 f'<text class="topology-node-title" x="{x + 13:g}" y="{y + 44:g}">'
                 f'{title_tspans}</text>'
-                f'<text class="topology-node-meta" x="{x + 13:g}" y="{y + 82:g}">'
-                f'{xml_text(node_meta)}</text></a>'
+                f'<text class="topology-node-stats" x="{x + 13:g}" y="{y + (72 if compact_graph else 79):g}">'
+                + "".join(
+                    f'<tspan x="{x + 13:g}" dy="{0 if index == 0 else 11}">{xml_text(line)}</tspan>'
+                    for index, line in enumerate(node_stats_lines)
+                )
+                + f'</text><text class="topology-node-meta" x="{x + 13:g}" y="{y + (96 if compact_graph else 98):g}">'
+                f'{xml_text(topology_title_lines(node_meta, max_units=22 if compact_graph else 25, max_lines=1)[0])}</text></a>'
             )
 
     root_count = len(layers[0])
     topology_note = (
-        "No dependency edges are declared; every Task is a graph root."
+        "No dependency edges are declared; every Task is a graph root. Drag empty canvas to pan."
         if edge_count == 0
-        else "Select a node to jump to its acceptance and proof."
+        else "Select a node to jump to its acceptance and proof. Drag empty canvas to pan."
+    )
+    topology_note += " Solid lines are direct depends_on edges; transitive and proof/validation relations stay in Task details. Labels appear on waiting and critical edges; every edge also has a tooltip."
+    critical_summary = (
+        f"Critical path · {format_duration(critical_hours * 3600)} · {len(critical_path)} Tasks"
+        if critical_path and critical_hours is not None
+        else "Critical path · add Agent-hour estimates"
+    )
+    observation_frontier = " · ".join(
+        f"{label.lower()} {len(frontier[group])}"
+        for group, label in (
+            ("active", "Active"),
+            ("runnable", "Runnable"),
+            ("waiting", "Waiting"),
+            ("done", "Done"),
+        )
+    )
+    observation_html = (
+        '<div class="topology-observations" aria-label="Derived topology observations">'
+        f'<span>{html_text(observation_frontier)}</span>'
+        f'<span class="topology-critical-summary">{html_text(critical_summary)}</span>'
+        + (
+            f'<span class="topology-stable-summary">stable done {len(stable_done_ids)}</span>'
+            if stable_done_ids
+            else ""
+        )
+        + '</div>'
+    )
+    stable_toggle_html = (
+        '<button type="button" class="topology-stable-toggle" '
+        'data-topology-stable-toggle aria-pressed="false">Focus open work</button>'
+        if stable_done_ids
+        else ""
     )
     legend_html = "".join(
         f'<span class="topology-legend topology-legend--{html_text(group)}">'
-        f'<i aria-hidden="true"></i>{label} {len(frontier[group])}</span>'
+        f'<strong>{html_text(label)}</strong> {len(frontier[group])}</span>'
         for group, label in TASK_FRONTIER_LABELS
-    )
-    return (
-        f'<section class="task-topology" data-feature-id="{html_text(feat_id)}" aria-label="Task topology">'
-        '<div class="task-topology-header"><div><span class="eyebrow">Task topology</span>'
-        '<h4>Dependencies and convergence</h4></div><div class="task-topology-header-actions">'
-        f'<span>{len(by_id)} Tasks · {root_count} roots · {edge_count} edges</span>'
-        f'<button type="button" class="topology-expand" data-topology-feature="{html_text(feat_id)}">View fullscreen</button>'
-        '<div class="topology-zoom-controls" role="group" aria-label="Topology zoom">'
-        '<button type="button" data-topology-zoom="out" aria-label="Zoom out">−</button>'
-        '<output class="topology-zoom-level" data-topology-zoom-level>100%</output>'
-        '<button type="button" data-topology-zoom="in" aria-label="Zoom in">+</button>'
-        '<button type="button" data-topology-zoom="reset">Reset</button>'
-        '</div>'
-        '</div></div>'
-        f'<div class="task-topology-legend" aria-label="Task runtime status">{legend_html}</div>'
+    ) + '<span class="topology-legend topology-legend--critical"><strong>Critical path</strong> estimated chain</span>'
+    group_overview_html = render_task_group_overview(by_id, frontier, feat_id=feat_id)
+    if not group_overview_html:
+        group_overview_html = render_task_wave_overview(layers, by_id, frontier, feat_id=feat_id)
+    graph_html = (
         '<div class="task-topology-scroll">'
         f'<svg class="task-topology-svg" role="img" aria-label="Task dependency graph" '
         f'width="{canvas_width}" height="{canvas_height}" viewBox="0 0 {canvas_width} {canvas_height}">'
         '<defs><marker '
         f'id="{html_text(feat_id)}-task-arrow" viewBox="0 0 8 8" refX="7" refY="4" '
         'markerWidth="6" markerHeight="6" orient="auto"><path d="M 0 0 L 8 4 L 0 8 z" /></marker></defs>'
+        + "".join(wave_items)
         + "".join(edge_items)
+        + "".join(edge_label_items)
         + "".join(node_items)
-        + f'</svg></div><p class="task-topology-note">{html_text(topology_note)}</p></section>'
+        + '</svg></div><p class="task-topology-note">'
+        + html_text(topology_note)
+        + '</p>'
+    )
+    return (
+        f'<section class="task-topology" data-feature-id="{html_text(feat_id)}" aria-label="Task topology">'
+        '<div class="task-topology-header"><div><span class="eyebrow">Task topology</span>'
+        '<h4>Dependencies and convergence</h4></div><div class="task-topology-header-actions">'
+        f'<span>{len(by_id)} Tasks · {root_count} roots · {edge_count} edges</span>'
+        + stable_toggle_html
+        + '<div class="topology-zoom-controls" role="group" aria-label="Topology zoom">'
+        '<button type="button" data-topology-zoom="out" aria-label="Zoom out">−</button>'
+        '<output class="topology-zoom-level" data-topology-zoom-level>100%</output>'
+        '<button type="button" data-topology-zoom="in" aria-label="Zoom in">+</button>'
+        '<button type="button" class="topology-fit" data-topology-zoom="fit">Fit</button>'
+        '<button type="button" class="topology-overview" data-topology-zoom="overview">Overview</button>'
+        '</div>'
+        '</div></div>'
+        f'<div class="task-topology-legend" aria-label="Task runtime status">{legend_html}</div>'
+        + observation_html
+        + '<div class="topology-edge-inspector" data-edge-inspector aria-live="polite">'
+        'Hover a node or connection to trace one direct dependency.</div>'
+        + '<div class="topology-tooltip" data-topology-tooltip role="tooltip" hidden></div>'
+        + group_overview_html
+        + graph_html
+        + '</section>'
     )
 
 
@@ -4850,6 +5896,8 @@ def render_task_review_html(
     feature_title: str,
     runtime_activity: dict[str, Any] | None = None,
     open_task: bool = False,
+    feature_root_ref: str | None = None,
+    historical: bool = False,
 ) -> str:
     status = str(task.get("status") or "todo")
     gate_result = str(task.get("gate_result") or "").strip()
@@ -4894,18 +5942,30 @@ def render_task_review_html(
         if cancel_reason
         else ""
     )
+    failure = task.get("failure") if isinstance(task.get("failure"), dict) else None
+    failure_html = (
+        f'<p class="review-copy review-failure"><strong>Failed assumption</strong>'
+        f'{html_text(failure.get("reason"))} · 假设：{html_text(failure.get("assumption"))} · '
+        + (f'已绑定后继：{html_text(", ".join(task.get("superseded_by", [])))}。' if task.get("superseded_by") else '待重规划：后继计划尚未安装。')
+        + '</p>'
+        if failure
+        else ""
+    )
+    blocker = task.get("last_blocker") if isinstance(task.get("last_blocker"), dict) else None
+    blocker_html = (
+        f'<p class="review-copy review-blocker"><strong>Blocker</strong>{html_text(blocker.get("reason"))} · '
+        f'owner: {html_text(blocker.get("owner") or "unspecified")} · '
+        f'resume when: {html_text(blocker.get("resume_when") or "unspecified")}</p>'
+        if blocker
+        else ""
+    )
     task_id = str(task.get("id") or "")
     task_title = str(task.get("title") or task_id)
-    state_ref = f".bagakit/feature-tracker/features/{feat_id}/state.json"
-    tasks_ref = f".bagakit/feature-tracker/features/{feat_id}/tasks.json"
+    canonical_root_ref = feature_root_ref or f".bagakit/feature-tracker/features/{feat_id}"
+    state_ref = f"{canonical_root_ref}/state.json"
+    tasks_ref = f"{canonical_root_ref}/tasks.json"
     dependencies_text = ", ".join(dependencies) or "none"
     prompts = {
-        "claim": (
-            f"认领 Feature“{feature_title}”（{feat_id}）的 Task {task_id}“{task_title}”。"
-            f"先读取 {state_ref} 与 {tasks_ref}，确认该 Task 当前 runnable 且没有真实 blocker；"
-            f"只有确认可领取后才执行 feature-tracker start-task --feature {feat_id} --task {task_id}，"
-            "随后按该 Task 的 acceptance 与 verification 闭环。不要重写计划或新增未经用户确认的需求。"
-        ),
         "status": (
             f"检查 Feature {feat_id} / Task {task_id} 的当前状态。读取 {state_ref} 与 {tasks_ref}，"
             "报告 Task 状态、直接依赖、真实 blocker、最新 gate evidence 与唯一下一步；"
@@ -4916,30 +5976,62 @@ def render_task_review_html(
             f"depends_on（{dependencies_text}）、acceptance、verification、当前状态及其在 DAG 中的位置。"
             "明确区分用户确认的要求、执行证据与 Agent 推断。"
         ),
-        "goal": (
-            f"Goal：在 Feature“{feature_title}”（{feat_id}）内完成 Task {task_id}“{task_title}”，"
-            f"交付“{str(task.get('outcome') or '').strip()}”；依赖为 {dependencies_text}；"
-            f"完成标准与证据严格以 {tasks_ref} 中该 Task 的 acceptance 和 verification 为准，"
-            "不扩展范围、不沉淀未经用户确认的新需求。"
-        ),
     }
+    prompt_labels = {
+        "status": "检查状态",
+        "explain": "Explain Task",
+    }
+    prompt_order = ["status", "explain"]
+    if not historical:
+        prompts = {
+            "claim": (
+                (
+                    f"Task {task_id} 已 failed。读取 {state_ref} 与 {tasks_ref}，核对 failure.assumption 和 failure.reason，"
+                    "检查受影响的后继节点与用户目标，提出最小 reviewed successor plan，并用 supersedes 绑定旧节点；"
+                    "不要重启 failed Task，也不要把聊天中的重规划当成已安装计划。"
+                    if status == "failed" else
+                    f"认领 Feature“{feature_title}”（{feat_id}）的 Task {task_id}“{task_title}”。"
+                    f"先读取 {state_ref} 与 {tasks_ref}，确认该 Task 当前 runnable 且没有真实 blocker；"
+                    f"只有确认可领取后才执行 feature-tracker start-task --feature {feat_id} --task {task_id}，"
+                    "随后按该 Task 的 acceptance 与 verification 闭环。不要重写计划或新增未经用户确认的需求。"
+                )
+            ),
+            **prompts,
+            "goal": (
+                f"Goal：在 Feature“{feature_title}”（{feat_id}）内完成 Task {task_id}“{task_title}”，"
+                f"交付“{str(task.get('outcome') or '').strip()}”；依赖为 {dependencies_text}；"
+                f"完成标准与证据严格以 {tasks_ref} 中该 Task 的 acceptance 和 verification 为准，"
+                "不扩展范围、不沉淀未经用户确认的新需求。"
+            ),
+        }
+        prompt_labels = {
+            "claim": "重规划" if status == "failed" else "认领任务",
+            "status": "检查状态",
+            "explain": "Explain Task",
+            "goal": "Goal 语句",
+        }
+        prompt_order = ["claim", "status", "explain", "goal"]
     prompt_sources = "".join(
-        f'<div hidden data-task-prompt-source="{html_text(kind)}">{html_text(text)}</div>'
+        f'<template data-prompt-source="{html_text(kind)}">{html_text(text)}</template>'
         for kind, text in prompts.items()
     )
+    prompt_labels = {
+        "claim": "复制 · 认领任务",
+        "status": "复制 · 检查状态",
+        "explain": "复制 · Explain Task",
+        "goal": "复制 · Goal 语句",
+    }
     prompt_html = (
-        '<details class="task-quick-prompts"><summary>Quick prompts</summary>'
-        '<div class="task-prompt-tabs" role="group" aria-label="Task quick prompts">'
-        '<button type="button" class="task-prompt-tab is-active" data-task-prompt-select="claim">认领任务</button>'
-        '<button type="button" class="task-prompt-tab" data-task-prompt-select="status">检查状态</button>'
-        '<button type="button" class="task-prompt-tab" data-task-prompt-select="explain">Explain</button>'
-        '<button type="button" class="task-prompt-tab" data-task-prompt-select="goal">Goal 语句</button>'
-        '</div>'
-        f'<textarea class="task-prompt-output" readonly spellcheck="false">{html_text(prompts["claim"])}</textarea>'
-        '<div class="task-prompt-actions"><button type="button" class="copy-task-prompt">Copy prompt</button>'
-        '<span aria-live="polite"></span></div>'
+        '<section class="task-quick-prompts" aria-label="Task quick prompts">'
+        '<span class="eyebrow">Task prompts</span><div class="prompt-copy-actions">'
+        + "".join(
+            f'<button type="button" class="prompt-copy-action" data-prompt-copy="{html_text(kind)}" '
+            f'data-prompt-label="{html_text(prompt_labels[kind])}">{html_text(prompt_labels[kind])}</button>'
+            for kind in prompt_order
+        )
+        + '</div><span class="prompt-copy-status" aria-live="polite"></span>'
         + prompt_sources
-        + '</details>'
+        + '</section>'
     )
     task_activities = (
         runtime_activity.get("by_task", {})
@@ -4968,12 +6060,100 @@ def render_task_review_html(
         + f'<p class="review-copy"><strong>Objective</strong>{html_text(task.get("objective"))}</p>'
         + f'<p class="review-copy"><strong>Outcome</strong>{html_text(task.get("outcome"))}</p>'
         + cancellation_html
+        + blocker_html
+        + failure_html
         + prompt_html
         + '<div class="review-grid"><div><h5>Acceptance</h5>'
         + acceptance_html
         + "</div><div><h5>Verification</h5>"
         + verification_html
         + "</div></div></div></details>"
+    )
+
+
+def render_feature_quick_prompts(
+    *,
+    feat_id: str,
+    feature_title: str,
+    state_ref: str,
+    tasks_ref: str,
+    goal_ref: str,
+    receipt_ref: str,
+) -> str:
+    """Render one-click Feature-scoped prompt actions."""
+    prompts = {
+        "set_goal": (
+            f"使用 $bagakit-set-loop-goal 为 Feature“{feature_title}”（{feat_id}）设置或校准唯一 Goal。"
+            f"先读取 {state_ref}、{tasks_ref} 与现有 {goal_ref}（若存在），只纳入用户确认的 outcome、"
+            "protected invariants、non-goals、closure oracle 和必要上下文；当前进度、next action、"
+            f"assignments 与 execution evidence 仍留在 Tracker。通过 Feature Tracker 的 set-feature-goal "
+            "以当前 revision guard 安装文件，再由 Host 激活 exact wrapper；不要新增未经确认的需求，"
+            "不要创建第二个 Goal runtime 或修改 Task 状态。"
+        ),
+        "plan": (
+            f"解释 Feature“{feature_title}”（{feat_id}）整个 reviewed Task plan 的当前进展。"
+            f"先读取 {state_ref}、{tasks_ref}、{receipt_ref}、{goal_ref}（若存在）以及可用的 Flow Runner "
+            "task_ref progress receipt；按当前 plan 汇总 DAG 波次、active、runnable、waiting、blocked、failed、"
+            "cancelled、transferred、done，指出真实 blocker、失败假设、当前最短证据路径和每个可推进分支的唯一下一步。"
+        ),
+    }
+    labels = {"set_goal": "复制 · 设置 Goal", "plan": "复制 · 解释全计划"}
+    sources = "".join(
+        f'<template data-prompt-source="{html_text(kind)}">{html_text(text)}</template>'
+        for kind, text in prompts.items()
+    )
+    buttons = "".join(
+        f'<button type="button" class="prompt-copy-action" data-prompt-copy="{html_text(kind)}" '
+        f'data-prompt-label="{html_text(labels[kind])}">{html_text(labels[kind])}</button>'
+        for kind in ("set_goal", "plan")
+    )
+    return (
+        '<section class="tracker-quick-prompts" aria-label="Tracker-wide Feature prompts">'
+        '<span class="eyebrow">Feature prompts</span>'
+        f'<div class="prompt-copy-actions">{buttons}</div>'
+        '<span class="prompt-copy-status" aria-live="polite"></span>'
+        + sources
+        + '</section>'
+    )
+
+
+def render_plan_review_html(state: dict[str, Any], tasks: dict[str, Any]) -> str:
+    if not has_reviewed_task_plan(tasks):
+        return ""
+    audit = build_task_plan_audit(state, tasks)
+    failed = audit["failed_tasks"]
+    rows = []
+    for item in failed:
+        rows.append(
+            f'<li data-replan-source="{html_text(item["item_id"])}"><strong>待重规划 · '
+            f'<button type="button" class="lineage-link" data-task-open="{html_text(item["item_id"])}">{html_text(item["item_id"])}</button>'
+            f'</strong><span>{html_text(item["assumption"])} → {html_text(item["reason"])}</span>'
+            '<small>尚未安装后继计划；独立任务可继续。</small></li>'
+        )
+    for item in audit["installed_replacements"]:
+        successors = " · ".join(
+            f'<button type="button" class="lineage-link" data-task-open="{html_text(target["task_id"])}">{html_text(target["task_id"])}</button>'
+            f' ({html_text(target["status"])})'
+            if target["current"] else f'{html_text(target["task_id"])} (historical)'
+            for target in item["successors"]
+        )
+        rows.append(
+            f'<li data-replanned-source="{html_text(item["failed_task_id"])}"><strong>已安装后继计划 · r{item["plan_revision"]}</strong>'
+            f'<span><button type="button" class="lineage-link" data-task-open="{html_text(item["failed_task_id"])}">{html_text(item["failed_task_id"])}</button>'
+            f' (failed) → {successors}</span><small>Review: {html_text(item["review_ref"])}</small></li>'
+        )
+    changes = audit["latest_dependency_changes"]
+    delta = " · ".join(
+        f'{"新增" if kind == "added" else "移除"} {html_text(edge["from"])} → {html_text(edge["to"])}'
+        for kind in ("added", "removed") for edge in changes[kind]
+    )
+    return (
+        f'<section class="plan-review-observation" aria-label="Plan review" data-plan-revision="{audit["plan_revision"]}">'
+        '<div class="plan-review-heading"><strong>规划调整</strong>'
+        f'<span>r{audit["plan_revision"]} · Review: {html_text(audit["review_ref"])}</span></div>'
+        + (f'<ul>{"".join(rows)}</ul>' if rows else '')
+        + (f'<p class="plan-edge-delta">本次依赖变化：{delta}</p>' if delta else '')
+        + '<p class="plan-review-boundary">计划已安装、任务已启动、验收已通过分别以各自证据为准。</p></section>'
     )
 
 
@@ -4990,6 +6170,7 @@ def render_feature_review_html(
     dependencies = state.get("depends_on", [])
     dependency_text = ", ".join(str(item) for item in dependencies) if isinstance(dependencies, list) else ""
     feature_dir = paths.feat_dir(feat_id, status=status)
+    feature_root_ref = relative_display(paths.root, feature_dir)
     canonical_files = [
         ("state.json", paths.feat_state(feat_id, status=status)),
         ("tasks.json", paths.feat_tasks(feat_id, status=status)),
@@ -4997,13 +6178,37 @@ def render_feature_review_html(
         ("verification.md", feature_dir / FEATURE_VERIFICATION_FILENAME),
     ]
     canonical_links = "".join(
-        f'<a href="{html_text(path.resolve().as_uri())}" target="_blank" rel="noreferrer">{label}</a>'
+        render_file_preview_entry(paths.root, path, label)
         for label, path in canonical_files
-        if path.is_file()
     )
     reviewed_tasks = current_plan_tasks(tasks)
     runtime_activity = load_feature_runtime_activity(paths, state, tasks)
     topology_html = render_task_topology_html(state, tasks, runtime_activity)
+    review_frontier = feature_task_frontier(state, tasks)
+    if status in CLOSED_FEAT_STATUS and has_reviewed_task_plan(tasks):
+        review_frontier = task_frontier(tasks, feat_id=feat_id)
+    current_task_count = len(current_plan_tasks(tasks)) if has_reviewed_task_plan(tasks) else 0
+    review_metrics = (
+        ("tasks", current_task_count, "Tasks"),
+        ("active", len(review_frontier["active"]), "Active"),
+        ("runnable", len(review_frontier["runnable"]), "Runnable"),
+        ("waiting", len(review_frontier["waiting"]), "Waiting"),
+        ("failed", len(review_frontier["failed"]), "Failed · replan"),
+        ("done", len(review_frontier["done"]), "Done"),
+    )
+    next_step = (
+        "先重规划已失败的任务路径"
+        if review_frontier["failed"]
+        else "继续当前 active Task"
+        if review_frontier["active"]
+        else "处理真实 blocker"
+        if review_frontier["blocked"]
+        else "领取可运行 Task"
+        if review_frontier["runnable"]
+        else "复核历史证据"
+        if status in CLOSED_FEAT_STATUS
+        else "等待新的 reviewed action"
+    )
     tracker_name = tracker_name_for(feat_id)
     transferred_from = canonical_transferred_from(
         state.get("transferred_from"),
@@ -5012,18 +6217,13 @@ def render_feature_review_html(
     lineage_items: list[str] = []
     for transfer in transferred_from:
         source_id = transfer["feature_id"]
-        source_entry = get_feat_index_entry(load_index(paths), source_id)
-        source_status = str(source_entry.get("status") or "") if source_entry else ""
-        source_path = paths.feat_state(source_id, status=source_status)
         source_ref = (
-            f'<a href="{html_text(source_path.resolve().as_uri())}" target="_blank" rel="noreferrer">'
-            f'{html_text(source_id)}</a>'
-            if source_path.is_file()
-            else html_text(source_id)
+            f'<button type="button" class="lineage-link" data-feature-history-open="{html_text(source_id)}" '
+            f'aria-label="Open transferred source {html_text(source_id)}">{html_text(source_id)}</button>'
         )
         lineage_items.append(source_ref)
     lineage_html = (
-        '<p class="review-lineage"><strong>Transferred from</strong>'
+        f'<p class="review-lineage"><strong>Transferred from ({len(lineage_items)})</strong>'
         + " · ".join(lineage_items)
         + "</p>"
         if lineage_items
@@ -5038,41 +6238,84 @@ def render_feature_review_html(
                 feature_title=str(state.get("title") or feat_id),
                 runtime_activity=runtime_activity,
                 open_task=(
-                    str(task.get("status") or "") in {"in_progress", "blocked"}
+                    str(task.get("status") or "") in {"in_progress", "blocked", "failed"}
                     or len(reviewed_tasks) <= 2
                 ),
+                feature_root_ref=feature_root_ref,
+                historical=status in CLOSED_FEAT_STATUS,
             )
             for task in reviewed_tasks
         )
         if reviewed_tasks
         else '<p class="empty">No reviewed tasks.</p>'
     )
+    historical_failures = [
+        task for task in tasks.get("tasks", [])
+        if task.get("status") == "failed" and task.get("superseded_by")
+    ]
+    historical_html = ""
+    if historical_failures:
+        historical_html = (
+            '<details class="failed-task-history"><summary>失败路径与后继 · '
+            f'{len(historical_failures)}</summary>'
+            + "".join(render_task_review_html(
+                paths.root, task, feat_id=feat_id,
+                feature_title=str(state.get("title") or feat_id),
+                feature_root_ref=feature_root_ref, historical=True,
+            ) for task in historical_failures)
+            + '</details>'
+        )
     runtime_html = render_runtime_activity_html(runtime_activity)
+    feature_prompt_html = (
+        render_feature_quick_prompts(
+            feat_id=feat_id,
+            feature_title=str(state.get("title") or feat_id),
+            state_ref=f"{feature_root_ref}/state.json",
+            tasks_ref=f"{feature_root_ref}/tasks.json",
+            goal_ref=f"{feature_root_ref}/goal.md",
+            receipt_ref=f"{feature_root_ref}/owner-receipt.json",
+        )
+        if status not in CLOSED_FEAT_STATUS
+        else '<p class="closed-record-note">Closed history · read-only topology and proof; this record cannot be claimed or modified.</p>'
+    )
     task_fold_note = (
         f'<p class="review-task-fold-note">{len(reviewed_tasks)} Tasks · active and blocked Tasks are open; '
         "select a Task to inspect its acceptance and proof.</p>"
         if len(reviewed_tasks) > 2
         else ""
     )
-    return (
-        '<div class="review-panel"><div class="review-header"><div><span class="eyebrow">Review</span>'
-        '<h3>Current plan and proof</h3></div>'
-        f'<nav class="canonical-links" aria-label="Canonical files">{canonical_links}</nav></div>'
+    context_html = (
+        '<details class="context-drawer"><summary><span>计划上下文</span><span>文件 · 运行记录 · 规划历史</span></summary>'
+        f'<nav class="canonical-links" aria-label="Canonical files">{canonical_links}</nav>'
         '<dl class="review-facts">'
-        f'<div><dt>Status</dt><dd>{html_text(human_status_label(status))}</dd></div>'
         f'<div><dt>Tracker Name</dt><dd class="copyable-value"><code>{html_text(tracker_name)}</code>'
         f'<button type="button" class="copy-value" data-copy-text="{html_text(tracker_name)}" '
         'aria-label="Copy Tracker Name">Copy</button></dd></div>'
         f'<div><dt>Workspace</dt><dd>{html_text(workspace_detail)}</dd></div>'
         f'<div><dt>Runtime role</dt><dd>{html_text(state.get("runtime_role") or "standalone")}</dd></div>'
         f'<div><dt>Depends on</dt><dd>{html_text(dependency_text or "none")}</dd></div>'
-        "</dl>"
-        + lineage_html
-        + runtime_html
+        '</dl>' + lineage_html + render_plan_review_html(state, tasks) + runtime_html + '</details>'
+    )
+    return (
+        '<div class="review-panel"><div class="review-header"><div><span class="eyebrow">Review</span>'
+        '<h3>Current plan and proof</h3></div></div>'
+        '<section class="review-overview" aria-label="Feature overview">'
+        f'<div class="review-state-signal review-state-signal--{html_text(status.replace("_", "-"))}">'
+        '<span class="review-signal-core" aria-hidden="true"></span><div><span class="eyebrow">Current state</span>'
+        f'<strong>{html_text(human_status_label(status))}</strong><span class="review-next-step">{html_text(next_step)}</span></div></div>'
+        '<div class="review-metric-strip">'
+        + "".join(
+            f'<div class="review-metric review-metric--{html_text(kind)}"><strong>{value}</strong><span>{html_text(label)}</span></div>'
+            for kind, value, label in review_metrics
+        )
+        + '</div></section>'
+        + feature_prompt_html
         + topology_html
+        + context_html
         + '<section class="review-task-region">'
         + task_fold_note
-        + f'<div class="review-tasks-scroll" tabindex="0" aria-label="Task list"><div class="review-tasks">{tasks_html}</div></div>'
+        + '<p class="review-task-jump-status" data-task-jump-status aria-live="polite"></p>'
+        + f'<div class="review-tasks-scroll" tabindex="0" aria-label="Task list"><div class="review-tasks">{tasks_html}{historical_html}</div></div>'
         + '</section></div>'
     )
 
@@ -5113,7 +6356,7 @@ def render_feature_card_html(
     runtime_summary_html = render_runtime_activity_html(runtime_activity, compact=True)
     replanning_html = (
         '<p class="replanning-note"><strong>Replanning</strong> '
-        'A cancelled Task is waiting for a reviewed successor plan; it is not an execution blocker.</p>'
+        'A failed or cancelled Task needs a reviewed successor plan; independent work may continue.</p>'
         if str(state.get("status") or "") == "replanning"
         else ""
     )
@@ -5132,17 +6375,35 @@ def render_feature_card_html(
     blocker_html = (
         "".join(
             f'<p class="blocker"><strong>{html_text(item["item_id"])} blocked:</strong> '
-            f'{html_text(item["reason"])}</p>'
+            f'{html_text(item["reason"])}'
+            f' · unblock owner: {html_text(item.get("owner") or "unspecified")}'
+            f' · resume evidence: {html_text(item.get("resume_when") or "unspecified")}</p>'
             for item in blocker_items
         )
+    )
+    failure_items = current_task_failures(tasks, feat_id=feat_id)
+    failure_card_html = "".join(
+        f'<p class="failure"><strong>{html_text(item["item_id"])} failed:</strong> '
+        f'{html_text(item["reason"])} · requires reviewed replan</p>'
+        for item in failure_items
     )
     goal = str(state.get("goal") or "").strip()
     focused_class = " feature-card--focused" if focus_feature else ""
     claim_message = build_agent_claim_message(paths, state, tasks)
     feature_title = str(state.get("title") or state.get("feat_id") or "Feature")
+    search_text = " ".join(
+        [
+            feat_id,
+            feature_title,
+            goal,
+            str(state.get("status") or ""),
+            *[str(task.get("title") or "") for task in current_plan_tasks(tasks)],
+        ]
+    ).strip()
 
     return (
-        f'<article class="feature-card{focused_class}" id="{html_text(state.get("feat_id"))}">'
+        f'<article class="feature-card{focused_class}" id="{html_text(state.get("feat_id"))}" '
+        f'data-feature-search="{html_text(search_text)}" data-feature-status="{html_text(state.get("status") or "unknown")}">'
         f'<div class="feature-summary" role="button" tabindex="0" data-feature-open="{html_text(feat_id)}" '
         f'aria-label="Open details for {html_text(feature_title)}">'
         '<div class="card-kicker">'
@@ -5155,6 +6416,7 @@ def render_feature_card_html(
         '</div>'
         + (f'<p class="goal">{html_text(goal)}</p>' if goal else "")
         + blocker_html
+        + failure_card_html
         + active_task_html
         + runnable_task_html
         + runtime_summary_html
@@ -5173,6 +6435,7 @@ def render_feature_card_html(
 
 
 def render_closed_features_html(
+    paths: HarnessPaths,
     items: list[dict[str, Any]],
     *,
     focus_feat_id: str | None = None,
@@ -5184,6 +6447,28 @@ def render_closed_features_html(
         item_feat_id = str(item.get("feat_id") or "")
         focused = item_feat_id == str(focus_feat_id or "")
         status = str(item.get("status") or "")
+        review_template = ""
+        detail_attrs = ""
+        try:
+            item_title = str(item.get("title") or item_feat_id)
+            if focused:
+                state, tasks = load_feat(paths, item_feat_id)
+                item_title = str(state.get("title") or item_title)
+                review_template = (
+                    f'<template class="feature-review-template">'
+                    f'{render_feature_review_html(paths, state, tasks)}'
+                    "</template>"
+                )
+            detail_attrs = (
+                f' data-feature-open="{html_text(item_feat_id)}" role="button" tabindex="0"'
+                f' aria-label="Open details for {html_text(item_title)}"'
+            )
+        except SystemExit as exc:
+            item_title = str(item.get("title") or item_feat_id)
+            review_template = (
+                f'<span class="closed-projection-error" title="{html_text(normalize_error_text(exc))}">'
+                "Topology unavailable</span>"
+            )
         transferred_to = item.get("transferred_to") if isinstance(item.get("transferred_to"), dict) else {}
         successor = str(
             (transferred_to or {}).get("feature_id")
@@ -5197,12 +6482,15 @@ def render_closed_features_html(
         )
         rows.append(
             f'<li id="closed-{html_text(item_feat_id)}" data-closed-feature-id="{html_text(item_feat_id)}"'
-            f' class="{"closed-feature--focused" if focused else ""}">'
+            f' class="{"closed-feature--focused" if focused else ""}"{detail_attrs}>'
             '<span class="closed-id">'
             f'{html_text(item_feat_id)}</span>'
-            f'<strong title="{html_text(item.get("title"))}">{html_text(item.get("title"))}</strong>'
-            f'<button type="button" class="copy-title" data-copy-text="{html_text(item.get("title"))}" aria-label="Copy Feature title">Copy</button>'
-            f"{relation_html}</li>"
+            f'<strong title="{html_text(item_title)}">{html_text(item_title)}</strong>'
+            f'<button type="button" class="copy-title" data-copy-text="{html_text(item_title)}" aria-label="Copy Feature title">Copy</button>'
+            f"{relation_html}"
+            + ('<span class="closed-open">Open topology ↗</span>' if detail_attrs else review_template)
+            + (review_template if detail_attrs else '')
+            + '</li>'
         )
     history_open = any(
         str(item.get("feat_id") or "") == str(focus_feat_id or "")
@@ -5227,13 +6515,12 @@ def render_feature_projection_error_html(
         ("state.json", paths.feat_state(feat_id, status=status)),
         ("tasks.json", paths.feat_tasks(feat_id, status=status)),
     ):
-        if path.is_file():
-            links.append(
-                f'<a href="{html_text(path.resolve().as_uri())}" target="_blank" rel="noreferrer">{label}</a>'
-            )
+        links.append(render_file_preview_entry(paths.root, path, label))
     links_html = "".join(links)
+    search_text = " ".join((feat_id, str(state.get("title") or ""), status, error)).strip()
     return (
-        f'<article class="feature-card feature-card--projection-error" id="{html_text(feat_id)}">'
+        f'<article class="feature-card feature-card--projection-error" id="{html_text(feat_id)}" '
+        f'data-feature-search="{html_text(search_text)}" data-feature-status="{html_text(status)}">'
         '<div class="feature-summary">'
         '<div class="card-kicker">'
         f'<span class="feature-id">{html_text(feat_id)}</span>'
@@ -5260,21 +6547,24 @@ def choose_focus_feature(
             frontier = feature_task_frontier(state, tasks)
         except SystemExit:
             continue
-        if status == "in_progress" and frontier["active"]:
-            reason = "Continue the active Task"
+        if frontier["failed"]:
+            reason = "Review disproved assumptions and install successor plan"
             priority = 0
+        elif status == "in_progress" and frontier["active"]:
+            reason = "Continue the active Task"
+            priority = 1
         elif status == "blocked" and frontier["blocked"]:
             reason = "Resolve the current blocker"
-            priority = 1
+            priority = 2
         elif status == "replanning":
             reason = "Install the reviewed successor plan"
-            priority = 1
+            priority = 2
         elif status == "ready" and frontier["runnable"]:
             reason = "Claim a runnable Task"
-            priority = 2
+            priority = 3
         elif status == "done":
             reason = "Complete Feature closeout"
-            priority = 3
+            priority = 4
         else:
             continue
         candidates.append((priority, feat_id, state, tasks, reason))
@@ -5301,10 +6591,11 @@ def render_focus_feature_html(
     active = ", ".join(frontier["active"]) or "none"
     runnable = ", ".join(frontier["runnable"]) or "none"
     blocked = ", ".join(frontier["blocked"]) or "none"
+    failed = ", ".join(frontier["failed"]) or "none"
     progress = (
-        f"active {active} · runnable {runnable} · blocked {blocked}"
+        f"active {active} · runnable {runnable} · blocked {blocked} · failed {failed}"
         if status != "replanning"
-        else "cancelled Tasks need a reviewed successor plan"
+        else "failed or cancelled Tasks need a reviewed successor plan"
     )
     return (
         f'<section class="focus-strip focus-strip--{html_text(status.replace("_", "-"))}" '
@@ -5357,7 +6648,10 @@ def render_feature_status_html(
             }
             tasks = {"tasks": []}
         active_records.append((state, tasks))
-    page_title = "Feature Tracker"
+    project_name = paths.root.name.strip() or "Project"
+    if paths.root == Path.home() or project_name in {".", "Users", "home"}:
+        project_name = "Workspace"
+    page_title = f"{project_name} · Feature Tracker"
 
     by_status: dict[str, list[tuple[dict[str, Any], dict[str, Any]]]] = {}
     for state, tasks in active_records:
@@ -5366,6 +6660,25 @@ def render_feature_status_html(
         paths,
         choose_focus_feature(active_records),
     )
+
+    projection_signature = sha256_bytes(
+        json.dumps(
+            {
+                "active": [
+                    {
+                        "state": state,
+                        "tasks": tasks,
+                        "runtime": load_feature_runtime_activity(paths, state, tasks),
+                    }
+                    for state, tasks in active_records
+                ],
+                "closed": closed_items,
+            },
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode("utf-8")
+    )[:16]
 
     status_order = list(FEATURE_STATUS_ORDER)
     status_order.extend(sorted(status for status in by_status if status not in FEATURE_STATUS_ORDER))
@@ -5398,14 +6711,14 @@ def render_feature_status_html(
                 )
         cards = "".join(cards_parts) or '<p class="column-empty">No features in this state.</p>'
         columns.append(
-            f'<section class="status-column status-column--{html_text(tone)}">'
+            f'<section class="status-column status-column--{html_text(tone)}" data-status="{html_text(status)}">'
             '<header><div class="status-title">'
-            f'<span class="status-dot" aria-hidden="true"></span><h2>{html_text(human_status_label(status))}</h2>'
-            f'<span class="status-count">{len(records)}</span></div></header>'
+            f'<h2>{html_text(human_status_label(status))}</h2>'
+            f'<span class="status-count" data-status-count data-base-count="{len(records)}">{len(records)}</span></div></header>'
             f'<div class="feature-list">{cards}</div></section>'
         )
 
-    active_count = sum(
+    open_count = sum(
         1 for state, _ in active_records if str(state.get("status") or "") not in CLOSED_FEAT_STATUS
     )
     in_progress_count = len(by_status.get("in_progress", []))
@@ -5458,10 +6771,20 @@ body { margin:0; background:var(--canvas); color:var(--ink); font-size:14px; }
 .page-header p { margin:0; color:var(--muted); font-size:12px; }
 .projection-meta { display:grid; justify-items:end; gap:8px; }
 .projection-note { max-width:420px; text-align:right; }
+.status-toolbar { display:flex; align-items:center; flex-wrap:wrap; gap:8px; margin:0 0 16px; }
+.status-toolbar label { color:var(--muted); font-size:10px; text-transform:uppercase; letter-spacing:.055em; }
+.status-filter-input,.status-filter-select { min-height:30px; border:1px solid #d6d8d0; border-radius:8px; background:#fff; color:var(--ink); padding:5px 9px; font:12px/1.2 inherit; }
+.status-filter-input { width:min(340px,100%); }
+.status-filter-input:focus,.status-filter-select:focus { outline:2px solid #8ba8bf; outline-offset:1px; border-color:#8ba8bf; }
+.status-filter-clear { min-height:30px; border:1px solid #d6d8d0; border-radius:8px; background:transparent; color:#565851; cursor:pointer; padding:5px 9px; font:11px inherit; }
+.status-filter-clear:hover { border-color:#9ca198; color:var(--ink); }
+.status-filter-summary { color:var(--muted); font-size:11px; }
+.status-column--filtered-empty { display:none; }
 .refresh-control { display:flex; align-items:center; gap:7px; color:var(--muted); font-size:10px; }
 .refresh-dot { width:7px; height:7px; border-radius:50%; background:#9ca198; }
 .refresh-control[data-state="updating"] .refresh-dot { background:#b98313; animation:refresh-pulse 1s ease-in-out infinite; }
 .refresh-control[data-state="updated"] .refresh-dot { background:#2f8a5c; }
+.refresh-control[data-state="unchanged"] .refresh-dot { background:#8b9288; }
 .refresh-control[data-state="error"] .refresh-dot { background:#c4413b; }
 .refresh-now { border:1px solid #d6d8d0; border-radius:7px; background:transparent; color:#565851; cursor:pointer; padding:3px 6px; font:inherit; font-size:10px; }
 .refresh-now:hover { border-color:#9ca198; color:var(--ink); }
@@ -5471,7 +6794,7 @@ body { margin:0; background:var(--canvas); color:var(--ink); font-size:14px; }
 .metric strong { display:block; font-size:23px; line-height:1.15; font-variant-numeric:tabular-nums; }
 .metric span { color:var(--muted); font-size:11px; text-transform:uppercase; letter-spacing:.055em; }
 .status-board { display:grid; grid-template-columns:repeat(6,320px); grid-auto-flow:column; grid-auto-columns:320px; gap:16px; align-items:start; overflow-x:auto; padding:0 2px 12px; scroll-snap-type:x proximity; }
-.status-column { --tone:#8b8c86; --tint:#ecece7; width:320px; min-width:320px; min-height:220px; display:flex; flex-direction:column; border-radius:15px; background:color-mix(in srgb,var(--tint) 72%,var(--canvas)); padding:9px; scroll-snap-align:start; }
+.status-column { --tone:#8b8c86; --tint:#ecece7; width:320px; min-width:320px; min-height:220px; display:flex; flex-direction:column; border-radius:15px; background:color-mix(in srgb,var(--tint) 34%,var(--canvas)); padding:9px; scroll-snap-align:start; }
 .status-column--amber { --tone:#b98313; --tint:#fbf5e5; }
 .status-column--red { --tone:#c4413b; --tint:#fbefee; }
 .status-column--blue { --tone:#3578c7; --tint:#edf4fb; }
@@ -5479,7 +6802,6 @@ body { margin:0; background:var(--canvas); color:var(--ink); font-size:14px; }
 .status-column > header { padding:6px 6px 10px; }
 .status-title { display:flex; align-items:center; gap:7px; }
 .status-title h2 { margin:0; font-size:12px; font-weight:650; }
-.status-dot { width:8px; height:8px; border:2px solid var(--tone); border-radius:999px; }
 .status-count { color:var(--muted); font-size:12px; font-variant-numeric:tabular-nums; }
 .feature-list { display:grid; flex:1; align-content:start; gap:8px; }
 .column-empty { margin:auto 8px; color:var(--muted); font-size:11px; text-align:center; }
@@ -5502,6 +6824,7 @@ body { margin:0; background:var(--canvas); color:var(--ink); font-size:14px; }
 .projection-error-links a { color:#356f9e; font-family:ui-monospace,SFMono-Regular,Menlo,monospace; }
 .goal { display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; overflow:hidden; margin:5px 0 0; color:var(--muted); font-size:12px; line-height:1.45; }
 .blocker { margin:8px 0 0; border-radius:7px; background:#fff0ef; color:#8e2d29; padding:7px; font-size:11px; line-height:1.45; }
+.failure { margin:8px 0 0; border-radius:7px; background:#f7effd; color:#60367d; padding:7px; font-size:11px; line-height:1.45; }
 .replanning-note { margin:8px 0 0; border-radius:7px; background:#f5f1e5; color:#7a5a1b; padding:7px; font-size:11px; line-height:1.45; }
 .lineage-card,.review-lineage { margin:8px 0 0; color:#665d83; font-size:10px; line-height:1.45; }
 .lineage-card strong,.review-lineage strong { color:#5e537d; }
@@ -5517,17 +6840,41 @@ body { margin:0; background:var(--canvas); color:var(--ink); font-size:14px; }
 .task-count--transferred { background:#f0edf8; color:#66548e; }
 .task-count--done { background:#eaf7ef; color:#256746; }
 .review-hint { display:inline-flex; align-items:center; gap:4px; margin-top:10px; color:var(--tone); font-size:11px; font-weight:650; }
-.review-panel { margin:0 8px 8px; border-radius:10px; background:#f8f8f5; padding:14px; }
+.review-panel { margin:0; background:transparent; padding:4px 0 16px; }
 .review-header { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; }
 .review-header h3 { margin:2px 0 0; font-size:15px; }
+.review-overview { display:grid; grid-template-columns:minmax(180px,.55fr) minmax(0,2.45fr); gap:10px; align-items:stretch; margin:10px 0 0; }
+.review-state-signal { position:relative; display:flex; align-items:center; gap:8px; min-height:52px; overflow:hidden; border:1px solid #dce1dc; border-radius:10px; background:#f5f7f4; padding:8px 10px; }
+.review-state-signal strong { display:block; margin-top:1px; font-size:13px; letter-spacing:-.02em; }
+.review-state-signal--in-progress { border-color:#d6c48e; background:#fffaf0; }
+.review-state-signal--blocked { border-color:#e3b7b2; background:#fff7f6; }
+.review-state-signal--replanning { border-color:#ddcda9; background:#fbf8ed; }
+.review-state-signal--done { border-color:#b9d6c1; background:#f2faf4; }
+.review-state-signal--archived,.review-state-signal--discarded,.review-state-signal--transferred { background:#f5f5f2; }
+.review-signal-core { position:relative; flex:0 0 auto; width:11px; height:11px; border:3px solid #9ca69e; border-radius:50%; background:#fff; }
+.review-state-signal--in-progress .review-signal-core { border-color:#a8781e; background:#ffe5a6; box-shadow:0 0 0 5px rgb(168 120 30 / .12); }
+.review-state-signal--in-progress .review-signal-core::after { content:""; position:absolute; left:12px; top:1px; width:42px; height:2px; background:linear-gradient(90deg, rgb(168 120 30 / .5), transparent); transform:translateX(-2px); animation:review-signal-scan 2.8s ease-in-out infinite; }
+.review-next-step { display:block; max-width:170px; margin-top:3px; color:var(--muted); font-size:10px; }
+@keyframes review-signal-scan { 0%,100% { opacity:.15; transform:translateX(-7px); } 50% { opacity:.9; transform:translateX(15px); } }
+.review-metric-strip { display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); gap:1px; overflow:hidden; border:1px solid #e2e5df; border-radius:10px; background:#e2e5df; }
+.review-metric { display:flex; min-height:52px; flex-direction:column; justify-content:center; background:#fff; padding:7px 8px; }
+.review-metric strong { font-size:17px; line-height:1.05; font-variant-numeric:tabular-nums; letter-spacing:-.03em; }
+.review-metric span { margin-top:5px; color:var(--muted); font-size:9px; text-transform:uppercase; letter-spacing:.06em; }
+.review-metric--active strong { color:#9a6b16; }
+.review-metric--runnable strong { color:#39718c; }
+.review-metric--waiting strong { color:#73736d; }
+.review-metric--done strong { color:#397253; }
 .canonical-links { display:flex; flex-wrap:wrap; justify-content:flex-end; gap:5px; }
-.canonical-links a { border-radius:999px; background:#eaeae5; color:#4f504b; padding:4px 8px; font-size:10px; text-decoration:none; }
-.canonical-links a:hover { background:#dfdfd8; color:var(--ink); }
+.file-preview-entry { display:inline-flex; }
+.file-preview-trigger { border:0; border-radius:999px; background:#eaeae5; color:#4f504b; cursor:pointer; padding:4px 8px; font:inherit; font-size:10px; }
+.file-preview-trigger:hover,.file-preview-trigger:focus-visible { background:#dfdfd8; color:var(--ink); outline:2px solid #aeb4ad; outline-offset:1px; }
 .review-facts { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:7px 16px; margin:14px 0 0; }
 .review-facts div { display:grid; grid-template-columns:76px 1fr; gap:8px; }
 .review-facts dt { color:var(--muted); font-size:10px; text-transform:uppercase; }
 .review-facts dd { margin:0; overflow-wrap:anywhere; font-size:11px; }
-.review-lineage { padding:7px 9px; border-radius:7px; background:#f2f0f8; }
+.review-lineage { padding:7px 0; }
+.lineage-link { border:0; border-bottom:1px solid currentColor; background:transparent; color:#5e537d; cursor:pointer; padding:0 1px; font:inherit; font-size:inherit; }
+.lineage-link:hover,.lineage-link:focus-visible { color:#352c5d; outline:2px solid #b9addb; outline-offset:2px; }
 .copyable-value { display:flex; align-items:center; gap:6px; min-width:0; }
 .copyable-value code { min-width:0; overflow:hidden; color:var(--ink); font:10px ui-monospace,SFMono-Regular,Menlo,monospace; text-overflow:ellipsis; white-space:nowrap; }
 .status-column .review-facts,.status-column .review-grid { grid-template-columns:1fr; }
@@ -5541,77 +6888,178 @@ body { margin:0; background:var(--canvas); color:var(--ink); font-size:14px; }
 .runtime-activity dt { color:#6a8a73; font-size:10px; text-transform:uppercase; }
 .runtime-activity dd { margin:0; overflow-wrap:anywhere; color:#46644f; }
 .runtime-activity-source { color:#6a8a73 !important; font-size:10px !important; }
-.runtime-activity-source a { color:#356f9e; font-family:ui-monospace,SFMono-Regular,Menlo,monospace; }
+.runtime-activity-ref { color:#356f9e; font:10px ui-monospace,SFMono-Regular,Menlo,monospace; }
 .runtime-activity-warning { color:#8e5d21 !important; }
-.task-topology { margin-top:16px; border-radius:10px; background:#fff; padding:12px; box-shadow:inset 0 0 0 1px rgb(31 32 28 / .045); }
+.task-topology { position:relative; margin-top:14px; border-top:1px solid #e5e3dd; background:transparent; padding:16px 0 0; box-shadow:none; }
 .task-topology-header { display:flex; align-items:flex-end; justify-content:space-between; gap:16px; }
 .task-topology-header-actions { display:flex; align-items:center; justify-content:flex-end; gap:8px; }
 .task-topology-header h4 { margin:2px 0 0; font-size:12px; }
 .task-topology-header > span { color:var(--muted); font-size:10px; font-variant-numeric:tabular-nums; }
-.topology-expand { border:1px solid #d6d8d0; border-radius:7px; background:#fff; color:#565851; cursor:pointer; padding:4px 7px; font:inherit; font-size:10px; }
-.topology-expand:hover { border-color:#9ca198; color:var(--ink); }
-.topology-zoom-controls { display:inline-flex; align-items:center; gap:3px; }
-.topology-zoom-controls button { min-width:24px; height:24px; border:1px solid #d6d8d0; border-radius:6px; background:#fff; color:#565851; cursor:pointer; padding:2px 5px; font:inherit; font-size:11px; line-height:1; }
-.topology-zoom-controls button:hover { border-color:#9ca198; color:var(--ink); }
-.topology-zoom-level { min-width:38px; color:var(--muted); font-size:10px; font-variant-numeric:tabular-nums; text-align:center; }
-.task-topology-legend { display:flex; flex-wrap:wrap; gap:5px 10px; margin-top:10px; color:var(--muted); font-size:10px; }
-.topology-legend { display:inline-flex; align-items:center; gap:4px; }
-.topology-legend i { width:6px; height:6px; border-radius:50%; background:#a2a49d; }
-.topology-legend--active i { background:#b98313; }
-.topology-legend--runnable i { background:#3578c7; }
-.topology-legend--waiting i { background:#a2a49d; }
-.topology-legend--blocked i { background:#c4413b; }
-.topology-legend--cancelled i { background:#8b8c86; }
-.topology-legend--transferred i { background:#7868a6; }
-.topology-legend--done i { background:#2f8a5c; }
-.task-topology-scroll { max-height:420px; margin-top:10px; overflow:auto; overscroll-behavior:contain; scrollbar-gutter:stable; border-radius:8px; background:#f5f5f2; }
+.topology-zoom-controls { display:inline-grid; grid-template-columns:30px 48px 30px auto auto; align-items:stretch; overflow:hidden; border:1px solid #d2d4cd; border-radius:8px; background:#fff; box-shadow:0 1px 2px rgb(28 28 24 / .05); }
+.topology-zoom-controls button { min-width:30px; height:28px; border:0; border-left:1px solid #e0e1dc; background:transparent; color:#4f514b; cursor:pointer; padding:2px 8px; font:inherit; font-size:11px; line-height:1; }
+.topology-zoom-controls button:first-child { border-left:0; }
+.topology-zoom-controls button:hover,.topology-zoom-controls button:focus-visible { background:#f1f2ed; color:var(--ink); outline:none; }
+.topology-zoom-controls .topology-fit { min-width:42px; color:#356f9e; font-size:9px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; }
+.topology-zoom-controls .topology-overview { min-width:64px; color:#356f9e; font-size:9px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; }
+.topology-zoom-level { display:grid; place-items:center; min-width:48px; border-left:1px solid #e0e1dc; color:#656760; font-size:9px; font-variant-numeric:tabular-nums; text-align:center; }
+.task-topology-legend { display:flex; flex-wrap:wrap; gap:5px; margin-top:10px; color:#77736b; font-size:9px; letter-spacing:.01em; }
+.topology-legend { display:inline-flex; align-items:center; gap:4px; border:1px solid #dedbd3; border-radius:5px; background:#f7f6f2; padding:3px 6px; }
+.topology-legend strong { color:#504d47; font-size:9px; font-weight:750; letter-spacing:.06em; text-transform:uppercase; }
+.topology-legend--active { border-color:#b88a2e; background:#fff7e4; }
+.topology-legend--active strong { color:#825b10; }
+.topology-legend--runnable { border-style:dashed; border-color:#6a9abe; background:#f2f8fc; }
+.topology-legend--runnable strong { color:#326889; }
+.topology-legend--waiting { border-color:#d3d0c8; color:#8a877f; }
+.topology-legend--blocked { border-color:#c45a52; background:#fff1ef; }
+.topology-legend--blocked strong { color:#a03932; }
+.topology-legend--cancelled { border-style:dashed; background:#f0efeb; }
+.topology-legend--transferred { border-style:dashed; border-color:#9c8fc0; background:#f5f1fb; }
+.topology-legend--transferred strong { color:#67538d; }
+.topology-legend--critical { border-color:#9ccab0; background:#e9f4ed; }
+.topology-legend--critical strong { color:#276c50; }
+.topology-legend--done { border-color:#75a082; background:#eef8f1; }
+.topology-legend--done strong { color:#397253; }
+.topology-group-overview { margin-top:10px; border:1px solid #e8e4db; border-radius:9px; background:#fafaf7; padding:10px; }
+.topology-wave-overview { padding:0; }
+.topology-wave-overview > summary { list-style:none; }
+.topology-wave-overview > summary::-webkit-details-marker { display:none; }
+.topology-wave-overview-summary { display:flex; align-items:center; justify-content:space-between; gap:12px; cursor:pointer; padding:8px 10px; }
+.topology-wave-overview-summary::before { content:"▸"; color:#77736b; font-size:9px; }
+.topology-wave-overview[open] > .topology-wave-overview-summary::before { content:"▾"; }
+.topology-wave-overview-summary > div { display:flex; align-items:center; gap:7px; }
+.topology-wave-overview-summary strong { font-size:10px; }
+.topology-wave-overview-summary > span { color:var(--muted); font-size:9px; }
+.topology-wave-overview-body { border-top:1px solid #ece9e2; padding:8px 10px 10px; }
+.topology-wave-overview-body .topology-group-grid { margin-top:0; }
+.topology-group-overview-header { display:flex; align-items:flex-end; justify-content:space-between; gap:14px; }
+.topology-group-overview-header h5 { margin:2px 0 0; font-size:12px; }
+.topology-group-overview-header > span { color:var(--muted); font-size:9px; }
+.topology-group-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:6px; margin-top:9px; }
+.topology-group-card { min-width:0; border:1px solid #e1ded6; border-radius:7px; background:#fff; }
+.topology-group-card summary { display:grid; grid-template-columns:42px 1fr auto; align-items:center; gap:8px; cursor:pointer; padding:7px 9px; list-style:none; }
+.topology-group-card summary::-webkit-details-marker { display:none; }
+.topology-group-card summary::before { content:"▸"; grid-column:1; grid-row:1; color:#77736b; font-size:9px; transform:translateX(-2px); }
+.topology-group-card[open] summary::before { content:"▾"; }
+.topology-group-id { grid-column:1; grid-row:1; margin-left:10px; font:650 10px ui-monospace,SFMono-Regular,Menlo,monospace; }
+.topology-group-range { grid-column:2; grid-row:1; color:#45463f; font-size:10px; }
+.topology-group-progress { grid-column:3; grid-row:1; color:var(--muted); font-size:9px; white-space:nowrap; }
+.topology-group-body { border-top:1px solid #ece9e2; padding:7px 9px 9px; }
+.topology-group-metrics { display:flex; flex-wrap:wrap; gap:5px 10px; margin-bottom:6px; color:var(--muted); font-size:8px; text-transform:uppercase; }
+.topology-slot-row { display:grid; grid-template-columns:54px 58px 1fr; align-items:center; gap:7px; min-height:25px; border-top:1px solid #f0eee9; }
+.topology-slot-row:first-of-type { border-top:0; }
+.topology-slot-row > strong { font:600 9px ui-monospace,SFMono-Regular,Menlo,monospace; }
+.topology-slot-state { color:#77736b; font-size:8px; }
+.topology-stage-chips { display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); gap:3px; }
+.topology-stage-chip { overflow:hidden; border:1px solid #e1ded6; border-radius:999px; background:#f4f3ef; color:#666760; padding:2px 3px; font-size:8px; line-height:1; text-align:center; text-decoration:none; text-overflow:ellipsis; white-space:nowrap; }
+.topology-stage-chip--active { border-color:#716e66; background:#fff; color:#262721; font-weight:650; }
+.topology-stage-chip--runnable { border-color:#8a979d; border-style:dashed; background:#f7fafb; color:#526069; }
+.topology-stage-chip--blocked { border-color:#ad5b54; background:#fff6f4; color:#a24f48; }
+.topology-stage-chip--done { border-color:#aeb9af; background:#f2f7f2; color:#5f7261; }
+.topology-stage-chip--waiting { color:#99958d; }
+.topology-wave-rows { display:grid; gap:2px; }
+.topology-wave-row { display:grid; grid-template-columns:54px minmax(0,1fr) auto; align-items:center; gap:7px; min-height:25px; border-top:1px solid #f0eee9; color:#555650; text-decoration:none; }
+.topology-wave-row:first-child { border-top:0; }
+.topology-wave-row:hover { color:var(--ink); }
+.topology-wave-row strong { font:600 9px ui-monospace,SFMono-Regular,Menlo,monospace; }
+.topology-wave-row span { overflow:hidden; font-size:9px; text-overflow:ellipsis; white-space:nowrap; }
+.topology-wave-row em { color:#88857d; font-size:8px; font-style:normal; letter-spacing:.05em; }
+.task-topology-scroll { min-height:clamp(520px,72vh,920px); max-height:clamp(520px,72vh,920px); margin-top:10px; overflow:auto; overscroll-behavior:contain; scrollbar-gutter:stable; border-radius:10px; background:#f5f5f2; cursor:grab; touch-action:none; }
+.task-topology-scroll.is-panning { cursor:grabbing; user-select:none; }
 .task-topology-svg { display:block; }
-.topology-edge { fill:none; stroke:#8f9489; stroke-width:1.35; stroke-linecap:round; stroke-linejoin:round; opacity:.72; vector-effect:non-scaling-stroke; }
-.task-topology marker path { fill:#bfc2ba; }
+.topology-wave-group-bg { fill:rgb(255 255 255 / .28); stroke:#dfe2db; stroke-width:1; stroke-dasharray:3 5; }
+.topology-wave-marker[data-wave-status="active"] .topology-wave-group-bg { fill:rgb(255 249 230 / .32); stroke:#dfc98d; }
+.topology-wave-marker[data-wave-status="waiting"] .topology-wave-group-bg { fill:rgb(248 247 243 / .38); }
+.topology-wave-marker[data-wave-status="done"] .topology-wave-group-bg { fill:rgb(239 248 242 / .26); stroke:#c8ddcd; }
+.topology-wave-header { fill:#f0f3ef; stroke:#cfd5cd; stroke-width:1; }
+.topology-wave-marker:nth-of-type(2n) .topology-wave-header { fill:#f3f1ec; }
+.topology-wave-label { fill:#3e5548; font:750 9px ui-monospace,SFMono-Regular,Menlo,monospace; letter-spacing:.08em; }
+.topology-wave-count { fill:#757a73; font-size:8px; }
+.topology-wave-rule { fill:none; stroke:#d4d9d2; stroke-width:1; stroke-dasharray:2 3; }
+.topology-edge { fill:none; stroke:#74736d; stroke-width:1.15; stroke-linecap:round; stroke-linejoin:round; opacity:.42; vector-effect:non-scaling-stroke; }
+.topology-edge-group { transition:opacity .16s ease; }
+.task-topology.has-edge-focus .topology-edge-group { opacity:.1; }
+.task-topology.has-edge-focus .topology-edge-group.is-edge-focused { opacity:1; }
+.task-topology.has-node-focus .topology-edge-group { opacity:.12; }
+.task-topology.has-node-focus .topology-edge-group.is-related { opacity:1; }
+.topology-edge-group.is-edge-focused .topology-edge,.topology-edge-group.is-related .topology-edge { stroke:#245f84; stroke-width:2.6; opacity:1; }
+.topology-edge--critical { stroke:#1d7a5b; stroke-width:2.4; opacity:1; }
+.topology-edge--activity { stroke:#2f7fa8; stroke-width:2; stroke-dasharray:7 7; opacity:.92; animation:topology-edge-activity-flow 1.15s linear infinite; }
+@keyframes topology-edge-activity-flow { to { stroke-dashoffset:-28; } }
+.task-topology.is-focusing-open-work .topology-edge--stable-done { opacity:.08; }
+.topology-edge-label { pointer-events:none; }
+.edge-hit-target { fill:none; stroke:rgba(0,0,0,.001); stroke-width:12; pointer-events:stroke; }
+.topology-edge-label rect { fill:#fff; stroke:#cfd5cd; stroke-width:1; opacity:.96; }
+.topology-edge-label text { fill:#5d675f; font:650 8px ui-monospace,SFMono-Regular,Menlo,monospace; letter-spacing:.02em; }
+.topology-edge-label--critical rect { fill:#e9f4ed; stroke:#8fbea1; }
+.topology-edge-label--critical text { fill:#276c50; }
+.topology-edge-label--waiting rect { fill:#f7f5ef; stroke:#d5c9a8; }
+.topology-edge-label--waiting text { fill:#6f6035; }
+.topology-edge--outside-rail { stroke:#8f8b83; stroke-dasharray:5 4; opacity:.5; }
+.task-topology marker path { fill:#77756e; }
 .topology-node { cursor:pointer; outline:none; }
-.topology-node rect { fill:#fff; stroke:#d9dad4; stroke-width:1; transition:stroke .14s ease,fill .14s ease; }
-.topology-node:hover rect,.topology-node:focus rect { fill:#fff; stroke:#74776f; stroke-width:1.5; }
-.topology-node circle { fill:#a2a49d; }
-.topology-node--active circle { fill:#b98313; }
-.topology-node--active rect { fill:#fffaf0; stroke:#e2c77d; }
-.topology-node--runnable circle { fill:#3578c7; }
-.topology-node--runnable rect { fill:#f6faff; stroke:#a9c8e8; }
-.topology-node--blocked circle { fill:#c4413b; }
-.topology-node--blocked rect { fill:#fff7f6; stroke:#e7b2ae; }
-.topology-node--cancelled circle { fill:#8b8c86; }
-.topology-node--cancelled rect { fill:#f5f5f2; stroke:#c9cbc3; stroke-dasharray:4 3; }
-.topology-node--transferred circle { fill:#7868a6; }
-.topology-node--transferred rect { fill:#f8f6fc; stroke:#c6bde0; stroke-dasharray:4 3; }
-.topology-node--done circle { fill:#2f8a5c; }
-.topology-node--done rect { fill:#f5fbf7; stroke:#aed4bd; }
-.topology-node--live rect { stroke:#4e9a6c; stroke-width:1.7; }
+.topology-node-activity-ring { fill:none; stroke:#3b87ad; stroke-width:2; stroke-dasharray:22 10; opacity:.8; animation:topology-activity-ring 4s linear infinite; vector-effect:non-scaling-stroke; }
+@keyframes topology-activity-ring { to { stroke-dashoffset:-64; } }
+.topology-node-card { fill:#fffdfa; stroke:#d9d5cc; stroke-width:1; transition:stroke .14s ease,fill .14s ease; }
+.topology-node-status-bg { fill:#ecece7; stroke:none; }
+.topology-node:hover .topology-node-card,.topology-node:focus .topology-node-card { stroke:#4f514b; stroke-width:1.8; }
+.topology-node--active .topology-node-card { fill:#fff7e4; stroke:#9a6b16; stroke-width:2.4; }
+.topology-node--active .topology-node-status-bg { fill:#8d620f; }
+.topology-node--runnable .topology-node-card { fill:#f2f8fc; stroke:#5f94bb; stroke-width:1.8; stroke-dasharray:6 3; }
+.topology-node--runnable .topology-node-status-bg { fill:#d6e8f3; stroke:#5f94bb; stroke-width:1; }
+.topology-node--waiting .topology-node-card { fill:#f6f5f2; stroke:#c4c1b9; stroke-width:1.1; }
+.topology-node--waiting .topology-node-status-bg { fill:#e4e2dc; }
+.topology-node--blocked .topology-node-card { fill:#fff1ef; stroke:#b0443c; stroke-width:2.5; }
+.topology-node--blocked .topology-node-status-bg { fill:#aa3e37; }
+.topology-node--cancelled .topology-node-card { fill:#f0efeb; stroke:#8b8880; stroke-width:1.7; stroke-dasharray:5 3; opacity:.8; }
+.topology-node--cancelled .topology-node-status-bg { fill:#77746d; }
+.topology-node--transferred .topology-node-card { fill:#f5f1fb; stroke:#8976ad; stroke-width:2; stroke-dasharray:2 3; }
+.topology-node--transferred .topology-node-status-bg { fill:#6f5a99; }
+.topology-node--done .topology-node-card { fill:#eef8f1; stroke:#5b8b6b; stroke-width:1.8; }
+.topology-node--done .topology-node-status-bg { fill:#397253; }
+.topology-node--activity .topology-node-card { stroke-width:2.8; }
+.topology-node--critical .topology-node-card { stroke:#1d7a5b; stroke-width:2.6; }
+.topology-node--critical .topology-node-status-bg { stroke:#1d7a5b; stroke-width:1; }
+.task-topology.has-node-focus .topology-node { opacity:.28; }
+.task-topology.has-node-focus .topology-node.is-node-focused { opacity:1; }
+.task-topology.has-edge-focus .topology-node { opacity:.24; }
+.task-topology.has-edge-focus .topology-node.is-node-related { opacity:1; }
+.task-topology.is-focusing-open-work .topology-node--stable-done { opacity:.12; pointer-events:none; }
+.topology-node.is-targeted .topology-node-card { stroke:#22231f; stroke-width:3; }
+.topology-node.is-targeted .topology-node-status-bg { stroke:#22231f; stroke-width:1; }
 .topology-node-id { fill:#444640; font:650 10px ui-monospace,SFMono-Regular,Menlo,monospace; }
-.topology-node-status { fill:#858780; font-size:9px; text-transform:uppercase; }
+.topology-node-status { fill:#565850; font-size:8px; font-weight:750; letter-spacing:.08em; }
+.topology-node--active .topology-node-status,.topology-node--blocked .topology-node-status,.topology-node--cancelled .topology-node-status,.topology-node--transferred .topology-node-status,.topology-node--done .topology-node-status { fill:#fff; }
 .topology-node-title { fill:#22231f; font-size:11px; font-weight:600; }
+.topology-node-stats { fill:#5d7764; font-size:8px; font-weight:650; letter-spacing:.02em; }
 .topology-node-meta { fill:#858780; font-size:9px; }
 .task-topology-note { margin:8px 1px 0; color:var(--muted); font-size:10px; }
-.topology-dialog { width:min(1400px,calc(100vw - 24px)); height:min(94dvh,1000px); max-height:calc(100dvh - 24px); margin:12px auto; overflow:hidden; border:0; border-radius:16px; background:#fff; color:var(--ink); padding:0; box-shadow:0 24px 80px rgb(20 20 16 / .24); }
-.topology-dialog::backdrop { background:rgb(20 20 16 / .36); backdrop-filter:blur(2px); }
-.topology-dialog:fullscreen { width:100vw; height:100vh; max-height:none; margin:0; border-radius:0; }
-.topology-dialog:not([open]):not([data-open="true"]),.feature-review-dialog:not([open]):not([data-open="true"]),.claim-dialog:not([open]):not([data-open="true"]) { display:none; }
-.topology-dialog[data-open="true"],.feature-review-dialog[data-open="true"],.claim-dialog[data-open="true"] { display:block; position:fixed; top:50%; left:50%; z-index:100; transform:translate(-50%,-50%); }
+.topology-observations { display:flex; flex-wrap:wrap; gap:6px 14px; margin-top:9px; color:var(--muted); font-size:10px; }
+.topology-observations span { border-radius:999px; background:#f3f5f1; padding:3px 7px; }
+.topology-observations .topology-critical-summary { color:#276c50; background:#e9f4ed; font-weight:650; }
+.topology-observations .topology-stable-summary { color:#666b64; }
+.topology-edge-inspector { display:flex; align-items:baseline; gap:9px; min-height:22px; margin-top:5px; color:var(--muted); font-size:10px; }
+.topology-edge-inspector strong { color:var(--ink); font:700 11px ui-monospace,SFMono-Regular,Menlo,monospace; }
+.topology-edge-inspector code { color:#356f9e; font:650 10px ui-monospace,SFMono-Regular,Menlo,monospace; }
+.topology-tooltip { position:fixed; z-index:140; max-width:min(340px,calc(100vw - 24px)); border:1px solid rgb(36 95 132 / .18); border-radius:9px; background:rgb(24 31 29 / .94); color:#f7f8f5; padding:8px 10px; box-shadow:0 10px 30px rgb(20 24 22 / .18); pointer-events:none; font-size:10px; line-height:1.42; backdrop-filter:blur(8px); }
+.topology-tooltip[hidden] { display:none; }
+.topology-tooltip strong { display:block; font:700 11px ui-monospace,SFMono-Regular,Menlo,monospace; }
+.topology-tooltip span { display:block; margin-top:2px; color:#c9d3cf; }
+.topology-stable-toggle { border:1px solid #cfd5cd; border-radius:7px; background:#fff; color:#4f5d54; cursor:pointer; padding:4px 7px; font:inherit; font-size:9px; }
+.topology-stable-toggle[aria-pressed="true"] { border-color:#8caf98; background:#edf6f0; color:#276c50; font-weight:700; }
+.review-task-jump-status { min-height:15px; margin:6px 0 0; color:#356f9e; font-size:10px; font-weight:650; }
+.review-task.is-targeted { box-shadow:inset 0 0 0 2px #356f9e, 0 4px 16px rgb(53 111 158 / .12); }
+.feature-review-dialog:not([open]):not([data-open="true"]),.file-preview-dialog:not([open]):not([data-open="true"]),.claim-dialog:not([open]):not([data-open="true"]) { display:none; }
+.feature-review-dialog[data-open="true"],.file-preview-dialog[data-open="true"],.claim-dialog[data-open="true"] { display:block; position:fixed; top:50%; left:50%; z-index:100; transform:translate(-50%,-50%); }
 body[data-modal-fallback="true"]::before { content:""; position:fixed; inset:0; z-index:90; background:rgb(20 20 16 / .28); backdrop-filter:blur(2px); }
-.topology-dialog-shell { display:grid; grid-template-rows:auto 1fr; height:100%; }
-.topology-dialog-header { display:flex; align-items:flex-start; justify-content:space-between; gap:18px; padding:18px 20px 12px; border-bottom:1px solid #ecece7; }
-.topology-dialog-header h2 { margin:2px 0 0; font-size:18px; }
-.topology-dialog-body { min-height:0; overflow:auto; padding:0 20px 20px; }
-.topology-dialog-body .task-topology { margin-top:0; box-shadow:none; }
-.topology-dialog-body .task-topology-scroll { max-height:none; min-height:400px; }
-.topology-dialog-body .task-topology-svg { margin:auto; }
-.topology-dialog-body .topology-expand { display:none; }
-.feature-review-dialog { width:min(1120px,calc(100vw - 24px)); height:min(94dvh,960px); max-height:calc(100dvh - 24px); margin:12px auto; overflow:hidden; border:0; border-radius:16px; background:#fff; color:var(--ink); padding:0; box-shadow:0 24px 80px rgb(20 20 16 / .24); }
+@media (max-width:900px) { .topology-group-grid { grid-template-columns:1fr; } }
+.feature-review-dialog { width:calc(100vw - 16px); height:calc(100dvh - 16px); max-width:none; max-height:none; margin:8px auto; overflow:hidden; border:0; border-radius:16px; background:#fff; color:var(--ink); padding:0; box-shadow:0 24px 80px rgb(20 20 16 / .24); }
 .feature-review-dialog::backdrop { background:rgb(20 20 16 / .36); backdrop-filter:blur(2px); }
 .feature-review-dialog-shell { display:grid; grid-template-rows:auto 1fr; height:100%; }
 .feature-review-dialog-header { display:flex; align-items:flex-start; justify-content:space-between; gap:18px; padding:18px 20px 12px; border-bottom:1px solid #ecece7; }
 .feature-review-dialog-header h2 { margin:2px 0 0; font-size:18px; }
-.feature-review-dialog-body { min-height:0; overflow:auto; padding:0 20px 20px; }
-.feature-review-dialog:focus-visible,.topology-dialog:focus-visible { outline:3px solid #8ba8bf; outline-offset:4px; }
-.feature-review-dialog h2:focus-visible,.topology-dialog h2:focus-visible,.claim-dialog h2:focus-visible { outline:2px solid #8ba8bf; outline-offset:4px; border-radius:4px; }
+.feature-review-dialog-body { min-height:0; overflow:auto; padding:0 26px 24px; }
+.feature-review-dialog:focus-visible,.file-preview-dialog:focus-visible { outline:3px solid #8ba8bf; outline-offset:4px; }
+.feature-review-dialog h2:focus-visible,.claim-dialog h2:focus-visible { outline:2px solid #8ba8bf; outline-offset:4px; border-radius:4px; }
 .feature-review-dialog-body .review-panel { margin:0; box-shadow:none; }
 .feature-review-dialog-body .review-header h3 { display:none; }
 .review-task-fold-note { margin:16px 0 0; color:var(--muted); font-size:10px; }
@@ -5633,16 +7081,44 @@ body[data-modal-fallback="true"]::before { content:""; position:fixed; inset:0; 
 .review-copy { display:grid; grid-template-columns:70px 1fr; gap:9px; margin:7px 0 0; color:var(--muted); font-size:11px; line-height:1.5; }
 .review-copy strong { color:var(--ink); font-size:10px; text-transform:uppercase; letter-spacing:.04em; }
 .review-cancellation { color:#6d6e68; }
-.task-quick-prompts { margin-top:12px; border-top:1px solid #ecece7; padding-top:10px; }
-.task-quick-prompts summary { cursor:pointer; color:#356f9e; font-size:10px; font-weight:650; list-style:none; }
-.task-quick-prompts summary::-webkit-details-marker { display:none; }
-.task-prompt-tabs { display:flex; flex-wrap:wrap; gap:5px; margin-top:8px; }
-.task-prompt-tab,.copy-task-prompt { border:1px solid #d6d8d0; border-radius:6px; background:#fff; color:#656760; cursor:pointer; padding:4px 7px; font:inherit; font-size:10px; }
-.task-prompt-tab:hover,.task-prompt-tab:focus-visible,.task-prompt-tab.is-active,.copy-task-prompt:hover,.copy-task-prompt:focus-visible { border-color:#8ba8bf; color:#2f6388; background:#f5f9fc; }
-.task-prompt-output { display:block; width:100%; min-height:112px; margin-top:8px; resize:vertical; border:0; border-radius:8px; background:#f4f4f0; color:#3f413b; padding:9px; font:10px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace; }
+.quick-prompt-surface { margin-top:12px; border-top:1px solid #ecece7; padding-top:10px; }
+.tracker-quick-prompts { display:flex; align-items:center; flex-wrap:wrap; gap:7px 10px; margin-top:8px; border-top:1px solid #e5e3dd; background:transparent; padding:8px 0 0; }
+.tracker-quick-prompts > .eyebrow { margin-right:2px; }
+.prompt-copy-actions { display:flex; flex-wrap:wrap; gap:5px; }
+.prompt-copy-action { min-height:30px; border:1px solid #d6d8d0; border-radius:7px; background:#fff; color:#3d5f73; cursor:pointer; padding:5px 8px; font:10px/1.2 inherit; font-weight:650; }
+.prompt-copy-action:hover,.prompt-copy-action:focus-visible { border-color:#8ba8bf; background:#f5f9fc; outline:2px solid #b5cad8; outline-offset:1px; }
+.prompt-copy-action:disabled { cursor:wait; opacity:.58; }
+.prompt-copy-status { color:#347151; font-size:10px; }
+.task-quick-prompts { display:flex; align-items:center; flex-wrap:wrap; gap:7px; margin-top:10px; border-top:1px solid #ecece7; padding-top:9px; }
+.task-quick-prompts > .eyebrow { margin-right:2px; }
+.context-drawer { margin-top:10px; border-top:1px solid #e5e3dd; }
+.context-drawer > summary { display:flex; justify-content:space-between; gap:12px; cursor:pointer; padding:9px 0; color:#545650; font-size:11px; list-style:none; }
+.context-drawer > summary::-webkit-details-marker { display:none; }
+.context-drawer > summary::after { content:"＋"; color:var(--muted); font-size:13px; }
+.context-drawer[open] > summary::after { content:"−"; }
+.context-drawer > .canonical-links { padding-top:0; }
+.tracker-quick-prompts > summary { list-style:none; }
+.tracker-quick-prompts > summary::-webkit-details-marker { display:none; }
+.tracker-prompt-summary { display:flex; align-items:center; justify-content:space-between; gap:14px; cursor:pointer; padding:5px 0; color:#45463f; }
+.tracker-prompt-summary::after { content:"＋"; flex:0 0 auto; color:#777a73; font-size:14px; }
+.tracker-quick-prompts[open] > .tracker-prompt-summary::after { content:"−"; }
+.tracker-prompt-summary > div { display:flex; align-items:baseline; gap:8px; }
+.tracker-prompt-summary strong { color:#315c45; font-size:11px; }
+.tracker-prompt-summary > span { margin-left:auto; color:var(--muted); font-size:9px; }
+.tracker-prompt-body { border-radius:9px; background:#f6f8f4; padding:10px 12px 12px; }
+.tracker-quick-prompts .task-prompt-heading { align-items:center; }
+.task-prompt-heading { display:flex; align-items:center; justify-content:space-between; gap:8px; color:#45463f; font-size:10px; }
+.task-prompt-heading span { color:var(--muted); font-size:9px; }
+.task-prompt-tabs { display:inline-flex; flex-wrap:wrap; gap:2px; margin-top:8px; border-radius:8px; background:#ebece7; padding:3px; }
+.task-prompt-tab { border:0; border-radius:6px; background:transparent; color:#656760; cursor:pointer; padding:5px 8px; font:inherit; font-size:10px; }
+.task-prompt-tab:hover,.task-prompt-tab:focus-visible { color:#2f6388; background:#f5f9fc; outline:none; }
+.task-prompt-tab.is-active { background:#fff; color:#254f6c; font-weight:700; box-shadow:0 1px 3px rgb(28 28 24 / .12); }
+.task-prompt-output { display:block; width:100%; min-height:94px; max-height:180px; margin-top:8px; resize:vertical; border:1px solid #e1e1dc; border-radius:8px; background:#fff; color:#3f413b; padding:9px; font:10px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace; }
 .task-prompt-output:focus { outline:2px solid #8ba8bf; }
 .task-prompt-actions { display:flex; align-items:center; gap:8px; margin-top:7px; }
 .task-prompt-actions span { color:var(--muted); font-size:10px; }
+.copy-quick-prompt { border:0; border-radius:7px; background:#292a27; color:#fff; cursor:pointer; padding:6px 9px; font:inherit; font-size:10px; font-weight:700; }
+.copy-quick-prompt:hover,.copy-quick-prompt:focus-visible { background:#42433e; outline:2px solid #8ba8bf; outline-offset:2px; }
 .review-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:18px; margin-top:13px; }
 .review-grid h5 { margin:0 0 7px; font-size:11px; }
 .acceptance-list,.verification-list { display:grid; gap:6px; margin:0; padding-left:17px; color:#555650; font-size:11px; line-height:1.45; }
@@ -5668,22 +7144,64 @@ body[data-modal-fallback="true"]::before { content:""; position:fixed; inset:0; 
 .dialog-action--secondary { background:#e8e8e3; color:#343530; }
 .dialog-action--secondary:hover { background:#dcdcd5; }
 .claim-status { margin-left:auto; color:var(--muted); font-size:11px; }
+.file-preview-dialog { width:min(1120px,calc(100vw - 24px)); height:min(86dvh,860px); max-height:calc(100dvh - 24px); margin:12px auto; overflow:hidden; border:0; border-radius:16px; background:#fff; color:var(--ink); padding:0; box-shadow:0 24px 80px rgb(20 20 16 / .24); }
+.file-preview-dialog::backdrop { background:rgb(20 20 16 / .36); backdrop-filter:blur(2px); }
+.file-preview-dialog-shell { display:grid; grid-template-rows:auto 1fr; height:100%; }
+.file-preview-dialog-header { display:flex; align-items:flex-start; justify-content:space-between; gap:18px; padding:18px 20px 12px; border-bottom:1px solid #ecece7; }
+.file-preview-dialog-header h2 { margin:2px 0 0; font-size:18px; }
+.file-preview-dialog-header p { margin:3px 0 0; color:var(--muted); font:10px ui-monospace,SFMono-Regular,Menlo,monospace; }
+.file-preview-language { display:inline-block; margin-left:8px; border-radius:4px; background:#e3e9e2; color:#526554; padding:2px 5px; font-size:8px; letter-spacing:.08em; }
+.file-preview-content { min-height:0; margin:0; overflow:auto; background:#f7f7f4; color:#343530; padding:18px 20px 24px; font:11px/1.55 ui-monospace,SFMono-Regular,Menlo,monospace; white-space:pre-wrap; overflow-wrap:anywhere; }
+.file-preview-content .syntax-key { color:#7c4e16; }
+.file-preview-content .syntax-string { color:#396b4a; }
+.file-preview-content .syntax-number { color:#6b52a0; }
+.file-preview-content .syntax-literal { color:#a03f48; font-weight:650; }
+.file-preview-content .syntax-heading { color:#315c45; font-weight:750; }
+.file-preview-content .syntax-punctuation { color:#8a6743; }
+.file-preview-content .syntax-code { color:#6b52a0; background:#ece8f4; border-radius:3px; padding:0 2px; }
 .task-status { margin-left:0; }
+.task-status--failed { background:#f2e4ff; color:#71419a; }
+.plan-review-observation { margin-top:14px; padding:12px 0; border-top:1px solid #e5e3dd; }
+.plan-review-heading { display:flex; flex-wrap:wrap; align-items:baseline; gap:8px 16px; }
+.plan-review-heading > span,.plan-review-boundary { color:var(--muted); font-size:10px; overflow-wrap:anywhere; }
+.plan-review-observation ul { display:grid; gap:10px; padding:0; margin:10px 0; list-style:none; }
+.plan-review-observation li { display:grid; gap:4px; font-size:11px; line-height:1.5; overflow-wrap:anywhere; }
+.plan-review-observation li[data-replan-source] strong { color:#71419a; }
+.plan-review-observation small { color:var(--muted); }
+.plan-edge-delta { font-size:11px; line-height:1.6; }
+.failed-task-history { margin-top:14px; border-top:1px solid #e5e3dd; padding-top:10px; }
+.failed-task-history > summary { cursor:pointer; color:#71419a; font-size:12px; padding:8px 0; }
+.topology-node--failed .topology-node-card { fill:#f8f0fd; stroke:#8a52b5; stroke-dasharray:5 3; }
+.topology-node--failed .topology-node-status-bg,.topology-legend--failed,.task-count--failed { fill:#eee0f7; background:#eee0f7; color:#71419a; }
+
 .gate { margin-left:0; }
+.review-failure { border:1px solid #dac7e8; border-radius:8px; background:#f7effd; color:#60367d; padding:9px; }
+.review-blocker { border:1px solid #e7c3bf; border-radius:8px; background:#fff4f2; color:#7d342f; padding:9px; }
 .closed-section { margin-top:20px; padding:0 4px; }
 .closed-section summary { cursor:pointer; color:var(--muted); font-size:11px; font-weight:600; }
 .closed-section summary span { font-weight:400; }
 .closed-section ul { display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:5px 12px; margin:10px 0 0; padding:0; list-style:none; }
-.closed-section li { display:grid; grid-template-columns:auto minmax(0,1fr) auto auto; gap:7px; align-items:center; color:var(--muted); font-size:11px; }
+.closed-section li { display:grid; grid-template-columns:auto minmax(0,1fr) auto auto auto; gap:7px; align-items:center; color:var(--muted); font-size:11px; }
 .closed-section li strong { overflow:hidden; color:var(--ink); font-weight:500; text-overflow:ellipsis; white-space:nowrap; }
+.closed-section li[data-feature-open] { cursor:pointer; border-radius:7px; padding:4px 5px; margin:-4px -5px; }
+.closed-section li[data-feature-open]:hover { background:#fcfcfa; }
+.closed-section li[data-feature-open]:focus-visible { outline:2px solid #7d9ab1; outline-offset:2px; }
+.closed-open { color:#356f9e; font-size:10px; font-weight:650; white-space:nowrap; }
+.closed-projection-error { color:#a23a36; font-size:10px; white-space:nowrap; }
 .closed-feature--focused { border-radius:6px; outline:2px solid #9aa7a0; outline-offset:2px; }
 .closed-status { color:var(--muted); }
+.closed-record-note { margin:14px 0 0; color:#6d6e68; font-size:11px; }
 .empty { color:var(--muted); }
-@media (max-width:720px) { .shell{padding:18px 12px}.page-header{align-items:flex-start;flex-direction:column}.projection-meta{justify-items:start}.projection-note{text-align:left}.metrics{gap:12px 22px}.focus-strip{grid-template-columns:1fr;gap:10px;padding:14px}.focus-meta{justify-items:start;text-align:left}.status-board{grid-auto-flow:row;grid-auto-columns:auto;grid-template-columns:1fr;overflow:visible;scroll-snap-type:none}.status-column{width:auto;min-width:0}.review-header,.claim-dialog-header,.topology-dialog-header,.feature-review-dialog-header{flex-direction:column}.canonical-links{justify-content:flex-start}.review-facts,.review-grid{grid-template-columns:1fr}.claim-bar{align-items:flex-start;flex-direction:column}.claim-dialog-shell{padding:15px}.claim-message{min-height:270px}.claim-actions{align-items:stretch;flex-direction:column}.claim-status{margin:0;text-align:center}.task-topology-header{align-items:flex-start;flex-direction:column}.task-topology-header-actions{justify-content:flex-start;flex-wrap:wrap}.topology-dialog,.feature-review-dialog{width:calc(100vw - 16px);height:calc(100vh - 16px)}.topology-dialog-header,.topology-dialog-body,.feature-review-dialog-header,.feature-review-dialog-body{padding-left:14px;padding-right:14px}.topology-dialog-body .task-topology-scroll{min-height:280px}.review-tasks-scroll{max-height:44vh} }
+@media (prefers-reduced-motion: reduce) { .review-state-signal--in-progress .review-signal-core::after,.topology-edge--activity,.topology-node-activity-ring { animation:none; } }
+@media (max-width:720px) { .shell{padding:18px 12px}.page-header{align-items:flex-start;flex-direction:column}.projection-meta{justify-items:start}.projection-note{text-align:left}.metrics{gap:12px 22px}.focus-strip{grid-template-columns:1fr;gap:10px}.focus-meta{justify-items:start;text-align:left}.status-board{grid-auto-flow:row;grid-auto-columns:auto;grid-template-columns:1fr;overflow:visible;scroll-snap-type:none}.status-column{width:auto;min-width:0}.review-header,.claim-dialog-header,.feature-review-dialog-header,.file-preview-dialog-header{flex-direction:column}.canonical-links{justify-content:flex-start}.review-overview{grid-template-columns:1fr}.review-metric-strip{grid-template-columns:repeat(3,minmax(58px,1fr))}.review-metric{padding-left:7px;padding-right:7px}.review-metric strong{font-size:17px}.review-facts,.review-grid{grid-template-columns:1fr}.claim-bar{align-items:flex-start;flex-direction:column}.claim-dialog-shell{padding:15px}.claim-message{min-height:270px}.claim-actions{align-items:stretch;flex-direction:column}.claim-status{margin:0;text-align:center}.task-topology-header{align-items:flex-start;flex-direction:column}.task-topology-header-actions{justify-content:flex-start;flex-wrap:wrap}.feature-review-dialog,.file-preview-dialog{width:calc(100vw - 16px);height:calc(100vh - 16px)}.feature-review-dialog-header,.feature-review-dialog-body,.file-preview-dialog-header{padding-left:14px;padding-right:14px}.review-tasks-scroll{max-height:44vh} }
 </style>
 </head>
 <body>
 """
+    document_head = document_head.replace(
+        "<title>Feature Tracker Status</title>",
+        f"<title>{html_text(page_title)} Status</title>",
+    )
 
     feature_review_dialog = r"""
 <dialog class="feature-review-dialog" id="feature-review-dialog" aria-labelledby="feature-review-dialog-title">
@@ -5704,7 +7222,8 @@ body[data-modal-fallback="true"]::before { content:""; position:fixed; inset:0; 
 
   function cardFor(featureId) {
     if (!featureId) return null;
-    return document.getElementById(featureId);
+    return document.getElementById(featureId)
+      || document.querySelector(`[data-closed-feature-id="${escapeSelector(featureId)}"]`);
   }
 
   function templateFor(card) {
@@ -5722,11 +7241,26 @@ body[data-modal-fallback="true"]::before { content:""; position:fixed; inset:0; 
     if (!taskId) return;
     const task = body.querySelector(`#${escapeSelector(dialog.dataset.featureId + "-task-" + taskId)}`);
     if (!task) return;
+    dialog.dataset.targetTaskId = taskId;
+    let ancestor = task.parentElement;
+    while (ancestor && ancestor !== body) {
+      if (ancestor.tagName === "DETAILS") ancestor.open = true;
+      ancestor = ancestor.parentElement;
+    }
     task.open = true;
+    body.querySelectorAll(".review-task.is-targeted, .topology-node.is-targeted, .topology-wave-row.is-targeted")
+      .forEach((item) => item.classList.remove("is-targeted"));
+    task.classList.add("is-targeted");
+    body.querySelectorAll(`[data-task-id="${escapeSelector(taskId)}"]`)
+      .forEach((item) => item.classList.add("is-targeted"));
+    const jumpStatus = body.querySelector("[data-task-jump-status]");
+    if (jumpStatus) jumpStatus.textContent = `已定位到 ${taskId} · 仅滚动 Task 清单`;
     const scroller = task.closest(".review-tasks-scroll");
     if (scroller) {
-      const taskTop = task.getBoundingClientRect().top - scroller.getBoundingClientRect().top + scroller.scrollTop;
-      scroller.scrollTo({top: Math.max(0, taskTop - 8), behavior: "smooth"});
+      window.requestAnimationFrame(() => {
+        const taskTop = task.getBoundingClientRect().top - scroller.getBoundingClientRect().top + scroller.scrollTop;
+        scroller.scrollTo({top: Math.max(0, taskTop - 8), behavior: "smooth"});
+      });
     } else {
       task.scrollIntoView({behavior: "smooth", block: "nearest"});
     }
@@ -5737,20 +7271,44 @@ body[data-modal-fallback="true"]::before { content:""; position:fixed; inset:0; 
   function openFeatureReview(featureId, taskId) {
     const card = cardFor(featureId);
     const markup = templateFor(card);
-    if (!card || !markup) return;
-    dialog.dataset.featureId = featureId;
-    body.innerHTML = markup;
-    if (window.__bagakitBindTopologyTriggers) {
-      window.__bagakitBindTopologyTriggers(body);
+    if (!card) return;
+    if (!markup && card.hasAttribute("data-closed-feature-id")) {
+      const target = new URL(window.location.href);
+      target.searchParams.set("feature", featureId);
+      window.location.assign(target.toString());
+      return;
     }
-    const cardTitle = card.querySelector("h3");
+    if (!markup) return;
+    const previousFeatureId = dialog.dataset.featureId;
+    const preservedTaskId = previousFeatureId === featureId ? dialog.dataset.targetTaskId : "";
+    dialog.dataset.featureId = featureId;
+    dialog.dataset.targetTaskId = taskId || preservedTaskId || "";
+    body.innerHTML = markup;
+    if (window.__bagakitBindTopologyControls) {
+      window.__bagakitBindTopologyControls(body);
+    }
+    const cardTitle = card.querySelector("h3, strong");
     title.textContent = cardTitle ? cardTitle.textContent.trim() : "Feature details";
     dialogApi.open(dialog);
-    if (taskId) window.setTimeout(() => focusReviewTask(taskId), 0);
+    if (taskId || preservedTaskId) window.setTimeout(() => focusReviewTask(taskId || preservedTaskId), 0);
   }
 
   function closeFeatureReview() {
     dialogApi.close(dialog);
+  }
+
+  function focusHistoryFeature(featureId) {
+    if (!featureId) return;
+    const item = document.querySelector(`[data-closed-feature-id="${escapeSelector(featureId)}"]`);
+    if (!item) return;
+    const history = item.closest("details");
+    if (history) history.open = true;
+    document.querySelectorAll(".closed-feature--focused").forEach((entry) => entry.classList.remove("closed-feature--focused"));
+    item.classList.add("closed-feature--focused");
+    item.scrollIntoView({behavior: "smooth", block: "center"});
+    item.setAttribute("tabindex", "-1");
+    window.setTimeout(() => item.focus({preventScroll: true}), 0);
+    window.setTimeout(() => openFeatureReview(featureId), 0);
   }
 
   document.addEventListener("click", (event) => {
@@ -5769,61 +7327,82 @@ body[data-modal-fallback="true"]::before { content:""; position:fixed; inset:0; 
   });
 
   dialog.addEventListener("click", (event) => {
+    const taskLink = event.target.closest("[data-task-open]");
+    if (taskLink && body.contains(taskLink)) {
+      event.preventDefault();
+      focusReviewTask(taskLink.dataset.taskOpen);
+      return;
+    }
     const node = event.target.closest(".topology-node");
+    const waveRow = event.target.closest(".topology-wave-row");
     if (node && body.contains(node)) {
       event.preventDefault();
+      event.stopPropagation();
       focusReviewTask(node.dataset.taskId);
+      return;
+    }
+    if (waveRow && body.contains(waveRow)) {
+      event.preventDefault();
+      event.stopPropagation();
+      focusReviewTask(waveRow.dataset.taskId);
       return;
     }
     if (event.target.closest(".dialog-close")) {
       event.preventDefault();
       closeFeatureReview();
     }
+    const historyLink = event.target.closest("[data-feature-history-open]");
+    if (historyLink && body.contains(historyLink)) {
+      event.preventDefault();
+      event.stopPropagation();
+      focusHistoryFeature(historyLink.dataset.featureHistoryOpen);
+    }
   });
 
-  function selectTaskPrompt(button) {
-    const prompts = button.closest(".task-quick-prompts");
-    if (!prompts) return;
-    const kind = button.dataset.taskPromptSelect || "claim";
-    const source = prompts.querySelector(`[data-task-prompt-source="${escapeSelector(kind)}"]`);
-    const output = prompts.querySelector(".task-prompt-output");
-    if (source && output) output.value = source.textContent.trim();
-    for (const tab of prompts.querySelectorAll("[data-task-prompt-select]")) {
-      tab.classList.toggle("is-active", tab === button);
-    }
-  }
-
-  async function copyTaskPrompt(button) {
-    const prompts = button.closest(".task-quick-prompts");
-    const output = prompts && prompts.querySelector(".task-prompt-output");
-    if (!output) return;
+  async function copyPromptAction(button) {
+    const surface = button.closest(".task-quick-prompts, .tracker-quick-prompts");
+    const source = surface && surface.querySelector(`[data-prompt-source="${escapeSelector(button.dataset.promptCopy || "")}"]`);
+    if (!surface || !source) return;
+    const text = source.content ? source.content.textContent : (source.textContent || "");
+    const status = surface.querySelector(".prompt-copy-status");
+    const original = button.textContent;
+    button.disabled = true;
+    button.setAttribute("aria-busy", "true");
+    let copied = false;
     try {
       if (navigator.clipboard && navigator.clipboard.writeText) {
-        await navigator.clipboard.writeText(output.value);
-      } else {
-        throw new Error("clipboard API unavailable");
+        await navigator.clipboard.writeText(text);
+        copied = true;
       }
-    } catch (_) {
-      output.focus();
-      output.select();
-      document.execCommand("copy");
+    } catch (_) {}
+    if (!copied) {
+      const fallback = document.createElement("textarea");
+      fallback.value = text;
+      fallback.setAttribute("readonly", "");
+      fallback.style.position = "fixed";
+      fallback.style.opacity = "0";
+      document.body.appendChild(fallback);
+      fallback.select();
+      try { copied = document.execCommand("copy"); } catch (_) {}
+      fallback.remove();
     }
-    const status = prompts.querySelector(".task-prompt-actions span");
-    if (status) status.textContent = "Copied";
+    button.disabled = false;
+    button.removeAttribute("aria-busy");
+    if (copied) {
+      button.textContent = "已复制 ✓";
+      if (status) status.textContent = `${button.dataset.promptLabel || original} 已复制，可直接粘贴给 Agent`;
+      window.setTimeout(() => { button.textContent = original; }, 1400);
+    } else {
+      if (status) status.textContent = "浏览器拒绝剪贴板访问，请手动复制";
+    }
   }
 
-  body.addEventListener("click", (event) => {
-    const promptTab = event.target.closest("[data-task-prompt-select]");
-    if (promptTab) {
-      event.preventDefault();
-      selectTaskPrompt(promptTab);
-      return;
-    }
-    const copyPrompt = event.target.closest(".copy-task-prompt");
-    if (copyPrompt) {
-      event.preventDefault();
-      copyTaskPrompt(copyPrompt);
-    }
+  document.addEventListener("click", (event) => {
+    const promptButton = event.target.closest("[data-prompt-copy]");
+    if (!promptButton) return;
+    event.preventDefault();
+    event.stopPropagation();
+    copyPromptAction(promptButton);
   });
 
   document.addEventListener("keydown", (event) => {
@@ -5831,7 +7410,90 @@ body[data-modal-fallback="true"]::before { content:""; position:fixed; inset:0; 
   });
 
   window.__bagakitOpenFeatureReview = openFeatureReview;
+  window.__bagakitFocusHistoryFeature = focusHistoryFeature;
   window.__bagakitFeatureReviewTemplateFor = templateFor;
+})();
+</script>
+"""
+
+    file_preview_dialog = r"""
+<dialog class="file-preview-dialog" id="file-preview-dialog" aria-labelledby="file-preview-dialog-title">
+  <div class="file-preview-dialog-shell">
+    <header class="file-preview-dialog-header">
+      <div><span class="eyebrow">Canonical preview</span><h2 id="file-preview-dialog-title" tabindex="-1" data-dialog-initial>Tracker file</h2><p><span id="file-preview-dialog-ref"></span><span class="file-preview-language" id="file-preview-language">TEXT</span></p></div>
+      <form method="dialog"><button class="dialog-close" aria-label="Close file preview">×</button></form>
+    </header>
+    <pre class="file-preview-content" id="file-preview-content"><code class="syntax-text"></code></pre>
+  </div>
+</dialog>
+<script>
+(() => {
+  const dialogApi = window.__bagakitStatusDialogs;
+  const dialog = document.getElementById("file-preview-dialog");
+  const title = document.getElementById("file-preview-dialog-title");
+  const ref = document.getElementById("file-preview-dialog-ref");
+  const languageLabel = document.getElementById("file-preview-language");
+  const content = document.querySelector("#file-preview-content code");
+  function escapePreview(value) {
+    return value.replace(/[&<>]/g, (character) => ({"&": "&amp;", "<": "&lt;", ">": "&gt;"})[character]);
+  }
+  function highlightJson(value) {
+    let normalized = value;
+    try { normalized = JSON.stringify(JSON.parse(value), null, 2); } catch (_) {}
+    return escapePreview(normalized).replace(
+      /("(?:\\.|[^"\\])*")(\s*:)?|\b(true|false|null)\b|(-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)/g,
+      (_match, stringToken, keySuffix, literal, number) => {
+        if (stringToken) {
+          const kind = keySuffix ? "syntax-key" : "syntax-string";
+          return `<span class="${kind}">${stringToken}</span>${keySuffix || ""}`;
+        }
+        if (literal) return `<span class="syntax-literal">${literal}</span>`;
+        return `<span class="syntax-number">${number}</span>`;
+      },
+    );
+  }
+  function highlightMarkdown(value) {
+    return escapePreview(value).split("\n").map((line) => {
+      const heading = line.match(/^(#{1,6})(\s+)(.*)$/);
+      if (heading) return `<span class="syntax-heading"><span class="syntax-punctuation">${heading[1]}</span>${heading[2]}${heading[3]}</span>`;
+      const bullet = line.match(/^(\s*)([-*+]|\d+\.)(\s+)(.*)$/);
+      const base = bullet
+        ? `${bullet[1]}<span class="syntax-punctuation">${bullet[2]}</span>${bullet[3]}${bullet[4]}`
+        : line;
+      return base.replace(/`([^`]+)`/g, '<span class="syntax-code">`$1`</span>');
+    }).join("\n");
+  }
+  function highlightPreview(value, language) {
+    if (language === "json") return highlightJson(value);
+    if (language === "markdown") return highlightMarkdown(value);
+    return escapePreview(value);
+  }
+  function closePreview() { dialogApi.close(dialog); }
+  document.addEventListener("click", (event) => {
+    const trigger = event.target.closest("[data-file-preview]");
+    if (trigger) {
+      event.preventDefault();
+      event.stopPropagation();
+      const sourceTemplate = trigger.closest(".file-preview-entry")?.querySelector(".file-preview-source");
+      const source = sourceTemplate?.content?.querySelector("pre");
+      if (!source) return;
+      const language = trigger.dataset.previewLanguage || "text";
+      title.textContent = trigger.dataset.previewLabel || "Tracker file";
+      ref.textContent = trigger.dataset.previewRef || "";
+      languageLabel.textContent = language.toUpperCase();
+      content.className = `syntax-${language}`;
+      content.innerHTML = highlightPreview(source.textContent || "", language);
+      dialogApi.open(dialog);
+      return;
+    }
+    if (event.target.closest("#file-preview-dialog .dialog-close")) {
+      event.preventDefault();
+      closePreview();
+    }
+  });
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && dialogApi.isOpen(dialog)) closePreview();
+  });
 })();
 </script>
 """
@@ -5986,6 +7648,9 @@ body[data-modal-fallback="true"]::before { content:""; position:fixed; inset:0; 
       if (history && autoOpen) history.open = true;
       closed.classList.add("closed-feature--focused");
       window.setTimeout(() => closed.scrollIntoView({block: "center", inline: "nearest"}), 0);
+      if (autoOpen && window.__bagakitOpenFeatureReview && closed.querySelector(".feature-review-template")) {
+        window.setTimeout(() => window.__bagakitOpenFeatureReview(featureId), 0);
+      }
     }
   }
 
@@ -5995,16 +7660,7 @@ body[data-modal-fallback="true"]::before { content:""; position:fixed; inset:0; 
 </script>
 """
 
-    topology_dialog = r"""
-<dialog class="topology-dialog" id="topology-dialog" aria-labelledby="topology-dialog-title">
-  <div class="topology-dialog-shell">
-    <header class="topology-dialog-header">
-      <div><span class="eyebrow">Task topology</span><h2 id="topology-dialog-title" tabindex="-1" data-dialog-initial>Full-screen topology</h2></div>
-      <form method="dialog"><button class="dialog-close" aria-label="Close topology">×</button></form>
-    </header>
-    <div class="topology-dialog-body" id="topology-dialog-body"></div>
-  </div>
-</dialog>
+    dialog_runtime = r"""
 <script>
 (() => {
   const dialogApi = window.__bagakitStatusDialogs = window.__bagakitStatusDialogs || {
@@ -6027,8 +7683,6 @@ body[data-modal-fallback="true"]::before { content:""; position:fixed; inset:0; 
         if (typeof item.showModal === "function" && !item.open) item.showModal();
         else item.dataset.open = "true";
       } catch (_) {
-        // A host may expose <dialog> without a usable modal implementation.
-        // Keep the same visible surface through the CSS fallback.
         item.dataset.open = "true";
       }
       item.dataset.open = "true";
@@ -6046,22 +7700,28 @@ body[data-modal-fallback="true"]::before { content:""; position:fixed; inset:0; 
       if (restore && typeof restore.focus === "function") window.setTimeout(() => restore.focus(), 0);
     },
   };
-  const dialog = document.getElementById("topology-dialog");
-  const dialogBody = document.getElementById("topology-dialog-body");
-  const dialogTitle = document.getElementById("topology-dialog-title");
+})();
+</script>
+"""
 
+    topology_controls = r"""
+<script>
+(() => {
+  function escapeSelector(value) {
+    return typeof CSS !== "undefined" && CSS.escape
+      ? CSS.escape(value)
+      : value.replace(new RegExp("[^a-zA-Z0-9_-]", "g"), "\\\\$&");
+  }
   function scrollerFor(topology) {
     return topology && topology.querySelector(".task-topology-scroll");
   }
-
   function zoomFor(topology) {
     const value = Number.parseFloat(topology && topology.dataset.topologyZoom);
     return Number.isFinite(value) ? value : 1;
   }
-
   function applyZoom(topology, value) {
     if (!topology) return;
-    const next = Math.min(2, Math.max(0.6, Math.round(value * 10) / 10));
+    const next = Math.min(2, Math.max(0.3, Math.round(value * 10) / 10));
     topology.dataset.topologyZoom = String(next);
     const svg = topology.querySelector(".task-topology-svg");
     if (svg) {
@@ -6075,113 +7735,257 @@ body[data-modal-fallback="true"]::before { content:""; position:fixed; inset:0; 
     const label = topology.querySelector("[data-topology-zoom-level]");
     if (label) label.textContent = `${Math.round(next * 100)}%`;
   }
-
-  function copyViewport(source, target) {
-    const sourceScroller = scrollerFor(source);
-    const targetScroller = scrollerFor(target);
-    applyZoom(target, zoomFor(source));
-    if (sourceScroller && targetScroller) {
-      targetScroller.scrollLeft = sourceScroller.scrollLeft;
-      targetScroller.scrollTop = sourceScroller.scrollTop;
-    }
-  }
-
-  function openTopology(trigger) {
-    const source = trigger && trigger.closest(".task-topology");
-    const card = trigger && (trigger.closest(".feature-card")
-      || document.getElementById(source && source.dataset.featureId));
-    if (!source || !card) return;
-    dialog.dataset.featureId = card.id;
-    dialogBody.innerHTML = source.outerHTML;
-    const clone = dialogBody.querySelector(".task-topology");
-    copyViewport(source, clone);
-    const title = card.querySelector("h3");
-    dialogTitle.textContent = title ? `${title.textContent.trim()} · topology` : "Full-screen topology";
-    dialogApi.open(dialog);
-    if (typeof dialog.requestFullscreen === "function") {
-      dialog.requestFullscreen().catch(() => {});
-    }
-    if (zoomFor(source) === 1) {
-      window.setTimeout(() => fitTopology(clone), 0);
-    }
-  }
-
-  function fitTopology(topology) {
+  function fitTopology(topology, all = false) {
     if (!topology) return;
     const scroller = scrollerFor(topology);
     const svg = topology.querySelector(".task-topology-svg");
     const width = Number(svg && svg.getAttribute("width"));
+    const height = Number(svg && svg.getAttribute("height"));
     if (!scroller || !Number.isFinite(width) || width <= 0) return;
-    const fit = (scroller.clientWidth - 8) / width;
-    applyZoom(topology, Math.min(1, Math.max(0.6, fit)));
+    const widthFit = (scroller.clientWidth - 8) / width;
+    const heightFit = Number.isFinite(height) && height > 0 ? (scroller.clientHeight - 8) / height : widthFit;
+    const fit = all ? Math.min(widthFit, heightFit) : widthFit;
+    applyZoom(topology, Math.min(1, Math.max(0.3, fit)));
     scroller.scrollLeft = 0;
     scroller.scrollTop = 0;
   }
-
-  function bindTopologyTriggers(root) {
-    for (const trigger of (root || document).querySelectorAll(".topology-expand")) {
-      if (trigger.dataset.topologyBound === "true") continue;
-      trigger.dataset.topologyBound = "true";
-      trigger.addEventListener("click", (event) => {
+  function bindTopologyControls(root) {
+    const host = root || document;
+    host.querySelectorAll(".task-topology-scroll").forEach((scroller) => {
+      if (scroller.dataset.topologyPanBound === "true") return;
+      scroller.dataset.topologyPanBound = "true";
+      let drag = null;
+      scroller.addEventListener("pointerdown", (event) => {
+        if (event.button !== 0 || event.target.closest(".topology-node,button,a,summary")) return;
+        drag = {x: event.clientX, y: event.clientY, left: scroller.scrollLeft, top: scroller.scrollTop};
+        scroller.classList.add("is-panning");
+        scroller.setPointerCapture(event.pointerId);
+      });
+      scroller.addEventListener("pointermove", (event) => {
+        if (!drag) return;
+        scroller.scrollLeft = drag.left - (event.clientX - drag.x);
+        scroller.scrollTop = drag.top - (event.clientY - drag.y);
+      });
+      const stop = (event) => {
+        if (!drag) return;
+        drag = null;
+        scroller.classList.remove("is-panning");
+        if (scroller.hasPointerCapture(event.pointerId)) scroller.releasePointerCapture(event.pointerId);
+      };
+      scroller.addEventListener("pointerup", stop);
+      scroller.addEventListener("pointercancel", stop);
+      scroller.addEventListener("lostpointercapture", () => {
+        drag = null;
+        scroller.classList.remove("is-panning");
+      });
+    });
+    host.querySelectorAll(".task-topology").forEach((topology) => {
+      if (topology.dataset.edgeTraceBound === "true") return;
+      topology.dataset.edgeTraceBound = "true";
+      const inspector = topology.querySelector("[data-edge-inspector]");
+      const tooltip = topology.querySelector("[data-topology-tooltip]");
+      const groups = Array.from(topology.querySelectorAll(".topology-edge-group"));
+      const nodes = Array.from(topology.querySelectorAll(".topology-node"));
+      function placeTooltip(event) {
+        if (!tooltip || tooltip.hidden || !event) return;
+        const gap = 14;
+        const width = tooltip.offsetWidth;
+        const height = tooltip.offsetHeight;
+        const left = Math.min(window.innerWidth - width - 10, Math.max(10, event.clientX + gap));
+        const top = Math.min(window.innerHeight - height - 10, Math.max(10, event.clientY + gap));
+        tooltip.style.left = `${left}px`;
+        tooltip.style.top = `${top}px`;
+      }
+      function showTooltip(primary, detail, event) {
+        if (!tooltip) return;
+        const heading = document.createElement("strong");
+        heading.textContent = primary;
+        const copy = document.createElement("span");
+        copy.textContent = detail;
+        tooltip.replaceChildren(heading, copy);
+        tooltip.hidden = false;
+        placeTooltip(event);
+      }
+      function hideTooltip() {
+        if (!tooltip) return;
+        tooltip.hidden = true;
+        tooltip.replaceChildren();
+      }
+      function clearTrace() {
+        topology.classList.remove("has-edge-focus", "has-node-focus");
+        groups.forEach((group) => group.classList.remove("is-edge-focused", "is-related"));
+        nodes.forEach((node) => node.classList.remove("is-node-focused", "is-node-related"));
+        hideTooltip();
+        if (inspector) inspector.textContent = "Hover a node or connection to trace one direct dependency.";
+      }
+      function traceEdge(group, event) {
+        const from = group.dataset.edgeFrom || "?";
+        const to = group.dataset.edgeTo || "?";
+        const targetNode = topology.querySelector(`[data-task-id="${escapeSelector(to)}"]`);
+        const targetStatus = targetNode?.querySelector(".topology-node-status")?.textContent?.trim().toLowerCase() || "current";
+        const activity = group.querySelector(".topology-edge")?.dataset.edgeActivity === "true";
+        if (!event) {
+          const rect = group.getBoundingClientRect();
+          event = {clientX: rect.left + Math.min(rect.width, 180), clientY: rect.top + 14};
+        }
+        topology.classList.add("has-edge-focus");
+        topology.classList.remove("has-node-focus");
+        groups.forEach((item) => item.classList.toggle("is-edge-focused", item === group));
+        nodes.forEach((node) => {
+          const taskId = node.dataset.taskId;
+          node.classList.remove("is-node-focused");
+          node.classList.toggle("is-node-related", taskId === from || taskId === to);
+        });
+        if (inspector) inspector.innerHTML = `<strong>${from} → ${to}</strong><span>direct <code>depends_on</code> · target ${targetStatus}</span>`;
+        showTooltip(`${from} → ${to}`, `Direct depends_on · target ${targetStatus}${activity ? " · execution activity reported" : ""}`, event);
+      }
+      function traceNode(node, event) {
+        const taskId = node.dataset.taskId || "?";
+        const related = groups.filter((group) => group.dataset.edgeFrom === taskId || group.dataset.edgeTo === taskId);
+        const title = node.querySelector("title")?.textContent || taskId;
+        if (!event) {
+          const rect = node.getBoundingClientRect();
+          event = {clientX: rect.right - 8, clientY: rect.top + 8};
+        }
+        topology.classList.add("has-node-focus");
+        topology.classList.remove("has-edge-focus");
+        groups.forEach((group) => group.classList.toggle("is-related", related.includes(group)));
+        nodes.forEach((item) => {
+          item.classList.toggle("is-node-focused", item === node);
+          item.classList.toggle("is-node-related", related.some((group) => {
+            const from = group.dataset.edgeFrom;
+            const to = group.dataset.edgeTo;
+            return item.dataset.taskId === from || item.dataset.taskId === to;
+          }));
+        });
+        if (inspector) inspector.innerHTML = `<strong>${taskId}</strong><span>${related.length} direct connection${related.length === 1 ? "" : "s"} · hover a line for source → target</span>`;
+        showTooltip(taskId, title.replace(`${taskId} · `, ""), event);
+      }
+      groups.forEach((group) => {
+        const hitTarget = group.querySelector(".edge-hit-target");
+        if (!hitTarget) return;
+        hitTarget.addEventListener("pointerenter", (event) => traceEdge(group, event));
+        hitTarget.addEventListener("pointermove", placeTooltip);
+        hitTarget.addEventListener("click", (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          traceEdge(group, event);
+        });
+      });
+      topology.addEventListener("pointerover", (event) => {
+        const edge = event.target.closest?.(".edge-hit-target")?.closest(".topology-edge-group");
+        if (edge && topology.contains(edge)) { traceEdge(edge, event); return; }
+        const node = event.target.closest?.(".topology-node");
+        if (node && topology.contains(node)) { traceNode(node, event); return; }
+        clearTrace();
+      });
+      topology.addEventListener("pointermove", (event) => {
+        if (!tooltip?.hidden) placeTooltip(event);
+      });
+      topology.addEventListener("pointerout", (event) => {
+        if (event.relatedTarget && topology.contains(event.relatedTarget)) return;
+        clearTrace();
+      });
+      topology.addEventListener("click", (event) => {
+        const edge = event.target.closest?.(".edge-hit-target")?.closest(".topology-edge-group");
+        if (!edge || !topology.contains(edge)) return;
         event.preventDefault();
         event.stopPropagation();
-        openTopology(trigger);
+        traceEdge(edge, event);
       });
-    }
+      topology.addEventListener("focusin", (event) => {
+        const edge = event.target.closest?.(".edge-hit-target")?.closest(".topology-edge-group");
+        if (edge && topology.contains(edge)) traceEdge(edge);
+        const node = event.target.closest?.(".topology-node");
+        if (node && topology.contains(node)) traceNode(node);
+      });
+      topology.addEventListener("focusout", (event) => {
+        if (event.relatedTarget && topology.contains(event.relatedTarget)) return;
+        clearTrace();
+      });
+    });
   }
-
   document.addEventListener("click", (event) => {
-    const zoomButton = event.target.closest("[data-topology-zoom]");
-    if (zoomButton) {
-      const topology = zoomButton.closest(".task-topology");
+    const stableToggle = event.target.closest("[data-topology-stable-toggle]");
+    if (stableToggle) {
+      const topology = stableToggle.closest(".task-topology");
       if (!topology) return;
       event.preventDefault();
-      const action = zoomButton.dataset.topologyZoom;
-      const current = zoomFor(topology);
-      applyZoom(topology, action === "in" ? current + 0.1 : action === "out" ? current - 0.1 : 1);
+      event.stopPropagation();
+      const focusing = !topology.classList.contains("is-focusing-open-work");
+      topology.classList.toggle("is-focusing-open-work", focusing);
+      stableToggle.setAttribute("aria-pressed", String(focusing));
+      stableToggle.textContent = focusing ? "Show all Tasks" : "Focus open work";
       return;
     }
-
+    const button = event.target.closest("[data-topology-zoom]");
+    if (!button) return;
+    const topology = button.closest(".task-topology");
+    if (!topology) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const action = button.dataset.topologyZoom;
+    const current = zoomFor(topology);
+    if (action === "fit") fitTopology(topology);
+    else if (action === "overview") fitTopology(topology, true);
+    else applyZoom(topology, action === "in" ? current + 0.1 : action === "out" ? current - 0.1 : current);
   });
+  bindTopologyControls(document);
+  window.__bagakitBindTopologyControls = bindTopologyControls;
+  window.__bagakitFitTopology = fitTopology;
+})();
+</script>
+"""
 
-  bindTopologyTriggers(document);
-  window.__bagakitBindTopologyTriggers = bindTopologyTriggers;
+    filter_script = r"""
+<script>
+(() => {
+  const input = document.getElementById("status-filter-input");
+  const select = document.getElementById("status-filter-select");
+  const clear = document.getElementById("status-filter-clear");
+  const summary = document.getElementById("status-filter-summary");
+  if (!input || !select) return;
 
-  dialogBody.addEventListener("click", (event) => {
-    const node = event.target.closest(".topology-node");
-    if (!node) return;
-    const taskId = node.dataset.taskId;
-    const featureId = dialog.dataset.featureId;
-    const target = document.getElementById(`${dialog.dataset.featureId}-task-${taskId}`);
-    closeTopology();
-    if (window.__bagakitOpenFeatureReview) {
-      window.__bagakitOpenFeatureReview(featureId, taskId);
-      return;
-    }
-    if (target) {
-      if (target.tagName === "DETAILS") target.open = true;
-      target.scrollIntoView({behavior: "smooth", block: "start"});
-    }
-  });
-
-  dialog.addEventListener("click", (event) => {
-    if (event.target.closest(".dialog-close")) {
-      event.preventDefault();
-      closeTopology();
-    }
-  });
-
-  function closeTopology() {
-    if (document.fullscreenElement && document.exitFullscreen) {
-      document.exitFullscreen().catch(() => {});
-    }
-    dialogApi.close(dialog);
+  function applyStatusFilter(root = document.getElementById("status-content")) {
+    if (!root) return;
+    const query = input.value.trim().toLocaleLowerCase();
+    const selectedStatus = select.value;
+    let visible = 0;
+    root.querySelectorAll(".feature-card[data-feature-search]").forEach((card) => {
+      const haystack = (card.dataset.featureSearch || "").toLocaleLowerCase();
+      const matchesQuery = !query || haystack.includes(query);
+      const matchesStatus = !selectedStatus || card.dataset.featureStatus === selectedStatus;
+      const shown = matchesQuery && matchesStatus;
+      card.hidden = !shown;
+      if (shown) visible += 1;
+    });
+    root.querySelectorAll(".status-column").forEach((column) => {
+      const cards = Array.from(column.querySelectorAll(".feature-card[data-feature-search]"));
+      const count = column.querySelector("[data-status-count]");
+      const shown = cards.filter((card) => !card.hidden).length;
+      const filtered = Boolean(query || selectedStatus);
+      column.classList.toggle("status-column--filtered-empty", filtered && shown === 0);
+      if (count) count.textContent = String(filtered ? shown : (count.dataset.baseCount || cards.length));
+    });
+    const filtering = Boolean(query || selectedStatus);
+    const focus = root.querySelector(".focus-strip");
+    if (focus) focus.hidden = filtering;
+    if (summary) summary.textContent = filtering
+      ? `${visible} active Feature${visible === 1 ? "" : "s"} shown`
+      : "Showing all active Features";
+    if (clear) clear.hidden = !filtering;
   }
 
-  document.addEventListener("keydown", (event) => {
-    if (event.key === "Escape" && dialogApi.isOpen(dialog)) closeTopology();
+  input.addEventListener("input", () => applyStatusFilter());
+  select.addEventListener("change", () => applyStatusFilter());
+  if (clear) clear.addEventListener("click", () => {
+    input.value = "";
+    select.value = "";
+    input.focus();
+    applyStatusFilter();
   });
-
+  window.__bagakitApplyStatusFilter = applyStatusFilter;
+  applyStatusFilter();
 })();
 </script>
 """
@@ -6195,9 +7999,6 @@ body[data-modal-fallback="true"]::before { content:""; position:fixed; inset:0; 
   const indicator = document.getElementById("refresh-indicator");
   const indicatorText = document.getElementById("refresh-indicator-text");
   const refreshButton = document.getElementById("refresh-now");
-  const topologyDialog = document.getElementById("topology-dialog");
-  const topologyDialogBody = document.getElementById("topology-dialog-body");
-  const topologyDialogTitle = document.getElementById("topology-dialog-title");
   const dialogApi = window.__bagakitStatusDialogs;
   let busy = false;
 
@@ -6258,6 +8059,7 @@ body[data-modal-fallback="true"]::before { content:""; position:fixed; inset:0; 
         left: scroller.scrollLeft,
         top: scroller.scrollTop,
         zoom: Number.parseFloat(topology.dataset.topologyZoom) || 1,
+        focusOpen: topology.classList.contains("is-focusing-open-work"),
       }});
     }}
     return views;
@@ -6265,7 +8067,7 @@ body[data-modal-fallback="true"]::before { content:""; position:fixed; inset:0; 
 
   function restoreTopologyView(topology, view) {{
     if (!topology || !view) return;
-    const zoom = Math.min(2, Math.max(0.6, Number(view.zoom) || 1));
+    const zoom = Math.min(2, Math.max(0.3, Number(view.zoom) || 1));
     const svg = topology.querySelector(".task-topology-svg");
     if (svg) {{
       const width = Number(svg.getAttribute("width"));
@@ -6276,6 +8078,12 @@ body[data-modal-fallback="true"]::before { content:""; position:fixed; inset:0; 
       }}
     }}
     topology.dataset.topologyZoom = String(zoom);
+    topology.classList.toggle("is-focusing-open-work", view.focusOpen === true);
+    const stableToggle = topology.querySelector("[data-topology-stable-toggle]");
+    if (stableToggle) {{
+      stableToggle.setAttribute("aria-pressed", String(view.focusOpen === true));
+      stableToggle.textContent = view.focusOpen === true ? "Show all Tasks" : "Focus open work";
+    }}
     const scroller = topology.querySelector(".task-topology-scroll");
     if (scroller) {{
       scroller.scrollLeft = view.left;
@@ -6292,18 +8100,6 @@ body[data-modal-fallback="true"]::before { content:""; position:fixed; inset:0; 
     }}
   }}
 
-  function captureDialogView() {{
-    if (!topologyDialog || !dialogApi.isOpen(topologyDialog)) return null;
-    const topology = topologyDialogBody.querySelector(".task-topology");
-    if (!topology) return null;
-    const scroller = topology.querySelector(".task-topology-scroll");
-    return {{
-      left: scroller ? scroller.scrollLeft : 0,
-      top: scroller ? scroller.scrollTop : 0,
-      zoom: Number.parseFloat(topology.dataset.topologyZoom) || 1,
-    }};
-  }}
-
   function captureBoardScroll() {{
     const board = document.querySelector("#status-content .status-board");
     return board ? {{left: board.scrollLeft, top: board.scrollTop}} : null;
@@ -6318,26 +8114,15 @@ body[data-modal-fallback="true"]::before { content:""; position:fixed; inset:0; 
     board.scrollTop = Math.min(Math.max(0, Number(view.top) || 0), maxTop);
   }}
 
-  function restoreTopology(featureId, view) {{
-    if (!featureId || !topologyDialog || !dialogApi.isOpen(topologyDialog)) return;
-    const card = document.getElementById(featureId);
-    const template = card && card.querySelector(".feature-review-template");
-    if (!template) {{
-      dialogApi.close(topologyDialog);
-      return;
-    }}
-    const templateHost = document.createElement("div");
-    templateHost.innerHTML = template.innerHTML;
-    const fresh = templateHost.querySelector(".task-topology");
-    if (!fresh) {{
-      dialogApi.close(topologyDialog);
-      return;
-    }}
-    topologyDialogBody.innerHTML = fresh.outerHTML;
-    const clone = topologyDialogBody.querySelector(".task-topology");
-    restoreTopologyView(clone, view);
-    const title = card.querySelector("h3");
-    if (title && topologyDialogTitle) topologyDialogTitle.textContent = `${{title.textContent.trim()}} · topology`;
+  function projectionSignature(content) {{
+    const clone = content.cloneNode(true);
+    // Claim drafts receive a fresh copy-time placeholder on every server
+    // render. They are not Tracker truth, so they must not make an idle poll
+    // replace the visible status DOM and flash the user's context.
+    clone.querySelectorAll(".claim-draft").forEach((item) => item.remove());
+    return clone.innerHTML
+      .replace(/<textarea[^>]*class="claim-draft"[^>]*>[\s\S]*?<\/textarea>/g, "")
+      .replace(/time="[^"]*"/g, 'time=""');
   }}
 
   async function refreshStatus() {{
@@ -6345,11 +8130,7 @@ body[data-modal-fallback="true"]::before { content:""; position:fixed; inset:0; 
     busy = true;
     const openIds = openFeatureIds();
     const taskDisclosureBeforeRefresh = captureTaskDisclosure();
-    const topologyFeatureId = topologyDialog && dialogApi.isOpen(topologyDialog)
-      ? topologyDialog.dataset.featureId
-      : "";
     const topologyViews = captureTopologyViews();
-    const dialogView = captureDialogView();
     const boardScroll = captureBoardScroll();
     setRefreshState("updating", "Updating…");
     try {{
@@ -6360,15 +8141,22 @@ body[data-modal-fallback="true"]::before { content:""; position:fixed; inset:0; 
       const currentContent = document.getElementById("status-content");
       const nextContent = nextDocument.getElementById("status-content");
       if (!currentContent || !nextContent) throw new Error("status content missing");
-      currentContent.replaceWith(nextContent);
-      if (window.__bagakitBindTopologyTriggers) window.__bagakitBindTopologyTriggers(nextContent);
-      restoreOpenFeatures(openIds);
-      restoreTaskDisclosure(taskDisclosureBeforeRefresh);
-      if (window.__bagakitFocusFeature) window.__bagakitFocusFeature(nextContent, false);
-      restoreTopologyViews(topologyViews);
-      restoreTopology(topologyFeatureId, dialogView);
-      restoreBoardScroll(boardScroll);
-      setRefreshState("updated", `Updated ${{new Date().toLocaleTimeString()}}`);
+      const changed = currentContent.dataset.projectionSignature && nextContent.dataset.projectionSignature
+        ? currentContent.dataset.projectionSignature !== nextContent.dataset.projectionSignature
+        : projectionSignature(currentContent) !== projectionSignature(nextContent);
+        if (changed) {{
+        currentContent.replaceWith(nextContent);
+        if (window.__bagakitBindTopologyControls) window.__bagakitBindTopologyControls(nextContent);
+        if (window.__bagakitApplyStatusFilter) window.__bagakitApplyStatusFilter(nextContent);
+        restoreOpenFeatures(openIds);
+        restoreTaskDisclosure(taskDisclosureBeforeRefresh);
+        if (window.__bagakitFocusFeature) window.__bagakitFocusFeature(nextContent, false);
+        restoreTopologyViews(topologyViews);
+        restoreBoardScroll(boardScroll);
+      }}
+      setRefreshState(changed ? "updated" : "unchanged", changed
+        ? `Updated ${{new Date().toLocaleTimeString()}}`
+        : `No changes · ${{new Date().toLocaleTimeString()}}`);
     }} catch (_) {{
       setRefreshState("error", "Update failed · retrying");
     }} finally {{
@@ -6399,21 +8187,33 @@ body[data-modal-fallback="true"]::before { content:""; position:fixed; inset:0; 
             if live
             else "</div></header>"
         )
-        + f'<div id="status-content"{focus_attr}>'
+        + '<div class="status-toolbar" role="search" aria-label="Filter Feature Tracker status">'
+        + '<label for="status-filter-input">Find</label>'
+        + '<input id="status-filter-input" class="status-filter-input" type="search" placeholder="Feature ID, title, or Task title" autocomplete="off">'
+        + '<select id="status-filter-select" class="status-filter-select" aria-label="Filter by lifecycle status">'
+        + '<option value="">All statuses</option><option value="proposal">Proposal</option><option value="ready">Ready</option>'
+        + '<option value="in_progress">In progress</option><option value="replanning">Replanning</option>'
+        + '<option value="blocked">Blocked</option><option value="done">Needs closeout</option></select>'
+        + '<button type="button" class="status-filter-clear" id="status-filter-clear">Clear</button>'
+        + '<span class="status-filter-summary" id="status-filter-summary" aria-live="polite"></span></div>'
+        + f'<div id="status-content"{focus_attr} data-projection-signature="{projection_signature}">'
         + focus_html
         + '<section class="metrics" aria-label="Feature summary">'
-        f'<div class="metric"><strong>{active_count}</strong><span>Active</span></div>'
+        f'<div class="metric"><strong>{open_count}</strong><span>Open</span></div>'
         f'<div class="metric"><strong>{in_progress_count}</strong><span>In progress</span></div>'
         f'<div class="metric"><strong>{replanning_count}</strong><span>Replanning</span></div>'
         f'<div class="metric"><strong>{blocked_count}</strong><span>Blocked</span></div>'
         f'<div class="metric"><strong>{closeout_count}</strong><span>Needs closeout</span></div>'
         "</section>"
         + board_html
-        + render_closed_features_html(closed_items, focus_feat_id=focus_feat_id)
+        + render_closed_features_html(paths, closed_items, focus_feat_id=focus_feat_id)
         + "</div></div>"
-        + topology_dialog
+        + dialog_runtime
+        + topology_controls
         + feature_review_dialog
+        + file_preview_dialog
         + claim_dialog
+        + filter_script
         + live_script
         + "</body></html>"
     )
@@ -6481,6 +8281,7 @@ TERMINAL_FRONTIER_GLYPHS = {
     "runnable": "●",
     "waiting": "○",
     "blocked": "✕",
+    "failed": "!",
     "cancelled": "⊘",
     "transferred": "⇢",
     "done": "✓",
@@ -6490,6 +8291,7 @@ TERMINAL_FRONTIER_COLORS = {
     "runnable": "32",
     "waiting": "36",
     "blocked": "31",
+    "failed": "35",
     "cancelled": "90",
     "transferred": "35",
     "done": "90",
@@ -6558,7 +8360,7 @@ def render_terminal_feature_lines(
     bar = "".join(
         paint("█" * max(1, round(len(frontier[group]) / total * bar_width)),
               TERMINAL_FRONTIER_COLORS[group])
-        for group in ("done", "active", "runnable", "waiting", "blocked", "cancelled", "transferred")
+        for group in ("done", "active", "runnable", "waiting", "blocked", "failed", "cancelled", "transferred")
         if frontier[group]
     )
     done_count = len(frontier["done"])
@@ -6602,6 +8404,13 @@ def render_terminal_feature_lines(
         blocker = (by_id.get(task_id, {}).get("last_blocker") or {})
         if blocker.get("class"):
             lines.append(f"      \x1b[2mblocker: {blocker['class']}\x1b[0m")
+    for task_id in frontier["failed"]:
+        task = by_id.get(task_id, {})
+        failure = task.get("failure") if isinstance(task.get("failure"), dict) else {}
+        lines.append(
+            f"  {paint('! failed · replan', '35')} {task_id} "
+            f"{str(failure.get('reason') or 'assumption disproved')[:max(12, width - 34)]}"
+        )
     if frontier["runnable"]:
         lines.append(f"  {paint('● runnable', '32')} {' '.join(frontier['runnable'])}")
     elif not frontier["active"]:
@@ -6770,6 +8579,7 @@ def cmd_feat_status(args: argparse.Namespace) -> int:
             "feature": state,
             "tasks": tasks,
             "task_frontier": frontier,
+            "plan_audit": build_task_plan_audit(state, tasks),
         }
         if args.json:
             print(json.dumps(payload, ensure_ascii=False, indent=2))
@@ -7329,7 +9139,11 @@ def cmd_task_finish(args: argparse.Namespace) -> int:
             result=args.result,
             blocked_reason_class=args.blocked_reason_class,
             blocked_reason=args.blocked_reason,
+            blocked_owner=args.blocked_owner,
+            blocked_resume_when=args.blocked_resume_when,
             cancel_reason=args.cancel_reason,
+            failure_reason=args.failure_reason,
+            failure_assumption=args.failure_assumption,
         )
     except SystemExit as exc:
         eprint(str(exc))
@@ -7338,9 +9152,16 @@ def cmd_task_finish(args: argparse.Namespace) -> int:
     save_feat(paths, args.feat, state, tasks)
     print(f"ok: task finished {args.feat}/{args.task} => {args.result}")
     print(f"feat_status: {state['status']}")
-    if state["status"] == "replanning":
+    if args.result == "blocked":
+        blocker = find_task(tasks, args.task).get("last_blocker") or {}
+        print(f"blocker_owner: {blocker.get('owner') or 'unspecified'}")
+        print(f"blocker_resume_when: {blocker.get('resume_when') or 'unspecified'}")
+    failures = current_task_failures(tasks, feat_id=args.feat)
+    if failures or state["status"] == "replanning":
         print("next_action_kind: revise_task_plan")
-        print("next: install a reviewed successor plan with set-task-plan")
+        print("next: inspect assumptions and descendants; install a reviewed successor with set-task-plan")
+        if failures:
+            print("replan_required_from: " + ",".join(item["item_id"] for item in failures))
     elif state["status"] == "done":
         # Task completion is not Feature completion. Keep this explicit and
         # machine-readable so a Host/Agent can continue the same convergence
@@ -7387,6 +9208,7 @@ def render_summary(
     in_prog = count_tasks(tasks, "in_progress")
     done = count_tasks(tasks, "done")
     blocked = count_tasks(tasks, "blocked")
+    failed = count_tasks(tasks, "failed")
     cancelled = count_tasks(tasks, "cancelled")
     transferred = count_tasks(tasks, "transferred")
     counters = state.get("counters", {})
@@ -7445,6 +9267,7 @@ def render_summary(
             f"- in_progress: {in_prog}",
             f"- done: {done}",
             f"- blocked: {blocked}",
+            f"- failed: {failed} (requires reviewed replan)",
             f"- cancelled: {cancelled}",
             f"- transferred: {transferred}",
             "",
@@ -7985,7 +9808,7 @@ def cmd_feat_transfer(args: argparse.Namespace) -> int:
 
     transferred_tasks = copy.deepcopy(tasks)
     for task in current_plan_tasks(transferred_tasks):
-        if str(task.get("status") or "") == "done":
+        if str(task.get("status") or "") in {"done", "failed"}:
             continue
         task["status"] = "transferred"
         task.pop("last_blocker", None)
@@ -8110,7 +9933,11 @@ def cmd_feat_closeout(args: argparse.Namespace) -> int:
         or args.result is not None
         or args.blocked_reason_class is not None
         or args.blocked_reason is not None
+        or args.blocked_owner is not None
+        or args.blocked_resume_when is not None
         or args.cancel_reason is not None
+        or args.failure_reason is not None
+        or args.failure_assumption is not None
     )
 
     if mode == "archive" and (args.reason or args.replacement):
@@ -8121,7 +9948,7 @@ def cmd_feat_closeout(args: argparse.Namespace) -> int:
         return 1
     if mode == "discard" and has_task_transition_args:
         eprint(
-            "error: --task, --result, and blocker arguments are valid only "
+            "error: --task, --result, blocker, and failure arguments are valid only "
             "for archive closeout of an in_progress task"
         )
         return 1
@@ -8208,7 +10035,11 @@ def cmd_feat_closeout(args: argparse.Namespace) -> int:
                 result=result,
                 blocked_reason_class=args.blocked_reason_class,
                 blocked_reason=args.blocked_reason,
+                blocked_owner=args.blocked_owner,
+                blocked_resume_when=args.blocked_resume_when,
                 cancel_reason=args.cancel_reason,
+                failure_reason=args.failure_reason,
+                failure_assumption=args.failure_assumption,
             )
         except SystemExit as exc:
             eprint(str(exc))
@@ -8219,8 +10050,17 @@ def cmd_feat_closeout(args: argparse.Namespace) -> int:
                 f" --blocked-reason-class {shlex.quote(args.blocked_reason_class)}"
                 f" --blocked-reason {shlex.quote(args.blocked_reason)}"
             )
+            if args.blocked_owner:
+                blocker_args += f" --blocked-owner {shlex.quote(args.blocked_owner)}"
+            if args.blocked_resume_when:
+                blocker_args += f" --blocked-resume-when {shlex.quote(args.blocked_resume_when)}"
         elif result == "cancelled":
             blocker_args = f" --cancel-reason {shlex.quote(args.cancel_reason)}"
+        elif result == "failed":
+            blocker_args = (
+                f" --failure-reason {shlex.quote(args.failure_reason)}"
+                f" --failure-assumption {shlex.quote(args.failure_assumption)}"
+            )
         finish_plan = (
             "plan: feature-tracker.sh finish-task "
             f"--root {shlex.quote(str(root))} --feature {feat_id} --task {task_id} "
@@ -9414,6 +11254,7 @@ def query_list(paths: HarnessPaths, *, scopes: set[str] | None = None) -> list[d
                     "in_progress": count_current_tasks(tasks, "in_progress"),
                     "done": count_current_tasks(tasks, "done"),
                     "blocked": count_current_tasks(tasks, "blocked"),
+                    "failed": count_current_tasks(tasks, "failed"),
                     "cancelled": count_current_tasks(tasks, "cancelled"),
                     "transferred": count_current_tasks(tasks, "transferred"),
                     "runnable": len(frontier["runnable"]),
@@ -9428,7 +11269,93 @@ def query_list(paths: HarnessPaths, *, scopes: set[str] | None = None) -> list[d
 def query_one(paths: HarnessPaths, feat_id: str) -> dict[str, Any]:
     state, tasks = load_feat(paths, feat_id)
     frontier = feature_task_frontier(state, tasks)
-    return {"state": state, "tasks": tasks, "task_frontier": frontier}
+    return {"state": state, "tasks": tasks, "task_frontier": frontier, "plan_audit": build_task_plan_audit(state, tasks)}
+
+
+def build_task_plan_audit(state: dict[str, Any], tasks: dict[str, Any]) -> dict[str, Any]:
+    """Derive review inputs and installed changes; never judge or edit edges."""
+    feat_id = str(state.get("feat_id") or "")
+    by_id = {str(task["id"]): task for task in current_plan_tasks(tasks)} if has_reviewed_task_plan(tasks) else {}
+    frontier = feature_task_frontier(state, tasks)
+    waiting_edges = []
+    for target_id in frontier["waiting"]:
+        target = by_id[target_id]
+        for source_id in canonical_task_dependencies(target, label=f"{feat_id}/{target_id}"):
+            source = by_id[source_id]
+            if source.get("status") == "done":
+                continue
+            waiting_edges.append({
+                "from": source_id,
+                "to": target_id,
+                "source_status": str(source.get("status") or "todo"),
+                "source_outcome": source.get("outcome"),
+                "target_title": target.get("title"),
+                "target_acceptance": target.get("acceptance", []),
+                "decision": "review_required",
+                "question": "Is this result required to start the target, or only for the final acceptance join?",
+            })
+    all_tasks = {str(task["id"]): task for task in tasks.get("tasks", []) if isinstance(task, dict)}
+    history = tasks.get("plan_history", [])
+    replacements = []
+    for task_id, task in all_tasks.items():
+        if task.get("status") != "failed" or not task.get("superseded_by"):
+            continue
+        revision = next((entry for entry in history if task_id in entry.get("superseded_task_ids", [])), {})
+        replacements.append({
+            "failed_task_id": task_id,
+            "assumption": task["failure"]["assumption"],
+            "reason": task["failure"]["reason"],
+            "plan_revision": revision.get("revision"),
+            "review_ref": revision.get("review_ref"),
+            "successors": [
+                {"task_id": successor, "status": all_tasks.get(successor, {}).get("status", "historical"),
+                 "current": successor in by_id}
+                for successor in task["superseded_by"]
+            ],
+        })
+    failed = current_task_failures(tasks, feat_id=feat_id)
+    return {
+        "feature_id": feat_id,
+        "plan_revision": tasks.get("plan_revision"),
+        "review_ref": tasks.get("review_ref"),
+        "waiting_edges": waiting_edges,
+        "failed_tasks": failed,
+        "replan_required_from": [item["item_id"] for item in failed],
+        "installed_replacements": sorted(replacements, key=lambda item: item["failed_task_id"]),
+        "latest_dependency_changes": history[-1].get("dependency_changes", {"added": [], "removed": []}) if history else {"added": [], "removed": []},
+        "review_required": bool(waiting_edges or failed),
+        "next_action": (
+            "Install a reviewed successor plan for failed assumptions; continue independent work."
+            if failed else
+            "Review waiting edges with Bounded Convergence Review before accepting serialization."
+            if waiting_edges else
+            "No waiting edge currently requires a counterfactual review."
+        ),
+    }
+
+
+def cmd_review_task_plan(args: argparse.Namespace) -> int:
+    root = Path(args.root).resolve()
+    paths = HarnessPaths(root)
+    ensure_harness_exists(paths)
+    try:
+        state, tasks = load_feat(paths, args.feat)
+        payload = build_task_plan_audit(state, tasks)
+    except SystemExit as exc:
+        eprint(str(exc))
+        return 1
+    if args.json:
+        print(json.dumps(payload, ensure_ascii=False, indent=2))
+        return 0
+    print(f"feature: {payload['feature_id']}")
+    print(f"plan_revision: {payload['plan_revision']}")
+    print(f"review_required: {str(payload['review_required']).lower()}")
+    print(f"next_action: {payload['next_action']}")
+    for edge in payload["waiting_edges"]:
+        print(f"- edge {edge['from']} -> {edge['to']} | source={edge['source_status']} | decision=review_required")
+    for failure in payload["failed_tasks"]:
+        print(f"- failed {failure['item_id']} | {failure['reason']} | assumption={failure['assumption']}")
+    return 0
 
 
 def query_filter(
@@ -9703,13 +11630,17 @@ def build_parser() -> argparse.ArgumentParser:
     add_common(sp)
     sp.add_argument("--feature", dest="feat", required=True)
     sp.add_argument("--task", required=True)
-    sp.add_argument("--result", choices=["done", "blocked", "cancelled"], required=True)
+    sp.add_argument("--result", choices=["done", "blocked", "failed", "cancelled"], required=True)
     sp.add_argument(
         "--blocked-reason-class",
         choices=sorted(BLOCKED_REASON_CLASSES - {"none"}),
         default=None,
     )
     sp.add_argument("--blocked-reason", default=None)
+    sp.add_argument("--blocked-owner", default=None, help="who or what can unblock this Task")
+    sp.add_argument("--blocked-resume-when", default=None, help="evidence or event required to resume")
+    sp.add_argument("--failure-reason", default=None)
+    sp.add_argument("--failure-assumption", default=None)
     sp.add_argument("--cancel-reason", default=None)
     sp.set_defaults(func=cmd_task_finish)
 
@@ -9717,13 +11648,17 @@ def build_parser() -> argparse.ArgumentParser:
     add_common(sp)
     sp.add_argument("--feature", dest="feat", required=True)
     sp.add_argument("--task", default="")
-    sp.add_argument("--result", choices=["done", "blocked", "cancelled"], default=None)
+    sp.add_argument("--result", choices=["done", "blocked", "failed", "cancelled"], default=None)
     sp.add_argument(
         "--blocked-reason-class",
         choices=sorted(BLOCKED_REASON_CLASSES - {"none"}),
         default=None,
     )
     sp.add_argument("--blocked-reason", default=None)
+    sp.add_argument("--blocked-owner", default=None, help="who or what can unblock this Task")
+    sp.add_argument("--blocked-resume-when", default=None, help="evidence or event required to resume")
+    sp.add_argument("--failure-reason", default=None)
+    sp.add_argument("--failure-assumption", default=None)
     sp.add_argument("--cancel-reason", default=None)
     sp.add_argument("--mode", choices=["archive", "discard"], default="archive")
     sp.add_argument("--reason", choices=["stale", "superseded", "cancelled", "invalid"], default="")
@@ -9798,6 +11733,15 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--feature", dest="feat", required=True)
     sp.set_defaults(func=cmd_query_get)
 
+    sp = sub.add_parser(
+        "review-task-plan",
+        help="audit waiting dependency edges and failed assumptions without changing Tracker state",
+    )
+    add_common(sp)
+    sp.add_argument("--feature", dest="feat", required=True)
+    sp.add_argument("--json", action="store_true")
+    sp.set_defaults(func=cmd_review_task_plan)
+
     sp = sub.add_parser("filter-features", help="query features with filters")
     add_common(sp)
     sp.add_argument(
@@ -9809,7 +11753,7 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--status", default=None)
     sp.add_argument(
         "--task-status",
-        choices=["todo", "runnable", "in_progress", "done", "blocked", "cancelled", "transferred"],
+        choices=["todo", "runnable", "in_progress", "done", "blocked", "failed", "cancelled", "transferred"],
         default=None,
     )
     sp.add_argument("--contains", default=None)

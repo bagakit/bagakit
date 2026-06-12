@@ -61,7 +61,8 @@ Required behavior:
   `in_progress`; it is derived from `tasks.json` and is empty when no Task is
   active.
 - `blockers` is empty unless continuation is `blocked`. Task blockers contain
-  `item_id`, `class`, and `reason`; owner-level blockers such as missing plan,
+  `item_id`, `class`, and `reason`, with optional `owner` and `resume_when`
+  recovery context; owner-level blockers such as missing plan,
   replanning, or workspace use `item_id = null`.
 - `replacement_ref` is null unless another repo-relative owner artifact
   supersedes this owner.
@@ -95,6 +96,9 @@ Recovery rules:
   through the Feature closeout flow rather than restarting implementation
 - `replan_required` is an owner-level planning blocker, not a Task blocker;
   install the reviewed successor plan rather than restarting a cancelled Task
+- a failed current Task is also a planning handoff, not an execution blocker;
+  its assumption and failure reason remain in Task history while the owner
+  requires a reviewed successor plan
 - `superseded` routes to `replacement_ref`
 - a transferred Feature uses `lifecycle_status = transferred`,
   `continuation = superseded`, and routes to `replacement_ref`

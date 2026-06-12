@@ -17,11 +17,11 @@ planning invariant, not a request to create ceremony-only nodes.
 
 Thirty minutes is a shaping target, not a hard split requirement or a wall-clock
 promise. If a substructure is expected to take longer than 30 minutes, an
-effort estimate is mandatory and must be written in Agent execution hours (for
-example, `0.5h`, `1h`, or `2-4h`), even when the substructure is not yet known to
-be indivisible. If it is genuinely indivisible, also label the Task as a
-**heavy object** and state briefly why a safe independent split is not
-possible; if it can be split without violating ownership, shared-file
+`estimate_hours` value is mandatory and must be a positive number of Agent
+execution hours (for example, `0.5`, `1`, or `2`), even when the substructure is
+not yet known to be indivisible. If it is genuinely indivisible, also set
+`heavy: true`, provide `heavy_reason`, and state briefly why a safe independent
+split is not possible; if it can be split without violating ownership, shared-file
 isolation, or independent proof, split it instead of accepting the larger Task.
 
 Use Agent development effort as the estimate standard: focused inspection,
@@ -30,8 +30,8 @@ not use a human engineer's estimate, calendar duration, external waiting time,
 or unrelated merge and Feature-level acceptance work. The estimate helps the
 Host or Supervisor choose the topology's execution wave, concurrency, and
 critical path; it does not change lifecycle truth, gate evidence, or completion
-semantics. Tasks expected to finish within 30 minutes may omit an estimate, but
-any estimate that is present still uses hours.
+semantics. Tasks expected to finish within 30 minutes may omit `estimate_hours`,
+but any estimate that is present still uses Agent hours.
 
 ## Four too-big signals
 
@@ -116,3 +116,17 @@ The wave order is **spine first, fan-out second, every fan-out joined**:
 This order keeps the first working path intact while still exposing genuine
 parallelism. Runtime worktree and merge mechanics remain Host/Supervisor
 concerns; the plan records the boundaries and dependency shape.
+
+## Many similar cases: group before expanding
+
+When a Feature contains many similar cases, first group them by an
+independently closable work package or acceptance boundary. Give each group one
+clear outcome, one owner, and one join that proves the cases in that group
+coexist. Expand a case into separate Tasks only when it needs its own worker,
+dependency, or executable proof; do not pre-create one empty lifecycle chain
+for every possible case.
+
+The human projection may summarize these groups or derived execution waves
+before showing the full DAG. Grouping is a display and planning aid, not a new
+Task status or a second source of truth; the current `tasks.json` still owns
+every real dependency and acceptance mapping.

@@ -63,6 +63,7 @@ join before it is materialized.
 
 - **Yes/No:** Does every Task fit within one independently closable
   substructure, with an effort target of about 30 minutes or less; and whenever
-  any substructure is expected to exceed 30 minutes, does it carry a mandatory
-  estimate in Agent execution hours, while every genuinely indivisible one is
-  additionally marked heavy with a brief reason that it cannot be safely split?
+  any substructure is expected to exceed 30 minutes, does its plan carry a
+  positive numeric `estimate_hours` value in Agent execution hours, while every
+  genuinely indivisible one is additionally marked `heavy: true` with a
+  non-empty `heavy_reason` explaining why it cannot be safely split?

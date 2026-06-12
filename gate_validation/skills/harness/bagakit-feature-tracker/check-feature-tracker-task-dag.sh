@@ -67,6 +67,98 @@ bash "$SKILL_DIR/scripts/feature-tracker.sh" create-feature \
 FEATURE_ID="$(feature_tracker_feature_id_by_title "$TMP_DIR" "Task DAG feature")"
 FEATURE_DIR="$TMP_DIR/.bagakit/feature-tracker/features/$FEATURE_ID"
 
+# Waiting edges are decision-bearing review prompts, not silently accepted
+# scheduling truth. The read-only audit exposes them before any rewiring.
+bash "$SKILL_DIR/scripts/feature-tracker.sh" review-task-plan \
+  --root "$TMP_DIR" --feature "$FEATURE_ID" --json >"$TMP_DIR/plan-audit.json"
+python3 - "$TMP_DIR/plan-audit.json" <<'PY'
+import json, sys
+from pathlib import Path
+audit = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+assert audit["review_required"] is True
+assert any(edge["from"] == "T-001" and edge["to"] == "T-003" and edge["decision"] == "review_required" for edge in audit["waiting_edges"])
+assert "Bounded Convergence Review" in audit["next_action"]
+PY
+echo "ok: plan audit exposes waiting-edge review decisions"
+
+# A mid-run review may widen the frontier without stopping useful active work.
+# The active Task set and its semantics must survive unchanged; only the
+# not-yet-started join is redrawn as an independent root.
+MIDRUN_PLAN="$TMP_DIR/midrun-task-dag-plan.json"
+python3 - "$PLAN" "$MIDRUN_PLAN" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+payload = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+payload["review"]["evidence_ref"] = "review/task-dag-midrun"
+for task in payload["tasks"]:
+    if task["id"] == "T-003":
+        task["depends_on"] = []
+Path(sys.argv[2]).write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+PY
+bash "$SKILL_DIR/scripts/feature-tracker.sh" create-feature \
+  --root "$TMP_DIR" --title "Mid-run replan feature" --slug "mid-run-replan-feature" \
+  --goal "Widen the runnable frontier while active Tasks continue" \
+  --workspace-mode current_tree --tasks-file "$PLAN" >/dev/null
+MIDRUN_ID="$(feature_tracker_feature_id_by_title "$TMP_DIR" "Mid-run replan feature")"
+bash "$SKILL_DIR/scripts/feature-tracker.sh" start-task \
+  --root "$TMP_DIR" --feature "$MIDRUN_ID" --task T-001 >/dev/null &
+MIDRUN_START_ONE_PID=$!
+bash "$SKILL_DIR/scripts/feature-tracker.sh" start-task \
+  --root "$TMP_DIR" --feature "$MIDRUN_ID" --task T-002 >/dev/null &
+MIDRUN_START_TWO_PID=$!
+wait "$MIDRUN_START_ONE_PID"
+wait "$MIDRUN_START_TWO_PID"
+bash "$SKILL_DIR/scripts/feature-tracker.sh" set-task-plan \
+  --root "$TMP_DIR" --feature "$MIDRUN_ID" --tasks-file "$MIDRUN_PLAN" \
+  --expected-revision 1 >"$TMP_DIR/midrun-plan.out"
+grep -F "dependency_removed: T-001 -> T-003" "$TMP_DIR/midrun-plan.out" >/dev/null
+grep -F "dependency_removed: T-002 -> T-003" "$TMP_DIR/midrun-plan.out" >/dev/null
+bash "$SKILL_DIR/scripts/feature-tracker.sh" get-feature \
+  --root "$TMP_DIR" --feature "$MIDRUN_ID" >"$TMP_DIR/midrun-replanned.json"
+python3 - "$TMP_DIR/midrun-replanned.json" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+feature = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+assert feature["state"]["status"] == "in_progress"
+assert feature["state"]["status"] != "replanning"
+assert feature["task_frontier"] == {
+    "active": ["T-001", "T-002"], "runnable": ["T-003"], "blocked": [],
+    "cancelled": [], "transferred": [], "failed": [], "waiting": [], "done": [],
+}
+assert feature["tasks"]["plan_revision"] == 2
+by_id = {task["id"]: task for task in feature["tasks"]["tasks"]}
+assert by_id["T-001"]["status"] == "in_progress"
+assert by_id["T-002"]["status"] == "in_progress"
+assert by_id["T-003"]["depends_on"] == []
+PY
+INVALID_MIDRUN_PLAN="$TMP_DIR/invalid-midrun-task-dag-plan.json"
+python3 - "$MIDRUN_PLAN" "$INVALID_MIDRUN_PLAN" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+payload = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+for task in payload["tasks"]:
+    if task["id"] == "T-001":
+        task["title"] = "Attempt to rewrite an active Task"
+Path(sys.argv[2]).write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+PY
+if bash "$SKILL_DIR/scripts/feature-tracker.sh" set-task-plan \
+  --root "$TMP_DIR" --feature "$MIDRUN_ID" --tasks-file "$INVALID_MIDRUN_PLAN" \
+  --expected-revision 2 >"$TMP_DIR/invalid-midrun.out" 2>"$TMP_DIR/invalid-midrun.err"; then
+  echo "error: mid-run revision rewrote an active Task" >&2
+  exit 1
+fi
+grep -F "executed task semantics are immutable across plan revisions: T-001 changed title" \
+  "$TMP_DIR/invalid-midrun.err" >/dev/null
+echo "ok: mid-run revision rejects active Task semantic drift"
+bash "$SKILL_DIR/scripts/feature-tracker.sh" validate-tracker --root "$TMP_DIR" >/dev/null
+echo "ok: mid-run plan revision preserves active Tasks and widens the frontier"
+
 SERVER_OUT="$TMP_DIR/status-server.out"
 bash "$SKILL_DIR/scripts/feature-tracker.sh" serve-feature-status \
   --root "$TMP_DIR" --feature "$FEATURE_ID" --port 0 --refresh-ms 1000 \
@@ -88,7 +180,7 @@ with urlopen(sys.argv[1], timeout=5) as response:
     assert "Live read-only view" in body
     assert "fetch(window.location.pathname + window.location.search" in body
     assert 'id="refresh-indicator"' in body
-    assert 'id="topology-dialog"' in body
+    assert 'window.__bagakitBindTopologyControls' in body
     assert "window.location.reload()" not in body
     assert "Task topology" in body
     assert "captureTopologyViews" in body
@@ -122,13 +214,18 @@ assert 'data-from="T-002" data-to="T-003"' in html
 assert "采集侧自适应 QPS:熔断 + 半开 + 爬升" in html
 assert '<text class="topology-node-title"' in html
 assert html.count("<tspan") >= 2
-assert "View fullscreen" in html
 assert 'data-topology-zoom="out"' in html
 assert 'data-topology-zoom="in"' in html
-assert 'data-topology-zoom="reset"' in html
+assert 'data-topology-zoom="fit"' in html
+assert 'data-topology-zoom="overview"' in html
+assert 'data-task-dependency-summary=' in html
+assert 'data-task-evidence-summary=' in html
 assert 'data-topology-zoom-level' in html
 assert "Task runtime status" in html
 assert "Gate pending" in html
+assert "deps 0/2" in html
+assert "waiting on T-001, T-002" in html
+assert "eligible W02" in html
 assert f'id="{feature_id}-task-T-003"' in html
 assert f'href="#{feature_id}-task-T-003"' in html
 assert 'class="review-task-summary"' in html
@@ -136,8 +233,32 @@ assert 'class="review-task-toggle"' in html
 assert 'class="review-task-fold-note"' in html
 assert 'class="review-tasks-scroll"' in html
 assert 'class="task-quick-prompts"' in html
-for label in ("认领任务", "检查状态", "Explain", "Goal 语句"):
+assert '<section class="task-quick-prompts"' in html
+assert '<section class="tracker-quick-prompts"' in html
+assert 'class="prompt-copy-action"' in html
+for label in ("复制 · 认领任务", "复制 · 检查状态", "复制 · Explain Task", "复制 · Goal 语句", "复制 · 设置 Goal", "复制 · 解释全计划"):
     assert label in html
+for source in ('claim', 'status', 'explain', 'goal', 'set_goal', 'plan'):
+    assert f'data-prompt-source="{source}"' in html
+assert 'data-prompt-copy="claim"' in html
+assert 'async function copyPromptAction' in html
+assert 'navigator.clipboard.writeText(text)' in html
+assert 'class="prompt-copy-status"' in html
+assert 'class="file-preview-trigger"' in html
+assert 'id="file-preview-dialog"' in html
+assert 'data-preview-language="json"' in html
+assert 'highlightPreview' in html
+assert 'syntax-key' in html
+assert 'window.__bagakitFocusHistoryFeature' in html
+assert 'data-task-jump-status' in html
+assert 'data-target-task-id' not in html
+assert 'data-wave="W01"' in html
+assert 'class="topology-wave-marker"' in html
+assert 'class="topology-node-card"' in html
+assert 'class="topology-node-status-bg"' in html
+assert 'class="topology-node-stats"' in html
+assert 'gate 0/1' in html
+assert 'is-targeted' in html
 PY
 
 python3 - "$FEATURE_DIR/tasks.json" <<'PY'
@@ -200,6 +321,9 @@ assert "<strong>Task T-002</strong>" in html
 assert "Second progress recorded" in html
 assert "Continue Task T-002" in html
 assert "informational only; it does not change Task state or gate evidence" in html
+assert "flow-runner/items/feature-" in html
+assert "runtime-activity-ref" in html
+assert "file://" not in html
 PY
 
 bash "$SKILL_DIR/scripts/feature-tracker.sh" get-feature \
@@ -219,6 +343,7 @@ assert feature["task_frontier"] == {
     "active": ["T-001", "T-002"], "runnable": [], "blocked": [],
     "cancelled": [],
     "transferred": [],
+    "failed": [],
     "waiting": ["T-003"], "done": [],
 }
 assert receipt["schema"] == "bagakit.execution-owner-receipt.v2"
@@ -495,6 +620,10 @@ FEATURE_TRANSFER_PAGE="$TMP_DIR/transfer-page.html"
 bash "$SKILL_DIR/scripts/feature-tracker.sh" show-feature-status \
   --root "$TMP_DIR" --feature "$TRANSFER_SUCCESSOR_ID" --format html >"$FEATURE_TRANSFER_PAGE"
 grep -F -- "Transferred from" "$FEATURE_TRANSFER_PAGE" >/dev/null
+grep -F -- "Transferred from (1)" "$FEATURE_TRANSFER_PAGE" >/dev/null
+grep -F -- "data-feature-history-open=\"$TRANSFER_SOURCE_ID\"" "$FEATURE_TRANSFER_PAGE" >/dev/null
+grep -F -- "data-closed-feature-id=\"$TRANSFER_SOURCE_ID\"" "$FEATURE_TRANSFER_PAGE" >/dev/null
+grep -F -- "id=\"file-preview-dialog\"" "$FEATURE_TRANSFER_PAGE" >/dev/null
 grep -F -- "Transferred → $TRANSFER_SUCCESSOR_ID" "$FEATURE_TRANSFER_PAGE" >/dev/null
 echo "ok: Feature transfer preserves completed and transferred Task truth"
 

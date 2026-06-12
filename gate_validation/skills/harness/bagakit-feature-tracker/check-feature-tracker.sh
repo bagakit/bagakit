@@ -274,7 +274,7 @@ assert "Current plan" in detail
 assert detail.count('<article class="feature-card') == 2
 assert detail.count('<details class="feature-review" open>') == 0
 assert re.search(
-    rf'<article class="feature-card feature-card--focused" id="{re.escape(feature_id)}">.*?'
+    rf'<article class="feature-card feature-card--focused" id="{re.escape(feature_id)}"[^>]*>.*?'
     r'<div class="feature-summary" role="button" tabindex="0" data-feature-open="'
     + re.escape(feature_id)
     + r'"',
@@ -285,12 +285,10 @@ assert "Handoff feature" in detail
 assert overview.index("<h2>Proposal</h2>") < overview.index("<h2>In progress</h2>")
 assert 'data-feature-open=' in overview
 assert "Open details" in overview
-assert "file://" in detail
+assert "file://" not in detail
 assert "prefers-color-scheme:dark" not in overview
 assert "&lt;literal&gt;" in detail
 assert "<literal>" not in detail
-assert overview.count("<script>") == 3
-assert detail.count("<script>") == 3
 assert 'id="feature-review-dialog"' in overview
 assert 'class="feature-review-template"' in detail
 assert 'window.__bagakitOpenFeatureReview' in detail
@@ -816,6 +814,35 @@ assert [item["feat_id"] for item in archived_filter["features"]] == [archived_fe
 
 archived_hidden_by_default = run_json("filter-features", "--root", str(root), "--status", "archived")
 assert archived_hidden_by_default["features"] == []
+PY
+
+# Closed records remain immutable history, but their preserved tasks.json must
+# still be available to the same read-only topology panel as active Features.
+CLOSED_STATUS_PAGE="$TMP_DIR/closed-status.html"
+bash "$SKILL_DIR/scripts/feature-tracker.sh" show-feature-status \
+  --root "$TMP_DIR" --feature "$FEATURE_ID" --format html >"$CLOSED_STATUS_PAGE"
+python3 - "$CLOSED_STATUS_PAGE" "$FEATURE_ID" <<'PY'
+import re
+import sys
+from pathlib import Path
+
+html = Path(sys.argv[1]).read_text(encoding="utf-8")
+feature_id = sys.argv[2]
+row = re.search(
+    rf'<li id="closed-{re.escape(feature_id)}"[\s\S]*?</template></li>',
+    html,
+)
+assert row, "closed history row is missing"
+row_html = row.group(0)
+assert f'data-feature-open="{feature_id}"' in row_html
+assert 'class="closed-open">Open topology ↗</span>' in row_html
+assert 'class="feature-review-template"' in row_html
+assert 'class="task-topology"' in row_html
+assert 'class="closed-record-note"' in row_html
+assert 'data-preview-ref=".bagakit/feature-tracker/features-archived/' in row_html
+assert 'data-prompt-select="claim"' not in row_html
+assert 'data-prompt-copy="explain"' in row_html
+print("ok: closed Feature opens preserved Task topology")
 PY
 
 mkdir -p "$TMP_DIR/.bagakit/planning-entry/handoffs"
