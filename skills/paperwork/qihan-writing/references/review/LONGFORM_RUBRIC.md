@@ -21,7 +21,7 @@
 4. 再决定是否给 Craft Bonus
 5. 最后扣 Anti-Pattern Penalty
 6. 如果是对外长文，再补一轮 distribution review
-7. 每次文章评审，再补一轮 audience panel review
+7. 仅在公开发布、高风险长文或用户明确要求时，补一轮 audience panel review
 
 ## Hard Gate
 
@@ -129,7 +129,7 @@
 
 ## Audience Panel Review Add-on
 
-这层默认每次文章评审都要做。
+这层只在公开发布、高风险长文或用户明确要求受众评审时启用；普通长文评审可直接使用本 rubric 的 reader-fit 问题。
 
 标准不是“有没有人能看懂”，而是：
 
@@ -140,10 +140,10 @@
 
 推荐做法：
 
-1. 启动 3 个静室 reviewer：小白、相关领域、领域专家。
-2. 每个 reviewer 都必须给一篇对照文章。
-3. 每个 reviewer 都必须写出“相比对照文章，这篇更强和更弱在哪里”。
-4. 最后把 3 份意见压成一个 synthesis，而不是简单拼接。
+1. 启用 panel 时，启动 3 个静室 reviewer：小白、相关领域、领域专家。
+2. 只有当对照比较会改变发布决定时，才要求每个 reviewer 给出对照文章。
+3. 需要比较时，记录“相比对照文章，这篇更强和更弱在哪里”。
+4. 最后把实际启动的意见压成一个 synthesis，而不是简单拼接。
 
 ## Longform Review Questions
 

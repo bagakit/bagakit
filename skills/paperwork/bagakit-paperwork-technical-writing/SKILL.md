@@ -1,6 +1,6 @@
 ---
 name: bagakit-paperwork-technical-writing
-description: Use when technical collaboration material needs to be distilled into a concise, source-faithful brief, or when technical articles need publishable and executable outputs with objective quality gates. Trigger on 炼化、精炼、提炼、整理成技术文档、distill, $refine-doc, or $bagakit-refine-doc as well as article, RFC, and postmortem requests.
+description: Distill technical collaboration into a source-faithful brief, or write a publishable technical article, RFC, or postmortem with an execution handoff. Use for explicit distill or article requests.
 ---
 
 # Bagakit Paperwork Technical Writing
@@ -185,6 +185,19 @@ Follow `docs/specs/output-discipline.md` for writing deliverables.
 - Do not force a distill brief through article word floors, H2-count gates, or
   publication-only outputs.
 
+0.5. Choose the execution-evidence branch after intent routing.
+- Load `references/engineering-evidence-route.md` when the intent is a
+  technical proposal, performance validation, root-cause repair, compatibility
+  patch, infrastructure rollout, deployment guide, or operations runbook.
+- Use it as an enhancement for the `protocol` or `infrastructure` profile;
+  keep the shared Core evidence, structure, and de-AI-tone checks in force.
+- Select the verification protocol by metric and document type. Do not apply
+  fixed sample-size or percentile requirements to documents that cannot be
+  proved by those measurements.
+- Skip this branch for general explanation, research synthesis, notices,
+  concise distillation, and sentence-level rewriting unless the task also has
+  an execution-bearing intent.
+
 ### Distill Route
 
 When the route is `distill`, read:
@@ -238,11 +251,12 @@ existing `article.md`, `execution_appendix.md`, and `review_report.md` contract.
 - For `brainstorm` profile, also budget sampling protocol metadata (`sampling object`, `sample size`, `window`, `review role`).
 - First-draft rule: do not output framework-only short draft as final article.
 
-3. Run version baseline gate before drafting.
-- If prior versions exist, read previous `techniques`, gap analysis, and latest review.
+3. Run a version baseline gate only when a prior version exists and regression
+   comparison is part of the request.
+- Read the previous `techniques`, gap analysis, and latest review when they
+  exist.
 - Record a 3-column baseline note in `review_report.md`: keep / add / tighten.
-- Record baseline evidence classes in `review_report.md` (`full sample`, `hard evidence chain`, `anti-pattern`, `rollout/checklist`).
-- Do not start rewriting before this baseline note is written.
+- Record baseline evidence classes when the comparison is material.
 
 4. Build outline first.
 - Keep H2 count between 3 and 5.
@@ -281,10 +295,14 @@ existing `article.md`, `execution_appendix.md`, and `review_report.md` contract.
   accepted deviations in `execution_appendix.md` and `review_report.md`.
 - Keep article narrative and design rationale outside this stricter mode.
 
-8. Run program hard gate checks.
+8. Run the article-specific hard gate checks once for the current article.
+   Reuse applicable Core/tone receipts from the same text; do not repeat general
+   lint or full-review steps that add no distinct evidence.
 - Run `python3 scripts/check-article.py --input <article.md> --strict --profile <profile> --report <review_report.md>`.
 - Fix all `errors` before publishing.
-- For any rewrite task, `--baseline <previous_article.md>` is required; do not skip baseline comparison.
+- For a rewrite with a supplied prior version, pass
+  `--baseline <previous_article.md>`; omit baseline comparison when no prior
+  version exists or regression comparison is out of scope.
 - Treat high-compression + evidence-class drop as release-blocking regression.
 - For high-content baseline rewrites, compression over 45% requires explicit scope-cut note; otherwise block release.
 
@@ -308,7 +326,9 @@ existing `article.md`, `execution_appendix.md`, and `review_report.md` contract.
 ## Fallback Path (No Clear Fit)
 
 - If source material is too weak, first request one concrete reader profile and one target decision.
-- If the article cannot meet hard gates in one round, publish only `review_report.md` and stop before release.
+- Repair actionable gate failures within the requested scope and budget. Stop
+  with diagnosis only when missing evidence, authority, or a repeated failure
+  prevents further useful repair; do not publish a failed article.
 - If external references conflict, keep both views in `execution_appendix.md` and mark decision owner explicitly.
 
 ## Quality Gates
@@ -378,6 +398,7 @@ python3 scripts/mask-secrets.py < source.md > masked.md
 - `references/refined-document-template.md`
 - `references/distillation-guardrails.md`
 - `references/writing-techniques.md`
+- `references/engineering-evidence-route.md`
 - `references/human-writing-patterns.md`
 - `references/markdown-formatting.md`
 - `references/agent-gate-rubric.md`

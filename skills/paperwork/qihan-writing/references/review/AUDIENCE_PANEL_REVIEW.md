@@ -11,7 +11,7 @@
 
 如果做不到，这篇文章就还没有真正站住。
 
-这轮 panel review 默认是 publish-blocking gate，不是参考意见。
+这轮 panel review 只有在公开发布、高风险长文或用户明确要求时才启用；启用后才是 publish-blocking gate，否则只是可选参考意见。
 
 ## 这轮评审的标准
 
@@ -36,9 +36,9 @@
 - 首屏只有铺垫，没有给出足够强的 stakes 和命题
 - 小白只能看热闹，专家只能看到套路
 
-## 默认 panel
+## Panel（启用时）
 
-每次文章评审都默认启动 3 个静室 reviewer。
+启用 panel 时启动 3 个静室 reviewer；普通文章评审不自动启动 panel。
 
 ### 1. 小白读者
 

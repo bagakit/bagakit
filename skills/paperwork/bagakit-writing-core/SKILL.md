@@ -1,12 +1,19 @@
 ---
 name: bagakit-writing-core
-description: Generic paperwork writing primitives for routing, foundation checks, title and structure quality, evidence architecture, de-AI-tone orchestration, prose mechanics, rewrite feedback, and review discipline. Use directly for general writing quality work or compose with paperwork L2 skills such as qihan-writing and bagakit-paperwork-technical-writing.
+description: Provide generic writing-quality routing, structure, evidence,
+  semantic-preservation, de-AI-tone, and review primitives when no
+  style-specific or delivery skill owns the task, or as the paperwork L1 core.
 metadata:
   bagakit:
     paperwork_layer: l1-core
 ---
 
 # Bagakit Writing Core
+
+Core owns generic writing quality and the single publishability gate. De-AI-tone
+is its focused peer for AI-tone and protected-span analysis; invoke it through
+Core for final prose, then use the result as one composed gate rather than
+duplicating a second lexicon or rewrite audit.
 
 `bagakit-writing-core` is the reusable writing foundation for the `paperwork`
 family.
@@ -65,8 +72,8 @@ Use this core as the L1 writing substrate.
     bilingual lexicon, profile exceptions, and script-backed de-AI-tone lint
   - does not replace core-owned title, evidence, structure, audience, or
     longform review decisions
-  - is a required L1 primitive for final prose, public summaries, rewritten
-    drafts, titles, abstracts, and review reports
+  - supplies one tone review within the composed final review; a separate CLI
+    pass is useful for long prose, explicit audits, or identified tone risk
 
 - `qihan-writing`
   - owns personal Chinese-writing taste, priority order, channel defaults, and
@@ -81,43 +88,31 @@ compose the core explicitly.
 
 ## Workflow
 
-1. Route the writing task.
-   - Start with `references/workflow/OPERATING_SURFACE_MATRIX.md`.
-   - Pick the scenario and lane before drafting.
-   - When a `bagakit-writing-intake` `intake_packet` is supplied, consume it
-     through `references/workflow/INTAKE_HANDOFF_AND_CORE_VETO.md` before
-     selecting the lane.
-   - When `clarity_routing.precision_route` is `core_clarity` or
-     `controlled_technical`, load
-     `references/writing/PRECISION_AND_READER_BURDEN.md`.
-2. Check whether the foundation is stable.
-   - Use `references/knowledge/PRE_DRAFT_ROUTE_MEMO_TEMPLATE.md`.
-   - Run `scripts/writing_core_route_tools.py check-foundation` when a route
-     memo, handoff, or depth packet exists.
-   - Run `scripts/writing_core_route_tools.py review-foundation` when only a
-     draft or loose route artifact exists.
-3. Choose structure and title promise.
-   - Use `references/writing/NARRATIVE_ANGLE_SELECTION.md`.
-   - Review the choice with
-     `references/writing/NARRATIVE_ANGLE_REVIEW_HEURISTIC.md`.
-4. Draft or rewrite.
-   - Use `references/writing/STRUCTURE_PYRAMID.md`,
-     `references/writing/AI_SMELLS.md`, and
-     `references/workflow/REWRITE_FEEDBACK_LOOP.md`.
-5. Lint and review.
-   - Use `references/rules/core-rule-registry.toml` as the rule metadata index.
-   - MUST run the de-AI-tone pass for publishable prose:
-     `bash scripts/bagakit-writing-core-cli.sh de-ai-tone lint --profile <profile> <artifact.md>`.
-   - Run `scripts/writing_core_lint.py`.
-   - For rewrites, run `scripts/writing_core_inventory.py compare` before
-     accepting a smoother but thinner draft.
-   - For two or more related articles, use
-     `references/review/PORTFOLIO_REVIEW.md` before accepting a shared outline.
-     Require a per-article `unique_promise` and `spine`; treat overlap as an
-     advisory unless a format or domain constraint explains it.
-   - Use `references/review/QA_HARD_METRICS.md`,
-     `references/review/LONGFORM_RUBRIC.md`, and
-     `references/review/ANTI_RATIONALIZATION_TABLE.md`.
+Use one composed final review, scaled to the requested artifact. For a short
+edit, preserve meaning and review the changed passage directly; do not create a
+route memo or longform report merely to activate this skill.
+
+- For an unclear writing route, consult
+  `references/workflow/OPERATING_SURFACE_MATRIX.md`. Consume a supplied Intake
+  packet through `references/workflow/INTAKE_HANDOFF_AND_CORE_VETO.md`.
+- For an uncertain foundation, use the existing route/foundation checker; do not
+  require a new memo when the reader, evidence, and intended action are clear.
+- For structure or title decisions, read `references/writing/NARRATIVE_ANGLE_SELECTION.md`
+  and its review heuristic only when those choices are unresolved.
+- Review protected facts, claim support, clarity, and tone once. Use
+  `bash scripts/bagakit-writing-core-cli.sh de-ai-tone lint --profile <profile> <artifact.md>`
+  for an explicit tone audit, long prose, or identified tone risk. Run
+  `scripts/writing_core_lint.py` for applicable mechanics, not to duplicate a
+  downstream check on the same unchanged text.
+- For substantial rewrites with a baseline, compare retained meaning and use
+  `scripts/writing_core_inventory.py compare` when an inventory adds evidence.
+- Use the longform rubric and hard-metric references for full articles, and
+  portfolio review only for multiple related articles.
+
+Reuse current receipts for unchanged text. Repeat a check only after a relevant
+edit, a new material failure, or a changed acceptance criterion. L2-specific
+facts and publication conditions remain with their L2 owner; combine them with
+Core findings in one result instead of running a second generic review stack.
 
 ## Runtime Surface Declaration
 

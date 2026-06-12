@@ -1,14 +1,10 @@
 ---
 name: qihan-writing
 description: |
-  写作与改写技能（qihan 风格）：用于把技术、研究、计划类内容写得“精炼、有深度、有可承重隐喻、给人希望、让人警醒”，同时保持客观、严谨、低 AI 味，并适配飞书云文档排版。
-
-  适用场景：
-  - 产出研究精读、荟萃分析、技术方案、周报复盘、执行计划
-  - 对已有草稿进行去 AI 味、去空话、增强证据链与可执行性
-  - 需要同时满足：结构清晰 + 最小闭环实验导向 + 飞书富排版
-
-  不适用：纯营销软文、小说散文。
+  Use when the user explicitly requests qihan style, qihan's Chinese-writing
+  overlay, or qihan-specific Feishu formatting. Do not auto-select for Chinese
+  long-form, technical writing, or Feishu formatting alone; use writing-core or
+  technical-writing when no qihan preference is given.
 ---
 
 # qihan-writing
@@ -98,7 +94,7 @@ rewrite examples remain the local overlay.
 2) **过程状态必须引用（quote）**：同步进度时，所有过程状态放在引用里，便于与结论区分。
 3) **起草前先过 route，而不是直接写**：先 route、再看基础、再选卡，不要拿文风补基础层缺口。
 4) **防回归（内容不丢失）**：重写、改写时，除非用户明确要求删减，否则不得“写短了就算优化”。
-5) **用户改写是高信号监督**：当用户直接给出句子级改写时，必须抽象成通用规则，再回扫全文同类问题。
+5) **用户改写是高信号监督**：当用户直接给出句子级改写时，抽象成通用规则；只有在长文、重复模式或用户要求无回归时，才回扫全文同类问题。单句或局部改写直接检查命中段。
 6) **最小闭环**：任何建议必须落到“下一步动作 + 触发条件 + 验收指标”。
 7) **核心概念要早出场**：如果一个概念解释了全文世界观和结构，就要尽早出现。
 8) **标题要像刊物标题，不像草稿标签**：标题要覆盖文章的核心判断，读起来像技术刊物、研究短文或公众号头条的正式标题；不要只标记主题，也不要写成“某某介绍 / 某某说明 / 某某命令形状”。
@@ -114,7 +110,7 @@ rewrite examples remain the local overlay.
 
 - 先压实对象边界、第一问题和证据形状，再选叙事角度
 - 缺证据时写成缺口，不用文风把缺口抹平
-- 用户改写暴露的同类问题要回扫全文，形成局部棘轮
+- 用户改写暴露的同类问题，在长文、重复模式或明确无回归要求下回扫全文；局部改写只检查命中段
 - 评审分数只辅助判断；publish-blocking 仍来自证据、结构和受众门禁
 
 ## 工作流
@@ -146,7 +142,7 @@ rewrite examples remain the local overlay.
 - **Step 2：套用 qihan 风格约束**
   按 `references/writing/VOICE.md` 和 `references/writing/STYLE_NORTH_STAR.md` 执行，默认要求句子短、结论前置、可证据化，并持续追问“这句话是否有 density、mechanism、mapping、agency 或 alertness 的真实增量”。涉及术语、指代、动作主体、程序步骤或高误读后果时，同时应用 north star 的“受控清晰度边界”：继承 Core 精度，不继承说明书口吻。
 - **Step 2.5：吸收用户改写并生成可复用规则**
-  按 `references/workflow/REWRITE_FEEDBACK_LOOP.md` 执行；先记录原句与改写句，再做四维分析、抽规则、回扫全文。需要找成熟句型时，先查 `references/knowledge/REWRITE_CASEBOOK.md`。
+  需要完整改写反馈闭环时，按 `references/workflow/REWRITE_FEEDBACK_LOOP.md` 执行；先记录原句与改写句，再做四维分析、抽规则。仅当文稿较长、同类模式重复或用户要求无回归时才启用全文回扫；局部改写检查命中段即可。需要找成熟句型时，先查 `references/knowledge/REWRITE_CASEBOOK.md`。
 - **Step 3：去 AI 味**
   按 `references/writing/AI_SMELLS.md` 执行，优先删掉模板化连接词和空转动词，把判断改成动词 + 阈值 + 例子 / 反例，同时回扫黑话动词、后台口吻、分号硬切、静态清单句。
 - **Step 3.1：大白话自检**
@@ -158,11 +154,15 @@ rewrite examples remain the local overlay.
 - **Step 4：飞书文档排版**
   按 `references/writing/FEISHU_LAYOUT.md` 执行；控制标题层级、callout、表格、流程图，并避免正文开头重复 title。长文在飞书里必须有可展开的层级感，默认至少有 H2 主梁和 H3 子标题。
 - **Step 4.5：硬性校验**
-  lint 是非 trivial 终稿交付的默认门禁，不只在“对外发布”时才触发。只要本轮产物是完整文稿、长段改写稿、review / polish 后的准终稿、飞书稿、对外分享稿、长期沉淀稿，或已经有可运行 lint 的 markdown artifact，交付前都要跑 `scripts/qihan_write_lint.py`。可以跳过的情况只包括：短聊天回答、单句 / 局部表达修改、没有落地 artifact 的临时片段、用户明确要求先不要校验。跳过时必须在交付说明里写清 `lint not run: <reason>`。它覆盖四类检查：标题与层级、AI 味和口癖、结构硬门禁、prose-shape / prose-mechanics 机械感 advisory。机械感检查只给非阻塞 `ADVISORY`，指标说明见 `references/review/QA_HARD_METRICS.md`。`WARN` / `FAIL` 默认阻塞终稿交付，除非用户明确接受偏离。
+  lint 按交付风险和篇幅分级：公开发布、长期沉淀、完整长文或用户明确要求审计时，交付前运行 `scripts/qihan_write_lint.py`；短聊天、单句或局部改写直接检查命中段，不为启动 lint 制造 artifact。已有 lint 结果在文本未变时复用，只有相关编辑、实质失败或验收条件变化后才重跑。脚本覆盖标题与层级、AI 味和口癖、结构硬门禁、prose-shape / prose-mechanics 机械感 advisory；机械感检查只给非阻塞 `ADVISORY`，指标说明见 `references/review/QA_HARD_METRICS.md`。`WARN` / `FAIL` 仅在适用的终稿门禁中阻塞交付，除非用户明确接受偏离。
 - **Step 4.6：长文终稿评审**
   当输出是博客 / 公众号 / 内部专题长文时，再按 `references/review/LONGFORM_RUBRIC.md` 做一轮 review，并用 `references/review/LONGFORM_REVIEW_TEMPLATE.md` 记录 hard gate、weighted review、qihan north-star check、craft bonus、anti-pattern penalty。涉及“无依据的人群泛化 / 拉踩表达 / 语气过界”的问题，不用脚本裁决；要求独立 reviewer 做静室打分，优先使用 subagent blind review。
 - **Step 4.65：audience panel review**
-  每次文章评审都要补一轮 `references/review/AUDIENCE_PANEL_REVIEW.md`。这是一道 publish-blocking gate，不是附加意见。默认启动 3 个静室 reviewer：小白、相关领域、该领域专家，并用 `references/review/AUDIENCE_PANEL_REVIEW_TEMPLATE.md` 留下独立 artifact。每个 reviewer 都必须给一篇对照文章、来自当前稿件的证据句或证据段，并写出“相比对照文章，这篇更强和更弱在哪里”。
+  仅在公开发布、高风险长文或用户明确要求受众评审时启用
+  `references/review/AUDIENCE_PANEL_REVIEW.md`。此时它才是 publish-blocking
+  gate；普通文章评审沿用长文 rubric 或 Core 的受众检查。默认启动 3 个静室
+  reviewer（小白、相关领域、该领域专家）并留下独立 artifact；只有在该评审
+  对决策有影响时，才要求对照文章和稿件证据句。
 - **Step 4.7：review packet**
   当长文、研究、方案或 audience panel review 需要被他人合并判断时，用
   `references/review/REVIEW_PACKET_TEMPLATE.md` 生成独立 `review_packet.md`。
@@ -176,7 +176,7 @@ rewrite examples remain the local overlay.
 - **Step 5：交付结构**
   交付必须包含 1–3 条结论、可追溯证据、取舍 / 风险、以及下一步动作 / 触发 / 验收指标。
 - **Step 6：同类问题全文回扫**
-  任何一句被用户重写后，都不要只改命中处；至少再检查同类句式、同类叙事误位、同类概念层级错误、同类黑话或节奏问题。如果只是改了一句，没有做全文回扫，默认视为未完成。
+  对长文、重复模式或用户要求无回归的重写，再检查同类句式、叙事误位、概念层级、黑话和节奏问题。单句或局部改写只检查命中段；不因缺少全文回扫而阻止交付。
 
 ## 参考资料
 

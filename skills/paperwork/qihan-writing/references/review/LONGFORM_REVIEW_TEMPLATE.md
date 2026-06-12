@@ -6,12 +6,12 @@
 
 评审日期：
 
-## Lint Gate
+## Lint Gate（适用时）
 
 - 是否已运行 `qihan_write_lint.py`：
 - lint artifact / command：
 - 结果：`pass` | `WARN/FAIL blocking` | `not run`
-- 如果未运行：`lint not run: <reason>`
+- 如果在应运行的场景未运行：`lint not run: <reason>`
 - accepted deviations：
 
 ## Plain-Language Pass
@@ -61,7 +61,7 @@
 - 主要结论：
 - 可疑句段：
 
-## Audience Panel Review
+## Audience Panel Review（可选）
 
 - 是否做了 audience panel review：
 - Reviewer 类型：`subagent` | `human`
@@ -74,7 +74,7 @@
 - 各 reviewer 的证据句 / 段：
 - 跨角色重复优点：
 - 跨角色重复问题：
-- publish-blocking reason：
+- publish-blocking reason（仅启用 panel 时）：
 - 结论：`可发` | `需重写首屏` | `需重建主梁` | `需补基础`
 
 ## Craft Bonus

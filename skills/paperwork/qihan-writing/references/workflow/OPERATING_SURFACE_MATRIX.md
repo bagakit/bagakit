@@ -42,9 +42,9 @@
 | --- | --- | --- |
 | `references/workflow/INSIGHT_INTERVIEW_LOOP.md` | 用户心里有判断，但没完全说出来 | 证据、理论、时代背景缺口 |
 | `references/workflow/REWRITE_FEEDBACK_LOOP.md` | 用户直接给“原句 -> 改写句” | 从零搭命题或补研究基础 |
-| `references/review/QA_HARD_METRICS.md` | 非 trivial 终稿、长段改写、review / polish 产物、飞书稿、对外分享稿、长期沉淀稿，或已有可 lint 的 markdown artifact | 低成本抓结构、口癖、AI 味和机械感漂移 |
+| `references/review/QA_HARD_METRICS.md` | 公开发布、长期沉淀、完整长文终稿，或用户明确要求 lint / 审计 | 短聊天、单句或局部改写 |
 | `references/review/LONGFORM_RUBRIC.md` | 博客、公众号、内部专题长文终稿 | 早期研究或基础重建阶段 |
-| `references/review/AUDIENCE_PANEL_REVIEW.md` | 每次文章评审 | 只做内部机制自证，不看无上下文读者体验 |
+| `references/review/AUDIENCE_PANEL_REVIEW.md` | 公开发布、高风险长文，或用户明确要求受众评审 | 普通文章评审、局部润色、只做内部机制自证 |
 | `references/knowledge/DEPTH_RESEARCH_PACKET_TEMPLATE.md` | 进入 depth escalation 时 | 局部润色或单句改写 |
 | `references/knowledge/REVERSE_OUTLINE_TEMPLATE.md` | 需要把代表文章压成结构地图时 | 直接模仿 prose 或囤摘抄 |
 | `references/knowledge/RESEARCH_TO_DRAFT_HANDOFF_TEMPLATE.md` | research 已经做完、准备回正文时 | research 仍在发散或命题未锁定 |
@@ -77,7 +77,7 @@
 | `RESEARCH_TO_DRAFT_HANDOFF_TEMPLATE.md` | 防止 research 做完后回稿时重新想一遍命题和视角 |
 | `REVERSE_OUTLINE_TEMPLATE.md` | 防止看范文只抄句子、不抄结构 |
 | `qihan_route_tools.py` | 低成本做 foundation check，并把 handoff 自动压成 route state |
-| `REWRITE_FEEDBACK_LOOP.md` | 把局部改句变成全文规则 |
+| `REWRITE_FEEDBACK_LOOP.md` | 把长文或重复模式中的局部改句变成可复用规则；局部改写可只检查命中段 |
 | `EVIDENCE_ARCHITECTURE.md` | 防止把证据 dump 进正文 |
 | `qihan_write_lint.py` + `references/review/QA_HARD_METRICS.md` | 低成本抓结构和口癖漂移 |
 
@@ -92,24 +92,9 @@
 
 ## 6. Lint Gate Trigger
 
-lint 的默认触发条件要比“对外发布”更宽。
+lint 按交付风险和篇幅分级。公开发布、长期沉淀、完整长文终稿或用户明确要求审计时运行；短聊天、单句和局部改写不为启动脚本制造 artifact。文本未变时复用已有结果，只有相关编辑、实质失败或验收条件变化后才重跑。
 
-默认要跑：
-
-- 完整文稿终稿
-- 长段改写稿
-- review / polish 后的准终稿
-- 飞书稿、对外分享稿、长期沉淀稿
-- 任何已经写成 markdown 文件、可以被 `qihan_write_lint.py` 检查的 artifact
-
-可以跳过：
-
-- 短聊天回答
-- 单句或局部表达修改
-- 没有落地文件的临时片段
-- 用户明确要求先不要校验
-
-跳过时必须写清：
+在本应运行 lint 的场景选择跳过时，说明：
 
 ```text
 lint not run: <reason>

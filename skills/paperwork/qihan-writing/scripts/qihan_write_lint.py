@@ -1170,7 +1170,7 @@ def negation_checks(md: str):
             Finding(
                 "WARN",
                 "NEGATION_HEAVY",
-                "Negation-heavy draft; run a full sweep for `不是`-style contrast and rewrite to direct claims where possible",
+                "Negation-heavy draft; inspect the reported contrast lines and rewrite only where direct claims improve clarity",
                 {
                     "count": len(negation_lines),
                     "items": negation_lines[:12],
