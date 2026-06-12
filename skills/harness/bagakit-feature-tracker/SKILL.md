@@ -115,6 +115,21 @@ Use the exact next command emitted by the operator. A blocked finish must carry
 its canonical blocker class and reason in the same transition; unrelated
 runnable or active Tasks may continue.
 
+Use `finish-task --result blocked` only for a real internal or external
+execution blocker. When a current Task is intentionally abandoned or replaced,
+use `finish-task --result cancelled --cancel-reason ...`; it preserves history,
+does not satisfy dependents, and reports the Feature as `replanning` rather than
+as execution-blocked until a reviewed successor plan is installed.
+
+When a Feature is partially complete and its remaining scope is deliberately
+reorganized into another reviewed Feature, create the successor with one or
+more `--transferred-from <feature-id>` references, then run
+`transfer-feature --feature <old-id> --replacement <new-id>` with the closeout
+review. The old Feature becomes terminal `transferred` and records
+`transferred_to`: done Tasks remain `done`, while unfinished current-plan Tasks
+become `transferred`. Transferred Tasks are historical work, not runnable work
+and never satisfy a dependency; the successor Feature owns any regrouping.
+
 `run-task-gate` executes the current Task's `verification` mappings with
 `kind=command`, in their declared order, and records the same command results
 in both `tasks.json.last_gate_commands` and
@@ -175,10 +190,14 @@ real parallelism, not the largest possible Task count.
 
 ## Human Visibility
 
-After Feature creation, a Host may present one stable, disposable status page
-that derives the active and runnable Task frontier. Clicking a Feature card
-opens a details panel with the same file-derived Task topology and links its
-nodes to acceptance and proof detail:
+After Feature creation, a Host should present one stable, disposable status
+page through the loopback-only server below whenever a browser is available.
+This is the preferred human-observation route because it reads canonical files
+on each refresh while keeping the page read-only. A static HTML snapshot is the
+fallback for environments that cannot use a loopback server or when the user
+explicitly asks for an export. Clicking a Feature card opens a details panel
+with the same file-derived Task topology and links its nodes to acceptance and
+proof detail:
 
 ```bash
 bash "$BAGAKIT_FEATURE_TRACKER_SKILL_DIR/scripts/feature-tracker.sh" \
@@ -192,21 +211,33 @@ bash "$BAGAKIT_FEATURE_TRACKER_SKILL_DIR/scripts/feature-tracker.sh" \
 The HTML `--feature` option focuses and opens one Feature's details panel while
 retaining the complete active overview; text and JSON forms continue to inspect
 one Feature.
+The overview may place one derived current-focus strip above the status board;
+it is only a compact routing cue for the most urgent active, blocked,
+replanning, runnable, or closeout state and never a second priority store.
 If one active record is malformed, the overview shows a minimal repair-needed
 card with canonical links and leaves strict diagnosis to `validate-tracker`.
-The page is a static snapshot computed from canonical Tracker files plus an
-optional latest Flow Runner progress overlay. Reuse the same
-path and regenerate it only after plan confirmation, execution start, blocker
-change, closeout, or an explicit status request. Its Agent claim draft is a
+The page is a derived projection computed from canonical Tracker files plus an
+optional latest Flow Runner progress overlay. Reuse the same URL across updates;
+do not create a new page per mutation. Its Agent claim draft is a
 Host-delivered `bagakit-agent-messaging` envelope; it grants no authority and
-proves no delivery or claim. Expanding a Feature exposes the Task topology;
-use its full-screen control for larger graphs and read the node labels and
-legend for the derived runtime frontier, gate state, and direct dependencies.
+proves no delivery or claim. Opening a Feature's details exposes its derived
+Tracker Name (`Feature-Tracker-<feature-id>`) with a copy action, followed by
+the Task topology; use the full-screen control for larger graphs and read the
+node labels and legend for the derived runtime frontier, gate state, and direct
+dependencies. Tracker Name is presentation-only and is not another state field.
+If a Feature has `transferred_from`, the details panel and Feature card show
+the source Feature ids; this is lineage context, not a dependency edge.
 Task review details are independently collapsible; active and blocked Tasks are
 open by default while other Tasks stay compact in larger plans. Their browser
-disclosure state is preserved by live refresh and is not Tracker truth.
+disclosure state is preserved exactly by live refresh—including explicitly
+closed items—and is not Tracker truth. The Task list has its own scroll region;
+selecting a topology node opens and scrolls only that list to the matching Task.
+Each Task detail exposes derived quick prompts for claiming the Task, checking
+status, explaining the Task, and recovering a bounded Goal statement. Prompts
+point back to canonical SSOT and never become tracker state.
 
-For a live local view, use the loopback-only read-only server:
+For a live local view, use the loopback-only read-only server first and share
+the printed URL with the user:
 
 ```bash
 bash "$BAGAKIT_FEATURE_TRACKER_SKILL_DIR/scripts/feature-tracker.sh" \
@@ -229,7 +260,9 @@ zoom range and a CSS fallback when the host does not expose native
 `HTMLDialogElement` support. It fits a graph to the fullscreen viewport on first
 open and keeps the SVG's layout dimensions synchronized with zoom, so scrolling
 does not expose a clipped visual transform. Stop the server when the observation
-session ends.
+session ends. Do not replace this route with a `file://` page when a loopback
+server can be started: browsers commonly restrict local-file automation and a
+file snapshot cannot observe changes.
 
 When the observer has a terminal but no browser, render the same projection in
 place:
@@ -244,7 +277,7 @@ bash "$BAGAKIT_FEATURE_TRACKER_SKILL_DIR/scripts/feature-tracker.sh" \
 This is the same derived frontier and Task topology as the other two routes, not
 a second projection: it renders `feature_task_frontier` and
 `task_topology_layers` over the same canonical files and holds no tracker lock.
-`--feature` expands one Feature's topology while keeping the full active board,
+`--feature` targets one Feature's topology while keeping the full active board,
 and a malformed active record shows the same repair-needed line rather than
 disappearing from the board. On each refresh it recomputes the whole projection,
 reports `updated`, and on a transient read error keeps the last good frame and
@@ -267,7 +300,7 @@ that progress message:
 - let the page carry the complete topology; the progress message should give
   only the result, current exception or blocker, and the link
 - if no route can be presented, include a compact derived frontier summary
-  (`active`, `runnable`, `blocked`, `waiting`) and state that the topology page
+  (`active`, `runnable`, `blocked`, `cancelled`, `waiting`) and state that the topology page
   is unavailable
 
 This publication rule applies to user-facing progress messages, not every
@@ -297,7 +330,7 @@ prints, then rerun with `--execute`:
 - promotion: use an existing Chronicle, Evolver, Principle Layer, or Living
   Knowledge owner; do not create another store
 
-The terminal lifecycle is `archived` or `discarded`. Use
+The terminal lifecycle is `archived`, `discarded`, or `transferred`. Use
 `discard-feature --reason invalid` only when a readable active Feature actually
 fails its contract: Tracker rejects valid state, preserves the original
 Feature-root files under `artifacts/invalid-source/`, and publishes a minimal

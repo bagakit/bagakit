@@ -95,8 +95,9 @@ with urlopen(sys.argv[1], timeout=5) as response:
     assert "restoreTopologyViews" in body
     assert "captureBoardScroll" in body
     assert "restoreBoardScroll" in body
-    assert "openTaskIds" in body
-    assert "restoreOpenTasks" in body
+    assert "captureTaskDisclosure" in body
+    assert "restoreTaskDisclosure" in body
+    assert "window.__bagakitFocusFeature(nextContent, false)" in body
     assert "scrollLeft" in body
 print("ok: live status server")
 PY
@@ -133,6 +134,10 @@ assert f'href="#{feature_id}-task-T-003"' in html
 assert 'class="review-task-summary"' in html
 assert 'class="review-task-toggle"' in html
 assert 'class="review-task-fold-note"' in html
+assert 'class="review-tasks-scroll"' in html
+assert 'class="task-quick-prompts"' in html
+for label in ("认领任务", "检查状态", "Explain", "Goal 语句"):
+    assert label in html
 PY
 
 python3 - "$FEATURE_DIR/tasks.json" <<'PY'
@@ -212,6 +217,8 @@ assert "current_task_id" not in state
 assert "blocked_reason_class" not in state
 assert feature["task_frontier"] == {
     "active": ["T-001", "T-002"], "runnable": [], "blocked": [],
+    "cancelled": [],
+    "transferred": [],
     "waiting": ["T-003"], "done": [],
 }
 assert receipt["schema"] == "bagakit.execution-owner-receipt.v2"
@@ -363,5 +370,132 @@ if bash "$SKILL_DIR/scripts/feature-tracker.sh" set-task-plan \
 fi
 grep -F "cycle" "$TMP_DIR/cycle.err" >/dev/null
 test "$CYCLE_TASKS_SHA" = "$(shasum "$CYCLE_TASKS" | awk '{print $1}')"
+
+REPLAN_PLAN="$TMP_DIR/replan-plan.json"
+cat >"$REPLAN_PLAN" <<'JSON'
+{
+  "schema": "bagakit.feature-task-plan.v1",
+  "review": {"status": "approved", "evidence_ref": "review/replanning"},
+  "source_refs": ["decision/replanning"],
+  "tasks": [
+    {
+      "id": "T-001", "depends_on": [], "title": "Retire the old execution route",
+      "objective": "Stop the obsolete route while preserving its execution history.",
+      "outcome": "The obsolete route is cancelled without pretending it passed.",
+      "acceptance": ["The old route is explicitly cancelled."],
+      "verification": [{"kind": "command", "ref": "true", "proves": "The cancellation transition has an executable proof."}],
+      "source_refs": ["decision/replanning"], "supersedes": []
+    },
+    {
+      "id": "T-002", "depends_on": ["T-001"], "title": "Continue the downstream route",
+      "objective": "Keep the downstream route waiting for a reviewed successor.",
+      "outcome": "The downstream route is not released by cancellation alone.",
+      "acceptance": ["The downstream route remains waiting."],
+      "verification": [{"kind": "command", "ref": "true", "proves": "The downstream waiting state has an executable proof."}],
+      "source_refs": ["decision/replanning"], "supersedes": []
+    }
+  ]
+}
+JSON
+bash "$SKILL_DIR/scripts/feature-tracker.sh" create-feature \
+  --root "$TMP_DIR" --title "Replanning fixture" --slug "replanning-fixture" \
+  --goal "Separate cancellation from real blockers" --workspace-mode current_tree \
+  --tasks-file "$REPLAN_PLAN" >/dev/null
+REPLAN_ID="$(feature_tracker_feature_id_by_title "$TMP_DIR" "Replanning fixture")"
+bash "$SKILL_DIR/scripts/feature-tracker.sh" start-task --root "$TMP_DIR" --feature "$REPLAN_ID" --task T-001 >/dev/null
+if bash "$SKILL_DIR/scripts/feature-tracker.sh" finish-task --root "$TMP_DIR" --feature "$REPLAN_ID" --task T-001 --result cancelled >"$TMP_DIR/cancel-missing.out" 2>"$TMP_DIR/cancel-missing.err"; then
+  echo "error: cancellation without a reason was accepted" >&2
+  exit 1
+fi
+grep -F -- "--cancel-reason is required" "$TMP_DIR/cancel-missing.err" >/dev/null
+bash "$SKILL_DIR/scripts/feature-tracker.sh" finish-task --root "$TMP_DIR" --feature "$REPLAN_ID" --task T-001 --result cancelled --cancel-reason "superseded by reviewed successor" >"$TMP_DIR/cancel.out"
+grep -F -- "feat_status: replanning" "$TMP_DIR/cancel.out" >/dev/null
+grep -F -- "next_action_kind: revise_task_plan" "$TMP_DIR/cancel.out" >/dev/null
+bash "$SKILL_DIR/scripts/feature-tracker.sh" get-feature --root "$TMP_DIR" --feature "$REPLAN_ID" >"$TMP_DIR/replan-feature.json"
+python3 - "$TMP_DIR/replan-feature.json" <<'PY'
+import json, sys
+from pathlib import Path
+feature = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+assert feature["state"]["status"] == "replanning"
+assert feature["task_frontier"]["cancelled"] == ["T-001"]
+assert feature["task_frontier"]["waiting"] == ["T-002"]
+assert feature["task_frontier"]["blocked"] == []
+PY
+bash "$SKILL_DIR/scripts/feature-tracker.sh" get-owner-receipt --root "$TMP_DIR" --feature "$REPLAN_ID" --json >"$TMP_DIR/replan-receipt.json"
+python3 - "$TMP_DIR/replan-receipt.json" <<'PY'
+import json, sys
+from pathlib import Path
+receipt = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+assert receipt["continuation"] == "blocked"
+assert receipt["blockers"] == [{"item_id": None, "class": "replan_required", "reason": "A current Task was cancelled; install the reviewed successor plan before continuing."}]
+PY
+
+echo "ok: cancellation is distinct from execution blocking"
+
+TRANSFER_SOURCE_PLAN="$TMP_DIR/transfer-source-plan.json"
+cat >"$TRANSFER_SOURCE_PLAN" <<'JSON'
+{
+  "schema": "bagakit.feature-task-plan.v1",
+  "review": {"status": "approved", "evidence_ref": "review/transfer"},
+  "source_refs": ["decision/transfer"],
+  "tasks": [
+    {
+      "id": "T-001", "depends_on": [], "title": "Close the completed slice",
+      "objective": "Deliver the first independent slice.",
+      "outcome": "The completed slice is proven.",
+      "acceptance": ["The completed slice passes its gate."],
+      "verification": [{"kind": "command", "ref": "true", "proves": "The completed slice is executable."}],
+      "source_refs": ["decision/transfer"], "supersedes": []
+    },
+    {
+      "id": "T-002", "depends_on": [], "title": "Continue the remaining slice",
+      "objective": "Carry the remaining work into a successor Feature.",
+      "outcome": "The remaining slice is explicitly transferred.",
+      "acceptance": ["The remaining slice is not reported as unfinished in the old Feature."],
+      "verification": [{"kind": "command", "ref": "true", "proves": "The transfer transition is executable."}],
+      "source_refs": ["decision/transfer"], "supersedes": []
+    }
+  ]
+}
+JSON
+bash "$SKILL_DIR/scripts/feature-tracker.sh" create-feature \
+  --root "$TMP_DIR" --title "Transfer source" --slug "transfer-source" \
+  --goal "Preserve partial completion while moving remaining work" \
+  --workspace-mode worktree --tasks-file "$TRANSFER_SOURCE_PLAN" >/dev/null
+TRANSFER_SOURCE_ID="$(feature_tracker_feature_id_by_title "$TMP_DIR" "Transfer source")"
+bash "$SKILL_DIR/scripts/feature-tracker.sh" start-task --root "$TMP_DIR" --feature "$TRANSFER_SOURCE_ID" --task T-001 >/dev/null
+bash "$SKILL_DIR/scripts/feature-tracker.sh" run-task-gate --root "$TMP_DIR" --feature "$TRANSFER_SOURCE_ID" --task T-001 >/dev/null
+bash "$SKILL_DIR/scripts/feature-tracker.sh" finish-task --root "$TMP_DIR" --feature "$TRANSFER_SOURCE_ID" --task T-001 --result done >/dev/null
+bash "$SKILL_DIR/scripts/feature-tracker.sh" create-feature \
+  --root "$TMP_DIR" --title "Transfer successor" --slug "transfer-successor" \
+  --goal "Continue the remaining transferred slice" --workspace-mode worktree \
+  --tasks-file "$TRANSFER_SOURCE_PLAN" --transferred-from "$TRANSFER_SOURCE_ID" >/dev/null
+TRANSFER_SUCCESSOR_ID="$(feature_tracker_feature_id_by_title "$TMP_DIR" "Transfer successor")"
+bash "$SKILL_DIR/scripts/feature-tracker.sh" transfer-feature \
+  --root "$TMP_DIR" --feature "$TRANSFER_SOURCE_ID" --replacement "$TRANSFER_SUCCESSOR_ID" \
+  "${FEATURE_TRACKER_CLOSEOUT_REVIEW_ARGS[@]}" >/dev/null
+bash "$SKILL_DIR/scripts/feature-tracker.sh" validate-tracker --root "$TMP_DIR" >/dev/null
+python3 - "$TMP_DIR" "$TRANSFER_SOURCE_ID" "$TRANSFER_SUCCESSOR_ID" <<'PY'
+import json, sys
+from pathlib import Path
+root = Path(sys.argv[1])
+source_id, successor_id = sys.argv[2:]
+source_dir = root / ".bagakit" / "feature-tracker" / "features-transferred" / source_id
+successor_dir = root / ".bagakit" / "feature-tracker" / "features" / successor_id
+source_state = json.loads((source_dir / "state.json").read_text(encoding="utf-8"))
+source_tasks = json.loads((source_dir / "tasks.json").read_text(encoding="utf-8"))
+successor_state = json.loads((successor_dir / "state.json").read_text(encoding="utf-8"))
+assert source_state["status"] == "transferred"
+assert source_state["transferred_to"] == {"feature_id": successor_id}
+assert [task["status"] for task in source_tasks["tasks"]] == ["done", "transferred"]
+assert "transferred_to" not in source_tasks["tasks"][1]
+assert successor_state["transferred_from"] == [{"feature_id": source_id}]
+PY
+FEATURE_TRANSFER_PAGE="$TMP_DIR/transfer-page.html"
+bash "$SKILL_DIR/scripts/feature-tracker.sh" show-feature-status \
+  --root "$TMP_DIR" --feature "$TRANSFER_SUCCESSOR_ID" --format html >"$FEATURE_TRANSFER_PAGE"
+grep -F -- "Transferred from" "$FEATURE_TRANSFER_PAGE" >/dev/null
+grep -F -- "Transferred → $TRANSFER_SUCCESSOR_ID" "$FEATURE_TRANSFER_PAGE" >/dev/null
+echo "ok: Feature transfer preserves completed and transferred Task truth"
 
 echo "ok: bagakit-feature-tracker Task DAG"

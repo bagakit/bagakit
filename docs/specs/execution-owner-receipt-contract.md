@@ -53,12 +53,16 @@ Required behavior:
   `continuation = blocked` and one owner-level blocker with
   `class = closeout_required`; this means all Tasks are done but the Feature
   still requires archive/discard review
+- an active Feature with `lifecycle_status = replanning` uses
+  `continuation = blocked` and one owner-level blocker with
+  `class = replan_required`; this is a planning handoff, not an execution
+  blocker
 - `active_item_ids` is the sorted set of current-plan Tasks whose status is
   `in_progress`; it is derived from `tasks.json` and is empty when no Task is
   active.
 - `blockers` is empty unless continuation is `blocked`. Task blockers contain
-  `item_id`, `class`, and `reason`; owner-level blockers such as missing plan or
-  workspace use `item_id = null`.
+  `item_id`, `class`, and `reason`; owner-level blockers such as missing plan,
+  replanning, or workspace use `item_id = null`.
 - `replacement_ref` is null unless another repo-relative owner artifact
   supersedes this owner.
 - `evidence_refs` are existing repo-relative canonical owner artifacts. A
@@ -89,7 +93,11 @@ Recovery rules:
   its own completion flag
 - `closeout_required` is an owner-level blocker, not a Task blocker; resolve it
   through the Feature closeout flow rather than restarting implementation
+- `replan_required` is an owner-level planning blocker, not a Task blocker;
+  install the reviewed successor plan rather than restarting a cancelled Task
 - `superseded` routes to `replacement_ref`
+- a transferred Feature uses `lifecycle_status = transferred`,
+  `continuation = superseded`, and routes to `replacement_ref`
 - `unavailable` blocks execution until an authoritative owner is restored
 - a changed receipt revision requires re-reading owner state, not rewriting the
   stable Goal unless durable intent changed

@@ -94,11 +94,14 @@ feature_id = sys.argv[2]
 
 # Every canonical status gets a stable column, including empty states, so the
 # board does not resize when the frontier changes.
-assert html.count('class="status-column ') == 5
-assert html.count('class="column-empty"') == 4
-assert "grid-template-columns:repeat(5,320px)" in html
+assert html.count('class="status-column ') == 6
+assert html.count('class="column-empty"') == 5
+assert "grid-template-columns:repeat(6,320px)" in html
 assert "grid-auto-columns:320px" in html
 assert "align-items:start" in html
+assert html.count('class="focus-strip focus-strip--ready"') == 1
+assert "Claim a runnable Task" in html
+assert f'data-feature-open="{feature_id}"' in html
 
 # A focused Feature id is reflected in markup and targets the details panel.
 assert f'data-focus-feature="{feature_id}"' in html
@@ -112,6 +115,9 @@ assert html.count('class="copy-title"') == 4
 assert 'aria-label="Copy Feature title"' in html
 assert 'aria-label="Copy Task title"' in html
 assert 'function copyTitle(button)' in html
+assert "Tracker Name" in html
+assert 'aria-label="Copy Tracker Name"' in html
+assert 'copy-value' in html
 
 # The diamond fixture emits independently routed edges rather than one shared
 # control path that visually stacks every branch.
@@ -119,9 +125,12 @@ edges = re.findall(r'<path class="topology-edge"[^>]+>', html)
 assert len(edges) == 2
 assert all('data-source-lane=' in edge and 'data-target-lane=' in edge for edge in edges)
 assert len({re.search(r'data-source-lane="([^"]+)"', edge).group(1) for edge in edges}) == 2
+assert all(re.search(r'd="M [^"]+ H [^"]+ V [^"]+ H [^"]+"', edge) for edge in edges)
+assert "requestFullscreen" in html
 
 # The query focus is also recoverable after a live content replacement.
 assert 'window.__bagakitFocusFeature' in html
+assert 'window.__bagakitBindTopologyTriggers(body)' in html
 print("ok: status board layout and interaction projection")
 PY
 
@@ -142,11 +151,40 @@ import sys
 from urllib.request import urlopen
 
 body = urlopen(sys.argv[1], timeout=5).read().decode("utf-8")
-assert "__bagakitFocusFeature(nextContent)" in body
+assert "__bagakitFocusFeature(nextContent, false)" in body
 assert "window.__bagakitFocusFeature" in body
 print("ok: live focus refresh hook")
 PY
 kill "$SERVER_PID"
 wait "$SERVER_PID" 2>/dev/null || true
+
+# The preferred route is the complete board, so a server without a focus
+# selector must also serve successfully (rather than turning a None default
+# into a feature id).
+SERVER_OUT_ALL="$TMP_DIR/status-board-all-server.out"
+bash "$SKILL_DIR/scripts/feature-tracker.sh" serve-feature-status \
+  --root "$TMP_DIR" --port 0 --refresh-ms 1000 \
+  >"$SERVER_OUT_ALL" 2>&1 &
+SERVER_ALL_PID=$!
+trap 'kill "$SERVER_ALL_PID" 2>/dev/null || true; wait "$SERVER_ALL_PID" 2>/dev/null || true; rm -rf "$TMP_DIR"' EXIT
+for _ in $(seq 1 30); do
+  grep -q '^status_server: http://' "$SERVER_OUT_ALL" && break
+  sleep 0.1
+done
+SERVER_ALL_URL="$(sed -n '1s/^status_server: //p' "$SERVER_OUT_ALL")"
+test -n "$SERVER_ALL_URL"
+python3 - "$SERVER_ALL_URL" <<'PY'
+import sys
+from urllib.request import urlopen
+
+with urlopen(sys.argv[1], timeout=5) as response:
+    body = response.read().decode("utf-8")
+    assert response.status == 200
+    assert "Feature Tracker Status" in body
+    assert "Live read-only view" in body
+print("ok: live status server without feature focus")
+PY
+kill "$SERVER_ALL_PID"
+wait "$SERVER_ALL_PID" 2>/dev/null || true
 
 echo "feature-tracker status board passed"

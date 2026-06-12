@@ -113,15 +113,16 @@ links so one bad record does not hide the rest of the overview; `validate-tracke
 remains the strict diagnostic surface.
 
 It may present canonical Feature identity, lifecycle status, workspace,
-active and runnable Tasks, Task blockers, dependencies, Task counts, and
+active and runnable Tasks, Task blockers, cancelled and transferred Tasks, dependencies, Task counts, and
 current-plan Task detail. When a reviewed Task plan exists, the Feature details
 panel should also render its derived Task topology: roots, dependency
 edges, convergence points, and each Task's current derived status. Selecting a
 topology node opens its collapsible Task detail before scrolling to that Task's
 acceptance and verification detail. The
-topology may open in a full-screen read-only dialog for inspecting larger
-graphs; its runtime legend and node labels distinguish active, runnable,
-waiting, blocked, and done Tasks and show each Task's gate state and direct
+topology may open in a full-screen read-only view for inspecting larger
+graphs; the control requests the browser Fullscreen API when available and
+falls back to the bounded dialog without losing the graph. Its runtime legend and node labels distinguish active, runnable,
+waiting, blocked, cancelled, and done Tasks and show each Task's gate state and direct
 dependency summary. The graph viewport provides bounded zoom controls and
 preserves its horizontal/vertical scroll and zoom position when the live
 projection refreshes; these are display state only and never Tracker truth.
@@ -146,17 +147,36 @@ scraped into this page: they are delivery or host-exhaust surfaces, not a
 durable Task binding. A Worker report becomes visible here only when its
 execution owner records a Flow Runner progress receipt with `task_ref`.
 
-The default human overview places proposals before execution statuses. Feature
+The default human overview places proposals before execution statuses. A
+`replanning` Feature is shown separately from a real `blocked` Feature so a
+cancelled node awaiting a reviewed successor is not presented as an execution
+failure. A terminal `transferred` Feature is kept in closed history with its
+`transferred_to` successor link; its unfinished current-plan Tasks are shown as `transferred`,
+not as todo work. A successor Feature may carry a `transferred_from` list of
+source Feature ids for lineage display; this
+does not create an execution dependency. Feature
 cards stay compact; clicking a card opens one read-only details panel showing
+the derived Tracker Name (`Feature-Tracker-<feature-id>`) with a copy action,
 current-plan objectives, outcomes, acceptance, verification, and links to
-canonical files. The default surface stays light and visually quiet instead of
+canonical files. Tracker Name is derived presentation text, not a new state
+field. The default surface stays light and visually quiet instead of
 following the host into a dark, heavily outlined dashboard.
+
+The overview may derive one current-focus strip above the grouped board. It
+selects at most one Feature by current execution urgency—active work, real
+blocker, replanning, runnable work, then closeout—and shows only the immediate
+action plus a compact frontier summary. This is a projection over canonical
+state, not a persisted priority, recommendation score, or second scheduler.
 
 Within the Feature details panel, each reviewed Task is an independent
 collapsible detail. Active and blocked Tasks open by default; larger plans
 leave the other Task details collapsed, and the user may open any Task without
-changing Tracker state. The live route preserves the selected Feature panel
-and those Task disclosure choices across refreshes.
+changing Tracker state. The Task list is an independent scroll region, and a
+topology-node selection scrolls that region to the matching Task rather than
+moving the whole panel. The live route preserves the selected Feature panel,
+exact Task disclosure choices, and Task-list scroll position across refreshes.
+Each Task detail may expose four derived quick prompts—claim Task, check
+status, Explain, and Goal statement—that point to SSOT and are not persisted.
 
 A relative `--output` path resolves from `--root`. The recommended stable
 scratch path is `.tmp/feature-tracker/status.html`. The operator must reject an
@@ -164,8 +184,8 @@ output path inside `.bagakit/feature-tracker/`; a generated page is never
 tracker state. The file is a static snapshot, so current status requires
 rerunning the command against canonical files and reloading the page.
 
-`feature-tracker.sh serve-feature-status` may provide a live local observation
-route. It binds only to loopback, serves no mutation endpoint, and regenerates
+`feature-tracker.sh serve-feature-status` is the preferred human observation
+route when a browser is available. It binds only to loopback, serves no mutation endpoint, and regenerates
 the same HTML from canonical files on each request. Its bounded page JavaScript
 fetches the current projection and replaces only the status-content region,
 preserving the selected Feature details panel, topology dialogs, and anchors while showing an
@@ -177,12 +197,15 @@ with a non-native-dialog fallback for hosts that expose the page without
 state surface. When present, Flow Runner progress receipts are reread with the
 same request and become visible without a second event log or a write-back into
 Tracker state. The server is an observation process and must be stopped when
-the observation session ends.
+the observation session ends. A static `file://` snapshot is a fallback for
+hosts that cannot start loopback or when the user explicitly requests an
+export; it cannot observe changes.
 
 For human-visible work, the first useful publication point is after
 `create-feature` creates or reuses the Feature and before planning continues.
-The calling Agent may include the returned page link in that start update when
-the Host can present local files. It should reuse and refresh the same path at
+The calling Agent should start the loopback server and include its stable URL
+in that start update when a browser is available; otherwise it may present the
+static fallback. It should reuse and refresh the same path at
 meaningful lifecycle breakpoints: reviewed-plan confirmation, execution start,
 blocker change, closeout, or an explicit status request. It must not publish a
 link before the Feature exists or emit a new link for every tracker mutation.
@@ -193,7 +216,8 @@ should refresh the stable static page or reuse the live loopback URL and include
 that same topology link. The message carries the result and any exception or
 blocker; the page carries the full topology. If the page cannot be presented,
 the Agent gives the compact derived frontier (`active`, `runnable`, `blocked`,
-`waiting`) and says that the topology page is unavailable. This rule does not
+`cancelled`, `waiting`) and says that the topology page is unavailable. This
+rule does not
 apply to internal mutation logs or Worker heartbeats.
 
 Every active Feature card may render one claim-message draft using the

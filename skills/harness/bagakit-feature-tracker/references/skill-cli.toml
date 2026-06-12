@@ -100,6 +100,10 @@ name = "discard-feature"
 summary = "Discard a feature with lifecycle rationale and explicit closeout review choices."
 
 [[command]]
+name = "transfer-feature"
+summary = "Transfer unfinished current-plan Tasks to a reviewed successor Feature while preserving their lineage."
+
+[[command]]
 name = "validate-tracker"
 summary = "Validate tracker consistency."
 
@@ -121,7 +125,7 @@ summary = "List tracked features."
 
 [[command]]
 name = "get-feature"
-summary = "Show one Feature record with its derived active, runnable, blocked, waiting, and done Task frontier."
+summary = "Show one Feature record with its derived active, runnable, blocked, cancelled, transferred, waiting, and done Task frontier."
 
 [[command]]
 name = "filter-features"

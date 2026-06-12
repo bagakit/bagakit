@@ -44,6 +44,7 @@ Closed planning truth lives under:
 
 - `features-archived/`
 - `features-discarded/`
+- `features-transferred/`
 
 ## Local-Only Issuer Boundary
 
@@ -77,6 +78,9 @@ Stable local issuer surfaces are:
 - `show-feature-dag` computes a read-only dependency projection on demand from
   canonical feature state; no projection file owns additional truth.
 - archive and discard directories own closed feature records after closeout.
+- a `transferred` Feature is a closed record whose unfinished current-plan
+  Tasks moved to a reviewed successor; `state.json.transferred_to` points to
+  that successor and the successor carries `state.json.transferred_from`.
 
 Implications:
 
@@ -152,19 +156,25 @@ Stable runtime-owner fields:
 Projection rule:
 
 - `state.json` remains canonical for runtime role and relation fields
-- each blocked Task owns its exact blocker in `tasks.json.last_blocker`
+- each blocked Task owns its exact blocker in `tasks.json.last_blocker`; a
+  cancelled Task owns a non-blocking explanation in `tasks.json.cancel_reason`
 - `index/features.json` does not copy blocker truth
-- the execution-owner receipt derives every current blocker from blocked Tasks
-  only when the whole Feature frontier is stalled
+- the execution-owner receipt derives Task blockers from blocked Tasks and a
+  planning blocker from cancelled Tasks when the whole Feature frontier needs
+  replanning
 - dependency projection output must not carry them because they are not
   dependency truth
 
 Required invariants:
 
 - `status = blocked` means unfinished current-plan Tasks exist while no Task is
-  active or runnable
-- every blocked Task carries one canonical `last_blocker`; non-blocked current
-  Tasks do not become Feature-level blocker mirrors
+  active or runnable and at least one current Task has a real blocker
+- `status = replanning` means no Task is active or runnable, no real blocker is
+  attributable, and one or more current Tasks were cancelled pending a
+  reviewed successor plan
+- every blocked Task carries one canonical `last_blocker`; cancelled Tasks
+  carry `cancel_reason` instead and neither status becomes a mirror of the
+  other
 - a `parked_context` Task blocker requires `runtime_role = frontdoor_context`
 - `frontdoor_context` features may only point outward with
   `runtime_relations[].relation = frontdoor_for`
@@ -179,14 +189,21 @@ These fields describe runtime ownership posture only.
 
 `finish-task --result blocked` requires both `--blocked-reason-class` and
 `--blocked-reason` and writes the exact pair to that Task's terminal
-`last_blocker`. Reblocking a restarted Task replaces its `last_blocker` with
-the new terminal result. Historical Task records retain `last_blocker`.
+`last_blocker`. `finish-task --result cancelled` requires
+`--cancel-reason`, writes no blocker, and moves the Feature into
+`replanning` when no independent work remains. Reblocking a restarted Task
+replaces its `last_blocker` with the new terminal result. Historical Task
+records retain `last_blocker` or `cancel_reason`.
 History prose is audit context only and must not be parsed as blocker authority.
 
-`--result done` rejects blocker arguments. A blocked Task does not block
-independent runnable work. The Feature becomes blocked only when no current
-Task is active or runnable; archiving or discarding keeps historical Task
-blocker evidence while the closed owner receipt has no current blockers.
+`--result done` rejects blocker and cancellation arguments. A blocked Task does
+not block independent runnable work. A cancelled Task does not satisfy its
+dependents and therefore cannot make downstream work runnable. The Feature
+becomes blocked only when no current Task is active or runnable and a real Task
+blocker exists; it becomes `replanning` when the stalled frontier is caused
+only by cancelled Tasks. Archiving or discarding keeps historical Task blocker
+and cancellation evidence while the closed owner receipt has no current
+blockers.
 
 Owner receipts must project exact canonical Task blockers and must not invent a
 default class or reason. A blocked Feature without attributable Task-level
@@ -252,6 +269,21 @@ review decision. The review evidence ref records that confirmation boundary.
 An Agent may draft or revise a plan, but it must not self-approve inferred
 requirements or treat implementation discoveries as user-authorized scope.
 
+Runtime status vocabulary:
+
+- Feature statuses include `replanning` between active execution and a real
+  blocked frontier; it means a cancelled current Task needs a reviewed plan
+  revision before the DAG can continue, and `transferred` for a closed partial
+  Feature whose remaining work moved to a successor
+- Task statuses include `cancelled` for an intentionally abandoned or replaced
+  current node; it is terminal evidence, not a passing result or a blocker
+- Task status `transferred` records an unfinished current-plan node moved with
+  its Feature to a reviewed successor; it is terminal historical evidence and
+  carries no destination mapping
+- `waiting`, `runnable`, `active`, `blocked`, `cancelled`, `transferred`, and `done` Task sets
+  remain derived from `tasks.json`; only the Task status and its owned reason
+  are persisted
+
 Each reviewed task requires:
 
 - `id`, `title`, `objective`, and `outcome`
@@ -263,6 +295,14 @@ Each reviewed task requires:
 - non-empty source references
 - explicit `supersedes` lineage when it removes tasks from the prior current
   plan
+
+When a Feature is transferred, Feature state carries a `transferred_to` object
+containing the successor Feature id. Its current-plan unfinished Tasks are
+retained with `status = transferred`; they are historical and cannot be started
+or satisfy a dependency. A successor's optional `transferred_from`
+list contains objects of the form `{"feature_id":"f-..."}`; it is lineage
+context, not Task or Feature dependency truth. Task records only carry the
+`status = transferred` marker and no destination mapping.
 
 Required behavior:
 
@@ -354,9 +394,11 @@ Feature Tracker requirements:
   receipt
 - a missing required receipt, stale receipt, or evidence hash drift fails
   closed
-- `ready` and valid `in_progress` state map to `continue`
-- active item ids and Task blockers are derived from `tasks.json`; runnable ids
-  stay out of the receipt because it is not an execution plan
+- `ready` and valid `in_progress` state map to `continue`; `replanning` maps to
+  a blocked continuation with the owner-level `replan_required` action
+- active item ids, Task blockers, and replanning state are derived from
+  `tasks.json`; runnable ids stay out of the receipt because it is not an
+  execution plan
 - missing reviewed plan or missing workspace maps to blocked continuation
 - a replacement points to the repo-relative replacement owner receipt, not a
   bare feature id
@@ -447,6 +489,7 @@ Stable current payload shape:
   - `depends_on`
   - `dependents`
   - `layer`
+  - `transferred_from`
 - `layers`
   - `layer`
   - `feat_ids`
@@ -459,7 +502,7 @@ Required generation rules:
 - `state.json.depends_on` must be a list when present
 - derive dependents and pure topological layers from that truth
 - treat archived dependencies as already satisfied and record that as a note
-- fail closed on discarded dependencies
+- fail closed on discarded or transferred dependencies
 - record missing active dependencies as notes instead of silently inventing
   graph nodes
 
@@ -622,6 +665,13 @@ Migration note:
 `archive-feature`, `discard-feature`, and `closeout-feature` are public
 closeout commands.
 
+`transfer-feature` is the explicit partial-closeout command. It requires an
+existing active successor with a reviewed Task plan and a successor-side
+`transferred_from` backlink. It stages the old Feature under
+`features-transferred/`, keeps completed Tasks as `done`, marks unfinished
+current-plan Tasks `transferred`, and records `transferred_to`; it does
+not mutate the successor's plan or invent a requirement summary.
+
 Runtime truth and Git truth are separate surfaces:
 
 - tracker commands may mutate tracker runtime state
@@ -673,9 +723,9 @@ Stable closeout expectations:
 - closeout review publication is part of the existing staged closeout
   transaction; a rejected or failed closeout must not leave review state in
   the active Feature
-- tracked feature completion means the feature reaches `archived` or
-  `discarded`, or the operator leaves an explicit active reason such as
-  `blocked`
+- tracked feature completion means the feature reaches `archived`,
+  `discarded`, or `transferred`, or the operator leaves an explicit active
+  reason such as `blocked`
 - `finish-task` returning `feat_status=done` is a closeout-pending result, not
   terminal Feature completion; the command emits `closeout_required=true` and
   the next closeout action so a Host can keep the convergence loop alive
@@ -684,6 +734,7 @@ Stable closeout expectations:
   for an archived Feature
 - archived features move into `features-archived/`
 - discarded features move into `features-discarded/`
+- transferred features move into `features-transferred/`
 - closeout summaries live with the closed feature directory
 - live-only or unsupported legacy root entries should be preserved under
   `artifacts/closeout-preserved-root/`
