@@ -21,3 +21,4 @@ Current harness skill sources:
 - `bagakit-supervisor`
 - `bagakit-skill-selector`
 - `bagakit-skill-evolver`
+- `bagakit-pageville`

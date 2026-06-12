@@ -1,0 +1,58 @@
+version = 1
+skill = "bagakit-pageville"
+cli_id = "bagakit-pageville"
+entrypoint = "scripts/pageville.sh"
+runner = "shell"
+usage = "sh scripts/pageville.sh <command> [args...]"
+summary = "Manage one semantic host for page previews, versions, retrieval, and annotations."
+surface_refs = [
+  ".bagakit/pageville",
+]
+
+[[command]]
+name = "init"
+summary = "Create or repair the project-local page host surface."
+
+[[command]]
+name = "start"
+summary = "Start or reuse one loopback server and port."
+
+[[command]]
+name = "stop"
+summary = "Stop the verified page host process."
+
+[[command]]
+name = "status"
+summary = "Inspect host health and page counts."
+
+[[command]]
+name = "publish"
+summary = "Publish a new immutable semantic page version."
+
+[[command]]
+name = "link"
+summary = "Resolve a stable semantic link for one page version."
+
+[[command]]
+name = "list"
+summary = "List registered pages and latest versions."
+
+[[command]]
+name = "get"
+summary = "Read one page manifest and annotations."
+
+[[command]]
+name = "versions"
+summary = "List retained versions for one page."
+
+[[command]]
+name = "fetch"
+summary = "Return page metadata, payload, and annotations for tooling."
+
+[[command]]
+name = "annotate"
+summary = "Append a human annotation tied to a page version and anchor."
+
+[[command]]
+name = "archive"
+summary = "Archive a page without deleting retained versions."

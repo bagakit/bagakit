@@ -1,0 +1,4 @@
+interface:
+  display_name: "Pageville"
+  short_description: "Host and manage reusable local pages"
+  default_prompt: "Use $bagakit-pageville to register, version, serve, inspect, and annotate HTML pages through one semantic host. Reuse one host and port in the loopback_v0 adapter, preserve page metadata and immutable versions, and return stable human-facing links without exposing machine-local paths."

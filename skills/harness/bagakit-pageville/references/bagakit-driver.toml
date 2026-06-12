@@ -1,0 +1,8 @@
+version = 1
+insert_target = "bagakit_footer"
+summary_line = "- Pageville: Surface=<.bagakit/pageville>; Adapter=<loopback_v0|host-policy>; Server=<running|stopped|stale>; Pages=<count>; Active=<count>; Port=<shared|none>; Link=<semantic-url|none>; Version=<latest-or-version|none>; Annotations=<count>; Next=<one deterministic next action>"
+
+[[directive]]
+id = "PAGE_HOST"
+when = "bagakit-pageville materially shaped page publication, hosting, link resolution, versioning, retrieval, or annotation"
+instruction = "cite the semantic page slug, selected version, managed link, host status, retrieval or annotation receipt, and any retention or presentation limitation; do not expose absolute source paths or host tokens"
