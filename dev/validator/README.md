@@ -115,7 +115,7 @@ bash scripts/gate.sh eval-audit
 bash scripts/gate.sh eval-all
 node --experimental-strip-types dev/validator/src/cli.ts check-config --root . --config gate_validation/validation.toml
 node --experimental-strip-types dev/validator/src/cli.ts plan --root . --config gate_validation/validation.toml
-node --experimental-strip-types dev/validator/src/cli.ts impact-plan --root . --config gate_validation/validation.toml --mode affected --changed-path skills/harness/bagakit-spark/SKILL.md
+node --experimental-strip-types dev/validator/src/cli.ts impact-plan --root . --config gate_validation/validation.toml --mode affected --changed-path skills/co-work/align/bagakit-spark/SKILL.md
 node --experimental-strip-types dev/validator/src/cli.ts audit --root . --config gate_validation/validation.toml
 node --experimental-strip-types dev/validator/src/cli.ts run-default --root . --config gate_validation/validation.toml --skip-group slow --fail-fast
 node --experimental-strip-types dev/validator/src/cli.ts run-suite validator-framework-config --root . --config gate_validation/validation.toml

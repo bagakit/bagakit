@@ -53,7 +53,7 @@ Use the repo surfaces that match the evidence:
 - benchmark assets and repeatable tasks:
   - `gate_eval/`
 - durable benchmark observations:
-  - `mem/benchmarks/`
+  - `mem/benchmarks/` (the durable benchmark observation surface)
 - durable review decisions:
   - `mem/decisions/`
 - normative rule changes:

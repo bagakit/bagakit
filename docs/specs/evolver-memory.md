@@ -25,6 +25,16 @@ This surface is downstream of task-local evidence, not the raw home of it.
 Selector-owned task logs stay under `.bagakit/skill-selector/tasks/` until
 their contents are routed or summarized into repository-level learning.
 
+The `bagakit-skill-evolver` memory and decision operator is passive until an
+Agent, maintainer, or Host explicitly invokes an operator command. Loading the
+skill or receiving selector evidence does not create topics or mutate
+repository-level state. Intake, adoption, routing, and promotion remain
+separate explicit transitions.
+
+Active improvement skills under `skills/evolve/` may analyze bounded evidence
+and prepare experiment or candidate packets, but they must enter this memory
+and decision surface through the same explicit contracts.
+
 Optional intake may additionally pass through:
 
 - `.mem_inbox/`

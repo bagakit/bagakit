@@ -12,6 +12,8 @@ Use this spec when deciding:
 - how `dev/agent_runner/` and `dev/agent_loop/` relate to eval
 - how `bagakit-skill-evolver` should consume eval conclusions without becoming
   the eval engine
+- how active improvement skills under `skills/evolve/` prepare and orchestrate
+  experiments without replacing the shared eval engine
 
 ## Surface Split
 
@@ -21,7 +23,8 @@ Use this spec when deciding:
 | `dev/eval/` | dataset validation/build/export, run comparison, shared packet-writing mechanics, optional agent-driven session helpers | skill-owned case truth, release gating, repository learning memory |
 | `gate_eval/` | non-gating eval registration, skill-owned suites, result roots and registered run artifacts | release-blocking proof |
 | `gate_validation/` | structural presence checks, must-pass smoke and contract gates | executing non-gating eval as release gates |
-| `bagakit-skill-evolver` | repository-level learning from evidence, benchmark memory, route and promotion decisions | dataset build, eval execution engine, optimizer loop |
+| `bagakit-skill-evolver` | repository-level memory, candidate comparison, route and promotion decisions | dataset build, eval execution engine, active optimizer loop |
+| `skills/evolve/` | active trajectory analysis, question and case proposals, experiment planning, and bounded autoresearch orchestration | shared eval execution engine, gate result truth, final durable promotion authority |
 
 ## Data Flow
 
@@ -30,10 +33,17 @@ Bagakit's intended eval flow is:
 1. author or import dataset rows
 2. build or verify split assignment
 3. export one split when needed
+
 4. run suites against baseline or candidate
 5. compare run summaries
 6. promote durable benchmark conclusions into repository learning only when
    they are worth preserving
+
+The shared command helper may apply a hard child-process timeout when a caller
+provides `timeoutMs`; the result records whether the child timed out. Case-level
+timeouts are separate and use cooperative `AbortSignal` cancellation. A case
+that does not observe the signal cannot be forcibly stopped by the JavaScript
+runner.
 
 Capability eval and regression protection are separate lifecycle states:
 
@@ -63,26 +73,37 @@ Rule:
   before their threshold can support a maturity or promotion claim
 - no uncalibrated or stochastic judge may directly block a release
 
-## Evolver Rule
+## Evolver Rules
 
-`evolver` may record:
+`bagakit-skill-evolver` may record:
 
 - benchmark evidence
 - eval conclusions
 - promotion-facing comparison summaries
 
-`evolver` must not become:
+Active skills under `skills/evolve/` may additionally:
+
+- analyze bounded session and run trajectories;
+- propose questions, cases, and candidate changes;
+- schedule bounded autoresearch experiments through `dev/eval/`;
+- compare baseline and candidate packets before handing evidence to the
+  Evolver decision plane.
+
+Neither surface may become:
 
 - the dataset build engine
 - the eval execution engine
-- the optimizer runtime
+- the source of truth for `gate_eval/` results
+- an authority that bypasses review and durable promotion
 
-## Future Optimizer Rule
+## RSI Rule
 
-A future optimizer layer may consume:
+An M2 RSI layer may consume:
 
 - eval datasets
 - eval run packets
 - comparison packets
+- Evolver trajectory and promotion receipts
 
-But it should stay above `dev/eval/`, not replace it.
+It should improve the search, evaluation, budgeting, and promotion behavior of
+`skills/evolve/` while staying above `dev/eval/`, not replacing it.

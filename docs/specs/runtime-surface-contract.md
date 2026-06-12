@@ -218,7 +218,7 @@ edit_policy = "mixed"
 cleanup_safe = false
 source_of_truth = [
   "docs/specs/runtime-surface-contract.md",
-  "skills/harness/bagakit-researcher/SKILL.md",
+  "skills/co-work/align/bagakit-researcher/SKILL.md",
   ".bagakit/researcher/README.md",
 ]
 reviewable_outputs = [

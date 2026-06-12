@@ -28,7 +28,8 @@ Keep Bagakit driver files narrow.
 Good driver files contain:
 
 - one footer summary line for `[[BAGAKIT]]`
-- a few conditional directives at most
+- optional decision-bearing projection hints, if a consumer can render them
+  without per-action or per-attempt hand entry
 - deterministic placeholders instead of long narrative guidance
 
 Do not put these into the driver file:
@@ -66,10 +67,11 @@ Peer skill driver files must not override selector's retry threshold.
 Maintainer expectation:
 
 - repeated concrete work should be grouped by `attempt_key`
-- retries after the first one should surface a visible `try-<n>` count
+- selector's CLI derives the `try-<n>` count and `backoff_required` state when
+  an opted-in episode records a usage event
 - when the same attempt key reaches the configured threshold without success,
-  selector should force a step-back and method change instead of silent
-  repetition
+  the CLI sets `next_actions.needs_new_search` and emits a method-change
+  notice; Agents do not hand-copy retry lines into the footer
 
 If that rule changes:
 

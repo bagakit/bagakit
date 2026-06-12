@@ -85,59 +85,36 @@ export function scanCanonicalSkillDirs(repoRootArg: string): SkillDiscoveryScan 
     };
   }
 
-  for (const familyEntry of readdirSync(skillsRoot, { withFileTypes: true })) {
-    const familyDir = path.join(skillsRoot, familyEntry.name);
-    const familyRelDir = toRepoRelative(repoRoot, familyDir);
-    if (familyEntry.isSymbolicLink()) {
-      issues.push(`skill family directory must not be a symlink: ${familyRelDir}`);
-      continue;
+  function visit(directory: string, segments: string[]): void {
+    const entrypoint = path.join(directory, "SKILL.md");
+    if (existsSync(entrypoint)) {
+      if (segments.length < 2) {
+        issues.push(`flat installable skill root is forbidden: ${toRepoRelative(repoRoot, directory)}. move it to skills/<group-path>/<skill-id>/`);
+      } else if (!lstatSync(entrypoint).isFile()) {
+        issues.push(`skill entrypoint must be a regular file: ${toRepoRelative(repoRoot, entrypoint)}`);
+      } else {
+        skills.push(buildSkillSource(repoRoot, segments.slice(0, -1).join("/"), segments.at(-1)!));
+      }
+      // The entire payload belongs to this install unit, including its templates.
+      return;
     }
-    if (!familyEntry.isDirectory()) {
-      continue;
-    }
-
-    let family: string;
-    try {
-      family = assertSafeSegment(familyEntry.name, `family ${familyRelDir}`);
-    } catch (error) {
-      issues.push(error instanceof Error ? error.message : String(error));
-      continue;
-    }
-
-    if (existsSync(path.join(familyDir, "SKILL.md"))) {
-      issues.push(
-        `flat installable skill root is forbidden: ${familyRelDir}. move it to skills/<family>/<skill-id>/`,
-      );
-      continue;
-    }
-
-    for (const skillEntry of readdirSync(familyDir, { withFileTypes: true })) {
-      const skillDir = path.join(familyDir, skillEntry.name);
-      const skillRelDir = toRepoRelative(repoRoot, skillDir);
-      if (skillEntry.isSymbolicLink()) {
-        if (existsSync(path.join(skillDir, "SKILL.md"))) {
-          issues.push(`skill source root must not be a symlink: ${skillRelDir}`);
-        }
+    for (const entry of readdirSync(directory, { withFileTypes: true })) {
+      if (entry.name.startsWith(".")) continue;
+      const child = path.join(directory, entry.name);
+      if (entry.isSymbolicLink()) {
+        issues.push(`skill group or source directory must not be a symlink: ${toRepoRelative(repoRoot, child)}`);
         continue;
       }
-      if (!skillEntry.isDirectory()) {
-        continue;
-      }
-      if (!existsSync(path.join(skillDir, "SKILL.md"))) {
-        continue;
-      }
-
-      let skillId: string;
+      if (!entry.isDirectory()) continue;
       try {
-        skillId = assertSafeSegment(skillEntry.name, `skill id ${skillRelDir}`);
+        const segment = assertSafeSegment(entry.name, `group ${toRepoRelative(repoRoot, child)}`);
+        visit(child, [...segments, segment]);
       } catch (error) {
         issues.push(error instanceof Error ? error.message : String(error));
-        continue;
       }
-
-      skills.push(buildSkillSource(repoRoot, family, skillId));
     }
   }
+  visit(skillsRoot, []);
 
   skills.sort(compareSkills);
 
@@ -149,9 +126,11 @@ export function scanCanonicalSkillDirs(repoRootArg: string): SkillDiscoveryScan 
   };
 }
 
-export function loadSkillInventory(repoRoot: string): SkillInventory {
+export function loadSkillInventory(repoRoot: string, options: { allowMissingRoot?: boolean } = {}): SkillInventory {
   const scan = scanCanonicalSkillDirs(repoRoot);
-  if (scan.issues.length > 0) {
+  const onlyMissingRoot =
+    scan.issues.length === 1 && scan.issues[0] === `missing installable skills root: ${toRepoRelative(scan.repoRoot, scan.skillsRoot)}`;
+  if (scan.issues.length > 0 && !(options.allowMissingRoot && onlyMissingRoot)) {
     throw new Error(`skill discovery failed:\n${scan.issues.join("\n")}`);
   }
 
@@ -163,7 +142,10 @@ export function loadSkillInventory(repoRoot: string): SkillInventory {
       throw new Error(`duplicate skill selector in directory protocol: ${skill.selector}`);
     }
     skillsBySelector.set(skill.selector, skill);
-    addGrouped(skillsByFamily, skill.family, skill);
+    const groups = skill.family.split("/");
+    for (let depth = 1; depth <= groups.length; depth++) {
+      addGrouped(skillsByFamily, groups.slice(0, depth).join("/"), skill);
+    }
     addGrouped(skillsById, skill.skillId, skill);
   }
 

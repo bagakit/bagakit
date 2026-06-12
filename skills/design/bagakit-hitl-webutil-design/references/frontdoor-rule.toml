@@ -1,5 +1,0 @@
-version = 1
-skill = "bagakit-hitl-webutil-design"
-trigger = "A task needs or resumes a HITL utility or course page for learning, testing, evidence review, comparison, approval, or handoff."
-do = "Choose an explanation foundation when the human needs causal context, define interaction, evidence, and continuity, then route building and desktop/mobile verification through webpage design unless explicitly design-only."
-see = "skills/design/bagakit-hitl-webutil-design/SKILL.md"

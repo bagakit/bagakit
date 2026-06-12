@@ -1,7 +1,7 @@
 # Selector Recipe Maintenance
 
 Use this note when maintaining standard multi-skill recipes under
-`skills/harness/bagakit-skill-selector/recipes/`.
+`skills/co-work/orchestrate/execution/bagakit-skill-selector/recipes/`.
 
 This note is maintainer guidance, not runtime control logic.
 
@@ -69,7 +69,8 @@ Keep it as one-off task usage when:
 
 ## Logging Rule
 
-When a task intentionally uses a standard recipe:
+When a task intentionally uses a standard recipe and chooses a persisted
+selector episode:
 
 - record a `[[recipe_log]]` entry in `.bagakit/skill-selector/tasks/<task-slug>/skill-usage.toml`
 - still log participating skills explicitly in `[[skill_plan]]`
@@ -78,6 +79,9 @@ When a task intentionally uses a standard recipe:
 
 `recipe_log` is the composition label.
 It must not replace the actual execution evidence.
+
+Recipe use alone does not require a selector file; keep ordinary one-off runs
+in the owning skill artifacts and final output.
 
 ## Boundary Rule
 

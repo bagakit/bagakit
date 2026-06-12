@@ -1,0 +1,235 @@
+version = 1
+skill_id = "bagakit-spark"
+contract_kind = "skill_workflow_contract"
+owner = "skills/co-work/align/bagakit-spark"
+
+[entry]
+skill = "SKILL.md"
+required_reference_links = [
+  "references/session-protocol.md",
+  "references/question-quality.md",
+  "references/question-inventory.md",
+  "references/composition-boundary.md",
+  "references/review-packet-template.md",
+  "references/workflow-contract.toml",
+]
+
+[[loop_rule]]
+id = "decision-question-until-acceptance"
+protects = "ask only while a decision-bearing uncertainty remains; close when the declared acceptance condition is met or the user asks to converge"
+proof_surface = "session response shape plus accepted snapshot record"
+
+[[loop_rule]]
+id = "end-check-needs-summary-and-snapshot"
+protects = "asking to finish must carry the confirmed key summary and current snapshot candidate"
+proof_surface = "consensus snapshot candidate"
+
+[[loop_rule]]
+id = "execution-window-resolves-current-scope"
+protects = "clear authorized actions proceed without another question; reopen discussion only for a remaining decision-bearing uncertainty"
+proof_surface = "next question, end-check question, or accepted snapshot ref after execution"
+
+[[loop_rule]]
+id = "option-surface-preserves-meaningful-alternatives"
+protects = "Spark recommendations do not collapse meaningful alternatives into a single default without rationale"
+proof_surface = "visible option set with rationale, risk, and one recommended default, or explicit reason the option set collapsed"
+
+[[loop_rule]]
+id = "stress-test-option-audit-before-recommendation"
+protects = "Spark plan/design stress-test questions do not produce one-option grill-style recommendations without showing alternatives or collapse rationale"
+proof_surface = "branch-protected option-surface audit before the recommended default"
+
+[[loop_rule]]
+id = "ledger-first-before-question-or-snapshot"
+protects = "when consensus-ledger is active, Spark updates shared-understanding state before asking the next decision question or publishing a snapshot candidate"
+proof_surface = "embedded consensus-ledger plus user-visible known_known/known_unknown/unknown_known/unknown_unknown excerpt"
+
+[[loop_rule]]
+id = "evidence-route-before-question"
+protects = "Spark does not ask the user to answer a decision that requires local inspection, external research, prototype observation, or runtime execution"
+proof_surface = "explicit resolution-route judgment plus ledger evidence requirement or evidence-producing action"
+
+[[loop_rule]]
+id = "trajectory-check-before-convergence"
+protects = "repeated same-branch agreement creates convergence pressure but cannot close a branch before checking the underlying goal, principle, and adjacent direction"
+proof_surface = "trajectory check with branch-width question before closure or another same-direction question"
+
+[[loop_rule]]
+id = "mvp-eval-needs-quiet-room-separation"
+protects = "Spark cannot self-design, self-execute, self-review, and self-accept an MVP or thought-experiment eval"
+proof_surface = "mvp eval envelope with quiet-room route, actor refs, evidence packet, or explicit blocked/provisional status"
+
+[[loop_rule]]
+id = "subagent-completion-needs-satisfaction-audit"
+protects = "a subagent saying done/pass cannot close Spark eval without main-context satisfaction and required independent review"
+proof_surface = "satisfaction audit record with defects, repair route, reviewer verdict, and acceptance decision"
+
+[[loop_rule]]
+id = "skill-gap-before-rerun"
+protects = "transferable failures improve the skill or bench before another quiet-room test claims generalization"
+proof_surface = "updated skill/reference/bench/evolver record plus fresh or equivalent quiet-room test prompt"
+
+[[artifact]]
+id = "raw-discussion-log"
+owner = "bagakit-brainstorm"
+required_when = "discussion becomes durable planning"
+
+[[artifact]]
+id = "question-inventory"
+owner = "bagakit-spark"
+required_when = "high-impact questions or follow-ups exist"
+
+[[artifact]]
+id = "consensus-ledger"
+owner = "bagakit-consensus-ledger"
+required_when = "shared understanding should persist beyond the current response or feed Spark snapshot, implementation, validation, Grill, living-knowledge, or evolver"
+
+[[artifact]]
+id = "research-sufficiency-judgment"
+owner = "bagakit-spark"
+required_when = "discussion opens a research-relevant branch"
+
+[[artifact]]
+id = "consensus-snapshot"
+owner = "bagakit-spark"
+required_when = "discussion result will guide later action"
+
+[[artifact]]
+id = "mvp-eval-envelope"
+owner = "bagakit-spark"
+required_when = "Spark task is meant to realize or test something"
+
+[[artifact]]
+id = "quiet-room-eval-record"
+owner = "bagakit-spark"
+required_when = "MVP or thought-experiment eval is used for acceptance"
+
+[[artifact]]
+id = "satisfaction-audit-record"
+owner = "bagakit-spark"
+required_when = "quiet-room executor or reviewer returns a candidate result"
+
+[[artifact]]
+id = "review-packet"
+owner = "bagakit-spark"
+required_when = "paired or independent review is used before snapshot or eval acceptance"
+
+[[artifact]]
+id = "feedback-signal-ledger"
+owner = "bagakit-spark"
+required_when = "user replies change or critique Spark's process"
+
+[[artifact]]
+id = "trajectory-check"
+owner = "bagakit-spark"
+required_when = "repeated same-branch agreement or branch narrowing creates convergence pressure"
+
+[[artifact]]
+id = "rationale-ledger"
+owner = "bagakit-spark"
+required_when = "a user answer encodes a transferable principle, criterion, or rejected alternative"
+
+[[research_gate]]
+id = "research-now"
+decision = "research_now"
+use_when = "external evidence can change the immediate question, options, failure modes, or acceptance criteria"
+
+[[research_gate]]
+id = "research-later"
+decision = "research_later"
+use_when = "the branch is important but not blocking the current answer"
+
+[[research_gate]]
+id = "research-not-needed"
+decision = "research_not_needed"
+use_when = "the issue is local preference, already evidenced context, or not decision-changing"
+
+[[composition_boundary]]
+id = "shared-understanding-ledger"
+peer = "bagakit-consensus-ledger"
+spark_owns = "dialogue loop, question discipline, synthesis, and snapshot acceptance"
+peer_owns = "epistemic item classes, shared-understanding statuses, goal dimensions, tool-neutral evidence requirements, embedded ledger placement, and promotion boundary"
+
+[[composition_boundary]]
+id = "brainstorm-state-substrate"
+peer = "bagakit-brainstorm"
+spark_owns = "discussion loop, question inventory, snapshot meaning, and acceptance"
+peer_owns = "raw durable discussion records and brainstorm artifacts"
+
+[[composition_boundary]]
+id = "researcher-evidence-producer"
+peer = "bagakit-researcher"
+spark_owns = "when evidence should affect the discussion and which questions it opens"
+peer_owns = "source-bound evidence, source cards, summaries, claims, and research checks"
+
+[[composition_boundary]]
+id = "portable-eval-meaning"
+peer = "implementation, validation, or project tools"
+spark_owns = "eval meaning, acceptance criteria, interpretation, and user-facing acceptance"
+peer_owns = "concrete observations or execution evidence"
+
+[[composition_boundary]]
+id = "quiet-room-evidence-producer"
+peer = "subagent or independent reviewer"
+spark_owns = "bounded brief, acceptance criteria, interpretation, blocked/provisional status, and snapshot impact"
+peer_owns = "independent execution, review observations, produced artifacts, and failure findings"
+
+[[output_field]]
+id = "consensus-ledger"
+required_when = "shared-understanding state materially shapes the Spark route, snapshot, handoff, or reentry"
+
+[[output_field]]
+id = "ledger-excerpt"
+required_when = "consensus-ledger is active or ledger updates would normally be recorded"
+
+[[output_field]]
+id = "current-frame"
+required_when = "open Spark session"
+
+[[output_field]]
+id = "research-judgment"
+required_when = "research-relevant branch exists"
+
+[[output_field]]
+id = "resolution-route"
+required_when = "the next decision may be resolved by asking, inspection, research, prototype observation, or runtime experiment"
+
+[[output_field]]
+id = "question-inventory"
+required_when = "high-impact questions exist"
+
+[[output_field]]
+id = "feedback-signals"
+required_when = "user reply critiques, confirms, redirects, or exposes process signal"
+
+[[output_field]]
+id = "trajectory-check"
+required_when = "convergence pressure or branch narrowing is active"
+
+[[output_field]]
+id = "mvp-eval"
+required_when = "MVP or thought experiment is in scope"
+
+[[output_field]]
+id = "quiet-room-eval"
+required_when = "MVP or thought experiment can affect acceptance"
+
+[[output_field]]
+id = "satisfaction-audit"
+required_when = "quiet-room actor has returned a candidate result"
+
+[[output_field]]
+id = "accepted-snapshot"
+required_when = "later execution should reenter this discussion"
+
+[[output_field]]
+id = "next-question-or-action"
+required_when = "open Spark session"
+
+[[output_field]]
+id = "option-surface"
+required_when = "user is choosing or stress-testing among unresolved alternatives"
+
+[[output_field]]
+id = "option-surface-audit"
+required_when = "Spark is asking a plan/design stress-test branch question or giving a grill-like recommendation"

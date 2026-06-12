@@ -1,0 +1,5 @@
+version = 1
+skill = "bagakit-writing-intake"
+trigger = "A writing task needs an explicit pre-draft evidence, privacy, style, or rewrite-risk packet."
+do = "Emit an intake packet with evidence and boundaries plus a named next owner; do not write final prose."
+see = "skills/co-work/deliver/paperwork/bagakit-writing-intake/SKILL.md"

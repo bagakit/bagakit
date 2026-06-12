@@ -1,0 +1,91 @@
+# bagakit-skill-evolver
+
+Passive agent-facing infrastructure for repository evolution topics that need
+explicit structured tracking; use `.bagakit/evolver/` without turning
+`bagakit-researcher` workspaces into a hard dependency.
+
+This skill is the behavioral layer.
+
+## Trigger model
+
+Evolver is passive until an Agent, maintainer, or Host explicitly invokes its
+CLI. Installing or loading it, and receiving a selector signal, never starts a
+topic or background watcher. `bridge-signals` only creates pending intake;
+`adopt-signal`, routing, decisions, and promotions remain separate explicit
+steps.
+
+Read-only inspection does not materialize empty `.bagakit/evolver` or
+`.mem_inbox` state; use an explicit write or `refresh-index` command when that
+surface is intended.
+
+This skill ships its own low-level operator scripts for working with
+`.bagakit/evolver/`.
+
+`.bagakit/evolver/` is host-local runtime state and may be ignored by Git. If
+the surface is materialized, it still carries `surface.toml` per the runtime
+surface contract.
+
+## Runtime Surface Declaration
+
+- top-level runtime surface root when materialized:
+  - `.bagakit/evolver/`
+- optional intake or context paths not owned as the primary top-level runtime
+  surface:
+  - `.mem_inbox/`
+  - `.bagakit/researcher/topics/<topic-class>/<topic>/`
+- stable contract:
+  - `docs/specs/runtime-surface-contract.md`
+- if the top-level root exists in a host repo, it should carry `surface.toml`
+
+Common intake commands:
+
+- `node --experimental-strip-types skills/evolve/adapt/bagakit-skill-evolver/scripts/evolver.ts capture-signal ...`
+- `node --experimental-strip-types skills/evolve/adapt/bagakit-skill-evolver/scripts/evolver.ts import-signals ...`
+- `node --experimental-strip-types skills/evolve/adapt/bagakit-skill-evolver/scripts/evolver.ts validate-session-review ...`
+- `node --experimental-strip-types skills/evolve/adapt/bagakit-skill-evolver/scripts/evolver.ts bridge-session-review ...`
+- `node --experimental-strip-types skills/evolve/adapt/bagakit-skill-evolver/scripts/evolver.ts adopt-signal ...`
+- `node --experimental-strip-types skills/evolve/adapt/bagakit-skill-evolver/scripts/evolver.ts dismiss-signal ...`
+
+Current capability set:
+
+- optional `.mem_inbox/` evidence intake buffer
+- signal capture, import, export, and validation
+- reviewed session-evidence compression into existing pending signals without
+  raw transcript persistence
+- explicit signal adoption or dismissal before topic-state routing
+- topic lifecycle
+- preflight
+- repository-level route decisions
+- candidates
+- sources
+- feedback
+- benchmarks
+- promotions
+- weak local context refs
+- steward-facing topic reports
+- next-session handoff artifacts
+- archive receipts for archived topics
+- explicit durable promotion surfaces
+- explicit promotion status
+- stable promotion identities for proposal-to-landing tracking
+- evidence-backed model-fit and harness-entropy review for skill promotions
+- locked atomic `topic.json` mutation with revision and idempotent retry receipts
+- fail-closed promotion and archive readiness with current-ref validation
+
+Before accepting a `surface=skill` promotion, record its review with
+`review-skill-promotion`. The stable contract is
+`docs/specs/evolver-skill-promotion-review.md`. This gate governs promotion; it
+does not make Evolver a skill designer or scaffolder.
+
+Current known next optimizations:
+
+- add held-out, canary, and rollback evidence beyond the current readiness gate
+- add better steward-facing views over source, feedback, and benchmark evidence
+
+Important rule:
+
+- intake confidence may prioritize review
+- intake confidence must not auto-promote repository learning
+- only accepted session-review candidates with passing coverage, preservation,
+  and faithfulness checks may enter intake
+- session-review intake does not auto-create topics, routes, or promotions

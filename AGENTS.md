@@ -55,8 +55,8 @@ keyword lists. See docs/stewardship/sop/validation-sop.md.
   adding code or packages.
 - A skill directory with SKILL.md is the install unit. Use scripts/skill.sh or
   Make targets for install and update; do not repair links manually.
-- Use family directories only for real co-evolution boundaries:
-  skills/<family>/<skill-id>/.
+- Use purpose groups and subgroups only for real ownership boundaries:
+  skills/<group-path>/<skill-id>/.
 - Host harnesses live directly under host-harnesses/<harness-id>/, with
   harness.toml as identity and SKILL.md as entrypoint. See
   docs/specs/host-harness-contract.md.

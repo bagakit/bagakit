@@ -1,0 +1,5 @@
+version = 1
+skill = "bagakit-mastery-learning"
+trigger = "The user explicitly requests bounded learning, teach-back, transfer evidence, an interactive course, or course continuation."
+do = "Define the learning contract; compose HITL and webpage skills only for a requested built page."
+see = "skills/co-work/human-improvement/bagakit-mastery-learning/SKILL.md"

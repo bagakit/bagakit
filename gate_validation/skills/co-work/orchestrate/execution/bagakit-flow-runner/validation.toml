@@ -1,0 +1,148 @@
+version = 2
+
+[[suite]]
+id = "bagakit-flow-runner-layout"
+owner = "skills/co-work/orchestrate/execution/bagakit-flow-runner"
+description = "Require the canonical runtime layout and keep legacy long-run repo artifacts out of bagakit-flow-runner."
+default = true
+proof_mode = "structural"
+protects = ["bagakit-flow-runner installable runtime layout and exclusion of legacy long-run payload"]
+oracle = ["fs runner checks required skill sources, protocol modules, templates, docs, eval registration, validation tests, and forbidden legacy paths"]
+exercised_surface = ["skills/co-work/orchestrate/execution/bagakit-flow-runner runtime directory", "docs/specs/flow-runner-contract.md", "gate_validation/skills/co-work/orchestrate/execution/bagakit-flow-runner registration"]
+proves = ["bagakit-flow-runner-layout proves: Require the canonical runtime layout and keep legacy long-run repo artifacts out of bagakit-flow-runner."]
+does_not_prove = ["bagakit-flow-runner-layout does not prove runtime behavior, semantic correctness, or eval quality."]
+validation_class = "structure"
+groups = ["skills", "harness", "flow-runner", "structure"]
+
+[suite.runner]
+kind = "fs"
+required_dirs = [
+  "skills/co-work/orchestrate/execution/bagakit-flow-runner",
+  "skills/co-work/orchestrate/execution/bagakit-flow-runner/references",
+  "skills/co-work/orchestrate/execution/bagakit-flow-runner/references/tpl",
+  "skills/co-work/orchestrate/execution/bagakit-flow-runner/scripts",
+  "skills/co-work/orchestrate/execution/bagakit-flow-runner/scripts/lib/protocol",
+  "gate_eval/skills/co-work/orchestrate/execution/bagakit-flow-runner",
+  "gate_eval/skills/co-work/orchestrate/execution/bagakit-flow-runner/results",
+  "gate_eval/skills/co-work/orchestrate/execution/bagakit-flow-runner/results/runs",
+  "gate_validation/skills/co-work/orchestrate/execution/bagakit-flow-runner",
+  "gate_validation/skills/co-work/orchestrate/execution/bagakit-flow-runner/protocol",
+]
+required_files = [
+  "docs/specs/flow-runner-contract.md",
+  "docs/stewardship/flow-runner-maintenance.md",
+  "skills/co-work/orchestrate/execution/bagakit-flow-runner/README.md",
+  "skills/co-work/orchestrate/execution/bagakit-flow-runner/SKILL.md",
+  "skills/co-work/orchestrate/execution/bagakit-flow-runner/scripts/flow-runner.sh",
+  "skills/co-work/orchestrate/execution/bagakit-flow-runner/scripts/flow-runner.ts",
+  "skills/co-work/orchestrate/execution/bagakit-flow-runner/scripts/lib/model.ts",
+  "skills/co-work/orchestrate/execution/bagakit-flow-runner/scripts/lib/io.ts",
+  "skills/co-work/orchestrate/execution/bagakit-flow-runner/scripts/lib/paths.ts",
+  "skills/co-work/orchestrate/execution/bagakit-flow-runner/scripts/lib/core.ts",
+  "skills/co-work/orchestrate/execution/bagakit-flow-runner/scripts/lib/protocol/index.ts",
+  "skills/co-work/orchestrate/execution/bagakit-flow-runner/scripts/lib/protocol/model.ts",
+  "skills/co-work/orchestrate/execution/bagakit-flow-runner/scripts/lib/protocol/mutation.ts",
+  "skills/co-work/orchestrate/execution/bagakit-flow-runner/scripts/lib/protocol/persistence.ts",
+  "skills/co-work/orchestrate/execution/bagakit-flow-runner/scripts/lib/protocol/projection.ts",
+  "skills/co-work/orchestrate/execution/bagakit-flow-runner/scripts/lib/protocol/validation.ts",
+  "skills/co-work/orchestrate/execution/bagakit-flow-runner/references/tpl/runner-policy-template.json",
+  "skills/co-work/orchestrate/execution/bagakit-flow-runner/references/tpl/loop-recipe-template.json",
+  "skills/co-work/orchestrate/execution/bagakit-flow-runner/references/tpl/item-handoff-template.md",
+  "gate_eval/skills/co-work/orchestrate/execution/bagakit-flow-runner/README.md",
+  "gate_eval/skills/co-work/orchestrate/execution/bagakit-flow-runner/suite.ts",
+  "gate_eval/skills/co-work/orchestrate/execution/bagakit-flow-runner/validation.toml",
+  "gate_eval/skills/co-work/orchestrate/execution/bagakit-flow-runner/results/.gitignore",
+  "gate_eval/skills/co-work/orchestrate/execution/bagakit-flow-runner/results/README.md",
+  "gate_eval/skills/co-work/orchestrate/execution/bagakit-flow-runner/results/runs/.gitkeep",
+  "gate_validation/skills/co-work/orchestrate/execution/bagakit-flow-runner/validation.toml",
+  "gate_validation/skills/co-work/orchestrate/execution/bagakit-flow-runner/check-flow-runner-contract.sh",
+  "gate_validation/skills/co-work/orchestrate/execution/bagakit-flow-runner/check-flow-runner.sh",
+  "gate_validation/skills/co-work/orchestrate/execution/bagakit-flow-runner/test-flow-runner.ts",
+  "gate_validation/skills/co-work/orchestrate/execution/bagakit-flow-runner/protocol/flow-protocol-kernel.test.ts",
+]
+forbidden_paths = [
+  "skills/co-work/orchestrate/execution/bagakit-flow-runner/SKILL_PAYLOAD.json",
+  "skills/co-work/orchestrate/execution/bagakit-flow-runner/AGENTS.md",
+  "skills/co-work/orchestrate/execution/bagakit-flow-runner/Makefile",
+  "skills/co-work/orchestrate/execution/bagakit-flow-runner/docs",
+  "skills/co-work/orchestrate/execution/bagakit-flow-runner/scripts_dev",
+  "skills/co-work/orchestrate/execution/bagakit-flow-runner/scripts/flow-runner.py",
+  "skills/co-work/orchestrate/execution/bagakit-flow-runner/scripts/apply-long-run.sh",
+  "skills/co-work/orchestrate/execution/bagakit-flow-runner/scripts/long-run-doctor.sh",
+  "skills/co-work/orchestrate/execution/bagakit-flow-runner/scripts/long-run-execution.py",
+  "skills/co-work/orchestrate/execution/bagakit-flow-runner/scripts/long-run-features.py",
+  "skills/co-work/orchestrate/execution/bagakit-flow-runner/scripts/long-run-heartbeat.py",
+  "skills/co-work/orchestrate/execution/bagakit-flow-runner/scripts/long-run-loop.py",
+  "skills/co-work/orchestrate/execution/bagakit-flow-runner/scripts/validate-long-run.sh",
+]
+
+[[suite]]
+id = "bagakit-flow-runner-contract"
+owner = "skills/co-work/orchestrate/execution/bagakit-flow-runner"
+description = "Check that documented policy and recipe contracts stay aligned with shipped templates and applied runtime files."
+default = true
+proof_mode = "wording_contract"
+protects = ["flow-runner documented policy and recipe contract anchors that agents consume when running repeated work"]
+oracle = ["contract script compares owned recipe/template anchors and applied runtime files against the documented flow-runner contract"]
+exercised_surface = ["flow-runner SKILL.md", "flow-runner recipes and templates", "applied runtime checkpoint/archive contract files"]
+proves = ["bagakit-flow-runner-contract proves: Check that documented policy and recipe contracts stay aligned with shipped templates and applied runtime files."]
+does_not_prove = ["bagakit-flow-runner-contract does not prove behavior outside its documented contract anchors."]
+timeout_seconds = 300
+validation_class = "quality"
+groups = ["skills", "harness", "flow-runner", "contract"]
+
+[suite.runner]
+kind = "bash_script"
+script = "gate_validation/skills/co-work/orchestrate/execution/bagakit-flow-runner/check-flow-runner-contract.sh"
+args = [
+  "--root",
+  "{repo_root}",
+]
+
+[[suite]]
+id = "bagakit-flow-runner-smoke"
+owner = "skills/co-work/orchestrate/execution/bagakit-flow-runner"
+description = "Run a minimal flow-runner lifecycle including feature-tracker ingest, next-item selection, snapshot, checkpoint, and archive."
+default = true
+proof_mode = "runtime"
+protects = ["flow-runner public lifecycle for feature-tracker ingest, item selection, snapshot creation, checkpoint writing, and archive output"]
+oracle = ["smoke script drives flow-runner CLI commands in a temporary repo and checks generated runtime artifacts and selected next-item state"]
+exercised_surface = ["flow-runner CLI", ".bagakit/flow-runner runtime files", "feature-tracker ingest fixture", "checkpoint and archive artifacts"]
+proves = ["bagakit-flow-runner-smoke proves: Run a minimal flow-runner lifecycle including feature-tracker ingest, next-item selection, snapshot, checkpoint, and archive."]
+does_not_prove = ["bagakit-flow-runner-smoke does not prove live service behavior, stochastic agent quality, or unrelated repository surfaces."]
+timeout_seconds = 300
+validation_class = "smoke"
+groups = ["skills", "harness", "flow-runner", "smoke"]
+
+[suite.runner]
+kind = "bash_script"
+script = "gate_validation/skills/co-work/orchestrate/execution/bagakit-flow-runner/check-flow-runner.sh"
+args = [
+  "--root",
+  "{repo_root}",
+]
+
+[[suite]]
+id = "bagakit-flow-runner-tests"
+owner = "skills/co-work/orchestrate/execution/bagakit-flow-runner"
+description = "Run the TypeScript flow-runner regression tests."
+default = true
+proof_mode = "runtime"
+protects = ["flow-runner TypeScript regression behavior for runner commands, protocol kernel mutations, and open-world policy/recipe compatibility"]
+oracle = ["node:test regression suites assert flow-runner outputs, protocol kernel state transitions, required-field rejection, and extension-field acceptance through production validators"]
+exercised_surface = ["gate_validation/skills/co-work/orchestrate/execution/bagakit-flow-runner/test-flow-runner.ts", "gate_validation/skills/co-work/orchestrate/execution/bagakit-flow-runner/protocol/flow-protocol-kernel.test.ts", "flow-runner protocol library"]
+proves = ["bagakit-flow-runner-tests proves production policy and recipe validators reject missing required fields while preserving compatible extension fields, alongside the registered runner and protocol regressions."]
+does_not_prove = ["bagakit-flow-runner-tests does not prove a Flow Runner feature from field presence alone, live service behavior, stochastic agent quality, or unrelated repository surfaces."]
+timeout_seconds = 180
+validation_class = "quality"
+groups = ["skills", "harness", "flow-runner", "quality"]
+
+[suite.runner]
+kind = "executable"
+command = "{node}"
+args = [
+  "--test",
+  "--experimental-strip-types",
+  "gate_validation/skills/co-work/orchestrate/execution/bagakit-flow-runner/test-flow-runner.ts",
+  "gate_validation/skills/co-work/orchestrate/execution/bagakit-flow-runner/protocol/flow-protocol-kernel.test.ts",
+]

@@ -1,0 +1,5 @@
+version = 1
+skill = "bagakit-writing-de-ai-tone"
+trigger = "Writing needs AI-tone detection or rewriting, protected spans, bilingual smell checks, or rhythm review."
+do = "Detect language and scene, preserve protected spans, audit by severity, rewrite only as needed, and recheck without inventing evidence."
+see = "skills/co-work/deliver/paperwork/bagakit-writing-de-ai-tone/SKILL.md"

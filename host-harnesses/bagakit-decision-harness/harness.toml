@@ -6,6 +6,7 @@ host_mode = "dedicated_workspace"
 domain = "human_improvement"
 primary_goal = "compound personal decision capability"
 agent_entrypoint = "SKILL.md"
+init_entrypoint = "scripts/decision-harness.sh"
 host_template = "host-template"
 
 owned_host_directories = [

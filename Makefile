@@ -72,7 +72,7 @@ package-all:
 
 package-one:
 	@if [[ -z "$(SELECTOR)" ]]; then \
-		echo "Usage: make package-one SELECTOR=<all|family|family/skill-id|skill-id>" >&2; \
+		echo "Usage: make package-one SELECTOR=<all|group-path|group-path/skill-id|skill-id>" >&2; \
 		exit 1; \
 	fi
 	cd scripts && bash skill.sh distribute-package --dist "$(DIST_DIR)" --selector "$(SELECTOR)"

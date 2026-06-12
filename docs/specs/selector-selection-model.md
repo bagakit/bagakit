@@ -1,337 +1,140 @@
 # Selector Selection Model
 
-This document defines the stable Bagakit meaning of selector candidate scope.
+This document defines when `bagakit-skill-selector` should participate in a
+task and how it distinguishes candidate visibility, availability, selection,
+and use.
 
-Its job is to make selector's selection loop precise without confusing:
+It is the source of truth for selector entry and persistence policy. Exact
+episode fields live in
+`skills/co-work/orchestrate/execution/bagakit-skill-selector/references/skill-usage-file-spec.md`;
+repository-level learning remains governed by
+`docs/specs/selector-evolver-boundary.md`.
 
-- repo-visible skill knowledge
-- host-available execution capability
-- task-local selection authority
+## First principle
 
-## Purpose
+Selector exists to improve a real skill-route decision. It is not an execution
+tax or proof that an Agent read its instructions.
 
-Use this spec when deciding:
+Invoke selector when at least one of these can change the next action:
 
-- what candidate set selector should consider
-- how repo-visible skills differ from host-available skills
-- why Bagakit skills may be preferred without becoming exclusive
-- where mandatory selector preflight policy lives and why frontmatter stays
-  declaration-only
-- how project-local selector preferences may bias comparison without becoming
-  policy
+- two or more plausible candidates need comparison;
+- several independently distributable skills need explicit composition;
+- a repeated failure requires a different method or candidate;
+- a maintainer explicitly requests reusable selection or evaluation evidence.
 
-This file is the SSOT for:
+For an obvious route with no meaningful selector decision, execute directly.
+Task size alone is not a trigger.
 
-- selector candidate-scope semantics
-- the terms `visible`, `available`, and `selected`
-- Bagakit-aware preference rules inside selector
-- mandatory selector preflight for non-trivial Bagakit-shaped work
+## Entry modes
 
-It is not the SSOT for:
+Use the lightest mode that preserves the needed outcome:
 
-- the full selector evidence data model
-- selector-versus-evolver boundary authority
-- runtime command examples
-- per-task file field contracts
-- scoring heuristics or ranking formulas
+1. **Direct execution** — no selector call and no selector file for an obvious
+   route.
+2. **Ephemeral preflight** — return a typed route in the current session but do
+   not create task state.
+3. **Persisted episode** — create `skill-usage.toml` only when the choice,
+   composition, recovery evidence, audit, or evaluation is worth retaining.
 
-Those belong respectively in:
+The typed route is one of:
 
-- `docs/specs/selector-data-model.md`
-- `docs/specs/selector-evolver-boundary.md`
-- `docs/specs/selector-planning-entry-routes.md`
-- `docs/specs/selector-preference-surface.md`
-- `skills/harness/bagakit-skill-selector/`
-- `skills/harness/bagakit-skill-selector/references/skill-usage-file-spec.md`
-- runtime selector docs and eval assets
+- `direct_execute`
+- `compare_then_execute`
+- `compose_then_execute`
+- `review_loop`
 
-## First Principle
+Installing a skill or rendering its frontdoor declaration does not execute any
+of these modes. The host or Agent invokes them explicitly.
 
-`bagakit-skill-selector` owns one task-local question:
+## Selective persistence
 
-- what is the best explicit skill choice or composition for this task
+A persisted selector episode is opt-in. It should contain decision-bearing
+facts, not a narration of the Agent's work.
 
-To answer that question well, selector may be repo-aware.
+Persist an episode when it protects at least one of:
 
-That means selector may know:
+- candidate or composition rationale that a later action must audit;
+- retry or recovery history that changed the method;
+- verified candidate evidence useful to a later selection;
+- an explicit maintainer/eval sampling request.
 
-- which canonical Bagakit skills exist in this repository
-- which skills expose conventional Bagakit driver files
-- which standard selector recipes already describe common combinations
+Do not persist merely because:
 
-Repo awareness does not mean selector assumes those skills are executable in
-the current host.
+- work is non-trivial or spans several steps;
+- one obvious skill was used as instructed;
+- the host already has a transcript, command trace, test result, or final
+  response containing the relevant operational facts;
+- selector needs to prove its own invocation.
 
-Repo awareness is a task aid, not a repository-level control plane.
+For a persisted episode, `receipt_only` remains a compact close disposition for
+a direct route with no material signals. `full_episode` is required when the
+episode actually contains comparison, composition, recovery, or reusable
+evidence. `audit_sample` is an explicit maintainer choice.
 
-The broader selector evidence vocabulary is defined in:
+History is not automatically useful. A task log has selection value only when
+some consumer can use its decision or verified result. Raw Agent self-ratings
+and duplicated progress prose are advisory at best and must not become a hard
+gate.
 
-- `docs/specs/selector-data-model.md`
-
-In that vocabulary, one selector task is a `selection_episode` containing
-task signals, candidates, selection lessons, composition patterns,
-candidate results, lesson updates, and optional evolver signals.
-
-## Mandatory Preflight Rule
-
-For non-trivial Bagakit-shaped work, selector preflight is mandatory before
-major implementation starts.
-
-This rule means:
-
-- mandatory preflight is the required entry gate for non-trivial
-  Bagakit-shaped work
-- preflight may still conclude `direct_execute`
-- preflight may still conclude that current coverage is already sufficient or
-  that no better candidate exists
-- trivial one-step work may execute directly without selector ceremony
-
-Mandatory preflight therefore does not mean:
-
-- every task must compare multiple candidates
-- every task must compose multiple skills
-- every task must enter one planning-entry recipe
-- every routine `direct_execute` task must manufacture a full planning, usage,
-  and evaluation episode after the required preflight receipt exists
-
-## Post-Run Disposition Rule
-
-Selector keeps mandatory entry evidence cheap and makes deeper persistence
-signal-driven.
-
-Every selector task that reaches post-run close should persist one typed
-disposition in its task-local `skill-usage.toml`:
-
-- `receipt_only`
-  - routine `direct_execute`
-  - no comparison, composition, review, failure, retry, feedback, benchmark,
-    learning, or other material selector signal
-- `full_episode`
-  - mandatory when any material selector signal exists
-  - specifically mandatory for `compare_then_execute`,
-    `compose_then_execute`, and `review_loop`
-- `audit_sample`
-  - deliberate full-record sampling of an otherwise routine direct route
-
-The mandatory minimum is still the preflight receipt created before major
-implementation. `receipt_only` reduces post-run ceremony; it does not weaken
-the frontdoor rule.
-
-`audit_sample` is not an escape from evidence requirements. It satisfies the
-same complete-record and strict close checks as `full_episode`. If material
-signals are present, the disposition must be exactly `full_episode` so the
-reason for retention remains explicit.
-
-The per-task field contract and deterministic close command live in:
-
-- `skills/harness/bagakit-skill-selector/references/skill-usage-file-spec.md`
-- `skills/harness/bagakit-skill-selector/scripts/skill_selector.ts`
-
-## Candidate States
-
-Selector should distinguish these states:
+## Candidate states
 
 | State | Meaning |
 | --- | --- |
-| `visible` | selector knows the candidate exists and is relevant enough to compare |
-| `available` | selector has enough evidence that the candidate is usable in the current host, session, or workspace |
-| `selected` | selector has chosen the candidate as part of this task's explicit plan |
-| `used` | the candidate was actually invoked for a concrete task step |
+| `visible` | selector knows the candidate exists and it is relevant enough to compare |
+| `available` | the current host or session can actually use the candidate |
+| `selected` | selector chose the candidate for this task |
+| `used` | the candidate was invoked for a concrete step |
 
-State rules:
+Rules:
 
-- every `selected` candidate must first be `visible`
-- every `used` candidate should already be `selected`
-- a candidate may be `visible` without being `available`
-- a candidate may be `available` and still not be `selected`
+- a candidate may be visible without being available;
+- a candidate may be available without being selected;
+- a used candidate should already be selected;
+- task-local availability must not be inferred from repository visibility.
 
-Task-local runtime rule:
+When an episode is persisted, explicit candidates live in `[[skill_plan]]` and
+concrete use lives in `[[usage_log]]`. Derived surveys and rankings are views,
+not additional sources of truth.
 
-- explicit task candidates belong in `[[skill_plan]]`
-- `selected` is recorded directly in `[[skill_plan]]`
-- task-local availability judgment is recorded directly in `[[skill_plan]]`
-- `used` is still recorded through `[[usage_log]]`
-- broader comparison views such as `candidate-survey.md` are derived reports,
-  not second task SSOT files
+## Candidate scope
 
-Candidate state is intentionally split across concerns:
+Compare only candidates capable of changing the route. The set may include:
 
-- visibility and availability answer whether the candidate can be considered
-- selection answers whether selector chose it for this episode
-- usage and candidate result answer what happened after it was tried
+- repository-visible Bagakit skills;
+- host-installed skills or tools;
+- external utilities;
+- research references when discovery is the next action.
 
-For richer task evidence, use the data-model concepts:
+Bagakit candidates may receive a preference when fit and availability are
+comparable, but Bagakit membership is not an exclusion rule. Optional project
+preferences are hints; they do not override availability or task-local
+judgment.
 
-- `candidate`
-- `candidate_result`
-- `selection_lesson`
-- `lesson_update`
+## Composition
 
-from `docs/specs/selector-data-model.md`.
+Intentional multi-skill composition uses selector as an explicit entrypoint.
+Every participant remains independently useful, and composed peers stay
+standalone-first. Use a recipe only when its order or fallback guidance reduces
+real coordination work.
 
-## Selection Scope Rule
+## Retry and recovery
 
-Selector's comparison set should include all visible candidates that matter for
-the task.
+Selector may count attempts inside a persisted episode and require a method
+change after the configured retry threshold. This is task-local recovery, not
+automatic repository learning.
 
-Typical visible candidates include:
+A retry or failure may justify an explicit Evolver signal, but selector must
+not automatically open an Evolver topic, select a repository route, or promote
+a conclusion. Automatic task-local signal suggestion is disabled by default.
 
-- repo-visible canonical Bagakit skills
-- host-visible installed skills or tools
-- explicit external skills or utilities
-- research or practice references when the task still needs discovery
+## Authority
 
-Selector therefore is not limited to Bagakit-only candidates.
+- `docs/specs/selector-selection-model.md` owns selector entry and candidate
+  semantics.
+- `skills/co-work/orchestrate/execution/bagakit-skill-selector/` owns installed runtime behavior.
+- `docs/specs/selector-evolver-boundary.md` owns the selector/Evolver split.
+- the host owns invocation and any automatic trace collection.
+- Evolver owns repository topic, route, decision, and promotion state.
 
-Bagakit is the preferred family when fit is comparable, because Bagakit skills
-often provide:
-
-- clearer runtime boundaries
-- selector recipes
-- selector-loadable drivers
-- stronger task-local evidence hooks
-- standalone-first composition contracts
-
-That is a preference rule, not an exclusion rule.
-
-If a non-Bagakit candidate, an external tool, or a mixed bundle is the better
-fit, selector should say so explicitly and log it.
-
-## Project-Local Preference Rule
-
-Selector may read optional host-local hints from:
-
-- `.bagakit/skill-selector/project-preferences.toml`
-
-That surface is defined in:
-
-- `docs/specs/selector-preference-surface.md`
-
-These hints may bias comparison or annotate a derived candidate survey.
-
-They must not:
-
-- override task-local availability truth
-- replace task-local candidate planning
-- become repository policy
-
-## Availability Rule
-
-Repo-visible does not mean host-available.
-
-Selector may inspect a canonical repo skill and still conclude:
-
-- the skill is not installed in this host
-- the host lacks the needed runtime or dependency
-- the skill is visible but should only be treated as a comparison reference
-
-Required behavior:
-
-- check availability before assuming a candidate can execute
-- keep visibility and availability separate in reasoning and reporting
-- if one repo-visible candidate is not host-available, keep the gap explicit in
-  preflight, plan rationale, or notes
-
-This separation is what lets selector both:
-
-- understand the Bagakit repository as a skill catalog
-- remain honest about what the current host can actually do
-
-## Metadata Rule
-
-Selector may use skill frontmatter as declaration metadata.
-
-Good uses include:
-
-- identifying Bagakit-namespaced skills
-- reading `metadata.bagakit.harness_layer`
-- discovering conventional Bagakit driver files when they exist
-- choosing one standard planning-entry recipe when substantial work should move
-  into canonical Bagakit planning surfaces
-
-Frontmatter is not the place to impose a repository-wide mandatory rule such
-as:
-
-- every task must invoke selector first
-- this one skill silently forces selector entry policy
-
-Mandatory selector preflight policy belongs in shared specs and workspace
-bootstrap guidance, not in per-skill frontmatter.
-
-So the correct rule is:
-
-- selector preflight is mandatory for non-trivial Bagakit-shaped work
-- trivial one-step work may bypass selector
-- mandatory preflight may legitimately end in `direct_execute`
-- frontmatter may declare capabilities, but it must not silently force
-  selector invocation policy
-
-## Frontdoor Rule
-
-Skill installation and skill frontmatter are discovery mechanisms, not a
-reliable execution frontdoor.
-
-For a project to actually enforce selector entry, the rule must appear in that
-project's root bootstrap guidance such as `AGENTS.md` or an equivalent managed
-instruction block.
-
-The active frontdoor text should preserve these semantics:
-
-- non-trivial Bagakit-shaped work starts with selector preflight
-- the preflight result may be `direct_execute`
-- trivial one-step work may skip selector
-- selector runtime evidence belongs under
-  `.bagakit/skill-selector/tasks/<task-slug>/skill-usage.toml`
-- the project frontdoor points to this spec instead of copying a full selector
-  playbook
-
-When a project uses the grouped Bagakit frontdoor format, selector's root rule
-should be rendered as a `<bagakit-rule skill="bagakit-skill-selector">` item in
-the `BAGAKIT:FRONTDOOR` managed region. That rendered format is defined in:
-
-- `docs/specs/frontdoor-index-contract.md`
-
-This keeps the mandatory policy visible to host agents without turning
-frontmatter into a hidden control plane.
-
-## Composition Rule
-
-Selector's scope includes explicit multi-skill composition.
-
-That means selector may choose:
-
-- one standalone skill
-- one external tool
-- one mixed bundle of several skills and tools
-
-Bagakit composition rules remain:
-
-- composition should stay explicit
-- participating skills should remain standalone-first
-- recipes describe recommended compositions, not hard dependencies
-
-## Planning Entry Rule
-
-For non-trivial Bagakit-shaped planning work that reaches route selection,
-selector should prefer the standard planning-entry recipes defined in:
-
-- `docs/specs/selector-planning-entry-routes.md`
-
-That means generic host note-taking patterns may remain visible, but they
-should not outrank canonical Bagakit planning routes when fit is comparable.
-
-## Boundary Reminder
-
-Selector-owned project state under `.bagakit/skill-selector/` remains:
-
-- task-local
-- host-local
-- adoption-oriented
-
-It must not silently become:
-
-- repository-level decision memory
-- repository-level route authority
-- evolver topic state
-
-Those remain evolver-owned concerns.
+Frontmatter and driver files may declare or render guidance. They do not create
+a hidden mandatory-invocation control plane.

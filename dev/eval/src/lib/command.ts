@@ -6,6 +6,7 @@ export interface CommandResult {
   status: number;
   stdout: string;
   stderr: string;
+  timedOut: boolean;
 }
 
 export function runCommand(
@@ -15,6 +16,7 @@ export function runCommand(
     cwd: string;
     replacements?: Replacement[];
     env?: Record<string, string>;
+    timeoutMs?: number;
   },
 ): CommandResult {
   const result = spawnSync(command, args, {
@@ -25,11 +27,13 @@ export function runCommand(
       ...(options.env ?? {}),
       PYTHONDONTWRITEBYTECODE: "1",
     },
+    timeout: options.timeoutMs,
   });
   const replacements = options.replacements ?? [];
   return {
     status: result.status ?? 1,
     stdout: String(sanitizeUnknown(result.stdout ?? "", replacements)),
     stderr: String(sanitizeUnknown(result.stderr ?? "", replacements)),
+    timedOut: result.error?.code === "ETIMEDOUT",
   };
 }

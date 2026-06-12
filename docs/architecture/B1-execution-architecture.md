@@ -52,7 +52,7 @@ L1 should answer:
 `bagakit-agent-messaging` is the L1 exchange surface for one concrete
 Agent-to-Agent message in a live task or run.
 
-Its canonical runtime source lives under `skills/a2a/` because the visible
+Its canonical runtime source lives under `skills/co-work/orchestrate/agent-cluster/a2a/` because the visible
 exchange contract co-evolves across Supervisor, Worker, Reviewer, Tester, and
 other roles. The family boundary is not a claim that every L1 capability is
 A2A, and it does not claim compatibility with an external A2A network
@@ -74,7 +74,7 @@ they do not each define a private wire format.
 ### user communication
 
 `bagakit-user-communication` is the L1 explanation surface for one concrete
-Agent-to-user update. Its canonical runtime source lives under `skills/a2u/`
+Agent-to-user update. Its canonical runtime source lives under `skills/co-work/orchestrate/agent-cluster/a2u/`
 because plain-language explanation, truthful progress semantics, and task-local
 communication preference binding co-evolve across Supervisor and other calling
 behaviors.

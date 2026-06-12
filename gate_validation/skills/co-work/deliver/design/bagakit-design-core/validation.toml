@@ -1,0 +1,84 @@
+version = 2
+
+[[suite]]
+id = "bagakit-design-core-layout"
+owner = "skills/co-work/deliver/design/bagakit-design-core"
+description = "Require the canonical runtime layout for bagakit-design-core and public design synthesis memory."
+default = true
+proof_mode = "structural"
+protects = ["bagakit-design-core installable runtime layout, frontdoor declaration, CLI declaration, and public synthesis memory"]
+oracle = ["fs runner checks required skill files, references, script, public synthesis notes, and validation/eval registration"]
+exercised_surface = ["skills/co-work/deliver/design/bagakit-design-core runtime directory", "mem/decisions/design-core public synthesis notes", "gate_validation/skills/co-work/deliver/design/bagakit-design-core registration"]
+proves = ["bagakit-design-core-layout proves required runtime files and public synthesis notes are present."]
+does_not_prove = ["bagakit-design-core-layout does not prove live design quality, aesthetic judgment, or implementation behavior."]
+validation_class = "structure"
+groups = ["skills", "design", "design-core", "structure"]
+
+[suite.runner]
+kind = "fs"
+required_dirs = [
+  "skills/co-work/deliver/design",
+  "skills/co-work/deliver/design/bagakit-design-core",
+  "skills/co-work/deliver/design/bagakit-design-core/references",
+  "skills/co-work/deliver/design/bagakit-design-core/scripts",
+  "mem/decisions/design-core",
+  "gate_validation/skills/co-work/deliver/design/bagakit-design-core",
+  "gate_eval/skills/co-work/deliver/design/bagakit-design-core",
+  "gate_eval/skills/co-work/deliver/design/bagakit-design-core/results",
+  "gate_eval/skills/co-work/deliver/design/bagakit-design-core/results/runs",
+]
+required_files = [
+  "skills/co-work/deliver/design/README.md",
+  "skills/co-work/deliver/design/bagakit-design-core/README.md",
+  "skills/co-work/deliver/design/bagakit-design-core/SKILL.md",
+  "skills/co-work/deliver/design/bagakit-design-core/references/frontdoor-rule.toml",
+  "skills/co-work/deliver/design/bagakit-design-core/references/bagakit-driver.toml",
+  "skills/co-work/deliver/design/bagakit-design-core/references/skill-cli.toml",
+  "skills/co-work/deliver/design/bagakit-design-core/references/design-core-contract.toml",
+  "skills/co-work/deliver/design/bagakit-design-core/references/artifact-contract.md",
+  "skills/co-work/deliver/design/bagakit-design-core/references/brand-tonality.md",
+  "skills/co-work/deliver/design/bagakit-design-core/references/design-rule-system.md",
+  "skills/co-work/deliver/design/bagakit-design-core/scripts/bagakit-design-core-cli.sh",
+  "mem/decisions/design-core/brand-tonality-synthesis.md",
+  "mem/decisions/design-core/design-rule-synthesis.md",
+  "mem/decisions/design-core/image-reference-set-synthesis.md",
+  "mem/decisions/design-core/review-protocol.md",
+  "gate_validation/skills/co-work/deliver/design/README.md",
+  "gate_validation/skills/co-work/deliver/design/bagakit-design-core/validation.toml",
+  "gate_validation/skills/co-work/deliver/design/bagakit-design-core/check-design-core.py",
+  "gate_eval/skills/co-work/deliver/design/bagakit-design-core/README.md",
+  "gate_eval/skills/co-work/deliver/design/bagakit-design-core/validation.toml",
+  "gate_eval/skills/co-work/deliver/design/bagakit-design-core/suite.ts",
+  "gate_eval/skills/co-work/deliver/design/bagakit-design-core/results/.gitignore",
+  "gate_eval/skills/co-work/deliver/design/bagakit-design-core/results/README.md",
+  "gate_eval/skills/co-work/deliver/design/bagakit-design-core/results/runs/.gitkeep",
+]
+forbidden_paths = [
+  "skills/co-work/deliver/design/bagakit-design-core/SKILL_PAYLOAD.json",
+  "skills/co-work/deliver/design/bagakit-design-core/docs",
+  "skills/co-work/deliver/design/bagakit-design-core/gate",
+  "skills/co-work/deliver/design/bagakit-design-core/scripts_dev",
+]
+
+[[suite]]
+id = "bagakit-design-core-contract"
+owner = "skills/co-work/deliver/design/bagakit-design-core"
+description = "Require the structured design-core workflow contract."
+default = true
+proof_mode = "structural"
+protects = ["design-core stage, guard, and checkpoint-review contract"]
+oracle = ["parsed design-core contract ids"]
+exercised_surface = ["skills/co-work/deliver/design/bagakit-design-core/references/design-core-contract.toml"]
+proves = ["bagakit-design-core-contract proves required contract stages and guards are aligned."]
+does_not_prove = ["bagakit-design-core-contract does not prove stochastic design judgment or final visual quality."]
+timeout_seconds = 120
+validation_class = "contract"
+groups = ["skills", "design", "design-core", "contract"]
+
+[suite.runner]
+kind = "python_script"
+script = "gate_validation/skills/co-work/deliver/design/bagakit-design-core/check-design-core.py"
+args = [
+  "--root",
+  "{repo_root}",
+]

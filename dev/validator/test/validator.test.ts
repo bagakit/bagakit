@@ -90,6 +90,7 @@ function writeImpactFixture(repoRoot: string): void {
     `description = "${id}"`,
     "default = true",
     ...proofLines("structural"),
+    `exercised_surface = ["${owner}/SKILL.md"]`,
     'validation_class = "structure"',
     "",
     "[suite.runner]",
@@ -1558,6 +1559,35 @@ test("impact planner selects universal plus affected owner suites for isolated s
   }
 });
 
+test("impact planner keeps behavior coverage broad while narrowing explicit reference suites", () => {
+  const repoRoot = makeTempRepo();
+  writeImpactFixture(repoRoot);
+  const configPath = path.join(repoRoot, "gate_validation/skills/example/validation.toml");
+  writeFile(
+    repoRoot,
+    "gate_validation/skills/example/validation.toml",
+    `${readFileSync(configPath, "utf8")}\n[[suite]]\nid = "alpha-reference"\nowner = "skills/harness/alpha"\ndescription = "reference wording"\ndefault = true\n${proofLines("structural").join("\n")}\nexercised_surface = ["skills/harness/alpha/references/guide.md"]\nvalidation_class = "contract"\ngroups = ["reference"]\n\n[suite.runner]\nkind = "fs"\nrequired_files = ["README.md"]\n`,
+  );
+  try {
+    const project = loadProject(repoRoot, "gate_validation/validation.toml");
+    const implementation = buildImpactPlan(project, {
+      mode: "affected",
+      changedPaths: ["skills/harness/alpha/SKILL.md"],
+    });
+    assert.ok(implementation.selectedSuiteIds.includes("alpha-contract"));
+    assert.equal(implementation.selectedSuiteIds.includes("alpha-reference"), false);
+
+    const reference = buildImpactPlan(project, {
+      mode: "affected",
+      changedPaths: ["skills/harness/alpha/references/guide.md"],
+    });
+    assert.ok(reference.selectedSuiteIds.includes("alpha-reference"));
+    assert.equal(reference.selectedSuiteIds.includes("alpha-contract"), false);
+  } finally {
+    rmSync(repoRoot, { recursive: true, force: true });
+  }
+});
+
 test("impact planner fail-safe expands global, unknown, and deleted-owner paths", () => {
   const repoRoot = makeTempRepo();
   writeImpactFixture(repoRoot);
@@ -1581,8 +1611,8 @@ test("impact planner fail-safe expands global, unknown, and deleted-owner paths"
       mode: "affected",
       changedPaths: ["skills/harness/beta/removed-file.md"],
     });
-    assert.equal(deletedOwnerPlan.fallback, "none");
-    assert.deepEqual(deletedOwnerPlan.selectedSuiteIds, ["beta-contract", "repo-universal"]);
+    assert.equal(deletedOwnerPlan.fallback, "unknown_path");
+    assert.equal(deletedOwnerPlan.selectedSuiteIds.length, 4);
   } finally {
     rmSync(repoRoot, { recursive: true, force: true });
   }

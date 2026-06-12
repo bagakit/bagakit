@@ -98,6 +98,10 @@ Dataset build should:
 - allow deterministic ratio-based assignment for the remaining items
 - record build metadata so later reports can explain how the split was made
 
+Exporting a configured split with zero assigned items is valid and produces an
+empty dataset. An absent split that is neither configured nor assigned remains
+an error.
+
 ## Dimension Rule
 
 If a dataset-backed workflow needs explicit measurement dimensions, use

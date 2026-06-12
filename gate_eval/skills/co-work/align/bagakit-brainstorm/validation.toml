@@ -1,0 +1,29 @@
+version = 2
+
+[[suite]]
+id = "bagakit-brainstorm-shared-runner-eval"
+owner = "gate_eval/skills/co-work/align/bagakit-brainstorm"
+description = "Run deterministic non-gating eval for brainstorm lifecycle surfaces and serious-moment goal-case coverage."
+default = true
+proof_mode = "runtime"
+protects = ["brainstorm eval cases for init-time review surfaces, status reporting, and archive-quality signals"]
+oracle = ["shared dev/eval runner executes the brainstorm suite and asserts structured case outputs against deterministic fixtures"]
+exercised_surface = ["gate_eval/skills/co-work/align/bagakit-brainstorm/suite.ts", "gate_eval/skills/co-work/align/bagakit-brainstorm/cases/serious-moments.json", "skills/co-work/align/bagakit-brainstorm/references/decision-quality-contract.toml", "brainstorm operator surfaces under test"]
+proves = ["bagakit-brainstorm-shared-runner-eval proves deterministic lifecycle cases execute and sanitized serious-moment cases map to structured clarification, principle, expert-review, correction, and handoff guards with baseline/candidate evidence."]
+does_not_prove = ["bagakit-brainstorm-shared-runner-eval does not prove live brainstorm quality, three-trial reliability, agent judgment, or release-blocking correctness."]
+timeout_seconds = 180
+validation_class = "quality"
+groups = ["skills", "harness", "brainstorm", "eval", "quality"]
+
+[suite.runner]
+kind = "executable"
+command = "{node}"
+args = [
+  "--experimental-strip-types",
+  "dev/eval/src/cli.ts",
+  "run",
+  "--root",
+  "{repo_root}",
+  "--suite",
+  "gate_eval/skills/co-work/align/bagakit-brainstorm/suite.ts",
+]

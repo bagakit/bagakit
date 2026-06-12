@@ -15,6 +15,7 @@ usage:
   scripts/gate.sh validate-plan [validator args...]
   scripts/gate.sh validate-audit [validator args...]
   scripts/gate.sh eval [validator args...]
+  scripts/gate.sh eval-fast [validator args...]
   scripts/gate.sh eval-all [validator args...]
   scripts/gate.sh eval-plan [validator args...]
   scripts/gate.sh eval-audit [validator args...]
@@ -78,6 +79,14 @@ case "$MODE" in
       "$@"
     ;;
   eval)
+    exec node --experimental-strip-types \
+      "$ROOT/dev/validator/src/cli.ts" \
+      run-default \
+      --root "$ROOT" \
+      --config gate_eval/validation.toml \
+      "$@"
+    ;;
+  eval-fast)
     exec node --experimental-strip-types \
       "$ROOT/dev/validator/src/cli.ts" \
       run-default \

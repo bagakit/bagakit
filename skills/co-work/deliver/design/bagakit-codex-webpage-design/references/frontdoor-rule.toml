@@ -1,0 +1,5 @@
+version = 1
+skill = "bagakit-codex-webpage-design"
+trigger = "The user explicitly requests a high-craft webpage or landing-page build or visual parity review."
+do = "Clarify the brief and reference intent, implement in the host stack, then verify with browser screenshots and parity review."
+see = "skills/co-work/deliver/design/bagakit-codex-webpage-design/SKILL.md"

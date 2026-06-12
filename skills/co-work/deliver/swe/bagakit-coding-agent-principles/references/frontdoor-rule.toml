@@ -1,0 +1,5 @@
+version = 1
+skill = "bagakit-coding-agent-principles"
+trigger = "A non-trivial implementation adds an abstraction, dependency, compatibility path, migration, or new proof boundary."
+do = "Protect the user goal at the owning boundary, choose the smallest durable project-native slice, reuse before inventing, and prove owned and public behavior."
+see = "skills/co-work/deliver/swe/bagakit-coding-agent-principles/SKILL.md"

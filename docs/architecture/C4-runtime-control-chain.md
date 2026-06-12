@@ -165,16 +165,17 @@ each surface may own.
 | --- | --- |
 | operator surface | `dev/agent_loop` watch, status, run payloads, and notification delivery |
 | execution host | `dev/agent_loop` run loop, lock, continuation classification, recovery budget, and host stop policy |
-| flow protocol | `skills/harness/bagakit-flow-runner` state, checkpoints, progress, incidents, mutation receipts, next-action, and resume projections |
+| flow protocol | `skills/co-work/orchestrate/execution/bagakit-flow-runner` state, checkpoints, progress, incidents, mutation receipts, next-action, and resume projections |
 | runner substrate | `dev/agent_runner` and the runner-launch portion consumed by `dev/agent_loop` |
-| harness skills | `skills/harness/bagakit-living-knowledge`, `skills/harness/bagakit-skill-evolver`, `skills/harness/bagakit-researcher`, `skills/harness/bagakit-skill-selector`, and peers |
+| harness skills | `skills/co-work/align/bagakit-living-knowledge`, `skills/co-work/align/bagakit-researcher`, `skills/co-work/orchestrate/execution/bagakit-skill-selector`, and peers |
+| evolver skills | `skills/evolve/adapt/bagakit-skill-evolver` and future active improvement skills |
 
 The important design direction is:
 
 - `dev/agent_loop` may be a host implementation
 - `dev/agent_runner` may be a reusable executor wrapper
 - `bagakit-flow-runner` owns the current protocol surface and keeps its
-  skill-local kernel under `scripts/lib/protocol/`
+  skill-local kernel under `skills/co-work/orchestrate/execution/bagakit-flow-runner/scripts/lib/protocol/`
 - harness skills should feed execution-facing changes back through the flow
   protocol instead of inventing parallel state files
 

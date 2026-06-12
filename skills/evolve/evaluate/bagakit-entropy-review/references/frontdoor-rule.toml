@@ -1,0 +1,6 @@
+version = 1
+skill = "bagakit-entropy-review"
+trigger = "The user requests an entropy or over-engineering review of an authored artifact."
+do = "Bind the actor, task, protected obligations, and evidence window; profile avoidable meaning, structure, choice, coupling, and proof burden; then recommend the smallest safe action or abstain."
+see = "skills/evolve/evaluate/bagakit-entropy-review/SKILL.md"
+fallback = "Use the same necessity-before-reduction test in prose and keep domain correctness and owner acceptance with their owning workflow."

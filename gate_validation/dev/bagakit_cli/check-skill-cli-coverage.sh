@@ -17,15 +17,22 @@ done
 
 cd "$root"
 
+skill_dirs() {
+  find skills -type d -exec test -f '{}/SKILL.md' \; -print -prune | sort
+}
+
 missing=0
 while IFS= read -r skill_file; do
   skill_dir="$(dirname "$skill_file")"
   manifest="$skill_dir/references/skill-cli.toml"
   if [[ ! -f "$manifest" ]]; then
-    printf 'missing skill CLI declaration: %s\n' "$manifest" >&2
-    missing=1
+    scripts_dir="$skill_dir/scripts"
+    if [[ -d "$scripts_dir" ]] && find "$scripts_dir" -type f -print -quit | grep -q .; then
+      printf 'missing skill CLI declaration for skill with operator scripts: %s\n' "$manifest" >&2
+      missing=1
+    fi
   fi
-done < <(find skills -mindepth 3 -maxdepth 3 -name SKILL.md -type f | sort)
+done < <(skill_dirs | sed 's|$|/SKILL.md|')
 
 if [[ "$missing" -ne 0 ]]; then
   exit 1
@@ -110,7 +117,11 @@ while IFS= read -r manifest; do
   if ! check_manifest_commands "$manifest" "$help_text"; then
     missing=1
   fi
-done < <(find skills -mindepth 4 -maxdepth 4 -name 'skill-cli.toml' -type f | sort)
+done < <(skill_dirs | while IFS= read -r skill_dir; do
+  if [[ -f "$skill_dir/references/skill-cli.toml" ]]; then
+    printf '%s\n' "$skill_dir/references/skill-cli.toml"
+  fi
+done)
 
 if [[ "$missing" -ne 0 ]]; then
   exit 1

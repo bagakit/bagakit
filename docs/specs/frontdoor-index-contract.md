@@ -1,7 +1,7 @@
 # Frontdoor Index Contract
 
-This document defines the Bagakit contract for all-skills host-bootstrap
-frontdoor rules.
+This document defines the Bagakit contract for short host-bootstrap guidance
+and the on-demand Bagakit skill entry index.
 
 It exists so every installable Bagakit skill can declare exactly one short
 entry rule without scattering independent managed blocks through `AGENTS.md`.
@@ -10,16 +10,19 @@ entry rule without scattering independent managed blocks through `AGENTS.md`.
 
 Use this spec when deciding:
 
-- how Bagakit short frontdoor rules are rendered in a host bootstrap file
+- how Bagakit short frontdoor rules are rendered in a host bootstrap file and
+  an on-demand skill index
 - how one skill's frontdoor rule is delimited
 - why skill frontmatter remains declaration-only
-- how a renderer should locate and replace the grouped frontdoor region
+- how a renderer should locate and replace the grouped bootstrap region and
+  refresh the generated skill index
 - which details stay out of `AGENTS.md` to keep it short
 - why every installable Bagakit skill must declare one frontdoor rule
 
 This file is the SSOT for:
 
 - the `BAGAKIT:FRONTDOOR` managed-region markers
+- the `skills/frontdoor.md` generated index
 - the `<bagakit-rule skill="...">` rendered item format
 - the compact inline body contract inside one rule
 - the requirement that each installable Bagakit skill declares one frontdoor
@@ -55,9 +58,10 @@ It is not:
 - an execution log
 - a hidden policy layer inside skill frontmatter
 
-The root bootstrap file should carry only the short rules needed to make host
-agents enter the right Bagakit behavior. Detailed semantics must remain in the
-owning source-of-truth file.
+The root bootstrap file should carry only the selector hint and the pointer to
+the generated index. Detailed semantics and the per-skill entry rules must stay
+out of `AGENTS.md` and remain in the generated index or owning source-of-truth
+files.
 
 Every installable Bagakit skill must declare one frontdoor rule. The rule is
 the skill's concise host-entry contract: when it should be considered, what the
@@ -69,11 +73,11 @@ turning the frontdoor into a registry, priority table, or copied skill manual.
 ## Managed Region
 
 The canonical rendered region uses the `BAGAKIT:FRONTDOOR` comment markers and
-one `<bagakit-rule skill="...">` item per installable skill:
+one compact bootstrap hint:
 
 ```md
 <!-- BAGAKIT:FRONTDOOR:START -->
-<bagakit-rule skill="bagakit-skill-selector">Trigger: non-trivial Bagakit-shaped work. | Do: run selector preflight before major implementation. | See: `docs/specs/selector-selection-model.md` | Evidence: `.bagakit/skill-selector/tasks/<task-slug>/skill-usage.toml`</bagakit-rule>
+Use visible skill descriptions first; consult `skills/frontdoor.md` only when the route is unclear. | Load only the selected skill; use selector only for a real candidate comparison, composition, repeated failure, or explicitly reusable evidence.
 <!-- BAGAKIT:FRONTDOOR:END -->
 ```
 
@@ -82,20 +86,23 @@ Rules:
 - the outer comment markers define the replaceable managed region
 - the markers must be unique within one bootstrap file
 - a renderer may replace everything between the markers
-- each installable Bagakit skill contributes one rendered
-  `<bagakit-rule skill="...">` item
-- each rule item stays on one line with labeled fields separated by ` | `
-- humans and agents may read the region directly
+- the managed region contains no per-skill procedure or skill list
+- the region stays on two short lines so every task receives only bootstrap
+  routing
 - durable paths inside the region must be repo-relative
-- the region should stay short enough that it remains bootstrap guidance, not a
-  copied playbook
+- the generated index carries one item per declaration and is capped at 520
+  characters per item
 
 Do not use a second outer XML-like container inside the managed region.
 The comment markers already carry the Bagakit frontdoor identity.
 
-## Rule Item Format
+## Generated Skill Index
 
-Each rendered skill rule uses:
+The renderer writes `skills/frontdoor.md` from the skill-owned declarations.
+It is a navigation surface, not a runtime state store or substitute for a
+selected skill's `SKILL.md`.
+
+Each generated index item uses:
 
 ```md
 <bagakit-rule skill="<skill-id>">Trigger: <when this rule matters> | Do: <one direct instruction> | See: `<repo-relative source of truth>`</bagakit-rule>
@@ -117,18 +124,21 @@ Required body labels:
 - `Do`
 - `See`
 
-Optional body labels:
+Optional declaration fields:
 
 - `Evidence`
 - `Surface`
 - `Fallback`
+
+These fields remain available in `frontdoor-rule.toml` for declaration and
+tooling use; they are not rendered into the bootstrap region.
 
 Rules:
 
 - `skill` is the rendered rule key
 - `skill` must be a safe Bagakit skill id: lowercase ASCII letters, digits, and
   hyphens, starting with a letter or digit
-- one frontdoor region should contain at most one rule for a given `skill`
+- the generated index should contain at most one rule for a given `skill`
 - the body should not contain headings, lists, or line breaks
 - the body should not include nested procedures
 - the body should point to the owning source of truth instead of copying it
@@ -149,8 +159,9 @@ Do not render:
 
 Reason:
 
-- one skill should normally have one root frontdoor rule
-- writing a rule in the frontdoor means it is active host-bootstrap guidance
+- one skill should normally have one generated index entry
+- writing a rule in the index provides discovery guidance, not automatic
+  invocation
 - display ordering is a renderer concern, not a detail to expose in
   `AGENTS.md`
 - extra metadata belongs in declaration or tooling surfaces, not in the root
@@ -172,13 +183,15 @@ Required behavior:
 - skill frontmatter may declare capabilities
 - skill-owned pointer declarations may provide rendering inputs
 - each installable skill must provide exactly one frontdoor declaration
-- the active rule must appear in root bootstrap guidance
+- the generated index must contain the active rule; the root bootstrap only
+  points to the index
 - generated frontdoor text must point back to the source of truth
 
 This preserves the selector rule:
 
 - installing or listing a skill is discovery
-- root bootstrap guidance is the reliable execution frontdoor
+- root bootstrap guidance is the reliable lazy entrypoint; the selected skill
+  remains the execution source of truth
 
 ## Ordering
 
@@ -191,7 +204,8 @@ Default order:
 
 Reason:
 
-- selector is the task-level entry point for non-trivial Bagakit-shaped work
+- selector is the task-level route aid and remains first for discoverability;
+  its conditional entry rule does not make it mandatory for every task
 - no `priority` metadata should be needed in `AGENTS.md`
 - deterministic order keeps diffs stable
 
@@ -203,23 +217,26 @@ or declaration source, not hand-edit the managed region.
 A renderer or validator should treat these as errors:
 
 - duplicate `BAGAKIT:FRONTDOOR` start or end markers
-- unclosed `<bagakit-rule>` item
-- duplicate `skill` values in one region
+- unclosed `<bagakit-rule>` item in the generated index
+- duplicate `skill` values in the generated index
 - a `skill` value that is not safe to render as the only tag attribute
 - missing required body labels
 - absolute filesystem paths in durable rule text
 - a `See` path that is not repo-relative
 
-These should be warnings at first:
+These should be errors:
 
-- overly long rule body
-- body contains a heading
-- body copies detailed procedure text instead of linking to source of truth
+- a rendered rule body over 520 characters
+- index item contains a heading
+- index item copies detailed procedure text instead of linking to source of truth
 - rule references a runtime surface that has no declared `surface.toml`
+- generated `skills/frontdoor.md` is missing or does not match declarations
 
 ## Adapter Rule
 
 `AGENTS.md` is the canonical Bagakit bootstrap target in this repository.
+`skills/frontdoor.md` is the generated on-demand index. The two surfaces have
+different loading costs and must not be merged again.
 
 Tool-native files such as `CLAUDE.md` may bridge to `AGENTS.md` or import it
 when the host tool supports that pattern. Adapter files should not duplicate

@@ -1,7 +1,0 @@
-version = 1
-skill = "bagakit-grill"
-trigger = "A concrete plan, design, goal, or implementation direction needs pressure testing before execution."
-do = "Preserve the goal, resolve inspectable nodes with evidence, ask only decision-bearing questions, and require convergence."
-see = "skills/harness/bagakit-grill/SKILL.md"
-surface = ".bagakit/grill/runs/<run-id>/"
-fallback = "Use `bagakit-spark` when the target is too vague to grill."

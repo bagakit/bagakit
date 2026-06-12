@@ -127,6 +127,16 @@ test("loads skill CLI manifests from installable skills", () => {
   assert.deepEqual(records[0].manifest?.commands.map((command) => command.name), ["echo"]);
 });
 
+test("canonical discovery rejects duplicate skill ids across families", () => {
+  const root = tempRepo();
+  write(root, "skills/harness/demo-skill/SKILL.md", "# Harness\n");
+  write(root, "skills/swe/demo-skill/SKILL.md", "# SWE\n");
+
+  const result = runCli(["skills", "--root", root, "--json"]);
+  assert.equal(result.status, 1);
+  assert.match(stderr(result), linePattern("skill id must be globally unique across families"));
+});
+
 test("public discovery commands support JSON output", () => {
   const root = tempRepo();
   makeSkill(root);
@@ -143,6 +153,68 @@ test("public discovery commands support JSON output", () => {
   const surfaces = runCli(["surfaces", "--root", root, "--json"]);
   assert.equal(surfaces.status, 0, stderr(surfaces));
   assert.equal(JSON.parse(stdout(surfaces))[0].surfaceRoot, ".bagakit/demo");
+});
+
+test("harnesses and status expose host harness inventory and counters", () => {
+  const root = tempRepo();
+  write(root, "host-harnesses/demo-harness/SKILL.md", "# Demo L4 host harness\n");
+  write(
+    root,
+    "host-harnesses/demo-harness/harness.toml",
+    [
+      "schema_version = 1",
+      'harness_id = "demo-harness"',
+      'harness_kind = "host_harness"',
+      'bagakit_layer = "l4-host-harness"',
+      'init_entrypoint = "scripts/init.sh"',
+      "",
+    ].join("\n"),
+  );
+  write(root, "host-harnesses/demo-harness/host-template/harness.toml", "harness_kind = \"host_harness\"\n");
+  write(root, "host-harnesses/demo-harness/scripts/init.sh", "#!/bin/sh\n");
+
+  const harnesses = runCli(["harnesses", "--root", root, "--json"]);
+  assert.equal(harnesses.status, 0, stderr(harnesses));
+  assert.deepEqual(JSON.parse(stdout(harnesses)), [
+    {
+      harness_id: "demo-harness",
+      selector: "demo-harness",
+      path: "host-harnesses/demo-harness",
+      init_entrypoint: "scripts/init.sh",
+      issues: [],
+    },
+  ]);
+
+  const status = runCli(["status", "--root", root, "--json"]);
+  assert.equal(status.status, 0, stderr(status));
+  const summary = JSON.parse(stdout(status));
+  assert.equal(summary.host_harnesses, 1);
+  assert.equal(summary.invalid_host_harnesses, 0);
+});
+
+test("harness discovery rejects init entrypoints that escape through symlinks", () => {
+  const root = tempRepo();
+  const harnessDir = path.join(root, "host-harnesses/demo-harness");
+  write(root, "host-harnesses/demo-harness/SKILL.md", "# Demo L4 host harness\n");
+  write(
+    root,
+    "host-harnesses/demo-harness/harness.toml",
+    [
+      "schema_version = 1",
+      'harness_id = "demo-harness"',
+      'harness_kind = "host_harness"',
+      'bagakit_layer = "l4-host-harness"',
+      'init_entrypoint = "scripts/init.sh"',
+      "",
+    ].join("\n"),
+  );
+  write(root, "host-harnesses/demo-harness/host-template/harness.toml", "harness_kind = \"host_harness\"\n");
+  fs.mkdirSync(path.join(harnessDir, "scripts"), { recursive: true });
+  fs.symlinkSync("/bin/sh", path.join(harnessDir, "scripts/init.sh"));
+
+  const result = runCli(["harnesses", "--root", root, "--json"]);
+  assert.equal(result.status, 1);
+  assert.match(stdout(result), /real target must remain inside/);
 });
 
 test("status --json exits nonzero when declarations are invalid", () => {
@@ -264,6 +336,20 @@ test("install status reports conflicts without leaking target root", () => {
   assert.doesNotMatch(stdout(result), new RegExp(escapeRegExp(target)));
 });
 
+test("install link batch conflicts are rejected before any projection is written", () => {
+  const root = tempRepo();
+  const target = fs.mkdtempSync(path.join(os.tmpdir(), "bagakit-cli-install-"));
+  makeSkill(root);
+  write(root, "skills/harness/second-skill/SKILL.md", "# Second\n");
+  write(target, "second-skill", "# conflict\n");
+
+  const result = runCli(["install", "link", "all", "--root", root, "--target", target, "--json"]);
+  assert.equal(result.status, 1);
+  assert.equal(fs.existsSync(path.join(target, "demo-skill")), false);
+  const payload = JSON.parse(stdout(result));
+  assert.equal(payload.find((item: { skill_id: string }) => item.skill_id === "second-skill").action, "skip-conflict");
+});
+
 test("install link replace updates only wrong symbolic links", () => {
   const root = tempRepo();
   const target = fs.mkdtempSync(path.join(os.tmpdir(), "bagakit-cli-install-"));
@@ -314,6 +400,26 @@ test("install unlink removes only links to selected repository skills", () => {
   assert.equal(unlink.status, 0, stderr(unlink));
   assert.equal(JSON.parse(stdout(unlink))[0].action, "unlink");
   assert.equal(fs.existsSync(path.join(target, "demo-skill")), false);
+});
+
+test("install unlink reports regular and foreign targets as conflicts", () => {
+  const root = tempRepo();
+  const target = fs.mkdtempSync(path.join(os.tmpdir(), "bagakit-cli-install-"));
+  const foreign = fs.mkdtempSync(path.join(os.tmpdir(), "bagakit-cli-foreign-"));
+  makeSkill(root);
+  write(root, "skills/harness/second-skill/SKILL.md", "# Second\n");
+  write(target, "demo-skill", "# regular conflict\n");
+  fs.symlinkSync(foreign, path.join(target, "second-skill"), "dir");
+
+  const result = runCli(["install", "unlink", "all", "--root", root, "--target", target, "--json"]);
+  assert.equal(result.status, 1);
+  const payload = JSON.parse(stdout(result));
+  assert.deepEqual(
+    payload.map((item: { action: string }) => item.action),
+    ["skip-conflict", "skip-conflict"],
+  );
+  assert.equal(fs.existsSync(path.join(target, "demo-skill")), true);
+  assert.equal(fs.readlinkSync(path.join(target, "second-skill")), foreign);
 });
 
 test("selector resolution rejects skills without declared CLI", () => {

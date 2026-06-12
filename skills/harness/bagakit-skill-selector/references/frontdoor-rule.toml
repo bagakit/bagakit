@@ -1,6 +1,0 @@
-version = 1
-skill = "bagakit-skill-selector"
-trigger = "Non-trivial Bagakit work needs an explicit skill or composition choice."
-do = "Run selector preflight before major implementation; direct execution remains valid."
-see = "docs/specs/selector-selection-model.md"
-evidence = ".bagakit/skill-selector/tasks/<task-slug>/skill-usage.toml"

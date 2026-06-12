@@ -3,12 +3,18 @@ declare module "node:fs" {
     name: string;
     isDirectory(): boolean;
     isFile(): boolean;
+    isSymbolicLink(): boolean;
   }
 
   interface StatLike {
     isDirectory(): boolean;
     isFile(): boolean;
+    isSymbolicLink(): boolean;
   }
+
+  export function existsSync(filePath: string): boolean;
+  export function lstatSync(filePath: string): StatLike;
+  export function readdirSync(dirPath: string, options: { withFileTypes: true }): DirentLike[];
 
   const fs: {
     existsSync(filePath: string): boolean;
@@ -31,6 +37,7 @@ declare module "node:path" {
     join(...parts: string[]): string;
     relative(from: string, to: string): string;
     resolve(...parts: string[]): string;
+    normalize(filePath: string): string;
     sep: string;
     posix: {
       join(...parts: string[]): string;
@@ -42,6 +49,7 @@ declare module "node:path" {
 
 declare module "node:os" {
   export function tmpdir(): string;
+  export function homedir(): string;
 }
 
 declare module "node:assert/strict" {
@@ -66,5 +74,10 @@ declare module "node:util" {
 
 declare const process: {
   argv: string[];
+  env: Record<string, string | undefined>;
   exitCode: number | undefined;
 };
+
+declare module "node:url" {
+  export function fileURLToPath(value: string | URL): string;
+}

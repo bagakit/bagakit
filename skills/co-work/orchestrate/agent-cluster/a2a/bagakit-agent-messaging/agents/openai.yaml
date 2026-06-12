@@ -1,0 +1,4 @@
+interface:
+  display_name: "Bagakit Agent Messaging"
+  short_description: "Clear, attributable Agent-to-Agent messages"
+  default_prompt: "First classify the Host channel. Keep native Codex subagent/team exchanges native; use $bagakit-agent-messaging for external Agents or prompt-style delivery, including derived-Agent Sets and concise Worker reports."

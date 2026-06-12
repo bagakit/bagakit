@@ -12,6 +12,8 @@ from pathlib import Path
 ALLOWED_ROOT_DIRS = {
     ".bagakit",
     ".codex",
+    ".claude",
+    ".agents",
     ".git",
     ".github",
     ".mem_inbox",

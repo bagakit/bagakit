@@ -69,3 +69,11 @@ export interface RuntimeSurfaceRecord {
   manifestPath: string;
   issues: string[];
 }
+
+export interface HostHarnessRecord {
+  harness_id: string;
+  selector: string;
+  path: string;
+  init_entrypoint: string;
+  issues: string[];
+}

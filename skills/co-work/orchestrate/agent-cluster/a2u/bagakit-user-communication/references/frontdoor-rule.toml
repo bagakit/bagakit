@@ -1,0 +1,6 @@
+version = 1
+skill = "bagakit-user-communication"
+trigger = "A task reaches a meaningful start, decision, blocker, correction, or completion update for the user."
+do = "Send a result-first update only when it changes the user's understanding or next action; leave delivery to the Host."
+see = "skills/co-work/orchestrate/agent-cluster/a2u/bagakit-user-communication/SKILL.md"
+fallback = "Use the current Host-authenticated user channel with the same result-first, plain-language, truth-calibrated semantics."

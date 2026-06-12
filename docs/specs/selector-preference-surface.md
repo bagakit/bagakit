@@ -26,7 +26,7 @@ It is not the SSOT for:
 
 Those belong respectively in:
 
-- `skills/harness/bagakit-skill-selector/references/skill-usage-file-spec.md`
+- `skills/co-work/orchestrate/execution/bagakit-skill-selector/references/skill-usage-file-spec.md`
 - `docs/specs/selector-evolver-boundary.md`
 - runtime selector reports
 - evolver-owned specs

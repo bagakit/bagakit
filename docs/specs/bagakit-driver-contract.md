@@ -68,11 +68,15 @@ Rules:
 - `summary_line` is one concrete line intended for insertion inside the
   `[[BAGAKIT]]` block
 - `[[directive]]` entries are short conditional reporting rules for the same
-  block
+  block; they are optional projection hints, not a request to hand-maintain
+  per-action or per-attempt footer lines
 - `retry_backoff_threshold` is optional and is only meaningful for consumers
   that support retry discipline
 - the file must remain installable as part of the skill payload
 - directives may shape task-local or task-reporting guidance only
+- dynamic retry counts, backoff state, and routine progress belong to the
+  owning runtime; a driver must not make an Agent copy them into a footer by
+  hand
 - the file must not encode evolver topic creation, repository routing, or
   durable promotion policy
 - `retry_backoff_threshold` remains reserved for `bagakit-skill-selector`
@@ -147,7 +151,7 @@ That means the loading path must not become a second control plane for:
 - repository-level promotion routing
 - evolver topic state
 - durable repository decision memory
-- mandatory selector-preflight policy for non-trivial Bagakit-shaped work
+- a blanket selector-preflight or task-logging policy
 
 Current selector rule:
 
@@ -162,10 +166,10 @@ Selector is still allowed to skip:
 - non-local candidates
 - Bagakit skills with no driver file
 
-Mandatory selector preflight for non-trivial Bagakit-shaped work is declared
-through shared bootstrap/spec surfaces such as `AGENTS.md` and
-`docs/specs/selector-selection-model.md`; driver files must not redefine,
-weaken, or recreate that policy.
+Selector entry and persistence policy is declared through the owning selector
+spec and bootstrap surfaces. Driver files must not redefine, weaken, or
+recreate that policy, and must not require an Agent to write a task log merely
+to render a footer.
 
 ## Failure Rules
 

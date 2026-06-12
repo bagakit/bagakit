@@ -1,5 +1,0 @@
-version = 1
-skill = "bagakit-codex-webpage-design"
-trigger = "A task needs a high-craft webpage or landing page built and visually verified."
-do = "Clarify the brief and reference intent, implement in the host stack, then verify with browser screenshots and parity review."
-see = "skills/design/bagakit-codex-webpage-design/SKILL.md"

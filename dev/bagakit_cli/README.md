@@ -30,7 +30,7 @@ bash dev/bagakit_cli/bagakit-cli.sh install link bagakit-spark --root . --target
 Use `--json` on supported commands for machine-readable output.
 
 Use `install link all --dry-run` to preview projection changes. `install link`
-refreshes stale symlinks that still point to this repo's previous family path
+refreshes stale symlinks that still point to this repo's previous group path
 for the same skill id; other wrong links require `--replace`. Use
 `install unlink <selector>` only for symlinks that currently point back to the
 selected repository skill.
@@ -59,3 +59,5 @@ It must not:
 Stable contract:
 
 - `docs/specs/skill-cli-contract.md`
+
+Canonical grouping and projection rules: `docs/specs/skill-directory-contract.md`.

@@ -1,0 +1,5 @@
+version = 1
+skill = "bagakit-hitl-webutil-design"
+trigger = "The user explicitly requests a HITL page, course handoff, evidence review surface, or page continuation."
+do = "Define the page contract and route explicit page requests to the webpage skill; stop at a brief only for critique or an explicit downgrade."
+see = "skills/co-work/deliver/design/bagakit-hitl-webutil-design/SKILL.md"

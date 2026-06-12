@@ -1,0 +1,7 @@
+version = 1
+skill = "bagakit-grill"
+trigger = "An explicit plan, design, goal, or implementation direction has a decision-bearing uncertainty before execution."
+do = "Resolve the smallest evidence-bearing branch and stop when its acceptance condition is clear."
+see = "skills/co-work/align/bagakit-grill/SKILL.md"
+surface = ".bagakit/grill/runs/<run-id>/"
+fallback = "Use `bagakit-spark` when the target is too vague to grill."

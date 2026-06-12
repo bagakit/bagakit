@@ -203,10 +203,10 @@ archive the whole installable skill directory.
 
 Required contract:
 - accept `DIST_DIR` override
-- emit one zip artifact at `<DIST_DIR>/<family>/<skill-id>.skill`
+- emit one zip artifact at `<DIST_DIR>/<group-path>/<skill-id>.skill`
 - resolve relative `DIST_DIR` against the repo root
 - treat the skill directory as the packaging boundary
-- discover installable skill sources directly from `skills/<family>/<skill-id>/`
+- discover installable skill sources directly from `skills/<group-path>/<skill-id>/`
   with `SKILL.md`
 - `package-all`, and `SELECTOR=all`, should package every discovered
   installable skill source
@@ -222,8 +222,8 @@ Naming principle:
 - packaging must not depend on delivery-profile metadata
 
 Recommended checks:
-- `make package-one SELECTOR=<family/skill-id> DIST_DIR=.tmp/package-check`
-  should always produce `.tmp/package-check/<family>/<skill>.skill`
+- `make package-one SELECTOR=<group-path/skill-id> DIST_DIR=.tmp/package-check`
+  should always produce `.tmp/package-check/<group-path>/<skill>.skill`
 - the repo packager should not require per-skill manifest files to reconstruct
   payload
 

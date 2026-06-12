@@ -58,7 +58,7 @@ This model applies to:
 
 - `dev/agent_loop/`
 - the lower runner substrate under `dev/agent_runner/`
-- the execution-truth runtime under `skills/harness/bagakit-flow-runner/`
+- the execution-truth runtime under `skills/co-work/orchestrate/execution/bagakit-flow-runner/`
 
 It does not redefine:
 
@@ -207,7 +207,7 @@ This layer owns canonical work-item truth.
 
 Current Bagakit surface:
 
-- `skills/harness/bagakit-flow-runner/`
+- `skills/co-work/orchestrate/execution/bagakit-flow-runner/`
 
 It owns:
 

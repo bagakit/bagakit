@@ -1,0 +1,4 @@
+version = 1
+insert_target = "bagakit_footer"
+summary_line = "- Selector: Route=<preflight.decision>; Composition=<composition summary or none>; Next=<one deterministic next action>"
+retry_backoff_threshold = 3

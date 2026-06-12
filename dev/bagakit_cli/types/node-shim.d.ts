@@ -21,12 +21,21 @@ declare module "node:fs" {
     readdirSync(path: string, options?: { withFileTypes?: false }): string[];
     lstatSync(path: string): Stats;
     statSync(path: string): Stats;
-    realpathSync(path: string): string;
+    realpathSync: { (path: string): string; native(path: string): string };
     readlinkSync(path: string): string;
     rmSync(path: string, options?: { recursive?: boolean; force?: boolean }): void;
     symlinkSync(target: string, path: string, type?: string): void;
     chmodSync(path: string, mode: number): void;
   };
+  export const existsSync: typeof value.existsSync;
+  export const lstatSync: typeof value.lstatSync;
+  export const readdirSync: typeof value.readdirSync;
+  export const statSync: typeof value.statSync;
+  export const symlinkSync: typeof value.symlinkSync;
+  export const rmSync: typeof value.rmSync;
+  export const mkdirSync: typeof value.mkdirSync;
+  export const readlinkSync: typeof value.readlinkSync;
+  export const realpathSync: typeof value.realpathSync;
   export default value;
 }
 
@@ -37,6 +46,7 @@ declare module "node:path" {
     join(...parts: string[]): string;
     resolve(...parts: string[]): string;
     dirname(path: string): string;
+    basename(path: string): string;
     relative(from: string, to: string): string;
     isAbsolute(path: string): boolean;
     normalize(path: string): string;
@@ -67,6 +77,7 @@ declare module "node:assert/strict" {
 declare module "node:os" {
   const value: {
     tmpdir(): string;
+    homedir(): string;
   };
   export default value;
 }
@@ -81,3 +92,8 @@ declare module "node:url" {
 }
 
 declare const process: any;
+
+// Shared canonical discovery reports native filesystem error codes.
+declare namespace NodeJS {
+  interface ErrnoException extends Error { code?: string; }
+}

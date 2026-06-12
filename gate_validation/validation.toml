@@ -45,6 +45,7 @@ selectors = [
   "suite:canonical-packaging-smoke",
   "suite:bagakit-cli-coverage",
   "suite:bagakit-cli-current-repo-check",
+  "suite:frontdoor-contract",
 ]
 
 [[impact_rule]]

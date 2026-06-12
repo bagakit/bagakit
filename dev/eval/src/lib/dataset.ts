@@ -361,6 +361,12 @@ export function buildEvalDataset(
 }
 
 export function exportEvalDatasetSplit(input: EvalDatasetFile, split: string): EvalDatasetFile {
+  const configuredSplits = input.build
+    ? [input.build.baseline_split, input.build.holdout_split]
+    : [];
+  if (!input.items.some((item) => item.split === split) && !configuredSplits.includes(split)) {
+    throw new Error(`unknown dataset split: ${split}`);
+  }
   return {
     ...input,
     items: input.items.filter((item) => item.split === split),

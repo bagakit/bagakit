@@ -1,0 +1,6 @@
+version = 1
+skill = "bagakit-skill-selector"
+trigger = "A real candidate set, independent skill composition, repeated failure, or explicit reusable evidence can change the route."
+do = "Run a typed preflight; keep it ephemeral unless the decision or outcome is worth preserving."
+see = "docs/specs/selector-selection-model.md"
+evidence = ".bagakit/skill-selector/tasks/<task-slug>/skill-usage.toml (only for persisted episodes)"

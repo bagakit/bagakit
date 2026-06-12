@@ -1,3 +1,4 @@
+import { isRepoSkillProjectionTarget } from "./paths.ts";
 import { lstatSync, readlinkSync, realpathSync } from "node:fs";
 import path from "node:path";
 
@@ -47,16 +48,7 @@ function conflict(pathToCheck: string, skill: SkillSource, detail: string): Skil
   };
 }
 
-function isRepoSkillProjectionTarget(repoRoot: string, candidateTarget: string, skill: SkillSource): boolean {
-  const skillsRoot = path.join(path.resolve(repoRoot), "skills");
-  const relative = path.relative(skillsRoot, path.resolve(candidateTarget));
-  if (relative === "" || relative.startsWith("..") || path.isAbsolute(relative)) {
-    return false;
-  }
 
-  const parts = relative.split(path.sep);
-  return parts.length === 2 && parts[0] !== "" && parts[1] === skill.skillId;
-}
 
 export function scanSkillInstallStatus(skills: SkillSource[], destDir: string, repoRoot?: string): SkillInstallStatusResult[] {
   return skills.map((skill) => {
@@ -82,14 +74,14 @@ export function scanSkillInstallStatus(skills: SkillSource[], destDir: string, r
     try {
       existingCanonicalPath = realpathSync.native(existingTargetPath);
     } catch {
-      if (repoRoot && isRepoSkillProjectionTarget(repoRoot, existingTargetPath, skill)) {
+      if (repoRoot && isRepoSkillProjectionTarget(repoRoot, existingTargetPath, skill.skillId)) {
         return stale(destinationPath, skill, existingTargetPath, "destination symlink points to a previous canonical path for this skill id");
       }
       return stale(destinationPath, skill, existingTargetPath, "destination symlink target cannot be resolved");
     }
 
     if (existingCanonicalPath !== sourceCanonicalPath) {
-      if (repoRoot && isRepoSkillProjectionTarget(repoRoot, existingTargetPath, skill)) {
+      if (repoRoot && isRepoSkillProjectionTarget(repoRoot, existingTargetPath, skill.skillId)) {
         return stale(destinationPath, skill, existingTargetPath, "destination symlink points to a previous canonical path for this skill id");
       }
       return stale(destinationPath, skill, existingTargetPath, "destination symlink points to a different skill source");

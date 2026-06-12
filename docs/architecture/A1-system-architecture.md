@@ -195,6 +195,13 @@ Typical concerns:
 The four layers should not be flattened into one implementation surface or a
 single authority ladder.
 
+This is the runtime ownership axis. Recursive improvement adds a second axis:
+the current system is `M0`, Evolver improves `M0`, and RSI improves Evolver.
+The canonical cross-product is documented in
+`docs/architecture/D1-recursive-evolution-architecture.md`. The `L4` label in
+this runtime model remains the Host Harness label; it is not the Evolver depth
+label used by the explanatory five-layer view.
+
 They answer different questions:
 
 - L1 answers: what is happening now
@@ -302,7 +309,7 @@ collapsing evidence production into promotion authority.
 When this role is carried by a system-owned runtime unit, that runtime unit
 should still live under:
 
-- `skills/harness/`
+- `skills/co-work/align/`
 
 while remaining independently distributable.
 
@@ -323,7 +330,7 @@ misidentified as repository-system evolution memory.
 When this role is carried by a system-owned runtime unit, that runtime unit
 should still live under:
 
-- `skills/harness/`
+- `skills/co-work/align/`
 
 while remaining independently distributable.
 
@@ -507,7 +514,7 @@ Proof and measurement assets follow their own admission and review contracts.
 
 ## Architecture Consequences
 
-### Level Mapping
+### Runtime Level Mapping
 
 The functional systems map into the four layers like this:
 
@@ -542,6 +549,10 @@ The detailed core harness topology, explicit composition rule, and current
 runtime mapping live in:
 
 - `docs/architecture/A3-core-harness-topology.md`
+
+The recursive improvement mapping across the same runtime planes is defined in:
+
+- `docs/architecture/D1-recursive-evolution-architecture.md`
 
 ### What This Architecture Rejects
 

@@ -1,0 +1,67 @@
+version = 2
+
+[[suite]]
+id = "bagakit-supervisor-layout"
+owner = "skills/co-work/orchestrate/agent-cluster/bagakit-supervisor"
+description = "Require the installable Supervisor public surface, stable owner-bound contract, read-only checker, receipt template, and discovery declarations."
+default = true
+proof_mode = "structural"
+protects = ["bagakit-supervisor canonical install identity, stable semantic contract, public receipt/checker boundary, L1 Agent-messaging delegation, and discovery declarations"]
+oracle = ["filesystem runner checks only stable public and install contract files while excluding compatibility payloads; runtime behavior and non-gating eval remain owned by their separate suites"]
+exercised_surface = ["skills/co-work/orchestrate/agent-cluster/bagakit-supervisor public install surface", "docs/specs/supervisor-skill-contract.md"]
+proves = ["bagakit-supervisor-layout proves the canonical installable and repository-owned proof surfaces are present."]
+does_not_prove = ["bagakit-supervisor-layout does not prove receipt behavior, Agent compliance, host adapter correctness, or comparative quality."]
+validation_class = "structure"
+groups = ["skills", "harness", "supervisor", "structure"]
+
+[suite.runner]
+kind = "fs"
+required_dirs = [
+  "skills/co-work/orchestrate/agent-cluster/bagakit-supervisor",
+  "skills/co-work/orchestrate/agent-cluster/bagakit-supervisor/agents",
+  "skills/co-work/orchestrate/agent-cluster/bagakit-supervisor/assets",
+  "skills/co-work/orchestrate/agent-cluster/bagakit-supervisor/references",
+  "skills/co-work/orchestrate/agent-cluster/bagakit-supervisor/scripts",
+]
+required_files = [
+  "docs/specs/supervisor-skill-contract.md",
+  "skills/co-work/orchestrate/agent-cluster/bagakit-supervisor/SKILL.md",
+  "skills/co-work/orchestrate/agent-cluster/bagakit-supervisor/agents/openai.yaml",
+  "skills/co-work/orchestrate/agent-cluster/bagakit-supervisor/assets/supervision-receipt.template.json",
+  "skills/co-work/orchestrate/agent-cluster/bagakit-supervisor/references/frontdoor-rule.toml",
+  "skills/co-work/orchestrate/agent-cluster/bagakit-supervisor/references/skill-cli.toml",
+  "skills/co-work/orchestrate/agent-cluster/bagakit-supervisor/scripts/supervision_check.ts",
+]
+forbidden_paths = [
+  "skills/co-work/orchestrate/agent-cluster/bagakit-supervisor/SKILL_PAYLOAD.json",
+  "skills/co-work/orchestrate/agent-cluster/bagakit-supervisor/AGENTS.md",
+  "skills/co-work/orchestrate/agent-cluster/bagakit-supervisor/Makefile",
+  "skills/co-work/orchestrate/agent-cluster/bagakit-supervisor/docs",
+  "skills/co-work/orchestrate/agent-cluster/bagakit-supervisor/gate",
+  "skills/co-work/orchestrate/agent-cluster/bagakit-supervisor/scripts_dev",
+]
+
+[[suite]]
+id = "bagakit-supervisor-receipt-runtime"
+owner = "skills/co-work/orchestrate/agent-cluster/bagakit-supervisor"
+description = "Exercise public receipt inspection, decision, and final validation across owner binding, route axes, identity, intervention effects, failure safety, false completion, and recovery; generic Agent message validation belongs to the L1 Agent-messaging gate."
+default = true
+proof_mode = "runtime"
+protects = ["portable Supervisor receipt semantics without duplicating L1 Agent-message syntax or transport authority"]
+oracle = ["TypeScript runtime test invokes the receipt checker through file boundaries and asserts safety actions, identity joins, exact issue codes, and current readiness rules"]
+exercised_surface = ["skills/co-work/orchestrate/agent-cluster/bagakit-supervisor/scripts/supervision_check.ts public CLI", "bagakit/supervision-receipt/v1 fixtures"]
+proves = ["bagakit-supervisor-receipt-runtime proves its deterministic receipt guards and readiness projections."]
+does_not_prove = ["bagakit-supervisor-receipt-runtime does not validate the L1 Agent-message protocol, authenticate a Supervisor, enforce Host authority, grade artifact quality, or establish comparative superiority."]
+timeout_seconds = 120
+validation_class = "smoke"
+groups = ["skills", "harness", "supervisor", "runtime"]
+
+[suite.runner]
+kind = "executable"
+command = "{node}"
+args = [
+  "--experimental-strip-types",
+  "gate_validation/skills/co-work/orchestrate/agent-cluster/bagakit-supervisor/check-supervisor.ts",
+  "--root",
+  "{repo_root}",
+]

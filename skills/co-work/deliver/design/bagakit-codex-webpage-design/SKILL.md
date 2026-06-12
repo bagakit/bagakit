@@ -1,0 +1,369 @@
+---
+name: bagakit-codex-webpage-design
+description: Use for explicit high-craft webpage or landing-page implementation and visual parity work. Clarify references, implement in the host stack, and browser-verify; use a design-only route when requested.
+metadata:
+  bagakit:
+    design_layer: webpage-design
+---
+
+# Bagakit Codex Webpage Design
+
+Codex owns frontend implementation, running-page behavior, and browser
+evidence. Consume Design Core or HITL packets when present; do not absorb their
+design judgment or human workflow state into the implementation skill.
+
+`bagakit-codex-webpage-design` is a reference-context-first webpage design
+engineering workflow. It turns intent into a concrete design reference, a
+working frontend page, browser screenshot evidence, and a reviewed parity
+decision.
+
+For high-craft or reference-led work, Image2 is the default reference
+generator when the user has no stronger reference. Stronger references include
+Figma frames, approved screenshots, brand mockups, real assets, design systems,
+structured content, or data examples. A clear brief plus an existing host
+system is enough for a routine implementation route; do not add a generated
+reference just to satisfy this skill.
+
+When a reference route is selected, the source must be auditable. A
+browser-rendered page created by the agent is not a substitute for Image2 or
+an external reference on that route. It may be an exploration sketch or
+implementation artifact, but it cannot satisfy the reference, state-reference,
+or parity gates. If Image2 cannot produce a usable saved reference, retry once
+when the route depends on it; otherwise report the missing reference and use a
+clear direct-execute route only when the user brief and host system support it.
+
+The `SKILL.md` file is intentionally a thin operating protocol. Detailed
+checks live in `references/` and historical failures live in `gate_eval/`.
+When a new failure appears, prefer adding or updating a bench case, validation
+anchor, or reference rule over adding another paragraph to this file.
+The structured gate contract lives in `references/workflow-contract.toml`;
+validation should check that contract and its case mappings before resorting
+to wording anchors.
+
+## When To Use
+
+Use this skill for:
+
+- high-craft webpages, landing pages, microsites, visual prototypes, or
+  design-led frontend work
+- vague, reference-light, asset-heavy, hackathon, demo, or pitch-page starts
+  that need project logic clarified before design
+- image2 prompt drafting and generated webpage design references
+- implementing from a generated design, screenshot, Figma frame, or visual
+  reference
+- screenshot-to-implementation debugging and visual parity iteration
+
+Do not use it for backend-heavy work, routine UI fixes without design
+direction, slideshow/video outputs, or pure image generation with no webpage
+implementation.
+
+## Operating Spine
+
+Use the smallest route that proves the requested outcome. The baseline is
+`design-brief`, `reference-intent`, `visual-decomposition`, implementation,
+browser evidence, and `handoff`. Add the stages below only when their trigger
+applies; do not create an empty ledger or review packet for an unselected
+concern.
+
+1. `startup-clarification` — only for vague, reference-light, asset-heavy, or
+   project-logic-unclear starts
+   - required when the project logic, audience, proof point, reference intent,
+     or asset set is too vague to design from; choose quick intake,
+     Grill-shaped pressure pass, Spark escalation, or direct execute
+2. `design-brief`
+   - goal, audience, content, constraints, viewport, and success bar
+   - for existing projects, add `redesign-preservation-audit` before edits
+3. `reference-intent`
+   - strongest reference source and intent class:
+     `exact`, `style_reference`, `asset`, `content_context`, or `data_context`
+4. `reference-provenance-ledger` — whenever a provided or generated reference
+   is used; add `reference-survey-ledger` only for high-craft or
+   reference-light work that needs a comparison tier
+   - source class, comparison tier, archetype route, transferable best
+     practices, and non-substitution constraints
+5. `image-prompt` and `design-reference` — only when the selected route needs a
+   generated reference or reference parity; a missing Image2 artifact blocks
+   that route, not a clear direct-execute route
+6. `state-reference-set` — only when meaningful states or breakpoints define
+   the product
+7. `page-skeleton`, `media-slot-plan`, `visual-decomposition`, optional
+   design-core packet, and design-draft passes — use the individual artifacts
+   only when their content is needed
+   - page frame, regions, typography, palette, material, component treatment,
+     information compression, surface composition, density, copy/icon budget,
+     semantic visual ownership, hierarchy, signature details, and
+     selected-state signal treatment; apply the shared scoped ban on a thin
+     one-sided rail as the only selected/current cue, and record any semantic
+     exception; include the image-extraction checklist when implementing from
+     screenshots, Figma, generated references, or state boards
+8. `design-spec-ledger` — for high-craft, reference-led, or tokenized work
+   - visual-system source of truth for grid, type, color, hierarchy, spacing,
+     control geometry, borders, material, density, motion, brand tone, and
+     state tokens, with source and usage for repeated values
+9. `asset-requirement-pass`, `bulk-asset-match-ledger`, and
+   `asset-generation-ledger` — only when provided/generated assets or an
+   unsorted asset batch needs tracking
+10. `ambition-bar` — only for high-craft or brand-heavy work
+11. `information-architecture-map`, `workflow-model`,
+    `control-surface-map`, `interaction-model`, `interaction-intuition-pass`, and `mobile-interaction-plan`
+   - required for product-like and interactive pages before implementation;
+     interaction-specific passes apply when live controls, state changes,
+     gestures, or responsive interaction modes exist
+12. `frontend-architecture-plan`, `component-source-ledger`, and
+    `capability-route` — architecture artifacts apply when the page is
+    interactive, stateful, component-heavy, or uses a special capability
+   - host stack, component structure, design-standard mapping, source
+     decisions, and libraries matched to graph, search, editing, canvas, or 3D
+13. implementation and browser loop
+   - run, capture screenshots, exercise interactions, and iterate
+14. completion evidence — use the smallest set that matches the route:
+   `affordance-inventory`/`behavior-matrix` for live controls,
+   `visual-bug-ledger` and parity ledgers for reference review,
+   `canvas-stability-report` for spatial interaction, and judge/review packets
+   only when independent or comparative review is requested
+   - `affordance-inventory`, `behavior-matrix`, `visual-bug-ledger`,
+     `full-page-structural-parity-ledger`, `micro-parity-checklist`,
+     `material-parity-checklist`, `canvas-stability-report`, `visual-parity-ledger`,
+     `interaction-parity-ledger`, `visual-judge-scorecards`,
+     `judge-aggregation`, `code-quality-review`, and `handoff`
+
+## Stage Rules
+
+### Startup Clarification
+
+Use `startup-clarification.md` when the user starts from a vague concept,
+reference-light brief, hackathon/demo pitch, asset-heavy folder, or unclear
+project logic. This stage owns the webpage-start output shape, not a new
+questioning philosophy.
+
+Choose one route:
+
+- `direct_execute`: the brief, references, content, and assets are already
+  clear enough
+- `quick_intake`: only one or two webpage facts are missing
+- `grill_shaped`: the project direction exists but must be pressed into an
+  executable brief, first screen, module order, and asset needs
+- `spark_escalation`: the product idea, audience, value proposition, or
+  narrative is still open-ended enough that a broader Spark discussion should
+  happen before webpage design
+
+If `spark_escalation` is selected, preserve the blocker and do not pretend the
+webpage skill has resolved the project strategy. If `grill_shaped` is selected,
+ask only dependency-ordered questions that change the page structure or asset
+plan. Do not duplicate `bagakit-spark` or `bagakit-grill` protocols inside this
+skill.
+
+When startup clarification is used, feed its result into `design-brief`,
+`reference-intent`, `page-skeleton.md`, `media-slot-plan.md`, and later asset
+matching. The goal is to reach a visible, reviewable skeleton quickly without
+coding from an unexamined prompt.
+
+### Reference First
+
+Classify the reference route before coding. For exact, high-craft, or
+reference-light work, generate an Image2 design reference when no stronger
+reference exists, or preserve the image prompt as a blocking handoff. For a
+clear direct-execute route, record the existing host system or user brief as
+the reference context and continue without Image2. A failed or under-review
+implementation screenshot must not become the new design source unless the
+user explicitly approves it as the baseline.
+
+Use `reference-provenance-ledger` before coding when a provided or generated
+reference is part of the selected route. If an agent-authored browser page is
+proposed as the reference, treat it as exploration only and apply the
+non-substitution rule in `references/implementation-loop.md`; otherwise the
+reference-led task remains blocked even if the page later looks good.
+
+When meaningful states or breakpoints exist, design references must form a
+coherent set. Do not DIY important state visuals during implementation unless
+the state is trivial and follows a documented component rule.
+
+Read `references/image-prompt-guide.md` when writing image prompts, generating
+state boards, or checking reference drift.
+
+### Product Model Before Pixels
+
+For interactive or product-like pages, visual composition is not enough.
+Before coding, write or inspect:
+
+- `information-architecture-map`: content/object taxonomy, navigation
+  hierarchy, page regions, global/local/contextual surfaces, object
+  relationships, and progressive disclosure strategy
+- `workflow-model`: primary user path, core business object, state-changing
+  action, next action, decision points, system feedback, and completion signal
+- `control-surface-map`: owner region, scope, state, and duplicate status for
+  every mode switch, tab group, toolbar, command bar, inspector action,
+  floating control, footer control, canvas control, and global navigation item
+- `interaction-model`: user goals, object states, task flow, feedback,
+  branch states, and accessibility expectations
+
+These artifacts are the product-design contract. They should name the product
+outcome, primary objects, user need, state changes, recovery path, and success
+signal before the page becomes a visual styling exercise.
+
+Unexplained duplicate controls block acceptance. If two controls perform the
+same mode switch or workflow action, one must be a justified mirrored shortcut
+with shared state and workflow value, or it must be removed, merged, disabled,
+or restyled.
+
+Read `references/implementation-loop.md` for workflow, control-surface,
+interaction, capability, browser, and canvas stability gates.
+
+### Implement With The Right Capability
+
+Inspect the host project before adding a stack. Prefer existing components,
+routing, CSS, assets, and icon libraries. If no host stack exists, use static
+HTML/CSS/JS for simple pages or React/Vite when components, state, a dev
+server, or repeated browser iteration matter.
+
+If the page effect depends on graph, map, canvas, chart, search, rich text,
+animation, 3D, or similar domain behavior, choose an appropriate library or
+host component before hand-rolling it. Record the choice in `capability-route`.
+
+### Browser Evidence Beats Source Confidence
+
+Do not claim visual completion from source review. Run the page in a browser,
+capture desktop and mobile screenshots, compare them side by side with the
+design reference, and exercise the required interactions.
+
+Automation is execution evidence, not visual parity proof. Build, lint,
+console checks, DOM checks, and Playwright actions can pass while screenshots
+still show overlap, clipping, duplicated controls, unreadable text, broken
+canvas elements, or an unclear workflow.
+
+### Completion Gate
+
+Before final handoff, verify:
+
+- baseline artifacts (`reference-intent`, `visual-decomposition`, browser
+  evidence, and `handoff`) exist
+- any selected conditional stage has its artifact or an explicit skip reason;
+  do not manufacture empty ledgers
+- vague or asset-heavy starts have `startup-clarification.md` completed,
+  explicitly skipped, or escalated before visual implementation
+- when a provided/generated reference is used, `reference-provenance-ledger`
+  passes its source gate and the authority is `external_strong` or
+  `image2_filesystem`; an agent-authored browser page is not reference
+  authority
+- on a high-craft, reference-led, tokenized, or image-like route,
+  `design-spec-ledger` exists and the implementation uses its token and
+  geometry standards instead of ad hoc visual guesses; a direct-execute route
+  may cite the host token system or compact design brief
+- selected/current/active states do not default to a thin one-sided bar as the
+  only signal; any retained side rail has a documented semantic job, a paired
+  non-color cue, and an `override_reason` in the anti-default risk scan
+- existing-project redesigns have a preservation audit for host stack, routes,
+  tokens, components, IA, content, accessibility, and sensitive labels
+- image-like references have an extraction checklist; important unclear
+  details are resolved through crop/detail-frame/source inspection or recorded
+  accepted uncertainty before CSS guessing
+- product-like, high-craft, component-heavy, or content-heavy pages account
+  for product-model artifacts and semantic visual ownership before
+  implementation
+- interactive or componentized work has a frontend architecture plan, component source decisions, interaction-intuition pass, and mobile interaction plan when required
+- required material assets exist and `material-parity-checklist` has no
+  unresolved blocker when CSS-only rendering cannot carry the reference craft
+- no implementation began from text alone or from an agent-authored HTML
+  reference when Image2 or a stronger reference was required by the selected
+  route
+- workflow and control ownership are legible for interactive pages
+- every visible live-looking affordance is classified and every `working`
+  affordance has behavior evidence
+- non-working controls are disabled, hidden, or explicitly out of scope with
+  non-primary treatment
+- non-happy states do not leave stale primary surfaces looking live; dependent
+  player, editor, timeline, transcript, citation, cart, queue, or inspector
+  surfaces must be disabled, emptied, hidden, or explicitly marked stale when
+  the backing object is unavailable
+- graph, map, canvas, whiteboard, timeline, or spatial manipulation has
+  before, mid-drag, and after-drag motion-frame evidence
+- canvas controls, overlays, minimaps, legends, and floating UI stay in safe
+  zones and meet mobile touch expectations
+- `visual-bug-ledger` has zero blockers
+- for an exact-reference route, `full-page-structural-parity-ledger` proves the
+  whole reference page was compared against whole-page and first-viewport
+  screenshots before a local crop or micro-parity pass can claim alignment
+- for exact/reference-parity routes, `micro-parity-checklist` has no unresolved
+  blocker or high-severity detail
+  mismatches in controls, spacing, typography, borders, shadows, icon
+  alignment, density, or state styling
+- when generated or provided assets are needed for texture, masks, glyphs,
+  icons, overlays, or craft, `material-parity-checklist` passes
+- important UX work, generated design references, and exact-reference
+  implementations pass `visual-judge-scorecards` and `judge-aggregation`
+- mobile screenshots prove core mobile visualizations, selected tab or drawer
+  states, and evidence surfaces in the actual selected states; desktop
+  screenshots or DOM assertions alone cannot clear mobile interaction bugs
+- high-craft or brand-heavy work preserves any design-core packet and meets
+  the ambition bar; "nice but not surprising" is still `needs_iteration`
+- latest artifacts correspond to the latest screenshots and validation run
+- browser interaction results are preserved as named artifacts, and stale or
+  contradictory console logs are resolved or recorded as evidence conflicts
+- code structure was reviewed after visual iteration for component boundaries,
+  shared tokens, data-driven repeated UI, and justified duplication
+- for paired or independent review, `review-packet.md` is filled from
+  `references/review-packet-template.md` with visual counterevidence,
+  accepted deviations, reviewer ownership, and merge verdict
+
+Read `references/visual-quality-rubric.md` for scoring and blockers. Read
+`references/artifact-contract.md` for artifact names and handoff shape.
+
+## Failure Learning
+
+This skill should improve through evidence, not by growing indefinitely.
+
+When a task exposes a repeated or decision-changing failure:
+
+1. if a persisted selector episode or Spark state already owns the route,
+   record the failure there; otherwise keep it in the owning implementation or
+   validation artifact
+2. route long-lived skill-quality decisions through `bagakit-skill-evolver`
+3. add or update a non-gating bench case under `gate_eval/skills/co-work/deliver/design/`
+4. promote only the smallest stable rule into this skill or its references
+
+Use bench cases for failures such as:
+
+- coding from text or agent-authored HTML without an Image2 or external design
+  reference
+- state frames drifting from the original reference
+- missing information architecture that makes a complex product feel like a
+  pile of panels
+- fake or unverified visible controls
+- graph/canvas drag that passes final-position tests but flickers in motion
+- screenshots passing automation while visual blockers remain
+- full-page structure drifting from the design reference while local crops and
+  style-language notes are used to justify an `acceptable_delta`
+- button spacing, control geometry, or other small craft details drifting
+  because the reference was not converted into design tokens and checked
+  through a micro-parity pass
+- clean but unsurprising output for a high-craft request
+- duplicated or conflicting mode controls that make the business flow unclear
+- toy single-page experiments used as false proof that the skill can build a
+  sellable product MVP
+- design drafts without comparable references, information compression, density
+  discipline, surface-led composition, or copy/icon economy
+- existing-project redesigns that accidentally discard host conventions,
+  tokens, content structure, accessibility behavior, or route semantics
+- screenshot/image-to-code work that begins styling before extracting type,
+  spacing, color, component geometry, density, image treatment, and unclear
+  detail needs
+- vague webpage starts that skip startup clarification and collapse into a
+  generic template before project logic, reference fit, skeleton, or asset
+  slots are clear
+- selected-state styling that repeats a narrow left/right rail as generic
+  dashboard chrome or uses it as the sole selected/current cue
+
+## References
+
+- `references/startup-clarification.md` - vague brief intake, Grill-shaped pressure route, Spark escalation boundary, skeleton and media slot handoff
+- `references/image-prompt-guide.md` - image2 prompt structure, state boards, reference-drift checks
+- `references/implementation-loop.md` - stack choice, workflow/control gates, affordance evidence, canvas stability, browser loop
+- `references/frontend-architecture.md` - component tree, state/data ownership, file/style organization, token integration
+- `references/design-archetypes.md` - archetype router and reference comparison targets
+- `references/asset-pipeline.md` - generated asset roles and slice/mask/crop
+- `references/visual-quality-rubric.md` - aesthetic review, parity rating, judge scoring, blockers
+- `../bagakit-design-core/references/design-rule-system.md` - shared design
+  rules, including the scoped selected-state signal ban, when the sibling
+  design-core skill is available
+- `references/artifact-contract.md` - artifact names, blocking artifacts, final handoff format
+- `references/workflow-contract.toml` - stages, completion artifacts, guards, failure coverage

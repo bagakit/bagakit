@@ -1,0 +1,5 @@
+version = 1
+skill = "bagakit-feature-tracker"
+trigger = "The task explicitly needs durable feature/task state or repeated bounded execution."
+do = "Create or update tracker state with explicit workspace mode, task gates, and lifecycle status."
+see = "skills/co-work/orchestrate/execution/bagakit-feature-tracker/SKILL.md"

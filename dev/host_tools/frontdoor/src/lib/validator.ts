@@ -4,10 +4,10 @@ import path from "node:path";
 import {
   FRONTDOOR_END,
   FRONTDOOR_START,
+  DECLARATION_RULE_FIELDS,
   REQUIRED_RULE_FIELDS,
-  RENDERED_RULE_FIELDS,
   SKILL_ID_RE,
-  type RenderedRuleField,
+  type DeclarationRuleField,
   type FrontdoorProject,
   type LoadedRule,
   type RuleDeclaration,
@@ -17,6 +17,7 @@ import { hasAbsolutePathSignal, isRepoRelativePath } from "./paths.ts";
 
 const LINE_BREAK_RE = new RegExp(String.raw`[\r\n]`);
 const MARKDOWN_HEADING_RE = new RegExp(String.raw`^#`);
+const MAX_RENDERED_RULE_LENGTH = 520;
 
 function issue(severity: "error" | "warning", issuePath: string, message: string): ValidationIssue {
   return { severity, path: issuePath, message };
@@ -40,7 +41,7 @@ function validateRequiredFields(rule: RuleDeclaration, issues: ValidationIssue[]
   }
 }
 
-function validateSingleLineField(rule: RuleDeclaration, field: RenderedRuleField, issues: ValidationIssue[]): void {
+function validateSingleLineField(rule: RuleDeclaration, field: DeclarationRuleField, issues: ValidationIssue[]): void {
   const value = rule[field];
   if (!value) {
     return;
@@ -79,7 +80,7 @@ function validateRulePaths(root: string, rule: RuleDeclaration, issues: Validati
 function validateRuleAgainstSkill(root: string, loaded: LoadedRule, issues: ValidationIssue[]): void {
   const { declaration, source } = loaded;
   validateRequiredFields(declaration, issues);
-  for (const field of RENDERED_RULE_FIELDS) {
+  for (const field of DECLARATION_RULE_FIELDS) {
     validateSingleLineField(declaration, field, issues);
   }
 
@@ -103,6 +104,10 @@ function validateRuleAgainstSkill(root: string, loaded: LoadedRule, issues: Vali
   }
 
   validateRulePaths(root, declaration, issues);
+  const renderedLength = `<bagakit-rule skill="${declaration.skill}">Trigger: ${declaration.trigger} | Do: ${declaration.do} | See: \`${declaration.see}\`</bagakit-rule>`.length;
+  if (renderedLength > MAX_RENDERED_RULE_LENGTH) {
+    issues.push(issue("error", declaration.sourcePath, `rendered rule is ${renderedLength} characters; maximum is ${MAX_RENDERED_RULE_LENGTH}`));
+  }
 }
 
 export function validateProject(project: FrontdoorProject): ValidationIssue[] {

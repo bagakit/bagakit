@@ -65,7 +65,7 @@ control plane itself.
 When Bagakit ships a system-owned runtime unit for this role, that runtime unit
 may live under:
 
-- `skills/harness/`
+- `skills/co-work/align/`
 
 That packaging choice does not turn host knowledge into repository-system
 evolution memory.
@@ -105,7 +105,7 @@ promotion authority.
 When this role is carried by a system-owned runtime unit, that runtime unit
 may live under:
 
-- `skills/harness/`
+- `skills/co-work/align/`
 
 while remaining independently distributable.
 

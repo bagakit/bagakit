@@ -34,7 +34,7 @@ It is not the SSOT for:
 
 Those belong respectively in:
 
-- `skills/harness/bagakit-skill-selector/references/skill-usage-file-spec.md`
+- `skills/co-work/orchestrate/execution/bagakit-skill-selector/references/skill-usage-file-spec.md`
 - `docs/specs/selector-evolver-boundary.md`
 - `docs/specs/harness-concepts.md`
 - selector recipes and runtime docs
@@ -138,12 +138,16 @@ It must not:
 ## Logging Rule
 
 When selector preflight concludes that one planning-entry route is the right
-next step:
+next step and the operator chooses a persisted selector episode:
 
 1. record the route through `[[recipe_log]]`
 2. record every participating skill through `[[skill_plan]]`
 3. keep preflight decision explicit
 4. record concrete execution evidence through `[[usage_log]]`
+
+If the route is not being persisted, execute the selected skills and keep their
+own artifacts as the source of truth; planning-entry selection does not create
+a selector diary by itself.
 
 Recommended preflight mapping:
 

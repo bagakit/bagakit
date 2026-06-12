@@ -11,6 +11,7 @@
     "check-config": "node --experimental-strip-types src/cli.ts check-config --root ../.. --config ../../gate_validation/validation.toml",
     "plan": "node --experimental-strip-types src/cli.ts plan --root ../.. --config ../../gate_validation/validation.toml",
     "run-default": "node --experimental-strip-types src/cli.ts run-default --root ../.. --config ../../gate_validation/validation.toml",
+    "typecheck": "bash ../host_tools/typescript/tsc-local.sh --root ../.. -- -p dev/validator/tsconfig.json --noEmit",
     "test": "node --test --experimental-strip-types test/*.test.ts"
   }
 }

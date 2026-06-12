@@ -2,17 +2,18 @@
 
 ## Purpose
 
-This document defines how the core system-owned harness skills cooperate
-without collapsing into one monolith.
+This document defines how the core system-owned harness skills cooperate with
+the repository-level Evolver without collapsing into one monolith.
 
-These skills occupy L1 and L2 capability roles. L4 host harnesses sit outside
-this capability topology: they define a dedicated host and explicitly compose
+Harness skills occupy the runtime capability planes. Evolver is the active
+improvement family over those planes. L4 Host Harnesses sit outside this
+capability topology: they define a dedicated host and explicitly compose
 ordinary skills without turning those skills into host definitions.
 
 It focuses on three things:
 
-- the concrete runtime topology across `skills/harness/` and cross-role
-  capability families such as `skills/a2a/` and `skills/a2u/`
+- the concrete runtime topology across `skills/co-work/orchestrate/`, `skills/evolve/`,
+  and cross-role capability families such as `skills/co-work/orchestrate/agent-cluster/a2a/` and `skills/co-work/orchestrate/agent-cluster/a2u/`
 - the paired knowledge and memory surfaces those runtime units work with
 - the composition rule that allows deep coupling without breaking independent
   distribution
@@ -49,8 +50,8 @@ rather than letting runtime units silently absorb each other.
 
 ```mermaid
 flowchart LR
-    subgraph L4["L4 host purpose"]
-        HOST["host-harnesses/<harness-id>"]
+    subgraph HOST["Host axis"]
+        HOST_UNIT["host-harnesses/<harness-id>"]
     end
 
     subgraph L1["L1 execution"]
@@ -65,7 +66,7 @@ flowchart LR
         LIV["bagakit-living-knowledge / repo-mem"]
     end
 
-    subgraph L2B["L2 repository learning"]
+    subgraph M1L2["M1 Evolver / Behavior plane"]
         EVO["bagakit-skill-evolver / system-mem"]
     end
 
@@ -83,19 +84,27 @@ flowchart LR
     EVO -->|host or split outcomes| LIV
 
     RES <-.standalone-first optional composition.-> LIV
-    HOST -->|defines host layout and loop| SEL
-    HOST -->|selects execution capabilities| RUN
-    HOST -->|authenticates and transports| MSG
-    HOST -->|authenticates and delivers| USER
+    HOST_UNIT -->|defines host layout and loop| SEL
+    HOST_UNIT -->|selects execution capabilities| RUN
+    HOST_UNIT -->|authenticates and transports| MSG
+    HOST_UNIT -->|authenticates and delivers| USER
 ```
 
-The L4 arrows mean composition and host purpose, not ownership transfer. Stable
-host-harness identity and source layout live in
+The Host-axis arrows mean composition and host purpose, not ownership transfer.
+The runtime host contract still names this `L4`; recursive-evolution diagrams
+use `Host` to avoid confusing it with the explanatory `L4` Evolver alias.
+Stable host-harness identity and source layout live in
 `docs/specs/host-harness-contract.md`.
 
 ## Runtime Control Chain
 
 The topology diagram shows how harness roles cooperate.
+
+The `L1`/`L2` labels identify capability planes. `bagakit-skill-evolver` is
+the repository-system behavior plane at evolution depth `M1`; it is not a
+replacement for the runtime `L2` plane. See
+`docs/architecture/D1-recursive-evolution-architecture.md` for the full
+matrix.
 
 The live runtime chain is narrower:
 
@@ -140,13 +149,13 @@ The pairs mean:
 - `bagakit-agent-messaging`
   - the L1 visible exchange protocol used by L2 behaviors while the Host keeps
     authentication, authority, transport, and effect truth
-  - its canonical runtime source lives under `skills/a2a/`, not inside one
+  - its canonical runtime source lives under `skills/co-work/orchestrate/agent-cluster/a2a/`, not inside one
     calling behavior's family
 - `bagakit-user-communication`
   - the L1 result-first user explanation and communication-binding capability
     used by calling behaviors while the Host keeps user identity, concrete
     channel, authentication, delivery, and credentials
-  - its canonical runtime source lives under `skills/a2u/`
+  - its canonical runtime source lives under `skills/co-work/orchestrate/agent-cluster/a2u/`
 
 In this document:
 
@@ -159,7 +168,7 @@ That distinction remains fixed:
 - host or project knowledge belongs to `living_knowledge`
 - repository-system evolution memory belongs to `evolver`
 
-## The Four Core Runtime Roles
+## The Core Runtime And Evolution Roles
 
 ### `researcher / brainstorm`
 
@@ -191,7 +200,9 @@ truth.
 
 ### `bagakit-skill-evolver / system-mem`
 
-This side is the repository-system learning control plane.
+This side is the repository-system learning control plane in the Evolver
+family. It is the M1 decision, routing, and promotion surface; active analysis
+skills may feed it from the same family.
 
 Its job is:
 
@@ -288,7 +299,7 @@ exactly where the composition decision belongs.
 Its job is not only:
 
 - choosing one skill
-- recording one usage event
+- optionally preserving one decision-bearing usage event
 
 It is also the place where Bagakit can explicitly say:
 
@@ -363,14 +374,14 @@ It only means the canonical repository can act as both:
 
 Current canonical runtime units in this topology are:
 
-- `skills/a2a/bagakit-agent-messaging/`
-- `skills/a2u/bagakit-user-communication/`
-- `skills/harness/bagakit-skill-selector/`
-- `skills/harness/bagakit-skill-evolver/`
-- `skills/harness/bagakit-living-knowledge/`
-- `skills/harness/bagakit-researcher/`
-- `skills/harness/bagakit-brainstorm/`
-- `skills/harness/bagakit-supervisor/`
+- `skills/co-work/orchestrate/agent-cluster/a2a/bagakit-agent-messaging/`
+- `skills/co-work/orchestrate/agent-cluster/a2u/bagakit-user-communication/`
+- `skills/co-work/orchestrate/execution/bagakit-skill-selector/`
+- `skills/evolve/adapt/bagakit-skill-evolver/`
+- `skills/co-work/align/bagakit-living-knowledge/`
+- `skills/co-work/align/bagakit-researcher/`
+- `skills/co-work/align/bagakit-brainstorm/`
+- `skills/co-work/orchestrate/agent-cluster/bagakit-supervisor/`
 
 Current canonical project-state surface:
 

@@ -22,4 +22,4 @@ sop:
 
 | Item | Level | When To Use | Source Of Truth |
 | --- | --- | --- | --- |
-| Selected-state signal review | MUST | Review product, tool, data, editorial, and HITL surfaces; reject a thin one-sided rail as the sole selected/current cue or repeated generic chrome, unless a semantic exception is recorded. | `skills/design/bagakit-design-core/references/design-rule-system.md` |
+| Selected-state signal review | MUST | Review product, tool, data, editorial, and HITL surfaces; reject a thin one-sided rail as the sole selected/current cue or repeated generic chrome, unless a semantic exception is recorded. | `skills/co-work/deliver/design/bagakit-design-core/references/design-rule-system.md` |

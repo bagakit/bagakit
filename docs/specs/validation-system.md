@@ -85,7 +85,7 @@ Examples:
 
 - `gate_validation/backbone/validation.toml`
 - `gate_validation/dev/validator/validation.toml`
-- `gate_validation/skills/harness/bagakit-skill-evolver/validation.toml`
+- `gate_validation/skills/evolve/adapt/bagakit-skill-evolver/validation.toml`
 
 This keeps validation registration explicit without requiring every surface to
 invent a private gate model.
@@ -216,6 +216,9 @@ Default `gate_validation/` suite eligibility is fail-closed:
 - generic proof-triple boilerplate is rejected; the fields must name the real
   boundary, independent oracle, and exercised surface for that suite
 - every default process-runner suite must declare `timeout_seconds`
+- process runners use a detached POSIX process group; on timeout the validator
+  terminates the child and reaps its descendants, while normal exits do not
+  trigger group cleanup
 - `fs` suites must not declare `timeout_seconds` because they execute inside the
   validator process
 - `live`, `manual`, and `stochastic_judge` proof modes must not enter the
@@ -253,9 +256,11 @@ Authoring rule:
 configured default eval suites. Eval suites may use the same metadata over time,
 but this default-gate proof contract is enforced for `gate_validation/`.
 
-Default fast and affected gate entrypoints should fail fast. Full inventory
-runs are useful for maintenance sweeps and may continue to expose the complete
-failure set.
+Default `eval` runs should expose the complete default eval result set because
+eval is a non-gating measurement surface. `eval-fast` may fail fast for local
+smoke use. Default fast and affected validation gate entrypoints should fail
+fast. Full inventory runs are useful for maintenance sweeps and may continue to
+expose the complete failure set.
 
 ## Report-Only Audit
 
@@ -456,7 +461,7 @@ Boundary note:
 - registered result artifact layout
 - non-gating quality or benchmark execution
 
-`mem/benchmarks/` should own:
+`mem/benchmarks/` owns:
 
 - durable conclusions promoted out of repeated eval observations
 - review-ready benchmark summaries and comparison packets

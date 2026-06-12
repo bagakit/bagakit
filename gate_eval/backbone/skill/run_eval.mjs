@@ -61,12 +61,12 @@ function listJsonFiles(dirPath) {
 
 function splitSelector(selector) {
   const parts = selector.split("/");
-  if (parts.length !== 2 || parts[0] === "" || parts[1] === "") {
+  if (parts.length < 2 || parts.some((part) => !part || part === "." || part === "..")) {
     throw new Error(`invalid selector in eval fixture: ${selector}`);
   }
   return {
-    family: parts[0],
-    skillId: parts[1],
+    family: parts.slice(0, -1).join("/"),
+    skillId: parts.at(-1),
   };
 }
 

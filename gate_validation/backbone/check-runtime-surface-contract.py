@@ -23,7 +23,7 @@ OPTIONAL_SURFACES = {
         "cleanup_safe": False,
         "source_of_truth": [
             "docs/specs/runtime-surface-contract.md",
-            "skills/harness/bagakit-researcher/SKILL.md",
+            "skills/co-work/align/bagakit-researcher/SKILL.md",
             ".bagakit/researcher/README.md",
         ],
     },
@@ -38,7 +38,7 @@ OPTIONAL_SURFACES = {
         "source_of_truth": [
             "docs/specs/runtime-surface-contract.md",
             "docs/specs/evolver-memory.md",
-            "skills/harness/bagakit-skill-evolver/SKILL.md",
+            "skills/evolve/adapt/bagakit-skill-evolver/SKILL.md",
             ".bagakit/evolver/README.md",
         ],
     },
@@ -52,7 +52,7 @@ OPTIONAL_SURFACES = {
         "cleanup_safe": False,
         "source_of_truth": [
             "docs/specs/runtime-surface-contract.md",
-            "skills/harness/bagakit-skill-selector/SKILL.md",
+            "skills/co-work/orchestrate/execution/bagakit-skill-selector/SKILL.md",
             ".bagakit/skill-selector/README.md",
         ],
     },
@@ -66,7 +66,7 @@ OPTIONAL_SURFACES = {
         "cleanup_safe": False,
         "source_of_truth": [
             "docs/specs/runtime-surface-contract.md",
-            "skills/design/bagakit-design-core/SKILL.md",
+            "skills/co-work/deliver/design/bagakit-design-core/SKILL.md",
             ".bagakit/design/README.md",
         ],
     },
@@ -81,7 +81,7 @@ OPTIONAL_SURFACES = {
         "source_of_truth": [
             "docs/specs/runtime-surface-contract.md",
             "docs/specs/living-knowledge-system.md",
-            "skills/harness/bagakit-living-knowledge/SKILL.md",
+            "skills/co-work/align/bagakit-living-knowledge/SKILL.md",
             ".bagakit/living-knowledge/README.md",
         ],
     },
@@ -112,137 +112,137 @@ EXPECTED_TEXT_TOKENS = {
         "persistent runtime surface by default",
         "host repositories may ignore `.bagakit/` by default",
     ],
-    "skills/harness/bagakit-brainstorm/README.md": [
+    "skills/co-work/align/bagakit-brainstorm/README.md": [
         "## Runtime Surface Declaration",
         ".bagakit/brainstorm/",
         ".bagakit/planning-entry/handoffs/",
         "docs/specs/runtime-surface-contract.md",
     ],
-    "skills/harness/bagakit-brainstorm/SKILL.md": [
+    "skills/co-work/align/bagakit-brainstorm/SKILL.md": [
         "## Runtime Surface Declaration",
         ".bagakit/brainstorm/",
         ".bagakit/planning-entry/handoffs/",
         "docs/specs/runtime-surface-contract.md",
     ],
-    "skills/harness/bagakit-feature-tracker/README.md": [
+    "skills/co-work/orchestrate/execution/bagakit-feature-tracker/README.md": [
         "## Runtime Surface Declaration",
         ".bagakit/feature-tracker/",
         ".bagakit/planning-entry/handoffs/",
         "docs/specs/runtime-surface-contract.md",
     ],
-    "skills/harness/bagakit-feature-tracker/SKILL.md": [
+    "skills/co-work/orchestrate/execution/bagakit-feature-tracker/SKILL.md": [
         "## Runtime Surface Declaration",
         ".bagakit/feature-tracker/",
         ".bagakit/planning-entry/handoffs/",
         "docs/specs/runtime-surface-contract.md",
     ],
-    "skills/harness/bagakit-flow-runner/README.md": [
+    "skills/co-work/orchestrate/execution/bagakit-flow-runner/README.md": [
         "## Runtime Surface Declaration",
         ".bagakit/flow-runner/",
         "docs/specs/runtime-surface-contract.md",
     ],
-    "skills/harness/bagakit-flow-runner/SKILL.md": [
+    "skills/co-work/orchestrate/execution/bagakit-flow-runner/SKILL.md": [
         "## Runtime Surface Declaration",
         ".bagakit/flow-runner/",
         "docs/specs/runtime-surface-contract.md",
     ],
-    "skills/harness/bagakit-living-knowledge/README.md": [
+    "skills/co-work/align/bagakit-living-knowledge/README.md": [
         "## Runtime Surface Declaration",
         ".bagakit/living-knowledge/",
         "docs/.bagakit-knowledge.toml",
         "docs/specs/runtime-surface-contract.md",
     ],
-    "skills/harness/bagakit-living-knowledge/SKILL.md": [
+    "skills/co-work/align/bagakit-living-knowledge/SKILL.md": [
         "## Runtime Surface Declaration",
         ".bagakit/living-knowledge/",
         "docs/.bagakit-knowledge.toml",
         "docs/specs/runtime-surface-contract.md",
     ],
-    "skills/harness/bagakit-researcher/README.md": [
+    "skills/co-work/align/bagakit-researcher/README.md": [
         "## Runtime Surface Declaration",
         ".bagakit/researcher/",
         "docs/.bagakit-knowledge.toml",
         "docs/specs/runtime-surface-contract.md",
     ],
-    "skills/harness/bagakit-researcher/SKILL.md": [
+    "skills/co-work/align/bagakit-researcher/SKILL.md": [
         "## Runtime Surface Declaration",
         ".bagakit/researcher/",
         "docs/.bagakit-knowledge.toml",
         "docs/specs/runtime-surface-contract.md",
     ],
-    "skills/harness/bagakit-skill-evolver/README.md": [
+    "skills/evolve/adapt/bagakit-skill-evolver/README.md": [
         "## Runtime Surface Declaration",
         ".bagakit/evolver/",
         ".mem_inbox/",
         "docs/specs/runtime-surface-contract.md",
     ],
-    "skills/harness/bagakit-skill-evolver/SKILL.md": [
+    "skills/evolve/adapt/bagakit-skill-evolver/SKILL.md": [
         "## Runtime Surface Declaration",
         ".bagakit/evolver/",
         ".mem_inbox/",
         "docs/specs/runtime-surface-contract.md",
     ],
-    "skills/harness/bagakit-skill-selector/README.md": [
+    "skills/co-work/orchestrate/execution/bagakit-skill-selector/README.md": [
         "## Runtime Surface Declaration",
         ".bagakit/skill-selector/",
         "docs/specs/runtime-surface-contract.md",
     ],
-    "skills/harness/bagakit-skill-selector/SKILL.md": [
+    "skills/co-work/orchestrate/execution/bagakit-skill-selector/SKILL.md": [
         "## Runtime Surface Declaration",
         ".bagakit/skill-selector/",
         "docs/specs/runtime-surface-contract.md",
     ],
-    "skills/design/bagakit-design-core/README.md": [
+    "skills/co-work/deliver/design/bagakit-design-core/README.md": [
         "## Runtime Surface Declaration",
         ".bagakit/design/",
         "docs/specs/runtime-surface-contract.md",
     ],
-    "skills/design/bagakit-design-core/SKILL.md": [
+    "skills/co-work/deliver/design/bagakit-design-core/SKILL.md": [
         "## Runtime Surface Declaration",
         ".bagakit/design/",
         "docs/specs/runtime-surface-contract.md",
     ],
-    "skills/swe/bagakit-git-message-craft/README.md": [
+    "skills/co-work/deliver/swe/bagakit-git-message-craft/README.md": [
         "## Runtime Surface Declaration",
         ".bagakit/git-message-craft/",
         "docs/specs/runtime-surface-contract.md",
     ],
-    "skills/swe/bagakit-git-message-craft/SKILL.md": [
+    "skills/co-work/deliver/swe/bagakit-git-message-craft/SKILL.md": [
         "## Runtime Surface Declaration",
         ".bagakit/git-message-craft/",
         "docs/specs/runtime-surface-contract.md",
     ],
-    "skills/paperwork/qihan-writing/README.md": [
+    "skills/co-work/deliver/paperwork/qihan-writing/README.md": [
         "## Runtime Surface Declaration",
         "none by default",
         "docs/specs/runtime-surface-contract.md",
     ],
-    "skills/paperwork/qihan-writing/SKILL.md": [
+    "skills/co-work/deliver/paperwork/qihan-writing/SKILL.md": [
         "## Runtime Surface Declaration",
         "none by default",
         "docs/specs/runtime-surface-contract.md",
     ],
-    "skills/paperwork/bagakit-writing-core/README.md": [
+    "skills/co-work/deliver/paperwork/bagakit-writing-core/README.md": [
         "## Runtime Surface Declaration",
         "none by default",
         "docs/specs/runtime-surface-contract.md",
     ],
-    "skills/paperwork/bagakit-writing-core/SKILL.md": [
+    "skills/co-work/deliver/paperwork/bagakit-writing-core/SKILL.md": [
         "## Runtime Surface Declaration",
         "none by default",
         "docs/specs/runtime-surface-contract.md",
     ],
-    "skills/paperwork/bagakit-writing-de-ai-tone/SKILL.md": [
+    "skills/co-work/deliver/paperwork/bagakit-writing-de-ai-tone/SKILL.md": [
         "## Runtime Surface Declaration",
         "none by default",
         "docs/specs/runtime-surface-contract.md",
     ],
-    "skills/paperwork/bagakit-paperwork-technical-writing/SKILL.md": [
+    "skills/co-work/deliver/paperwork/bagakit-paperwork-technical-writing/SKILL.md": [
         "## Runtime Surface Declaration",
         "none by default",
         "docs/specs/runtime-surface-contract.md",
     ],
-    "skills/gamemaker/topdown-image2-sprite-pipeline/SKILL.md": [
+    "skills/co-work/deliver/gamemaker/topdown-image2-sprite-pipeline/SKILL.md": [
         "## Runtime Surface Declaration",
         "no persistent Bagakit runtime surface by default",
         "docs/specs/runtime-surface-contract.md",

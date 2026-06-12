@@ -15,8 +15,11 @@ It exists to keep `gate_eval/` slices thin and consistent without turning
 - strict skill-goal case validation for polarity, provenance/privacy, grader,
   lifecycle, trial, and structured guard fields
 - output sanitization
+- bounded child-process execution with hard `spawnSync` timeouts
 - run-id and output-dir handling
 - normalized `summary.json` and `cases/*.json` packets
+- trial-request reporting that marks declared repeated trials as not executed
+  until a runner explicitly supports repeated execution
 - shared CLI entrypoints for running code-defined eval suites
 - curated maintainer references for Bagakit eval design
 
@@ -70,6 +73,11 @@ The shared runner writes:
 
 - `summary.json`
 - `cases/<case-id>.json`
+
+`runCommand` accepts an optional `timeoutMs`. It uses Node's synchronous child
+process timeout, which terminates the child with the platform default kill
+signal and reports `timedOut: true`. Calls without `timeoutMs` have no process
+timeout; case-level runner timeouts remain cooperative through `AbortSignal`.
 
 The stable packet shape is documented in:
 

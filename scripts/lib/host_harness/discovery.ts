@@ -1,8 +1,9 @@
-import { existsSync, lstatSync, readdirSync } from "node:fs";
+import { existsSync, lstatSync, readdirSync, realpathSync } from "node:fs";
 import path from "node:path";
 
 import type { HostHarnessInventory, HostHarnessSource } from "./model.ts";
 import { toRepoRelative } from "../skill/paths.ts";
+import { parseTomlFile } from "../../../dev/validator/src/lib/toml.ts";
 
 function compareHarnesses(left: HostHarnessSource, right: HostHarnessSource): number {
   return left.selector.localeCompare(right.selector);
@@ -19,13 +20,72 @@ function assertSafeSegment(raw: string, label: string): string {
   return value;
 }
 
-function buildHostHarnessSource(repoRoot: string, harnessId: string): HostHarnessSource {
+function readRequiredString(record: Record<string, unknown>, key: string, label: string): string {
+  const value = record[key];
+  if (typeof value !== "string" || !value.trim()) {
+    throw new Error(`${label}.${key} must be a non-empty string`);
+  }
+  return value;
+}
+
+function assertRecord(value: unknown, label: string): Record<string, unknown> {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new Error(`${label} must be a TOML table`);
+  }
+  return value as Record<string, unknown>;
+}
+
+function readHostHarnessInitEntrypoint(repoRoot: string, harnessId: string, harnessDir: string): string {
+  const manifestPath = path.join(harnessDir, "harness.toml");
+  const manifestLabel = toRepoRelative(repoRoot, manifestPath);
+  const payload = assertRecord(parseTomlFile(manifestPath), manifestLabel);
+  if (payload.schema_version !== 1) {
+    throw new Error(`${manifestLabel}.schema_version must be 1`);
+  }
+  if (payload.harness_id !== harnessId) {
+    throw new Error(`${manifestLabel}.harness_id must match directory harness id ${harnessId}`);
+  }
+  if (payload.harness_kind !== "host_harness") {
+    throw new Error(`${manifestLabel}.harness_kind must be host_harness`);
+  }
+  if (payload.bagakit_layer !== "l4-host-harness") {
+    throw new Error(`${manifestLabel}.bagakit_layer must be l4-host-harness`);
+  }
+
+  const initEntrypoint = readRequiredString(payload, "init_entrypoint", manifestLabel);
+  if (path.isAbsolute(initEntrypoint)) {
+    throw new Error(`${manifestLabel}.init_entrypoint must be a relative path inside the host harness directory`);
+  }
+  const initPath = path.resolve(harnessDir, initEntrypoint);
+  const relative = path.relative(harnessDir, initPath);
+  if (relative === "" || relative.startsWith("..") || path.isAbsolute(relative)) {
+    throw new Error(`${manifestLabel}.init_entrypoint must stay inside the host harness directory`);
+  }
+  const realHarnessDir = realpathSync(harnessDir);
+  let realInitPath: string;
+  try {
+    realInitPath = realpathSync(initPath);
+  } catch {
+    throw new Error(`${manifestLabel}.init_entrypoint does not exist: ${initEntrypoint}`);
+  }
+  if (!lstatSync(realInitPath).isFile()) {
+    throw new Error(`${manifestLabel}.init_entrypoint must point to a file: ${initEntrypoint}`);
+  }
+  const realRelative = path.relative(realHarnessDir, realInitPath);
+  if (realRelative === "" || realRelative.startsWith("..") || path.isAbsolute(realRelative)) {
+    throw new Error(`${manifestLabel}.init_entrypoint real target must remain inside the host harness directory`);
+  }
+  return initEntrypoint;
+}
+
+function buildHostHarnessSource(repoRoot: string, harnessId: string, initEntrypoint: string): HostHarnessSource {
   const relativeDir = `host-harnesses/${harnessId}`;
   return {
     harnessId,
     selector: harnessId,
     relativeDir,
     absoluteDir: path.join(repoRoot, relativeDir),
+    initEntrypoint,
   };
 }
 
@@ -104,7 +164,11 @@ export function scanHostHarnessDirs(repoRootArg: string): HostHarnessDiscoverySc
       continue;
     }
 
-    harnesses.push(buildHostHarnessSource(repoRoot, harnessId));
+    try {
+      harnesses.push(buildHostHarnessSource(repoRoot, harnessId, readHostHarnessInitEntrypoint(repoRoot, harnessId, harnessDir)));
+    } catch (error) {
+      issues.push(error instanceof Error ? error.message : String(error));
+    }
   }
 
   harnesses.sort(compareHarnesses);

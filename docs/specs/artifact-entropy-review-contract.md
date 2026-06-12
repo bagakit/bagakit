@@ -228,15 +228,15 @@ authorize a gate, or upgrade calibration.
 ## Runtime And Evidence Surfaces
 
 - installable runtime owner:
-  - `skills/harness/bagakit-entropy-review/`
+  - `skills/evolve/evaluate/bagakit-entropy-review/`
 - stable structured contract:
-  - `skills/harness/bagakit-entropy-review/references/review-contract.json`
+  - `skills/evolve/evaluate/bagakit-entropy-review/references/review-contract.json`
 - persistent Bagakit runtime surface:
   - none by default
 - release-blocking structural proof:
-  - `gate_validation/skills/harness/bagakit-entropy-review/`
+  - `gate_validation/skills/evolve/evaluate/bagakit-entropy-review/`
 - non-gating cases and corpus baselines:
-  - `gate_eval/skills/harness/bagakit-entropy-review/`
+  - `gate_eval/skills/evolve/evaluate/bagakit-entropy-review/`
 
 The review may consume caller-provided artifacts and emit ordinary response
 text or an owner-chosen task artifact. It does not require a new `.bagakit/`

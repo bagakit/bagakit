@@ -1,6 +1,0 @@
-version = 1
-skill = "bagakit-daily-media-production"
-trigger = "Work needs a recurring, multi-stage research-to-publication production loop."
-do = "Compose peers through briefs and receipts, preserve no-publish gates, and keep deployment and notification status explicit."
-see = "skills/media-production/bagakit-daily-media-production/SKILL.md"
-evidence = ".bagakit/daily-media-production/runs/<run-id>/archive.md"

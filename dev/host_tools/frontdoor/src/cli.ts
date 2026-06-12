@@ -3,8 +3,8 @@ import path from "node:path";
 import { parseArgs } from "node:util";
 
 import { loadProject, readTextFile, writeTextFile } from "./lib/io.ts";
-import { AGENTS_PATH, type ValidationIssue } from "./lib/model.ts";
-import { applyManagedBlock, renderManagedBlock } from "./lib/renderer.ts";
+import { AGENTS_PATH, INDEX_PATH, type ValidationIssue } from "./lib/model.ts";
+import { applyManagedBlock, renderManagedBlock, renderRuleIndex } from "./lib/renderer.ts";
 import { hasErrors, validateManagedRegionMatches, validateProject } from "./lib/validator.ts";
 
 function printHelp(): void {
@@ -29,13 +29,14 @@ function printIssues(issues: ValidationIssue[]): void {
   }
 }
 
-function loadAndValidate(root: string, includeBootstrap: boolean): { root: string; issues: ValidationIssue[]; block: string } {
+function loadAndValidate(root: string, includeBootstrap: boolean): { root: string; issues: ValidationIssue[]; block: string; index: string } {
   const resolvedRoot = path.resolve(root);
   const project = loadProject(resolvedRoot);
   const issues = validateProject(project);
   const agentsPath = path.join(resolvedRoot, AGENTS_PATH);
   const projectHasErrors = hasErrors(issues);
-  const block = projectHasErrors ? "" : renderManagedBlock(project.rules);
+  const block = projectHasErrors ? "" : renderManagedBlock();
+  const index = projectHasErrors ? "" : renderRuleIndex(project.rules);
 
   if (includeBootstrap && !projectHasErrors) {
     if (fs.existsSync(agentsPath)) {
@@ -43,12 +44,17 @@ function loadAndValidate(root: string, includeBootstrap: boolean): { root: strin
     } else {
       issues.push({ severity: "error", path: AGENTS_PATH, message: "missing AGENTS.md" });
     }
+    const indexPath = path.join(resolvedRoot, INDEX_PATH);
+    if (!fs.existsSync(indexPath) || readTextFile(indexPath) !== index) {
+      issues.push({ severity: "error", path: INDEX_PATH, message: "skill entry index is missing or out of date; run frontdoor apply" });
+    }
   }
 
   return {
     root: resolvedRoot,
     issues,
     block,
+    index,
   };
 }
 
@@ -75,12 +81,12 @@ function cmdRender(argv: string[]): number {
     strict: true,
     allowPositionals: false,
   });
-  const { issues, block } = loadAndValidate(values.root, false);
+  const { issues, index } = loadAndValidate(values.root, false);
   printIssues(issues);
   if (hasErrors(issues)) {
     return 1;
   }
-  console.log(block.trimEnd());
+  console.log(index.trimEnd());
   return 0;
 }
 
@@ -91,7 +97,7 @@ function cmdApply(argv: string[]): number {
     strict: true,
     allowPositionals: false,
   });
-  const { root, issues, block } = loadAndValidate(values.root, false);
+  const { root, issues, block, index } = loadAndValidate(values.root, false);
   printIssues(issues);
   if (hasErrors(issues)) {
     return 1;
@@ -100,8 +106,9 @@ function cmdApply(argv: string[]): number {
   const agentsPath = path.join(root, AGENTS_PATH);
   const existing = fs.existsSync(agentsPath) ? readTextFile(agentsPath) : "";
   const updated = applyManagedBlock(existing, block);
+  writeTextFile(path.join(root, INDEX_PATH), index);
   writeTextFile(agentsPath, updated);
-  console.log(`ok: updated ${AGENTS_PATH}`);
+  console.log(`ok: updated ${AGENTS_PATH} and ${INDEX_PATH}`);
   return 0;
 }
 

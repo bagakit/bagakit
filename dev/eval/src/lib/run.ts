@@ -3,6 +3,7 @@ import path from "node:path";
 import {
   ensureCleanOutputDir,
   ensureDir,
+  ensureWithinRoot,
   environmentSnapshot,
   repoRelative,
   sanitizeError,
@@ -11,7 +12,14 @@ import {
   writeJson,
   type Replacement,
 } from "./io.ts";
-import type { EvalCaseContext, EvalCaseDefinition, EvalCaseReport, EvalSuiteDefinition } from "./model.ts";
+import type {
+  EvalCaseContext,
+  EvalCaseDefinition,
+  EvalCaseReport,
+  EvalSuiteDefinition,
+  EvalTrialExecutionReport,
+  EvalTrialRequest,
+} from "./model.ts";
 
 export interface RunOptions {
   repoRoot: string;
@@ -43,27 +51,100 @@ function focusIndex(caseReports: EvalCaseReport[]): Record<string, { passed: num
   return index;
 }
 
+function trialRequestFromOutputs(outputs: Record<string, unknown> | undefined): EvalTrialRequest | undefined {
+  const raw = outputs?.trials;
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+    return undefined;
+  }
+  const record = raw as Record<string, unknown>;
+  if (!Number.isInteger(record.count) || typeof record.min_pass_rate !== "number") {
+    return undefined;
+  }
+  const count = record.count as number;
+  const minPassRate = record.min_pass_rate;
+  if (count <= 0 || minPassRate < 0 || minPassRate > 1) {
+    return undefined;
+  }
+  return {
+    count,
+    min_pass_rate: minPassRate,
+    reliability_metric:
+      typeof record.reliability_metric === "string" && record.reliability_metric.trim()
+        ? record.reliability_metric
+        : undefined,
+  };
+}
+
+function trialExecutionReport(outputs: Record<string, unknown> | undefined): EvalTrialExecutionReport {
+  const request = trialRequestFromOutputs(outputs);
+  if (!request) {
+    return {
+      status: "not_requested",
+      executedTrials: 1,
+      note: "This runner executed the case once.",
+    };
+  }
+  return {
+    status: "declared_not_executed",
+    executedTrials: 1,
+    requestedTrials: request.count,
+    minPassRate: request.min_pass_rate,
+    reliabilityMetric: request.reliability_metric,
+    note: "The case declared a trials request, but this runner does not execute repeated trials.",
+  };
+}
+
+function trialExecutionSummary(caseReports: EvalCaseReport[]): {
+  casesWithTrialRequests: number;
+  executedRepeatedTrials: boolean;
+  notes: string[];
+} {
+  const casesWithTrialRequests = caseReports.filter(
+    (report) => report.trialExecution?.status === "declared_not_executed",
+  ).length;
+  return {
+    casesWithTrialRequests,
+    executedRepeatedTrials: false,
+    notes: casesWithTrialRequests > 0
+      ? ["Some cases declared trial requests; this runner records those requests but executes each case once."]
+      : ["No repeated-trial requests were declared."],
+  };
+}
+
 async function runCase(
   suite: EvalSuiteDefinition,
   runId: string,
   context: EvalCaseContext,
   caseDef: EvalCaseDefinition,
+  timeoutMs: number,
 ): Promise<EvalCaseReport> {
   const startedAt = Date.now();
   const contextReplacements: Replacement[] = [];
+  const controller = new AbortController();
+  let timeoutHandle: ReturnType<typeof setTimeout> | undefined;
   try {
-    const result = await caseDef.run({
-      ...context,
-      addReplacement: (from: string, to: string) => {
-        contextReplacements.push({ from, to });
-      },
-    });
+    const result = await Promise.race([
+      caseDef.run({
+        ...context,
+        signal: controller.signal,
+        addReplacement: (from: string, to: string) => {
+          contextReplacements.push({ from, to });
+        },
+      }),
+      new Promise<never>((_, reject) => {
+        timeoutHandle = setTimeout(() => {
+          controller.abort();
+          reject(new Error(`eval case timed out after ${timeoutMs}ms`));
+        }, timeoutMs);
+      }),
+    ]);
     const replacements = [...contextReplacements, ...(result.replacements ?? [])];
     const artifacts = (result.artifacts ?? []).map((entry) => ({
       ...entry,
       path: String(sanitizeUnknown(entry.path, replacements)),
       note: entry.note ? String(sanitizeUnknown(entry.note, replacements)) : undefined,
     }));
+    const outputs = sanitizeUnknown(result.outputs, replacements) as Record<string, unknown> | undefined;
     return {
       schema: "bagakit.eval-case/v1",
       suiteId: suite.id,
@@ -78,7 +159,8 @@ async function runCase(
       warnings: (sanitizeUnknown(result.warnings ?? [], replacements) as string[]) ?? [],
       commands: (sanitizeUnknown(result.commands ?? [], replacements) as string[]) ?? [],
       artifacts,
-      outputs: sanitizeUnknown(result.outputs, replacements) as Record<string, unknown> | undefined,
+      outputs,
+      trialExecution: trialExecutionReport(outputs),
     };
   } catch (error) {
     const replacements = [...contextReplacements];
@@ -97,7 +179,12 @@ async function runCase(
       commands: [],
       artifacts: [],
       error: sanitizeError(error, replacements),
+      trialExecution: trialExecutionReport(undefined),
     };
+  } finally {
+    if (timeoutHandle !== undefined) {
+      clearTimeout(timeoutHandle);
+    }
   }
 }
 
@@ -113,8 +200,8 @@ export async function runSuite(suite: EvalSuiteDefinition, options: RunOptions):
 
   const runId = utcRunId();
   const outputDir = options.outputDir
-    ? path.resolve(options.repoRoot, options.outputDir)
-    : path.resolve(options.repoRoot, suite.defaultOutputDir, runId);
+    ? ensureWithinRoot(options.repoRoot, path.resolve(options.repoRoot, options.outputDir))
+    : ensureWithinRoot(options.repoRoot, path.resolve(options.repoRoot, suite.defaultOutputDir, runId));
   ensureCleanOutputDir(outputDir);
 
   const startedAt = Date.now();
@@ -128,8 +215,9 @@ export async function runSuite(suite: EvalSuiteDefinition, options: RunOptions):
       runId,
       suiteId: suite.id,
       keepTemp: options.keepTemp,
+      signal: new AbortController().signal,
       addReplacement: () => {},
-    }, caseDef);
+    }, caseDef, caseDef.timeoutMs ?? suite.caseTimeoutMs ?? 60_000);
     caseReports.push(report);
     writeJson(path.join(caseOutputDir, `${caseDef.id}.json`), report);
   }
@@ -154,6 +242,7 @@ export async function runSuite(suite: EvalSuiteDefinition, options: RunOptions):
       failedCases,
       durationMs: Date.now() - startedAt,
     },
+    trialExecution: trialExecutionSummary(caseReports),
     focusIndex: focusIndex(caseReports),
     cases: caseReports.map((entry) => ({
       id: entry.id,

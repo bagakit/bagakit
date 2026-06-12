@@ -386,6 +386,13 @@ Required behavior:
   fields and `depends_on`; the revision may add or rewire only Tasks that have
   not started, and removed unstarted Tasks still require explicit supersession
   lineage
+- after a failed gate, a reviewed revision may correct only the command text
+  (`kind=command` refs) of the same `in_progress` Task. Verification order,
+  count, kinds, `proves`, non-command refs, acceptance, outcome, and all other
+  Task semantics stay unchanged. The failed receipt is retained and cannot
+  authorize completion; corrected commands must pass a fresh gate. Revision
+  history identifies `command_corrections`. This is an execution repair, not
+  evidence that the approach was disproved; environment fixes need no revision
 - an accidentally started task may return to `todo` only when it has no gate
   evidence or prior blocked/done completion, its persisted owner receipt is
   current, its assigned execution worktree is clean, and its current Git HEAD
@@ -423,16 +430,30 @@ Required behavior:
 mid-run revision, active Tasks continue under their existing semantics while
 newly runnable Tasks are derived from the replacement plan. Executed Task
 dependency semantics are immutable across revisions, and an active Task may
-not be removed, retitled, or have its acceptance, verification, or direct
-dependencies changed by that revision.
+not be removed, retitled, or have its acceptance or direct dependencies changed
+by that revision. Verification changes are limited to the failed-gate command
+correction above; the owner reviews that the correction preserves the oracle.
 
 Review, source, verification, and evidence references are portable
 repo-relative paths. They must reject repository escape, URI paths, drive
 absolute paths, and UNC paths.
 
-`review-task-plan` is the read-only plan-quality checkpoint. It enumerates waiting direct edges and failed assumptions, marks waiting edges as requiring a counterfactual decision, and emits the next planning action. It must not infer that an edge is unnecessary, mutate the DAG, or schedule an Agent. A reviewed revision is still required to remove or rewire an edge; its review evidence should cite the checkpoint and the decision-bearing counterfactual.
+`review-task-plan` is a read-only planning observation. Unfinished prerequisites
+are `waiting`, not evidence of a missing review. Edges from current failed or
+cancelled Tasks are `replan_required`; only unresolved failed/cancelled Tasks
+make `review_required=true`. Installing their reviewed successors clears that
+requirement. Closed Features never request replanning. A normal gate failure
+leaves its Task active and does not request a successor.
 
-At dispatch and progress boundaries, the Owner reviews start prerequisites
+The audit's `delivery_summary` derives the Goal and remaining Task outcomes and
+acceptance from canonical state; its next action prioritizes recovery, current
+work, or closeout. It does not infer executor identity, liveness, or completion
+from command/revision counts. Waiting-edge questions are advisory review input
+when a premise actually changes. No review cache, scheduling lifecycle, lease,
+or mandatory Flow Runner is introduced; the reviewed DAG already records the
+accepted dependencies. Only a reviewed revision removes or rewires an edge.
+
+When a dependency premise changes, the Owner reviews start prerequisites
 separately from final sign-off evidence. Wave is derived dependency depth,
 never an execution batch barrier. Review preparation, incremental checking,
 isolated testing, and farm shards should use confirmed available capacity when
@@ -672,17 +693,31 @@ Required behavior:
   than by retroactively invalidating or migrating closed Task evidence
 - `state.json.gate.last_check_commands` and the Task's `last_gate_commands`
   must contain exactly those declared Task commands, in declaration order
-- a recorded gate receipt carries execution evidence for the candidate HEAD,
-  tracked worktree diff, verification input, reviewed plan revision, and a
-  deduplication key; external input identity remains in the Task's artifact
-  receipt. These fields are receipt evidence, not reviewed Task semantics
+- gate validity binds candidate HEAD, tracked diff content (including binary
+  files, excluding mutable Tracker state and nested worktrees), execution
+  workspace, Task objective/outcome/acceptance/dependencies/verification,
+  relevant gate policy, and verification artifact. The originating plan
+  revision is provenance only: changing another Task, review ref, or planning
+  counters must not invalidate unchanged proof
+- declared `kind=artifact` file refs are resolved from the execution workspace
+  and their final bytes participate in reuse/freshness checks. Gates may create
+  untracked outputs, but pre-existing artifacts and tracked source must stay
+  unchanged while a gate runs; otherwise its result is not recorded. Missing
+  or directory refs are recorded as unavailable, never
+  treated as passing proof. Their command oracle owns existence/content checks
+  and validation of external candidate, data, environment, and time boundaries.
+  A downstream Task can run a receipt-validation command instead of repeating
+  the expensive producer. Untracked/ignored inputs must be committed or named
+  in artifact evidence; arbitrary shell/network inputs are not inferred by
+  Tracker, so a changed external condition requires an explicit rerun
 - runtime-policy command profiles (`gate.ui_commands` and
   `gate.non_ui_commands`) are retired and rejected; they cannot authorize a
   Task or form a second completion standard
 - `finish-task --result done` rejects a stale or mismatched gate receipt even
   when `gate_result` was manually left as `pass`; rerunning the Task gate is
-  required after its verification commands, candidate HEAD, tracked worktree
-  diff, or verification input changes
+  required after its Task contract, candidate HEAD, tracked file contents,
+  relevant gate policy, or declared evidence changes; global plan revision alone
+  is not an invalidation event
 - the latest passing receipt with the same local candidate fingerprint may be
   reused; an identical failed attempt requires `--rerun --rerun-reason <reason>`
   and records that reason in Feature history

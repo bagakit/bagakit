@@ -23,16 +23,17 @@ Those belong respectively in:
 
 - `docs/specs/selector-selection-model.md`
 - `docs/specs/selector-evolver-boundary.md`
-- `skills/harness/bagakit-skill-selector/references/skill-usage-file-spec.md`
+- `skills/co-work/orchestrate/execution/bagakit-skill-selector/references/skill-usage-file-spec.md`
 - `docs/specs/evolver-memory.md`
 
 ## First Principle
 
-Selector is a task-local selection evidence engine.
+Selector is a task-local route aid. Its data model is available when a choice,
+composition, recovery path, or explicitly requested reusable evidence needs a
+record; it is not a diary that every Agent must fill in.
 
-It should not only answer which skill was picked. It should record enough
-structured evidence for the next selector pass, and for optional later evolver
-review, to understand:
+When a persisted episode is justified, keep enough structured evidence for a
+later selector pass or explicit review to understand:
 
 - why selector was needed
 - what candidates were considered
@@ -45,7 +46,8 @@ Selector still does not own repository-level adoption, routing, or promotion.
 
 ## Layer Model
 
-One selector task is represented as a `selection_episode`.
+One intentionally persisted selector task is represented as a
+`selection_episode`.
 
 ```text
 selection_episode
@@ -58,12 +60,14 @@ selection_episode
 └── evolver_signal
 ```
 
-These layers are conceptual. One runtime file may represent more than one layer
-through the same TOML table when that keeps the contract simpler.
+These layers are conceptual and optional. One runtime file may represent more
+than one layer through the same TOML table when that keeps the contract
+simpler; no layer is required for direct execution or ephemeral preflight.
 
 ## `selection_episode`
 
-A `selection_episode` is one task-local selector decision loop.
+A `selection_episode` is one intentionally persisted task-local selector
+decision loop.
 
 It owns:
 
@@ -72,7 +76,7 @@ It owns:
 - candidate planning and comparison
 - explicit composition choice
 - usage and result evidence
-- task-local evaluation
+- task-local evaluation requested for that episode
 - optional evolver review suggestions
 
 It does not own:
@@ -88,7 +92,8 @@ Runtime mapping:
 
 ## `task_signal`
 
-A `task_signal` explains why selector attention is useful for this task.
+A `task_signal` explains why selector attention is useful for a persisted task
+episode.
 
 Typical kinds:
 
@@ -115,7 +120,8 @@ decision-relevant evidence.
 
 ## `candidate`
 
-A `candidate` is one visible option selector may compare.
+A `candidate` is one visible option selector may compare when comparison is
+decision-bearing.
 
 A candidate may be:
 
@@ -144,7 +150,7 @@ Selector should preserve negative candidate evidence when it matters, including:
 
 ## `selection_lesson`
 
-A `selection_lesson` is task-local reusable guidance learned from prior
+A `selection_lesson` is optional task-local reusable guidance learned from prior
 selection evidence.
 
 It says:
@@ -161,8 +167,8 @@ learning only after explicit evolver review and routing.
 
 ## `composition_pattern`
 
-A `composition_pattern` is a task-local choice to use several participants
-together.
+A `composition_pattern` is an explicit task-local choice to use several
+participants together.
 
 It may reference:
 
@@ -182,8 +188,8 @@ Rules:
 
 ## `candidate_result`
 
-A `candidate_result` is the verified result of using one candidate in this
-episode.
+A `candidate_result` is the verified result of using one candidate when that
+result is worth preserving.
 
 The name is intentionally narrower than task result.
 
@@ -212,7 +218,8 @@ evidence than `usage_log` can carry cleanly.
 
 ## `lesson_update`
 
-A `lesson_update` records how one episode changes a prior selection lesson.
+A `lesson_update` records how one episode changes a prior selection lesson when
+the change matters to a later choice.
 
 Typical actions:
 
@@ -229,8 +236,8 @@ This protects selector from becoming a stale advice store.
 
 ## `evolver_signal`
 
-An `evolver_signal` is a task-local suggestion that evidence may deserve
-repository-level review.
+An `evolver_signal` is an optional task-local suggestion that evidence may
+deserve repository-level review.
 
 Selector may produce it when evidence crosses a threshold such as:
 

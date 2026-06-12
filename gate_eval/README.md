@@ -39,24 +39,24 @@ Current implemented slices:
     installable skills; this is the covered set, not a claim that every
     installable skill already has an eval slice
   - current slices under eval ownership:
-    - `skills/harness/bagakit-brainstorm/`
-    - `skills/harness/bagakit-feature-tracker/`
-    - `skills/harness/bagakit-flow-runner/`
-    - `skills/harness/bagakit-grill/`
-    - `skills/harness/bagakit-living-knowledge/`
-    - `skills/harness/bagakit-researcher/`
-    - `skills/harness/bagakit-skill-evolver/`
-    - `skills/harness/bagakit-skill-selector/`
-    - `skills/harness/bagakit-spark/`
-    - `skills/harness/bagakit-supervisor/`
-    - `skills/design/bagakit-design-core/`
-    - `skills/design/bagakit-codex-webpage-design/`
-    - `skills/paperwork/bagakit-paperwork-technical-writing/`
-    - `skills/paperwork/bagakit-writing-core/`
-    - `skills/paperwork/bagakit-writing-de-ai-tone/`
-    - `skills/gamemaker/topdown-image2-sprite-pipeline/`
-    - `skills/media-production/bagakit-daily-media-production/`
-    - `skills/swe/bagakit-git-message-craft/`
+    - `skills/co-work/align/bagakit-brainstorm/`
+    - `skills/co-work/orchestrate/execution/bagakit-feature-tracker/`
+    - `skills/co-work/orchestrate/execution/bagakit-flow-runner/`
+    - `skills/co-work/align/bagakit-grill/`
+    - `skills/co-work/align/bagakit-living-knowledge/`
+    - `skills/co-work/align/bagakit-researcher/`
+    - `skills/evolve/adapt/bagakit-skill-evolver/`
+    - `skills/co-work/orchestrate/execution/bagakit-skill-selector/`
+    - `skills/co-work/align/bagakit-spark/`
+    - `skills/co-work/orchestrate/agent-cluster/bagakit-supervisor/`
+    - `skills/co-work/deliver/design/bagakit-design-core/`
+    - `skills/co-work/deliver/design/bagakit-codex-webpage-design/`
+    - `skills/co-work/deliver/paperwork/bagakit-paperwork-technical-writing/`
+    - `skills/co-work/deliver/paperwork/bagakit-writing-core/`
+    - `skills/co-work/deliver/paperwork/bagakit-writing-de-ai-tone/`
+    - `skills/co-work/deliver/gamemaker/topdown-image2-sprite-pipeline/`
+    - `skills/co-work/deliver/media-production/bagakit-daily-media-production/`
+    - `skills/co-work/deliver/swe/bagakit-git-message-craft/`
 
 Registration:
 
@@ -64,7 +64,7 @@ Registration:
   - root discovery config for non-gating eval suites
 - `gate_eval/dev/<tool>/validation.toml`
   - owner-local eval suite registration
-- `gate_eval/skills/<family>/<skill-id>/validation.toml`
+- `gate_eval/skills/<group-path>/<skill-id>/validation.toml`
   - skill-owned non-gating eval registration
 
 Execution note:

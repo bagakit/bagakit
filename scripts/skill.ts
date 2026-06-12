@@ -13,7 +13,7 @@ import { resolveHostHarnessSelector } from "./lib/host_harness/selectors.ts";
 import { checkCanonicalSkillLayout } from "./lib/skill/check.ts";
 import { loadSkillInventory } from "./lib/skill/discovery.ts";
 import { scanSkillInstallStatus, type SkillInstallStatusResult } from "./lib/skill/install_status.ts";
-import { linkSkills, linkSkillsToDestinations } from "./lib/skill/linking.ts";
+import { linkSkills, linkSkillsToDestinations, pruneSkillLinks } from "./lib/skill/linking.ts";
 import type { LinkResult, PackageResult, SkillResolution, SkillSource } from "./lib/skill/model.ts";
 import {
   defaultDistDir,
@@ -61,6 +61,7 @@ type JsonHostHarness = Readonly<{
   harnessId: string;
   selector: string;
   path: string;
+  initEntrypoint: string;
 }>;
 
 type JsonHostHarnessPackageResult = Readonly<{
@@ -92,6 +93,7 @@ Commands:
   install [--selector <selector>] [--scope <repo-local|global>] [--repo <dir>] [--root <repo-root>] [--force] [--json]
   install-status [--selector <selector>] [--scope <repo-local|global|all>] [--repo <dir>] [--dest <dir>] [--root <repo-root>] [--strict] [--json]
   link --selector <selector> [--root <repo-root>] [--dest <dir>] [--force] [--json]
+  prune-links --dest <dir> [--root <repo-root>] [--dry-run] [--json]
   distribute-package [--root <repo-root>] [--selector <selector>] [--dist <dir>] [--no-clean] [--json]
   host-harness-list [--root <repo-root>] [--selector <harness-id|all>] [--json]
   host-harness-init --selector <harness-id> --repo <host-root> [--root <repo-root>] [--force] [--json]
@@ -99,8 +101,8 @@ Commands:
 
 Selectors:
   all                  select every installable skill source
-  <family>             select all installable skill sources in that family
-  <family>/<skill-id>  select one exact installable skill source
+  <group-path>         select every skill below a purpose group
+  <group-path>/<skill-id>  select one exact installable skill source
   <skill-id>           select one installable skill source; skill ids are globally unique across families
 
 Defaults:
@@ -112,18 +114,18 @@ Defaults:
   host-harness-distribute-package --dist  dist/host-harnesses
 
 Notes:
-  - An installable skill source must live at skills/<family>/<skill-id>/ with SKILL.md.
+  - An installable skill source must live at skills/<group-path>/<skill-id>/ with SKILL.md.
   - install is the preferred distribution entrypoint; each scope includes its Claude pickup directory by default.
   - install with no selector, or selector "all", installs every discovered installable skill source.
   - install-status reports installed, missing, stale, or conflict by comparing discovered sources with flat install roots.
-  - install and link refresh stale symlinks that still point to this repo's previous family path for the same skill id.
+  - install and link refresh stale symlinks that still point to this repo's previous group path for the same skill id.
   - --force may replace a foreign symlink, but it never removes a regular file or directory.
   - link is the low-level projection primitive when you need an explicit destination path.
   - Relative --dest and --dist paths resolve against --root.
   - list, install, install-status, link, and distribute-package discover skills directly from the directory protocol.
   - distribute-package with no selector, or selector "all", packages every discovered installable skill source.
   - No registry or delivery-profile metadata is consulted by this command surface.
-  - Packaging writes family-scoped archives to avoid filename collisions.
+  - Packaging preserves group paths in archives to avoid filename collisions.
   - Host harness sources live flat at host-harnesses/<harness-id>/.
   - host-harness-init materializes a dedicated host root from that source unit.
 
@@ -172,6 +174,7 @@ function jsonHostHarness(harness: HostHarnessSource): JsonHostHarness {
     harnessId: harness.harnessId,
     selector: harness.selector,
     path: harness.relativeDir,
+    initEntrypoint: harness.initEntrypoint,
   };
 }
 
@@ -356,6 +359,29 @@ function cmdLink(argv: string[]): number {
   }
 
   printLinkResults(results);
+  return 0;
+}
+
+function cmdPruneLinks(argv: string[]): number {
+  const { values } = parseArgs({
+    args: argv,
+    options: {
+      ...commonOptions(),
+      dest: { type: "string" as const },
+      "dry-run": { type: "boolean" as const, default: false },
+    },
+    strict: true,
+    allowPositionals: false,
+  });
+  if (!values.dest) throw new Error("prune-links requires --dest <dir>");
+  const repoRoot = resolveRepoRoot(values.root);
+  const removed = pruneSkillLinks(loadSkillInventory(repoRoot).skills, {
+    repoRoot,
+    destDir: resolvePathFrom(repoRoot, values.dest),
+    dryRun: values["dry-run"],
+  });
+  if (values.json) console.log(JSON.stringify({ dryRun: values["dry-run"], removed }, null, 2));
+  else for (const item of removed) console.log(`${values["dry-run"] ? "would-remove" : "removed"}\t${item.path} -> ${item.target}`);
   return 0;
 }
 
@@ -754,6 +780,8 @@ function main(argv: string[]): number {
       return cmdInstallStatus(rest);
     case "link":
       return cmdLink(rest);
+    case "prune-links":
+      return cmdPruneLinks(rest);
     case "check-layout":
       return cmdCheckLayout(rest);
     case "distribute-package":

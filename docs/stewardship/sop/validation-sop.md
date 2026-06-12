@@ -34,7 +34,7 @@ Use these path rules:
 
 - repo backbone rules -> `gate_validation/backbone/`
 - maintainer tool validation -> `gate_validation/dev/<tool-id>/`
-- skill validation -> `gate_validation/skills/<family>/<skill-id>/`
+- skill validation -> `gate_validation/skills/<group-path>/<skill-id>/`
 
 Do not place release-blocking validation scripts inside `dev/` or `skills/`
 unless that script is also a real runtime dependency of the owning skill.

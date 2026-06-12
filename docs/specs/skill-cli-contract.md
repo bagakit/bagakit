@@ -34,8 +34,8 @@ Those belong respectively in:
 - the owning skill docs and shipped operator
 - `docs/specs/runtime-surface-contract.md`
 - `docs/specs/bagakit-driver-contract.md`
-- `docs/specs/canonical-skill-layout.md` when that contract is split out, or
-  the current canonical skill layout validation surfaces
+- `gate_validation/backbone/check-canonical-skill-layout.sh` and its registered
+  `canonical-skill-layout` suite
 
 ## First Principle
 
@@ -224,14 +224,22 @@ These views are derived. They are not durable repository truth.
 `bagakit-cli install` manages machine-local projections from canonical skill
 directories into an explicit agent skills directory.
 
+The projection implementation is owned by `scripts/lib/skill/linking.ts`.
+`dev/bagakit_cli` is an adapter that selects skills and renders central CLI
+results; it must not perform filesystem mutation for install projections.
+
+The source and relocation rules are owned by
+`docs/specs/skill-directory-contract.md`. Group paths can have different depths;
+the installed skill id stays flat.
+
 Projection rules:
 
-- the canonical source is always `skills/<family>/<skill-id>/`
+- the canonical source is always `skills/<group-path>/<skill-id>/`
 - the target name is `<skill-id>`
 - target directories are passed through `--target`
 - no target path is recorded into durable repository files
 - `all` expands to every discovered canonical skill
-- selectors may use either `<family>/<skill-id>` or `<skill-id>` when
+- selectors may use either `<group-path>/<skill-id>` or `<skill-id>` when
   unambiguous
 
 Status states:
@@ -250,7 +258,7 @@ Mutation rules:
 - `install link` creates missing symlinks
 - `install link` leaves existing correct symlinks unchanged
 - `install link` refreshes stale symlinks that still point to this repository's
-  previous `skills/<family>/<same-skill-id>/` path for the selected skill
+  previous `skills/<group-path>/<same-skill-id>/` path for the selected skill
 - `install link` does not overwrite conflicts
 - `install link --replace` may replace other wrong symlinks, but not a real
   directory or file conflict
@@ -283,8 +291,14 @@ Validators should reject:
 
 Validators should warn, not fail, when:
 
-- a skill has executable scripts but no declaration
+- a pure guidance skill has no `scripts/` files and no declaration
 - a declaration has no `[[command]]` entries
+
+The coverage gate requires `references/skill-cli.toml` when an installable
+skill contains files under `scripts/`, because that directory is an operator
+surface. A skill with only guidance and reference material may omit the
+manifest. The gate must continue to fail when an operator skill has scripts
+but no declaration.
 
 Warnings should not force every third-party or non-canonical skill to expose a
 CLI. Canonical monorepo validation may set a stronger repository bar that

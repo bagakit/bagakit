@@ -1,5 +1,0 @@
-version = 1
-skill = "bagakit-pageville"
-trigger = "Design previews, Feature Tracker projections, HITL pages, or other HTML artifacts need one reusable managed page link and lifecycle."
-do = "Initialize or reuse the Pageville host through the loopback_v0 adapter, publish immutable semantic page versions, return a stable link, and use the retrieval/annotation CLI for human review context."
-see = "skills/harness/bagakit-pageville/SKILL.md"

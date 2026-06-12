@@ -6,12 +6,13 @@ It reads each installable skill's:
 
 - `references/frontdoor-rule.toml`
 
-and renders the managed `AGENTS.md` region defined by:
+and renders the managed `AGENTS.md` hint plus the generated `skills/frontdoor.md`
+index defined by:
 
 - `docs/specs/frontdoor-index-contract.md`
 
-The renderer keeps each skill rule on one line so the root bootstrap remains a
-compact index rather than a copied playbook.
+The root bootstrap remains a short lazy router. Each skill rule stays in the
+generated index rather than being loaded into every task.
 
 ## Commands
 

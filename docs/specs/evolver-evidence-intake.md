@@ -21,6 +21,15 @@ compression gate in:
 
 - `docs/specs/evolver-session-review.md`
 
+## Activation boundary
+
+Evolver intake is passive storage until an operator explicitly invokes it. A
+selector signal, a loaded skill, or an installed package does not run an
+Evolver command. `capture-signal`, `import-signals`, and `bridge-signals` only
+write pending intake; they do not create topics, choose routes, or promote a
+change. Those steps require separate explicit Evolver commands.
+Read-only inspection commands do not create an empty intake or topic surface.
+
 It does not define:
 
 - host knowledge substrate behavior

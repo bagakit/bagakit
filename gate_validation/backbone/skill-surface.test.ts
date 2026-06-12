@@ -8,7 +8,7 @@ import { fileURLToPath } from "node:url";
 
 import { loadSkillInventory } from "../../scripts/lib/skill/discovery.ts";
 import { checkCanonicalSkillLayout } from "../../scripts/lib/skill/check.ts";
-import { linkSkills } from "../../scripts/lib/skill/linking.ts";
+import { linkSkills, pruneSkillLinks } from "../../scripts/lib/skill/linking.ts";
 import { distributePackages } from "../../scripts/lib/skill/packaging.ts";
 import { resolveSkillSelector } from "../../scripts/lib/skill/selectors.ts";
 
@@ -133,7 +133,7 @@ test("loadSkillInventory rejects symlinked skill roots", () => {
     assert.throws(
       () => loadSkillInventory(repoRoot),
       (error) => {
-        assert.ok(String(error).includes("skill source root must not be a symlink"));
+        assert.ok(String(error).includes("must not be a symlink"));
         return true;
       },
     );
@@ -733,4 +733,58 @@ test("checkCanonicalSkillLayout rejects local noise inside installable skill sou
   } finally {
     rmSync(repoRoot, { recursive: true, force: true });
   }
+});
+
+
+test("nested groups select complete subtrees and stop at install-unit payloads", () => {
+  const root = makeTempRepo();
+  writeSkill(root, "co-work/align", "alpha", { "references/example/SKILL.md": "# template" });
+  writeSkill(root, "co-work/orchestrate/agent-cluster/a2a", "beta");
+  writeSkill(root, "rsi", "gamma");
+  try {
+    const inventory = loadSkillInventory(root);
+    assert.equal(inventory.skills.length, 3);
+    assert.equal(resolveSkillSelector(inventory, "co-work").skills.length, 2);
+    assert.equal(resolveSkillSelector(inventory, "co-work/orchestrate").skills[0]?.skillId, "beta");
+    assert.equal(resolveSkillSelector(inventory, "co-work/align/alpha").skills[0]?.skillId, "alpha");
+    assert.equal(resolveSkillSelector(inventory, "alpha").skills[0]?.family, "co-work/align");
+    assert.throws(() => resolveSkillSelector(inventory, "co-work/../rsi"), /invalid selector/);
+    const dest = path.join(root, "pickup");
+    const linked = runCli(["link", "--root", root, "--selector", "co-work", "--dest", dest, "--json"]);
+    assert.equal(linked.status, 0, linked.stderr);
+    assert.equal(readlinkSync(path.join(dest, "beta")), path.join(root, "skills/co-work/orchestrate/agent-cluster/a2a/beta"));
+    assert.equal(existsSync(path.join(dest, "gamma")), false);
+    if (commandAvailable("zip")) {
+      const packaged = runCli(["distribute-package", "--root", root, "--selector", "co-work/align", "--dist", ".tmp/packages", "--json"]);
+      assert.equal(packaged.status, 0, packaged.stderr);
+      assert.ok(existsSync(path.join(root, ".tmp/packages/co-work/align/alpha.skill")));
+    }
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test("relocation refreshes owned links and pruning preserves foreign and real entries", () => {
+  const root = makeTempRepo();
+  writeSkill(root, "co-work/align", "alpha");
+  const dest = path.join(root, "pickup");
+  mkdirSync(dest);
+  symlinkSync(path.join(root, "skills/harness/alpha"), path.join(dest, "alpha"), "dir");
+  symlinkSync(path.join(root, "skills/retired/removed"), path.join(dest, "removed"), "dir");
+  symlinkSync(path.join(root, "skills/co-work/align/alpha"), path.join(dest, "duplicate"), "dir");
+  symlinkSync(path.join(root, "foreign/retired"), path.join(dest, "foreign"), "dir");
+  writeFileSync(path.join(dest, "keep"), "user-owned");
+  try {
+    const skills = loadSkillInventory(root).skills;
+    const preview = pruneSkillLinks(skills, { repoRoot: root, destDir: dest, dryRun: true });
+    assert.deepEqual(preview.map((item) => path.basename(item.path)).sort(), ["duplicate", "removed"]);
+    assert.equal(readlinkSync(path.join(dest, "removed")), path.join(root, "skills/retired/removed"));
+    const prune = runCli(["prune-links", "--root", root, "--dest", dest, "--json"]);
+    assert.equal(prune.status, 0, prune.stderr);
+    assert.equal(JSON.parse(prune.stdout).removed.length, 2);
+    linkSkills(skills, { repoRoot: root, destDir: dest, force: false });
+    assert.equal(readlinkSync(path.join(dest, "alpha")), skills[0].absoluteDir);
+    assert.equal(readlinkSync(path.join(dest, "foreign")), path.join(root, "foreign/retired"));
+    assert.equal(readFileSync(path.join(dest, "keep"), "utf8"), "user-owned");
+    assert.equal(linkSkills(skills, { repoRoot: root, destDir: dest, force: false })[0].status, "unchanged");
+    assert.equal(pruneSkillLinks(skills, { repoRoot: root, destDir: dest }).length, 0);
+  } finally { rmSync(root, { recursive: true, force: true }); }
 });

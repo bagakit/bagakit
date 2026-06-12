@@ -97,10 +97,10 @@ function profilePlanningWithFiles(repoRoot: string, tempRepo: string, replacemen
 }
 
 function profileFeatureTracker(repoRoot: string, tempRepo: string, replacements: { from: string; to: string }[]): PlanningProfile {
-  const skillText = fs.readFileSync(path.join(repoRoot, "skills", "harness", "bagakit-feature-tracker", "SKILL.md"), "utf8");
-  const script = path.join(repoRoot, "skills", "harness", "bagakit-feature-tracker", "scripts", "feature-tracker.sh");
-  const gateValidation = path.join(repoRoot, "gate_validation", "skills", "harness", "bagakit-feature-tracker", "validation.toml");
-  const gateEval = path.join(repoRoot, "gate_eval", "skills", "harness", "bagakit-feature-tracker", "suite.ts");
+  const skillText = fs.readFileSync(path.join(repoRoot, "skills", "co-work", "orchestrate", "execution", "bagakit-feature-tracker", "SKILL.md"), "utf8");
+  const script = path.join(repoRoot, "skills", "co-work", "orchestrate", "execution", "bagakit-feature-tracker", "scripts", "feature-tracker.sh");
+  const gateValidation = path.join(repoRoot, "gate_validation", "skills", "co-work", "orchestrate", "execution", "bagakit-feature-tracker", "validation.toml");
+  const gateEval = path.join(repoRoot, "gate_eval", "skills", "co-work", "orchestrate", "execution", "bagakit-feature-tracker", "suite.ts");
 
   initGitRepo(tempRepo, replacements);
   expectOk(runCommand("bash", [script, "initialize-tracker", "--root", tempRepo], { cwd: repoRoot, replacements }), "feature-tracker initialize-tracker");
@@ -153,10 +153,10 @@ function profileFeatureTracker(repoRoot: string, tempRepo: string, replacements:
 }
 
 function profileBrainstorm(repoRoot: string, tempRepo: string, replacements: { from: string; to: string }[]): PlanningProfile {
-  const skillText = fs.readFileSync(path.join(repoRoot, "skills", "harness", "bagakit-brainstorm", "SKILL.md"), "utf8");
-  const script = path.join(repoRoot, "skills", "harness", "bagakit-brainstorm", "scripts", "bagakit-brainstorm.py");
-  const gateValidation = path.join(repoRoot, "gate_validation", "skills", "harness", "bagakit-brainstorm", "validation.toml");
-  const gateEval = path.join(repoRoot, "gate_eval", "skills", "harness", "bagakit-brainstorm", "suite.ts");
+  const skillText = fs.readFileSync(path.join(repoRoot, "skills", "co-work", "align", "bagakit-brainstorm", "SKILL.md"), "utf8");
+  const script = path.join(repoRoot, "skills", "co-work", "align", "bagakit-brainstorm", "scripts", "bagakit-brainstorm.py");
+  const gateValidation = path.join(repoRoot, "gate_validation", "skills", "co-work", "align", "bagakit-brainstorm", "validation.toml");
+  const gateEval = path.join(repoRoot, "gate_eval", "skills", "co-work", "align", "bagakit-brainstorm", "suite.ts");
 
   const initResult = runCommand("python3", [script, "init", "--topic", "Eval topic", "--slug", "eval-topic", "--root", tempRepo], { cwd: repoRoot, replacements });
   expectOk(initResult, "brainstorm init");
@@ -204,11 +204,11 @@ function comparisonResult(profiles: PlanningProfile[]): EvalCaseResult {
     ],
     commands: [
       "bash <planning-with-files>/scripts/init-session.sh demo",
-      "bash skills/harness/bagakit-feature-tracker/scripts/feature-tracker.sh initialize-tracker --root <temp-repo>",
-      "bash skills/harness/bagakit-feature-tracker/scripts/feature-tracker.sh create-feature --root <temp-repo> --title \"Eval feature\" --slug \"eval-feature\" --goal \"Ship eval\" --workspace-mode proposal_only",
-      "bash skills/harness/bagakit-feature-tracker/scripts/feature-tracker.sh assign-feature-workspace --root <temp-repo> --feature <id> --workspace-mode current_tree",
-      "bash skills/harness/bagakit-feature-tracker/scripts/feature-tracker.sh start-task --root <temp-repo> --feature <id> --task T-001",
-      "python3 skills/harness/bagakit-brainstorm/scripts/bagakit-brainstorm.py init --topic \"Eval topic\" --slug eval-topic --root <temp-repo>",
+      "bash skills/co-work/orchestrate/execution/bagakit-feature-tracker/scripts/feature-tracker.sh initialize-tracker --root <temp-repo>",
+      "bash skills/co-work/orchestrate/execution/bagakit-feature-tracker/scripts/feature-tracker.sh create-feature --root <temp-repo> --title \"Eval feature\" --slug \"eval-feature\" --goal \"Ship eval\" --workspace-mode proposal_only",
+      "bash skills/co-work/orchestrate/execution/bagakit-feature-tracker/scripts/feature-tracker.sh assign-feature-workspace --root <temp-repo> --feature <id> --workspace-mode current_tree",
+      "bash skills/co-work/orchestrate/execution/bagakit-feature-tracker/scripts/feature-tracker.sh start-task --root <temp-repo> --feature <id> --task T-001",
+      "python3 skills/co-work/align/bagakit-brainstorm/scripts/bagakit-brainstorm.py init --topic \"Eval topic\" --slug eval-topic --root <temp-repo>",
     ],
     outputs: {
       profiles,

@@ -135,9 +135,9 @@ Rules:
 - `seq` is a per-recipient monotonic counter; ordering claims hold per
   recipient only
 - `envelope_check` is `full` when the sibling `bagakit-agent-messaging`
-  validator accepted the envelope, or `minimal` when only local
-  well-formedness, root-tag, and no-nested-`bagakit-msg` checks ran because
-  that skill is absent
+  validator accepted the envelope, or `skipped` when the sender explicitly
+  selected the skip policy; a missing validator never causes an implicit
+  downgrade
 - an invalid envelope is rejected before any mail write; fail-stop, no partial
   record
 - dedup is scoped per sender, recipient, and key: a `send` that repeats a
@@ -157,8 +157,10 @@ this order, and must not create or mutate a mail record when any check fails:
 2. re-walk the sender's live grant chain and require every identity to be active
 3. resolve the recipient, require an identity different from the sender, and
    require its grant chain to be fully active; self-addressed mail is rejected
-4. validate the supplied `bagakit-msg` envelope with the sibling validator, or
-   the documented minimal fallback when that validator is unavailable
+4. apply the selected envelope-check policy: under `required`, validate the
+   supplied `bagakit-msg` envelope with the sibling validator and fail if that
+   validator is unavailable; under `skip`, omit the protocol validator while
+   still parsing the root metadata needed for sender binding and Set routing
 5. require the envelope `name` attribute to equal the sender's registered
    `display_name`
 6. when the envelope `type` is `agent-set-v1`, require the sender to be an
@@ -222,12 +224,12 @@ committed by default. Layout:
 
 ## CLI Surface
 
-The public entrypoint is `scripts/agent_post.py` in the skill payload:
+The public entrypoint is `skills/co-work/orchestrate/agent-cluster/a2a/bagakit-agent-post/scripts/agent_post.py`:
 
 - `register --agent-id <id> --display-name <name> [--user-token <token>]`
 - `derive --parent <id> --parent-token <token> --agent-id <id> --display-name <name>`
 - `revoke --agent-id <id> (--user-token <token> | --auth-token <token>)`
-- `send --as <id> --token <token> --to <id> --envelope <path|-> [--dedup-key <key>]`
+- `send --as <id> --token <token> --to <id> --envelope <path|-> [--dedup-key <key>] [--envelope-check required|skip]`
 - `recv --as <id> --token <token> [--all] [--render]`
 - `ack --as <id> --token <token> --msg <msg-id>`
 - `whoami --token <token>`

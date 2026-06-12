@@ -31,7 +31,7 @@ onboarded.
 Required evidence:
 
 - canonical identity is discoverable through the directory protocol under
-  `skills/<family>/<skill-id>/` with `SKILL.md`
+  `skills/<group-path>/<skill-id>/` with `SKILL.md`
 - required validation and smoke checks pass
 - link and package behavior work from the canonical directory-is-payload model
 - docs and gates do not disagree on onboarding status

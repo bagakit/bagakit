@@ -16,12 +16,12 @@ while [[ $# -gt 0 ]]; do
 done
 
 ROOT="$(cd "$ROOT" && pwd)"
-FEATURE_TRACKER_DIR="$ROOT/skills/harness/bagakit-feature-tracker"
-FLOW_RUNNER_DIR="$ROOT/skills/harness/bagakit-flow-runner"
+FEATURE_TRACKER_DIR="$ROOT/skills/co-work/orchestrate/execution/bagakit-feature-tracker"
+FLOW_RUNNER_DIR="$ROOT/skills/co-work/orchestrate/execution/bagakit-flow-runner"
 AGENT_LOOP_DIR="$ROOT/dev/agent_loop"
 FAKE_RUNNER="$ROOT/gate_validation/dev/agent_loop/testdata/fake_runner.py"
 FAKE_NOTIFY="$ROOT/gate_validation/dev/agent_loop/testdata/fake_notification_delivery.py"
-source "$ROOT/gate_validation/skills/harness/bagakit-feature-tracker/lib/feature-tracker-testlib.sh"
+source "$ROOT/gate_validation/skills/co-work/orchestrate/execution/bagakit-feature-tracker/lib/feature-tracker-testlib.sh"
 TMP_DIR="$(mktemp -d)"
 trap 'rm -rf "$TMP_DIR"' EXIT
 
@@ -32,8 +32,8 @@ printf '# demo\n' > "$TMP_DIR/README.md"
 git -C "$TMP_DIR" add README.md
 git -C "$TMP_DIR" commit -q -m "init"
 
-mkdir -p "$TMP_DIR/skills/harness"
-ln -s "$FLOW_RUNNER_DIR" "$TMP_DIR/skills/harness/bagakit-flow-runner"
+mkdir -p "$TMP_DIR/skills/co-work/orchestrate/execution"
+ln -s "$FLOW_RUNNER_DIR" "$TMP_DIR/skills/co-work/orchestrate/execution/bagakit-flow-runner"
 
 bash "$FEATURE_TRACKER_DIR/scripts/feature-tracker.sh" initialize-tracker --root "$TMP_DIR" >/dev/null
 bash "$FEATURE_TRACKER_DIR/scripts/feature-tracker.sh" create-feature --root "$TMP_DIR" --title "Tracker source" --slug "tracker-source" --goal "Drive tracker-backed loop" --workspace-mode proposal_only >/dev/null
@@ -442,7 +442,7 @@ from pathlib import Path
 payload = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
 assert payload["stop_reason"] == "flow_runner_refresh_failed"
 PY
-mv "$TMP_DIR/skills/harness/bagakit-flow-runner.broken" "$TMP_DIR/skills/harness/bagakit-flow-runner"
+mv "$TMP_DIR/skills/co-work/orchestrate/execution/bagakit-flow-runner.broken" "$TMP_DIR/skills/co-work/orchestrate/execution/bagakit-flow-runner"
 
 MISSING_JSON="$TMP_DIR/missing-run.json"
 bash "$AGENT_LOOP_DIR/agent-loop.sh" configure-runner --root "$TMP_DIR" --runner-name fake --argv-json "[\"python3\",\"$FAKE_RUNNER\",\"missing\",\"{repo_root}\",\"{session_brief}\",\"{runner_result}\"]" >/dev/null
@@ -696,8 +696,8 @@ git -C "$RESUME_TMP_DIR" config user.email "bagakit@example.com"
 printf '# resume\n' > "$RESUME_TMP_DIR/README.md"
 git -C "$RESUME_TMP_DIR" add README.md
 git -C "$RESUME_TMP_DIR" commit -q -m "init"
-mkdir -p "$RESUME_TMP_DIR/skills/harness"
-ln -s "$FLOW_RUNNER_DIR" "$RESUME_TMP_DIR/skills/harness/bagakit-flow-runner"
+mkdir -p "$RESUME_TMP_DIR/skills/co-work/orchestrate/execution"
+ln -s "$FLOW_RUNNER_DIR" "$RESUME_TMP_DIR/skills/co-work/orchestrate/execution/bagakit-flow-runner"
 
 bash "$FLOW_RUNNER_DIR/scripts/flow-runner.sh" apply --root "$RESUME_TMP_DIR" >/dev/null
 bash "$FLOW_RUNNER_DIR/scripts/flow-runner.sh" add-item --root "$RESUME_TMP_DIR" --item-id single-live --title "Single live" --source-kind manual --source-ref manual:single >/dev/null

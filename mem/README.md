@@ -17,3 +17,4 @@ Current memory areas:
 - `decisions/`
   - active repository-side design and audit notes that are still evolving
 - `benchmarks/`
+  - durable benchmark observations and claim evidence promoted from `gate_eval/`

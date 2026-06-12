@@ -1,0 +1,51 @@
+version = 1
+skill_id = "bagakit-pageville"
+contract_kind = "pageville_runtime_contract"
+owner = "skills/co-work/deliver/bagakit-pageville"
+
+[runtime_surface]
+root = ".bagakit/pageville"
+marker = "surface.toml"
+registry = "registry.json"
+server_state = "server.json"
+page_store = "pages/<slug>/versions/<version>/"
+lock = "state.lock"
+
+[registry]
+schema_version = 1
+identity_fields = ["page_id", "slug", "title", "kind", "owner", "status"]
+version_fields = ["version", "published_at", "entrypoint", "source_name", "payload_ref"]
+statuses = ["active", "archived"]
+rules = [
+  "page_id equals the stable semantic slug",
+  "versions are immutable after publication",
+  "latest resolves through registry metadata",
+  "absolute source paths are not persisted",
+]
+
+[hosting]
+bind = "127.0.0.1"
+adapter = "loopback_v0"
+one_server_per_root = true
+port_policy = "reuse_existing_healthy_server_else_choose_available_port"
+http_mutation = "shutdown_only_with_host_token"
+served_routes = ["/", "/pages/<slug>/<version>/", "/api/pages", "/api/pages/<slug>/<version>"]
+semantic_route_stability = "path is independent of deployment origin"
+
+[annotation]
+storage = "append_only_jsonl_per_page_version"
+required_fields = ["annotation_id", "page_id", "version", "author", "created_at"]
+optional_fields = ["anchor", "label", "note"]
+truth_boundary = "annotations are review context and never page or domain source truth"
+
+[commands]
+required = ["init", "start", "stop", "status", "publish", "link", "list", "get", "versions", "fetch", "annotate", "archive"]
+
+[safety]
+requirements = [
+  "reject path traversal and unknown page-version routes",
+  "serve only registered copied content",
+  "serialize registry and lifecycle mutations",
+  "verify host token before shutdown",
+  "keep page source labels non-absolute",
+]

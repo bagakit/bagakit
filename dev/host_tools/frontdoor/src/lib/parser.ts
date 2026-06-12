@@ -1,3 +1,4 @@
+import { loadSkillInventory } from "../../../../../scripts/lib/skill/discovery.ts";
 import fs from "node:fs";
 import path from "node:path";
 
@@ -13,16 +14,6 @@ import { repoRelative, toRepoPath } from "./paths.ts";
 
 const FRONTMATTER_NAME_RE = new RegExp(String.raw`^name:\s*(.+?)\s*$`);
 const QUOTED_VALUE_RE = new RegExp(String.raw`^["'](.*)["']$`);
-
-function sortedDirNames(root: string): string[] {
-  if (!fs.existsSync(root)) {
-    return [];
-  }
-  return fs.readdirSync(root, { withFileTypes: true })
-    .filter((entry) => entry.isDirectory())
-    .map((entry) => entry.name)
-    .sort();
-}
 
 function readSkillName(contents: string, sourcePath: string): string {
   const lines = contents.replace(/\r\n/g, "\n").split("\n");
@@ -47,31 +38,17 @@ function readSkillName(contents: string, sourcePath: string): string {
 }
 
 export function discoverSkills(root: string): SkillSource[] {
-  const skillsRoot = path.join(root, "skills");
-  const skills: SkillSource[] = [];
-
-  for (const family of sortedDirNames(skillsRoot)) {
-    const familyRoot = path.join(skillsRoot, family);
-    for (const skillId of sortedDirNames(familyRoot)) {
-      const directory = path.join(familyRoot, skillId);
-      const skillPath = path.join(directory, SKILL_FILE_NAME);
-      if (!fs.existsSync(skillPath) || !fs.statSync(skillPath).isFile()) {
-        continue;
-      }
-
-      const skillRelPath = repoRelative(root, skillPath);
-      const declaredName = readSkillName(fs.readFileSync(skillPath, "utf8"), skillRelPath);
-      skills.push({
-        skillId,
-        family,
-        directory: repoRelative(root, directory),
-        skillPath: skillRelPath,
-        declaredName,
-      });
-    }
-  }
-
-  return skills;
+  return loadSkillInventory(root, { allowMissingRoot: true }).skills.map((skill) => {
+    const skillPath = path.join(skill.absoluteDir, SKILL_FILE_NAME);
+    const skillRelPath = repoRelative(root, skillPath);
+    return {
+      skillId: skill.skillId,
+      family: skill.family,
+      directory: skill.relativeDir,
+      skillPath: skillRelPath,
+      declaredName: readSkillName(fs.readFileSync(skillPath, "utf8"), skillRelPath),
+    };
+  });
 }
 
 function readStringField(record: Record<string, string | number>, key: string, sourcePath: string): string | undefined {

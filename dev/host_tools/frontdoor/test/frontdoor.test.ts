@@ -1,12 +1,11 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
 import { loadProject } from "../src/lib/io.ts";
 import { FRONTDOOR_END, FRONTDOOR_START } from "../src/lib/model.ts";
-import { applyManagedBlock, renderManagedBlock } from "../src/lib/renderer.ts";
+import { applyManagedBlock, renderManagedBlock, renderRuleIndex } from "../src/lib/renderer.ts";
 import { hasErrors, validateManagedRegion, validateManagedRegionMatches, validateProject } from "../src/lib/validator.ts";
 
 const EXPECTED_DECLARATION_RE = new RegExp("expected exactly one declaration");
@@ -16,9 +15,12 @@ const INVALID_MARKER_RE = new RegExp("invalid frontdoor marker layout");
 const SKILL_ID_REJECTION_RE = new RegExp("skill must match");
 const SKILL_DIR_REJECTION_RE = new RegExp("skill directory must match");
 const UNSAFE_RENDER_RE = new RegExp("unsafe skill id");
+const RULE_LENGTH_RE = new RegExp("maximum is 520");
 
 function makeTempRepo(): string {
-  return fs.mkdtempSync(path.join(os.tmpdir(), "bagakit-frontdoor-"));
+  const scratch = path.resolve(".tmp");
+  fs.mkdirSync(scratch, { recursive: true });
+  return fs.mkdtempSync(path.join(scratch, "bagakit-frontdoor-"));
 }
 
 function writeFile(root: string, repoPath: string, contents: string): void {
@@ -52,17 +54,29 @@ test("render orders selector first and then lexicographic skill ids", () => {
   writeSkill(root, "harness", "bagakit-skill-selector", rule("bagakit-skill-selector"));
   writeSkill(root, "harness", "alpha", rule("alpha"));
 
-  const block = renderManagedBlock(loadProject(root).rules);
-  assert.match(block, new RegExp(`${FRONTDOOR_START}[\\s\\S]*bagakit-skill-selector[\\s\\S]*alpha[\\s\\S]*zeta[\\s\\S]*${FRONTDOOR_END}`));
+  const block = renderRuleIndex(loadProject(root).rules);
   assert.ok(block.indexOf('skill="bagakit-skill-selector"') < block.indexOf('skill="alpha"'));
   assert.ok(block.indexOf('skill="alpha"') < block.indexOf('skill="zeta"'));
-  const lines = block.trim().split("\n");
+  const lines = block.trim().split("\n").filter((line) => line.startsWith("<bagakit-rule"));
   const slash = String.fromCharCode(47);
   const ruleLinePattern = new RegExp(`^<bagakit-rule skill="[a-z0-9-]+">Trigger: .+ \\| Do: .+ \\| See: \`.+\`<${slash}bagakit-rule>$`);
-  assert.equal(lines.length, 5);
-  for (const line of lines.slice(1, -1)) {
+  assert.equal(lines.length, 3);
+  for (const line of lines) {
     assert.match(line, ruleLinePattern);
   }
+});
+
+test("index keeps optional declaration fields out of the navigation body", () => {
+  const root = makeTempRepo();
+  writeSkill(root, "harness", "alpha", rule("alpha", [
+    'evidence = ".bagakit/alpha/evidence.toml"',
+    'surface = ".bagakit/alpha/"',
+    'fallback = "Use the host channel."',
+  ].join("\n")));
+
+  const block = renderRuleIndex(loadProject(root).rules);
+  assert.match(block, /Trigger: Use alpha\. \| Do: Run alpha\. \| See: `skills\/harness\/alpha\/SKILL\.md`/);
+  assert.equal(/Evidence:|Surface:|Fallback:/.test(block), false);
 });
 
 test("project validation requires one declaration per installable skill", () => {
@@ -91,6 +105,14 @@ test("project validation rejects control syntax and path escapes in declarations
   const messages = issues.map((item) => item.message).join("\n");
   assert.match(messages, CONTROL_SYNTAX_RE);
   assert.match(messages, EVIDENCE_PATH_RE);
+});
+
+test("project validation rejects rendered rules over the index entry length budget", () => {
+  const root = makeTempRepo();
+  writeSkill(root, "harness", "long", rule("long").replace('trigger = "Use long."', `trigger = "${"x".repeat(500)}"`));
+  const issues = validateProject(loadProject(root));
+  assert.equal(hasErrors(issues), true);
+  assert.match(issues.map((item) => item.message).join("\n"), RULE_LENGTH_RE);
 });
 
 test("project validation rejects skill ids that cannot be rendered as safe attributes", () => {
@@ -129,13 +151,13 @@ test("renderer refuses unsafe skill ids even when called directly", () => {
     "",
   ].join("\n"));
 
-  assert.throws(() => renderManagedBlock(loadProject(root).rules), UNSAFE_RENDER_RE);
+  assert.throws(() => renderRuleIndex(loadProject(root).rules), UNSAFE_RENDER_RE);
 });
 
 test("managed-region validation requires current AGENTS block to match renderer", () => {
   const root = makeTempRepo();
   writeSkill(root, "harness", "bagakit-skill-selector", rule("bagakit-skill-selector"));
-  const expected = renderManagedBlock(loadProject(root).rules);
+  const expected = renderManagedBlock();
 
   assert.equal(hasErrors(validateManagedRegionMatches(expected, "AGENTS.md", expected)), false);
   assert.equal(hasErrors(validateManagedRegionMatches("", "AGENTS.md", expected)), true);
@@ -145,7 +167,7 @@ test("managed-region validation requires current AGENTS block to match renderer"
 test("apply inserts first block and refuses duplicate marker layouts", () => {
   const root = makeTempRepo();
   writeSkill(root, "harness", "bagakit-skill-selector", rule("bagakit-skill-selector"));
-  const block = renderManagedBlock(loadProject(root).rules);
+  const block = renderManagedBlock();
 
   assert.equal(applyManagedBlock("# Repo\n", block), `# Repo\n${block}`);
   assert.throws(

@@ -6,7 +6,7 @@ import type { FlowItemState, FlowNextPayload, FlowResumeCandidatesPayload } from
 import { readJsonFile, readText } from "../lib/io.ts";
 
 function flowRunnerScript(root: string): string {
-  return path.join(root, "skills", "harness", "bagakit-flow-runner", "scripts", "flow-runner.sh");
+  return path.join(root, "skills", "co-work", "orchestrate", "execution", "bagakit-flow-runner", "scripts", "flow-runner.sh");
 }
 
 export function flowRunnerCommand(root: string): string[] {

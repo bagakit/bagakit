@@ -1,20 +1,7 @@
 import type { SkillInventory, SkillResolution } from "./model.ts";
 
 function invalidSelector(rawSelector: string): Error {
-  return new Error(`invalid selector: ${rawSelector}. expected all, <family>, <family>/<skill-id>, or <skill-id>`);
-}
-
-function splitQualifiedSelector(rawSelector: string): [string, string] | null {
-  if (!rawSelector.includes("/")) {
-    return null;
-  }
-
-  const parts = rawSelector.split("/");
-  if (parts.length !== 2 || parts[0] === "" || parts[1] === "") {
-    throw invalidSelector(rawSelector);
-  }
-
-  return [parts[0], parts[1]];
+  return new Error(`invalid selector: ${rawSelector}. expected all, <group-path>, <group-path>/<skill-id>, or <skill-id>`);
 }
 
 function describeMatches(selectors: string[]): string {
@@ -35,18 +22,11 @@ export function resolveSkillSelector(inventory: SkillInventory, selectorInput: s
     };
   }
 
-  const qualified = splitQualifiedSelector(selector);
-  if (qualified) {
-    const exact = inventory.skillsBySelector.get(`${qualified[0]}/${qualified[1]}`);
-    if (!exact) {
-      throw new Error(`unknown skill selector: ${selector}`);
-    }
-    return {
-      selector,
-      kind: "qualified",
-      skills: [exact],
-    };
+  if (selector.split("/").some((segment) => !segment || segment === "." || segment === ".." || segment.includes("\\"))) {
+    throw invalidSelector(selector);
   }
+  const exact = inventory.skillsBySelector.get(selector);
+  if (exact) return { selector, kind: "qualified", skills: [exact] };
 
   const familyMatches = inventory.skillsByFamily.get(selector);
   if (familyMatches && familyMatches.length > 0) {

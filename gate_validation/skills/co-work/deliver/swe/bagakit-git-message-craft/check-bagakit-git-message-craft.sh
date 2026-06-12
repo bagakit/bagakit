@@ -1,0 +1,668 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="."
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --root)
+      [[ $# -ge 2 ]] || { echo "missing value for --root" >&2; exit 2; }
+      ROOT="$2"
+      shift 2
+      ;;
+    -h|--help)
+      cat <<'EOF'
+usage: gate_validation/skills/co-work/deliver/swe/bagakit-git-message-craft/check-bagakit-git-message-craft.sh [--root <repo-root>]
+
+Run canonical runtime smoke checks for bagakit-git-message-craft.
+EOF
+      exit 0
+      ;;
+    *)
+      echo "unexpected argument: $1" >&2
+      exit 2
+      ;;
+  esac
+done
+
+ROOT="$(cd "$ROOT" && pwd)"
+SKILL_DIR="$ROOT/skills/co-work/deliver/swe/bagakit-git-message-craft"
+CMD="$SKILL_DIR/scripts/bagakit-git-message-craft.sh"
+
+TMP_DIR="$(mktemp -d)"
+trap 'rm -rf "$TMP_DIR"' EXIT
+
+cd "$TMP_DIR"
+git init -q
+git config user.email "test@example.com"
+git config user.name "Test User"
+
+echo "print(hello)" > app.py
+git add app.py
+git commit -q -m "chore: init"
+
+echo "print(world)" >> app.py
+mkdir -p docs
+echo "# Notes" > docs/notes.md
+
+INIT_OUT="$("$CMD" init --root "$TMP_DIR" --topic "commit clarity" --install-hooks yes)"
+SESSION_DIR="$(printf "%s\n" "$INIT_OUT" | sed -n 's/^initialized: //p')"
+if [[ -z "$SESSION_DIR" ]]; then
+  echo "failed to capture session dir" >&2
+  exit 1
+fi
+
+test -x "$TMP_DIR/.git/hooks/commit-msg"
+grep -q "BAGAKIT_GIT_MESSAGE_CRAFT_HOOK" "$TMP_DIR/.git/hooks/commit-msg"
+test -d "$SESSION_DIR"
+if find "$SESSION_DIR" -mindepth 1 -maxdepth 1 | grep -q .; then
+  echo "init unexpectedly created template files in session dir" >&2
+  exit 1
+fi
+
+"$CMD" inventory --root "$TMP_DIR" --dir "$SESSION_DIR"
+test -f "$SESSION_DIR/split-inventory.md"
+test ! -f "$SESSION_DIR/split-inventory.json"
+grep -q -- 'Repository root: `.`' "$SESSION_DIR/split-inventory.md"
+if grep -q -- "$TMP_DIR" "$SESSION_DIR/split-inventory.md"; then
+  echo "split inventory leaked an absolute repo path" >&2
+  exit 1
+fi
+if grep -q -- ".bagakit/git-message-craft" "$SESSION_DIR/split-inventory.md"; then
+  echo "split inventory unexpectedly included git-message-craft session artifacts" >&2
+  exit 1
+fi
+
+MESSAGE_FILE="$SESSION_DIR/commit-refactor-split-planning-from-message-drafting.txt"
+"$CMD" draft-message \
+  --root "$TMP_DIR" \
+  --dir "$SESSION_DIR" \
+  --type refactor \
+  --scope commit \
+  --summary "split planning from message drafting" \
+  --principle "commit history preserves a reversible intent boundary" \
+  --why-before "mixed intent commits made rollback boundary hard to infer from history" \
+  --why-change "replace module-heavy commit records with a shorter context section and ranked facts" \
+  --why-gain "reviewers can recover intent faster without reading redundant metadata" \
+  --fact "p0|draft-message now writes one file per planned commit and normalizes repo-relative refs|$TMP_DIR/app.py:1" \
+  --changelog "changed|Commit drafts support compact optional technical changelog categories." \
+  --changelog "fixed|Commit messages reject execution-detail validation sections." \
+  --agent-note "user-correction|Use Keep a Changelog categories when a commit has broad technical surface." \
+  --verification passed \
+  --output "$MESSAGE_FILE"
+
+grep -q -- "Key refs: app.py:1" "$MESSAGE_FILE"
+if grep -q -- "$TMP_DIR/app.py:1" "$MESSAGE_FILE"; then
+  echo "draft-message leaked absolute path into Key refs" >&2
+  exit 1
+fi
+grep -q -- '^## Context$' "$MESSAGE_FILE"
+grep -q -- '^- Principle: commit history preserves a reversible intent boundary$' "$MESSAGE_FILE"
+grep -q -- '^## Key Facts$' "$MESSAGE_FILE"
+grep -q -- '^## Changelog$' "$MESSAGE_FILE"
+grep -q -- '^### Changed$' "$MESSAGE_FILE"
+grep -q -- '^### Fixed$' "$MESSAGE_FILE"
+grep -q -- '^## Agent Notes$' "$MESSAGE_FILE"
+grep -q -- '^- User correction: Use Keep a Changelog categories when a commit has broad technical surface\.$' "$MESSAGE_FILE"
+grep -q -- '^## Verification$' "$MESSAGE_FILE"
+grep -q -- '^- Result: passed$' "$MESSAGE_FILE"
+if grep -q -- '^## Validation$' "$MESSAGE_FILE"; then
+  echo "draft-message unexpectedly emitted Validation" >&2
+  exit 1
+fi
+if grep -q -- '^\[\[BAGAKIT\]\]$' "$MESSAGE_FILE"; then
+  echo "draft-message unexpectedly emitted a protocol footer" >&2
+  exit 1
+fi
+if grep -q -- '^+++$' "$MESSAGE_FILE"; then
+  echo "draft-message unexpectedly emitted legacy frontmatter fence" >&2
+  exit 1
+fi
+if grep -q -- '^schema =' "$MESSAGE_FILE"; then
+  echo "draft-message unexpectedly emitted schema frontmatter" >&2
+  exit 1
+fi
+if grep -q -- '^## Changes by Module$' "$MESSAGE_FILE"; then
+  echo "draft-message unexpectedly emitted legacy Changes by Module section" >&2
+  exit 1
+fi
+if grep -q -- '^## Follow-ups$' "$MESSAGE_FILE"; then
+  echo "draft-message unexpectedly emitted Follow-ups section" >&2
+  exit 1
+fi
+
+"$CMD" lint-message --root "$TMP_DIR" --message "$MESSAGE_FILE"
+
+COMPACT_MESSAGE_FILE="$SESSION_DIR/commit-refactor-compact-deltas.txt"
+"$CMD" draft-message \
+  --root "$TMP_DIR" \
+  --dir "$SESSION_DIR" \
+  --type refactor \
+  --scope commit \
+  --summary "compress commit body around deltas" \
+  --principle "commit history carries product intent instead of execution logs" \
+  --why "the rohan warm-export case showed that copied plan text and full gate commands made commit bodies noisy" \
+  --delta "git-message-craft contract|generic facts repeated context|major modules describe before-after-why transitions|reviewers need the state change, not a module inventory|app.py:1" \
+  --delta "archive evidence|commit-body validation digests|archive-owned check records|history stays focused on the protected principle|docs/notes.md:1" \
+  --output "$COMPACT_MESSAGE_FILE"
+
+grep -q -- '^## Key Deltas$' "$COMPACT_MESSAGE_FILE"
+grep -q -- 'git-message-craft contract: generic facts repeated context -> major modules describe before-after-why transitions; why: reviewers need the state change, not a module inventory. Key refs: app.py:1' "$COMPACT_MESSAGE_FILE"
+grep -q -- 'archive evidence: commit-body validation digests -> archive-owned check records; why: history stays focused on the protected principle. Key refs: docs/notes.md:1' "$COMPACT_MESSAGE_FILE"
+if grep -q -- '^## Key Facts$' "$COMPACT_MESSAGE_FILE"; then
+  echo "compact draft unexpectedly emitted Key Facts" >&2
+  exit 1
+fi
+"$CMD" lint-message --root "$TMP_DIR" --message "$COMPACT_MESSAGE_FILE"
+
+LEGACY_VALIDATION_MESSAGE="$TMP_DIR/legacy-validation.txt"
+cp "$COMPACT_MESSAGE_FILE" "$LEGACY_VALIDATION_MESSAGE"
+python3 - <<'PY' "$LEGACY_VALIDATION_MESSAGE"
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+text = path.read_text(encoding="utf-8")
+text += "\n## Validation\n- pass: legacy commit body validation\n"
+path.write_text(text, encoding="utf-8")
+PY
+if "$CMD" lint-message --root "$TMP_DIR" --message "$LEGACY_VALIDATION_MESSAGE" >"$TMP_DIR/legacy-validation.out" 2>"$TMP_DIR/legacy-validation.err"; then
+  echo "lint-message unexpectedly accepted legacy Validation" >&2
+  exit 1
+fi
+grep -q -- "Validation sections are not supported" "$TMP_DIR/legacy-validation.err"
+
+MISSING_PRINCIPLE_MESSAGE="$TMP_DIR/missing-principle.txt"
+cp "$COMPACT_MESSAGE_FILE" "$MISSING_PRINCIPLE_MESSAGE"
+python3 - <<'PY' "$MISSING_PRINCIPLE_MESSAGE"
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+text = path.read_text(encoding="utf-8")
+text = text.replace("- Principle: commit history carries product intent instead of execution logs\n", "", 1)
+path.write_text(text, encoding="utf-8")
+PY
+if "$CMD" lint-message --root "$TMP_DIR" --message "$MISSING_PRINCIPLE_MESSAGE" >"$TMP_DIR/missing-principle.out" 2>"$TMP_DIR/missing-principle.err"; then
+  echo "lint-message unexpectedly accepted a message without Principle" >&2
+  exit 1
+fi
+grep -q -- "Context must include '- Principle:" "$TMP_DIR/missing-principle.err"
+
+BAD_CHANGELOG_MESSAGE="$TMP_DIR/bad-changelog.txt"
+cp "$MESSAGE_FILE" "$BAD_CHANGELOG_MESSAGE"
+python3 - <<'PY' "$BAD_CHANGELOG_MESSAGE"
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+text = path.read_text(encoding="utf-8")
+text = text.replace("### Changed", "### Testing", 1)
+path.write_text(text, encoding="utf-8")
+PY
+if "$CMD" lint-message --root "$TMP_DIR" --message "$BAD_CHANGELOG_MESSAGE" >"$TMP_DIR/bad-changelog.out" 2>"$TMP_DIR/bad-changelog.err"; then
+  echo "lint-message unexpectedly accepted a non-standard changelog category" >&2
+  exit 1
+fi
+grep -q -- "Changelog headings must use Keep a Changelog categories" "$TMP_DIR/bad-changelog.err"
+
+UNCERTAIN_NOTE_MESSAGE="$TMP_DIR/uncertain-agent-note.txt"
+cp "$MESSAGE_FILE" "$UNCERTAIN_NOTE_MESSAGE"
+python3 - <<'PY' "$UNCERTAIN_NOTE_MESSAGE"
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+text = path.read_text(encoding="utf-8")
+text = text.replace(
+    "- User correction: Use Keep a Changelog categories when a commit has broad technical surface.",
+    "- Confirmed: perhaps this is a reusable lesson.",
+    1,
+)
+path.write_text(text, encoding="utf-8")
+PY
+if "$CMD" lint-message --root "$TMP_DIR" --message "$UNCERTAIN_NOTE_MESSAGE" >"$TMP_DIR/uncertain-note.out" 2>"$TMP_DIR/uncertain-note.err"; then
+  echo "lint-message unexpectedly accepted an uncertain Agent Note" >&2
+  exit 1
+fi
+grep -q -- "Agent Notes must record only confirmed facts or direct user corrections" "$TMP_DIR/uncertain-note.err"
+
+VERBOSE_VERIFICATION_MESSAGE="$TMP_DIR/verbose-verification.txt"
+cp "$MESSAGE_FILE" "$VERBOSE_VERIFICATION_MESSAGE"
+python3 - <<'PY' "$VERBOSE_VERIFICATION_MESSAGE"
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+text = path.read_text(encoding="utf-8")
+text = text.replace("- Result: passed", "- Result: passed\n- Command: test command", 1)
+path.write_text(text, encoding="utf-8")
+PY
+if "$CMD" lint-message --root "$TMP_DIR" --message "$VERBOSE_VERIFICATION_MESSAGE" >"$TMP_DIR/verbose-verification.out" 2>"$TMP_DIR/verbose-verification.err"; then
+  echo "lint-message unexpectedly accepted detailed Verification" >&2
+  exit 1
+fi
+grep -q -- "Verification must contain exactly one final result line" "$TMP_DIR/verbose-verification.err"
+
+BAD_TYPE_DRAFT="$SESSION_DIR/commit-invalid-type.txt"
+if "$CMD" draft-message \
+  --root "$TMP_DIR" \
+  --dir "$SESSION_DIR" \
+  --type release \
+  --scope commit \
+  --summary "reject arbitrary types" \
+  --principle "semantic types make commit history reliably retrievable" \
+  --why "arbitrary type prefixes weaken semantic retrieval" \
+  --delta "subject policy|any lower-case type was accepted|only defined semantic types are allowed|agents and humans can rely on type meaning|app.py:1" \
+  --output "$BAD_TYPE_DRAFT" >"$TMP_DIR/bad-type-draft.out" 2>"$TMP_DIR/bad-type-draft.err"; then
+  echo "draft-message unexpectedly accepted an arbitrary commit type" >&2
+  exit 1
+fi
+test ! -f "$BAD_TYPE_DRAFT"
+grep -q -- "commit type must be one of" "$TMP_DIR/bad-type-draft.err"
+
+BAD_TYPE_MESSAGE="$TMP_DIR/bad-type.txt"
+cp "$COMPACT_MESSAGE_FILE" "$BAD_TYPE_MESSAGE"
+python3 - <<'PY' "$BAD_TYPE_MESSAGE"
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+text = path.read_text(encoding="utf-8")
+text = text.replace("refactor(commit): compress commit body around deltas", "release(commit): compress commit body around deltas", 1)
+path.write_text(text, encoding="utf-8")
+PY
+if "$CMD" lint-message --root "$TMP_DIR" --message "$BAD_TYPE_MESSAGE" >"$TMP_DIR/bad-type.out" 2>"$TMP_DIR/bad-type.err"; then
+  echo "lint-message unexpectedly accepted an arbitrary commit type" >&2
+  exit 1
+fi
+grep -q -- "subject type must be one of" "$TMP_DIR/bad-type.err"
+
+FAKE_GITHUB_TOKEN="ghp_""abcdefghijklmnopqrstuvwxyz0123456789ABCD"
+BAD_SECRET_DRAFT="$SESSION_DIR/commit-secret.txt"
+if "$CMD" draft-message \
+  --root "$TMP_DIR" \
+  --dir "$SESSION_DIR" \
+  --type fix \
+  --scope commit \
+  --summary "reject credential text" \
+  --principle "durable Git text excludes credentials such as $FAKE_GITHUB_TOKEN" \
+  --why "a credential must never enter durable Git text" \
+  --delta "draft policy|credential-like text could reach a commit|known credential patterns are blocked|durable history stays safer|app.py:1" \
+  --output "$BAD_SECRET_DRAFT" >"$TMP_DIR/bad-secret-draft.out" 2>"$TMP_DIR/bad-secret-draft.err"; then
+  echo "draft-message unexpectedly accepted credential text" >&2
+  exit 1
+fi
+test ! -f "$BAD_SECRET_DRAFT"
+grep -q -- "github-token" "$TMP_DIR/bad-secret-draft.err"
+if grep -q -- "$FAKE_GITHUB_TOKEN" "$TMP_DIR/bad-secret-draft.err"; then
+  echo "draft-message echoed a credential-like value" >&2
+  exit 1
+fi
+
+BAD_SECRET_MESSAGE="$TMP_DIR/bad-secret.txt"
+cp "$COMPACT_MESSAGE_FILE" "$BAD_SECRET_MESSAGE"
+python3 - <<'PY' "$BAD_SECRET_MESSAGE" "$FAKE_GITHUB_TOKEN"
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+token = sys.argv[2]
+text = path.read_text(encoding="utf-8")
+text = text.replace(
+    "- Why: the rohan warm-export case showed that copied plan text and full gate commands made commit bodies noisy",
+    f"- Why: credential guard {token}",
+    1,
+)
+path.write_text(text, encoding="utf-8")
+PY
+if "$CMD" lint-message --root "$TMP_DIR" --message "$BAD_SECRET_MESSAGE" >"$TMP_DIR/bad-secret.out" 2>"$TMP_DIR/bad-secret.err"; then
+  echo "lint-message unexpectedly accepted credential text" >&2
+  exit 1
+fi
+grep -q -- "github-token" "$TMP_DIR/bad-secret.err"
+if grep -q -- "$FAKE_GITHUB_TOKEN" "$TMP_DIR/bad-secret.err"; then
+  echo "lint-message echoed a credential-like value" >&2
+  exit 1
+fi
+
+FAKE_GENERIC_SECRET="abcdefghijklmnopqrstuvwxyz0123456789ABCD"
+BAD_GENERIC_SECRET_MESSAGE="$TMP_DIR/bad-generic-secret.txt"
+cp "$COMPACT_MESSAGE_FILE" "$BAD_GENERIC_SECRET_MESSAGE"
+python3 - <<'PY' "$BAD_GENERIC_SECRET_MESSAGE" "$FAKE_GENERIC_SECRET"
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+secret = sys.argv[2]
+text = path.read_text(encoding="utf-8")
+text = text.replace(
+    "- Why: the rohan warm-export case showed that copied plan text and full gate commands made commit bodies noisy",
+    f"- Why: secret_access_key={secret}",
+    1,
+)
+path.write_text(text, encoding="utf-8")
+PY
+if "$CMD" lint-message --root "$TMP_DIR" --message "$BAD_GENERIC_SECRET_MESSAGE" >"$TMP_DIR/bad-generic-secret.out" 2>"$TMP_DIR/bad-generic-secret.err"; then
+  echo "lint-message unexpectedly accepted generic credential text" >&2
+  exit 1
+fi
+grep -q -- "credential-assignment" "$TMP_DIR/bad-generic-secret.err"
+if grep -q -- "$FAKE_GENERIC_SECRET" "$TMP_DIR/bad-generic-secret.err"; then
+  echo "lint-message echoed a generic credential-like value" >&2
+  exit 1
+fi
+
+BAD_FILE_URI_MESSAGE="$TMP_DIR/bad-file-uri.txt"
+cp "$COMPACT_MESSAGE_FILE" "$BAD_FILE_URI_MESSAGE"
+FILE_URI_PATH="/""workspace/private-check.sh"
+python3 - <<'PY' "$BAD_FILE_URI_MESSAGE" "$FILE_URI_PATH"
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+file_uri_path = sys.argv[2]
+text = path.read_text(encoding="utf-8")
+text = text.replace(
+    "- Why: the rohan warm-export case showed that copied plan text and full gate commands made commit bodies noisy",
+    "- Why: inspect " + "file:" + "//" + file_uri_path,
+    1,
+)
+path.write_text(text, encoding="utf-8")
+PY
+if "$CMD" lint-message --root "$TMP_DIR" --message "$BAD_FILE_URI_MESSAGE" >"$TMP_DIR/bad-file-uri.out" 2>"$TMP_DIR/bad-file-uri.err"; then
+  echo "lint-message unexpectedly accepted a file URI absolute path" >&2
+  exit 1
+fi
+grep -q -- "absolute filesystem path literals" "$TMP_DIR/bad-file-uri.err"
+if grep -q -- "$FILE_URI_PATH" "$TMP_DIR/bad-file-uri.err"; then
+  echo "lint-message echoed an absolute path literal" >&2
+  exit 1
+fi
+
+BAD_DRAFT_MESSAGE="$SESSION_DIR/commit-bad-external-principle.txt"
+if "$CMD" draft-message \
+  --root "$TMP_DIR" \
+  --dir "$SESSION_DIR" \
+  --type docs \
+  --scope guidebook \
+  --summary "reject external principle paths" \
+  --principle "commit messages do not contain external path $SKILL_DIR" \
+  --why-before "principle text could copy machine-local skill paths into durable Git text" \
+  --why-change "draft-message validates Git-facing text before writing output" \
+  --why-gain "commit messages keep only project-relative evidence" \
+  --fact "p0|draft-message rejects principle text with external absolute paths|app.py:1" \
+  --output "$BAD_DRAFT_MESSAGE" >"$TMP_DIR/bad-draft.out" 2>"$TMP_DIR/bad-draft.err"; then
+  echo "draft-message unexpectedly accepted external absolute paths in Principle" >&2
+  exit 1
+fi
+test ! -f "$BAD_DRAFT_MESSAGE"
+grep -q -- "principle must not contain absolute paths outside the repo root" "$TMP_DIR/bad-draft.err"
+
+BAD_SUMMARY_MESSAGE="$SESSION_DIR/commit-bad-external-summary.txt"
+if "$CMD" draft-message \
+  --root "$TMP_DIR" \
+  --dir "$SESSION_DIR" \
+  --type docs \
+  --scope guidebook \
+  --summary "mention $SKILL_DIR in subject" \
+  --principle "commit subjects stay portable across repository clones" \
+  --why-before "subject text could copy a machine-local checkout path" \
+  --why-change "draft-message validates subject text before writing output" \
+  --why-gain "commit subjects stay project-relative" \
+  --fact "p0|draft-message rejects subject paths|app.py:1" \
+  --output "$BAD_SUMMARY_MESSAGE" >"$TMP_DIR/bad-summary.out" 2>"$TMP_DIR/bad-summary.err"; then
+  echo "draft-message unexpectedly accepted external absolute paths in summary" >&2
+  exit 1
+fi
+test ! -f "$BAD_SUMMARY_MESSAGE"
+grep -q -- "summary must not contain absolute paths outside the repo root" "$TMP_DIR/bad-summary.err"
+
+BAD_FACT_MESSAGE="$SESSION_DIR/commit-bad-external-fact.txt"
+if "$CMD" draft-message \
+  --root "$TMP_DIR" \
+  --dir "$SESSION_DIR" \
+  --type docs \
+  --scope guidebook \
+  --summary "reject external fact paths" \
+  --principle "commit facts stay portable across repository clones" \
+  --why-before "fact text could copy a machine-local checkout path" \
+  --why-change "draft-message validates fact statements before writing output" \
+  --why-gain "key facts stay project-relative" \
+  --fact "p0|draft-message rejects fact text mentioning $SKILL_DIR|app.py:1" \
+  --output "$BAD_FACT_MESSAGE" >"$TMP_DIR/bad-fact.out" 2>"$TMP_DIR/bad-fact.err"; then
+  echo "draft-message unexpectedly accepted external absolute paths in fact text" >&2
+  exit 1
+fi
+test ! -f "$BAD_FACT_MESSAGE"
+grep -q -- "fact must not contain absolute paths outside the repo root" "$TMP_DIR/bad-fact.err"
+
+BAD_ENV_MESSAGE="$TMP_DIR/bad-env-abs-path.txt"
+cp "$MESSAGE_FILE" "$BAD_ENV_MESSAGE"
+python3 - <<'PY' "$BAD_ENV_MESSAGE" "$SKILL_DIR"
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+skill_dir = sys.argv[2]
+text = path.read_text(encoding="utf-8")
+text = text.replace(
+    "commit history preserves a reversible intent boundary",
+    f"SKILL_DIR={skill_dir} git diff --check",
+    1,
+)
+path.write_text(text, encoding="utf-8")
+PY
+
+if "$CMD" lint-message --root "$TMP_DIR" --message "$BAD_ENV_MESSAGE" >"$TMP_DIR/bad-env.out" 2>"$TMP_DIR/bad-env.err"; then
+  echo "lint-message unexpectedly accepted env assignment absolute paths" >&2
+  exit 1
+fi
+grep -q -- "absolute filesystem path literals" "$TMP_DIR/bad-env.err"
+
+BAD_ARG_MESSAGE="$TMP_DIR/bad-arg-abs-path.txt"
+cp "$MESSAGE_FILE" "$BAD_ARG_MESSAGE"
+python3 - <<'PY' "$BAD_ARG_MESSAGE" "$SKILL_DIR"
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+skill_dir = sys.argv[2]
+text = path.read_text(encoding="utf-8")
+tool_path = str(Path(skill_dir) / "scripts" / "tool.py")
+text = text.replace(
+    "commit history preserves a reversible intent boundary",
+    f"git diff --check --tool={tool_path}",
+    1,
+)
+path.write_text(text, encoding="utf-8")
+PY
+
+if "$CMD" lint-message --root "$TMP_DIR" --message "$BAD_ARG_MESSAGE" >"$TMP_DIR/bad-arg.out" 2>"$TMP_DIR/bad-arg.err"; then
+  echo "lint-message unexpectedly accepted option absolute paths" >&2
+  exit 1
+fi
+grep -q -- "absolute filesystem path literals" "$TMP_DIR/bad-arg.err"
+
+BAD_HOME_MESSAGE="$TMP_DIR/bad-home-path.txt"
+cp "$MESSAGE_FILE" "$BAD_HOME_MESSAGE"
+python3 - <<'PY' "$BAD_HOME_MESSAGE"
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+text = path.read_text(encoding="utf-8")
+text = text.replace(
+    "commit history preserves a reversible intent boundary",
+    "python3 ~/proj/other/skill.py --dry-run",
+    1,
+)
+path.write_text(text, encoding="utf-8")
+PY
+
+if "$CMD" lint-message --root "$TMP_DIR" --message "$BAD_HOME_MESSAGE" >"$TMP_DIR/bad-home.out" 2>"$TMP_DIR/bad-home.err"; then
+  echo "lint-message unexpectedly accepted home-relative paths" >&2
+  exit 1
+fi
+grep -q -- "absolute filesystem path literals" "$TMP_DIR/bad-home.err"
+
+SYMLINK_PARENT="$(mktemp -d)"
+trap 'rm -rf "$TMP_DIR" "$SYMLINK_PARENT"' EXIT
+ln -s "$TMP_DIR" "$SYMLINK_PARENT/project-link"
+SYMLINK_ROOT="$SYMLINK_PARENT/project-link"
+SYMLINK_INIT_OUT="$("$CMD" init --root "$SYMLINK_ROOT" --topic "symlink root" --install-hooks no)"
+SYMLINK_SESSION_DIR="$(printf "%s\n" "$SYMLINK_INIT_OUT" | sed -n 's/^initialized: //p')"
+if [[ -z "$SYMLINK_SESSION_DIR" ]]; then
+  echo "failed to capture symlink session dir" >&2
+  exit 1
+fi
+SYMLINK_MESSAGE="$SYMLINK_SESSION_DIR/commit-docs-normalize-symlink-root.txt"
+"$CMD" draft-message \
+  --root "$SYMLINK_ROOT" \
+  --dir "$SYMLINK_SESSION_DIR" \
+  --type docs \
+  --scope guidebook \
+  --summary "normalize symlink root paths" \
+  --principle "commit text uses repository-relative references" \
+  --why-before "fact references could name the symlink project path directly" \
+  --why-change "draft-message treats project-local symlink paths as repo-relative evidence" \
+  --why-gain "durable Git text stays portable from the project root" \
+  --fact "p0|draft-message keeps project-local symlink paths relative|$SYMLINK_ROOT/app.py:1" \
+  --output "$SYMLINK_MESSAGE"
+grep -q -- "Key refs: app.py:1" "$SYMLINK_MESSAGE"
+if grep -q -- "$SYMLINK_ROOT/app.py" "$SYMLINK_MESSAGE"; then
+  echo "draft-message leaked symlink root absolute path" >&2
+  exit 1
+fi
+"$CMD" lint-message --root "$SYMLINK_ROOT" --message "$SYMLINK_MESSAGE"
+rm -rf "$SYMLINK_SESSION_DIR"
+
+BAD_FRONTMATTER_MESSAGE="$TMP_DIR/bad-frontmatter.txt"
+cp "$MESSAGE_FILE" "$BAD_FRONTMATTER_MESSAGE"
+python3 - <<'PY' "$BAD_FRONTMATTER_MESSAGE"
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+text = path.read_text(encoding="utf-8")
+text = text.replace("\n## Context\n", "\n+++\nschema = \"bagakit.git-message-craft/v1\"\n+++\n\n## Context\n", 1)
+path.write_text(text, encoding="utf-8")
+PY
+
+if "$CMD" lint-message --root "$TMP_DIR" --message "$BAD_FRONTMATTER_MESSAGE" >"$TMP_DIR/meta.out" 2>"$TMP_DIR/meta.err"; then
+  echo "lint-message unexpectedly accepted legacy frontmatter" >&2
+  exit 1
+fi
+grep -q -- "frontmatter is not supported" "$TMP_DIR/meta.err"
+
+BAD_PROTOCOL_MESSAGE="$TMP_DIR/bad-protocol.txt"
+cp "$MESSAGE_FILE" "$BAD_PROTOCOL_MESSAGE"
+python3 - <<'PY' "$BAD_PROTOCOL_MESSAGE"
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+text = path.read_text(encoding="utf-8")
+text += "\n[[BAGAKIT]]\n- GitMessageCraft: Protocol=bagakit.git-message-craft/v1\n"
+path.write_text(text, encoding="utf-8")
+PY
+
+if "$CMD" lint-message --root "$TMP_DIR" --message "$BAD_PROTOCOL_MESSAGE" >"$TMP_DIR/protocol.out" 2>"$TMP_DIR/protocol.err"; then
+  echo "lint-message unexpectedly accepted a legacy protocol footer" >&2
+  exit 1
+fi
+grep -q -- "Bagakit protocol footer is not supported" "$TMP_DIR/protocol.err"
+
+BAD_MESSAGE="$TMP_DIR/bad-abs-path.txt"
+cp "$MESSAGE_FILE" "$BAD_MESSAGE"
+python3 - <<'PY' "$BAD_MESSAGE" "$TMP_DIR"
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+repo = sys.argv[2]
+text = path.read_text(encoding="utf-8")
+text = text.replace("Key refs: app.py:1", f"Key refs: {repo}/app.py:1", 1)
+path.write_text(text, encoding="utf-8")
+PY
+
+if "$CMD" lint-message --root "$TMP_DIR" --message "$BAD_MESSAGE" >"$TMP_DIR/lint.out" 2>"$TMP_DIR/lint.err"; then
+  echo "lint-message unexpectedly accepted absolute path refs" >&2
+  exit 1
+fi
+grep -q -- "absolute filesystem path literals" "$TMP_DIR/lint.err"
+grep -q -- "Key refs must use normalized repo-relative 'path:line' items" "$TMP_DIR/lint.err"
+
+git add app.py docs/notes.md
+git commit -q -F "$MESSAGE_FILE"
+COMMIT_SHA="$(git rev-parse --short HEAD)"
+CURRENT_BRANCH="$(git branch --show-current)"
+
+"$CMD" archive \
+  --root "$TMP_DIR" \
+  --dir "$SESSION_DIR" \
+  --commit "$COMMIT_SHA" \
+  --verification-result passed
+
+ARCHIVE_FILE="$TMP_DIR/.git/bagakit/git-message-craft/archive/$(basename "$SESSION_DIR").md"
+test ! -d "$SESSION_DIR"
+test ! -e "$TMP_DIR/.bagakit"
+test -f "$ARCHIVE_FILE"
+test ! -e "$TMP_DIR/.git/bagakit/git-message-craft/memory/$(basename "$SESSION_DIR").md"
+grep -q -- "## Commit Evidence" "$ARCHIVE_FILE"
+grep -q -- "- $COMMIT_SHA" "$ARCHIVE_FILE"
+grep -q -- "## Verification" "$ARCHIVE_FILE"
+grep -q -- "- Result: passed" "$ARCHIVE_FILE"
+grep -q -- "- action_handoff: git:$CURRENT_BRANCH" "$ARCHIVE_FILE"
+grep -q -- "- memory_handoff: none (commit message and git history are the primary record)" "$ARCHIVE_FILE"
+if grep -q -- "$TMP_DIR" "$ARCHIVE_FILE"; then
+  echo "archive leaked an absolute path" >&2
+  exit 1
+fi
+
+echo "# legacy note" > legacy-note.md
+git add legacy-note.md
+git commit -q --no-verify -m "docs: add legacy note"
+git mv legacy-note.md renamed-note.md
+
+RENAME_INIT_OUT="$("$CMD" init --root "$TMP_DIR" --topic "rename inventory" --install-hooks no)"
+RENAME_SESSION_DIR="$(printf "%s\n" "$RENAME_INIT_OUT" | sed -n 's/^initialized: //p')"
+if [[ -z "$RENAME_SESSION_DIR" ]]; then
+  echo "failed to capture rename session dir" >&2
+  exit 1
+fi
+
+"$CMD" inventory --root "$TMP_DIR" --dir "$RENAME_SESSION_DIR" --staged-only
+grep -q -- "renamed-note.md" "$RENAME_SESSION_DIR/split-inventory.md"
+if grep -q $'legacy-note.md\trenamed-note.md' "$RENAME_SESSION_DIR/split-inventory.md"; then
+  echo "staged-only inventory preserved a raw rename tuple instead of the destination path" >&2
+  exit 1
+fi
+
+MR_TITLE_FILE="$RENAME_SESSION_DIR/mr-title.txt"
+"$CMD" draft-mr-title \
+  --template outcome-first \
+  --type fix \
+  --outcome "preserve reviewer notes" \
+  --scope "MR refresh" \
+  --output "$MR_TITLE_FILE"
+grep -q -- '^fix: preserve reviewer notes for MR refresh$' "$MR_TITLE_FILE"
+
+MR_BODY_FILE="$RENAME_SESSION_DIR/mr-body.md"
+"$CMD" draft-mr-body \
+  --template status-refresh \
+  --summary-line "This MR keeps Git-facing message surfaces aligned with the landed diff." \
+  --why "The current MR text drifts away from the current code changes." \
+  --gate-revision "abc1234" \
+  --mr-checks pending \
+  --main-blocker "none" \
+  --what-changed "added a reusable managed MR summary block" \
+  --owner agent \
+  --action "refresh the remote MR body from current evidence" \
+  --output "$MR_BODY_FILE"
+grep -q -- '^<!-- bagakit:git-message-craft:start -->$' "$MR_BODY_FILE"
+grep -q -- '^## Current Status$' "$MR_BODY_FILE"
+grep -q -- '^- MR checks: `pending`$' "$MR_BODY_FILE"
+grep -q -- '^<!-- bagakit:git-message-craft:end -->$' "$MR_BODY_FILE"
+
+echo "ok: bagakit-git-message-craft canonical smoke passed"

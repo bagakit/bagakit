@@ -1,0 +1,5 @@
+version = 1
+skill = "bagakit-skill-evolver"
+trigger = "An Agent or maintainer explicitly decides that a repository-evolution topic needs durable tracking."
+do = "Invoke the Evolver CLI explicitly; loading the skill or receiving a selector signal does not create a topic or promotion."
+see = "skills/evolve/adapt/bagakit-skill-evolver/SKILL.md"

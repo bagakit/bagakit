@@ -81,6 +81,8 @@ function main(): void {
   const passCase = readJson(path.join(repoRoot, passOut, "cases", "sanitized-command-output.json")) as Record<string, unknown>;
   assert.equal(passSummary.schema, "bagakit.eval-run/v1");
   assert.equal(passCase.schema, "bagakit.eval-case/v1");
+  assert.equal((passSummary.trialExecution as Record<string, unknown>).executedRepeatedTrials, false);
+  assert.equal((passCase.trialExecution as Record<string, unknown>).status, "not_requested");
   assertNoTempLeak(passSummary, "pass summary");
   assertNoTempLeak(passCase, "pass case");
 
@@ -95,7 +97,7 @@ function main(): void {
   assertNoTempLeak(failSummary, "fail summary");
   assertNoTempLeak(failCase, "fail case");
 
-  const datasetTemp = fs.mkdtempSync(path.join(os.tmpdir(), "bagakit-eval-dataset-"));
+  const datasetTemp = fs.mkdtempSync(path.join(repoRoot, ".tmp", "eval-fixture-"));
   try {
     const sourceDataset = path.join(datasetTemp, "source.json");
     const builtDataset = path.join(datasetTemp, "built.json");
@@ -235,6 +237,7 @@ function main(): void {
           title: "demo",
           runId: "baseline-1",
           totals: { cases: 2, passedCases: 1, failedCases: 1, durationMs: 10 },
+          cases: [{ id: "a", status: "pass" }, { id: "b", status: "fail" }],
           focusIndex: {
             quality: { passed: 1, failed: 1, cases: ["a", "b"] },
           },
@@ -254,6 +257,7 @@ function main(): void {
           title: "demo",
           runId: "candidate-1",
           totals: { cases: 2, passedCases: 2, failedCases: 0, durationMs: 8 },
+          cases: [{ id: "a", status: "pass" }, { id: "b", status: "pass" }],
           focusIndex: {
             quality: { passed: 2, failed: 0, cases: ["a", "b"] },
           },

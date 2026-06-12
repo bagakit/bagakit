@@ -1,0 +1,89 @@
+version = 2
+
+[[suite]]
+id = "bagakit-brainstorm-layout"
+owner = "skills/co-work/align/bagakit-brainstorm"
+description = "Require the canonical runtime layout and keep legacy standalone repo control files out of bagakit-brainstorm."
+default = true
+proof_mode = "structural"
+protects = ["bagakit-brainstorm installable runtime layout and exclusion of legacy standalone repo payload"]
+oracle = ["fs runner checks required skill files, templates, eval registration, validation script, and forbidden legacy paths"]
+exercised_surface = ["skills/co-work/align/bagakit-brainstorm runtime directory", "gate_eval/skills/co-work/align/bagakit-brainstorm registration", "gate_validation/skills/co-work/align/bagakit-brainstorm registration"]
+proves = ["bagakit-brainstorm-layout proves: Require the canonical runtime layout and keep legacy standalone repo control files out of bagakit-brainstorm."]
+does_not_prove = ["bagakit-brainstorm-layout does not prove runtime behavior, semantic correctness, or eval quality."]
+validation_class = "structure"
+groups = ["skills", "harness", "brainstorm", "structure"]
+
+[suite.runner]
+kind = "fs"
+required_dirs = [
+  "skills/co-work/align/bagakit-brainstorm",
+  "skills/co-work/align/bagakit-brainstorm/references",
+  "skills/co-work/align/bagakit-brainstorm/references/tpl",
+  "skills/co-work/align/bagakit-brainstorm/scripts",
+  "gate_eval/skills/co-work/align/bagakit-brainstorm",
+  "gate_eval/skills/co-work/align/bagakit-brainstorm/cases",
+  "gate_eval/skills/co-work/align/bagakit-brainstorm/results",
+  "gate_eval/skills/co-work/align/bagakit-brainstorm/results/runs",
+  "gate_validation/skills/co-work/align/bagakit-brainstorm",
+]
+required_files = [
+  "skills/co-work/align/bagakit-brainstorm/README.md",
+  "skills/co-work/align/bagakit-brainstorm/SKILL.md",
+  "skills/co-work/align/bagakit-brainstorm/scripts/bagakit-brainstorm.sh",
+  "skills/co-work/align/bagakit-brainstorm/scripts/bagakit-brainstorm.py",
+  "skills/co-work/align/bagakit-brainstorm/references/design-notes.md",
+  "skills/co-work/align/bagakit-brainstorm/references/adapter-contract.md",
+  "skills/co-work/align/bagakit-brainstorm/references/method-playbook.md",
+  "skills/co-work/align/bagakit-brainstorm/references/bagakit-driver.toml",
+  "skills/co-work/align/bagakit-brainstorm/references/decision-quality-contract.toml",
+  "skills/co-work/align/bagakit-brainstorm/references/tpl/archive.md",
+  "skills/co-work/align/bagakit-brainstorm/references/tpl/expert_forum.md",
+  "skills/co-work/align/bagakit-brainstorm/references/tpl/finding_and_analyze.md",
+  "skills/co-work/align/bagakit-brainstorm/references/tpl/input_and_qa.md",
+  "skills/co-work/align/bagakit-brainstorm/references/tpl/outcome_and_handoff.md",
+  "skills/co-work/align/bagakit-brainstorm/references/tpl/related_insights.md",
+  "skills/co-work/align/bagakit-brainstorm/references/tpl/review_quality.md",
+  "skills/co-work/align/bagakit-brainstorm/references/tpl/eval_effect_review.md",
+  "gate_eval/skills/co-work/align/bagakit-brainstorm/README.md",
+  "gate_eval/skills/co-work/align/bagakit-brainstorm/suite.ts",
+  "gate_eval/skills/co-work/align/bagakit-brainstorm/validation.toml",
+  "gate_eval/skills/co-work/align/bagakit-brainstorm/cases/serious-moments.json",
+  "gate_eval/skills/co-work/align/bagakit-brainstorm/cases/pilot-calibration.md",
+  "gate_eval/skills/co-work/align/bagakit-brainstorm/results/.gitignore",
+  "gate_eval/skills/co-work/align/bagakit-brainstorm/results/README.md",
+  "gate_eval/skills/co-work/align/bagakit-brainstorm/results/runs/.gitkeep",
+  "gate_validation/skills/co-work/align/bagakit-brainstorm/validation.toml",
+  "gate_validation/skills/co-work/align/bagakit-brainstorm/check-bagakit-brainstorm.sh",
+]
+forbidden_paths = [
+  "skills/co-work/align/bagakit-brainstorm/SKILL_PAYLOAD.json",
+  "skills/co-work/align/bagakit-brainstorm/AGENTS.md",
+  "skills/co-work/align/bagakit-brainstorm/Makefile",
+  "skills/co-work/align/bagakit-brainstorm/agents",
+  "skills/co-work/align/bagakit-brainstorm/dist",
+  "skills/co-work/align/bagakit-brainstorm/scripts_dev",
+]
+
+[[suite]]
+id = "bagakit-brainstorm-smoke"
+owner = "skills/co-work/align/bagakit-brainstorm"
+description = "Run the brainstorm lifecycle across blocked explicit-adapter plus complete local, auto-with-fallback, and explicit-adapter archive routes."
+default = true
+proof_mode = "runtime"
+protects = ["brainstorm public operator lifecycle for init, status, local completion, adapter routing, archive, and standalone-first storage boundaries"]
+oracle = ["smoke script creates deterministic brainstorm artifacts, runs CLI routes, checks status/archive outputs, and verifies no shared knowledge surface is auto-created"]
+exercised_surface = ["bagakit-brainstorm.py CLI", "brainstorm artifact markdown files", "archive/handoff output directories", "route adapter settings"]
+proves = ["bagakit-brainstorm-smoke proves: Run the brainstorm lifecycle across blocked explicit-adapter plus complete local, auto-with-fallback, and explicit-adapter archive routes."]
+does_not_prove = ["bagakit-brainstorm-smoke does not prove live service behavior, stochastic agent quality, or unrelated repository surfaces."]
+timeout_seconds = 300
+validation_class = "smoke"
+groups = ["skills", "harness", "brainstorm", "smoke"]
+
+[suite.runner]
+kind = "bash_script"
+script = "gate_validation/skills/co-work/align/bagakit-brainstorm/check-bagakit-brainstorm.sh"
+args = [
+  "--root",
+  "{repo_root}",
+]

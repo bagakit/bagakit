@@ -153,7 +153,7 @@ not prove literary excellence, universal causal truth, complete access to an
 external host, publication permission, or promotion readiness.
 
 Skill-goal guards for non-gating case evaluation live in
-`skills/harness/bagakit-project-chronicle/references/chronicle-quality-contract.toml`.
+`skills/co-work/human-improvement/bagakit-project-chronicle/references/chronicle-quality-contract.toml`.
 Case coverage is optimization evidence, not a capability or release claim.
 
 ## Neighbor Boundaries
@@ -171,6 +171,6 @@ directly run or mutate their default workflows.
 
 Installed field-level instructions and operator usage live in:
 
-- `skills/harness/bagakit-project-chronicle/SKILL.md`
-- `skills/harness/bagakit-project-chronicle/references/chronicle-quality-contract.toml`
-- `skills/harness/bagakit-project-chronicle/references/output-contract.md`
+- `skills/co-work/human-improvement/bagakit-project-chronicle/SKILL.md`
+- `skills/co-work/human-improvement/bagakit-project-chronicle/references/chronicle-quality-contract.toml`
+- `skills/co-work/human-improvement/bagakit-project-chronicle/references/output-contract.md`

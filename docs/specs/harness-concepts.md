@@ -65,12 +65,31 @@ Rules:
 | `L3` | framework |
 | `L4` | host harness |
 
+The runtime layer vocabulary above is one axis. Recursive improvement uses a
+second axis:
+
+| Depth | Meaning |
+| --- | --- |
+| `M0` | current Bagakit runtime system |
+| `M1` | Evolver that improves the M0 system |
+| `M2` | RSI that improves the M1 Evolver |
+
 For harness-facing skills, the owning layer should be declared in frontmatter
 using:
 
 - `metadata.bagakit.harness_layer`
 
-Allowed values:
+Evolver and future RSI skills may additionally declare:
+
+- `metadata.bagakit.evolution_depth`
+
+Allowed values are:
+
+- `m0-runtime`
+- `m1-evolver`
+- `m2-rsi`
+
+Allowed values for `harness_layer`:
 
 - `l1-execution`
 - `l2-behavior`
@@ -92,6 +111,9 @@ For harness-facing runtime units, the stable runtime-surface names are:
 - `bagakit-flow-runner`
   - the L2 behavior surface that owns adjustable repeated execution flow over
     normalized work items
+- `bagakit-skill-evolver`
+  - the M1 behavior-plane surface that owns repository-level decision memory,
+    routing, and promotion state
 
 These names are runtime-surface names.
 They do not replace the stable concept registry below.
@@ -119,7 +141,11 @@ They do not replace the stable concept registry below.
 | `operator_surface` | a display, notification, or connector surface that presents state and routes operator intent without becoming execution truth |
 | `runner_substrate` | the bounded executor wrapper that launches one runner session and captures session facts without owning work state |
 
-### L2 Behavior Concepts
+### Behavior-Plane Concepts
+
+The concepts below are behavior-plane concepts. `evolver` currently runs in
+the `M1` evolution depth while retaining an L2 behavior-plane contract; the
+two coordinates must not be collapsed into one layer number.
 
 | Concept | Meaning |
 | --- | --- |

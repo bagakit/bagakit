@@ -3,6 +3,7 @@ import path from "node:path";
 import { parseArgs } from "node:util";
 
 import { linkSkills, listInstallStatus, unlinkSkills } from "./lib/install.ts";
+import { listHostHarnesses } from "./lib/harnesses.ts";
 import { listRuntimeSurfaces } from "./lib/surfaces.ts";
 import { loadSkillCliRecords, selectSkillCli } from "./lib/skills.ts";
 import type { SkillCliRecord, SkillInstallRecord, SkillInstallResult } from "./lib/model.ts";
@@ -14,6 +15,7 @@ function printHelp(): void {
 Commands:
   skills [--root <repo-root>] [--json]
   skill <selector> [--root <repo-root>] [--json]
+  harnesses [--root <repo-root>] [--json]
   surfaces [--root <repo-root>] [--json]
   status [--root <repo-root>] [--json]
   run <selector> [--root <repo-root>] -- <args...>
@@ -164,6 +166,28 @@ function cmdSurfaces(argv: string[]): number {
   return 0;
 }
 
+function cmdHarnesses(argv: string[]): number {
+  const { values } = parseArgs({
+    args: argv,
+    options: commonOptions(),
+    strict: true,
+    allowPositionals: false,
+  });
+  const records = listHostHarnesses(resolveRoot(values.root));
+  if (values.json) {
+    console.log(JSON.stringify(records, null, 2));
+  } else {
+    for (const record of records) {
+      console.log(
+        record.issues.length > 0
+          ? `invalid\t-\t-\t${record.issues.join("; ")}`
+          : `${record.selector}\tok\t${record.init_entrypoint}\t${record.path}`,
+      );
+    }
+  }
+  return records.some((record) => record.issues.length > 0) ? 1 : 0;
+}
+
 function cmdStatus(argv: string[]): number {
   const { values } = parseArgs({
     args: argv,
@@ -173,26 +197,30 @@ function cmdStatus(argv: string[]): number {
   });
   const repoRoot = resolveRoot(values.root);
   const records = loadSkillCliRecords(repoRoot);
+  const harnesses = listHostHarnesses(repoRoot);
   const surfaces = listRuntimeSurfaces(repoRoot);
   const declaredCliCount = records.filter((record) => record.manifest).length;
   const invalidCliCount = records.filter((record) => record.issues.length > 0).length;
+  const invalidHarnessCount = harnesses.filter((record) => record.issues.length > 0).length;
   const invalidSurfaceCount = surfaces.filter((surface) => surface.issues.length > 0).length;
   const summary = {
     repo_root: repoRelative(process.cwd(), repoRoot),
     skills: records.length,
     declared_skill_clis: declaredCliCount,
     invalid_skill_clis: invalidCliCount,
+    host_harnesses: harnesses.filter((record) => record.issues.length === 0).length,
+    invalid_host_harnesses: invalidHarnessCount,
     runtime_surfaces: surfaces.length,
     invalid_runtime_surfaces: invalidSurfaceCount,
   };
   if (values.json) {
     console.log(JSON.stringify(summary, null, 2));
-    return invalidCliCount > 0 || invalidSurfaceCount > 0 ? 1 : 0;
+    return invalidCliCount > 0 || invalidSurfaceCount > 0 || invalidHarnessCount > 0 ? 1 : 0;
   }
   for (const [key, value] of Object.entries(summary)) {
     console.log(`${key}: ${value}`);
   }
-  return invalidCliCount > 0 || invalidSurfaceCount > 0 ? 1 : 0;
+  return invalidCliCount > 0 || invalidSurfaceCount > 0 || invalidHarnessCount > 0 ? 1 : 0;
 }
 
 function commandFor(record: SkillCliRecord, repoRoot: string, forwarded: string[]): { command: string; args: string[] } {
@@ -378,6 +406,8 @@ function main(argv: string[]): number {
       return cmdSkills(rest);
     case "skill":
       return cmdSkill(rest);
+    case "harnesses":
+      return cmdHarnesses(rest);
     case "surfaces":
       return cmdSurfaces(rest);
     case "status":

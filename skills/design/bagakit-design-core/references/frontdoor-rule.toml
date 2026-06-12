@@ -1,7 +1,0 @@
-version = 1
-skill = "bagakit-design-core"
-trigger = "A design task needs tone, rule, reference-tier, or draft/plan/result review."
-do = "Map design evidence into concrete axes and review a design packet without owning implementation."
-see = "skills/design/bagakit-design-core/SKILL.md"
-surface = ".bagakit/design/"
-fallback = "Use `bagakit-spark` when the target is too vague to review."

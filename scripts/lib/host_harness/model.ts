@@ -3,6 +3,7 @@ export type HostHarnessSource = Readonly<{
   selector: string;
   relativeDir: string;
   absoluteDir: string;
+  initEntrypoint: string;
 }>;
 
 export type HostHarnessInventory = Readonly<{

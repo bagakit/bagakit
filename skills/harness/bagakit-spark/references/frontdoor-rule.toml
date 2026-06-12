@@ -1,5 +1,0 @@
-version = 1
-skill = "bagakit-spark"
-trigger = "The user wants deep exploratory discussion, a thinking partner, or an accepted conceptual snapshot."
-do = "Choose the resolution route, gather the needed evidence, ask only decision-changing questions, and preserve rationale and option coverage."
-see = "skills/harness/bagakit-spark/SKILL.md"

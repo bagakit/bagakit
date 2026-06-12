@@ -119,6 +119,10 @@ export function runProcessSuite(
   const result = spawnSync(resolved.argv[0], resolved.argv.slice(1), {
     cwd: resolved.cwd,
     stdio: "inherit",
+    // Keep descendants in the same POSIX process group so a timeout cannot
+    // leave a grandchild running after the suite has failed.
+    detached: true,
+    killSignal: "SIGKILL",
     timeout: suite.timeoutSeconds === undefined ? undefined : suite.timeoutSeconds * 1000,
     env: {
       ...process.env,
@@ -128,6 +132,16 @@ export function runProcessSuite(
 
   if (result.error) {
     if (result.error.name === "ETIMEDOUT" || result.error.message.includes("ETIMEDOUT")) {
+      if (typeof result.pid === "number") {
+        try {
+          process.kill(-result.pid, "SIGKILL");
+        } catch (error) {
+          const code = error && typeof error === "object" && "code" in error ? error.code : undefined;
+          if (code !== "ESRCH") {
+            console.error(`failed to reap timed-out suite ${suite.id} process group: ${String(error)}`);
+          }
+        }
+      }
       console.error(`suite ${suite.id} timed out after ${suite.timeoutSeconds} second(s)`);
       return 1;
     }

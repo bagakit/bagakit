@@ -1,0 +1,315 @@
+---
+name: bagakit-skill-evolver
+description: Use only after an Agent or maintainer explicitly decides that a long-lived repository-evolution topic needs durable tracking.
+metadata:
+  bagakit:
+    harness_layer: l2-behavior
+---
+
+# Bagakit Skill Evolver
+
+Use this skill only for high-value repository evolution topics.
+
+Good fit:
+
+- the topic will span multiple sessions
+- there are multiple candidates to compare
+- the decision rationale needs to survive beyond the current chat
+- the topic may point to `bagakit-researcher` workspaces as optional context
+
+Do not use this skill for:
+
+- one-off implementation tasks
+- short-lived local notes
+- simple explanations that the agent can just write directly
+
+## Trigger model
+
+`bagakit-skill-evolver` is passive infrastructure with an explicit entry.
+Installing, loading, listing, or reading the skill does not start a topic, a
+watcher, or a background run. A selector signal is only evidence; it is not an
+activation request. An Agent, maintainer, or Host must explicitly invoke an
+Evolver command before state changes.
+
+Read-only inspection (`status`, `list-signals`, `export-signals`, and `check`)
+does not create an empty Evolver surface. State is materialized only by an
+explicit write or refresh command.
+
+Keep these steps separate:
+
+- `capture-signal`, `import-signals`, or `bridge-signals` write pending intake;
+- `adopt-signal` chooses a topic and records topic evidence;
+- `set-route`, `record-decision`, and promotion commands make repository-level
+  decisions.
+
+None of those steps is implied by the previous one. In particular, bridging a
+signal does not create a topic, and adopting a signal does not choose a route
+or land a promotion.
+
+## Boundary
+
+This skill is the agent-facing behavioral layer.
+
+It does:
+
+- decide when evolver tracking is worth using
+- manage the optional `.mem_inbox/` intake buffer for provisional learning
+  signals
+- review structured session-evidence candidates through a compression gate
+  before accepted candidates enter `.mem_inbox/`
+- record `preflight` decisions before a topic grows
+- record repository-level route decisions:
+  - `host`
+  - `upstream`
+  - `split`
+- structure the topic, candidate, decision, and status loop
+- record sources, summaries, feedback, benchmarks, and promotions
+- optionally attach weak local context refs to researcher-owned workspaces
+- maintain derived steward-facing topic reports from topic state
+- maintain derived next-session handoff artifacts from topic state
+- maintain archive receipts for archived topics
+- keep durable promotions typed by repository surface
+- keep promotion intent distinct from landed durable changes
+- keep promotion identities stable across updates
+- require a current model-fit and harness-entropy review before a `skill`
+  promotion is accepted for landing
+- keep `topic.json` as canonical truth through locked, atomic topic mutation
+- make identical `--operation-id` retries idempotent and conflicting reuse fail
+- block archive until promotion readiness is current and complete
+
+It does not:
+
+- run the repository's research workflow itself
+- treat `bagakit-researcher` workspaces as required inputs
+- own raw per-task selector logs
+- persist raw transcripts, traces, checkpoints, or opaque session payloads
+- own task-local evaluation
+- replace ordinary docs or straightforward execution
+- design, scaffold, or implement the promoted skill
+- auto-promote repository learning by confidence alone
+
+## Output Discipline
+
+Follow `docs/specs/output-discipline.md` for repository evolution topics.
+Follow `docs/specs/principle-layer-contract.md` when an evolution topic may
+promote a reusable behavior, rule, or skill change.
+
+- add candidates only when there is a real decision fork
+- record what evidence changed the decision, not only the final preference
+- treat scores and reviews as evidence, not promotion authority
+- turn accepted regressions or repeated failures into durable specs, gates,
+  evals, or skill changes only after route ownership is clear
+- before promotion, preserve the topic's `what`, `why`,
+  `intended_generalization`, `failure_boundary`, behavior examples, transfer
+  checks, and evidence refs in the candidate or decision rationale
+
+Conceptually, `evolver` contains two planes:
+
+- `memory plane`
+  - repository-evolution intake, linking, indexing, retrieval, and archive
+    behavior
+- `decision plane`
+  - candidate comparison, decision memory, promotion tracking, and durable
+    surface upgrades
+
+`researcher` should stay separate.
+It produces research evidence that `evolver` may later consume, but it should
+not be folded into the evolver skill itself.
+
+## Runtime Contract
+
+Primary state lives under:
+
+- `.bagakit/evolver/`
+
+This is host-local runtime state and may be ignored by Git. The surface
+protocol still applies: if `.bagakit/evolver/` is materialized, it carries
+`surface.toml`.
+
+Optional pre-topic intake may live under:
+
+- `.mem_inbox/`
+
+Optional local context may live under:
+
+- `.bagakit/researcher/topics/<topic-class>/<topic>/`
+
+Those researcher paths are weak references only.
+
+## Runtime Surface Declaration
+
+- top-level runtime surface root when materialized:
+  - `.bagakit/evolver/`
+- optional intake or context paths not owned as the primary top-level runtime
+  surface:
+  - `.mem_inbox/`
+  - `.bagakit/researcher/topics/<topic-class>/<topic>/`
+- stable contract:
+  - `docs/specs/runtime-surface-contract.md`
+- if the top-level root exists in a host repo, it should carry `surface.toml`
+
+## Four-Layer Rule
+
+Think in these layers:
+
+1. researcher workspace evidence
+   - local evidence under researcher-owned workspaces
+2. structured decision memory
+   - topic-local state under `.bagakit/evolver/topics/<slug>/`
+3. project runtime state
+   - repository-wide evolver state under `.bagakit/evolver/`
+4. durable repository surfaces
+   - `docs/specs/`, `docs/stewardship/`, and `skills/`
+
+Do not collapse these into one giant memory bucket.
+
+## Recommended Flow
+
+1. Decide whether this topic deserves evolver tracking.
+   If it is single-session or single-decision, do not use evolver.
+
+2. If yes, open or update one topic in `.bagakit/evolver/`.
+
+   If the material is not ready for structured topic state yet, stage it first
+   in `.mem_inbox/` and adopt it explicitly later.
+
+3. Add candidates only when comparison is real.
+
+4. Record source, summary, feedback, and benchmark evidence when they are
+   materially useful.
+
+   Research evidence may be produced elsewhere, for example by a separate
+   `researcher` system.
+   `evolver` does not need to own that workflow.
+
+5. Record decisions only when the rationale is worth preserving.
+
+   Intake confidence may help prioritize review.
+   It must not auto-promote the lesson.
+
+6. Record one repository-level route decision when the topic is mature enough to
+   decide:
+   - `host`
+   - `upstream`
+   - `split`
+
+   Do not force selector-owned task evidence to impersonate this decision.
+
+7. Add `local_context_refs` only as optional repo-relative pointers.
+
+8. Promote stable conclusions upward:
+   - stable repository rules -> `docs/specs/`
+   - maintainer procedures -> `docs/stewardship/`
+   - runtime-facing capabilities -> `skills/`
+
+   Before a `skill` promotion moves beyond `proposed`, run
+   `review-skill-promotion` using
+   `docs/specs/evolver-skill-promotion-review.md`. Record the model floor,
+   what remains model-owned, what must remain harness-owned, the entropy
+   effect, any obsolete compensation structure, and current evidence refs.
+   A blocked review preserves evidence but does not authorize landing.
+
+9. Use the steward-facing topic report plus the next-session handoff artifact as
+   the compression layer before durable
+   promotion.
+
+10. Before archive, require the route to record acceptance authority and ref,
+    counterevidence disposition, target owner, named proof plan and ref, plus
+    current host or upstream landing proof. `archive-topic` fails closed when
+    any of those refs are missing or stale.
+
+## Operator Preference
+
+Low-level operator:
+
+- `scripts/evolver.ts`
+
+Use `node --experimental-strip-types scripts/evolver.ts ...` for state changes.
+
+Common intake sequence:
+
+- `capture-signal`
+  - record one provisional repository-learning signal into `.mem_inbox/`
+- `bridge-signals`
+  - canonical intake command for validated external bridge contracts such as
+    selector-exported `bagakit.evolver.signal.v1`
+- `validate-session-review`
+  - validate session evidence metadata, candidate provenance, counterevidence,
+    conflicts, and independent review receipts without writing Evolver state
+- `bridge-session-review`
+  - convert only accepted, non-`noop` reviewed candidates into pending
+    `bagakit.evolver.signal.v1` intake; preserve bounded source spans and refs,
+    privacy/retention disposition without copying raw session content
+- `import-signals`
+  - low-level raw batch import when no external bridge choreography is needed
+- `adopt-signal`
+  - move one pending signal into structured topic evidence
+- `dismiss-signal`
+  - explicitly close one pending signal without topic adoption
+
+Topic mutation rule:
+
+- topic commands accept optional `--operation-id <stable-lowercase-token>`
+- retry the same operation and payload with the same id after an uncertain CLI
+  exit; Evolver returns the committed truth without applying it twice
+- reusing an id with different input is a conflict
+- a canonical commit may succeed before a projection rebuild; the error reports
+  that state truthfully, and the same operation id or `refresh-index` repairs the
+  rebuildable projections
+
+Skill-promotion review rule:
+
+- `review-skill-promotion` applies only to an existing `surface=skill`
+  promotion
+- keep model names in `model_floor` evidence rather than permanent enums
+- prefer the lowest stable harness entropy that still protects authority,
+  durable state, isolation, verification, recovery, and irreversible actions
+- changing promotion surface, target, or summary clears the prior review
+- `accepted_for_landing`, `landed_verified`, readiness, and archive all fail
+  closed without a current passing review and resolvable evidence refs
+- Evolver governs the promotion decision; the target skill owner still owns
+  design and implementation
+
+Session-review bridge rules:
+
+- use `docs/specs/evolver-session-review.md` as the public contract
+- cite owner-managed operational evidence through repo-relative
+  `session_evidence.source_refs[]`; Evolver does not special-case the owner
+- accepted candidates require resolvable source files, at least one bounded
+  source span, in-window retention, and `approved_slices` or `redacted` privacy
+  disposition
+- `rejected`, `needs_more_evidence`, and `conflict_open` candidates never enter
+  intake
+- bridging never creates topics, routes, decisions, or promotions
+
+If the operator cannot be used:
+
+- edit `.bagakit/evolver/` minimally and carefully
+- keep the same weak-link boundary
+- do not make researcher paths mandatory
+
+## Quality Rule
+
+A good evolver topic should answer:
+
+- what is the topic
+- whether it passed `preflight`
+- what candidates exist
+- what evidence exists
+- what decisions were made
+- what route was chosen and why
+- what status the topic is in
+- which local context refs are useful, if any
+- what durable surface, if any, the topic is ready to promote into
+- what the next steward should do if the topic stays open
+
+A bad evolver topic is one that duplicates ordinary notes without adding
+structured decision value.
+
+## Current Optimization Queue
+
+The current implementation direction after this baseline is:
+
+1. add held-out and canary proof beyond the fail-closed readiness baseline
+2. keep handoff and archive ergonomics derived from topic SSOT
+3. refine promotion lineage through real steward usage

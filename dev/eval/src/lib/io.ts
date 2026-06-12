@@ -28,6 +28,20 @@ export function repoRelative(repoRoot: string, targetPath: string): string {
   return rel ? toPosixPath(rel) : ".";
 }
 
+export function ensureWithinRoot(root: string, target: string, label = "output path"): string {
+  const resolvedRoot = fs.realpathSync.native(path.resolve(root));
+  const resolvedTarget = path.resolve(target);
+  let probe = resolvedTarget;
+  while (!fs.existsSync(probe)) probe = path.dirname(probe);
+  const realProbe = fs.realpathSync.native(probe);
+  const realTarget = path.join(realProbe, path.relative(probe, resolvedTarget));
+  const relative = path.relative(resolvedRoot, realTarget);
+  if (relative === ".." || relative.startsWith(`..${path.sep}`) || path.isAbsolute(relative)) {
+    throw new Error(`${label} must stay within repository root: ${toPosixPath(resolvedTarget)}`);
+  }
+  return resolvedTarget;
+}
+
 export function ensureCleanOutputDir(outputDir: string): void {
   if (fs.existsSync(outputDir)) {
     const entries = fs.readdirSync(outputDir);

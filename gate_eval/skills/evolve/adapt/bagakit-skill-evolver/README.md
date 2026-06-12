@@ -1,0 +1,29 @@
+# Evolver Eval
+
+This slice contains deterministic non-gating eval for
+`skills/evolve/adapt/bagakit-skill-evolver/`.
+
+It exists to measure closure quality beyond validation structure:
+
+- evidence ingest behavior
+- reviewed session-evidence compression and accepted-only intake behavior
+- report and handoff quality surfaces
+- promotion-readiness behavior
+- repository-level routing behavior
+- weak-link reference handling
+
+Runtime validation remains owned by `gate_validation/`.
+
+This eval slice stays non-gating.
+It is meant to make closure quality visible, not to become a second release
+gate.
+
+Primary entrypoint:
+
+```bash
+node --experimental-strip-types dev/eval/src/cli.ts run --root . --suite gate_eval/skills/evolve/adapt/bagakit-skill-evolver/suite.ts
+```
+
+Results are written under:
+
+- `gate_eval/skills/evolve/adapt/bagakit-skill-evolver/results/runs/<run-id>/`

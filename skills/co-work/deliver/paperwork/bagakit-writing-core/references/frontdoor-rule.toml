@@ -1,0 +1,5 @@
+version = 1
+skill = "bagakit-writing-core"
+trigger = "A writing task needs generic structure, evidence, or review beyond a direct edit."
+do = "Route first, check the foundation, apply generic mechanics, then lint or review."
+see = "skills/co-work/deliver/paperwork/bagakit-writing-core/SKILL.md"

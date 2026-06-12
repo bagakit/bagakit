@@ -178,8 +178,13 @@ bagakit_layer = "l4-host-harness"
 host_mode = "dedicated_workspace"
 domain = "human_improvement"
 agent_entrypoint = "SKILL.md"
+init_entrypoint = "scripts/decision-harness.sh"
 host_template = "host-template"
 ```
+
+`init_entrypoint` is the explicit repository-relative executable used by
+`host-harness-init`. Discovery validates that it exists inside the source unit;
+the initializer does not infer script names from the harness id.
 
 `SKILL.md` frontmatter may repeat enough metadata for agent discovery, but
 frontmatter is not the source of truth for host-harness identity.

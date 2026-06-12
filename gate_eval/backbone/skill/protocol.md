@@ -21,7 +21,7 @@ Each fixture file is JSON with:
 Each skill entry provides:
 
 - `selector`
-  - `<family>/<skill-id>`
+  - `<group-path>/<skill-id>`
 - `files`
   - map of repo-relative paths inside the skill directory to file contents
 - `symlinks`

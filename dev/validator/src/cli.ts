@@ -455,8 +455,8 @@ function cmdPlan(argv: string[]): number {
   const project = loadFrom(values as { root: string; config: string });
   const suites = selectedSuites(project, values, true);
   const skipSelectors = [
-    ...(values["skip-suite"] ?? []).map((suiteId) => `suite:${suiteId}`),
-    ...(values["skip-group"] ?? []).map((group) => `group:${group}`),
+    ...(values["skip-suite"] ?? []).map((suiteId: string) => `suite:${suiteId}`),
+    ...(values["skip-group"] ?? []).map((group: string) => `group:${group}`),
     ...(values["skip-alias"] ?? []),
   ];
   const skipIds = new Set(resolveSelectorList(project, skipSelectors).map((suite) => suite.id));
@@ -635,8 +635,8 @@ function cmdRunDefault(argv: string[]): number {
   const project = loadFrom(values as { root: string; config: string });
   const suites = selectedSuites(project, values, true);
   const skipSelectors = [
-    ...(values["skip-suite"] ?? []).map((suiteId) => `suite:${suiteId}`),
-    ...(values["skip-group"] ?? []).map((group) => `group:${group}`),
+    ...(values["skip-suite"] ?? []).map((suiteId: string) => `suite:${suiteId}`),
+    ...(values["skip-group"] ?? []).map((group: string) => `group:${group}`),
     ...(values["skip-alias"] ?? []),
   ];
   const skipIds = new Set(resolveSelectorList(project, skipSelectors).map((suite) => suite.id));
@@ -706,8 +706,8 @@ function cmdRunImpact(argv: string[]): number {
     changedPaths: values["changed-path"],
   });
   const skipSelectors = [
-    ...(values["skip-suite"] ?? []).map((suiteId) => `suite:${suiteId}`),
-    ...(values["skip-group"] ?? []).map((group) => `group:${group}`),
+    ...(values["skip-suite"] ?? []).map((suiteId: string) => `suite:${suiteId}`),
+    ...(values["skip-group"] ?? []).map((group: string) => `group:${group}`),
     ...(values["skip-alias"] ?? []),
   ];
   const skipIds = new Set(resolveSelectorList(project, skipSelectors).map((suite) => suite.id));
@@ -793,7 +793,7 @@ function cmdRunSuite(argv: string[]): number {
   }
   const project = loadFrom(values as { root: string; config: string });
   const suite = suiteById(project, suiteId);
-  const requestedParams = [...new Set(values.param ?? [])];
+  const requestedParams = [...new Set(values.param ?? [])] as string[];
   if (hasProcessRunner(suite)) {
     validateProcessSuiteShape(suite, project.repoRoot, requestedParams);
   }

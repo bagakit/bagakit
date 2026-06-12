@@ -165,13 +165,15 @@ function runnerTokens(suite: SuiteConfig): string[] {
 }
 
 export function deriveSuiteImpactPaths(project: LoadedProject, suite: SuiteConfig): string[] {
-  const configDir = path.relative(project.repoRoot, path.dirname(suite.configPath)).split(path.sep).join("/");
-  return uniqueSorted([
-    normalizeRepoPath(suite.owner),
-    normalizeRepoPath(configDir),
-    ...runnerTokens(suite).flatMap((token) => tokenToRepoPath(project, token) ?? []),
-    ...describedPaths(project, suite.exercisedSurface),
-  ].filter(Boolean));
+  // Runner and config paths describe the validator itself, not the behavior it
+  // proves. Narrow only when the suite explicitly names a source surface under
+  // its owner; otherwise retain the owner boundary so implementation changes
+  // still select behavior suites instead of silently skipping proof.
+  const ownerPath = normalizeRepoPath(suite.owner);
+  const sourcePaths = describedPaths(project, suite.exercisedSurface).filter((candidate) =>
+    pathMatches(candidate, ownerPath)
+  );
+  return sourcePaths.length > 0 ? uniqueSorted(sourcePaths) : [ownerPath].filter(Boolean);
 }
 
 export function deriveCostClass(suite: SuiteConfig): ValidationCostClass {

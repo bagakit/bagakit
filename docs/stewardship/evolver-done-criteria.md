@@ -8,6 +8,12 @@ The intent is not "perfect forever".
 The intent is "the system is closed enough that future work is mostly normal
 extension work, not core-definition work".
 
+In the recursive-evolution model, `evolver` names the `M1` family under
+`skills/evolve/` plus its `.bagakit/evolver/` decision state. The current
+`bagakit-skill-evolver` skill is the memory, routing, and promotion control
+plane; active trajectory analysis and autoresearch capabilities may be added as
+siblings without moving promotion authority out of that plane.
+
 ## Completion Standard
 
 `evolver` is considered complete only when all of the following are true:
@@ -36,8 +42,8 @@ Evidence of done:
 - repository docs stay consistent across:
   - `README.md`
   - `docs/stewardship/README.md`
-  - `skills/harness/bagakit-skill-evolver/`
-  - `skills/harness/bagakit-skill-selector/`
+  - `skills/evolve/adapt/bagakit-skill-evolver/`
+  - `skills/co-work/orchestrate/execution/bagakit-skill-selector/`
 
 ## 2. State Contract Stability
 
@@ -115,14 +121,14 @@ improving over time.
 
 Done means:
 
-- `gate_validation/skills/harness/bagakit-skill-evolver/`
+- `gate_validation/skills/evolve/adapt/bagakit-skill-evolver/`
   covers:
   - state contract validity
   - derived artifact freshness
   - promotion proof shape
   - model-fit review transitions, semantic invalidation, and evidence drift for
     skill promotions
-- `gate_eval/skills/harness/bagakit-skill-evolver/`
+- `gate_eval/skills/evolve/adapt/bagakit-skill-evolver/`
   exists as a real skill-level eval surface
 - skill-level eval covers more than structure
 
@@ -202,7 +208,7 @@ So the system is:
 
 To move `evolver` toward done, the best next sequence is:
 
-1. expand eval depth now that the real `gate_eval/skills/harness/bagakit-skill-evolver/` surface exists
+1. expand eval depth now that the real `gate_eval/skills/evolve/adapt/bagakit-skill-evolver/` surface exists
 2. keep practice-evidence patterns explicit without importing raw selector logs into evolver
 3. strengthen steward-facing promotion ergonomics on top of the current readiness contract
 4. refine archive and handoff quality through real topic usage rather than widening scope

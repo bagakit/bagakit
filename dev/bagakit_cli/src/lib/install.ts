@@ -1,106 +1,59 @@
-import fs from "node:fs";
 import path from "node:path";
 
+import { scanSkillInstallStatus } from "../../../../scripts/lib/skill/install_status.ts";
+import {
+  linkSkills as linkCanonicalSkills,
+  ProtectedLinkConflictError,
+  unlinkSkills as unlinkCanonicalSkills,
+} from "../../../../scripts/lib/skill/linking.ts";
+import { loadSkillInventory } from "../../../../scripts/lib/skill/discovery.ts";
+import { resolveSkillSelector } from "../../../../scripts/lib/skill/selectors.ts";
 import type { SkillInstallRecord, SkillInstallResult, SkillSource } from "./model.ts";
 import { repoRelative } from "./paths.ts";
-import { discoverSkills } from "./skills.ts";
-
-function normalizeForCompare(value: string): string {
-  return path.resolve(value);
-}
-
-function compareSkills(left: SkillSource, right: SkillSource): number {
-  return left.selector.localeCompare(right.selector);
-}
-
-function targetPathFor(targetRoot: string, skill: SkillSource): string {
-  return path.join(targetRoot, skill.skillId);
-}
 
 function targetLabel(targetRoot: string, targetPath: string): string {
   return repoRelative(targetRoot, targetPath);
 }
 
-function targetStats(targetPath: string) {
-  try {
-    return fs.lstatSync(targetPath);
-  } catch (error) {
-    const code = typeof error === "object" && error ? (error as { code?: string }).code : undefined;
-    if (code === "ENOENT") {
-      return null;
-    }
-    throw error;
-  }
-}
-
-function isRepoSkillProjectionTarget(repoRoot: string, candidateTarget: string, skill: SkillSource): boolean {
-  const skillsRoot = path.join(path.resolve(repoRoot), "skills");
-  const relative = path.relative(skillsRoot, path.resolve(candidateTarget));
-  if (relative === "" || relative.startsWith("..") || path.isAbsolute(relative)) {
-    return false;
-  }
-
-  const parts = relative.split(path.sep);
-  return parts.length === 2 && parts[0] !== "" && parts[1] === skill.skillId;
-}
-
 function selectSkills(repoRoot: string, selector: string): SkillSource[] {
-  const skills = discoverSkills(repoRoot);
-  if (selector === "all") {
-    return skills;
-  }
-  const matches = skills.filter((skill) => skill.selector === selector || skill.skillId === selector);
-  if (matches.length === 0) {
-    throw new Error(`unknown skill selector: ${selector}`);
-  }
-  if (matches.length > 1) {
-    throw new Error(`ambiguous skill selector ${selector}: ${matches.map((skill) => skill.selector).join(", ")}`);
-  }
-  return matches;
+  return resolveSkillSelector(loadSkillInventory(repoRoot), selector).skills;
 }
 
 export function listInstallStatus(repoRoot: string, rawTargetRoot: string, selector = "all"): SkillInstallRecord[] {
   const targetRoot = path.resolve(rawTargetRoot);
   const skills = selectSkills(repoRoot, selector);
-  return skills.sort(compareSkills).map((skill) => {
-    const targetPath = targetPathFor(targetRoot, skill);
-    const targetRelativePath = targetLabel(targetRoot, targetPath);
-    const stats = targetStats(targetPath);
-    if (!stats) {
+  return scanSkillInstallStatus(skills, targetRoot, repoRoot).map((record) => {
+    const targetRelativePath = targetLabel(targetRoot, record.destinationPath);
+    if (record.status === "missing") {
       return {
-        skill,
-        targetPath,
+        skill: record.skill,
+        targetPath: record.destinationPath,
         targetRelativePath,
         state: "missing",
       };
     }
-    if (!stats.isSymbolicLink()) {
+    if (record.status === "conflict") {
       return {
-        skill,
-        targetPath,
+        skill: record.skill,
+        targetPath: record.destinationPath,
         targetRelativePath,
         state: "conflict",
-        issue: "target exists and is not a symbolic link",
+        issue: record.detail,
       };
     }
-    const rawTarget = fs.readlinkSync(targetPath);
-    const linkedTarget = path.resolve(path.dirname(targetPath), rawTarget);
-    if (normalizeForCompare(linkedTarget) !== normalizeForCompare(skill.absoluteDir)) {
-      const canAutoReplace = isRepoSkillProjectionTarget(repoRoot, linkedTarget, skill);
+    if (record.status === "stale") {
       return {
-        skill,
-        targetPath,
+        skill: record.skill,
+        targetPath: record.destinationPath,
         targetRelativePath,
         state: "wrong-link",
-        issue: canAutoReplace
-          ? "target symbolic link points to a previous canonical path for this skill id"
-          : "target symbolic link points somewhere else",
-        canAutoReplace,
+        issue: record.detail,
+        canAutoReplace: record.detail.includes("previous canonical path") === true,
       };
     }
     return {
-      skill,
-      targetPath,
+      skill: record.skill,
+      targetPath: record.destinationPath,
       targetRelativePath,
       state: "linked",
     };
@@ -114,64 +67,43 @@ export function linkSkills(
   options: { dryRun?: boolean; replace?: boolean } = {},
 ): SkillInstallResult[] {
   const targetRoot = path.resolve(rawTargetRoot);
-  const records = listInstallStatus(repoRoot, targetRoot, selector);
-  const results: SkillInstallResult[] = [];
-  if (!options.dryRun) {
-    fs.mkdirSync(targetRoot, { recursive: true });
-  }
-
-  for (const record of records) {
-    if (record.state === "linked") {
-      results.push({
-        skill: record.skill,
-        targetPath: record.targetPath,
-        targetRelativePath: record.targetRelativePath,
-        action: "already-linked",
-        changed: false,
-      });
-      continue;
+  const skills = selectSkills(repoRoot, selector);
+  const before = listInstallStatus(repoRoot, targetRoot, selector);
+  const beforeById = new Map(before.map((record) => [record.skill.skillId, record]));
+  try {
+    const linked = linkCanonicalSkills(skills, {
+      repoRoot,
+      destDir: targetRoot,
+      force: options.replace ?? false,
+      dryRun: options.dryRun ?? false,
+    });
+    return linked.map((record) => ({
+      skill: record.skill,
+      targetPath: path.join(targetRoot, record.skill.skillId),
+      targetRelativePath: targetLabel(targetRoot, path.join(targetRoot, record.skill.skillId)),
+      action:
+        record.status === "unchanged"
+          ? "already-linked"
+          : beforeById.get(record.skill.skillId)?.state === "wrong-link"
+            ? "replace-link"
+            : "link",
+      changed: record.status !== "unchanged",
+    }));
+  } catch (error) {
+    if (!(error instanceof ProtectedLinkConflictError)) {
+      throw error;
     }
-
-    if (record.state === "missing") {
-      if (!options.dryRun) {
-        fs.symlinkSync(record.skill.absoluteDir, record.targetPath, "dir");
-      }
-      results.push({
-        skill: record.skill,
-        targetPath: record.targetPath,
-        targetRelativePath: record.targetRelativePath,
-        action: "link",
-        changed: true,
-      });
-      continue;
-    }
-
-    if (record.state === "wrong-link" && (record.canAutoReplace || options.replace)) {
-      if (!options.dryRun) {
-        fs.rmSync(record.targetPath);
-        fs.symlinkSync(record.skill.absoluteDir, record.targetPath, "dir");
-      }
-      results.push({
-        skill: record.skill,
-        targetPath: record.targetPath,
-        targetRelativePath: record.targetRelativePath,
-        action: "replace-link",
-        changed: true,
-      });
-      continue;
-    }
-
-    results.push({
+    const message = error instanceof Error ? error.message : String(error);
+    const records = listInstallStatus(repoRoot, targetRoot, selector);
+    return records.filter((record) => record.state !== "linked").map((record) => ({
       skill: record.skill,
       targetPath: record.targetPath,
       targetRelativePath: record.targetRelativePath,
       action: "skip-conflict",
       changed: false,
-      issue: record.issue ?? "target cannot be linked safely",
-    });
+      issue: message,
+    }));
   }
-
-  return results;
 }
 
 export function unlinkSkills(
@@ -181,42 +113,37 @@ export function unlinkSkills(
   options: { dryRun?: boolean } = {},
 ): SkillInstallResult[] {
   const targetRoot = path.resolve(rawTargetRoot);
-  const records = listInstallStatus(repoRoot, targetRoot, selector);
-  const results: SkillInstallResult[] = [];
-
-  for (const record of records) {
-    if (record.state === "linked") {
-      if (!options.dryRun) {
-        fs.rmSync(record.targetPath);
-      }
-      results.push({
+  const skills = selectSkills(repoRoot, selector);
+  const before = listInstallStatus(repoRoot, targetRoot, selector);
+  const linked = unlinkCanonicalSkills(skills, { repoRoot, destDir: targetRoot, force: false, dryRun: options.dryRun });
+  const linkedById = new Map(linked.map((record) => [record.skill.skillId, record]));
+  return before.map((record) => {
+    const linkedRecord = linkedById.get(record.skill.skillId);
+    if (linkedRecord) {
+      return {
         skill: record.skill,
         targetPath: record.targetPath,
         targetRelativePath: record.targetRelativePath,
         action: "unlink",
         changed: true,
-      });
-      continue;
+      };
     }
     if (record.state === "missing") {
-      results.push({
+      return {
         skill: record.skill,
         targetPath: record.targetPath,
         targetRelativePath: record.targetRelativePath,
         action: "missing",
         changed: false,
-      });
-      continue;
+      };
     }
-    results.push({
+    return {
       skill: record.skill,
       targetPath: record.targetPath,
       targetRelativePath: record.targetRelativePath,
       action: "skip-conflict",
       changed: false,
       issue: record.issue ?? "target is not a link to this repository skill",
-    });
-  }
-
-  return results;
+    };
+  });
 }

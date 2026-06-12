@@ -1,4 +1,3 @@
-import { existsSync } from "node:fs";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 
@@ -9,23 +8,8 @@ export type HostHarnessInitOptions = Readonly<{
   force: boolean;
 }>;
 
-function candidateInitScripts(harness: HostHarnessSource): string[] {
-  const unprefixed = harness.harnessId.startsWith("bagakit-")
-    ? harness.harnessId.slice("bagakit-".length)
-    : harness.harnessId;
-  return [
-    path.join(harness.absoluteDir, "scripts", `${unprefixed}.sh`),
-    path.join(harness.absoluteDir, "scripts", `${harness.harnessId}.sh`),
-  ];
-}
-
 function resolveInitScript(harness: HostHarnessSource): string {
-  for (const candidate of candidateInitScripts(harness)) {
-    if (existsSync(candidate)) {
-      return candidate;
-    }
-  }
-  throw new Error(`host harness ${harness.harnessId} has no conventional init script under scripts/`);
+  return path.join(harness.absoluteDir, harness.initEntrypoint);
 }
 
 export function initializeHostHarness(

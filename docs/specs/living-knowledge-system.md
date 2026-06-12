@@ -267,9 +267,9 @@ Required rules:
   `original_path`, `captured_at`, `created_at`, or `updated_at` must not be
   carried into shared knowledge pages
 
-## Read-First And Recall
+## Knowledge Read Path And Recall
 
-Intended read path:
+When a task needs shared knowledge, use this progressive read path:
 
 1. `AGENTS.md`
 2. `<system_root>/must-guidebook.md`
@@ -336,9 +336,7 @@ The default starter catalog is:
 
 Other domain catalogs may be added as ordinary shared pages, for example:
 
-- `<shared_root>/notes-reusable-items-coding.md`
 - `<shared_root>/notes-reusable-items-design.md`
-- `<shared_root>/notes-reusable-items-writing.md`
 
 This is a content-governance capability, not a separate hidden runtime state.
 

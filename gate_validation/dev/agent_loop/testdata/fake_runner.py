@@ -86,8 +86,8 @@ def main() -> int:
 
         subprocess.run(checkpoint_cmd, cwd=repo_root, check=True)
     if mode == "refresh-break":
-        flow_runner_link = repo_root / "skills" / "harness" / "bagakit-flow-runner"
-        broken_target = repo_root / "skills" / "harness" / "bagakit-flow-runner.broken"
+        flow_runner_link = repo_root / "skills" / "co-work" / "orchestrate" / "execution" / "bagakit-flow-runner"
+        broken_target = flow_runner_link.with_name("bagakit-flow-runner.broken")
         if flow_runner_link.exists():
             flow_runner_link.rename(broken_target)
     runner_result_path.write_text(

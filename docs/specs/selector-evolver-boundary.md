@@ -34,7 +34,7 @@ Those belong respectively in:
 - `docs/specs/selector-selection-model.md`
 - `docs/architecture/`
 - `docs/stewardship/`
-- `skills/harness/bagakit-skill-selector/`
+- `skills/co-work/orchestrate/execution/bagakit-skill-selector/`
 
 ## First-Principles Split
 
@@ -58,11 +58,12 @@ exists.
 
 ## Selector Preflight Concept
 
-Selector preflight is the task-local coverage check that happens before major
-execution for non-trivial Bagakit-shaped work, even when the eventual outcome
-is `direct_execute`.
+Selector preflight is the task-local coverage check used when candidate choice,
+composition, retry/recovery, or reusable selector evidence can change the
+route. It may be ephemeral or persisted, and it may still conclude
+`direct_execute`.
 
-Whether that preflight is mandatory is defined in
+The entry and persistence policy is defined in
 `docs/specs/selector-selection-model.md`.
 This boundary spec only defines what selector preflight means once it exists.
 
@@ -193,8 +194,8 @@ Selector-side `[[evolver_signal_log]]` entries are:
 
 - task-local review suggestions
 - visible and auditable in the task file
-- allowed to be auto-suggested by task-local retry or error-pattern logic when
-  `[evolver_handoff_policy].enabled = true`
+- may be suggested by task-local retry or error-pattern logic only when a
+  maintainer explicitly enables `[evolver_handoff_policy].enabled`
 
 They are not:
 
@@ -260,7 +261,7 @@ They may define:
 
 - standard task-local composition patterns
 - task-local evidence prompts
-- task-local retry or reporting guidance
+- read-only task-local reporting hints
 
 They must not define:
 
@@ -271,6 +272,7 @@ They must not define:
 - a blanket rule that every task including trivial one-step work must use
   selector
 - mandatory selector entry policy through driver or recipe side effects
+- per-action or per-attempt footer logging that an Agent must maintain by hand
 
 Recipes and drivers live with selector because they shape one task loop at a
 time, not the repository learning system as a whole.
@@ -281,7 +283,7 @@ Use these surfaces in this order:
 
 - `docs/specs/selector-evolver-boundary.md`
   - stable meaning of the selector-versus-evolver split
-- `skills/harness/bagakit-skill-selector/`
+- `skills/co-work/orchestrate/execution/bagakit-skill-selector/`
   - runtime-facing selector instructions and operator usage
 - `docs/stewardship/selector-recipe-maintenance.md`
   - maintainer guidance for selector recipes

@@ -4,8 +4,9 @@ import { pathToFileURL } from "node:url";
 
 import { compareRunSummaries } from "./lib/compare.ts";
 import { buildEvalDataset, exportEvalDatasetSplit, loadEvalDataset, reportEvalDataset, validateGoalCaseContracts, writeEvalDataset } from "./lib/dataset.ts";
-import type { EvalSuiteDefinition } from "./lib/model.ts";
+import { validateEvalSuite, type EvalSuiteDefinition } from "./lib/model.ts";
 import { listCases, runSuite } from "./lib/run.ts";
+import { ensureWithinRoot } from "./lib/io.ts";
 
 function printHelp(): void {
   console.log(`bagakit eval
@@ -28,11 +29,11 @@ function loadSuite(repoRoot: string, moduleRef: string): Promise<EvalSuiteDefini
     if (!suite) {
       throw new Error(`suite module does not export SUITE: ${moduleRef}`);
     }
-    return suite;
+    return validateEvalSuite(suite, `suite ${moduleRef}`);
   });
 }
 
-async function main(argv: string[]): Promise<number> {
+export async function main(argv: string[]): Promise<number> {
   const [command, ...rest] = argv;
   if (!command || command === "-h" || command === "--help") {
     printHelp();
@@ -147,7 +148,7 @@ async function main(argv: string[]): Promise<number> {
         holdoutTags: values["holdout-tag"],
         seed: values.seed,
       });
-      writeEvalDataset(path.resolve(values.out), built);
+      writeEvalDataset(ensureWithinRoot(process.cwd(), path.resolve(values.out)), built);
       console.log(JSON.stringify(reportEvalDataset(built), null, 2));
       return 0;
     }
@@ -167,7 +168,7 @@ async function main(argv: string[]): Promise<number> {
       }
       const dataset = loadEvalDataset(path.resolve(values.file));
       const exported = exportEvalDatasetSplit(dataset, values.split);
-      writeEvalDataset(path.resolve(values.out), exported);
+      writeEvalDataset(ensureWithinRoot(process.cwd(), path.resolve(values.out)), exported);
       console.log(JSON.stringify(reportEvalDataset(exported), null, 2));
       return 0;
     }
@@ -209,7 +210,7 @@ async function main(argv: string[]): Promise<number> {
       );
       const text = `${JSON.stringify(comparison, null, 2)}\n`;
       if (values.out) {
-        writeEvalDataset(path.resolve(values.out), comparison as unknown as Record<string, unknown>);
+        writeEvalDataset(ensureWithinRoot(process.cwd(), path.resolve(values.out)), comparison as unknown as Record<string, unknown>);
       } else {
         process.stdout.write(text);
       }

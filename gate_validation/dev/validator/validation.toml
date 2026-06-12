@@ -39,10 +39,10 @@ owner = "dev/validator"
 description = "Run the validator framework regression suite."
 default = true
 proof_mode = "runtime"
-protects = ["validator framework parser, loader, selector, runner, audit, and timeout regression behavior"]
-oracle = ["node:test regression suite asserts validator outputs, thrown configuration errors, runner results, and timeout failures"]
-exercised_surface = ["dev/validator/test/validator.test.ts", "dev/validator/src CLI and library exports", "temporary validation.toml fixtures"]
-proves = ["validator-tests proves: Run the validator framework regression suite."]
+protects = ["validator framework type contract plus parser, loader, selector, runner, audit, and timeout regression behavior"]
+oracle = ["npm run typecheck and npm test both exit successfully, with node:test asserting validator outputs, thrown configuration errors, runner results, and timeout failures"]
+exercised_surface = ["dev/validator package typecheck and test scripts", "dev/validator/src CLI and library exports", "temporary validation.toml fixtures"]
+proves = ["validator-tests proves: the validator package typechecks and its full regression suite passes."]
 does_not_prove = ["validator-tests does not prove live service behavior, stochastic agent quality, or unrelated repository surfaces."]
 timeout_seconds = 180
 validation_class = "quality"
@@ -50,9 +50,9 @@ groups = ["validator", "quality"]
 
 [suite.runner]
 kind = "executable"
-command = "{node}"
+command = "{bash}"
 args = [
-  "--test",
-  "--experimental-strip-types",
-  "dev/validator/test/validator.test.ts",
+  "-lc",
+  "npm run typecheck && npm test",
 ]
+cwd = "dev/validator"

@@ -23,7 +23,9 @@ Bagakit should evolve through:
 
 `evidence` may come from research or practice.
 
-The intended system split is:
+M0 Co-work groups alignment, orchestration, delivery, and human improvement.
+M1 Evolve owns improvement of that work system; M2 RSI owns improvement of M1.
+Within that system, the current evidence and promotion split is:
 
 - `researcher`
   - an independent evidence-production system
@@ -62,40 +64,30 @@ This repository should not be treated as a loose bundle of unrelated skills.
 It is one jointly maintained system whose runtime units happen to be
 independently distributable.
 
+The repository's recursive-improvement model is documented in
+`docs/architecture/D1-recursive-evolution-architecture.md`: the runtime
+planes form a 3 × 3 matrix across M0 Bagakit, M1 Evolver, and M2 RSI.
+
 ## Target Repository Shape
 
 ```text
-skills/
+.
 ├── skills/
-│   ├── harness/
-│   ├── design/
-│   ├── swe/
-│   ├── paperwork/
-│   ├── gamemaker/
-│   ├── media-production/
-│   └── human-improvement/
+│   ├── co-work/
+│   │   ├── align/
+│   │   ├── orchestrate/
+│   │   │   ├── agent-cluster/     # a2a, a2u, and supervision
+│   │   │   └── execution/
+│   │   ├── deliver/              # page delivery and domain capability groups
+│   │   └── human-improvement/
+│   ├── evolve/                   # observe, generate, evaluate, adapt
+│   └── rsi/                      # M2; no installable skill yet
 ├── host-harnesses/
-├── docs/
-│   ├── architecture/
-│   ├── specs/
-│   └── stewardship/
-├── .bagakit/              # local runtime state, ignored by default
-├── dev/                   # one tool project per child; split truth in dev/README.md
-│   ├── eval/
-│   ├── bagakit_cli/
-│   ├── agent_runner/
-│   ├── agent_loop/
-│   ├── validator/
-│   └── host_tools/
-├── gate_validation/
-│   ├── backbone/
-│   ├── dev/
-│   ├── host-harnesses/
-│   └── skills/
-├── gate_eval/
-│   ├── backbone/
-│   ├── dev/
-│   └── skills/
+├── docs/                         # architecture, specs, stewardship
+├── .bagakit/                     # local runtime state
+├── dev/                          # maintainer tools
+├── gate_validation/              # mirrors skill group paths
+├── gate_eval/                    # mirrors skill group paths
 ├── mem/
 ├── catalog/
 ├── scripts/
@@ -206,7 +198,7 @@ Command-language target:
 Bagakit distributes installable skill sources directly from the directory
 protocol:
 
-- `skills/<family>/<skill-id>/`
+- `skills/<group-path>/<skill-id>/`
 - `SKILL.md`
 
 No registry, delivery profile, or secondary manifest is consulted.
@@ -231,23 +223,23 @@ bash <bagakit-skills-clone>/scripts/skill.sh install --scope repo-local
 With no selector, this installs every discovered installable skill source into
 both `.codex/skills/<skill-id>` and `.claude/skills/<skill-id>`.
 
-To install one family instead:
+To install one purpose group and all its descendants instead:
 
 ```bash
-bash <bagakit-skills-clone>/scripts/skill.sh install --selector harness --scope repo-local
+bash <bagakit-skills-clone>/scripts/skill.sh install --selector co-work/orchestrate --scope repo-local
 ```
 
 To install one exact skill source instead:
 
 ```bash
-bash <bagakit-skills-clone>/scripts/skill.sh install --selector harness/bagakit-skill-selector --scope repo-local
+bash <bagakit-skills-clone>/scripts/skill.sh install --selector co-work/orchestrate/execution/bagakit-skill-selector --scope repo-local
 ```
 
 If you want to target a different consumer repo explicitly:
 
 ```bash
 bash <bagakit-skills-clone>/scripts/skill.sh install \
-  --selector harness \
+  --selector co-work/orchestrate \
   --scope repo-local \
   --repo <consumer-repo>
 ```
@@ -292,7 +284,7 @@ explicit target directory instead of the standard repo-local or global pickup
 paths.
 
 ```bash
-bash scripts/skill.sh link --selector harness --dest <target-skills-dir>
+bash scripts/skill.sh link --selector co-work/orchestrate --dest <target-skills-dir>
 ```
 
 Make wrapper:
@@ -307,20 +299,20 @@ make update-link DEST=<target-skills-dir> SELECTOR=harness
 Package archive generation is not the normal local install or update path.
 Use it only when you need distributable `.skill` archives instead of symlinked
 local projections. It follows the same directory protocol and writes
-family-scoped `.skill` archives.
+group-path-scoped `.skill` archives.
 
 ```bash
 make package-all
-make package-one SELECTOR=<all|family|family/skill-id|skill-id>
+make package-one SELECTOR=<all|group-path|group-path/skill-id|skill-id>
 ```
 
 `make package-all`, and `make package-one SELECTOR=all`, package every
 discovered installable skill source.
-Any other selector packages only the resolved family or exact skill selection.
+Any other selector packages only the resolved group or exact skill selection.
 
 Skill ids are globally unique across families.
-If a bare selector matches a family name, family selection wins; use
-`<family>/<skill-id>` when you need the exact skill.
+If a bare selector matches a group name, group selection wins; use
+`<group-path>/<skill-id>` when you need the exact skill.
 
 If no installable skill sources exist yet, packaging may produce no
 artifacts.
@@ -358,3 +350,20 @@ python3 -m http.server --directory site 8000
 
 These legacy reference docs may be rehomed or rewritten as the monorepo model
 stabilizes.
+
+### Refresh Existing Installations After A Move
+
+Use the current installer for each previously used pickup root. It keeps
+installed skill ids flat and refreshes owned stale links across group depths.
+Preview and remove retired or duplicate projections with:
+
+```bash
+bash scripts/skill.sh prune-links --dest <pickup-root> --dry-run --json
+bash scripts/skill.sh prune-links --dest <pickup-root> --json
+bash scripts/skill.sh link --selector all --dest <pickup-root>
+bash scripts/skill.sh install-status --selector all --dest <pickup-root> --strict
+```
+
+Cleanup preserves other repositories' links and real files/directories. The
+source layout and selection rules are in
+`docs/specs/skill-directory-contract.md`.

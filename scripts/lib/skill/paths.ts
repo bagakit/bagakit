@@ -78,3 +78,10 @@ export function displayPath(repoRoot: string, absolutePath: string): string {
 
   return absoluteResolved;
 }
+
+export function isRepoSkillProjectionTarget(repoRoot: string, candidateTarget: string, skillId: string): boolean {
+  const relative = path.relative(path.join(path.resolve(repoRoot), "skills"), path.resolve(candidateTarget));
+  if (!relative || relative === ".." || relative.startsWith(`..${path.sep}`) || path.isAbsolute(relative)) return false;
+  const parts = relative.split(path.sep);
+  return parts.length >= 2 && parts.at(-1) === skillId;
+}

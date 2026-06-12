@@ -6,5 +6,9 @@
   "description": "Maintainer-only bounded runner substrate for Bagakit.",
   "engines": {
     "node": ">=22.6.0"
+  },
+  "scripts": {
+    "test": "node --test --experimental-strip-types test/*.test.ts",
+    "typecheck": "bash ../host_tools/typescript/tsc-local.sh --root ../.. -- -p dev/agent_runner/tsconfig.json --noEmit"
   }
 }

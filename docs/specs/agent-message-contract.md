@@ -40,6 +40,23 @@ The Host owns:
 Stable syntax and non-proof boundaries are protected by repository specs and
 validation. L1 execution consumes them but cannot redefine them task by task.
 
+## Channel Routing
+
+The protocol is selected by the Host-owned delivery channel:
+
+- A native Codex subagent or team channel that supplies authenticated sender
+  metadata and a structured Agent result stays on the native mechanism. It must
+  not be wrapped in `bagakit-msg` a second time.
+- An external Agent boundary, cross-process adapter, or channel that presents
+  Agent-authored content as appended `user` or prompt input uses the
+  `bagakit-msg` envelope.
+- If the channel is unknown, the sender must not guess based on the recipient's
+  name or role. The Host must resolve the channel before delivery.
+
+This distinction protects native subagent semantics and avoids replacing a
+Host-owned structured exchange with lower-fidelity prompt text. The messaging
+skill owns the envelope only after this routing decision selects it.
+
 ## Envelope
 
 Every portable Agent message uses:

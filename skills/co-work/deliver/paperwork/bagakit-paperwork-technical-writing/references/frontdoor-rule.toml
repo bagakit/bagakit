@@ -1,0 +1,5 @@
+version = 1
+skill = "bagakit-paperwork-technical-writing"
+trigger = "The user requests a source-faithful technical brief, article, RFC, or postmortem with an execution handoff."
+do = "Route to distill or article, preserve hard facts and source parentage, then run the matching evidence and quality gates."
+see = "skills/co-work/deliver/paperwork/bagakit-paperwork-technical-writing/SKILL.md"

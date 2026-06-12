@@ -1,8 +1,8 @@
-import { lstatSync, mkdirSync, readlinkSync, realpathSync, rmSync, symlinkSync } from "node:fs";
+import { lstatSync, mkdirSync, readdirSync, readlinkSync, realpathSync, rmSync, symlinkSync } from "node:fs";
 import path from "node:path";
 
 import type { LinkResult, SkillSource } from "./model.ts";
-import { displayPath } from "./paths.ts";
+import { displayPath, isRepoSkillProjectionTarget } from "./paths.ts";
 
 type PlannedAction = "create" | "replace" | "unchanged";
 type ReplacementSafety = "automatic" | "force_required" | "blocked";
@@ -22,18 +22,27 @@ export type LinkOptions = Readonly<{
   repoRoot: string;
   destDir: string;
   force: boolean;
+  dryRun?: boolean;
 }>;
 
 export type LinkDestinationsOptions = Readonly<{
   repoRoot: string;
   destDirs: string[];
   force: boolean;
+  dryRun?: boolean;
 }>;
 
 export type LinkDestinationResult = Readonly<{
   destDir: string;
   results: LinkResult[];
 }>;
+
+export class ProtectedLinkConflictError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "ProtectedLinkConflictError";
+  }
+}
 
 function destinationCollisionError(skills: SkillSource[]): Error {
   const grouped = new Map<string, string[]>();
@@ -55,16 +64,7 @@ function destinationCollisionError(skills: SkillSource[]): Error {
   );
 }
 
-function isRepoSkillProjectionTarget(repoRoot: string, candidateTarget: string, skill: SkillSource): boolean {
-  const skillsRoot = path.join(path.resolve(repoRoot), "skills");
-  const relative = path.relative(skillsRoot, path.resolve(candidateTarget));
-  if (relative === "" || relative.startsWith("..") || path.isAbsolute(relative)) {
-    return false;
-  }
 
-  const parts = relative.split(path.sep);
-  return parts.length === 2 && parts[0] !== "" && parts[1] === skill.skillId;
-}
 
 function inspectExistingLink(
   linkPath: string,
@@ -86,7 +86,7 @@ function inspectExistingLink(
       } catch {
         return {
           action: "replace",
-          replacementSafety: isRepoSkillProjectionTarget(repoRoot, resolvedTarget, skill)
+          replacementSafety: isRepoSkillProjectionTarget(repoRoot, resolvedTarget, skill.skillId)
             ? "automatic"
             : "force_required",
         };
@@ -94,7 +94,7 @@ function inspectExistingLink(
 
       return {
         action: "replace",
-        replacementSafety: isRepoSkillProjectionTarget(repoRoot, resolvedTarget, skill)
+        replacementSafety: isRepoSkillProjectionTarget(repoRoot, resolvedTarget, skill.skillId)
           ? "automatic"
           : "force_required",
       };
@@ -137,7 +137,7 @@ function planLinkOperations(skills: SkillSource[], options: LinkOptions): Planne
   }
 
   if (conflicts.length > 0) {
-    throw new Error(`link operation has protected path conflicts:\n${conflicts.join("\n")}`);
+    throw new ProtectedLinkConflictError(`link operation has protected path conflicts:\n${conflicts.join("\n")}`);
   }
 
   return plan;
@@ -164,6 +164,18 @@ function applyLinkPlan(plan: PlannedLink[], repoRoot: string): LinkResult[] {
   return results;
 }
 
+function renderLinkPlan(plan: PlannedLink[], repoRoot: string, dryRun: boolean): LinkResult[] {
+  if (!dryRun) {
+    return applyLinkPlan(plan, repoRoot);
+  }
+  return plan.map((item) => ({
+    skill: item.skill,
+    status: item.action === "unchanged" ? "unchanged" : "linked",
+    destinationPath: displayPath(repoRoot, item.linkPath),
+    sourcePath: item.skill.relativeDir,
+  }));
+}
+
 export function linkSkillsToDestinations(
   skills: SkillSource[],
   options: LinkDestinationsOptions,
@@ -179,10 +191,10 @@ export function linkSkillsToDestinations(
   }));
 
   return plannedDestinations.map(({ destDir, plan }) => {
-    mkdirSync(destDir, { recursive: true });
+    if (!options.dryRun) mkdirSync(destDir, { recursive: true });
     return {
       destDir,
-      results: applyLinkPlan(plan, options.repoRoot),
+      results: renderLinkPlan(plan, options.repoRoot, options.dryRun ?? false),
     };
   });
 }
@@ -192,5 +204,64 @@ export function linkSkills(skills: SkillSource[], options: LinkOptions): LinkRes
     repoRoot: options.repoRoot,
     destDirs: [options.destDir],
     force: options.force,
+    dryRun: options.dryRun,
   })[0]?.results ?? [];
+}
+
+export function unlinkSkills(skills: SkillSource[], options: LinkOptions): LinkResult[] {
+  const results: LinkResult[] = [];
+  for (const skill of skills) {
+    const linkPath = path.join(options.destDir, skill.skillId);
+    let stat;
+    try {
+      stat = lstatSync(linkPath);
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === "ENOENT") continue;
+      throw error;
+    }
+    if (!stat.isSymbolicLink()) continue;
+    const resolvedTarget = path.resolve(path.dirname(linkPath), readlinkSync(linkPath));
+    let matches = false;
+    try {
+      matches = realpathSync.native(resolvedTarget) === realpathSync.native(skill.absoluteDir);
+    } catch {
+      matches = false;
+    }
+    if (!matches) continue;
+    if (!options.dryRun) rmSync(linkPath);
+    results.push({
+      skill,
+      status: "linked",
+      destinationPath: displayPath(options.repoRoot, linkPath),
+      sourcePath: skill.relativeDir,
+    });
+  }
+  return results;
+}
+
+export function pruneSkillLinks(skills: SkillSource[], options: Omit<LinkOptions, "force">): { path: string; target: string }[] {
+  const currentIds = new Set(skills.map((skill) => skill.skillId));
+  let entries;
+  try {
+    entries = readdirSync(options.destDir, { withFileTypes: true });
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return [];
+    throw error;
+  }
+  const removed: { path: string; target: string }[] = [];
+  for (const entry of entries) {
+    if (!entry.isSymbolicLink()) continue;
+    const linkPath = path.join(options.destDir, entry.name);
+    const target = path.resolve(options.destDir, readlinkSync(linkPath));
+    const skillId = path.basename(target);
+    if (!isRepoSkillProjectionTarget(options.repoRoot, target, skillId)) continue;
+    // Same-name live skills are refreshed by install/link. Remove only retired
+    // skill projections and aliases owned by this repository.
+    if (entry.name === skillId && currentIds.has(skillId)) continue;
+    removed.push({ path: linkPath, target });
+  }
+  if (!options.dryRun) {
+    for (const item of removed) rmSync(item.path);
+  }
+  return removed;
 }

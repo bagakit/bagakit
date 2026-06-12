@@ -102,6 +102,17 @@ If such a surface becomes stable, it must remain distinct from both:
 
 ## Human Status Projection
 
+The topology toolbar provides one-click PNG and SVG downloads of the full
+current graph, independent of the viewport. Exports preserve grouping, expanded
+members, link visibility and pinned selection; styles are embedded and motion
+is frozen. Controls and the inspector are excluded. A header carries Feature
+identity, plan revision and capture time; SVG metadata additionally carries
+graph revision, counts and view choices under
+`bagakit.feature-topology-export.v1`. Export captures are disposable records,
+never canonical Tracker state. PNG targets 2× logical size with a 32 MP / 8192px
+per-side cap; SVG has no raster limit. The UI reports generation failures and
+the actual PNG dimensions instead of claiming that a blocked download saved.
+
 `feature-tracker.sh show-feature-status --format html` emits a disposable,
 read-only status page on stdout. `--output <path>` instead writes the same page
 atomically and prints its local file URI so a Host can present it to a human.
@@ -121,6 +132,14 @@ active Feature is represented by a minimal repair-needed card with canonical
 links so one bad record does not hide the rest of the overview; `validate-tracker`
 remains the strict diagnostic surface.
 
+The outer board is part of the same information design as the map. It shows a
+current-focus Feature with labelled done/total Task completion, compact
+Feature-stage totals, and comparison cards separating goals/progress from
+active/runnable work. Empty stages remain represented as short summaries after
+populated stages instead of full-height empty columns. Filtering must hide
+nonmatching stages and the focus card. Completion percentages describe Task
+counts, not an inferred schedule or a Feature-closeout promise.
+
 It may present canonical Feature identity, lifecycle status, workspace,
 active and runnable Tasks, Task blockers, cancelled and transferred Tasks, dependencies, Task counts, and
 current-plan Task detail. When a reviewed Task plan exists, the Feature details
@@ -130,8 +149,8 @@ topology node opens its collapsible Task detail before scrolling to that Task's
 acceptance and verification detail. The
 topology is shown directly in the near-viewport Feature details panel; no
 separate fullscreen surface is required to inspect larger graphs. The graph labels
-each derived execution wave (`W01`, `W02`, …) above its dependency layer, so
-waves are visible in the topology itself rather than only in a summary list.
+each derived execution wave (`W01`, `W02`, …) on its nodes. Wave is dependency
+depth, not a dispatch barrier or a fixed row/column in the canvas.
 Its runtime legend and node labels distinguish active, runnable, waiting,
 blocked, failed/replan, cancelled, transferred, and done Tasks primarily with text badges and
 border or fill treatment; color is auxiliary rather than the sole status
@@ -152,35 +171,55 @@ read-time projections, not persisted unlock promises.
 The graph viewport provides bounded zoom controls and
 preserves its horizontal/vertical scroll and zoom position when the live
 projection refreshes; these are display state only and never Tracker truth.
-Dependency edges use orthogonal routes with one independent channel per edge
-in an adjacent layer gap. An edge that skips a layer uses a dedicated rail
-outside the node area. No route may share a collapsed vertical corridor with a
-different edge or cross an unrelated opaque node; this is a readability rule
-for the projection, not additional dependency truth. Dense fan-in and fan-out
-also receive distinct source and target approach channels before they join a
-node, so parallel rails remain individually traceable rather than collapsing at
-the last turn. When a graph has several long edges, those rails stay below the
-node grid so the initial viewport presents the Tasks before the wiring; sparse
-graphs may balance rails above and below.
-Edges are labelled as direct `depends_on` relationships. Transitive reachability
-is derived from those edges when needed; proof or validation relationships stay
-in the Task's verification detail and are not drawn as a second edge type.
-Each edge has a wider transparent interaction target and a tooltip carrying its
-source, destination, direct-dependency meaning, and target state. Hovering or
-focusing an edge dims unrelated edges and exposes one compact relationship
-inspector; hovering a Task similarly isolates its incident edges. Labels are
-reserved for a critical edge or the first waiting edge into a target, so dense
-graphs remain traceable without permanently covering the topology in text.
-An edge may receive a derived execution-activity treatment only when its target
-is an active Task with an explicit bound Flow Runner receipt whose latest
-`session_status` is `progress`. The moving stroke means “execution activity was
-reported”; it is not a Worker heartbeat, new status, or event stream.
-Historical, blocked, terminal, unbound, and Feature-wide receipts remain
-static. Active nodes may use the same bounded activity ring. Both cues stop
-under `prefers-reduced-motion` and retain text/border semantics.
-The projection may also render a compact labeled group backdrop for each
-derived wave or reviewed acceptance package. Group labels and status summaries
-are read-time aids only and do not create synthetic Tasks or edges.
+The bundled offline Dagre engine owns layered node placement. Tracker projects
+node semantics and all declared dependencies; browser state never becomes
+planning truth. Edge routes pass through bounded rank gutters and avoid opaque
+cards. A cross-layer dependency traverses local free corridors, rather than
+allocating a full-canvas outside rail per edge.
+
+For more than 24 Tasks, three or more tasks with identical direct predecessors,
+identical direct successors, and the same Wave may form one reversible parallel
+group. The card shows member count, common title, Wave, and status counts. Its
+member panel links every Task to acceptance/proof and can expand just that group
+in the graph. An all-groups control restores individual nodes. Groups and
+aggregated paths retain membership in the original task/edge model.
+Node and group selection opens a visible inspector beside the canvas, rather
+than only expanding a Task list below the viewport. The inspector exposes the
+complete title, acceptance, verification and prompt actions, and supports
+returning from a group member to its group. Task-id/title lookup locates the
+owning node or group and opens the selected Task. Initial focus on large plans
+shows current work at a readable scale; Overview remains the full-plan locator.
+A minimap renders the same projected nodes and viewport bounds. Pointer or
+keyboard navigation moves the camera without reordering the plan. Camera
+transitions are bounded, interruptible by drag/wheel, and instantaneous under
+reduced motion. Pinned node/group selection distinguishes upstream and
+downstream paths with both text counts and color; hover alone never dims the
+entire plan. Inspector entrance and actual status-change feedback must not
+replay on unchanged polls or unrelated updates.
+Groups have an explicit stacked collection silhouette, group header, and a
+larger layout footprint than a single Task. Completion is done/total, excluding
+cancelled and transferred from the numerator. Text counts accompany the status
+distribution. The card highlights failed/blocked members, shared upstream and
+downstream counts when space permits, and explicit bound activity separately
+from active status. Its member panel puts exceptions first. Mixed group/Task
+sizes must preserve card clearance and correct edge endpoints.
+
+The default edge projection is the transitive reduction of declared
+`depends_on` edges: a redundant direct edge is hidden only when another directed
+path already reaches that target. `Show all links` restores every declaration.
+The layout remains fixed when toggling link visibility. Edge count reduction
+is explicitly reported and never deletes or rewrites canonical dependencies.
+Proof/validation mappings remain in Task detail, not a second dependency graph.
+
+Hover highlights the incident path and exposes a fixed-height inspector; it
+must not fade and restore the whole canvas at each child-element boundary.
+Clicking or keyboard-activating a connection pins its path and endpoints until
+cancelled. Pinned trace motion means visual tracing, not execution. Bound
+`session_status=progress` activity on an active Task separately permits an
+execution-flow stroke. Unbound or historical receipts never imply live work.
+Group expansion can animate node relocation; routine polls do not replay entry
+animations. All motion stops under `prefers-reduced-motion`.
+
 When unfinished work exists, the projection may derive a `stable done` set:
 completed Tasks that are outside every unfinished Task's dependency cone. A
 human may de-emphasize that set to focus on open work, but the nodes and edges
@@ -192,11 +231,10 @@ tooltip. A node may show gate progress, a compact verification-kind cue, an
 explicit Agent-hour estimate,
 observed Flow Runner checkpoint span, and checkpoint count. Missing evidence is
 shown as `—` or omitted; the projection never infers execution duration from
-wall-clock or file timestamps. For plans above 30 current Tasks, nodes use a
-compact geometry and split evidence cues across two readable lines; the SVG
-keeps explicit status, dependency, gate, proof, effort, and activity data in
-attributes and tooltips. `Overview` is the bounded whole-graph locator when
-scrolling the full topology is more useful than reading one node at 100%.
+wall-clock or file timestamps. Cards keep status, dependency, gate, proof,
+effort, and activity data available in the node, inspector, and full-title
+metadata. `Overview` fits both dimensions for whole-graph navigation; it can
+zoom below 30% when needed rather than leaving the graph clipped.
 Zoom changes the SVG layout dimensions as well as its visual scale, so the
 scroll viewport remains truthful. `Fit` fits the graph horizontally; `Overview` fits both dimensions to give a
 bounded whole-graph locator for large plans. Neither action opens a second
@@ -261,6 +299,11 @@ goals, and current Task titles, plus a lifecycle-status filter.
 Blocked Task cards show the blocker class and reason together with an unblock owner and resume condition. Missing recovery metadata is rendered as `unspecified`, so a blocked record cannot look like a guaranteed future resolution.
 
 A failed current Task is presented with its disproved assumption and reason, and the Feature focus points to the reviewed replan action. Once a successor revision is installed, the failed node remains visible as immutable history and the replacement edge is rendered through the existing supersession lineage. Filtering hides
+the two cases distinctly: `FAILED/REPLAN` means no successor is installed and the
+frontier is waiting for owner replanning; `FAILED→NEXT` means the failed node is
+historical and its reviewed successor is already installed. A successor or an
+independent branch may continue while the failed history remains visible; the
+failed node itself never satisfies a dependency.
 non-matching columns and the derived current-focus strip while leaving
 canonical counts and the live refresh route intact; clearing the filter
 restores the full board.
@@ -304,6 +347,12 @@ the same HTML from canonical files on each request. Its bounded page JavaScript
 fetches the current projection and replaces only the status-content region,
 preserving the selected Feature details panel and anchors while showing an
 updating/updated/unchanged/error indicator. When the canonical projection is
+served, its Python renderer and bundled JS/CSS belong to one immutable process
+build. Runtime asset edits take effect only after server restart. Responses
+carry a UI revision distinct from data revision; a client receiving a new UI
+build reloads once rather than mixing new markup with old handlers. Failure to
+initialize the graph must not prevent the Feature dialog and Task proof from
+opening; show an explicit graph error. When canonical data is
 unchanged, it reports `No changes` and leaves the status DOM in place—including
 dialogs, disclosure, and scroll context—instead of replacing it. It also preserves each topology viewport and
 the topology scroll/zoom position, as well as the board's
@@ -386,3 +435,33 @@ A good projection boundary makes these statements true:
   dependency mutation
 - users do not have to guess whether one field is graph truth or execution
   policy
+
+### Site theme and status legibility
+
+The read-only status site offers a one-click light/dark switch on both the
+board and the Feature dialog. The first visit follows the system; an explicit
+choice persists in browser storage when available. Theme changes only recolor
+the existing view: layout, zoom, selection, inspectors and polling continuity
+remain intact. Exports capture the current theme, including their header, and
+record it in SVG metadata. Done and waiting use redundant status encoding
+(check with solid badge versus clock with dashed card), with readable text in
+both themes. Selection must not dim unrelated node text below readable contrast.
+
+`Focus open work` is a member-level view filter before layout, not an opacity
+effect on groups. It hides done/cancelled/transferred Tasks and their incident
+edges; waiting/blocked/failed Tasks remain. Counts report the hidden records;
+Task details retain the full canonical dependency evidence. Group identity and
+expansion survive filtering, and `Show all Tasks` restores the complete graph.
+Search for a hidden Task restores that graph before locating it. Edge reduction
+must use paths in the visible graph so hidden Tasks cannot suppress a remaining
+direct dependency. An empty focus view explicitly links back to full history.
+
+
+### Outer board density
+
+Empty lifecycle stages project as collapsed index rows with their label and zero count. They do not reserve card-grid space until a human explicitly expands one. Search and status filtering may hide nonmatching stages; populated stages remain fully visible. This is a presentation rule only and never changes Feature lifecycle truth.
+
+
+### Cross-Feature board projection
+
+The outer Feature surface uses a workspace-style board: a compact navigation rail, a filter toolbar, status columns with consistent Feature cards, and a contextual cross-Feature region. The cross-Feature region is centered on the current focus when one is selected; it shows only the dependency closure and reports independent Features as a count. It reads Feature index and `state.json.depends_on` directly and must not introduce a second planning store or synthetic status values.

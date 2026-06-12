@@ -1,0 +1,5 @@
+version = 1
+skill = "bagakit-spark"
+trigger = "The user explicitly wants open-ended thinking or Socratic exploration."
+do = "Ask only decision-changing questions; hand durable notes or evidence work to the owning peer when requested."
+see = "skills/co-work/align/bagakit-spark/SKILL.md"

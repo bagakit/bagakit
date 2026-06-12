@@ -108,3 +108,5 @@ Specs should be boundary-first and stable-first:
 - say how it relates to neighboring surfaces
 - avoid migration-history narration unless that history is required to define
   the stable contract
+
+- `skill-directory-contract.md` — purpose groups, variable-depth discovery, installation, and relocation cleanup.

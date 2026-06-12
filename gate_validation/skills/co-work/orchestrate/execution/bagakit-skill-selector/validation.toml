@@ -1,0 +1,206 @@
+version = 2
+
+[[suite]]
+id = "bagakit-skill-selector-structure"
+owner = "skills/co-work/orchestrate/execution/bagakit-skill-selector"
+description = "Require selector runtime files, recipes, and references that define explicit task-level composition behavior."
+default = true
+proof_mode = "structural"
+protects = ["bagakit-skill-selector runtime files, recipes, references, assets, scripts, and validation/eval registration for explicit task-level composition"]
+oracle = ["fs runner checks required selector directories and files that define the installed skill, recipe set, policy references, and gate registration"]
+exercised_surface = ["skills/co-work/orchestrate/execution/bagakit-skill-selector runtime directory", "selector recipes and references", "gate_validation/skills/co-work/orchestrate/execution/bagakit-skill-selector registration"]
+proves = ["bagakit-skill-selector-structure proves: Require selector runtime files, recipes, and references that define explicit task-level composition behavior."]
+does_not_prove = ["bagakit-skill-selector-structure does not prove runtime behavior, semantic correctness, or eval quality."]
+validation_class = "structure"
+groups = ["skills", "harness", "usage-loop", "structure"]
+
+[suite.runner]
+kind = "fs"
+required_dirs = [
+  "skills/co-work/orchestrate/execution/bagakit-skill-selector",
+  "skills/co-work/orchestrate/execution/bagakit-skill-selector/recipes",
+  "skills/co-work/orchestrate/execution/bagakit-skill-selector/references",
+  "skills/co-work/orchestrate/execution/bagakit-skill-selector/scripts",
+  "skills/co-work/orchestrate/execution/bagakit-skill-selector/scripts/lib",
+  "gate_eval/skills/co-work/orchestrate/execution/bagakit-skill-selector",
+  "gate_eval/skills/co-work/orchestrate/execution/bagakit-skill-selector/results",
+  "gate_eval/skills/co-work/orchestrate/execution/bagakit-skill-selector/results/runs",
+  "gate_validation/skills/co-work/orchestrate/execution/bagakit-skill-selector",
+]
+required_files = [
+  "skills/co-work/orchestrate/execution/bagakit-skill-selector/README.md",
+  "skills/co-work/orchestrate/execution/bagakit-skill-selector/SKILL.md",
+  "skills/co-work/orchestrate/execution/bagakit-skill-selector/assets/daily-note.template.md",
+  "skills/co-work/orchestrate/execution/bagakit-skill-selector/assets/project-preferences.template.toml",
+  "skills/co-work/orchestrate/execution/bagakit-skill-selector/assets/skill-usage.template.toml",
+  "skills/co-work/orchestrate/execution/bagakit-skill-selector/recipes/README.md",
+  "skills/co-work/orchestrate/execution/bagakit-skill-selector/recipes/brainstorm-with-research.md",
+  "skills/co-work/orchestrate/execution/bagakit-skill-selector/recipes/research-to-knowledge.md",
+  "skills/co-work/orchestrate/execution/bagakit-skill-selector/recipes/brainstorm-review-loop.md",
+  "skills/co-work/orchestrate/execution/bagakit-skill-selector/recipes/planning-entry-brainstorm-only.md",
+  "skills/co-work/orchestrate/execution/bagakit-skill-selector/recipes/planning-entry-brainstorm-to-feature.md",
+  "skills/co-work/orchestrate/execution/bagakit-skill-selector/recipes/planning-entry-feature-to-flow.md",
+  "skills/co-work/orchestrate/execution/bagakit-skill-selector/recipes/planning-entry-brainstorm-feature-flow.md",
+  "skills/co-work/orchestrate/execution/bagakit-skill-selector/references/project-preferences-file-spec.md",
+  "skills/co-work/orchestrate/execution/bagakit-skill-selector/references/bagakit-driver.toml",
+  "skills/co-work/orchestrate/execution/bagakit-skill-selector/references/skill-usage-file-spec.md",
+  "skills/co-work/orchestrate/execution/bagakit-skill-selector/references/policy-contract.toml",
+  "skills/co-work/orchestrate/execution/bagakit-skill-selector/scripts/skill_selector.ts",
+  "skills/co-work/orchestrate/execution/bagakit-skill-selector/scripts/lib/daily.ts",
+  "skills/co-work/orchestrate/execution/bagakit-skill-selector/scripts/lib/candidate_survey.ts",
+  "skills/co-work/orchestrate/execution/bagakit-skill-selector/scripts/lib/project_preferences.ts",
+  "skills/co-work/orchestrate/execution/bagakit-skill-selector/scripts/lib/skill_catalog.ts",
+  "skills/co-work/orchestrate/execution/bagakit-skill-selector/scripts/lib/reports.ts",
+  "skills/co-work/orchestrate/execution/bagakit-skill-selector/scripts/lib/transaction.ts",
+  "gate_eval/skills/co-work/orchestrate/execution/bagakit-skill-selector/README.md",
+  "gate_eval/skills/co-work/orchestrate/execution/bagakit-skill-selector/suite.ts",
+  "gate_eval/skills/co-work/orchestrate/execution/bagakit-skill-selector/validation.toml",
+  "gate_eval/skills/co-work/orchestrate/execution/bagakit-skill-selector/results/.gitignore",
+  "gate_eval/skills/co-work/orchestrate/execution/bagakit-skill-selector/results/README.md",
+  "gate_eval/skills/co-work/orchestrate/execution/bagakit-skill-selector/results/runs/.gitkeep",
+  "gate_validation/skills/co-work/orchestrate/execution/bagakit-skill-selector/check-selector-policy-alignment.py",
+  "gate_validation/skills/co-work/orchestrate/execution/bagakit-skill-selector/check-selector-disposition.sh",
+  "gate_validation/skills/co-work/orchestrate/execution/bagakit-skill-selector/check-selector-transaction.sh",
+  "gate_validation/skills/co-work/orchestrate/execution/bagakit-skill-selector/check-selector-planning-entry.sh",
+  "gate_validation/skills/co-work/orchestrate/execution/bagakit-skill-selector/check-selector-recipes.sh",
+  "gate_validation/skills/co-work/orchestrate/execution/bagakit-skill-selector/check-skill-selector.sh",
+  "gate_validation/skills/co-work/orchestrate/execution/bagakit-skill-selector/validation.toml",
+]
+
+[[suite]]
+id = "bagakit-skill-selector-transaction"
+owner = "skills/co-work/orchestrate/execution/bagakit-skill-selector"
+description = "Prove task-resource serialization, atomic replacement, operation replay, and typed conflict behavior through the public Selector CLI."
+default = true
+proof_mode = "runtime"
+protects = ["selector task mutations do not lose concurrent updates, publish truncated TOML, or duplicate operation-id retries"]
+oracle = ["multiple independent CLI processes mutate one task resource; persisted TOML table counts, parseable public reports, exit codes, and operation receipts distinguish complete commit, replay, and conflict"]
+exercised_surface = ["skill_selector.ts init, preflight, plan, and skill-ranking commands", "skill-usage.toml mutation_log and task state"]
+proves = ["bagakit-skill-selector-transaction proves: concurrent writers serialize per task, same-directory atomic replacement preserves the previous or next complete document across injected crashes, and operation-id replay is idempotent with typed semantic conflicts."]
+does_not_prove = ["bagakit-skill-selector-transaction does not prove distributed-filesystem locking, multi-host coordination, or Evolver transaction behavior."]
+timeout_seconds = 120
+validation_class = "contract"
+groups = ["skills", "harness", "usage-loop", "transaction", "contract"]
+
+[suite.runner]
+kind = "bash_script"
+script = "gate_validation/skills/co-work/orchestrate/execution/bagakit-skill-selector/check-selector-transaction.sh"
+args = [
+  "--root",
+  "{repo_root}",
+]
+
+[[suite]]
+id = "bagakit-skill-selector-disposition"
+owner = "skills/co-work/orchestrate/execution/bagakit-skill-selector"
+description = "Validate selector close disposition, including minimal receipts, audit samples, and full episodes for material signals."
+default = true
+proof_mode = "runtime"
+protects = ["selector selective-persistence close behavior and full-episode escalation for material signals"]
+oracle = ["disposition script executes the public close command and inspects persisted episode_disposition receipts and rejected shallow closes"]
+exercised_surface = ["skill_selector.ts close command", "skill-usage.toml episode_disposition section"]
+proves = ["bagakit-skill-selector-disposition proves: routine direct execution can close with a minimal receipt while comparison, composition, review, failures, retries, feedback, candidate results, and learning signals require full episodes."]
+does_not_prove = ["bagakit-skill-selector-disposition does not prove stochastic skill quality, external service behavior, or selector adoption frequency."]
+timeout_seconds = 120
+validation_class = "contract"
+groups = ["skills", "harness", "usage-loop", "close", "contract"]
+
+[suite.runner]
+kind = "bash_script"
+script = "gate_validation/skills/co-work/orchestrate/execution/bagakit-skill-selector/check-selector-disposition.sh"
+args = [
+  "--root",
+  "{repo_root}",
+]
+
+[[suite]]
+id = "bagakit-skill-selector-policy-alignment"
+owner = "skills/co-work/orchestrate/execution/bagakit-skill-selector"
+description = "Keep conditional selector-entry and selective-persistence policy aligned through the structured policy contract."
+default = true
+proof_mode = "structural"
+protects = ["selector preflight policy, candidate-state vocabulary, authority paths, and legacy wording exclusions"]
+oracle = ["parsed policy-contract.toml plus alignment checks against selector specs, skill docs, and bootstrap references"]
+exercised_surface = ["skills/co-work/orchestrate/execution/bagakit-skill-selector/references/policy-contract.toml", "selector specs", "selector SKILL.md"]
+proves = ["bagakit-skill-selector-policy-alignment proves: structured selector policy rules, candidate states, authority paths, and forbidden legacy wording are aligned."]
+does_not_prove = ["bagakit-skill-selector-policy-alignment does not prove selector CLI behavior, actual preflight execution, stochastic agent behavior, or unrelated repository surfaces."]
+timeout_seconds = 120
+validation_class = "contract"
+groups = ["skills", "harness", "usage-loop", "policy", "contract"]
+
+[suite.runner]
+kind = "python_script"
+script = "gate_validation/skills/co-work/orchestrate/execution/bagakit-skill-selector/check-selector-policy-alignment.py"
+args = [
+  "--root",
+  "{repo_root}",
+]
+
+[[suite]]
+id = "bagakit-skill-selector-planning-entry"
+owner = "skills/co-work/orchestrate/execution/bagakit-skill-selector"
+description = "Validate canonical planning-entry route semantics, including participant sets and rejection of generic root planning artifacts."
+default = true
+proof_mode = "runtime"
+protects = ["selector planning-entry route semantics for participant sets and rejection of generic root planning artifacts"]
+oracle = ["planning-entry script checks recipe contracts and generated selector task artifacts for the canonical planning-entry routes"]
+exercised_surface = ["selector planning-entry recipe markdown", ".bagakit/skill-selector task artifacts", "gate_validation/skills/co-work/orchestrate/execution/bagakit-skill-selector/check-selector-planning-entry.sh"]
+proves = ["bagakit-skill-selector-planning-entry proves: Validate canonical planning-entry route semantics, including participant sets and rejection of generic root planning artifacts."]
+does_not_prove = ["bagakit-skill-selector-planning-entry does not prove live service behavior, stochastic agent quality, or unrelated repository surfaces."]
+timeout_seconds = 120
+validation_class = "quality"
+groups = ["skills", "harness", "usage-loop", "planning-entry", "quality"]
+
+[suite.runner]
+kind = "bash_script"
+script = "gate_validation/skills/co-work/orchestrate/execution/bagakit-skill-selector/check-selector-planning-entry.sh"
+args = [
+  "--root",
+  "{repo_root}",
+]
+
+[[suite]]
+id = "bagakit-skill-selector-smoke"
+owner = "skills/co-work/orchestrate/execution/bagakit-skill-selector"
+description = "Run a minimal task-level skill-selector lifecycle with explicit composition and strict validation."
+default = true
+proof_mode = "runtime"
+protects = ["selector public CLI lifecycle for preflight, recipe selection, project preferences, daily sidecar isolation, skill planning, ranking, and evolver handoff"]
+oracle = ["smoke script runs selector CLI commands in a temporary repo and checks generated TOML, reports, git-ignore behavior, ranking output, and strict validation"]
+exercised_surface = ["skill_selector.ts CLI", "selector task usage TOML records", "candidate survey and ranking reports", "selector daily sidecar files"]
+proves = ["bagakit-skill-selector-smoke proves: Run a minimal task-level skill-selector lifecycle with explicit composition and strict validation."]
+does_not_prove = ["bagakit-skill-selector-smoke does not prove live service behavior, stochastic agent quality, or unrelated repository surfaces."]
+timeout_seconds = 120
+validation_class = "smoke"
+groups = ["skills", "harness", "usage-loop", "smoke"]
+
+[suite.runner]
+kind = "bash_script"
+script = "gate_validation/skills/co-work/orchestrate/execution/bagakit-skill-selector/check-skill-selector.sh"
+args = [
+  "--root",
+  "{repo_root}",
+]
+
+[[suite]]
+id = "bagakit-skill-selector-recipe-contract"
+owner = "skills/co-work/orchestrate/execution/bagakit-skill-selector"
+description = "Require selector recipes to carry the stable contract sections for fit, order, synthesis, and fallback."
+default = true
+proof_mode = "wording_contract"
+protects = ["selector recipe contract sections that make multi-skill composition explicit and auditable"]
+oracle = ["recipe contract script checks owned recipe markdown for stable fit, order, synthesis, fallback, and boundary sections"]
+exercised_surface = ["skills/co-work/orchestrate/execution/bagakit-skill-selector/recipes/*.md"]
+proves = ["bagakit-skill-selector-recipe-contract proves: Require selector recipes to carry the stable contract sections for fit, order, synthesis, and fallback."]
+does_not_prove = ["bagakit-skill-selector-recipe-contract does not prove behavior outside its documented contract anchors."]
+timeout_seconds = 120
+validation_class = "contract"
+groups = ["skills", "harness", "usage-loop", "contract"]
+
+[suite.runner]
+kind = "bash_script"
+script = "gate_validation/skills/co-work/orchestrate/execution/bagakit-skill-selector/check-selector-recipes.sh"
+args = [
+  "--root",
+  "{repo_root}",
+]

@@ -1,0 +1,128 @@
+/* Site-wide palettes. Status keeps the same shape and meaning in either theme. */
+:root {
+  --canvas:#f2f2e9; --surface:#fcfdf8; --raised:#ffffff; --soft:#e8eddf;
+  --ink:#243b2e; --muted:#596953; --line:#cbd5c4; --accent:#315f43; --link:#285f91;
+  --done:#26714f; --done-text:#ffffff; --waiting:#e1e5ec; --waiting-text:#37475c;
+  --active:#805b13; --active-text:#ffffff; --ready:#d5e9f5; --ready-text:#224b54;
+  --danger:#9a493b; --danger-soft:#fff0ee;
+  --graph-bg:#f5f7fa; --graph-dot:#b4c0cc77; --graph-line:#c7d1d9;
+  --node:#ffffff; --node-line:#9dafbd; --node-text:#243244; --node-muted:#526275;
+  --node-done:#ffffff; --node-done-line:#7ca58e; --node-waiting:#f0f2f5; --node-waiting-line:#939eab;
+  --node-active:#fff8e6; --node-active-line:#b2831e; --node-ready:#eff7ff; --node-ready-line:#5485aa;
+  --node-danger:#fff0ee; --node-danger-line:#b66458;
+  --group:#f2f6fc; --group-header:#e0eaf7; --group-stack:#dce6f3; --group-back:#cbd9ea;
+  --group-line:#6f8ead; --group-ink:#243e5c; --group-muted:#4b627a; --group-track:#dce4ef;
+  --selected:#e5f0ff; --selected-line:#225f94; --upstream:#326c9c; --downstream:#3c7e59;
+  --edge:#758696; --edge-critical:#457b60;
+}
+:root[data-theme="dark"] {
+  color-scheme:dark;
+  --canvas:#121c19; --surface:#1c2a24; --raised:#25372e; --soft:#293d32;
+  --ink:#e5ede3; --muted:#b0c1ac; --line:#445a48; --accent:#c4d7aa; --link:#a3cdf1;
+  --done:#91d5af; --done-text:#122d20; --waiting:#37465a; --waiting-text:#d4e0ee;
+  --active:#ebc570; --active-text:#352609; --ready:#335368; --ready-text:#d5edff;
+  --danger:#f0b0a3; --danger-soft:#442d2c;
+  --graph-bg:#13201e; --graph-dot:#718d8138; --graph-line:#3e554e;
+  --node:#22362e; --node-line:#637d70; --node-text:#edf3e9; --node-muted:#b4c8be;
+  --node-done:#243a30; --node-done-line:#729c83; --node-waiting:#232e3b; --node-waiting-line:#7f91a8;
+  --node-active:#403921; --node-active-line:#d4b664; --node-ready:#223b48; --node-ready-line:#85aec8;
+  --node-danger:#432e2a; --node-danger-line:#c88975;
+  --group:#26384c; --group-header:#354c66; --group-stack:#30475c; --group-back:#3c526b;
+  --group-line:#8ca8c6; --group-ink:#e6f0ff; --group-muted:#bacee7; --group-track:#475a70;
+  --selected:#294858; --selected-line:#b0dcff; --upstream:#8cbfe3; --downstream:#96c9a9;
+  --edge:#8ba79a; --edge-critical:#a2c8ad;
+}
+input::placeholder { color:var(--muted); opacity:1; }
+html body { --canvas:inherit; --ink:inherit; background:var(--canvas); color:var(--ink); }
+.theme-toggle { display:inline-flex; flex:none; align-items:center; gap:2px; padding:3px; border:1px solid var(--line); border-radius:8px; background:var(--soft); color:var(--muted); cursor:pointer; font:600 11px/1.4 system-ui,sans-serif; }
+.theme-option { padding:4px 7px; border-radius:5px; }
+:root:not([data-theme="dark"]) .theme-option--light,:root[data-theme="dark"] .theme-option--dark { background:var(--raised); color:var(--ink); box-shadow:0 1px 3px #0002; }
+.theme-toggle:focus-visible { outline:2px solid var(--link); outline-offset:3px; }
+.dialog-header-actions { display:flex; align-items:center; gap:12px; flex:none; }
+.dialog-header-actions form { margin:0; }
+/* Neutral reading surfaces and controls share one contrast hierarchy. */
+:root[data-theme="dark"] :is(.feature-card,.feature-card .feature-summary:hover,.feature-review-dialog,.feature-review-dialog-body,.claim-dialog,.file-preview-dialog,.review-task,.topology-group-panel,.topology-group-card) { background:var(--surface); color:var(--ink); border-color:var(--line); }
+:root[data-theme="dark"] :is(.status-toolbar,.feature-review-dialog-header,.feature-card .claim-bar,.file-preview-dialog-header,.topology-group-panel > div:first-child,.tracker-prompt-body,.topology-group-overview,.runtime-activity) { background:var(--soft); border-color:var(--line); color:var(--ink); }
+:root[data-theme="dark"] :is(.feature-card .feature-work .current-task,.closed-section li[data-feature-open]:hover,.claim-message,.file-preview-content,.task-prompt-tabs,.topology-observations span) { background:var(--raised); color:var(--ink); }
+:root[data-theme="dark"] :is(.status-filter-input,.status-filter-select,.status-filter-clear,.refresh-now,.copy-title,.copy-value,.dialog-close,.file-preview-trigger,.prompt-copy-action,.task-prompt-output,.task-prompt-tab.is-active,.topology-navigation input,.task-topology-header-actions > button,.topology-zoom-controls,.topology-export-controls,.topology-export-controls button,.topology-group-panel button) { background:var(--raised); border-color:var(--line); color:var(--ink); }
+:root[data-theme="dark"] :is(.topology-zoom-controls button,.topology-export-controls button,[data-topology-zoom-level]) { color:var(--ink); border-color:var(--line); }
+:root[data-theme="dark"] :is(.topology-zoom-controls button:hover,.topology-export-controls button:hover,.prompt-copy-action:hover,.file-preview-trigger:hover,.task-prompt-tab:hover) { background:var(--soft); color:var(--ink); }
+:root[data-theme="dark"] :is(.copy-quick-prompt,.claim-trigger,.dialog-action,.task-topology-header-actions > button[data-topology-current]) { background:#bdd0a1; color:#203623; border-color:#bdd0a1; }
+:root[data-theme="dark"] :is(.shell > .page-header h1,.feature-card .feature-title-row h3,.feature-review-dialog-header h2,.task-topology > .task-topology-header h4,.shell .status-title h2,.shell .metric strong,.feature-completion strong,.topology-group-panel > div strong,.tracker-prompt-summary strong) { color:var(--ink); }
+:root[data-theme="dark"] :is(.shell > .page-header > div > p,.projection-meta .projection-note,.board-section-heading,.shell .metric span,.feature-card .goal,.feature-card .feature-id,.feature-card .feature-work .eyebrow,.feature-card .feature-work .current-task strong,.feature-completion span,.feature-completion small,.feature-card .review-hint,.closed-section > summary,.review-next-step,.review-metric span,.task-preview-more,.eyebrow,.topology-reading-guide,.task-topology-note,.task-topology .topology-edge-inspector,.topology-observations,.task-topology-legend,.topology-export-status,.topology-wave-row,.topology-wave-row em,.topology-group-panel .group-panel-summary,.acceptance-list,.verification-list,.context-drawer > summary,.task-prompt-heading,.task-prompt-tab,.runtime-activity dt,.runtime-activity dd,.runtime-activity-source,.closed-record-note,.shell .status-column[data-column-empty="true"] .column-empty) { color:var(--muted); }
+:root[data-theme="dark"] :is(.shell > .page-header,.shell .metrics,.shell .status-column > header,.shell .status-column[data-column-empty="true"],.feature-work,.closed-section,.closed-section li[data-feature-open],.review-metric,.task-topology,.topology-wave-row,.topology-group-body,.topology-wave-overview-body,.task-quick-prompts,.quick-prompt-surface,.context-drawer,.tracker-quick-prompts,.plan-review-observation,.failed-task-history) { border-color:var(--line); }
+:root[data-theme="dark"] :is(.shell .status-count,.feature-card .workspace-chip,.workspace-chip,.gate,.verification-kind,.runtime-activity-state,.file-preview-language) { background:var(--soft); color:var(--muted); }
+:root[data-theme="dark"] :is(.verification-list a,.verification-list code,.runtime-activity-ref,.lineage-card,.lineage-card strong,.review-lineage,.review-lineage strong,.closed-open,.review-task-toggle,.review-task-jump-status,.lineage-link,.topology-group-range) { color:var(--link); }
+:root[data-theme="dark"] :is(.blocker,.failure,.projection-error,.review-blocker,.review-failure) { background:var(--danger-soft); color:var(--danger); border-color:#a96a5c; }
+:root[data-theme="dark"] :is(.failed-task-history > summary,.plan-review-observation li[data-replan-source] strong,.topology-group-panel em[data-status="failed"],.topology-group-panel em[data-status="blocked"]) { color:var(--danger); }
+:root[data-theme="dark"] .review-metric--active strong { color:#ebc570; }
+:root[data-theme="dark"] .review-metric--runnable strong { color:#a3cdf1; }
+:root[data-theme="dark"] .review-metric--waiting strong { color:#c3cddd; }
+:root[data-theme="dark"] .review-metric--done strong { color:#91d5af; }
+:root[data-theme="dark"] .review-metric--attention strong { color:#f0b0a3; }
+:root[data-theme="dark"] .file-preview-content :is(.syntax-key,.syntax-punctuation) { color:#e4bd86; }
+:root[data-theme="dark"] .file-preview-content :is(.syntax-string,.syntax-heading) { color:#9fd4ab; }
+:root[data-theme="dark"] .file-preview-content :is(.syntax-number,.syntax-code) { color:#d1b9f1; background:transparent; }
+:root[data-theme="dark"] .file-preview-content .syntax-literal { color:#f0b0bb; }
+/* Done and waiting remain distinguishable without perceiving hue. */
+:is(.task-status,.task-count,.topology-legend,.topology-stage-chip) { border:1px solid var(--line); }
+:is(.task-status--done,.task-count--done,.topology-legend--done,.topology-stage-chip--done) { background:var(--done); color:var(--done-text); border-color:var(--done); }
+.topology-legend--done strong { color:var(--done-text); }
+:is(.task-status--done,.topology-legend--done)::before { content:'✓'; font-weight:800; }
+:is(.topology-legend--waiting,.topology-stage-chip--waiting) { background:var(--waiting); color:var(--waiting-text); border:1px dashed var(--node-waiting-line); }
+.topology-legend--waiting strong { color:var(--waiting-text); }
+.topology-legend--waiting::before { content:'◷'; }
+:root[data-theme="dark"] :is(.task-status,.task-count,.topology-legend,.topology-stage-chip):not([class*="--done"]):not([class*="--waiting"]) { background:var(--raised); color:var(--muted); border-color:var(--line); }
+:root[data-theme="dark"] .topology-legend strong { color:inherit; }
+:root[data-theme="dark"] :is(.task-status--in-progress,.task-count--in-progress,.topology-legend--active,.topology-stage-chip--active) { color:var(--active) !important; }
+:root[data-theme="dark"] :is(.task-status--failed,.task-status--blocked,.task-count--failed,.task-count--blocked,.topology-legend--failed,.topology-legend--blocked) { color:var(--danger) !important; }
+.task-topology .task-topology-scroll { background-color:var(--graph-bg); background-image:radial-gradient(var(--graph-dot) .65px,transparent .65px); border-color:var(--graph-line); box-shadow:none; }
+.task-topology .topology-node-card { fill:var(--node); stroke:var(--node-line); }
+.task-topology .topology-node--done .topology-node-card { fill:var(--node-done); stroke:var(--node-done-line); }
+.task-topology .topology-node--waiting .topology-node-card { fill:var(--node-waiting); stroke:var(--node-waiting-line); }
+.task-topology .topology-node--active .topology-node-card { fill:var(--node-active); stroke:var(--node-active-line); }
+.task-topology .topology-node--runnable .topology-node-card { fill:var(--node-ready); stroke:var(--node-ready-line); }
+.task-topology :is(.topology-node--blocked,.topology-node--failed) .topology-node-card { fill:var(--node-danger); stroke:var(--node-danger-line); }
+:root[data-theme="dark"] .task-topology :is(.topology-node--cancelled,.topology-node--transferred) .topology-node-card { fill:#30343c; stroke:#9c98a9; }
+.task-topology .topology-node-title { fill:var(--node-text); }
+.task-topology :is(.topology-node-id,.topology-node-stats,.topology-node-meta,.topology-wave-marker) { fill:var(--node-muted); }
+.task-topology .topology-node--done .topology-node-status-bg { fill:var(--done); }
+.task-topology .topology-node--done .topology-node-status { fill:var(--done-text); }
+.task-topology .topology-node--done .topology-status-symbol { stroke:var(--done-text); }
+.task-topology .topology-node--waiting .topology-node-status-bg { fill:var(--waiting); }
+.task-topology .topology-node--waiting .topology-node-status { fill:var(--waiting-text); }
+.task-topology .topology-node--waiting .topology-status-symbol { stroke:var(--waiting-text); }
+.task-topology .topology-node--active .topology-node-status-bg { fill:var(--active); }
+.task-topology .topology-node--active .topology-node-status { fill:var(--active-text); }
+.task-topology .topology-node--runnable .topology-node-status-bg { fill:var(--ready); }
+.task-topology .topology-node--runnable .topology-node-status { fill:var(--ready-text); }
+.task-topology .topology-group-node .topology-node-card { fill:var(--group); stroke:var(--group-line); }
+.group-stack { fill:var(--group-stack); stroke:var(--group-line); }
+.group-stack--back { fill:var(--group-back); }
+.group-header { fill:var(--group-header); }
+.group-collection-icon { stroke:var(--group-ink); }
+:is(.group-type,.group-count,.group-title) { fill:var(--group-ink); }
+:is(.group-wave,.group-members,.group-caption,.group-percentage,.group-context,.group-state-label,.group-footer,.group-open,.group-activity) { fill:var(--group-muted); }
+.group-progress-track { fill:var(--group-track); }
+.group-divider { stroke:var(--group-line); opacity:.5; }
+:root[data-theme="dark"] .group-completion { fill:#a0dcb9; }
+:root[data-theme="dark"] .group-attention { fill:#edc186; }
+:root[data-theme="dark"] .group-state--done { fill:#91d5af; }
+:root[data-theme="dark"] .group-state--waiting { fill:#8798b1; }
+.task-topology.has-pinned-path .is-node-upstream .topology-node-card { stroke:var(--upstream); }
+.task-topology.has-pinned-path .is-node-downstream .topology-node-card { stroke:var(--downstream); }
+.task-topology :is(.topology-node,.topology-group-node):is(.is-node-focused,:focus-visible) .topology-node-card { stroke:var(--selected-line); fill:var(--selected); }
+.task-topology .topology-edge { stroke:var(--edge); }
+.task-topology .topology-edge--critical { stroke:var(--edge-critical); }
+.task-topology .topology-edge-group.is-edge-focused .topology-edge { stroke:var(--selected-line); }
+.task-topology marker path { fill:var(--edge); }
+.topology-minimap { background:var(--surface); border-color:var(--graph-line); }
+.topology-minimap :is(span,button) { color:var(--muted); }
+.minimap-edge { stroke:var(--edge); }
+.minimap-viewport { stroke:var(--selected-line); }
+@media (max-width:720px) {
+  .dialog-header-actions { gap:6px; }
+  .theme-option { padding:4px 5px; }
+  .theme-toggle { font-size:10px; }
+  .feature-review-dialog-header h2 { overflow-wrap:anywhere; }
+}

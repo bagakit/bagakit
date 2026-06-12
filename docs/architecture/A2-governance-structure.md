@@ -55,9 +55,10 @@ The distributable runtime surface of the Bagakit system is:
 More specifically, system-owned runtime units live under capability families
 such as:
 
-- `skills/a2a/`
-- `skills/a2u/`
-- `skills/harness/`
+- `skills/co-work/orchestrate/agent-cluster/a2a/`
+- `skills/co-work/orchestrate/agent-cluster/a2u/`
+- `skills/co-work/orchestrate/`
+- `skills/evolve/`
 
 Those runtime units must satisfy both conditions:
 
@@ -67,11 +68,13 @@ Those runtime units must satisfy both conditions:
 This means:
 
 - `skills/` is the broad distributable runtime surface
-- `skills/harness/` is the canonical home for the runtime units that compose
-  the Bagakit system itself
-- `skills/a2a/` is the canonical home for role-neutral Agent communication
+- `skills/co-work/orchestrate/` is the canonical home for the runtime substrate and
+  composition units that execute and protect the Bagakit system itself
+- `skills/evolve/` is the canonical home for runtime units that actively
+  improve the Bagakit system and prepare reviewed changes to it
+- `skills/co-work/orchestrate/agent-cluster/a2a/` is the canonical home for role-neutral Agent communication
   capabilities that co-evolve across harness behaviors and hosts
-- `skills/a2u/` is the canonical home for role-neutral user-communication
+- `skills/co-work/orchestrate/agent-cluster/a2u/` is the canonical home for role-neutral user-communication
   capabilities that co-evolve across harness behaviors and hosts
 - install and link distribution should project directly from those skill
   directories into runtime pickup directories such as repo-local `.codex/skills/`
@@ -178,9 +181,9 @@ Canonical landing surfaces are:
 
 This structure implies:
 
-1. `skills/` families, including `skills/harness/`, `skills/a2a/`, and
-   `skills/a2u/`, should be treated as the system-owned runtime surface for
-   their declared co-evolution boundaries.
+1. `skills/` families, including `skills/co-work/orchestrate/`, `skills/evolve/`,
+   `skills/co-work/orchestrate/agent-cluster/a2a/`, and `skills/co-work/orchestrate/agent-cluster/a2u/`, should be treated as the system-owned
+   runtime surface for their declared co-evolution boundaries.
 2. Architecture, contracts, routing, and promotion authority should stay
    outside runtime payloads unless a specific capability truly requires them.
 3. Self-hosting should be discussed under stewardship and governance, not as a

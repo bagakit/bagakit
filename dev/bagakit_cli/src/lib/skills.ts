@@ -1,17 +1,10 @@
 import fs from "node:fs";
 import path from "node:path";
 
+import { loadSkillInventory } from "../../../../scripts/lib/skill/discovery.ts";
 import { CLI_RUNNERS, type CliRunner, type SkillCliManifest, type SkillCliRecord, type SkillSource } from "./model.ts";
 import { isRepoNavigationalRef, relativePathWithin, repoRelative } from "./paths.ts";
 import { parseTomlFile } from "./toml.ts";
-
-function compareSkills(left: SkillSource, right: SkillSource): number {
-  return left.selector.localeCompare(right.selector);
-}
-
-function safeSegment(value: string): boolean {
-  return Boolean(value) && value !== "." && value !== ".." && !value.includes("/") && !value.includes("\\");
-}
 
 function readRequiredString(record: Record<string, unknown>, key: string, label: string): string {
   const value = record[key];
@@ -48,38 +41,13 @@ function refLabel(ref: string): string {
 }
 
 export function discoverSkills(repoRoot: string): SkillSource[] {
-  const skillsRoot = path.join(repoRoot, "skills");
-  if (!fs.existsSync(skillsRoot)) {
-    return [];
-  }
-  const skills: SkillSource[] = [];
-  for (const familyEntry of fs.readdirSync(skillsRoot, { withFileTypes: true })) {
-    if (!familyEntry.isDirectory() || familyEntry.isSymbolicLink() || !safeSegment(familyEntry.name)) {
-      continue;
-    }
-    const familyDir = path.join(skillsRoot, familyEntry.name);
-    for (const skillEntry of fs.readdirSync(familyDir, { withFileTypes: true })) {
-      if (!skillEntry.isDirectory() || skillEntry.isSymbolicLink() || !safeSegment(skillEntry.name)) {
-        continue;
-      }
-      const skillDir = path.join(familyDir, skillEntry.name);
-      if (!fs.existsSync(path.join(skillDir, "SKILL.md"))) {
-        continue;
-      }
-      skills.push({
-        family: familyEntry.name,
-        skillId: skillEntry.name,
-        selector: [familyEntry.name, skillEntry.name].join("/"),
-        relativeDir: repoRelative(repoRoot, skillDir),
-        absoluteDir: skillDir,
-      });
-    }
-  }
-  return skills.sort(compareSkills);
+  // Keep the canonical directory protocol in scripts/lib/skill/discovery.ts.
+  // The aggregator owns CLI declarations and dispatch, not a second scanner.
+  return loadSkillInventory(repoRoot, { allowMissingRoot: true }).skills;
 }
 
 export function parseSkillCliManifest(skill: SkillSource): SkillCliManifest {
-  const repoRoot = path.resolve(skill.absoluteDir, "../../..");
+  const repoRoot = path.resolve(skill.absoluteDir, ...skill.relativeDir.split("/").map(() => ".."));
   const manifestPath = path.join(skill.absoluteDir, "references", "skill-cli.toml");
   const manifestLabel = repoRelative(repoRoot, manifestPath);
   const payload = assertRecord(parseTomlFile(manifestPath, manifestLabel), manifestLabel);

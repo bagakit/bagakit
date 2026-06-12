@@ -1,7 +1,0 @@
-version = 1
-skill = "bagakit-project-chronicle"
-trigger = "Project sessions need an evidence-grounded chronicle, retrospective, origin story, or evolution analysis."
-do = "Seal the source census, derive session cards and lineage, then publish the chronicle and evolution ledger without fictionalizing facts."
-see = "skills/harness/bagakit-project-chronicle/SKILL.md"
-surface = ".bagakit/project-chronicle/runs/<run-id>/"
-fallback = "Use an ordinary summary for one session; hand promotion candidates to the owning workflow."

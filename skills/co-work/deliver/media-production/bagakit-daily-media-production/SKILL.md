@@ -1,0 +1,324 @@
+---
+name: bagakit-daily-media-production
+description: Design or run a recurring research-to-publication workflow that coordinates evidence, assets, publication, delivery, and archival. Use only when multi-stage recurring coordination is the requested product.
+metadata:
+  bagakit:
+    media_production_layer: workflow-orchestration
+---
+
+# Bagakit Daily Media Production
+
+`bagakit-daily-media-production` is a workflow/golden-path orchestration skill
+for recurring research-to-publication runs. It is not a primitive media,
+research, design, deployment, notification, or scheduling capability.
+
+It turns a smooth daily workflow into a repeatable contract:
+
+1. collect source evidence
+2. verify and synthesize
+3. generate shareable assets
+4. build a web publication
+5. deploy
+6. notify mobile or team channels
+7. archive the run
+
+It owns the run contract, ledgers, dependency checks, adapter choices, and
+no-publish gates. It does not own the platform internals for social search,
+image generation, webpage design, deployment providers, schedulers, or mobile
+messaging.
+
+Use it only when coordination across multiple stages is the product. If one
+peer can satisfy the request directly, route to that peer and do not create a
+daily-media run surface.
+
+Planning the workflow does not authorize live publication side effects.
+Deploying, notifying recipients, installing a schedule, or changing provider
+configuration requires that action to be explicitly in scope. Otherwise stop
+at a plan, draft, dry-run, or human-review handoff.
+
+## When To Use
+
+Use this skill when the user wants:
+
+- a daily or recurring AI-news/media-production workflow
+- a scheduled social/news/web research digest
+- a publishable web brief plus generated share-card assets
+- Vercel or similar deployment followed by a phone/team notification
+- a reusable pipeline that can generalize beyond one topic
+
+Do not use it when the task is only:
+
+- a one-time research summary
+- a single raster image
+- a standalone high-craft webpage
+- a single Vercel deployment
+- a generic CI/CD setup with no publication workflow
+
+Use the peer skill directly in those cases.
+
+## Peer Capabilities
+
+This skill composes peers by address and preflight. It must not copy their
+implementation details into the skill payload.
+
+A peer address is one of:
+
+- an installed skill id such as `agent-reach` or `imagegen`
+- a canonical Bagakit skill path such as
+  `skills/co-work/deliver/design/bagakit-codex-webpage-design/SKILL.md`
+- an optional CLI command only when that peer declares or documents one
+- a host capability described by adapter name when no skill or CLI exists
+
+Do not assume a skill id is also an executable command. If a peer skill is
+visible but has no usable CLI, use its `SKILL.md` as instructions and record
+manual or host-tool execution in the run ledger.
+
+Keep the component boundary receipt-based:
+
+- the workflow passes a brief or owned input packet to the peer
+- the peer owns its internal execution and component-quality checks
+- the workflow records the returned artifact, status, and evidence reference
+- the workflow decides whether the whole run advances, blocks, or retries
+
+Do not vendor peer prompts, provider logic, or component-specific validation
+into this skill merely to make the golden path look self-contained.
+
+Default peer routes:
+
+- source acquisition:
+  - `agent-reach` when installed and configured
+  - RSS, web search, or direct URLs as fallback
+- research evidence:
+  - `bagakit-researcher` when durable source cards, claims, and synthesis are
+    needed
+- image assets:
+  - `imagegen` for raster share cards, thumbnails, covers, and visual assets
+- webpage production:
+  - `bagakit-codex-webpage-design` for design reference, implementation,
+    browser evidence, and visual checks
+- deployment:
+  - Vercel CLI by default when requested and available
+  - static/local output or another provider when Vercel is not required
+- scheduling:
+  - Codex Automation, `codex exec`, GitHub Actions schedule, Vercel Cron
+    endpoint, external cron, or manual run
+- mobile or team notification:
+  - Telegram Bot API, ntfy, Pushover, Slack webhook, Discord webhook, email,
+    or host-specific messenger
+
+Read `references/adapter-matrix.md` when choosing or checking adapters.
+Read `references/domain-packs.md` when the user needs a starter pack such as
+AI news, release radar, or paper digest.
+
+## Run Spine
+
+Select stages from the requested output and side effects. Every run needs a
+`brief` and the evidence stages required by its publication claim; add asset,
+web, deployment, notification, or archival stages only when that output or
+side effect is in scope. A local draft may waive adapter preflight, and a
+one-off plan may use a compact handoff instead of creating empty `not_applicable`
+ledgers.
+
+1. `brief`
+   - topic, audience, cadence, timezone, target channels, output pack, and
+     success bar
+2. `dependency-preflight` — run when an adapter will execute; for a local
+   draft, record an explicit waiver
+   - installed skills, CLIs, credentials, secrets, quota, and channel health
+3. `source-plan`
+   - source packs, queries, accounts, feeds, recency window, source minimum,
+     credibility rubric, confidence bar, and fallback behavior
+4. `collection-ledger`
+   - raw source refs, channel, timestamp, author/source, URL, and inclusion
+     reason
+5. `evidence-review`
+   - source quality, duplicate merging, confidence, counterevidence, and
+     no-publish decision
+6. `editorial-synthesis`
+   - ranked stories, claims, citations, title, summary, and audience framing
+7. `asset-brief` — when an asset output is requested
+   - image goals, formats, exact text, style constraints, and avoid list
+8. `asset-ledger` — when assets are generated or supplied to a downstream
+   publication
+   - final project-local image paths, prompts or prompt refs, and validation
+     notes
+9. `web-brief` — when a webpage is an output
+   - content package for webpage design, information architecture, states, and
+     required assets
+10. `webpage-evidence` — when a webpage is produced
+    - build result, browser screenshots, interaction checks, and visual bug
+      status
+11. `deployment-ledger` — when deployment is in scope
+    - provider, command, project, environment, deploy URL, deployment status,
+      and rollback note
+12. `notification-ledger` — when notification is in scope
+    - transport, notification status, recipient class, payload, delivery result,
+      and redaction note
+13. `run-archive` — when the run is recurring, published, blocked, or the user
+    requests durable history
+    - run id, final URL, source summary, gate outcomes, failures, and next
+      action
+
+For a planned but not executed run, checklist only the selected stages and
+record unselected side effects as `not_in_scope`; do not create placeholder
+ledgers for every adapter.
+
+For a design-only request, the run spine is a planning contract, not permission
+to call live adapters.
+
+## No-Publish Gates
+
+Do not deploy or notify as a successful publication when a blocker for the
+selected output remains:
+
+- source minimum is not met
+- source evidence is too stale for the run's recency window
+- story claims lack source refs
+- major counterevidence is unresolved
+- image assets are missing, invalid, or not saved in the project when image
+  output is in scope
+- webpage design/browser checks fail when a webpage is in scope
+- deployment fails or returns no stable URL when deployment is in scope
+- notification transport fails and the brief marks notification as a publish
+  blocker
+- secrets or tokens would be exposed in checked-in output
+- the user asked for human review before publish and approval is missing
+
+When a blocker fires, send or prepare a failure report instead of pretending
+the daily publication succeeded. The report should include the blocked stage,
+the shortest useful diagnostic, and the deterministic next action.
+
+Deployment and notification are separate statuses. A successful deploy followed
+by notification failure is `published_with_notification_failure` unless the
+brief explicitly requires notification as a publish blocker. If
+`notify_adapter` is `none`, set notification status to `not_in_scope` and do
+not treat notification as a blocker.
+
+## Generalization Model
+
+The AI-news version is only one domain pack. Built-in starter packs are
+documented in `references/domain-packs.md` and can be listed with
+`list-domain-packs`.
+
+Use the same spine for:
+
+- AI news radar
+- product release radar
+- market or competitor watch
+- open-source project pulse
+- research-paper digest
+- community sentiment brief
+- internal team update
+- event or conference recap
+
+Generalize by swapping:
+
+- `source_pack`
+  - feeds, social queries, accounts, communities, repositories, newsletters,
+    papers, or internal sources
+- `editorial_rubric`
+  - novelty, credibility, actionability, risk, trend strength, audience fit
+- `asset_pack`
+  - social card, hero image, carousel, thumbnail, chart image, cover
+- `output_pack`
+  - web page, newsletter issue, social post bundle, team alert, research dossier
+- `deploy_adapter`
+  - Vercel, static artifact, GitHub Pages, internal host, none
+- `notify_adapter`
+  - mobile push, chat webhook, email, task/comment, none
+
+Every domain pack must declare:
+
+- source pack
+- source minimum
+- recency window
+- credibility rubric
+- confidence bar
+- fallback behavior
+- editorial rubric
+- asset pack
+- output pack
+
+If these are omitted, collect and synthesize only as a draft, then finish as
+`drafted` or `blocked`; do not invent thresholds and publish.
+
+Built-in starter packs may prefill these fields during `init-run`, but they are
+still starter thresholds. Override them in the run brief when the domain needs
+stricter sourcing, recency, confidence, or output rules.
+
+## Scheduled Run Prompt Shape
+
+For scheduled Codex runs, give the agent a compact prompt with the contract
+instead of a loose instruction.
+
+Minimum prompt fields:
+
+```text
+Run bagakit-daily-media-production.
+Domain pack: <ai-news|release-radar|market-watch|...>
+Cadence: <daily|weekly|manual>, timezone: <IANA timezone>
+Source window: <absolute or relative window>
+Output pack: <web-brief|newsletter|social-carousel|team-alert|...>
+Deployment adapter: <vercel|static|none|...>
+Notification adapter: <telegram|ntfy|slack|none|...>
+Review mode: <auto-publish|draft-only|human-review-before-deploy>
+No-publish policy: stop on any blocker and report the blocked stage.
+Archive: write run ledgers under the host's chosen run directory.
+```
+
+For `codex exec`, use non-interactive mode only after the prompt, working
+directory, secrets, and no-publish behavior have been tested manually.
+
+## Runtime Surface
+
+This skill may materialize a project-local surface when a host repository
+wants durable run state:
+
+- `.bagakit/daily-media-production/`
+
+Suggested members:
+
+- `surface.toml`
+- `runs/<run-id>/brief.md`
+- `runs/<run-id>/collection-ledger.md`
+- `runs/<run-id>/evidence-review.md`
+- `runs/<run-id>/asset-ledger.md`
+- `runs/<run-id>/deployment-ledger.md`
+- `runs/<run-id>/notification-ledger.md`
+- `runs/<run-id>/archive.md`
+
+Create the surface only when the host needs persistent run state. For one-off
+planning, a local handoff document is enough.
+
+Use `references/run-artifacts.md` for `surface.toml`, run id, status, gate
+result, ledger templates, and `validate-run` checks.
+Use `references/domain-packs.md` for built-in starter packs and extension
+rules.
+
+## Completion Gate
+
+Before calling the workflow complete, verify:
+
+- the dependency preflight was run or explicitly waived
+- the selected source pack and output pack are named
+- domain-pack thresholds are declared or the run is marked draft/blocked
+- starter domain-pack thresholds were reviewed against the actual publication
+  domain
+- source refs and claims are traceable
+- image assets are saved in the project when the webpage references them
+- webpage design/browser evidence exists when a webpage is produced
+- deploy URL is recorded when deployment is in scope
+- notification result is recorded when notification is in scope
+- no-publish gates are all passed or the run is archived as blocked
+- secrets are not written to checked-in files
+- `validate-run` passes for publish intent, or passes audit intent with a
+  blocked/draft result explicitly recorded
+- the final answer includes the deploy URL or blocked-stage report
+
+Use `references/runbook.md` for the operator runbook and
+`references/adapter-matrix.md` for adapter selection. Use
+`references/run-artifacts.md` for compatible run ledgers.
+
+Load `references/domain-packs.md` only when choosing or extending a starter
+publication domain. The core workflow does not require loading every domain
+pack or adapter description into context.

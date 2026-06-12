@@ -1,5 +1,0 @@
-version = 1
-skill = "bagakit-writing-intake"
-trigger = "Writing needs pre-draft intake for evidence, privacy, protected spans, style, or rewrite risks."
-do = "Emit an intake packet with evidence and boundaries plus a named next owner; do not write final prose."
-see = "skills/paperwork/bagakit-writing-intake/SKILL.md"

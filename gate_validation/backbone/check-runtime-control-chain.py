@@ -53,7 +53,7 @@ EXPECTED_TOKENS = {
         "Delivery receipts currently use schema",
         "They belong to host exhaust only",
     ],
-    "gate_validation/skills/harness/bagakit-flow-runner/check-flow-runner.sh": [
+    "gate_validation/skills/co-work/orchestrate/execution/bagakit-flow-runner/check-flow-runner.sh": [
         'payload["schema"] == "bagakit/flow-runner/feature-activation/v1"',
         'payload["recommended_action"] == "run_session"',
         "bagakit/flow-runner/mutation-receipt/v1",
@@ -71,11 +71,11 @@ EXPECTED_TOKENS = {
 }
 
 FORBIDDEN_TOKENS = {
-    "skills/harness/bagakit-flow-runner": [
+    "skills/co-work/orchestrate/execution/bagakit-flow-runner": [
         "session-observation.json",
         "bagakit/agent-loop/session-observation/v1",
     ],
-    "skills/harness/bagakit-flow-runner/scripts/lib/protocol": [
+    "skills/co-work/orchestrate/execution/bagakit-flow-runner/scripts/lib/protocol": [
         "dev/agent_loop",
         "deliver-notification",
         "host_notification_request",
@@ -85,17 +85,17 @@ FORBIDDEN_TOKENS = {
 }
 
 FORBIDDEN_IMPORTS = {
-    "skills/harness/bagakit-flow-runner/scripts/lib/protocol": [
+    "skills/co-work/orchestrate/execution/bagakit-flow-runner/scripts/lib/protocol": [
         "node:child_process",
         "dev/agent_loop",
         "dev/agent_runner",
     ],
     "dev/agent_loop/src": [
-        "skills/harness/bagakit-flow-runner/scripts/lib/protocol",
+        "skills/co-work/orchestrate/execution/bagakit-flow-runner/scripts/lib/protocol",
     ],
     "dev/agent_runner/test": [
-        "skills/harness/bagakit-flow-runner",
-        "skills/harness/",
+        "skills/co-work/orchestrate/execution/bagakit-flow-runner",
+        "skills/co-work/orchestrate/",
     ],
 }
 

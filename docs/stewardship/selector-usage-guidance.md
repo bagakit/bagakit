@@ -3,51 +3,38 @@
 Use this note when deciding whether a piece of work should explicitly go through
 `bagakit-skill-selector`.
 
-This note is maintainer guidance that operationalizes the shared mandatory
-selector-preflight rule. It is not a hidden second control plane.
+This note is maintainer guidance for selective selector use. It is not a
+hidden second control plane.
 
 ## First Principle
 
 `bagakit-skill-selector` exists to improve task-level skill choice,
 composition visibility, and execution evidence.
 
-For non-trivial Bagakit-shaped work, that means one explicit preflight should
-happen before major implementation.
-It still does not exist to wrap every tiny action in ceremony.
+Selector should be used when a real route decision or reusable evidence needs
+it. It does not exist to wrap every non-trivial task in ceremony.
 
 ## Default Rule
 
-For non-trivial Bagakit-shaped work, run selector preflight before major
-implementation.
+Use selector when at least one of:
 
-Bagakit-shaped non-trivial work usually means at least one of:
+- two or more plausible candidates can change the route
+- multiple skills need explicit composition
+- a retry or failure requires a method change
+- a maintainer explicitly requests reusable selection/evaluation evidence
 
-- the task is likely to take multiple concrete steps
-- the task may need more than one skill or tool
-- the task has non-trivial quality or evidence expectations
-- the task may benefit from explicit comparison, retry discipline, or
-  composition logging
+Direct execution is appropriate when:
 
-For trivial work, direct execution is acceptable.
-
-Trivial usually means:
-
-- one obvious single-step action
-- no meaningful multi-skill decision
-- no real need to preserve task-local telemetry
+- the route is obvious
+- no meaningful candidate or composition decision exists
+- existing host trace/test output already carries the needed evidence
 
 ## Practical Rule
 
-Ask one simple classification question:
-
-- is this trivial one-step work, or non-trivial Bagakit-shaped work?
-
-If the task is trivial, act directly.
-If the task is non-trivial and Bagakit-shaped, run selector preflight first and
-record the result in `skill-usage.toml`.
-
-Mandatory preflight may still end in `direct_execute` when current coverage is
-already sufficient or no better candidate exists.
+Ask one simple classification question: can selector change the next action or
+preserve evidence that someone will reuse? If not, act directly. If yes, use
+the lightest mode: an ephemeral typed preflight, or a persisted episode when
+the decision or outcome has reuse value.
 
 ## Selection Scope Rule
 
@@ -90,8 +77,8 @@ If a canonical Bagakit skill is visible in the repository but not available in
 the current host, keep it in the comparison picture but do not pretend it is
 executable.
 
-When selector is already in use, record explicit task-local availability in
-`[[skill_plan]]` instead of leaving it implicit in prose.
+When a persisted episode is justified, record explicit task-local availability
+in `[[skill_plan]]` instead of leaving it implicit in prose.
 
 ## Boundary Rule
 
@@ -120,9 +107,9 @@ Skill frontmatter may declare selector-relevant metadata such as:
 - harness layer
 - Bagakit driver file path
 
-It must not be treated as the surface that creates mandatory selector policy.
-Mandatory preflight policy for non-trivial Bagakit-shaped work belongs in
-shared specs and bootstrap guidance, not in hidden metadata.
+It must not be treated as the surface that creates a hidden selector policy.
+Entry and persistence guidance belongs in the owning selector spec and
+bootstrap, not in hidden metadata.
 
 ## Legacy Absorption Rule
 

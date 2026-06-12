@@ -1,0 +1,7 @@
+version = 1
+skill = "bagakit-consensus-ledger"
+trigger = "Work needs a durable ledger for consensus, unknowns, inferences, blind spots, decisions, dimensions, or evidence requirements."
+do = "Embed the ledger in the owner run when possible and keep epistemic class, status, provenance, evidence, and promotion explicit."
+see = "skills/co-work/align/bagakit-consensus-ledger/SKILL.md"
+surface = "<owner-dir>/consensus-ledger.json or .bagakit/consensus-ledger/ledgers/<ledger-id>/ledger.json"
+fallback = "Use prose for tiny one-turn work; promote durable knowledge through living-knowledge."

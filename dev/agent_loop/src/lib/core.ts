@@ -135,11 +135,11 @@ function nextCommandExample(itemId: string, stop: StopEnvelope, sessionBudget: n
     case "inspect_run_lock":
       return `cat .bagakit/agent-loop/run.lock`;
     case "inspect_flow_runner_state":
-      return `bash "skills/harness/bagakit-flow-runner/scripts/flow-runner.sh" next --root . --item ${itemId} --json`;
+      return `bash "skills/co-work/orchestrate/execution/bagakit-flow-runner/scripts/flow-runner.sh" next --root . --item ${itemId} --json`;
     case "inspect_resume_candidates":
-      return `bash "skills/harness/bagakit-flow-runner/scripts/flow-runner.sh" resume-candidates --root . --json`;
+      return `bash "skills/co-work/orchestrate/execution/bagakit-flow-runner/scripts/flow-runner.sh" resume-candidates --root . --json`;
     case "archive_owned_item":
-      return `bash "skills/harness/bagakit-flow-runner/scripts/flow-runner.sh" archive-item --root . --item ${itemId}`;
+      return `bash "skills/co-work/orchestrate/execution/bagakit-flow-runner/scripts/flow-runner.sh" archive-item --root . --item ${itemId}`;
     default:
       return "";
   }

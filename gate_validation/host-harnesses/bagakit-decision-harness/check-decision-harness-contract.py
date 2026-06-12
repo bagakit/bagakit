@@ -120,6 +120,7 @@ def main() -> int:
             "bagakit_layer": "l4-host-harness",
             "host_mode": "dedicated_workspace",
             "agent_entrypoint": "SKILL.md",
+            "init_entrypoint": "scripts/decision-harness.sh",
             "host_template": "host-template",
         }
         for key, value in expected.items():

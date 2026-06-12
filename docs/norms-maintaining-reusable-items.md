@@ -26,9 +26,7 @@ Reusable items are durable assets worth reusing across iterations, such as:
 ## Recommended Catalogs
 
 - `docs/notes-reusable-items-knowledge.md`
-- `docs/notes-reusable-items-coding.md`
 - `docs/notes-reusable-items-design.md`
-- `docs/notes-reusable-items-writing.md`
 
 ## Starting Rule
 

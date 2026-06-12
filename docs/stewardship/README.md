@@ -188,12 +188,14 @@ Sub-layout:
 - `selector-project-preference-maintenance.md`
   - maintainer guidance for optional host-local selector preference hints
 - `selector-usage-guidance.md`
-  - maintainer guidance for mandatory selector preflight on non-trivial
-    Bagakit-shaped work
+  - maintainer guidance for conditional selector entry and selective evidence
 - `validation-optimization-report.md`
   - acceptance evidence and operator handoff for the small-universal,
     affected-blocking, full-sweep, and skill-goal eval model
-- `feature-tracker-surface-sourcebook.md`
-  - external reference study for deciding which durable feature-tracker files deserve to exist
 - `sop/`
   - step-by-step maintainer procedures
+
+Related memory:
+
+- `mem/decisions/feature-tracker-surface-sourcebook.md`
+  - external reference study for deciding which durable feature-tracker files deserve to exist

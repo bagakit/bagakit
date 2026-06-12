@@ -1,0 +1,450 @@
+set -euo pipefail
+
+ROOT="."
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --root)
+      [[ $# -ge 2 ]] || { echo "missing value for --root" >&2; exit 2; }
+      ROOT="$2"
+      shift 2
+      ;;
+    -h|--help)
+      cat <<'EOF'
+usage: gate_validation/skills/co-work/deliver/media-production/bagakit-daily-media-production/check-daily-media-production.sh [--root <repo-root>]
+
+Run deterministic behavior and contract smoke checks for
+bagakit-daily-media-production.
+EOF
+      exit 0
+      ;;
+    *)
+      echo "unexpected argument: $1" >&2
+      exit 2
+      ;;
+  esac
+done
+
+ROOT="$(cd "$ROOT" && pwd)"
+SKILL_DIR="$ROOT/skills/co-work/deliver/media-production/bagakit-daily-media-production"
+CMD="$SKILL_DIR/scripts/bagakit-daily-media-production-cli.sh"
+RUNBOOK="$SKILL_DIR/references/runbook.md"
+RUN_ARTIFACTS="$SKILL_DIR/references/run-artifacts.md"
+ADAPTER_MATRIX="$SKILL_DIR/references/adapter-matrix.md"
+DOMAIN_PACKS="$SKILL_DIR/references/domain-packs.md"
+SKILL_MD="$SKILL_DIR/SKILL.md"
+
+TMP_DIR="$(mktemp -d)"
+trap 'rm -rf "$TMP_DIR"' EXIT
+
+assert_contains() {
+  local file="$1"
+  local needle="$2"
+  if ! grep -Fq -- "$needle" "$file"; then
+    echo "missing expected text in $(basename "$file"): $needle" >&2
+    exit 1
+  fi
+}
+
+write_publishable_run() {
+  local run_root="$1"
+  local run_id="$2"
+  local run_dir="$run_root/.bagakit/daily-media-production/runs/$run_id"
+  mkdir -p "$run_dir"
+
+  cat >"$run_dir/brief.md" <<EOF
+# Brief
+
+- run_id: $run_id
+- domain_pack: release-radar
+- audience: engineering
+- cadence: manual
+- timezone: UTC
+- source_window: configured
+- source_pack: official release evidence
+- source_minimum: 1
+- recency_window: configured
+- confidence_bar: source-backed
+- editorial_rubric: release impact
+- asset_pack: release card
+- output_pack: web-brief
+- deploy_adapter: static
+- notify_adapter: none
+- scheduler_adapter: manual
+- review_mode: draft-reviewed
+- no_publish_policy: stop on blocker
+
+## Domain Pack Requirements
+- source pack: official release evidence
+- source minimum: 1
+- recency window: configured
+- credibility rubric: official source preferred
+- confidence bar: source-backed
+- fallback behavior: draft only
+- editorial rubric: release impact
+- asset pack: release card
+- output pack: web-brief
+EOF
+
+  cat >"$run_dir/collection-ledger.md" <<'EOF'
+# Collection Ledger
+
+| source_id | channel | url_or_ref | observed_at | author_or_source | story_candidate | inclusion_reason |
+|-----------|---------|------------|-------------|------------------|-----------------|------------------|
+| src-1 | official | https://example.invalid/source | configured | example | story-1 | source-backed update |
+EOF
+
+  cat >"$run_dir/evidence-review.md" <<'EOF'
+# Evidence Review
+
+| story_id | source_ids | novelty | credibility | audience_impact | counterevidence | confidence | decision |
+|----------|------------|---------|-------------|-----------------|-----------------|------------|----------|
+| story-1 | src-1 | clear | high | useful | none found | source-backed | include |
+
+## Gate Results
+| gate | status | evidence_ref | note |
+|------|--------|--------------|------|
+| source-minimum | pass | collection-ledger.md | threshold met |
+| recency-window | pass | collection-ledger.md | window checked |
+| confidence-bar | pass | evidence-review.md | source-backed |
+| counterevidence | pass | evidence-review.md | none found |
+EOF
+
+  cat >"$run_dir/asset-ledger.md" <<'EOF'
+# Asset Ledger
+
+| asset_id | purpose | format | source_refs | prompt_ref | final_path | validation_status | note |
+|----------|---------|--------|-------------|------------|------------|-------------------|------|
+| asset-1 | cover | png | src-1 | prompt-1 | artifacts/cover.png | pass | project-local path |
+EOF
+
+  cat >"$run_dir/deployment-ledger.md" <<'EOF'
+# Deployment Ledger
+
+- deploy_adapter: static
+- deployment_status: published
+- command_ref: static export
+- environment: local fixture
+- deploy_url: https://example.invalid/daily-media
+- rollback_note: replace artifact
+
+## Gate Results
+| gate | status | evidence_ref | note |
+|------|--------|--------------|------|
+| webpage-evidence | pass | browser-check | checked |
+| deployment-url | pass | deployment-ledger.md | URL recorded |
+EOF
+
+  cat >"$run_dir/notification-ledger.md" <<'EOF'
+# Notification Ledger
+
+- notify_adapter: none
+- notification_status: not_in_scope
+- recipient_class: not_applicable
+- payload_ref: not_applicable
+- delivery_ref: not_applicable
+- redaction_note: no notification
+EOF
+
+  cat >"$run_dir/archive.md" <<EOF
+# Run Archive
+
+- run_id: $run_id
+- publication_status: published
+- notification_status: not_in_scope
+- final_url_or_artifact: https://example.invalid/daily-media
+- blocked_stage: not_applicable
+- next_action: monitor next run
+
+## Ledgers
+- brief: .bagakit/daily-media-production/runs/$run_id/brief.md
+- collection: .bagakit/daily-media-production/runs/$run_id/collection-ledger.md
+- evidence_review: .bagakit/daily-media-production/runs/$run_id/evidence-review.md
+- asset: .bagakit/daily-media-production/runs/$run_id/asset-ledger.md
+- webpage: browser-check
+- deployment: .bagakit/daily-media-production/runs/$run_id/deployment-ledger.md
+- notification: .bagakit/daily-media-production/runs/$run_id/notification-ledger.md
+
+## Gate Summary
+| gate | status | evidence_ref | note |
+|------|--------|--------------|------|
+| source-minimum | pass | evidence-review.md | pass |
+| recency-window | pass | evidence-review.md | pass |
+| confidence-bar | pass | evidence-review.md | pass |
+| counterevidence | pass | evidence-review.md | pass |
+| webpage-evidence | pass | deployment-ledger.md | pass |
+| deployment-url | pass | deployment-ledger.md | pass |
+EOF
+}
+
+run_ok() {
+  local output="$TMP_DIR/out"
+  if ! "$@" >"$output" 2>"$TMP_DIR/err"; then
+    echo "command unexpectedly failed: $*" >&2
+    cat "$TMP_DIR/err" >&2
+    exit 1
+  fi
+}
+
+run_fail() {
+  local expected_status="$1"
+  local output="$TMP_DIR/out"
+  shift
+  set +e
+  "$@" >"$output" 2>"$TMP_DIR/err"
+  local status=$?
+  set -e
+  if [[ "$status" -ne "$expected_status" ]]; then
+    echo "command returned $status, expected $expected_status: $*" >&2
+    cat "$output" >&2 || true
+    cat "$TMP_DIR/err" >&2 || true
+    exit 1
+  fi
+}
+
+run_ok bash "$CMD" describe
+grep -Fq "no-publish gates" "$TMP_DIR/out"
+
+run_ok bash "$CMD" list-references
+grep -Fq "references/adapter-matrix.md" "$TMP_DIR/out"
+grep -Fq "references/domain-packs.md" "$TMP_DIR/out"
+grep -Fq "references/run-artifacts.md" "$TMP_DIR/out"
+grep -Fq "references/runbook.md" "$TMP_DIR/out"
+grep -Fq "references/skill-cli.toml" "$TMP_DIR/out"
+
+run_ok bash "$CMD" list-domain-packs
+grep -Fq "Built-in domain packs" "$TMP_DIR/out"
+grep -Fq "ai-news" "$TMP_DIR/out"
+grep -Fq "release-radar" "$TMP_DIR/out"
+grep -Fq "paper-digest" "$TMP_DIR/out"
+grep -Fq "starter thresholds" "$TMP_DIR/out"
+
+run_fail 2 bash "$CMD" list-domain-packs unexpected
+grep -Fq "list-domain-packs takes no arguments" "$TMP_DIR/err"
+
+run_fail 2 bash "$CMD" doctor --source
+grep -Fq "missing value for --source" "$TMP_DIR/err"
+
+run_fail 2 bash "$CMD" doctor --unknown-route value
+grep -Fq "unknown doctor argument: --unknown-route" "$TMP_DIR/err"
+
+run_ok bash "$CMD" doctor \
+  --source none \
+  --image none \
+  --web none \
+  --deploy none \
+  --notify none \
+  --scheduler manual \
+  --write-root "$TMP_DIR"
+grep -Fq "doctor result: no required route dependency is missing" "$TMP_DIR/out"
+grep -Fq "source               ok        none" "$TMP_DIR/out"
+grep -Fq "notification         ok        none" "$TMP_DIR/out"
+
+run_ok bash "$CMD" doctor \
+  --source none \
+  --image none \
+  --web bagakit-codex-webpage-design \
+  --deploy static \
+  --notify none \
+  --scheduler manual \
+  --write-root "$TMP_DIR"
+grep -Fq "webpage-design skill ok        skills/co-work/deliver/design/bagakit-codex-webpage-design/SKILL.md" "$TMP_DIR/out"
+grep -Fq "doctor result: no required route dependency is missing" "$TMP_DIR/out"
+
+run_fail 1 bash "$CMD" doctor \
+  --source none \
+  --image none \
+  --web none \
+  --deploy static \
+  --notify none \
+  --scheduler manual \
+  --write-root "$TMP_DIR/missing-root"
+grep -Fq "write-root           missing" "$TMP_DIR/out"
+grep -Fq "doctor result: blocked route dependency is missing" "$TMP_DIR/out"
+
+(
+  unset TELEGRAM_BOT_TOKEN TELEGRAM_CHAT_ID
+  run_fail 1 bash "$CMD" doctor \
+    --source none \
+    --image none \
+    --web none \
+    --deploy none \
+    --notify telegram \
+    --scheduler manual \
+    --write-root "$TMP_DIR"
+)
+grep -Fq 'Telegram token       unset     $TELEGRAM_BOT_TOKEN is required for selected route' "$TMP_DIR/out"
+grep -Fq 'Telegram chat        unset     $TELEGRAM_CHAT_ID is required for selected route' "$TMP_DIR/out"
+if grep -Fq "secret" "$TMP_DIR/out"; then
+  echo "doctor output contains a secret-like placeholder instead of env names only" >&2
+  exit 1
+fi
+
+(
+  mkdir -p "$TMP_DIR/empty-home" "$TMP_DIR/empty-codex" "$TMP_DIR/empty-bin"
+  dirname_path="$(command -v dirname)"
+  ln -s "$dirname_path" "$TMP_DIR/empty-bin/dirname"
+  run_fail 1 env \
+    HOME="$TMP_DIR/empty-home" \
+    CODEX_HOME="$TMP_DIR/empty-codex" \
+    PATH="$TMP_DIR/empty-bin" \
+    "$BASH" "$CMD" doctor \
+    --source agent-reach \
+    --image none \
+    --web none \
+    --deploy none \
+    --notify none \
+    --scheduler manual \
+    --write-root "$TMP_DIR"
+)
+grep -Fq "agent-reach route" "$TMP_DIR/out"
+grep -Fq "selected route needs Agent Reach skill or at least one supported channel command" "$TMP_DIR/out"
+
+run_fail 2 bash "$CMD" init-run --run-id
+grep -Fq "missing value for --run-id" "$TMP_DIR/err"
+
+run_fail 2 bash "$CMD" init-run --run-id "Bad_Run"
+grep -Fq "invalid run id: Bad_Run" "$TMP_DIR/err"
+
+RUN_ROOT="$TMP_DIR/run-root"
+RUN_ID="ai-news-$(printf '%08d' 0)-main"
+mkdir -p "$RUN_ROOT"
+run_ok bash "$CMD" init-run \
+  --root "$RUN_ROOT" \
+  --run-id "$RUN_ID" \
+  --domain-pack ai-news \
+  --deploy static \
+  --notify none \
+  --scheduler manual
+grep -Fq "initialized run: .bagakit/daily-media-production/runs/$RUN_ID" "$TMP_DIR/out"
+
+SURFACE="$RUN_ROOT/.bagakit/daily-media-production/surface.toml"
+RUN_DIR="$RUN_ROOT/.bagakit/daily-media-production/runs/$RUN_ID"
+test -f "$SURFACE"
+test -f "$RUN_DIR/brief.md"
+test -f "$RUN_DIR/collection-ledger.md"
+test -f "$RUN_DIR/evidence-review.md"
+test -f "$RUN_DIR/asset-ledger.md"
+test -f "$RUN_DIR/deployment-ledger.md"
+test -f "$RUN_DIR/notification-ledger.md"
+test -f "$RUN_DIR/archive.md"
+grep -Fq 'surface_root = ".bagakit/daily-media-production"' "$SURFACE"
+grep -Fq "run_id: $RUN_ID" "$RUN_DIR/brief.md"
+grep -Fq "domain_pack: ai-news" "$RUN_DIR/brief.md"
+grep -Fq "source_pack: official AI lab blogs; research feeds; GitHub releases; curated social and RSS sources" "$RUN_DIR/brief.md"
+grep -Fq "source_minimum: 5" "$RUN_DIR/brief.md"
+grep -Fq "recency_window: last 36 hours unless brief overrides" "$RUN_DIR/brief.md"
+grep -Fq "credibility rubric: primary lab, maintainer, paper, release note, or two independent reputable sources" "$RUN_DIR/brief.md"
+grep -Fq "fallback behavior: draft only when source minimum or primary-source backing is missing" "$RUN_DIR/brief.md"
+grep -Fq "editorial_rubric: novelty; credibility; developer impact; risk; audience fit" "$RUN_DIR/brief.md"
+grep -Fq "asset_pack: web hero; social card; optional carousel" "$RUN_DIR/brief.md"
+grep -Fq "output_pack: web-brief" "$RUN_DIR/brief.md"
+grep -Fq "deploy_adapter: static" "$RUN_DIR/deployment-ledger.md"
+grep -Fq "notify_adapter: none" "$RUN_DIR/notification-ledger.md"
+grep -Fq "notification_status: not_in_scope" "$RUN_DIR/notification-ledger.md"
+grep -Fq "publication_status: drafted" "$RUN_DIR/archive.md"
+grep -Fq "notification_status: not_in_scope" "$RUN_DIR/archive.md"
+
+INFER_ROOT="$TMP_DIR/infer-root"
+INFER_ID="paper-digest-$(printf '%08d' 0)-main"
+mkdir -p "$INFER_ROOT"
+run_ok bash "$CMD" init-run \
+  --root "$INFER_ROOT" \
+  --run-id "$INFER_ID" \
+  --deploy none \
+  --notify none \
+  --scheduler manual
+grep -Fq "domain_pack: paper-digest" "$INFER_ROOT/.bagakit/daily-media-production/runs/$INFER_ID/brief.md"
+grep -Fq "source_minimum: 4" "$INFER_ROOT/.bagakit/daily-media-production/runs/$INFER_ID/brief.md"
+
+if grep -R -F "$RUN_ROOT" "$RUN_DIR" "$SURFACE" >/dev/null; then
+  echo "init-run leaked a machine-local root" >&2
+  exit 1
+fi
+
+run_fail 2 bash "$CMD" validate-run --run-id
+grep -Fq "missing value for --run-id" "$TMP_DIR/err"
+
+run_fail 2 bash "$CMD" validate-run --run-id "Bad_Run"
+grep -Fq "invalid run id: Bad_Run" "$TMP_DIR/err"
+
+run_ok bash "$CMD" validate-run \
+  --root "$RUN_ROOT" \
+  --run-id "$RUN_ID" \
+  --intent audit
+grep -Fq "run validation result: not publishable" "$TMP_DIR/out"
+grep -Fq "publish gate         blocked   archive publication_status is drafted" "$TMP_DIR/out"
+grep -Fq "publish gate         blocked   asset ledger has no asset rows" "$TMP_DIR/out"
+
+run_fail 1 bash "$CMD" validate-run \
+  --root "$RUN_ROOT" \
+  --run-id "$RUN_ID"
+grep -Fq "run validation result: not publishable" "$TMP_DIR/out"
+
+PUBLISH_ROOT="$TMP_DIR/publish-root"
+PUBLISH_ID="release-radar-$(printf '%08d' 0)-ship"
+write_publishable_run "$PUBLISH_ROOT" "$PUBLISH_ID"
+run_ok bash "$CMD" validate-run \
+  --root "$PUBLISH_ROOT" \
+  --run-id "$PUBLISH_ID"
+grep -Fq "run validation result: publishable" "$TMP_DIR/out"
+grep -Fq "publication          ok        published" "$TMP_DIR/out"
+grep -Fq "asset rows           ok        1 recorded" "$TMP_DIR/out"
+
+LEAK_ROOT="$TMP_DIR/leak-root"
+LEAK_ID="market-watch-$(printf '%08d' 0)-leak"
+write_publishable_run "$LEAK_ROOT" "$LEAK_ID"
+printf 'local path: %s%s/example/run\n' "/" "Users" >>"$LEAK_ROOT/.bagakit/daily-media-production/runs/$LEAK_ID/archive.md"
+run_fail 2 bash "$CMD" validate-run \
+  --root "$LEAK_ROOT" \
+  --run-id "$LEAK_ID" \
+  --intent audit
+grep -Fq "run artifacts contain a machine-local absolute path" "$TMP_DIR/out"
+
+run_fail 1 bash "$CMD" init-run \
+  --root "$RUN_ROOT" \
+  --run-id "$RUN_ID" \
+  --domain-pack ai-news
+grep -Fq "refusing to overwrite existing file" "$TMP_DIR/err"
+
+assert_contains "$SKILL_MD" "Do not deploy or notify as a successful publication when any blocker remains"
+assert_contains "$SKILL_MD" "published_with_notification_failure"
+assert_contains "$SKILL_MD" "Deployment and notification are separate statuses"
+assert_contains "$SKILL_MD" "Every domain pack must declare:"
+assert_contains "$SKILL_MD" "If these are omitted, collect and synthesize only as a draft"
+assert_contains "$SKILL_MD" "references/domain-packs.md"
+assert_contains "$SKILL_MD" "starter thresholds"
+
+assert_contains "$RUNBOOK" "If the brief is missing source thresholds, collect and synthesize only as a"
+assert_contains "$RUNBOOK" "list-domain-packs"
+assert_contains "$RUNBOOK" "Track deployment status separately from notification status."
+assert_contains "$RUNBOOK" "Publication status values:"
+assert_contains "$RUNBOOK" "validate-run"
+assert_contains "$RUNBOOK" 'Use `references/run-artifacts.md` for compact ledger templates'
+
+assert_contains "$RUN_ARTIFACTS" "Surface Marker"
+assert_contains "$RUN_ARTIFACTS" "Publication status:"
+assert_contains "$RUN_ARTIFACTS" "Notification status:"
+assert_contains "$RUN_ARTIFACTS" "Gate status:"
+assert_contains "$RUN_ARTIFACTS" "Run Validation"
+assert_contains "$RUN_ARTIFACTS" "source_pack"
+assert_contains "$RUN_ARTIFACTS" "references/domain-packs.md"
+assert_contains "$RUN_ARTIFACTS" "source-minimum"
+assert_contains "$RUN_ARTIFACTS" "deployment-url"
+assert_contains "$RUN_ARTIFACTS" "notification_status"
+assert_contains "$RUN_ARTIFACTS" "runs/<run-id>/archive.md"
+
+assert_contains "$ADAPTER_MATRIX" "Adapters are dependencies to check, not payloads to vendor."
+assert_contains "$ADAPTER_MATRIX" 'Do not assume `skill_id` equals `cli_command`.'
+assert_contains "$ADAPTER_MATRIX" "Block publish when:"
+assert_contains "$ADAPTER_MATRIX" "If publish succeeds and notification fails"
+assert_contains "$ADAPTER_MATRIX" "published_with_notification_failure"
+
+assert_contains "$DOMAIN_PACKS" "## Built-In Starter Packs"
+assert_contains "$DOMAIN_PACKS" '`ai-news`'
+assert_contains "$DOMAIN_PACKS" '`release-radar`'
+assert_contains "$DOMAIN_PACKS" '`paper-digest`'
+assert_contains "$DOMAIN_PACKS" "Domain packs are starter contracts."
+assert_contains "$DOMAIN_PACKS" "do not vendor peer internals"
+
+echo "ok: bagakit-daily-media-production behavior smoke passed"

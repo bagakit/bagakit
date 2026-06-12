@@ -101,20 +101,29 @@
       "expect": {
         "exitCode": 1,
         "stderrContains": [
-          "bagakit-skill: link would overwrite existing paths; rerun with --force to replace them:",
-          "- linked/alpha already exists and does not point to harness/alpha"
+          "bagakit-skill: link operation has protected path conflicts:",
+          "- linked/alpha is not a symbolic link; refusing to replace it"
         ]
       }
     },
     {
       "id": "force-replace-alpha-conflict",
       "title": "Replace a conflicting destination path with force",
+      "setup": [
+        {
+          "type": "symlink",
+          "path": "linked-force/alpha",
+          "mode": "repo-root-absolute",
+          "target": "skills/human-improvement/solo",
+          "linkType": "dir"
+        }
+      ],
       "argv": [
         "link",
         "--selector",
         "harness/alpha",
         "--dest",
-        "linked",
+        "linked-force",
         "--force",
         "--json"
       ],
@@ -123,12 +132,12 @@
         "stdoutJson": {
           "selector": "harness/alpha",
           "kind": "qualified",
-          "destination": "linked",
+          "destination": "linked-force",
           "results": [
             {
               "selector": "harness/alpha",
               "status": "linked",
-              "destinationPath": "linked/alpha",
+              "destinationPath": "linked-force/alpha",
               "sourcePath": "skills/harness/alpha"
             }
           ]
@@ -137,7 +146,7 @@
       "assertFs": [
         {
           "kind": "symlink",
-          "path": "linked/alpha",
+          "path": "linked-force/alpha",
           "resolvesTo": "skills/harness/alpha"
         }
       ]

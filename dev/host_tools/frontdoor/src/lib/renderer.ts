@@ -1,6 +1,7 @@
 import {
   FRONTDOOR_END,
   FRONTDOOR_START,
+  INDEX_PATH,
   RENDERED_RULE_FIELDS,
   SKILL_ID_RE,
   type LoadedRule,
@@ -37,11 +38,11 @@ function renderField(rule: RuleDeclaration, field: RenderedRuleField): string | 
   if (!value?.trim()) {
     return null;
   }
-  const rendered = field === "see" || field === "evidence" || field === "surface" ? `\`${value}\`` : value;
+  const rendered = field === "see" ? `\`${value}\`` : value;
   return `${labelFor(field)}: ${rendered}`;
 }
 
-export function renderManagedBlock(rules: LoadedRule[]): string {
+export function renderRuleIndex(rules: LoadedRule[]): string {
   const renderedRules = orderedRules(rules).map(({ declaration }) => {
     if (!SKILL_ID_RE.test(declaration.skill)) {
       throw new Error(`unsafe skill id for frontdoor render: ${declaration.skill}`);
@@ -53,8 +54,22 @@ export function renderManagedBlock(rules: LoadedRule[]): string {
   });
 
   return [
-    FRONTDOOR_START,
+    "# Bagakit Skill Entry Index",
+    "",
+    "Generated from skill-owned frontdoor declarations. Do not edit directly.",
+    "Consult only relevant entries when skill discovery or composition is unclear.",
+    "This index does not invoke skills or grant authority; directory sources own identity.",
+    "",
     renderedRules.join("\n"),
+    "",
+  ].join("\n");
+}
+
+export function renderManagedBlock(): string {
+  return [
+    FRONTDOOR_START,
+    `Use visible skill descriptions first; consult \`${INDEX_PATH}\` only when the route is unclear.`,
+    "Load only the selected skill. Use selector for a real candidate comparison, composition decision, repeated failure, or explicitly requested reusable evidence; otherwise execute directly.",
     FRONTDOOR_END,
     "",
   ].join("\n");
