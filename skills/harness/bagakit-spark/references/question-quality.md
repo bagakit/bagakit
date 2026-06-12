@@ -134,22 +134,11 @@ asks for a full diagnostic interview.
 If a question is hard, personal, or likely to reshape the whole frame, ask one
 question only.
 
-Do not close the question loop just because the agent has enough material to
-summarize. The loop closes when the user explicitly says they are done, ready
-to converge, or ready for the next action.
-
-When Spark is invoked for planning, design, skill creation, or another
-open-ended shaping task, do not convert internal recommended defaults into
-silent execution. The first substantive response must ask at least one
-decision-changing question unless the user already accepted a snapshot for the
-same scope. A recommended default should make the question easier to answer,
-not make the user's answer unnecessary.
-
-An accepted snapshot may let Spark perform the next concrete implementation,
-validation, or commit action without asking first. It does not close the Spark
-loop. After the action finishes, the response still needs a next
-decision-changing question or an end-check question with the current summary,
-unless the user has explicitly ended Spark.
+Ask when the answer changes the next move. Close when the declared acceptance
+condition is met or the user asks to converge; a first response or completed
+execution does not inherently require another question. Do not label a new
+snapshot accepted without user acceptance, and do not ask again for acceptance
+already given for the same scope.
 
 If the next question is "should we end this loop?", include the current
 confirmed key summary with the question. The user should not need to infer what

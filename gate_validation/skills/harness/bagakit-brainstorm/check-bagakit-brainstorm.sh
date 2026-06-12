@@ -86,6 +86,8 @@ write(
 
     - Status: complete
     - Clarification status: complete
+    - Review mode: lightweight
+    - User review required: false
 
     ## Goal Snapshot
     - Deliver a route-ready brainstorm package for {topic}.
@@ -633,7 +635,7 @@ INIT_ARTIFACT="$(init_artifact "$INIT_ROOT" "Init smoke demo" "init-smoke" --wit
 
 INIT_STATUS_OUTPUT="$(python3 "$SKILL_DIR/scripts/bagakit-brainstorm.py" status --root "$INIT_ROOT" --dir "$INIT_ARTIFACT")"
 assert_output_line "$INIT_STATUS_OUTPUT" "artifact_scope=runs"
-assert_output_line "$INIT_STATUS_OUTPUT" "required_total=4"
+assert_output_line "$INIT_STATUS_OUTPUT" "required_total=3"
 assert_output_line "$INIT_STATUS_OUTPUT" "required_complete=0"
 assert_output_line "$INIT_STATUS_OUTPUT" "next_stage=input_and_qa"
 assert_output_line "$INIT_STATUS_OUTPUT" "support_raw_discussion_log=in_progress"
@@ -682,7 +684,7 @@ test ! -f "$BLOCKED_ROOT/.bagakit/brainstorm/outcome/brainstorm-summary-blocked-
 
 BLOCKED_STATUS_OUTPUT="$(python3 "$SKILL_DIR/scripts/bagakit-brainstorm.py" status --root "$BLOCKED_ROOT" --dir "$BLOCKED_ARTIFACT")"
 assert_output_line "$BLOCKED_STATUS_OUTPUT" "artifact_scope=runs"
-assert_output_line "$BLOCKED_STATUS_OUTPUT" "required_complete=4"
+assert_output_line "$BLOCKED_STATUS_OUTPUT" "required_complete=3"
 assert_output_line "$BLOCKED_STATUS_OUTPUT" "archive_status=blocked"
 assert_output_line "$BLOCKED_STATUS_OUTPUT" "expert_forum_gate=pass"
 assert_output_line "$BLOCKED_STATUS_OUTPUT" "input_and_qa_gate=pass"
@@ -746,7 +748,7 @@ grep -q ".bagakit/brainstorm/archive/$LOCAL_ARTIFACT_NAME" "$LOCAL_OUTCOME_PATH"
 
 LOCAL_STATUS_OUTPUT="$(python3 "$SKILL_DIR/scripts/bagakit-brainstorm.py" status --root "$LOCAL_ROOT" --dir "$LOCAL_ARTIFACT")"
 assert_output_line "$LOCAL_STATUS_OUTPUT" "artifact_scope=archive"
-assert_output_line "$LOCAL_STATUS_OUTPUT" "required_complete=4"
+assert_output_line "$LOCAL_STATUS_OUTPUT" "required_complete=3"
 assert_output_line "$LOCAL_STATUS_OUTPUT" "archive_status=complete"
 
 python3 - "$LOCAL_ARCHIVE_JSON" "$LOCAL_ARTIFACT_NAME" <<'PY'
@@ -1300,7 +1302,7 @@ if python3 "$SKILL_DIR/scripts/bagakit-brainstorm.py" export-planning-entry-hand
   exit 1
 fi
 test ! -s "$INCOMPLETE_EXPORT_STDOUT"
-grep -q '^error: required stages incomplete: 0/4$' "$INCOMPLETE_EXPORT_STDERR"
+grep -q '^error: required stages incomplete: 0/3$' "$INCOMPLETE_EXPORT_STDERR"
 grep -q '^error: missing archive record: .bagakit/brainstorm/archive/' "$INCOMPLETE_EXPORT_STDERR"
 if grep -q 'Traceback' "$INCOMPLETE_EXPORT_STDERR"; then
   echo "error: incomplete export emitted traceback" >&2
@@ -1373,5 +1375,41 @@ if [[ "$DUPLICATE_STATUS" -eq 0 ]]; then
   exit 1
 fi
 assert_contains_line "$DUPLICATE_OUTPUT" "error: duplicate adapter id dup-route declared in"
+
+LIGHT_ROOT="$TMP_DIR/lightweight-no-forum"
+LIGHT_ARTIFACT="$(init_artifact "$LIGHT_ROOT" "Lightweight no forum" "light-no-forum")"
+write_complete_artifact "$LIGHT_ARTIFACT" "Lightweight no forum"
+rm "$LIGHT_ARTIFACT/expert_forum.md"
+python3 "$SKILL_DIR/scripts/bagakit-brainstorm.py" archive --root "$LIGHT_ROOT" --dir "$LIGHT_ARTIFACT" --driver local >/dev/null
+LIGHT_JSON="$LIGHT_ROOT/.bagakit/brainstorm/archive/$(basename "$LIGHT_ARTIFACT")/archive.json"
+python3 - "$LIGHT_JSON" <<'PY'
+import json, sys
+from pathlib import Path
+payload = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+assert payload["status"] == "complete"
+assert payload["checks"]["user_review_required"] is False
+assert payload["checks"]["user_review_approved"] is False
+PY
+python3 "$SKILL_DIR/scripts/bagakit-brainstorm.py" export-planning-entry-handoff \
+  --root "$LIGHT_ROOT" --dir "$LIGHT_ARTIFACT" --scene analysis_only \
+  --recipe-id planning-entry-brainstorm-only >/dev/null
+LIGHT_JSON_OUT="$LIGHT_ROOT/.bagakit/planning-entry/handoffs/light-no-forum.json"
+python3 - "$LIGHT_JSON_OUT" <<'PY'
+import json, sys
+from pathlib import Path
+payload = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+assert payload["status"] == "draft"
+assert payload["user_review_status"] == "pending"
+assert payload["discussion_clear"] is True
+PY
+
+SERIOUS_ROOT="$TMP_DIR/serious-blocked-forum"
+SERIOUS_ARTIFACT="$(init_artifact "$SERIOUS_ROOT" "Serious blocked forum" "serious-blocked" --review-mode serious)"
+if python3 "$SKILL_DIR/scripts/bagakit-brainstorm.py" archive \
+  --root "$SERIOUS_ROOT" --dir "$SERIOUS_ARTIFACT" --driver local >"$TMP_DIR/serious.out" 2>&1; then
+  echo "error: serious run without completed forum unexpectedly passed" >&2
+  exit 1
+fi
+assert_contains_line "$(cat "$TMP_DIR/serious.out")" "blocked_reason=required stages incomplete: 0/4"
 
 echo "ok: bagakit-brainstorm lifecycle smoke passed"

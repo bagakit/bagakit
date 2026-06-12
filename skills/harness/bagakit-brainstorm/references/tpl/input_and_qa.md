@@ -2,6 +2,8 @@
 
 - Status: in_progress
 - Clarification status: pending
+- Review mode: {{REVIEW_MODE}}
+- User review required: {{USER_REVIEW_REQUIRED}}
 
 ## Goal Snapshot
 - {{GOAL}}

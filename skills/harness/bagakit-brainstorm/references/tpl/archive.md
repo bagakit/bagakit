@@ -15,8 +15,9 @@
 - Policy: {{MEMORY_POLICY}}
 
 ## Gate
+- Review mode: {{REVIEW_MODE}}
 - Required stages complete: {{REQUIRED_STAGES_OK}}
-- Expert forum gate clear: {{EXPERT_FORUM_OK}}
+- Expert forum gate clear (when serious/publication): {{EXPERT_FORUM_OK}}
 - Action destination resolved: {{ACTION_OK}}
 - Memory destination resolved: {{MEMORY_OK}}
 - Local experiment count: {{EXPERIMENT_COUNT}}

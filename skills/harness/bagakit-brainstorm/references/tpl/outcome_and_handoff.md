@@ -30,8 +30,8 @@
 ## Action Checklist (Analysis Scope)
 - [ ] Decision rationale captured.
 - [ ] `raw_discussion_log.md` captures the original discussion trail behind the decision.
-- [ ] Expert forum reviewed and discussion is marked clear.
-- [ ] User review completed and `user_review_status=approved`.
+- [ ] For serious/publication review mode, expert forum is reviewed and discussion is marked clear.
+- [ ] When `User review required: true`, user review is completed and `user_review_status=approved`.
 - [ ] Risks and guardrails listed.
 - [ ] Validation steps and signals defined.
 - [ ] Principle layer records what, why, intended generalization, failure boundary, and transfer checks.
@@ -54,9 +54,10 @@
 - Downstream implementation execution is tracked elsewhere.
 
 ## Completion Gate
-- [ ] `expert_forum.md` frontmatter includes clear participants/issues/insights/one-liner.
-- [ ] `expert_forum.md` sets `discussion_clear: true`.
-- [ ] `expert_forum.md` sets `user_review_status: approved`.
+- [ ] If review mode is serious/publication, `expert_forum.md` includes clear participants/issues/insights/one-liner.
+- [ ] If review mode is serious/publication, `expert_forum.md` sets `discussion_clear: true`.
+- [ ] If `User review required: true`, `expert_forum.md` sets `user_review_status: approved`.
+- [ ] If review mode is lightweight, the decision rationale and handoff destinations are sufficient; forum is optional and user approval follows the explicit requirement.
 - [ ] Handoff destinations are explicit.
 - [ ] Memory and provenance notes make key entities, times, and source refs explicit.
 - [ ] Archive command is ready to run.

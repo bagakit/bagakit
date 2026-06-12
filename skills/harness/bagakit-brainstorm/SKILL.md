@@ -1,6 +1,6 @@
 ---
 name: bagakit-brainstorm
-description: Brainstorm from Markdown context and convert ideas into actionable handoff artifacts. Use when users provide one or more md files/notes and need option exploration, trade-offs, expert-forum review, and a clear next-step handoff.
+description: Turn Markdown notes into distinct options, a decision, and an actionable handoff. Use when option comparison or durable planning is requested.
 metadata:
   bagakit:
     harness_layer: l1-execution
@@ -8,12 +8,18 @@ metadata:
 
 # Bagakit Brainstorm
 
+Brainstorm owns Markdown-backed option analysis and durable handoff. Route an
+unclear live discussion to Spark first; route one concrete unresolved plan or
+design branch to Grill instead of growing a second decision DAG here.
+
 Turn Markdown inputs into clear options, decisions, and an explicit handoff package.
 
 ## Purpose
 
-- Keep one bounded workflow: `input_and_qa -> finding_and_analyze -> expert_forum_review -> outcome_and_handoff`.
-- Keep expert-forum as the centralized decision arena: major争议必须汇总在 `expert_forum.md` 并完成收敛后才能进入 handoff.
+- Keep one bounded workflow: `input_and_qa -> finding_and_analyze -> [optional expert_forum_review] -> outcome_and_handoff`.
+- Use expert-forum as the centralized decision arena when the run has material
+  disagreement, a high-risk decision, or a requested multi-party review; those
+  disputes must converge in `expert_forum.md` before handoff.
 - Keep `raw_discussion_log.md` as the append-only raw transcript surface so original discussion does not disappear behind later summaries.
 - Keep this skill standalone-first so it works without mandatory external systems.
 - Keep outputs structured and reusable as Markdown artifacts in the project.
@@ -141,8 +147,12 @@ eval rows reference sanitized behavior meaning and guard ids.
 
 - Any output must have explicit destination path or system id.
 - Archive must state `action_handoff -> destination` and `memory_handoff -> destination`.
-- Completion requires all required analysis stages complete + archive status `complete`.
-- Required stages include an expert-forum review with explicit `discussion_clear: true`.
+- Completion requires the stages selected for this run to be complete + archive
+  status `complete`.
+- An expert-forum review with explicit `discussion_clear: true` is required only
+  when the run declares a material dispute, high-risk decision, or requested
+  multi-party review. Otherwise the decision matrix and handoff rationale are
+  sufficient.
 - Completion requires input clarification loop closed (`Clarification status: complete` in `input_and_qa.md`).
 - On completion, source artifact is physically moved from `.bagakit/brainstorm/runs/` to `.bagakit/brainstorm/archive/`.
 - Completion scope is analysis/handoff only (implementation execution is out of scope).
@@ -152,8 +162,8 @@ eval rows reference sanitized behavior meaning and guard ids.
 ## Workflow
 
 1. Intake gate.
-- If goals/constraints/details are unclear, ask focused clarification questions before planning (not only at final gate).
-- Do not continue until the target outcome is concrete enough.
+- If a missing fact can change the route, ask one focused clarification question
+  before planning. Otherwise use a provisional target and continue.
 
 2. Input and QA stage (`input_and_qa.md`).
 - Extract goals, constraints, assumptions, unknowns, and evidence snippets.
@@ -175,9 +185,9 @@ eval rows reference sanitized behavior meaning and guard ids.
 ---
 ```
 
-- Use a prompt/rubric review for question quality (not script pass/fail):
-  - recommended target: at least 4 high-impact clarification questions, or explicit `no high-impact unknowns` rationale.
-  - recommended coverage: audience, success criteria, scope boundaries, constraints/resources, and delivery/review preference.
+- Review question quality by decision value, not by count. Ask only enough
+  high-impact questions to change an option or handoff; zero is valid when no
+  material unknown remains.
 - Maintain `Clarification Coverage (High-Impact Dimensions)` with statuses `answered|deferred|not_needed` plus evidence/rationale.
 - Maintain one explicit questioning strategy before the cards:
   - what to ask first
@@ -192,9 +202,10 @@ eval rows reference sanitized behavior meaning and guard ids.
 
 3. Finding and analyze stage (`finding_and_analyze.md`).
 - Start from a compact `Frontier Context`:
-  - capture 2-3 representative recent practices / papers / implementations
-  - capture at least 1 failure case or anti-pattern
-  - explain why these signals change the option space
+  - when recency or authority could change the option space, capture 2-3
+    representative recent practices / papers / implementations, at least 1
+    failure case or anti-pattern, and why those signals matter
+  - otherwise record `frontier context not needed` with a short rationale
 - Generate 3-7 meaningfully different options (not minor wording variants).
 - For each option, include expected impact, complexity, risks, and confidence.
 - Treat init-time templates as scaffolds, not output:
@@ -207,7 +218,10 @@ eval rows reference sanitized behavior meaning and guard ids.
 - Score each option using `impact`, `effort`, `risk`, `confidence` (1-5).
 - Recommend one primary option and one fallback option.
 
-5. Expert forum review stage (`expert_forum.md`).
+5. Optional expert forum review stage (`expert_forum.md`). Run it when the
+   intake declares material disagreement, a high-risk decision, or a requested
+   multi-party review; otherwise record the decision rationale and continue to
+   outcome and handoff.
 - Keep report in GFM with YAML frontmatter:
   - `forum_mode` (`deep_dive_forum` | `lightning_talk_forum` | `industry_readout_forum`)
   - `participants`
@@ -267,8 +281,11 @@ eval rows reference sanitized behavior meaning and guard ids.
   - source docs/code under discussion are immutable during experiment round
 - If experiments exist, allow bonus score (`1~5`) recorded in forum notes.
 - Placeholder content (`待补充`/`TBD`/`TODO`/`{{...}}`) should be cleaned in agent/human review before completion.
-- Do not close brainstorm until forum marks `discussion_clear: true`.
-- Do not close brainstorm until user review marks `user_review_status: approved`.
+- When an expert forum is used, do not close until it marks
+  `discussion_clear: true`.
+- Require `user_review_status: approved` only when the user requested a review
+  gate or the next action crosses an irreversible side-effect boundary; record
+  that review was not requested in the handoff for ordinary planning runs.
 
 6. Outcome and handoff stage (`outcome_and_handoff.md`).
 - Convert the recommendation into a clear handoff package.
@@ -281,7 +298,8 @@ eval rows reference sanitized behavior meaning and guard ids.
 - QA bundles in `raw_discussion_log.md` should keep the clarified question and its answer together.
 - Optional files:
   - `related_insights.md` via `--with-related-insights`
-- `expert_forum.md` is required by default.
+- `expert_forum.md` is conditional: create it for material disagreement,
+  high-risk decisions, or an explicit multi-party review request.
 - Update stage status:
   - `input_and_qa.md` / `finding_and_analyze.md` / `outcome_and_handoff.md`: `- Status: ...`
   - `expert_forum.md`: frontmatter `stage_status: ...`
@@ -303,8 +321,10 @@ eval rows reference sanitized behavior meaning and guard ids.
   does not silently invent selector routing.
 
 9. Stop gate before implementation.
-- Deliver brainstorm artifacts + archive destinations first.
-- Ask user confirmation explicitly, update `expert_forum.md` to `user_review_status: approved`, then move into implementation tasks.
+- Deliver brainstorm artifacts and archive destinations first.
+- Ask for confirmation only when implementation exceeds the original
+  authorization or crosses an irreversible side-effect boundary; otherwise move
+  into implementation tasks.
 
 ## Output Format
 
@@ -313,7 +333,8 @@ eval rows reference sanitized behavior meaning and guard ids.
   - important entries also carry memory-safe restatement, canonical entities, resolved references, time anchors, and source refs
   - clarification should prefer QA bundles that keep one question, its answer, and the resulting state update in one place
 - `finding_and_analyze.md`: options, matrix, recommendation, open questions.
-- `expert_forum.md`: forum metadata + detailed conclusion + background + discussion rounds.
+- Optional `expert_forum.md`: forum metadata + detailed conclusion + background
+  + discussion rounds when the conditional forum gate is active.
 - `outcome_and_handoff.md`: outcome, principle layer, risk controls, explicit handoff destinations.
 - Optional:
   - `related_insights.md`: non-blocking but reusable insights.
@@ -323,7 +344,9 @@ eval rows reference sanitized behavior meaning and guard ids.
 
 ## Operating Rules
 
-- 2-Action capture rule: after every 2 view/search operations, persist key findings to markdown.
+- Persist key findings at a route or decision change, after a high-risk finding,
+  before handoff, or whenever context loss is plausible. Do not persist on a
+  fixed view/search count.
 - Read-before-decide: refresh from `input_and_qa.md` and `finding_and_analyze.md` before major direction changes.
 - Validation split:
   - `Program Hard Gate`: script validates only objective invariants (required files/sections/status/destination evidence).

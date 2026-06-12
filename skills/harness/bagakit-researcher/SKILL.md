@@ -1,6 +1,6 @@
 ---
 name: bagakit-researcher
-description: "Use for durable local-first research evidence when a task needs more than a quick lookup: topic charter, optional survey, bounded pass or track contracts, source cards, summaries, claims, insights, leads, warning checks, and explicit handoff. Not for provider execution, report generation, subagent orchestration, or automatic promotion."
+description: Run local-first research when a task needs source cards, claims, bounded retrieval, drift checks, or a durable handoff; not for quick lookup or provider execution.
 metadata:
   bagakit:
     harness_layer: l2-behavior
@@ -151,10 +151,12 @@ Researcher may also maintain a researcher-local wiki/frontdoor:
 - `wiki/` is a derived navigation and synthesis frontdoor over topic evidence,
   not shared checked-in knowledge and not repository evolution memory
 - before opening a new topic, pass, or broad search, inspect the existing
-  researcher frontdoor when it exists or can be refreshed from prior topics
-- a researcher that reads the wiki inherits a maintenance duty for the current
-  research loop: before final response or handoff, update topic evidence first,
-  refresh the topic index, refresh the wiki, and run `doctor --wiki`
+  researcher frontdoor when it exists; refresh it only when it is missing or
+  stale enough to change the route
+- a researcher that reads the wiki and changes topic evidence inherits a
+  maintenance duty for the current loop: update topic evidence first, then
+  refresh the topic index/wiki and run `doctor --wiki` before final response or
+  handoff. Reading an unchanged wiki does not require a write or refresh.
 - wiki maintenance means regenerating from topic artifacts, not hand-editing
   generated wiki pages as the source of truth
 
@@ -206,8 +208,9 @@ Frontdoor members are refreshed by `refresh-wiki`:
 
 The normal workflow is:
 
-1. Before new research, refresh or inspect the researcher frontdoor and read
-   relevant existing topic, question, and claim links.
+1. Before new research, inspect the researcher frontdoor and read relevant
+   existing topic, question, and claim links. Refresh it only when missing or
+   stale enough to affect the route.
 2. Separate source-landscape unknowns from user-goal or local-context unknowns;
    ask or record a handback condition when search cannot resolve the gap.
 3. Create or update `charter.md`.
@@ -219,9 +222,10 @@ The normal workflow is:
 8. Add source cards under `originals/` and reusable summaries under `summaries/`.
 9. Record sourced claims in `claims.md`, cross-source insights under `insights/`, and active-mining leads in `leads.md`.
 10. Run `doctor --quality` and `doctor --drift` before synthesis or handoff.
-11. Refresh the managed sections of `index.md` without overwriting curated notes.
-12. Refresh the researcher-local wiki/frontdoor when cross-topic discovery
-   matters.
+11. If topic artifacts changed, refresh the managed sections of `index.md`
+   without overwriting curated notes.
+12. Refresh the researcher-local wiki/frontdoor only when cross-topic discovery
+   matters or the loop changed evidence that the wiki was used to inspect.
 13. If the loop read the wiki and changed topic evidence, close the maintenance
     duty with `doctor --wiki` before final response or handoff.
 14. Optionally render a handoff artifact under `handoffs/`.
@@ -231,13 +235,16 @@ execution belongs outside this skill.
 
 ## Commands
 
-0. Before new search, inspect the existing researcher frontdoor:
+0. Before new search, inspect the existing researcher frontdoor. Use the
+   smallest read-only command that answers the routing question:
 
 ```bash
-sh scripts/bagakit-researcher.sh refresh-wiki --root .
 sh scripts/bagakit-researcher.sh list-topics --root .
-sh scripts/bagakit-researcher.sh doctor --root . --wiki
 ```
+
+Run `refresh-wiki` only when the derived pages are missing or stale and the
+fresh view can change the search route. Run `doctor --wiki` only after a loop
+that read the wiki and changed topic evidence.
 
 Read `<researcher_root>/index.md` and relevant pages under
 `<researcher_root>/wiki/` before deciding whether to open a new topic or extend
@@ -437,7 +444,7 @@ Every meaningful wiki page should point back to topic evidence under `topics/`.
 The wiki is not a replacement for topic workspaces and is not the shared
 knowledge root.
 If this loop read the wiki and changed topic evidence, this refresh is a
-required closeout step, not an optional cleanup.
+required closeout step; otherwise it is unnecessary cleanup.
 
 11. Confirm the wiki maintenance closeout:
 
@@ -459,11 +466,12 @@ Supported handoff kinds are `selector`, `evolver`, and `living-knowledge`.
 Rendering a handoff writes a file under `handoffs/`; it does not mutate the
 target system.
 
-13. Before another new search, inspect what already exists:
+13. Before another new search whose scope or route changed, inspect what already
+exists. If the scope is unchanged, continue without repeating the closeout
+checks:
 
 ```bash
 sh scripts/bagakit-researcher.sh list-topics --root .
-sh scripts/bagakit-researcher.sh doctor --root . --wiki
 ```
 
 ## Handoff

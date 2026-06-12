@@ -22,12 +22,14 @@ YEAR_OR_DATE_RE = re.compile(r"^\d{4}(?:-\d{2}-\d{2})?$")
 SEMANTIC_VERSION_DIR_RE = re.compile(r"^v([1-9][0-9]*)-[A-Za-z0-9\u4e00-\u9fff]+(?:-[A-Za-z0-9\u4e00-\u9fff]+)*$")
 PLAIN_VERSION_DIR_RE = re.compile(r"^v([1-9][0-9]*)$")
 LEGACY_CANDIDATE_FILE_RE = re.compile(r"(?i)^candidate-v([1-9][0-9]*)\.md$")
-REQUIRED_STAGES: tuple[tuple[str, str], ...] = (
+CORE_REQUIRED_STAGES: tuple[tuple[str, str], ...] = (
     ("input_and_qa", "input_and_qa.md"),
     ("finding_and_analyze", "finding_and_analyze.md"),
-    ("expert_forum_review", "expert_forum.md"),
     ("outcome_and_handoff", "outcome_and_handoff.md"),
 )
+REVIEW_STAGE: tuple[str, str] = ("expert_forum_review", "expert_forum.md")
+REVIEW_MODES = {"lightweight", "serious", "publication"}
+SERIOUS_REVIEW_MODES = {"serious", "publication"}
 REQUIRED_SUPPORT_FILES: tuple[tuple[str, str], ...] = (
     ("raw_discussion_log", "raw_discussion_log.md"),
 )
@@ -217,6 +219,49 @@ def frontmatter_scalar(frontmatter: str, key: str) -> str | None:
     return match.group(1).strip()
 
 
+def artifact_review_mode(artifact_dir: Path) -> str:
+    """Read the review profile owned by input_and_qa.md."""
+    input_file = artifact_dir / "input_and_qa.md"
+    if not input_file.is_file():
+        return "missing"
+    match = re.search(r"(?im)^-\s*Review mode:\s*(\S+)\s*$", read_text(input_file))
+    return match.group(1).lower() if match else "missing"
+
+
+def review_mode_issues(artifact_dir: Path) -> list[str]:
+    issues: list[str] = []
+    mode = artifact_review_mode(artifact_dir)
+    if mode not in REVIEW_MODES:
+        issues.append(f"Review mode in input_and_qa.md must be lightweight, serious, or publication (got: {mode})")
+    input_file = artifact_dir / "input_and_qa.md"
+    if input_file.is_file() and not re.search(r"(?im)^-\s*User review required:\s*(true|false)\s*$", read_text(input_file)):
+        issues.append("User review required in input_and_qa.md must be true or false")
+    if mode == "publication" and not user_review_required(artifact_dir):
+        issues.append("publication review mode requires User review required: true")
+    return issues
+
+
+def review_requires_forum(artifact_dir: Path) -> bool:
+    return artifact_review_mode(artifact_dir) in SERIOUS_REVIEW_MODES
+
+
+def user_review_required(artifact_dir: Path) -> bool:
+    input_file = artifact_dir / "input_and_qa.md"
+    return input_file.is_file() and re.search(
+        r"(?im)^-\s*User review required:\s*true\s*$", read_text(input_file)
+    ) is not None
+
+
+def user_review_gate_issues(artifact_dir: Path) -> list[str]:
+    if not user_review_required(artifact_dir):
+        return []
+    forum_file = artifact_dir / "expert_forum.md"
+    frontmatter = extract_frontmatter(read_text(forum_file)) if forum_file.is_file() else None
+    if (frontmatter_scalar(frontmatter or "", "user_review_status") or "").lower() != "approved":
+        return ["frontmatter user_review_status must be approved before completion when user review is required"]
+    return []
+
+
 def frontmatter_list_count(frontmatter: str, key: str) -> int:
     lines = frontmatter.splitlines()
     count = 0
@@ -302,7 +347,7 @@ def url_count(text: str) -> int:
 
 def artifact_markdown_files(artifact_dir: Path) -> list[Path]:
     files: list[Path] = []
-    for _, file_name in REQUIRED_STAGES:
+    for _, file_name in (*CORE_REQUIRED_STAGES, REVIEW_STAGE):
         path = artifact_dir / file_name
         if path.is_file():
             files.append(path)
@@ -680,6 +725,8 @@ def experiment_version_policy_warn_issues(artifact_dir: Path) -> list[str]:
 
 
 def expert_forum_hard_gate_issues(expert_forum_file: Path, artifact_dir: Path) -> list[str]:
+    if not review_requires_forum(artifact_dir):
+        return user_review_gate_issues(artifact_dir)
     if not expert_forum_file.is_file():
         return [f"missing required file {expert_forum_file.name}"]
 
@@ -716,8 +763,8 @@ def expert_forum_hard_gate_issues(expert_forum_file: Path, artifact_dir: Path) -
         normalized_status = user_review_status.lower()
         if normalized_status not in valid_user_review_status:
             issues.append("frontmatter user_review_status must be pending, approved, or changes_requested")
-        elif normalized_status != "approved":
-            issues.append("frontmatter user_review_status must be approved before completion")
+        elif normalized_status != "approved" and user_review_required(artifact_dir):
+            issues.append("frontmatter user_review_status must be approved before completion when user review is required")
 
     final_one_liner = frontmatter_scalar(frontmatter, "final_one_liner")
     if final_one_liner is None:
@@ -743,7 +790,7 @@ def expert_forum_hard_gate_issues(expert_forum_file: Path, artifact_dir: Path) -
     for required_heading in ("详细结论", "背景和专家组介绍", "讨论过程"):
         if not heading_exists(body_text, required_heading):
             issues.append(f"required heading missing: {required_heading}")
-    if not heading_exists(body_text, "用户评判与确认"):
+    if user_review_required(artifact_dir) and not heading_exists(body_text, "用户评判与确认"):
         issues.append("required heading missing: 用户评判与确认")
 
     deep_or_lightning = forum_mode in {"deep_dive_forum", "lightning_talk_forum"}
@@ -1219,8 +1266,14 @@ class ActionAdapter:
 
 def summarize_stages(artifact_dir: Path) -> StageSummary:
     items: list[StageItem] = []
-    for name, file_name in REQUIRED_STAGES:
+    for name, file_name in CORE_REQUIRED_STAGES:
         items.append(StageItem(name=name, file_name=file_name, required=True, status=read_status(artifact_dir / file_name)))
+    review_name, review_file_name = REVIEW_STAGE
+    review_status = read_status(artifact_dir / review_file_name)
+    if review_requires_forum(artifact_dir):
+        items.append(StageItem(name=review_name, file_name=review_file_name, required=True, status=review_status))
+    elif review_status != "missing":
+        items.append(StageItem(name=review_name, file_name=review_file_name, required=False, status=review_status))
     for name, file_name in OPTIONAL_STAGES:
         status = read_status(artifact_dir / file_name)
         if status != "missing":
@@ -1516,6 +1569,10 @@ def cmd_init(args: argparse.Namespace) -> int:
         raise SystemExit("error: --topic is required")
 
     slug = args.slug or slugify(topic)
+    review_mode = args.review_mode
+    if args.with_expert_panel and review_mode == "lightweight":
+        review_mode = "serious"
+    require_user_review = args.require_user_review or review_mode == "publication"
     goal = args.goal or f"Deliver a validated brainstorm analysis and handoff for {topic}."
     source_hint = args.source_hint or "Provide markdown files or inline snippets."
     date = utc_day()
@@ -1530,6 +1587,8 @@ def cmd_init(args: argparse.Namespace) -> int:
         "{{GOAL}}": goal,
         "{{SOURCE_HINT}}": source_hint,
         "{{DATE}}": date,
+        "{{REVIEW_MODE}}": review_mode,
+        "{{USER_REVIEW_REQUIRED}}": str(require_user_review).lower(),
     }
     template_dir = Path(__file__).resolve().parents[1] / "references" / "tpl"
     created_files: list[Path] = []
@@ -1537,11 +1596,19 @@ def cmd_init(args: argparse.Namespace) -> int:
         ("input_and_qa.md", "input_and_qa.md"),
         ("raw_discussion_log.md", "raw_discussion_log.md"),
         ("finding_and_analyze.md", "finding_and_analyze.md"),
-        ("expert_forum.md", "expert_forum.md"),
         ("outcome_and_handoff.md", "outcome_and_handoff.md"),
     ):
         output = artifact_dir / output_name
         render_template(template_dir / template_name, output, replacements)
+        created_files.append(output)
+
+    if review_mode in SERIOUS_REVIEW_MODES:
+        output = artifact_dir / "expert_forum.md"
+        render_template(template_dir / "expert_forum.md", output, replacements)
+        created_files.append(output)
+    elif require_user_review:
+        output = artifact_dir / "expert_forum.md"
+        write_text(output, "---\nuser_review_status: pending\n---\n")
         created_files.append(output)
 
     if args.with_related_insights:
@@ -1561,8 +1628,13 @@ def cmd_init(args: argparse.Namespace) -> int:
     for file in created_files:
         print(f"  - {file}")
     print(
-        "next=fill input_and_qa.md, append raw_discussion_log.md as discussion happens, then finding_and_analyze.md, then expert_forum.md, then outcome_and_handoff.md"
+        "next=fill input_and_qa.md, append raw_discussion_log.md as discussion happens, then finding_and_analyze.md, then outcome_and_handoff.md"
     )
+    if review_mode in SERIOUS_REVIEW_MODES:
+        print("next_review=complete expert_forum.md before outcome_and_handoff.md")
+    else:
+        print("review_mode=lightweight (expert forum is optional)")
+    print(f"user_review_required={str(require_user_review).lower()}")
     return 0
 
 
@@ -1570,6 +1642,8 @@ def cmd_status(args: argparse.Namespace) -> int:
     root = Path(args.root).expanduser().resolve()
     artifact_dir = resolve_artifact_dir(root, args.dir, allow_archive_lookup=True)
     summary = summarize_stages(artifact_dir)
+    review_mode = artifact_review_mode(artifact_dir)
+    review_mode_errors = review_mode_issues(artifact_dir)
     expert_forum_file = artifact_dir / "expert_forum.md"
     input_and_qa_file = artifact_dir / "input_and_qa.md"
     raw_discussion_file = artifact_dir / "raw_discussion_log.md"
@@ -1633,6 +1707,11 @@ def cmd_status(args: argparse.Namespace) -> int:
 
     print(f"artifact_dir={artifact_dir}")
     print(f"artifact_scope={classify_artifact_scope(root, artifact_dir)}")
+    print(f"review_mode={review_mode}")
+    print(f"expert_forum_required={str(review_requires_forum(artifact_dir)).lower()}")
+    print(f"user_review_required={str(user_review_required(artifact_dir)).lower()}")
+    for issue in review_mode_errors:
+        print(f"review_mode_issue={issue}")
     print(f"required_total={summary.required_total}")
     print(f"required_complete={summary.required_complete}")
     print(f"next_stage={summary.next_stage}")
@@ -1661,7 +1740,7 @@ def cmd_status(args: argparse.Namespace) -> int:
         print(f"memory_quality_warn={warn}")
     print(f"expert_forum_mode={forum_mode}")
     print(f"expert_forum_user_review_status={user_review_status}")
-    print(f"expert_forum_gate={'pass' if not expert_forum_hard_issues else 'fail'}")
+    print(f"expert_forum_gate={'pass' if not expert_forum_hard_issues and not review_mode_errors else 'fail'}")
     for issue in expert_forum_hard_issues:
         print(f"expert_forum_issue={issue}")
     print(f"expert_forum_warn_count={len(expert_forum_warns)}")
@@ -1686,8 +1765,11 @@ def cmd_archive(args: argparse.Namespace) -> int:
     root = Path(args.root).expanduser().resolve()
     artifact_dir = resolve_artifact_dir(root, args.dir, allow_archive_lookup=True)
     artifact_scope_before = classify_artifact_scope(root, artifact_dir)
+    review_mode = artifact_review_mode(artifact_dir)
+    review_mode_errors = review_mode_issues(artifact_dir)
 
-    missing_required = [file_name for _, file_name in REQUIRED_STAGES if not (artifact_dir / file_name).is_file()]
+    required_stages = (*CORE_REQUIRED_STAGES, REVIEW_STAGE) if review_requires_forum(artifact_dir) else CORE_REQUIRED_STAGES
+    missing_required = [file_name for _, file_name in required_stages if not (artifact_dir / file_name).is_file()]
     missing_required.extend(
         file_name for _, file_name in REQUIRED_SUPPORT_FILES if not (artifact_dir / file_name).is_file()
     )
@@ -1710,6 +1792,8 @@ def cmd_archive(args: argparse.Namespace) -> int:
     action_path: Path | None = None
     resolved_adapter_id: str | None = None
     stage_summary = summarize_stages(artifact_dir)
+    for issue in review_mode_errors:
+        unresolved_reasons.append(f"review_mode: {issue}")
     required_stages_complete = stage_summary.required_complete == stage_summary.required_total
     if not required_stages_complete:
         unresolved_reasons.append(
@@ -1920,6 +2004,7 @@ def cmd_archive(args: argparse.Namespace) -> int:
         f"- [x] Input clarification gate clear: `{str(input_and_qa_clear).lower()}`",
         f"- [x] Raw discussion log gate clear: `{str(raw_discussion_clear).lower()}`",
         f"- [x] Expert forum gate clear: `{str(expert_forum_clear).lower()}`",
+        f"- [x] User review required: `{str(user_review_required(artifact_dir)).lower()}`",
         f"- [x] User review approved: `{str(user_review_approved).lower()}`",
         f"- [x] Action destination resolved: `{str(action_destination_resolved).lower()}`",
         f"- [x] Memory destination resolved: `{str(memory_destination_resolved).lower()}`",
@@ -1938,6 +2023,7 @@ def cmd_archive(args: argparse.Namespace) -> int:
         "version": 2,
         "status": status,
         "topic": topic,
+        "review_mode": review_mode,
         "source_artifact": source_artifact_value,
         "archived_artifact": rel(root, artifact_dir),
         "artifact_moved": moved,
@@ -1960,6 +2046,7 @@ def cmd_archive(args: argparse.Namespace) -> int:
             "expert_forum_gate_clear": expert_forum_clear,
             "experiment_version_policy_clear": not version_policy_hard_issues,
             "artifact_content_gate_clear": not placeholder_hard_issues,
+            "user_review_required": user_review_required(artifact_dir),
             "user_review_approved": user_review_approved,
             "action_destination_resolved": action_destination_resolved,
             "memory_destination_resolved": memory_destination_resolved,
@@ -1997,6 +2084,7 @@ def cmd_archive(args: argparse.Namespace) -> int:
 
 def completion_gate_issues(root: Path, artifact_dir: Path) -> list[str]:
     issues: list[str] = []
+    issues.extend(f"review_mode: {issue}" for issue in review_mode_issues(artifact_dir))
     summary = summarize_stages(artifact_dir)
     if summary.required_total <= 0:
         issues.append("required stage count is zero")
@@ -2105,7 +2193,8 @@ def derive_planning_entry_handoff_payload(
 ) -> dict[str, object]:
     input_text = read_text(artifact_dir / "input_and_qa.md")
     outcome_text = read_text(artifact_dir / "outcome_and_handoff.md")
-    forum_text = read_text(artifact_dir / "expert_forum.md")
+    forum_file = artifact_dir / "expert_forum.md"
+    forum_text = read_text(forum_file) if forum_file.is_file() else ""
 
     goal_snapshot_bullets = section_bullets(input_text, "Goal Snapshot")
     goal_snapshot = goal_snapshot_bullets[0] if goal_snapshot_bullets else ""
@@ -2126,11 +2215,14 @@ def derive_planning_entry_handoff_payload(
     clarification = clarification_status(artifact_dir / "input_and_qa.md")
     if clarification == "unknown":
         raise SystemExit("error: could not derive clarification status from input_and_qa.md")
-    frontmatter = extract_frontmatter(forum_text)
-    if frontmatter is None:
-        raise SystemExit("error: expert_forum.md frontmatter is missing")
-    discussion_clear = (frontmatter_scalar(frontmatter, "discussion_clear") or "").lower() == "true"
-    user_review_status = frontmatter_scalar(frontmatter, "user_review_status") or "pending"
+    frontmatter = extract_frontmatter(forum_text) if (artifact_dir / "expert_forum.md").is_file() else None
+    review_required = review_requires_forum(artifact_dir)
+    if review_required and frontmatter is None:
+        raise SystemExit("error: expert_forum.md frontmatter is missing for serious/publication review")
+    discussion_clear = True if not review_required and frontmatter is None else (frontmatter_scalar(frontmatter or "", "discussion_clear") or "").lower() == "true"
+    user_review_status = frontmatter_scalar(frontmatter or "", "user_review_status") or "pending"
+    if user_review_status not in {"pending", "approved", "changes_requested"}:
+        raise SystemExit("error: user_review_status must be pending, approved, or changes_requested")
 
     title = (title_override or "").strip() or topic
     objective = (objective_override or "").strip() or goal_snapshot
@@ -2142,11 +2234,9 @@ def derive_planning_entry_handoff_payload(
         raise SystemExit("error: could not derive goal; pass --goal")
     if not demand_summary:
         raise SystemExit("error: could not derive demand summary; pass --demand-summary")
-    source_refs = [
-        first_question_card_ref(input_text),
-        "expert_forum.md#Decision-Target-And-Exit",
-        "outcome_and_handoff.md#Outcome-Summary",
-    ]
+    source_refs = [first_question_card_ref(input_text), "outcome_and_handoff.md#Outcome-Summary"]
+    if forum_file.is_file():
+        source_refs.insert(1, "expert_forum.md#Decision-Target-And-Exit")
     principle_layer = {
         "what": labeled_scalar(outcome_principle, "What")
         or labeled_scalar(input_principle, "What")
@@ -2163,7 +2253,9 @@ def derive_planning_entry_handoff_payload(
         "behavior_examples": labeled_scalar_or_nested_bullets(outcome_principle, "Behavior examples")
         or [goal],
         "transfer_checks": labeled_scalar_or_nested_bullets(outcome_principle, "Transfer checks")
-        or ["A similar request without completed clarification and approved review should not be materialized."],
+        or (["A similar request without completed clarification and approved review should not be materialized."]
+            if review_required
+            else ["A similar request should preserve the clarified scope and stated constraints."]),
         "evidence_refs": labeled_scalar_or_nested_bullets(outcome_principle, "Evidence refs")
         or source_refs,
     }
@@ -2171,7 +2263,7 @@ def derive_planning_entry_handoff_payload(
     return {
         "schema": PLANNING_ENTRY_HANDOFF_SCHEMA,
         "handoff_id": (handoff_id_override or "").strip() or f"peh-{slug}",
-        "status": "approved",
+        "status": "approved" if user_review_status == "approved" else "draft",
         "producer_surface": "bagakit-brainstorm",
         "title": title,
         "goal": goal,
@@ -2189,7 +2281,7 @@ def derive_planning_entry_handoff_payload(
         },
         "source_artifacts": [
             rel(root, artifact_dir / "input_and_qa.md"),
-            rel(root, artifact_dir / "expert_forum.md"),
+            *([rel(root, forum_file)] if forum_file.is_file() else []),
             rel(root, artifact_dir / "outcome_and_handoff.md"),
         ],
         "source_refs": source_refs,
@@ -2263,6 +2355,13 @@ def build_parser() -> argparse.ArgumentParser:
     p_init.add_argument("--slug", help="optional artifact slug")
     p_init.add_argument("--goal", help="optional goal text")
     p_init.add_argument("--source-hint", help="optional source hint")
+    p_init.add_argument(
+        "--review-mode",
+        choices=sorted(REVIEW_MODES),
+        default="lightweight",
+        help="serious enables expert forum; publication also requires user approval",
+    )
+    p_init.add_argument("--require-user-review", action="store_true", help="require recorded user approval before completion")
     p_init.add_argument("--with-related-insights", action="store_true", help="include optional related insights file")
     p_init.add_argument("--with-review-quality", action="store_true", help="include optional review quality file")
     p_init.add_argument(
@@ -2273,7 +2372,7 @@ def build_parser() -> argparse.ArgumentParser:
     p_init.add_argument(
         "--with-expert-panel",
         action="store_true",
-        help="deprecated no-op: expert forum file is required and always generated",
+        help="shortcut for --review-mode serious",
     )
     p_init.set_defaults(func=cmd_init)
 
@@ -2304,7 +2403,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     p_export = sub.add_parser(
         "export-planning-entry-handoff",
-        help="export one approved brainstorm artifact into planning-entry handoff json",
+        help="export a completed brainstorm artifact, preserving recorded approval status",
     )
     p_export.add_argument("--dir", help="artifact directory")
     p_export.add_argument("--root", default=".", help="project root")

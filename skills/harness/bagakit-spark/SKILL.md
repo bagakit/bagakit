@@ -1,12 +1,17 @@
 ---
 name: bagakit-spark
-description: Use when the user wants a deep topic discussion, thinking partner, or Socratic exploration that should ask high-quality decision-changing questions, maintain a visible thinking state, use bagakit-brainstorm for durable discussion records when useful, and use bagakit-researcher for evidence when the discussion needs grounding. This skill is a conversation orchestrator, not a replacement for brainstorm or researcher.
+description: Use when the user explicitly wants open-ended thinking or Socratic exploration. Ask only decision-changing questions; hand durable notes or evidence work to Brainstorm or Researcher when requested.
 metadata:
   bagakit:
     harness_layer: l2-behavior
 ---
 
 # Bagakit Spark
+
+Spark owns ambiguity and the live dialogue loop. It may hand durable Markdown
+to Brainstorm or evidence work to Researcher, but it does not silently start
+either workflow. A concrete plan or design ready for branch-by-branch pressure
+testing belongs to Grill.
 
 `bagakit-spark` helps one user think deeply about a topic through structured,
 iterative conversation.
@@ -28,8 +33,9 @@ It is not a chat style. It is a dialogue loop that:
   recoverable beyond the current response
 - uses `bagakit-brainstorm` for durable discussion records and handoff
 - uses `bagakit-researcher` when a branch needs evidence before continuing
-- uses a small MVP experiment or thought experiment to evaluate discussion
-  conclusions when the spark task is meant to produce or realize something
+- may use a small MVP experiment or thought experiment when a material
+  uncertainty, explicit evaluation request, or high-risk/subjective output
+  makes it decision-relevant
 - publishes accepted consensus snapshots for later execution, validation, or
   commit-stage reentry
 - closes with synthesis, open questions, and one concrete next move
@@ -181,13 +187,11 @@ single-default cases, state what alternative was rejected or why the option set
 collapsed. This pattern is grounded in `frontier/bagakit-spark-skill` claims
 `c017` and `c018` and insight `i004`. Do not copy adversarial intensity for its
 own sake; the pressure exists to protect decisions and shared understanding.
-Before every plan/design stress-test recommendation, run an option-surface
-audit: name the branch, list live options, mark each option as
-`shown|rejected|collapsed`, then ask the user to confirm, reject, or modify the
-recommended default. If fewer than two options are visible, state the collapsed
-or rejected alternative explicitly. A stress-test response that only gives a
-single recommended answer without this audit is a protocol failure and should
-be repaired in the same turn when noticed.
+When unresolved alternatives could change a plan/design stress-test
+recommendation, run an option-surface audit: name the branch, list live options,
+and mark each as `shown|rejected|collapsed`. Ask the user to confirm, reject, or
+modify a default only when their choice changes the route. If the option set has
+already collapsed, state why instead of manufacturing another option.
 
 Show the user model when it helps the goal: to let the user correct it, build
 shared understanding, explain a challenge, or give formative feedback. Do not
@@ -198,16 +202,14 @@ Spark may challenge the user's stated goal, not only the path. Goal challenge
 must name the evidence, the uncertainty, the alternative goal space, and the
 trade-off. Do not replace the user's goal with the agent's preference.
 
-Before every response in an open spark session, check whether the user has
-explicitly completed the current brainstorm loop. If not, the response must
-include a next question. If the agent thinks the loop can end, ask whether to
-end it and include the confirmed key summary so the user can judge.
+In an open Spark session, ask a next question only when an unresolved answer
+would change the next decision. Close when the accepted snapshot or requested
+action is complete; if closure is uncertain, show a compact snapshot and one
+optional end-check instead of forcing another question every turn.
 
-When Spark is explicitly invoked for planning, design, skill creation, or other
-open-ended shaping work, the first substantive response must contain at least
-one user-facing decision-changing question unless the user has already provided
-a confirmed accepted snapshot for that exact scope. Recommended defaults may
-accompany the question, but they do not replace asking it.
+For an explicit Spark request, ask at the first turn only if a missing answer
+can change the route. Existing context, evidence, or an accepted snapshot may
+already be sufficient; do not invent a question to satisfy a turn shape.
 
 Asking whether to enter final confirmation, convergence, closure, or end-check
 counts as an end-check question. It must include the current consensus snapshot
@@ -216,30 +218,24 @@ candidate in the same response.
 Do not ask another question until the current answer has changed the visible
 state or been explicitly marked as not useful.
 
-Do not end the brainstorm questioning loop only because the agent thinks the
-state is sufficient. End questioning when the user explicitly says they are
-done, ready to converge, or ready for the next action.
+End the questioning loop when the declared acceptance condition is met or the
+user asks to converge. Do not keep asking solely to obtain an explicit "done".
 
 When a discussion will feed a feature, implementation, validation, or commit
-stage, publish a user-confirmed consensus snapshot instead of copying the
-summary into the feature description. The feature should keep refs to the spark
-session, consensus ledger, brainstorm run, researcher topic, and accepted
-snapshot. The accepted snapshot must include the user's acceptance record at the
-end of the same file.
+stage and a durable cross-stage handoff is needed, publish a user-confirmed
+consensus snapshot instead of copying the summary into the feature description.
+The feature should keep refs to the spark session, consensus ledger, brainstorm
+run, researcher topic, and accepted snapshot. The accepted snapshot must include
+the user's acceptance record at the end of the same file. A clear authorized
+action that does not need durable reentry may proceed without creating or
+waiting for a snapshot.
 When the consensus changes, archive the previous snapshot and publish a new
 accepted snapshot rather than letting redundant summaries drift.
 
-After the user accepts a snapshot, or after the user answers the current
-decision-changing Spark question and then asks for a concrete implementation,
-validation, or commit action, Spark may execute that action without asking
-another Spark question first. This is an execution window, not a conversation
-closure. When the action finishes, if the Spark loop is still open and the user
-has not explicitly said to end Spark, the response must include either a next
-decision-changing question or an end-check question with the current summary.
-A request to "implement" is not by itself completion of the Spark loop when
-Spark was invoked to shape the target. Reopen the question loop when the action
-exposes an unclear goal, boundary, evidence claim, trade-off, success bar, eval
-meaning, or whether the user wants to continue the Spark discussion.
+A clear implementation, validation, or commit request proceeds within existing
+authority without another Spark question. After execution, reopen discussion
+only if a material uncertainty remains; otherwise close with the result. New
+scope and unresolved user decisions still require clarification.
 
 Do not create an accepted snapshot with `implicit_for_execution`,
 `implicit_acceptance`, or similar invented acceptance statuses. If a snapshot
@@ -282,34 +278,33 @@ still be untested or collapsed, and ask whether to converge this branch, switch
 direction, or correct the model.
 
 When the Spark task is meant to implement, design, build, learn, or otherwise
-realize something, treat a small MVP experiment as the discussion-level eval.
-For abstract knowledge, challenge, or worldview topics, use a bounded thought
-experiment when a material MVP is not appropriate. Reaching this eval proposal
-is a process endpoint, so it must trigger the consensus snapshot and user
-confirmation flow before the session claims completion.
+realize something, propose a small MVP experiment only when a material
+uncertainty remains, the user requests an evaluation, or the output is
+high-risk or subjective. For abstract knowledge, challenge, or worldview
+topics, use a bounded thought experiment under the same conditions. A clear,
+low-risk action can complete without inventing an eval or a consensus gate.
 
-MVP and thought-experiment evals require quiet-room separation before Spark can
-claim acceptance. The main Spark context may design the eval envelope and
-interpret the result, but it must not be the only actor that executes and
-judges its own experiment. When subagents are available and authorized, run the
-MVP trial, thought experiment, or independent review through a quiet-room
-subagent that loads the relevant skill instructions and works from a bounded
-brief, success criteria, and evidence packet. For implementation, design, or
-build evals, prefer an executor subagent in an isolated workspace plus an
-independent reviewer when the output is visual, subjective, or quality
-sensitive.
+Use quiet-room separation when an independent execution or review can materially
+change acceptance, such as a visual or subjective output, a high-risk
+integration, or an explicit user request. The main Spark context may design the
+eval envelope and interpret the result. When subagents are available and
+authorized, run the trial or independent review through a quiet-room subagent
+with a bounded brief, success criteria, and evidence packet. Ordinary
+low-risk, locally testable work may use its normal test or inspection path.
 
-If quiet-room execution is unavailable or not authorized, do not mark the MVP
-eval as accepted or passed from same-context self-review. Mark it
+If quiet-room execution is required but unavailable or not authorized, do not
+claim independent acceptance from same-context self-review. Mark the eval
 `quiet_room_blocked` or `provisional_no_quiet_room`, state the limitation, and
-ask for user authorization, human review, or a reduced-confidence continuation.
+continue only with user authorization, human review, or a reduced-confidence
+result. This condition does not block ordinary work for which quiet-room review
+is not material.
 
-Every quiet-room subagent completion is only a candidate handoff. After each
-executor or reviewer exits, Spark must run a satisfaction audit before closing
-or accepting the eval. If any material defect remains, continue the loop until
-the main Spark context is satisfied and the required independent review passes,
-or until the user explicitly stops or lowers the target. Do not treat
-subagent-reported `done`, `pass`, or `provisional pass` as completion.
+Every quiet-room subagent completion is only a candidate handoff. When quiet
+room is used, run a satisfaction audit before closing or accepting the eval. If
+a material defect remains, run another bounded iteration only when it can change
+the result and the declared budget permits; otherwise report the unresolved
+defect. Do not treat subagent-reported `done`, `pass`, or `provisional pass` as
+completion.
 
 When dissatisfaction exposes a transferable skill gap rather than a one-off
 implementation bug, update the relevant skill rule, reference, bench, or
@@ -421,12 +416,11 @@ When brainstorm is used:
 
 - append raw user answers and major state changes to the brainstorm raw log
 - keep Spark's derived question inventory separate from the raw discussion log
-- before each response, check whether the user has explicitly completed the
-  current loop
-- keep asking and updating the brainstorm state until the user explicitly
-  expresses completion or asks to converge
-- if proposing to end, summarize all confirmed key points and ask whether the
-  user wants to end or continue
+- ask another question only when it changes the current decision or state
+- close when the declared acceptance condition is met or the user asks to
+  converge
+- if proposing to end while a material uncertainty remains, summarize the key
+  points and offer one end-check
 - if the result will guide later work, format that summary as a consensus
   snapshot candidate and store the user's confirmation or correction at the end
   of the accepted snapshot file
@@ -434,8 +428,9 @@ When brainstorm is used:
 - cite the brainstorm artifact in the final response when it materially shaped
   the result
 
-Spark does not silently call brainstorm. If the current task enters through
-selector composition, record the peer usage in the selector task record.
+Spark does not silently call brainstorm. If the current task intentionally
+enters through selector composition and a persisted selector episode exists,
+record the peer usage there; otherwise keep the usage in the owning artifacts.
 
 ## Researcher Integration
 

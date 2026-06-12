@@ -11,11 +11,14 @@ Provide a deterministic way to move from Markdown context to analysis decisions 
 - Proactively scan missing high-impact details and ask focused clarification questions.
 - Do not wait until final gate to ask user; clarification is an early-stage loop.
 - Clarification should not be parameter-only; it must cover user intent dimensions (audience/success/scope/constraints/review preference).
-- Do not proceed until the objective is concrete.
+- Pause only when a missing fact can change the route or acceptance boundary;
+  otherwise record a provisional target and continue.
 
 ### 2) Status-Then-Next Pattern
 
-- Always report current required-stage completion (`N/M`) and next required stage.
+- Report required-stage completion (`N/M`) and the next stage when the user
+  requests status, a handoff needs it, or a blocker changes the route; keep
+  routine updates focused on the decision and next action.
 - Keep handoff explicit before any implementation starts.
 
 ### 3) Filesystem-as-Memory Pattern
@@ -54,11 +57,14 @@ Provide a deterministic way to move from Markdown context to analysis decisions 
 
 ### 4.3) Frontier-Aware Option Generation
 
-- Frontier context should be attached directly to `finding_and_analyze.md`, not split into a detached scan artifact.
-- Keep it compact:
+- When recency or authority could change the option space, attach a compact
+  frontier context directly to `finding_and_analyze.md`, not a detached scan
+  artifact:
   - 2-3 recent representative signals,
   - 1 failure case or anti-pattern,
   - 1 sentence on why these signals change the option space.
+- Otherwise record `frontier context not needed` with a short rationale; do not
+  turn a local option comparison into a literature review.
 - This keeps option generation grounded without turning brainstorm into a literature review workflow.
 
 ### 4.4) Review Quality And Eval-Effect Discussion
@@ -79,14 +85,18 @@ Provide a deterministic way to move from Markdown context to analysis decisions 
   - memory handoff (to a brainstorm-owned local summary artifact).
 - Every output must have a concrete destination path/id.
 - Archive is the completion gate and must explicitly report handoff destinations.
-- Expert-forum review is a default hard gate before completion:
+- Expert-forum review is a conditional hard gate before completion when the run
+  has material disagreement, a high-risk decision, or an explicit multi-party
+  review request:
   - `expert_forum.md` must use YAML frontmatter.
   - `forum_mode` must be one of:
     - `deep_dive_forum`
     - `lightning_talk_forum`
     - `industry_readout_forum`
   - `discussion_clear: true` is required.
-  - `user_review_status: approved` is required before completion.
+  - `user_review_status: approved` is required only when the user requested a
+    review gate or the next action crosses an irreversible side-effect boundary;
+    ordinary planning runs record that review was not requested.
   - frontmatter must include participants, key issues, key insights, and one-line conclusion.
   - participants should declare domain identity, frontier focus, judgment frame, and thinking tilt.
   - key issues/insights should be non-trivial (recommend >=3 each).

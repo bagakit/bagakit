@@ -15,8 +15,8 @@ required_reference_links = [
 ]
 
 [[loop_rule]]
-id = "mandatory-question-until-explicit-completion"
-protects = "an open Spark session cannot silently end without a user-facing question or an execution window"
+id = "decision-question-until-acceptance"
+protects = "ask only while a decision-bearing uncertainty remains; close when the declared acceptance condition is met or the user asks to converge"
 proof_surface = "session response shape plus accepted snapshot record"
 
 [[loop_rule]]
@@ -25,8 +25,8 @@ protects = "asking to finish must carry the confirmed key summary and current sn
 proof_surface = "consensus snapshot candidate"
 
 [[loop_rule]]
-id = "execution-window-reopens-loop"
-protects = "post-snapshot implementation, validation, or commit action does not permanently close the Spark discussion"
+id = "execution-window-resolves-current-scope"
+protects = "clear authorized actions proceed without another question; reopen discussion only for a remaining decision-bearing uncertainty"
 proof_surface = "next question, end-check question, or accepted snapshot ref after execution"
 
 [[loop_rule]]

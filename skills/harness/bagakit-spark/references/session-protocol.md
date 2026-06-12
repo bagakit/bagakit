@@ -78,14 +78,13 @@ full consensus snapshot or ledger into the feature description.
 
 ## Turn Loop
 
-1. Check whether the user has explicitly completed the current brainstorm loop.
-2. If not complete, plan a next question. A concrete implementation,
-   validation, or commit request may bypass the next question only after the
-   user has accepted a snapshot for the same scope or answered the current
-   decision-changing Spark question.
-3. Treat that bypass as an execution window, not completion of the Spark loop.
-   After the action finishes, return to the question rule unless the user has
-   explicitly ended Spark.
+1. Check whether the declared acceptance condition is met or a decision-bearing
+   uncertainty remains.
+2. Ask only when the answer changes the next move; inspect evidence yourself
+   when it can resolve the uncertainty.
+3. A clear implementation, validation, or commit request proceeds within current
+   authority. After it finishes, close or ask again according to remaining
+   decision-bearing uncertainty.
 4. Read the current state.
 5. If shared understanding should persist beyond the current response, create
    or update the embedded consensus ledger before asking or synthesizing.
@@ -133,46 +132,20 @@ dump of the JSON ledger. If there is no embedded ledger yet but the response
 will create durable session state, create the ledger first or explicitly state
 which ledger updates would normally be recorded.
 
-## Mandatory Question Rule
+## Decision Question Rule
 
-When Spark is explicitly invoked for planning, design, skill creation,
-architecture, product shaping, research framing, or other open-ended work, the
-first substantive response must contain a user-facing question.
+Ask a user-facing question only when a missing answer can change scope, the next
+move, or acceptance. Offer meaningful options and a recommendation when useful.
+A first response does not need a question when the current request is clear.
 
-The question must be decision-changing and should include Spark's visible
-option set, recommended default, rationale, and risk when that helps the user
-answer. Internal question inventory entries do not satisfy this rule. A written
-recommended default does not satisfy this rule unless the user is asked to
-confirm, reject, or modify it.
+Inspect local sources or produce bounded evidence before asking for facts the
+Agent can establish. Continue independent authorized work while a question is
+pending. Stop asking when the requested result or declared acceptance condition
+is met. Do not require the user to say "done" merely to end the session.
 
-Allowed exceptions:
-
-- the user already accepted a consensus snapshot for the same scope
-- the user asks to resume a concrete action after answering the current Spark
-  question
-- local code, documents, brainstorm state, or researcher evidence fully answer
-  the next question; in that case state the inferred answer and ask the next
-  remaining decision question
-- prototype or runtime evidence is required; in that case suspend the branch,
-  produce the bounded evidence, and return with an observed question or result
-
-These exceptions allow execution before another Spark question. They do not
-allow a final Spark response with no question while the loop remains open. After
-execution, ask the next decision-changing question or ask whether to close the
-loop with the current summary.
-
-Disallowed shortcuts:
-
-- treating "implement this" as Spark completion when the target is still being
-  shaped
-- writing `implicit_for_execution`, `implicit_acceptance`, or equivalent
-  invented acceptance status
-- storing internal questions in the inventory without showing a real question
-  to the user
-- claiming a snapshot is accepted before the user sees the candidate and
-  confirms, corrects, or rejects it.
-- using an accepted snapshot as permission to end the Spark conversation with
-  no next question or end-check
+A new consensus snapshot still requires user acceptance before being labelled
+accepted. Reuse acceptance already given for the same scope; do not invent an
+acceptance status or treat ending the dialogue as acceptance of a new proposal.
 
 ## Plan/Design Stress-Test Submode
 
@@ -355,7 +328,7 @@ Common repair triggers:
 
 If the corrected action is implementation, validation, or research, execute it
 within the current turn when feasible, then return with the updated state and
-the next high-quality question.
+a question only if its answer changes the next move.
 
 ## Feedback Signal Ledger
 
@@ -663,11 +636,11 @@ user model, exploration branches, value tradeoffs, research gaps, and
 experiment candidates. Keep inferred user-model items as `unknown_known` with
 `inferred` status until the user confirms, corrects, contests, or defers them.
 
-The brainstorm questioning loop ends only when the user explicitly expresses
-completion, asks to converge, or asks to move to the next action. Agent-side
-confidence is not enough to stop asking if the user is still adding material.
+The questioning loop ends when its declared acceptance condition is met or the
+user asks to converge or proceed. If a material uncertainty still needs a user
+decision, offer one end-check with a current snapshot rather than extending the
+loop by default.
 
-If the agent believes the loop should end, it must ask the user whether to end.
 That end-check question must include the confirmed key summary:
 
 - current goal and success bar
@@ -763,13 +736,12 @@ Stop asking and synthesize when:
 
 - the user explicitly says they are done, ready to converge, or ready for the
   next action
-- the remaining uncertainty does not change the next move after that user
-  completion signal
+- the remaining uncertainty does not change the next move
 - research would be lower value than trying the next action
 - the user asks to proceed
 - the discussion has enough structure to hand off to brainstorm, researcher,
   feature-tracker, or implementation
 
-Repeated same-branch agreement may trigger an end-check, but it never satisfies
-completion by itself. If `convergence_pressure` is active, resolve the
-branch-width question before treating the branch as closed.
+Repeated agreement is not independent evidence. Inspect a material untested
+branch if it could reverse the decision; do not manufacture a branch-width
+question after the declared acceptance condition has been met.

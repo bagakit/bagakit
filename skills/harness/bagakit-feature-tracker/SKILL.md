@@ -52,7 +52,68 @@ Keep these invariants:
 - the first reviewed execution Task should close the smallest end-to-end
   acceptance path before broad cross-tree coverage or cleanup
 
+Before each `set-task-plan`, perform a scope boundary check against the existing
+Goal: confirm the same user outcome, protected invariants, acceptance boundary,
+and target environment. A revision may repair a failed assumption or regroup
+dependencies, but it must not quietly combine a new product line, release
+campaign, route migration, or unrelated cleanup into the same Feature. If the
+goal boundary changed, or revision/task/failure growth is being used to carry a
+second delivery line, install a reviewed successor and use `transfer-feature`
+instead of extending the old plan indefinitely.
+
 ## Golden Path
+
+Before the first dispatch, and after every completion, blocker, or plan
+revision, run `review-task-plan --feature <feature-id> --json` and dispatch the
+available independent frontier. **Wave is DAG depth, never a batch barrier.**
+Coalesce simultaneous completions into one owner review; reuse the audit while
+its plan revision and frontier are unchanged instead of re-auditing per Worker
+or observation tick.
+Do not wait for an entire Wave, review, or test phase to finish before starting
+work whose actual inputs are ready. User-confirmed ample test capacity removes
+an assumed resource bottleneck; do not silently reintroduce it.
+
+### Convergence controls
+
+Every bounded execution session must name one Task, one owner, the current
+Feature workspace, a candidate or input reference, and one close condition.
+The handoff or progress receipt must also name the next action and a deadline
+for any external wait. A repeated summary, context recovery, or unchanged
+poll is not progress. After two checkpoints with no changed code, Tracker
+state, artifact, runtime observation, or blocker uncertainty, stop dispatching
+more repeats and run `review-task-plan`; then revise, block, fail, or transfer
+the Task with evidence.
+
+Freeze a clean, gated restore ref before any expensive replay, external
+mutation, rollout, route switch, or final-candidate gate. The invocation
+receipt should bind the candidate ref or HEAD, input/data-window digest, runner,
+stage, result, cleanup state, and rerun rule. A changed source SHA, config,
+image, input snapshot, generation, or publication root makes exact-candidate
+evidence stale and requires a new gate. These identities belong in receipts
+and logs, not in Goal or reviewed Task semantics.
+
+Use a cheap, production-shaped counterexample or preflight before an expensive
+gate. It must identify the failing stage and failure class and leave a bounded
+artifact. Keep one write owner for the Task, one current candidate, and one
+independent read-only audit unless a new failure mechanism is observed. A
+successful receipt is consumed by the final join; later Tasks must not rerun
+the same expensive proof merely to restate it.
+
+Keep release, route/browser acceptance, MR merge, and Feature closeout as
+separate acceptance boundaries. A single terminal Task may join their receipts,
+but it must not own all external side effects and publication decisions at once.
+
+For each material waiting edge, distinguish **inputs needed to start** from
+**evidence needed to sign off**. Review preparation, incremental code review,
+isolated tests, and farm shards can produce useful evidence before final
+integration. A final acceptance that consumes the exact joined candidate keeps
+its real dependencies. If one Task mixes both, use a reviewed split into an
+independently useful evidence Task and its final join, or the bounded
+provisional route in [convergence review](references/convergence-review.md).
+Do not merely say “these can run in parallel”: record the edge decision,
+install any authorized revision, then dispatch it. Preserve completed history
+and active Task semantics. Never remove an edge just because a title says
+“review”, “test”, or “acceptance”.
 
 Resolve the installed skill directory, then initialize once:
 
@@ -151,7 +212,12 @@ the audit and any safe provisional lane.
 `run-task-gate` executes the current Task's `verification` mappings with
 `kind=command`, in their declared order, and records the same command results
 in both `tasks.json.last_gate_commands` and
-`state.json.gate.last_check_commands`. Runtime policy does not choose Task
+`state.json.gate.last_check_commands`. The receipt also binds the candidate
+HEAD, worktree digest, verification-artifact digest, plan revision, and a
+deduplication key. The latest passing receipt for the same fingerprint is
+reused; an
+identical failed attempt requires an explicit `--rerun` decision. Runtime
+policy does not choose Task
 completion commands. A reviewed Task without an executable command
 verification fails closed when it is being started or gated; artifact, manual,
 and owner-receipt mappings remain additional evidence routes and are not
@@ -159,8 +225,9 @@ silently treated as a passing command gate. Existing reviewed plans that only
 contain those non-command mappings remain readable as historical truth, but
 cannot start or finish a new execution Task until their reviewed plan is
 revised with an executable command. `finish-task --result done` also rejects a
-stale receipt whose command list no longer matches the current Task plan, even
-if an old `pass` value is present. This transition check is deliberately not a
+stale receipt whose command list, candidate, worktree, or verification input
+no longer matches the current Task plan, even if an old `pass` value is
+present. This transition check is deliberately not a
 retroactive migration: historical completed Tasks remain readable without
 claiming that their older gate receipts satisfy the new proof rule.
 
@@ -251,7 +318,7 @@ claim the new runnable Tasks, and refresh the stable topology link.
 The public `review-task-plan --feature <feature-id> --json` command is the
 read-only checkpoint for this review. It lists every waiting dependency edge,
 marks each edge `decision=review_required`, and reports failed assumptions.
-Use it before claiming work when a plan may be over-serialized, and include
+Use it at the dispatch and progress checkpoints above, and include
 the resulting edge decision in the reviewed plan evidence. The command never
 removes an edge or schedules an Agent by itself.
 
@@ -264,179 +331,38 @@ pass.
 
 ## Human Visibility
 
-After Feature creation, a Host should present one stable, disposable status
-page through the loopback-only server below whenever a browser is available.
-This is the preferred human-observation route because it reads canonical files
-on each refresh while keeping the page read-only. A static HTML snapshot is the
-fallback for environments that cannot use a loopback server or when the user
-explicitly asks for an export. Clicking a Feature card opens a details panel
-with the same file-derived Task topology and links its nodes to acceptance and
-proof detail:
+Use the read-only loopback page for a browser observer:
 
 ```bash
 bash "$BAGAKIT_FEATURE_TRACKER_SKILL_DIR/scripts/feature-tracker.sh" \
-  show-feature-status \
-  --root . \
-  --feature <feature-id> \
-  --format html \
-  --output .tmp/feature-tracker/status.html
+  serve-feature-status --root . --feature <feature-id>
 ```
 
-The HTML `--feature` option focuses and opens one Feature's details panel while
-retaining the complete active overview. It also accepts a closed Feature id and
-opens its preserved historical Task topology from the status-specific history
-directory; the closed panel is read-only and does not expose claim or Goal
-setting actions. Text and JSON forms continue to inspect one Feature.
-The overview may place one derived current-focus strip above the status board;
-it is only a compact routing cue for the most urgent active, blocked,
-replanning, runnable, or closeout state and never a second priority store.
-The board also provides a read-only search over Feature and Task text plus a
-lifecycle-status filter; filtering temporarily hides the unrelated focus cue
-and empty status columns so a large plan is easier to scan, while clear/live
-refresh restores the complete overview.
-If one active record is malformed, the overview shows a minimal repair-needed
-card with canonical links and leaves strict diagnosis to `validate-tracker`.
-The page is a derived projection computed from canonical Tracker files plus an
-optional latest Flow Runner progress overlay. Reuse the same URL across updates;
-do not create a new page per mutation. Its Agent claim draft is a
-Host-delivered `bagakit-agent-messaging` envelope; it grants no authority and
-proves no delivery or claim. Opening an active Feature's details exposes its derived
-Tracker Name (`Feature-Tracker-<feature-id>`) with a copy action, followed by
-the Task topology; use the enlarged details panel for larger graphs and read the
-node labels and legend for the derived runtime frontier, gate state, and direct
-dependencies. Tracker Name is presentation-only and is not another state field.
-When all current Tasks carry `estimate_hours`, the topology may highlight one
-derived longest estimated dependency chain as the critical path; missing
-estimates must yield an explicit unavailable cue, never an inferred duration.
-This is a read-time planning observation, not a priority field or scheduler.
-When completed Tasks sit outside every unfinished dependency cone, the page may
-offer `Focus open work` to de-emphasize that stable completed subgraph. It must
-keep those nodes in the same topology and restore them on demand; the control
-is display state, not Task mutation or proof deletion.
-Closed-history rows are compact and clickable; opening one exposes the same
-read-only topology, Task acceptance, verification, and canonical-file previews
-from its archived, discarded, or transferred record. The overview keeps only
-the index row for non-focused closed Features and loads their full history on
-demand, so a long archive does not inflate every page response. If a Feature has `transferred_from`, the details panel and Feature card show
-the complete source count and clickable source Feature ids that focus closed
-history; this is lineage context, not a dependency edge.
-For a large reviewed plan, the details panel puts the dependency graph first. The state strip and one-click
-prompt actions stay compact above it; planning history, canonical files, and
-execution receipts collapse below the graph. A derived grouped acceptance or
-execution-wave overview remains compact and collapsible. Group links still jump to the matching
-Task detail. The graph itself labels each dependency layer as a derived wave
-(`W01`, `W02`, …), so the wave model is visible in the topology and not only in
-the summary. Runtime states are primarily distinguished by text badges and
-border/fill treatment; color is auxiliary and never the sole status signal. For plans above 30 Tasks, the graph switches to compact node geometry and wraps evidence cues across two lines, keeping status, dependency progress, gate/proof, effort, and runtime activity available in the node and its tooltip. Use `Overview` to fit the whole graph when a large plan needs a bounded locator.
-Every dependency edge has a wider transparent hit target and a source → target
-tooltip. Hovering or focusing an edge dims unrelated edges and shows its direct
-`depends_on` meaning plus target state in a compact inspector; hovering a node
-isolates its incident edges. Keep permanent labels sparse: only critical or
-waiting edges need a visible label.
-Dense fan-in and fan-out use separate source and target approach lanes before
-turning into a node, so parallel rails do not collapse into one ambiguous
-vertical stroke. The interaction target stays narrower than the lane spacing;
-tracing an edge also emphasizes its two endpoint Tasks.
-For dense long-edge sets, keep the rails below the node grid so the initial
-viewport presents Tasks before wiring; sparse graphs may balance rails above
-and below.
-Borrow the xyflow status-indicator pattern only as a derived cue: an active
-Task with an explicit bound Flow Runner receipt whose latest
-`session_status=progress` may receive a subtle activity ring, and only edges
-entering that Task may use a directional animated stroke. This means execution
-activity was reported; it is not a Worker heartbeat. Historical, blocked,
-terminal, Feature-wide, stale, waiting, and unbound receipts stay static.
-Labeled wave/group backdrops and node tooltips are presentation-only; they
-must not create synthetic Tasks, edges, or a second status store. All motion
-stops under `prefers-reduced-motion` and the text/border status remains
-sufficient on its own.
-Task review details are independently collapsible; active and blocked Tasks are
-open by default while other Tasks stay compact in larger plans. Their browser
-disclosure state is preserved exactly by live refresh—including explicitly
-closed items—and is not Tracker truth. The Task list has its own scroll region;
-selecting a topology node or wave row opens and scrolls only that list to the
-matching Task and briefly highlights the target. Each Task detail exposes direct one-click copy actions for claiming the Task,
-checking status, explaining the Task, and recovering its bounded Goal statement.
-The Feature details panel exposes two Tracker-wide one-click copy actions for
-setting the Feature Goal and explaining the whole reviewed plan's progress;
-do not require a tab-then-copy sequence or repeat these actions per Task. Canonical file
-controls open read-only in-page previews from repo-relative refs instead of
-relying on `file://` links; JSON and Markdown previews use escaped,
-lightweight syntax coloring without changing source bytes. Keep the Feature
-details layout flat: use semantic dividers rather than nested borders when a
-container does not carry an interaction or state meaning. Give the topology
-the main vertical space in the details panel; do not require a separate
-fullscreen surface to see the graph.
-Prompt buttons copy directly on one click, report success or clipboard failure,
-and point back to canonical SSOT without becoming tracker state.
+Keep the topology central, the summary compact, and prompts one-click copy.
+The page derives status from Tracker, and optional activity only from explicitly
+Task-bound Flow Runner receipts. Dagre lays out the graph; Wave remains a depth
+label. Large plans can fold tasks with identical upstream/downstream sets and
+hide transitive-redundant declared edges without changing canonical truth.
+Expand groups or `Show all links` to inspect the full plan. Repeated hover and
+unchanged polls must not rebuild the canvas. Motion should explain a selected
+path, a layout transition, or evidence-backed activity, and obey reduced-motion
+preferences.
 
-The document title is derived from the observing repository's final directory
-name (`project · Feature Tracker Status`) so pages from multiple projects are
-distinguishable; this name is presentation-only. Topology nodes may show
-evidence-backed gate progress, an explicit Agent-hour estimate, an observed
-Flow Runner checkpoint span, and checkpoint count. Omit unavailable values or
-show `—`; never infer duration from wall-clock or file timestamps.
+Read [Status surface](references/status-surface.md) for static export, terminal
+observation, grouping, interaction, and refresh details. Keep those display
+mechanics out of the execution and concurrency rules above.
 
-For a live local view, use the loopback-only read-only server first and share
-the printed URL with the user:
-
-```bash
-bash "$BAGAKIT_FEATURE_TRACKER_SKILL_DIR/scripts/feature-tracker.sh" \
-  serve-feature-status \
-  --root . \
-  --feature <feature-id>
-```
-
-The server regenerates the same projection from `state.json`, `tasks.json`,
-and `index/features.json` on each browser refresh. If Flow Runner is present,
-it also reads the latest `progress.ndjson` receipt for the mirrored Feature;
-only an explicit `task_ref` can attach that informational activity to a Task.
-Receipt provenance is shown as a repository-relative path in the page rather
-than a `file://` link, so static exports remain portable and do not depend on
-browser access to local files.
-The page's JavaScript only fetches and replaces the status region; it does not
-read browser-local files, mutate Tracker state, or provide a write endpoint.
-When canonical content is unchanged it leaves the status DOM in place to avoid
-flashing dialogs or disclosures. It preserves the selected Feature details
-panel while showing refresh state (`Updating`, `Updated`, `No changes`, or
-`Update failed`), and preserves topology scroll and
-zoom position and the board's horizontal scroll position across those
-replacements. The topology controls have a bounded zoom range, an explicit Fit
-action, and pointer-drag panning on the empty canvas; the SVG's layout
-dimensions stay synchronized with zoom, so scrolling does not expose a clipped
-visual transform. Stop the server when the observation
-session ends. Do not replace this route with a `file://` page when a loopback
-server can be started: browsers commonly restrict local-file automation and a
-file snapshot cannot observe changes.
-
-When the observer has a terminal but no browser, render the same projection in
-place:
-
-```bash
-bash "$BAGAKIT_FEATURE_TRACKER_SKILL_DIR/scripts/feature-tracker.sh" \
-  watch-feature-status \
-  --root . \
-  --feature <feature-id>
-```
-
-This is the same derived frontier and Task topology as the other two routes, not
-a second projection: it renders `feature_task_frontier` and
-`task_topology_layers` over the same canonical files and holds no tracker lock.
-`--feature` targets one Feature's topology while keeping the full active board,
-and a malformed active record shows the same repair-needed line rather than
-disappearing from the board. On each refresh it recomputes the whole projection,
-reports `updated`, and on a transient read error keeps the last good frame and
-reports the failure instead of blanking the view. It also marks the time the
-canonical content last changed, derived from content rather than file
-timestamps, so a change that happened while the observer looked away stays
-visible. Prefer the loopback server when a browser is available: only the page
-carries the full interactive graph.
+Maintainer rationale and verified optimization trade-offs are recorded in
+[optimization notes](references/optimization-notes.md). They are learning
+history, not a second source of planning truth.
 
 ## Progress Publication
 
-When reporting progress for a tracked Feature, the Agent must first refresh or
-serve its human status projection and include the same stable topology link in
-that progress message:
+When reporting progress for a tracked Feature, refresh or serve its human
+status projection when the user asks for a visual status link, when the
+topology materially changed, or when no stable observer link exists and one is
+useful. Otherwise report the result and current frontier directly; do not
+render a page for every small status update:
 
 - static route: rerun `show-feature-status --format html --output <stable-path>`
 - live route: reuse the `serve-feature-status` loopback URL
@@ -448,8 +374,9 @@ that progress message:
   (`active`, `runnable`, `blocked`, `cancelled`, `waiting`) and state that the topology page
   is unavailable
 
-This publication rule applies to user-facing progress messages, not every
-internal state mutation or Worker heartbeat.
+Reuse an existing stable link across updates. This publication rule applies to
+user-facing progress messages when a projection is useful, not every internal
+state mutation or Worker heartbeat.
 
 When the Feature is executed through `bagakit-flow-runner`, a bounded session
 about one Task should record the exact Task id with checkpoint's optional
@@ -465,8 +392,10 @@ checkpoint through Flow Runner instead.
 ## Closeout
 
 A code commit or a successful final `finish-task` is not Feature completion.
-Run `closeout-feature` first as a dry-run, resolve the three review items it
-prints, then rerun with `--execute`:
+Resolve the three closeout review items, then run `closeout-feature --execute`
+with their dispositions, rationales, and evidence. Use a dry-run only when the
+transition or missing review inputs are unclear; it is not an additional
+mandatory gate and cannot itself archive a Feature:
 
 - documentation: update or verify only the owning SSOT; never turn Agent
   inference into requirements

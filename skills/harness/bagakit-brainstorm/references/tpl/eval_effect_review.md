@@ -13,7 +13,7 @@
 |------|--------|--------|------------|-------|
 | input_and_qa | | | | |
 | finding_and_analyze warnings | | | | |
-| expert_forum hard gate | | | | |
+| serious/publication expert_forum gate (if selected) | | | | |
 | placeholder or content gate | | | | |
 | archive readiness | | | | |
 

@@ -1,6 +1,6 @@
 ---
 name: bagakit-grill
-description: Stress-test a concrete plan, design, goal snapshot, or implementation direction before execution. Use when the user wants grilling; classify each decision by the evidence needed to resolve it, ask one user-answer question at a time with options and a recommendation, inspect local context first, preserve a structured decision DAG, and hand evidence-producing routes to explicit owner workflows.
+description: Stress-test an explicit plan, design, goal snapshot, or implementation direction before execution. Resolve only decision-bearing branches, using local evidence or focused user questions, and stop when the acceptance condition is clear.
 metadata:
   bagakit:
     harness_layer: l1-execution
@@ -8,12 +8,15 @@ metadata:
 
 # Bagakit Grill
 
-Stress-test every aspect of a concrete plan or design until there is shared
-understanding. Walk down each branch of the decision tree, resolving
-dependencies one by one. Before asking, classify what evidence can actually
-resolve the node. Ask the user only for `user_answer` routes; inspect local
-context, research, prototype, or run an experiment when those routes provide
-the necessary fidelity.
+Grill requires a concrete target and owns its decision DAG through convergence.
+If the target is vague, return to Spark; if the work is Markdown option
+analysis and handoff, use Brainstorm. Evidence production remains with the
+owning peer or tool and is attached to the Grill node.
+
+Stress-test each decision-bearing branch of a concrete plan or design until its
+acceptance condition is clear. Before asking, classify what evidence can resolve
+the node. Ask the user only for `user_answer` routes; use local context,
+research, prototypes, or experiments when they provide the necessary fidelity.
 
 Bagakit-specific rules:
 
@@ -40,9 +43,10 @@ Bagakit-specific rules:
   In protocol terms, Grill's decision endpoint is multi-round no-branch:
   repeated answers that add no new branch create convergence pressure, not
   automatic completion.
-  Before marking the grill complete, state the protected goal or principle, name
-  any adjacent branch that may have been skipped, and ask whether to close the
-  current branch, switch branch, or correct the target model.
+  Before marking the grill complete, state the protected goal or principle and
+  name any adjacent branch that may have been skipped. Ask whether to close the
+  current branch, switch branch, or correct the target model only when that
+  branch could change the acceptance result; otherwise close directly.
 - Record the run through the skill CLI. Do not hand-edit `grill-run.json` or
   `grill-brief.md`.
 
