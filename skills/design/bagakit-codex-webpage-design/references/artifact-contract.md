@@ -2,6 +2,17 @@
 
 Use these names when a webpage design task needs durable local artifacts.
 
+Choose the route before creating artifacts:
+
+- `direct_execute` — a clear brief and existing host system are enough; use
+  `not_needed_direct_execute` for reference-only ledgers that do not apply.
+- `reference_led` — a provided, generated, exact, or high-craft reference
+  guides implementation and parity; create the reference provenance,
+  decomposition, design-spec, and parity artifacts required by that route.
+
+Conditional artifacts are obligations only when their route trigger applies.
+Do not create empty ledgers to satisfy the list below.
+
 Recommended root:
 
 - `.bagakit/codex-webpage-design/<task-slug>/`
@@ -248,14 +259,17 @@ and visual quality rules. Do not duplicate the packet into Markdown as a second
 source of truth; checkpoint reviews should cite packet fields and record
 verdicts, deltas, and blockers.
 
-`reference-intent.md`, `visual-decomposition.md`, `design-spec-ledger.md`, and
-state coverage are blocking artifacts for implementation. For high-craft work,
+`design-brief.md` and browser evidence are baseline implementation artifacts.
+On `reference_led`, `reference-intent.md`, `visual-decomposition.md`, and
+`design-spec-ledger.md` are blocking; state coverage is blocking only when
+meaningful states or breakpoints define the product. For high-craft work,
 `reference-survey-ledger.md`, `ambition-bar.md`, and the design-draft quality
-passes are also blocking before implementation. If no stronger reference
-exists, `design-reference.md` must point to an image2-generated reference before
-implementation can claim visual completion. If image generation is unavailable,
-preserve `image-prompt.md` and hand off the blocker instead of coding directly
-from text requirements.
+passes are also blocking before implementation. If that route has no stronger
+reference, `design-reference.md` must point to an Image2-generated reference
+before visual completion. If image generation is unavailable, preserve
+`image-prompt.md` and hand off the blocker instead of coding directly from text
+requirements. On `direct_execute`, the host system or brief can replace these
+reference-derived artifacts.
 
 `reference-provenance-ledger.md` is blocking whenever a generated or provided
 reference will guide implementation. It must classify the source as
@@ -654,9 +668,10 @@ pass status.
 ## Result
 
 - Page: <repo-relative route or file>
-- Design reference: <repo-relative artifact ref>
-- Reference intent: <exact|style_reference|asset|content_context|data_context>
-- Reference provenance: <external_strong|image2_filesystem|browser_exploration_only|blocked_no_reference and ref>
+- Route: <direct_execute|reference_led>
+- Design reference: <repo-relative artifact ref or not_needed_direct_execute>
+- Reference intent: <exact|style_reference|asset|content_context|data_context or not_needed_direct_execute>
+- Reference provenance: <external_strong|image2_filesystem|browser_exploration_only|blocked_no_reference and ref, or not_needed_direct_execute>
 - Reference survey ledger: <ref or not_needed_stronger_reference_low_craft>
 - Visual decomposition: <ref>
 - Semantic visual map: <ref or not_needed_simple_page>
@@ -664,7 +679,7 @@ pass status.
 - Surface composition pass: <ref or not_needed_low_craft>
 - Density budget: <ref or not_needed_simple_page>
 - Copy/icon budget: <ref or not_needed_simple_page>
-- Design spec ledger: <ref>
+- Design spec ledger: <ref or not_needed_direct_execute>
 - Ambition bar: <ref or not_needed_low_craft>
 - MVP experiment plan: <ref or not_needed_not_skill_experiment>
 - State reference set: <ref or not_needed_static_page>
@@ -680,8 +695,8 @@ pass status.
 - Affordance inventory: <ref or not_needed_static_page>
 - Behavior matrix: <ref or not_needed_static_page>
 - Visual bug ledger: <ref and blocker count>
-- Full-page structural parity ledger: <ref and high-mismatch count>
-- Micro parity checklist: <ref and high-mismatch count>
+- Full-page structural parity ledger: <ref and high-mismatch count or not_needed_direct_execute>
+- Micro parity checklist: <ref and high-mismatch count or not_needed_direct_execute>
 - Asset requirement pass: <ref or not_needed_css_sufficient>
 - Asset generation ledger: <ref or not_needed_no_assets>
 - Material parity checklist: <ref and high-mismatch count or not_needed_no_assets>
@@ -716,8 +731,8 @@ pass status.
 - visual judge gate: <passed|needs_iteration|blocked|not_needed with evidence ref>
 - MVP complexity gate: <passed|partial|blocked|not_applicable with evidence ref>
 - visible bug scan: <result>
-- full-page structural parity scan: <passed|partial|blocked with evidence ref>
-- micro-parity scan: <passed|partial|blocked with evidence ref>
+- full-page structural parity scan: <passed|partial|blocked|not_applicable with evidence ref>
+- micro-parity scan: <passed|partial|blocked|not_applicable with evidence ref>
 - material parity scan: <passed|partial|blocked|not_needed with evidence ref>
 - asset pipeline integrity: <passed|partial|blocked|not_needed with role/crop/alpha/slice/responsive refs>
 - frontend architecture review: <passed|partial|blocked|not_applicable with evidence ref>

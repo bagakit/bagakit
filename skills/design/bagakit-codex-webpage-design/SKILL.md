@@ -1,6 +1,6 @@
 ---
 name: bagakit-codex-webpage-design
-description: Use when Codex should create a high-craft webpage or landing page from discussion through startup clarification, image-generation design reference, frontend implementation, browser debugging, and visual parity iteration. Use for strongly styled pages, design-led frontend work, vague or reference-light webpage starts, image2 prompt drafting, screenshot-to-implementation loops, and visual polish; not for backend-heavy app features or purely textual design advice.
+description: Use for explicit high-craft webpage or landing-page implementation and visual parity work. Clarify references, implement in the host stack, and browser-verify; use a design-only route when requested.
 metadata:
   bagakit:
     design_layer: webpage-design
@@ -8,22 +8,29 @@ metadata:
 
 # Bagakit Codex Webpage Design
 
+Codex owns frontend implementation, running-page behavior, and browser
+evidence. Consume Design Core or HITL packets when present; do not absorb their
+design judgment or human workflow state into the implementation skill.
+
 `bagakit-codex-webpage-design` is a reference-context-first webpage design
 engineering workflow. It turns intent into a concrete design reference, a
 working frontend page, browser screenshot evidence, and a reviewed parity
 decision.
 
-Image2 is the default reference generator when the user has no stronger
-reference. Stronger references include Figma frames, approved screenshots,
-brand mockups, real assets, design systems, structured content, or data
-examples. Do not start implementation with no design reference.
+For high-craft or reference-led work, Image2 is the default reference
+generator when the user has no stronger reference. Stronger references include
+Figma frames, approved screenshots, brand mockups, real assets, design systems,
+structured content, or data examples. A clear brief plus an existing host
+system is enough for a routine implementation route; do not add a generated
+reference just to satisfy this skill.
 
-The reference source must be auditable. A browser-rendered page created by the
-agent is not a substitute for Image2 or an external reference. It may be an
-exploration sketch or implementation artifact, but it cannot satisfy the
-reference-first, design-reference, state-reference, or parity gates. If Image2
-cannot produce a usable saved reference, retry or stop with a blocker handoff
-instead of coding from agent-authored HTML.
+When a reference route is selected, the source must be auditable. A
+browser-rendered page created by the agent is not a substitute for Image2 or
+an external reference on that route. It may be an exploration sketch or
+implementation artifact, but it cannot satisfy the reference, state-reference,
+or parity gates. If Image2 cannot produce a usable saved reference, retry once
+when the route depends on it; otherwise report the missing reference and use a
+clear direct-execute route only when the user brief and host system support it.
 
 The `SKILL.md` file is intentionally a thin operating protocol. Detailed
 checks live in `references/` and historical failures live in `gate_eval/`.
@@ -52,10 +59,14 @@ implementation.
 
 ## Operating Spine
 
-Every substantial task follows this invariant spine, while the exact route can
-adapt to the project:
+Use the smallest route that proves the requested outcome. The baseline is
+`design-brief`, `reference-intent`, `visual-decomposition`, implementation,
+browser evidence, and `handoff`. Add the stages below only when their trigger
+applies; do not create an empty ledger or review packet for an unselected
+concern.
 
-1. `startup-clarification`
+1. `startup-clarification` — only for vague, reference-light, asset-heavy, or
+   project-logic-unclear starts
    - required when the project logic, audience, proof point, reference intent,
      or asset set is too vague to design from; choose quick intake,
      Grill-shaped pressure pass, Spark escalation, or direct execute
@@ -65,14 +76,19 @@ adapt to the project:
 3. `reference-intent`
    - strongest reference source and intent class:
      `exact`, `style_reference`, `asset`, `content_context`, or `data_context`
-4. `reference-provenance-ledger` and `reference-survey-ledger`
+4. `reference-provenance-ledger` — whenever a provided or generated reference
+   is used; add `reference-survey-ledger` only for high-craft or
+   reference-light work that needs a comparison tier
    - source class, comparison tier, archetype route, transferable best
      practices, and non-substitution constraints
-5. `image-prompt` and `design-reference`
-   - required when no stronger reference exists; missing Image2 output is a blocker handoff
-6. `state-reference-set`
-   - default, selected, search/filter, empty/error, modal, disabled, responsive
-7. `page-skeleton`, `media-slot-plan`, `visual-decomposition`, optional design-core packet, and design-draft passes
+5. `image-prompt` and `design-reference` — only when the selected route needs a
+   generated reference or reference parity; a missing Image2 artifact blocks
+   that route, not a clear direct-execute route
+6. `state-reference-set` — only when meaningful states or breakpoints define
+   the product
+7. `page-skeleton`, `media-slot-plan`, `visual-decomposition`, optional
+   design-core packet, and design-draft passes — use the individual artifacts
+   only when their content is needed
    - page frame, regions, typography, palette, material, component treatment,
      information compression, surface composition, density, copy/icon budget,
      semantic visual ownership, hierarchy, signature details, and
@@ -80,26 +96,31 @@ adapt to the project:
      one-sided rail as the only selected/current cue, and record any semantic
      exception; include the image-extraction checklist when implementing from
      screenshots, Figma, generated references, or state boards
-8. `design-spec-ledger`
+8. `design-spec-ledger` — for high-craft, reference-led, or tokenized work
    - visual-system source of truth for grid, type, color, hierarchy, spacing,
      control geometry, borders, material, density, motion, brand tone, and
      state tokens, with source and usage for repeated values
-9. `asset-requirement-pass`, `bulk-asset-match-ledger`, and `asset-generation-ledger`
-   - required when CSS alone cannot carry texture, masks, glyphs, or craft
-10. `ambition-bar`
-   - required for high-craft work; names the reference tier, delight moment,
-     signature detail, and anti-generic risks with mitigation or override reasons
+9. `asset-requirement-pass`, `bulk-asset-match-ledger`, and
+   `asset-generation-ledger` — only when provided/generated assets or an
+   unsorted asset batch needs tracking
+10. `ambition-bar` — only for high-craft or brand-heavy work
 11. `information-architecture-map`, `workflow-model`,
     `control-surface-map`, `interaction-model`, `interaction-intuition-pass`, and `mobile-interaction-plan`
    - required for product-like and interactive pages before implementation;
      interaction-specific passes apply when live controls, state changes,
      gestures, or responsive interaction modes exist
-12. `frontend-architecture-plan`, `component-source-ledger`, and `capability-route`
+12. `frontend-architecture-plan`, `component-source-ledger`, and
+    `capability-route` — architecture artifacts apply when the page is
+    interactive, stateful, component-heavy, or uses a special capability
    - host stack, component structure, design-standard mapping, source
      decisions, and libraries matched to graph, search, editing, canvas, or 3D
 13. implementation and browser loop
    - run, capture screenshots, exercise interactions, and iterate
-14. completion ledgers
+14. completion evidence — use the smallest set that matches the route:
+   `affordance-inventory`/`behavior-matrix` for live controls,
+   `visual-bug-ledger` and parity ledgers for reference review,
+   `canvas-stability-report` for spatial interaction, and judge/review packets
+   only when independent or comparative review is requested
    - `affordance-inventory`, `behavior-matrix`, `visual-bug-ledger`,
      `full-page-structural-parity-ledger`, `micro-parity-checklist`,
      `material-parity-checklist`, `canvas-stability-report`, `visual-parity-ledger`,
@@ -139,15 +160,19 @@ coding from an unexamined prompt.
 
 ### Reference First
 
-Classify the reference route before coding. If no stronger reference exists,
-generate an image2 design reference or preserve the image prompt as a blocking
-handoff. A failed or under-review implementation screenshot must not become
-the new design source unless the user explicitly approves it as the baseline.
+Classify the reference route before coding. For exact, high-craft, or
+reference-light work, generate an Image2 design reference when no stronger
+reference exists, or preserve the image prompt as a blocking handoff. For a
+clear direct-execute route, record the existing host system or user brief as
+the reference context and continue without Image2. A failed or under-review
+implementation screenshot must not become the new design source unless the
+user explicitly approves it as the baseline.
 
-Use `reference-provenance-ledger` before coding. If an agent-authored browser
-page is proposed as the reference, treat it as exploration only and apply the
+Use `reference-provenance-ledger` before coding when a provided or generated
+reference is part of the selected route. If an agent-authored browser page is
+proposed as the reference, treat it as exploration only and apply the
 non-substitution rule in `references/implementation-loop.md`; otherwise the
-task remains blocked even if the page later looks good.
+reference-led task remains blocked even if the page later looks good.
 
 When meaningful states or breakpoints exist, design references must form a
 coherent set. Do not DIY important state visuals during implementation unless
@@ -210,15 +235,20 @@ canvas elements, or an unclear workflow.
 
 Before final handoff, verify:
 
-- `reference-intent`, `visual-decomposition`, and required state references
-  exist
+- baseline artifacts (`reference-intent`, `visual-decomposition`, browser
+  evidence, and `handoff`) exist
+- any selected conditional stage has its artifact or an explicit skip reason;
+  do not manufacture empty ledgers
 - vague or asset-heavy starts have `startup-clarification.md` completed,
   explicitly skipped, or escalated before visual implementation
-- `reference-provenance-ledger` passes the reference-source gate
-- the reference source is `external_strong` or `image2_filesystem`; an
-  agent-authored browser page is not reference authority
-- `design-spec-ledger` exists and the implementation uses its token and
-  geometry standards instead of ad hoc visual guesses
+- when a provided/generated reference is used, `reference-provenance-ledger`
+  passes its source gate and the authority is `external_strong` or
+  `image2_filesystem`; an agent-authored browser page is not reference
+  authority
+- on a high-craft, reference-led, tokenized, or image-like route,
+  `design-spec-ledger` exists and the implementation uses its token and
+  geometry standards instead of ad hoc visual guesses; a direct-execute route
+  may cite the host token system or compact design brief
 - selected/current/active states do not default to a thin one-sided bar as the
   only signal; any retained side rail has a documented semantic job, a paired
   non-color cue, and an `override_reason` in the anti-default risk scan
@@ -234,7 +264,8 @@ Before final handoff, verify:
 - required material assets exist and `material-parity-checklist` has no
   unresolved blocker when CSS-only rendering cannot carry the reference craft
 - no implementation began from text alone or from an agent-authored HTML
-  reference when image2 or a stronger reference was needed
+  reference when Image2 or a stronger reference was required by the selected
+  route
 - workflow and control ownership are legible for interactive pages
 - every visible live-looking affordance is classified and every `working`
   affordance has behavior evidence
@@ -249,14 +280,15 @@ Before final handoff, verify:
 - canvas controls, overlays, minimaps, legends, and floating UI stay in safe
   zones and meet mobile touch expectations
 - `visual-bug-ledger` has zero blockers
-- `full-page-structural-parity-ledger` proves the whole reference page was
-  compared against whole-page and first-viewport screenshots before any local
-  crop or micro-parity pass can claim alignment
-- `micro-parity-checklist` has no unresolved blocker or high-severity detail
+- for an exact-reference route, `full-page-structural-parity-ledger` proves the
+  whole reference page was compared against whole-page and first-viewport
+  screenshots before a local crop or micro-parity pass can claim alignment
+- for exact/reference-parity routes, `micro-parity-checklist` has no unresolved
+  blocker or high-severity detail
   mismatches in controls, spacing, typography, borders, shadows, icon
   alignment, density, or state styling
-- `material-parity-checklist` passes when generated or provided assets are
-  needed for texture, masks, glyphs, icons, overlays, or craft
+- when generated or provided assets are needed for texture, masks, glyphs,
+  icons, overlays, or craft, `material-parity-checklist` passes
 - important UX work, generated design references, and exact-reference
   implementations pass `visual-judge-scorecards` and `judge-aggregation`
 - mobile screenshots prove core mobile visualizations, selected tab or drawer
@@ -282,7 +314,9 @@ This skill should improve through evidence, not by growing indefinitely.
 
 When a task exposes a repeated or decision-changing failure:
 
-1. record the failure in the task-local selector log or Spark state
+1. if a persisted selector episode or Spark state already owns the route,
+   record the failure there; otherwise keep it in the owning implementation or
+   validation artifact
 2. route long-lived skill-quality decisions through `bagakit-skill-evolver`
 3. add or update a non-gating bench case under `gate_eval/skills/design/`
 4. promote only the smallest stable rule into this skill or its references

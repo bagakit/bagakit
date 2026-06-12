@@ -1,18 +1,24 @@
 # Implementation Loop
 
-Use this when converting a design reference into a running webpage.
+Use this when converting a design reference or a clear host brief into a
+running webpage. Choose one route before entering the loop:
 
-Do not enter this loop until `reference-intent.md` exists and either a stronger
-provided reference is recorded or image2 has produced a design reference. A
-preserved image prompt alone is only enough for handoff when image generation is
-unavailable; it is not enough to claim visual implementation completion.
-An agent-authored browser page is also not enough. HTML/CSS is the
-implementation medium, so using a locally coded page as the design authority
-turns the task into self-reference instead of design-led implementation.
+- `direct_execute`: the brief and existing host system are clear enough for a
+  routine implementation; use the host system or brief as context and skip
+  reference-only gates
+- `reference_led`: a provided, generated, exact, or high-craft reference must
+  guide implementation and parity review
+
+The `reference_led` route needs `reference-intent.md` and either a stronger
+provided reference or an Image2 design reference. A preserved image prompt is
+enough for a blocker handoff when image generation is unavailable, but not for
+claiming visual implementation completion. An agent-authored browser page may
+be an exploration sketch, never the design authority on this route.
 
 ## Reference Provenance Gate
 
-Before implementation, write `reference-provenance-ledger.md`.
+Before implementation, write `reference-provenance-ledger.md` when a provided
+or generated reference will guide implementation or parity review.
 
 Classify the reference source:
 
@@ -62,13 +68,15 @@ The audit is not a command to keep the old design. It is the record that lets a
 redesign exceed the current page without accidentally losing product meaning,
 working behavior, brand tokens, or host conventions.
 
-Do not enter this loop until `visual-decomposition.md` and
-`design-spec-ledger.md` exist. The decomposition must translate the reference
-image into concrete targets for layout proportions, toolbar/nav structure,
-focal composition, typography, palette, materials, component shapes, spacing,
-and signature details. The design spec ledger must turn those targets into
-implementable tokens and geometry standards instead of leaving the agent to
-eyeball small details during CSS work.
+On the `reference_led` route, do not enter implementation until
+`visual-decomposition.md` and `design-spec-ledger.md` exist. The decomposition
+must translate the reference image into concrete targets for layout
+proportions, toolbar/nav structure, focal composition, typography, palette,
+materials, component shapes, spacing, and signature details. The design spec
+ledger must turn those targets into implementable tokens and geometry
+standards instead of leaving the agent to eyeball small details during CSS
+work. A `direct_execute` route may use the host token system or a compact
+design brief in place of these reference-derived artifacts.
 
 When the implementation source is a screenshot, Figma frame, generated mockup,
 state board, or other image-like reference, also write
@@ -209,9 +217,11 @@ clear reason.
 
 ## Design Spec Gate
 
-Before implementation, write `design-spec-ledger.md` from the reference image
-or provided design authority. It is the local visual SSOT for CSS tokens,
-component geometry, and micro-detail review.
+On `reference_led`, write `design-spec-ledger.md` from the reference image or
+provided design authority. It is the local visual SSOT for CSS tokens,
+component geometry, and micro-detail review. On `direct_execute`, use the host
+token system or a compact design brief; create this ledger only when the page
+needs a new reusable visual system or detailed token review.
 
 Record concrete standards for:
 
@@ -739,18 +749,20 @@ when Playwright interactions pass.
 
 ## Build Order
 
-1. Establish `reference-provenance-ledger.md` and confirm the reference is not
-   a self-referential implementation sketch. If no stronger reference exists,
-   retry Image2 until it produces a saved artifact or stop with
-   `reference_blocked`.
+1. On `reference_led`, establish `reference-provenance-ledger.md` and confirm
+   the reference is not a self-referential implementation sketch. If no
+   stronger reference exists, retry Image2 once; if it still cannot produce a
+   saved artifact, stop with `reference_blocked`. On `direct_execute`, record
+   the host brief/system context and continue.
 2. For an existing project or route, establish
    `redesign-preservation-audit.md` before changing files.
-3. Establish `visual-decomposition.md`, `image-extraction-checklist.md` when
-   an image-like reference exists, and `design-spec-ledger.md`; convert the
-   ledger into shared CSS or theme
-   tokens.
+3. On `reference_led`, establish `visual-decomposition.md`,
+   `image-extraction-checklist.md` when an image-like reference exists, and
+   `design-spec-ledger.md`; convert the ledger into shared CSS or theme tokens.
+   On `direct_execute`, use the host tokens or compact brief and record only
+   the decisions needed by the page.
 4. Establish page shell, dimensions, typography scale, and color tokens from
-   the ledger.
+   the selected reference ledger or the host system/brief.
 5. Establish the ambition-bar signature detail and anti-default risk scan for
    high-craft work.
 6. Establish the information architecture map and semantic visual ownership map
@@ -775,7 +787,8 @@ when Playwright interactions pass.
     URL, files created, latest screenshot refs, current blocker count, and next
     action. If the run stalls after reference or asset setup, stop with
     `blocked_in_implementation` rather than silently waiting.
-19. Run `full-page-structural-parity-ledger.md` against the reference and the
+19. On exact, Image2-generated, or state-board routes, run
+    `full-page-structural-parity-ledger.md` against the reference and the
     latest full-page/first-viewport screenshots. Fix high-severity structure
     drift before crop or micro-parity review.
 20. Run a pre-judge information-architecture sanity check: what objects exist,
@@ -791,10 +804,11 @@ when Playwright interactions pass.
     manifests, alpha/mask integrity, nine-slice behavior, tiling seams,
     responsive asset behavior, fallback, desktop screenshots, and mobile
     screenshots before visual judging.
-24. Run `micro-parity-checklist.md` against reference crops for topbar,
-    navigation, primary content, repeated components, controls, and responsive
-    states. Fix high-severity spacing, typography, border, shadow, icon, and
-    control-geometry mismatches before judge review.
+24. On exact or reference-parity routes, run `micro-parity-checklist.md`
+    against reference crops for topbar, navigation, primary content, repeated
+    components, controls, and responsive states. Fix high-severity spacing,
+    typography, border, shadow, icon, and control-geometry mismatches before
+    judge review.
 25. Iterate on visible mismatches, blocker bugs, fake controls, unclear
     information architecture, unclear workflow, duplicate controls, and
     insufficient ambition.

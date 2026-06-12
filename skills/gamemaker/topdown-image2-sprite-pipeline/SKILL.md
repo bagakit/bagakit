@@ -1,6 +1,6 @@
 ---
 name: topdown-image2-sprite-pipeline
-description: Generate, process, and validate image2-derived top-down 2D character sprite sheets for games. Use when creating prototype or production-candidate top-down/3-4-view pixel-action assets, image2 sprite source strips, chroma-key-to-alpha runtime sheets, front/back action families, Dead-Cells-inspired sprite workflows, or when verifying that generated sprite sheets are truly image-source-derived and not procedurally drawn.
+description: Create and validate image2-derived top-down sprite sheets. Use for source strips, alpha/runtime sheets, action families, or provenance and motion review; do not use for ordinary game UI or non-image2 assets.
 ---
 
 # Top-Down Image2 Sprite Pipeline
@@ -9,19 +9,9 @@ Use this skill to run an image2/img2img asset experiment from a blank directory 
 
 The key rule: image generation owns the visual character pixels. Scripts may remove chroma, slice strips, crop, normalize, assemble, preview, and validate. Scripts must not draw or fabricate character frames.
 
-Baseline evidence update: attractive single-character renders and model-sheet-like contact sheets are not enough. Treat source layout, game-layer separation, and batch style consistency as first-class gates, not polish tasks.
-Round 5 evidence update: three guided vs no-guide walk-row pairs produced zero strict motion passes, and the guide score advantage was negligible (`guided` mean `57.3` vs `no-guide` mean `56.7`). Do not cite layout guides as a meaningful motion-contract win.
-Round 7 evidence update: four separate `gpt-image-2` calls using a canonical character plus simple raster skeleton guides preserved identity, but achieved `0/4` intended phase matches under three-reviewer blind labeling. Simple skeleton guides are not a proven gait-control mechanism.
-Round 8 evidence update: eight real outputs using license-clear full-body walk exemplars again preserved identity. A candidate pool produced distinct pose labels, but the selected D-E-F-G half-cycle failed all three continuity reviewers (scores `31/31/41`, mean `34.33`): only contact and recoil were clear; passing and high-point collapsed into adjacent forward-stride poses. Ordinary pose-exemplar transfer is not sufficient structural control.
-Round 10B evidence update: deterministic cutout rigging from one accepted raster canonical produced four real pixel-derived transforms, but only `1/3` reviewers accepted the exact phase order and `2/3` found blocking detached-leg/foot artifacts. A single flattened raster does not contain the occluded surfaces needed for reusable limb rotation.
-Round 11 evidence update: three real `gpt-image-2` core/arms/legs paper-doll sheets preserved broad visual identity but all three failed structural source gates and `0/3` reviewers judged the combined kit riggable. Grouped direct-layer generation does not reliably produce clean ownership or complete hidden joint surfaces.
-Round 12 evidence update: a one-part-per-call angle ablation produced eight real outputs. Strict review found one orthographic win, one game-camera win, and two no-majority pairs; all eight failed the full source validator. Camera angle is not the main cause of semantic part-ownership failure. Stop prompt and angle micro-tuning.
-Round 13 preregistration update: the next structural route is frozen as SD1.5 OpenPose ControlNet plus IP-Adapter Plus. Run the offline structural-control preflight before any download or generation. A `blocked` preflight is environment truth, not a failed image experiment, and must list the exact missing runtime, node, model, guide, identity, disk, or accelerator requirements.
-Round 13 execution update: one real smoke run and one real four-frame half-cycle were completed with the frozen SD1.5 + OpenPose ControlNet + IP-Adapter Plus stack. Blind review gave intended-phase majorities for all four frames, but identity unanimity failed, camera stability failed, and structure unanimity failed on frames 02 and 04, with frame 04 weakest. The non-square magenta canonical also triggered center-crop warning and transferred its background/floor signal despite a negative prompt. Treat this route as `source-fail`; do not proceed to alpha extraction, full-cycle completion, or runtime promotion from these outputs.
-Round 14 evidence update: replacing only the IP-Adapter identity input with a square foreground-isolated normalized reference produced a partial causal win. Committee review found cleaner removable backgrounds and camera `pass`, but independent human review marked all four B frames unusable: recoil and passing lost to A, and high-point had a third-leg artifact. Keep normalization as a preprocessing rule, but classify B as a four-phase runtime-fail negative sample, not a usable quality baseline.
-Round 15 preregistration update: three reviewers selected `depth` as the `3/3` winner over `normal` and `lineart`, but the first approval packet failed `3/3` because the exact depth model and the sole guide route were not frozen tightly enough. The remediated packet passed `3/3` human-approval review only after pinning `control_v11f1p_sd15_depth.pth` by canonical filename, URL, size, sha256, and license; explicitly forbidding `control_v11p_sd15_depth.pth`; freezing the guide route to `scripts/render_capsule_depth_guides.py` plus `scripts/guide-spec.json`; and enforcing receipt plus preflight coverage. Treat Round 15 as `human_approval_ready_execution_blocked`: before approval, do not download, install, generate guides, or generate images. After approval, download only the exact depth model, generate only the four frozen depth guides, rerun preflight to `ready`, then execute exactly one four-phase run.
-
-Round 11 sedimentation rule: use the paper-doll source-kit validator before any rig preview. It checks declared sheets and slots, image dimensions, per-slot significant component count, margins and boundary touches, pixels outside slots, reserved chroma leakage, guide residue, and optional provenance fields. It does not infer semantic riggability from pixels; rig promotion remains blocked until explicit manual gates for ownership, hidden mating surfaces, identity/style, and camera/material coherence are complete and passing.
+Historical experiment evidence and negative samples live in
+`references/round-history.md`; load it only when selecting or reviewing an
+escalation route. The current source-layout and provenance gates remain below.
 
 ## Runtime Surface Declaration
 
@@ -37,9 +27,15 @@ Related contract:
 
 ## Workflow
 
+Choose the smallest declared asset scope before running the pipeline:
+`single-action`, `action-family`, `full-package`, or `structural-control`.
+Run only the stages and validators that prove that scope; do not create the
+full package or structural-control ledgers for a single-action request.
+
 1. Create an isolated workspace outside the game project.
 2. Copy or write an asset contract from `references/asset-contract-template.md`.
-3. Generate image2 source images into `source/`:
+3. Generate only the source strips declared by that contract. A full package
+   may use the default set:
    - `model-sheet-source.png`
    - `idle-front-source.png`
    - `idle-back-source.png`
@@ -75,7 +71,8 @@ python scripts/validate_image2_sprite_package.py --root <workspace>
 python scripts/analyze_sprite_motion.py --root <workspace>
 ```
 
-For a single-action hard gate before wider package assembly, run:
+For a `single-action` scope or as a hard gate before wider package assembly,
+run:
 
 ```bash
 sh scripts/topdown-image2-sprite-pipeline-cli.sh validate-single-action \
@@ -93,7 +90,7 @@ not fail a valid row, checks strip equality against direct frame concatenation,
 and keeps motion semantics conditional until a complete pose-label manifest is
 present.
 
-For paper-doll source kits, run:
+For a `paper-doll` or structural-rig scope, run:
 
 ```bash
 sh scripts/topdown-image2-sprite-pipeline-cli.sh validate-paper-doll-source-kit \
@@ -120,7 +117,7 @@ Only `pass` in all four fields unblocks promotion. Missing fields produce
 `conditional`; explicit non-pass fields produce `fail`. The CLI exits `0` for
 `pass`, `3` for `conditional`, and `1` for `fail`.
 
-Before installing or executing a structural-control route, run:
+Before installing or executing a `structural-control` route, run:
 
 ```bash
 sh scripts/topdown-image2-sprite-pipeline-cli.sh preflight-structural-control \
@@ -139,7 +136,11 @@ the required pose guides. Missing requirements produce a valid `blocked` JSON
 report and exit `0`; readiness is expressed by `status`, not by treating an
 uninstalled stack as a command failure.
 
-Round 15 explicit camera-control rule:
+### Round 15 route (only when the approved structural-control experiment is selected)
+
+Load the historical round evidence and apply this camera-control rule only for
+that route. Ordinary sprite generation does not need these preregistration,
+committee, or approval steps.
 
 - keep the Round 14 normalized square foreground-only identity reference
 - authorize `depth` as the only execution route; `normal` and `lineart` remain
@@ -190,9 +191,9 @@ Round 15 explicit camera-control rule:
 - before user approval, do not download, install, generate the guides, or run
   image generation
 - after user approval, do only this sequence: obtain the exact depth model,
-  generate `contact`, `recoil`, `passing`, and `high-point` depth guides,
-  rerun preflight until it reports `ready`, then execute exactly one four-phase
-  Round 15 lane
+  generate `contact`, `recoil`, `passing`, and `high-point` depth guides, then
+  rerun preflight after each declared remediation; if it remains blocked without
+  a new state change, stop and report the missing requirement
 
 10. Inspect `preview-contact-sheet.png` manually or with an independent reviewer using `references/review-checklist.md`.
 11. Write `review-disposition.md` with the verdict and accepted warnings.
@@ -263,7 +264,11 @@ actual frames.
 For shoot strips, prefer no muzzle flash or projectile in the source. Add firing VFX at runtime. Detached effects and cross-cell muzzle flashes are common image2 failure modes.
 Use `references/prompt-patterns.md` when writing prompts or regenerating a failed strip.
 
-Hard escalation rule for full-row walk generation:
+### Hard escalation rule for full-row walk generation
+
+Enter this branch only after the selected walk contract has failed the paired
+guided/no-guide check. Ordinary idle, shoot, hit, and single-action work stops
+at its own validator.
 
 - after paired guided/no-guide full-row failures against the same walk contract, stop resampling full eight-frame rows
 - switch to a clearly labeled `candidate per-phase pose-reference` workflow instead
@@ -272,7 +277,10 @@ Hard escalation rule for full-row walk generation:
 - only after that half-cycle clears a blinded phase gate, complete the opposite-foot half under the same contract
 - treat this workflow as a candidate fallback only; Round 5 recommends it, but it is not proven yet
 
-Hard escalation rule for per-phase generation:
+### Hard escalation rule for per-phase generation
+
+Enter this branch only after the selected per-phase walk experiment fails; do
+not load it for a normal action-family package.
 
 - after simple skeleton or stick-figure pose guides fail blinded phase adherence, do not keep rewriting phase names in the prompt
 - replace the weak guide with a license-clear rendered or sprite pose exemplar whose body geometry visibly matches the required phase
@@ -298,7 +306,7 @@ Every action strip must preserve:
 
 ## Default Runtime Contract
 
-The bundled scripts expect this default contract:
+For the `full-package` route, the bundled scripts expect this default contract:
 
 - `final/hero-image2-idle-front.png`: 6 frames, 768x128
 - `final/hero-image2-idle-back.png`: 6 frames, 768x128
@@ -314,6 +322,11 @@ Each runtime frame is `128x128` RGBA PNG with transparent corners and no green-s
 ## Review Gates
 
 Treat validation as necessary but insufficient. A package can have zero technical warnings and still fail if the source semantics are wrong.
+
+Use the full package gates below for prototype/production candidates. For a
+single-action or exploratory scope, stop after the declared source validator,
+the relevant visual check, and a compact disposition; add the remaining gates
+only when the asset will be integrated, benchmarked, or reused.
 
 Reject or regenerate source art when:
 
@@ -340,8 +353,10 @@ See `references/failure-modes.md` for examples and mitigation.
 
 ## Paired Review Packet
 
-For prototype or production-candidate assets, hand off a compact review packet
-instead of just the final PNGs:
+For production-candidate, integrated, or benchmark assets, hand off a compact
+review packet instead of just the final PNGs. A single-action prototype may
+use the validator report plus a compact disposition until integration is in
+scope:
 
 - `asset-contract.md`
 - `generation-log.md`
@@ -362,10 +377,10 @@ instead of just the final PNGs:
 - any runtime-contract deviations and who accepted them
 
 Use two reviewers when the package will be integrated into a game branch or
-used as a benchmark fixture. One reviewer should inspect source provenance and
-script outputs; the other should inspect visual semantics and runtime
-readability. Do not let the same agent both create and approve a conditional
-package without explicit user acceptance.
+used as a benchmark fixture. Otherwise one reviewer may cover provenance,
+script outputs, visual semantics, and runtime readability. Do not let the same
+agent both create and approve a conditional package without explicit user
+acceptance.
 
 Use `references/review-packet-template.md` when the review should be handed to
 another agent or merged across two reviewers. The packet follows

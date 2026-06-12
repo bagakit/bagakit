@@ -1,6 +1,6 @@
 ---
 name: bagakit-daily-media-production
-description: Design or run a recurring research-to-publication workflow that coordinates source evidence, editorial synthesis, media assets, a web or message output, deployment or delivery, notification, and run archival. Use for daily AI briefs, market watches, release radars, community pulse pages, research digests, and similar repeatable golden paths that need provenance, no-publish gates, dependency checks, and adapter receipts across multiple component capabilities. Do not use for one-off research, pure image generation, pure webpage design, a single deployment, generic CI/CD, or another task where one owned peer skill or tool is sufficient.
+description: Design or run a recurring research-to-publication workflow that coordinates evidence, assets, publication, delivery, and archival. Use only when multi-stage recurring coordination is the requested product.
 metadata:
   bagakit:
     media_production_layer: workflow-orchestration
@@ -112,12 +112,18 @@ AI news, release radar, or paper digest.
 
 ## Run Spine
 
-Every live or planned run should make these stages explicit:
+Select stages from the requested output and side effects. Every run needs a
+`brief` and the evidence stages required by its publication claim; add asset,
+web, deployment, notification, or archival stages only when that output or
+side effect is in scope. A local draft may waive adapter preflight, and a
+one-off plan may use a compact handoff instead of creating empty `not_applicable`
+ledgers.
 
 1. `brief`
    - topic, audience, cadence, timezone, target channels, output pack, and
      success bar
-2. `dependency-preflight`
+2. `dependency-preflight` — run when an adapter will execute; for a local
+   draft, record an explicit waiver
    - installed skills, CLIs, credentials, secrets, quota, and channel health
 3. `source-plan`
    - source packs, queries, accounts, feeds, recency window, source minimum,
@@ -130,44 +136,49 @@ Every live or planned run should make these stages explicit:
      no-publish decision
 6. `editorial-synthesis`
    - ranked stories, claims, citations, title, summary, and audience framing
-7. `asset-brief`
+7. `asset-brief` — when an asset output is requested
    - image goals, formats, exact text, style constraints, and avoid list
-8. `asset-ledger`
+8. `asset-ledger` — when assets are generated or supplied to a downstream
+   publication
    - final project-local image paths, prompts or prompt refs, and validation
      notes
-9. `web-brief`
+9. `web-brief` — when a webpage is an output
    - content package for webpage design, information architecture, states, and
      required assets
-10. `webpage-evidence`
+10. `webpage-evidence` — when a webpage is produced
     - build result, browser screenshots, interaction checks, and visual bug
       status
-11. `deployment-ledger`
+11. `deployment-ledger` — when deployment is in scope
     - provider, command, project, environment, deploy URL, deployment status,
       and rollback note
-12. `notification-ledger`
+12. `notification-ledger` — when notification is in scope
     - transport, notification status, recipient class, payload, delivery result,
       and redaction note
-13. `run-archive`
+13. `run-archive` — when the run is recurring, published, blocked, or the user
+    requests durable history
     - run id, final URL, source summary, gate outcomes, failures, and next
       action
 
-For a planned but not executed run, produce the same ledgers as a checklist
-with unresolved items marked `blocked` or `not_applicable`.
+For a planned but not executed run, checklist only the selected stages and
+record unselected side effects as `not_in_scope`; do not create placeholder
+ledgers for every adapter.
 
 For a design-only request, the run spine is a planning contract, not permission
 to call live adapters.
 
 ## No-Publish Gates
 
-Do not deploy or notify as a successful publication when any blocker remains:
+Do not deploy or notify as a successful publication when a blocker for the
+selected output remains:
 
 - source minimum is not met
 - source evidence is too stale for the run's recency window
 - story claims lack source refs
 - major counterevidence is unresolved
-- image assets are missing, invalid, or not saved in the project
-- webpage design/browser checks fail
-- deployment fails or returns no stable URL
+- image assets are missing, invalid, or not saved in the project when image
+  output is in scope
+- webpage design/browser checks fail when a webpage is in scope
+- deployment fails or returns no stable URL when deployment is in scope
 - notification transport fails and the brief marks notification as a publish
   blocker
 - secrets or tokens would be exposed in checked-in output

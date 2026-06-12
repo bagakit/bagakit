@@ -49,7 +49,7 @@ blocks_completion = true
 id = "reference-provenance-ledger"
 phase = "before_implementation"
 artifact = "reference-provenance-ledger.md"
-blocks_completion = true
+required_when = "a provided or generated reference will guide implementation or parity review"
 
 [[stage]]
 id = "reference-survey-ledger"
@@ -73,7 +73,7 @@ required_when = "design-core-packet exists or brand-heavy/high-craft work needs 
 id = "design-reference"
 phase = "before_implementation"
 artifact = "design-reference.*"
-blocks_completion = true
+required_when = "exact, high-craft, reference-led, or generated-reference route"
 
 [[stage]]
 id = "information-compression-pass"
@@ -145,7 +145,7 @@ required_when = "implementation is driven by screenshot, image, Figma frame, gen
 id = "design-spec-ledger"
 phase = "before_implementation"
 artifact = "design-spec-ledger.md"
-blocks_completion = true
+required_when = "high-craft, reference-led, tokenized, or image-like implementation route"
 
 [[stage]]
 id = "design-core-plan-review"
@@ -235,7 +235,7 @@ required_when = "responsive page has interactive controls, mode switches, drawer
 id = "capability-route"
 phase = "before_implementation"
 artifact = "capability-route.md"
-blocks_completion = true
+required_when = "interactive, stateful, component-heavy, or special-capability implementation"
 
 [[stage]]
 id = "browser-evidence"
@@ -251,12 +251,12 @@ blocks_completion = true
 [[completion_artifact]]
 id = "affordance-inventory"
 artifact = "affordance-inventory.md"
-blocks_completion = true
+required_when = "page has visible live-looking or interactive affordances"
 
 [[completion_artifact]]
 id = "behavior-matrix"
 artifact = "behavior-matrix.md"
-blocks_completion = true
+required_when = "page has working, disabled, or out-of-scope interactive affordances"
 
 [[completion_artifact]]
 id = "visual-bug-ledger"
@@ -266,12 +266,12 @@ blocks_completion = true
 [[completion_artifact]]
 id = "full-page-structural-parity-ledger"
 artifact = "full-page-structural-parity-ledger.md"
-blocks_completion = true
+required_when = "exact, image2-generated, or state-board reference route"
 
 [[completion_artifact]]
 id = "micro-parity-checklist"
 artifact = "micro-parity-checklist.md"
-blocks_completion = true
+required_when = "exact or reference-parity route"
 
 [[completion_artifact]]
 id = "material-parity-checklist"
@@ -291,7 +291,7 @@ required_when = "canvas, graph, map, whiteboard, timeline, or spatial manipulati
 [[completion_artifact]]
 id = "visual-parity-ledger"
 artifact = "visual-parity-ledger.md"
-blocks_completion = true
+required_when = "provided/generated reference or explicit visual-parity review"
 
 [[completion_artifact]]
 id = "interaction-parity-ledger"

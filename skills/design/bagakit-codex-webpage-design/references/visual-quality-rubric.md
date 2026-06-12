@@ -670,20 +670,25 @@ the visual bug ledger, and rerun the visual gate after fixes.
 
 ## Visual Gate Protocol
 
-Use this gate for important UX work, exact-reference implementations, and any
-image2-generated design reference that will become an implementation target.
+Use this gate only for important UX work, exact/reference-parity
+implementations, or an Image2-generated design that will become an
+implementation target. A clear direct-execute route may finish with browser
+screenshots and the visual-bug review without creating judge scorecards.
 
-Run two scoring passes:
+For a selected visual gate, run the scoring passes that its route needs:
 
 - design reference score
   - required when the design reference is generated or exploratory
   - optional only when the user supplies an approved design authority
 - implementation score
-  - required after browser screenshots, state screenshots, behavior evidence,
-    visual bug ledger, and canvas stability evidence exist
+  - required after the selected route's browser screenshots, state screenshots,
+    behavior evidence, visual bug ledger, and (when spatial) canvas stability
+    evidence exist
 
-Use at least three independent quiet-room judges when available. Do not expose
-prior judge conclusions to later judges. Suggested judge lenses:
+For high-craft, benchmark, or explicitly independent review, use up to three
+independent quiet-room judges when available. For lower-risk work, one reviewer
+or the executor may apply the same lenses. Do not expose prior judge
+conclusions to later judges. Suggested judge lenses:
 
 - reference parity judge
 - product interaction and affordance judge
