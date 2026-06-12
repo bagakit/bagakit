@@ -118,3 +118,35 @@ turn the catalog into an unconditional checklist.
   candidate in the DAG, and leave runtime re-decisions to the Supervisor.  If
   a real reviewed decision remains, make it a bounded proof/acceptance node
   with a concrete oracle and executable command gate.
+
+## 11. Stale-candidate acceptance
+
+- **Name:** Stale-candidate acceptance
+- **Observable symptom:** A replay, CI, or release gate passed on one commit or
+  input snapshot, then a later candidate is treated as covered without a fresh
+  exact-candidate receipt.
+- **Corrective plan shape:** Freeze the clean candidate before the expensive
+  action, bind the receipt to candidate and input digests, and make the final
+  join reject stale evidence. Keep commit identity in the receipt or Git
+  restore ref, not in reviewed Task semantics.
+
+## 12. Narrative progress loop
+
+- **Name:** Narrative progress loop
+- **Observable symptom:** Handoffs, status summaries, and remote polls repeat
+  while code, Tracker state, artifacts, runtime observations, and blocker
+  uncertainty remain unchanged.
+- **Corrective plan shape:** Bind each bounded session to one Task, owner,
+  candidate, close condition, and wait deadline. After two unchanged
+  checkpoints, run a bounded convergence review and choose revise, block, fail,
+  or transfer before dispatching another repeat.
+
+## 13. Terminal delivery mega-Task
+
+- **Name:** Terminal delivery mega-Task
+- **Observable symptom:** One Task owns diagnosis, rollout, route/browser
+  acceptance, MR merge, and Feature closeout, so every partial result waits for
+  the slowest or least-authorized side effect.
+- **Corrective plan shape:** Split those acceptance boundaries into Tasks with
+  independent oracles and one final join that consumes their receipts. Do not
+  add ceremony-only nodes or rerun a receipt that the join can consume.

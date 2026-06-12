@@ -19,7 +19,8 @@ ROOT="$(cd "$ROOT" && pwd)"
 SKILL_DIR="$ROOT/skills/harness/bagakit-feature-tracker"
 LIB_DIR="$ROOT/gate_validation/skills/harness/bagakit-feature-tracker/lib"
 TMP_DIR="$(mktemp -d)"
-trap 'rm -rf "$TMP_DIR"' EXIT
+TEST_OUTPUT_DIR="$(mktemp -d)"
+trap 'rm -rf "$TMP_DIR" "$TEST_OUTPUT_DIR"' EXIT
 
 source "$LIB_DIR/feature-tracker-testlib.sh"
 
@@ -447,6 +448,27 @@ bash "$SKILL_DIR/scripts/feature-tracker.sh" run-task-gate \
 PASSING_TASK_RECORDS='[{"command":"true","exit_code":0,"status":"pass"}]'
 assert_gate pass "$PASSING_TASK_RECORDS" "true => pass (0)"
 
+# A passing gate is bound to the candidate it observed. A new commit makes
+# that receipt stale, and an identical rerun on the unchanged candidate is
+# deduplicated instead of executing the command again.
+printf 'candidate drift\n' >>"$TMP_DIR/README.md"
+git -C "$TMP_DIR" add README.md
+git -C "$TMP_DIR" commit -m "candidate drift" >/dev/null
+if bash "$SKILL_DIR/scripts/feature-tracker.sh" finish-task \
+  --root "$TMP_DIR" --feature "$FEATURE_ID" --task T-001 --result done \
+  >"$TEST_OUTPUT_DIR/stale-candidate.out" 2>"$TEST_OUTPUT_DIR/stale-candidate.err"; then
+  echo "stale candidate gate unexpectedly authorized completion" >&2
+  exit 1
+fi
+grep -F "gate receipt is stale for the current candidate or worktree" \
+  "$TEST_OUTPUT_DIR/stale-candidate.err" >/dev/null
+bash "$SKILL_DIR/scripts/feature-tracker.sh" run-task-gate \
+  --root "$TMP_DIR" --feature "$FEATURE_ID" --task T-001 >/dev/null
+bash "$SKILL_DIR/scripts/feature-tracker.sh" run-task-gate \
+  --root "$TMP_DIR" --feature "$FEATURE_ID" --task T-001 \
+  >"$TEST_OUTPUT_DIR/dedup-gate.out"
+grep -F "ok: gate reused $FEATURE_ID/T-001" "$TEST_OUTPUT_DIR/dedup-gate.out" >/dev/null
+
 # A failing Task proof must fail even when the workspace itself has no profile command.
 python3 - "$TMP_DIR" "$FEATURE_ID" <<'PY'
 import json
@@ -480,6 +502,26 @@ fi
 FAILING_TASK_RECORDS='[{"command":"false","exit_code":1,"status":"fail"}]'
 assert_gate fail "$FAILING_TASK_RECORDS" "task verification command failed: false"
 grep -F "task verification command failed: false" "$TMP_DIR/task-proof-fail.err" >/dev/null
+if bash "$SKILL_DIR/scripts/feature-tracker.sh" run-task-gate \
+  --root "$TMP_DIR" --feature "$FEATURE_ID" --task T-001 \
+  >"$TEST_OUTPUT_DIR/repeated-task-proof-fail.out" 2>"$TEST_OUTPUT_DIR/repeated-task-proof-fail.err"; then
+  echo "identical failing Task verification unexpectedly reran" >&2
+  exit 1
+fi
+grep -F "record the rerun decision, then use --rerun" \
+  "$TEST_OUTPUT_DIR/repeated-task-proof-fail.err" >/dev/null
+if bash "$SKILL_DIR/scripts/feature-tracker.sh" run-task-gate \
+  --root "$TMP_DIR" --feature "$FEATURE_ID" --task T-001 --rerun \
+  >"$TEST_OUTPUT_DIR/missing-rerun-reason.out" 2>"$TEST_OUTPUT_DIR/missing-rerun-reason.err"; then
+  echo "--rerun unexpectedly accepted without --rerun-reason" >&2
+  exit 1
+fi
+grep -F -- "--rerun requires --rerun-reason" \
+  "$TEST_OUTPUT_DIR/missing-rerun-reason.err" >/dev/null
+bash "$SKILL_DIR/scripts/feature-tracker.sh" run-task-gate \
+  --root "$TMP_DIR" --feature "$FEATURE_ID" --task T-001 --rerun \
+  --rerun-reason "confirm repeated proof after the known failing command" \
+  >"$TEST_OUTPUT_DIR/forced-task-proof-fail.out" 2>"$TEST_OUTPUT_DIR/forced-task-proof-fail.err" || true
 
 # A reviewed Task with no executable command cannot be completed by a generic profile.
 python3 - "$TMP_DIR" "$FEATURE_ID" <<'PY'

@@ -52,9 +52,9 @@ fi
 children=()
 while IFS= read -r child; do
   [[ -z "$child" || "$child" == "GUIDE.md" ]] && continue
-  children+=("$child")
+  children+=("${child#"$PLAN_DIR/"}")
 done < <(
-  find "$PLAN_DIR" -maxdepth 1 -type f -name '*.md' -exec basename {} \; |
+  find "$PLAN_DIR" -type f -name '*.md' ! -path "$GUIDE" |
     LC_ALL=C sort
 )
 
@@ -90,12 +90,8 @@ while IFS= read -r link; do
     continue
   fi
 
-  if [[ "$target" == *.md ]]; then
-    if [[ "$target" == */* ]]; then
-      fail "GUIDE.md child link is not a direct markdown child: $target"
-    elif [[ "$target" != "GUIDE.md" ]]; then
-      guide_children+=("$target")
-    fi
+  if [[ "$target" == *.md && "$target" != "GUIDE.md" ]]; then
+    guide_children+=("$target")
   fi
 done < <(grep -oE '\[[^][]+\]\([^)]*\)' "$GUIDE" || true)
 

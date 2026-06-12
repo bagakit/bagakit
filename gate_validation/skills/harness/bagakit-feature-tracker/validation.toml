@@ -77,9 +77,9 @@ description = "Run the canonical lifecycle, materialize a refreshable human stat
 default = true
 proof_mode = "runtime"
 protects = ["feature-tracker public lifecycle for initialization, feature creation, workspace assignment, task start, replan state, and disposable human status materialization"]
-oracle = ["smoke script drives feature-tracker CLI commands in a temporary repo, checks canonical state, proves one stable human status file is atomically regenerated outside tracker state, proves a focused HTML Feature expands while the complete active board remains visible, proves gate receipts mirror Task verification commands, and proves stale receipts, retired profile commands, missing Task commands, missing Feature verification evidence, or invalid policy cannot authorize completion"]
+oracle = ["smoke script drives feature-tracker CLI commands in a temporary repo, checks canonical state, proves one stable human status file is atomically regenerated outside tracker state, proves a focused HTML Feature expands while the complete active board remains visible, proves gate receipts mirror Task verification commands and candidate context, reuses an identical pass, rejects an old-candidate receipt, requires an explicit rerun reason for an identical failure, and proves stale receipts, retired profile commands, missing Task commands, missing Feature verification evidence, or invalid policy cannot authorize completion"]
 exercised_surface = ["feature-tracker CLI", ".bagakit/feature-tracker state files", "gate_validation feature-tracker smoke fixture"]
-proves = ["bagakit-feature-tracker-smoke proves the canonical lifecycle, stable human status output refresh, tracker-state output rejection, Task-owned command gate recording, stale-receipt rejection, retired-profile rejection, and required-verification failures."]
+proves = ["bagakit-feature-tracker-smoke proves the canonical lifecycle, stable human status output refresh, tracker-state output rejection, Task-owned candidate-bound command gate recording and deduplication, stale-receipt rejection after candidate drift, retired-profile rejection, and required-verification failures."]
 does_not_prove = ["bagakit-feature-tracker-smoke does not prove live browser refresh, Host delivery, user consumption, stochastic agent quality, or unrelated repository surfaces."]
 timeout_seconds = 300
 validation_class = "smoke"
@@ -278,115 +278,23 @@ args = [
 ]
 
 [[suite]]
-id = "bagakit-feature-tracker-plan-shaping-node-kinds"
+id = "bagakit-feature-tracker-plan-shaping-contract"
 owner = "skills/harness/bagakit-feature-tracker"
-description = "Keep the five plan-shaping node kinds, negative boundaries, test-split criterion, and SSOT proof-node variant explicit."
+description = "Keep the complete plan-shaping reference contract coherent in one public wording check."
 default = true
 proof_mode = "wording_contract"
 timeout_seconds = 30
-protects = ["plan-shaping node typology, per-kind must-not boundaries, test-split criterion, and SSOT drift-audit variant"]
-oracle = ["node-kinds check verifies the five headings and required boundary, split, SSOT, and restore statements"]
-exercised_surface = ["skills/harness/bagakit-feature-tracker/references/plan-shaping/node-kinds.md"]
-proves = ["bagakit-feature-tracker-plan-shaping-node-kinds proves the node-kinds wording contract is present and the gate fails closed when required statements are missing."]
-does_not_prove = ["bagakit-feature-tracker-plan-shaping-node-kinds passing does not prove Agents classify or apply node kinds correctly."]
+protects = ["plan-shaping public reference entry, five node kinds, decomposition and isolation guidance, negative catalog, preflight, and restore handle"]
+oracle = ["one deterministic checker validates the public reference files, required headings and boundaries, GUIDE links, checklist prompts, catalog schema, and named restore tag"]
+exercised_surface = ["skills/harness/bagakit-feature-tracker/references/plan-shaping/*.md", "skills/harness/bagakit-feature-tracker/SKILL.md", "Git tag restore/plan-shaping-bootstrap-join"]
+proves = ["bagakit-feature-tracker-plan-shaping-contract proves the complete plan-shaping wording contract remains linked, structurally complete, and anchored to a reproducible restore handle."]
+does_not_prove = ["bagakit-feature-tracker-plan-shaping-contract passing does not prove Agents choose or apply correct Task boundaries."]
 validation_class = "contract"
 groups = ["skills", "harness", "feature-tracker", "plan-shaping", "contract"]
 
 [suite.runner]
 kind = "bash_script"
-script = "gate_validation/skills/harness/bagakit-feature-tracker/check-feature-tracker-plan-shaping-node-kinds.sh"
-args = [
-  "--root",
-  "{repo_root}",
-]
-
-[[suite]]
-id = "bagakit-feature-tracker-plan-shaping-granularity"
-owner = "skills/harness/bagakit-feature-tracker"
-description = "Keep plan-shaping split signals, one-intent commit correspondence, and execution-wave order explicit."
-default = true
-proof_mode = "wording_contract"
-timeout_seconds = 30
-protects = ["plan-shaping granularity signals, commit correspondence, do-not-split conditions, and wave order"]
-oracle = ["granularity check verifies the four too-big signals, commit rule, do-not-split headings, and spine/fan-out/join order"]
-exercised_surface = ["skills/harness/bagakit-feature-tracker/references/plan-shaping/granularity.md"]
-proves = ["bagakit-feature-tracker-plan-shaping-granularity proves the granularity wording contract is present and the gate fails closed when required statements are missing."]
-does_not_prove = ["bagakit-feature-tracker-plan-shaping-granularity passing does not prove Agents choose correct Task boundaries."]
-validation_class = "contract"
-groups = ["skills", "harness", "feature-tracker", "plan-shaping", "contract"]
-
-[suite.runner]
-kind = "bash_script"
-script = "gate_validation/skills/harness/bagakit-feature-tracker/check-feature-tracker-plan-shaping-granularity.sh"
-args = [
-  "--root",
-  "{repo_root}",
-]
-
-[[suite]]
-id = "bagakit-feature-tracker-plan-shaping-isolation"
-owner = "skills/harness/bagakit-feature-tracker"
-description = "Keep parallel-writer conflict boundaries and the Host/Supervisor merge boundary explicit in plan shaping."
-default = true
-proof_mode = "wording_contract"
-timeout_seconds = 30
-protects = ["plan-shaping isolation devices, true-parallelism test, and Host/Supervisor boundary"]
-oracle = ["isolation check verifies the three in-schema devices, true-parallelism conditions, and worktree/merge ownership statement"]
-exercised_surface = ["skills/harness/bagakit-feature-tracker/references/plan-shaping/isolation.md"]
-proves = ["bagakit-feature-tracker-plan-shaping-isolation proves the isolation wording contract is present and the gate fails closed when required statements are missing."]
-does_not_prove = ["bagakit-feature-tracker-plan-shaping-isolation passing does not prove execution-time conflict cones shrink or merges are conflict-free."]
-validation_class = "contract"
-groups = ["skills", "harness", "feature-tracker", "plan-shaping", "contract"]
-
-[suite.runner]
-kind = "bash_script"
-script = "gate_validation/skills/harness/bagakit-feature-tracker/check-feature-tracker-plan-shaping-isolation.sh"
-args = [
-  "--root",
-  "{repo_root}",
-]
-
-[[suite]]
-id = "bagakit-feature-tracker-plan-shaping-antipatterns"
-owner = "skills/harness/bagakit-feature-tracker"
-description = "Keep the negative plan-shaping catalog structurally complete, including SSOT and oracle-less decision failures."
-default = true
-proof_mode = "wording_contract"
-timeout_seconds = 30
-protects = ["plan-shaping antipattern catalog with observable symptoms and corrective shapes"]
-oracle = ["antipatterns check verifies at least ten complete named entries including ritual SSOT audit and oracle-less decision Task"]
-exercised_surface = ["skills/harness/bagakit-feature-tracker/references/plan-shaping/antipatterns.md"]
-proves = ["bagakit-feature-tracker-plan-shaping-antipatterns proves the antipattern catalog has the required structural entries and the gate fails closed when an entry is incomplete."]
-does_not_prove = ["bagakit-feature-tracker-plan-shaping-antipatterns passing does not prove the catalog prevents the plan failures it names."]
-validation_class = "contract"
-groups = ["skills", "harness", "feature-tracker", "plan-shaping", "contract"]
-
-[suite.runner]
-kind = "bash_script"
-script = "gate_validation/skills/harness/bagakit-feature-tracker/check-feature-tracker-plan-shaping-antipatterns.sh"
-args = [
-  "--root",
-  "{repo_root}",
-]
-
-[[suite]]
-id = "bagakit-feature-tracker-plan-shaping-join"
-owner = "skills/harness/bagakit-feature-tracker"
-description = "Join plan-shaping references at the earliest coherent candidate with preflight coverage, resolving links, and a named restore point."
-default = true
-proof_mode = "wording_contract"
-timeout_seconds = 30
-protects = ["plan-shaping cross-link join, preflight coverage, and named restore tag"]
-oracle = ["join check verifies eight-to-ten Yes/No preflight questions, required SSOT and join-placement coverage, resolving GUIDE links, and the restore tag"]
-exercised_surface = ["skills/harness/bagakit-feature-tracker/references/plan-shaping/GUIDE.md", "skills/harness/bagakit-feature-tracker/references/plan-shaping/preflight.md", "Git tag restore/plan-shaping-bootstrap-join"]
-proves = ["bagakit-feature-tracker-plan-shaping-join proves the integrated reference links, preflight wording contract, and named restore handle are present on the candidate."]
-does_not_prove = ["bagakit-feature-tracker-plan-shaping-join passing does not prove Agents apply the checklist or that runtime integration decisions are correct."]
-validation_class = "contract"
-groups = ["skills", "harness", "feature-tracker", "plan-shaping", "contract", "integration"]
-
-[suite.runner]
-kind = "bash_script"
-script = "gate_validation/skills/harness/bagakit-feature-tracker/check-feature-tracker-plan-shaping-join.sh"
+script = "gate_validation/skills/harness/bagakit-feature-tracker/check-feature-tracker-plan-shaping-contract.sh"
 args = [
   "--root",
   "{repo_root}",
@@ -423,7 +331,7 @@ default = true
 proof_mode = "runtime"
 timeout_seconds = 60
 protects = ["Feature Tracker status-board layout stability, project-distinct titles, tracker-id focus, title and canonical-file previews, transfer lineage focus, compact Task summaries, derived wave markers, evidence-backed node statistics, and non-overlapping topology routes"]
-oracle = ["status-board check renders all canonical status columns including empty states, focused markup, project-distinct title, copy affordances, canonical preview hooks, compact title hooks, independent adjacent-layer channels, outside rails for cross-layer edges, compact execution-wave summaries with wave markers on the visible graph, evidence-backed node-stat hooks, and the live focus refresh hook with a no-change path"]
+oracle = ["status-board check verifies projected canonical nodes and edges, status counts, copy/preview affordances and server responses; the Node geometry oracle runs the bundled Dagre engine and verifies non-overlap, route/card clearance, reachability-preserving reduction, stable coordinates on link toggles, and a 120 Task dense fixture"]
 exercised_surface = ["feature-tracker show-feature-status HTML projection", "feature-tracker serve-feature-status HTML projection", "status-board regression fixture"]
 proves = ["bagakit-feature-tracker-status-board proves the requested status-board presentation and interaction hooks remain present on the canonical projection fixture, including visible wave labels and read-only preview affordances."]
 does_not_prove = ["bagakit-feature-tracker-status-board does not prove browser clipboard permissions, subjective visual taste, or arbitrary user-created graph readability beyond the deterministic fixture."]

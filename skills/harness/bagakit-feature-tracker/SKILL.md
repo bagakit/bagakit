@@ -63,34 +63,36 @@ instead of extending the old plan indefinitely.
 
 ## Golden Path
 
-Before the first dispatch, and after every completion, blocker, or plan
-revision, run `review-task-plan --feature <feature-id> --json` and dispatch the
-available independent frontier. **Wave is DAG depth, never a batch barrier.**
-Coalesce simultaneous completions into one owner review; reuse the audit while
-its plan revision and frontier are unchanged instead of re-auditing per Worker
-or observation tick.
+Before the first dispatch, and at a completion, blocker, or plan revision that
+changes the frontier, dependencies, assumptions, or candidate, run
+`review-task-plan --feature <feature-id> --json` and dispatch the available
+independent frontier. **Wave is DAG depth, never a batch barrier.** Coalesce
+simultaneous completions into one owner review; reuse the audit while its plan
+revision and frontier are unchanged instead of re-auditing per Worker or
+observation tick.
 Do not wait for an entire Wave, review, or test phase to finish before starting
 work whose actual inputs are ready. User-confirmed ample test capacity removes
 an assumed resource bottleneck; do not silently reintroduce it.
 
 ### Convergence controls
 
-Every bounded execution session must name one Task, one owner, the current
-Feature workspace, a candidate or input reference, and one close condition.
-The handoff or progress receipt must also name the next action and a deadline
-for any external wait. A repeated summary, context recovery, or unchanged
-poll is not progress. After two checkpoints with no changed code, Tracker
-state, artifact, runtime observation, or blocker uncertainty, stop dispatching
-more repeats and run `review-task-plan`; then revise, block, fail, or transfer
-the Task with evidence.
+Every bounded execution session must name one Task, one owner, and one close
+condition. For an expensive, externally visible, or final-candidate lane, also
+name the current workspace, candidate or input reference, next action, wait
+deadline, and cleanup state. A repeated summary, context recovery, or
+unchanged poll is not progress. Two unchanged bounded checkpoints are a
+review trigger; they are not an automatic failure. If no active wait is still
+within its deadline, run `review-task-plan` and then revise, block, fail, or
+transfer the Task with evidence.
 
 Freeze a clean, gated restore ref before any expensive replay, external
-mutation, rollout, route switch, or final-candidate gate. The invocation
-receipt should bind the candidate ref or HEAD, input/data-window digest, runner,
-stage, result, cleanup state, and rerun rule. A changed source SHA, config,
-image, input snapshot, generation, or publication root makes exact-candidate
-evidence stale and requires a new gate. These identities belong in receipts
-and logs, not in Goal or reviewed Task semantics.
+mutation, rollout, route switch, or final-candidate gate. Tracker's built-in
+receipt binds the committed HEAD, tracked worktree diff, verification artifact,
+plan revision, and command fingerprint. External input, data-window,
+configuration, image, generation, and publication-root identity belongs in the
+Task's artifact receipt; a changed external input invalidates that receipt.
+These identities belong in receipts and logs, not in Goal or reviewed Task
+semantics.
 
 Use a cheap, production-shaped counterexample or preflight before an expensive
 gate. It must identify the failing stage and failure class and leave a bounded
@@ -213,10 +215,11 @@ the audit and any safe provisional lane.
 `kind=command`, in their declared order, and records the same command results
 in both `tasks.json.last_gate_commands` and
 `state.json.gate.last_check_commands`. The receipt also binds the candidate
-HEAD, worktree digest, verification-artifact digest, plan revision, and a
+HEAD, tracked worktree diff, verification-artifact digest, plan revision, and a
 deduplication key. The latest passing receipt for the same fingerprint is
 reused; an
-identical failed attempt requires an explicit `--rerun` decision. Runtime
+identical failed attempt requires an explicit `--rerun --rerun-reason <reason>`
+decision; the reason is recorded in Feature history. Runtime
 policy does not choose Task
 completion commands. A reviewed Task without an executable command
 verification fails closed when it is being started or gated; artifact, manual,

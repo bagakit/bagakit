@@ -60,6 +60,11 @@ Blocked Task cards expose the unblock owner and resume evidence when supplied; m
 
 For a plan that may be over-serialized, run `review-task-plan --feature <feature-id> --json`. It enumerates waiting edges as `decision=review_required` and reports failed assumptions without mutating the plan. Only a reviewed `set-task-plan` revision can remove or rewire an edge.
 
+Before installing a revision, recheck the Goal's user outcome, protected
+invariants, acceptance boundary, and target environment. A revision repairs or
+regroups the same Feature; a materially new delivery line uses a reviewed
+successor and `transfer-feature` rather than endless plan growth.
+
 The human status page keeps closed Features in compact history and can open
 their preserved `state.json`/`tasks.json` to inspect the historical Task
 topology and proof. Closed details are read-only: they cannot be claimed,
@@ -78,28 +83,34 @@ observation surface names the unblock owner and resume evidence. If evidence dis
 reviewed successor plan using `supersedes`; the old node remains immutable
 history and the owner receives an explicit replan handoff.
 
-The topology keeps dependency edges readable under fan-out: each direct edge
-has a tooltip and a wider hit area, while hover/focus isolates the selected
-relationship and exposes its source, destination, and target state. Permanent
-labels stay sparse so edge information improves traceability without turning
-the graph into a wall of text. Dense fan-in/out also receives independent
-approach lanes at both endpoints, and tracing an edge emphasizes its two
-endpoint Tasks instead of leaving parallel rails visually indistinguishable.
-The projection may use xyflow-inspired status rings and moving edge strokes,
-but only for an active Task with an explicit bound Flow Runner
-`session_status=progress` receipt. This means execution activity was reported,
-not that a Worker heartbeat is being monitored; blocked, terminal, stale,
-waiting, and unbound activity remains static. Wave/group backdrops and rich
-tooltips are derived presentation and never a second source of Task truth.
+The topology uses bundled Dagre layout, dependency-equivalent parallel groups,
+and a reversible transitive reduction of declared links. It keeps all Task and
+edge truth in the original projection model. Groups can expand individually;
+`Show all links` reveals every declaration without moving nodes. Hover provides
+stable local context; clicking a connection pins a directional trace. Actual
+status refreshes preserve the SVG and matching cards, camera, and selection.
+Motion follows explicit activity or human tracing and respects reduced motion.
+See [status surface](references/status-surface.md) for the observation controls.
+
+Run `review-task-plan` before dispatch and when a completion, blocker, or plan
+revision changes the frontier, dependencies, assumptions, or candidate. Wave is
+dependency depth, never a batch barrier. Review/test work that can produce
+useful early evidence should run with confirmed available capacity; exact
+final-candidate acceptance keeps its own real prerequisites. The audit exposes
+runnable/active sets, waiting-edge evidence, and the expected decision record.
+It does not autonomously remove edges or dispatch Agents.
 
 During execution, a reviewed `set-task-plan` revision may widen the runnable
 frontier while active Tasks continue, provided their semantics and direct
 dependencies remain unchanged; Worker assignment and merge order stay outside
 Tracker.
 
-Task completion gates run the current Task's declared `verification` command
-refs in order and record those results in the Task and Feature gate receipts;
-runtime-policy command profiles are not completion truth.
+Task completion gate semantics, candidate freshness, and explicit rerun reasons
+are defined in [SKILL.md](SKILL.md) and the normative
+[`feature-tracker-contract.md`](../../../docs/specs/feature-tracker-contract.md).
+For external or final-candidate work, keep input, data-window, cleanup, and
+publication identity in the Task's artifact receipt; the built-in gate receipt
+only covers the local candidate context it can observe.
 
 If a Feature uses Flow Runner, pass `--task-ref <task-id>` to checkpoint when a
 session is about one Task. The human status page reads that optional progress

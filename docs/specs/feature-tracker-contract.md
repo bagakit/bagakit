@@ -132,6 +132,13 @@ Rules:
 Planning-entry handoffs that resolve to an existing active family must stop and
 route their extension through that Feature's Task plan.
 
+Before a reviewed plan revision is installed, the owner must recheck that the
+user outcome, protected invariants, acceptance boundary, and target environment
+remain the same. A revision repairs a failed assumption, evidence, or
+dependency shape inside that boundary. A materially new delivery line must use
+a reviewed successor Feature and `transfer-feature`; plan-revision or
+Task-count growth is a review signal, never permission to widen scope silently.
+
 
 ## Runtime Ownership Split Contract
 
@@ -425,6 +432,18 @@ absolute paths, and UNC paths.
 
 `review-task-plan` is the read-only plan-quality checkpoint. It enumerates waiting direct edges and failed assumptions, marks waiting edges as requiring a counterfactual decision, and emits the next planning action. It must not infer that an edge is unnecessary, mutate the DAG, or schedule an Agent. A reviewed revision is still required to remove or rewire an edge; its review evidence should cite the checkpoint and the decision-bearing counterfactual.
 
+At dispatch and progress boundaries, the Owner reviews start prerequisites
+separately from final sign-off evidence. Wave is derived dependency depth,
+never an execution batch barrier. Review preparation, incremental checking,
+isolated testing, and farm shards should use confirmed available capacity when
+their actual inputs are ready. A mixed Task may be split through a reviewed
+revision into independently useful early evidence and an exact-candidate final
+join. A review/test title does not prove independence; completed history and
+active Task semantics remain protected. The audit exposes the runnable and
+active sets, target verification, supported edge dispositions, and the evidence
+fields for deciding early value, rerun conditions, and the final join. This is
+an Agent workflow obligation, not a second scheduler or completion dependency.
+
 Feature Tracker owns semantic planning truth and task gate evidence. It does
 not own Flow Runner checkpoints, repeated execution scheduling, or normalized
 outer-loop work-item history.
@@ -641,6 +660,9 @@ Required behavior:
 - a task gate must execute the current Task's non-empty `verification` entries
   with `kind = command`; a Task with no executable verification must record
   `fail`
+- a `kind = command` mapping must contain command text, not an obvious artifact
+  path such as `package.json`; such configuration errors fail with a typed
+  diagnostic that points to an artifact mapping
 - new reviewed plans must include at least one executable command mapping per
   Task; existing reviewed plans with only artifact, manual, or owner-receipt
   mappings remain readable but fail closed when that Task is started or gated
@@ -650,12 +672,20 @@ Required behavior:
   than by retroactively invalidating or migrating closed Task evidence
 - `state.json.gate.last_check_commands` and the Task's `last_gate_commands`
   must contain exactly those declared Task commands, in declaration order
+- a recorded gate receipt carries execution evidence for the candidate HEAD,
+  tracked worktree diff, verification input, reviewed plan revision, and a
+  deduplication key; external input identity remains in the Task's artifact
+  receipt. These fields are receipt evidence, not reviewed Task semantics
 - runtime-policy command profiles (`gate.ui_commands` and
   `gate.non_ui_commands`) are retired and rejected; they cannot authorize a
   Task or form a second completion standard
 - `finish-task --result done` rejects a stale or mismatched gate receipt even
   when `gate_result` was manually left as `pass`; rerunning the Task gate is
-  required after its verification commands change
+  required after its verification commands, candidate HEAD, tracked worktree
+  diff, or verification input changes
+- the latest passing receipt with the same local candidate fingerprint may be
+  reused; an identical failed attempt requires `--rerun --rerun-reason <reason>`
+  and records that reason in Feature history
 - workspace assignment must not be changed while a feature has an `in_progress`
   task
 - feature discard must not close or clean up a feature while any Task is
@@ -748,7 +778,8 @@ Stable closeout expectations:
   closeout candidates even when validation finds unrelated active-state errors;
   the command must still return non-zero while those errors remain
 - `closeout-feature` defaults to a dry-run plan and requires `--execute` before
-  it changes tracker state
+  it changes tracker state; a prior dry-run is optional when the authorized
+  transition and required review inputs are already clear
 - every archive or discard requires one explicit closeout review with three
   resolved items:
   - `documentation`: `updated`, `verified_current`, or `not_applicable`

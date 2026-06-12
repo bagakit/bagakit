@@ -39,12 +39,14 @@ join before it is materialized.
 
 - **Yes/No:** Are there zero ceremony nodes (zero ceremony-only or decision-only nodes), so every separate proof or acceptance Task owns an independent executable oracle and no node merely records a review or an integration-timing preference?
 
-## 7. SSOT drift trigger has an executable detector
+## 7. SSOT drift risk has the smallest useful detector
 
-- **Yes/No:** If this Feature touches any owning contract or doc surface, does
-  the plan carry an SSOT drift-audit clause or node whose deliverable is an
-  executable drift detector that exits nonzero when the surfaces diverge? If
-  no owning contract or doc surface is touched, is that audit omitted?
+- **Yes/No:** If this Feature touches an owning contract or doc surface and a
+  reproducible drift could change acceptance or closeout, does the plan carry
+  the smallest executable drift detector that exits nonzero when those
+  surfaces diverge? If the change has no decision-bearing drift risk, does it
+  reuse the existing contract check or owner receipt instead of creating a new
+  detector Task?
 
 ## 8. Earliest coherent join and Supervisor re-decision
 
@@ -67,3 +69,26 @@ join before it is materialized.
   positive numeric `estimate_hours` value in Agent execution hours, while every
   genuinely indivisible one is additionally marked `heavy: true` with a
   non-empty `heavy_reason` explaining why it cannot be safely split?
+
+## 11. Do not turn a Feature target into every Task's hard gate
+
+- **Yes/No:** Did the plan avoid copying a Feature-level target (for example,
+  “the whole change should reduce entropy”) into a rule that every Task must
+  satisfy separately? For each restriction, is it clear whether it belongs to
+  the Feature or the Task, whether it is a hard rule or a target, and what to
+  do when a locally correct change cannot meet the target?
+
+For expensive or externally visible work, include these checks in the same
+boundary review:
+
+- Establish a clean, gated restore ref and candidate-bound receipt before
+  replay, rollout, route, merge, or final-candidate work. Record candidate
+  identity in Tracker's local receipt and external input identity in the Task's
+  artifact receipt, together with stage, result, cleanup state, and the rerun
+  rule; a changed candidate or input invalidates the relevant receipt.
+- Prove the smallest production-shaped counterexample or preflight before the
+  expensive action. Its artifact identifies the failing stage, failure class,
+  next action, and input or data-window digest.
+- Split release, route/browser acceptance, merge, and closeout into separate
+  acceptance boundaries. A final join may consume their receipts but should
+  not make one Task own every external side effect.
