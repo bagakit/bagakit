@@ -11,7 +11,7 @@ from pathlib import Path, PurePosixPath
 
 DEFAULT_RESEARCHER_ROOT = ".bagakit/researcher"
 KNOWLEDGE_CONFIG_PATH = "docs/.bagakit-knowledge.toml"
-OPTIONAL_DIRS = ("surveys", "passes", "tracks", "insights", "handoffs")
+OPTIONAL_DIRS = ("surveys", "passes", "tracks", "insights", "evaluations", "handoffs")
 
 MANAGED_SECTION_ORDER = (
     "SOURCE-CARDS",
@@ -22,6 +22,7 @@ MANAGED_SECTION_ORDER = (
     "CLAIMS",
     "INSIGHTS",
     "LEADS",
+    "EVALUATIONS",
 )
 
 HANDOFF_FILES = {
@@ -258,6 +259,7 @@ def topic_index_text(root: Path, workspace: Path, title: str) -> str:
         "├── surveys/        # optional pre-retrieval packets",
         "├── passes/         # optional bounded pass plans",
         "├── tracks/         # optional parallel work contracts",
+        "├── evaluations/    # optional bounded session/process evaluations",
         "└── index.md",
         "```",
         "",
@@ -633,6 +635,74 @@ def synthesis_text(args: argparse.Namespace) -> str:
     return "\n".join(lines)
 
 
+def session_eval_text(args: argparse.Namespace) -> str:
+    lines = [
+        f"# {args.title or args.eval_id}",
+        "",
+        "## Session Evaluation",
+        "",
+        f"- evaluation id: `{args.eval_id}`",
+        f"- session ref: `{args.session_ref}`",
+        f"- bounded task: `{args.task}`",
+        f"- question: `{args.question}`",
+        f"- task shape: `{args.task_shape}`",
+        f"- budget: `{args.budget}`",
+        f"- stop reason: `{args.stop_reason}`",
+        "",
+        "## Outcome",
+        "",
+        args.outcome,
+        "",
+        "## Artifact Delta",
+        "",
+        args.artifact_delta,
+        "",
+        "## Cost Signal",
+        "",
+        args.cost_signal,
+        "",
+        "## Resource Use",
+        "",
+        f"- steps: `{args.steps}`",
+        f"- elapsed seconds: `{args.elapsed_seconds}`",
+        f"- cost: `{args.cost}`",
+        "",
+        "## Artifact Refs",
+        *bullet_lines(args.artifact_ref, "none recorded"),
+        "",
+        "## Coverage Refs",
+        *bullet_lines(args.coverage_ref, "none recorded"),
+        "",
+        "## Decision Refs",
+        *bullet_lines(args.decision_ref, "none recorded"),
+        "",
+        "## Evaluation Protocol",
+        "",
+        args.protocol,
+        "",
+        "## Quality Dimensions",
+        "",
+        f"- grounding: `{args.grounding}`",
+        f"- coverage: `{args.coverage}`",
+        f"- efficiency: `{args.efficiency}`",
+        f"- drift: `{args.drift}`",
+        f"- durable value: `{args.durable_value}`",
+        f"- validity: `{args.validity}`",
+        "",
+        "## Evidence Refs",
+        *bullet_lines(args.evidence_ref, "none recorded"),
+        "",
+        "## Limitations",
+        *bullet_lines(args.limitation, "<limitation or counterexample>"),
+        "",
+        "## Next Action",
+        "",
+        args.next_action,
+        "",
+    ]
+    return "\n".join(lines)
+
+
 def parse_track_spec(raw: str) -> tuple[str, str, str | None]:
     if ":" in raw:
         parts = raw.split(":")
@@ -747,6 +817,8 @@ def managed_section_body(root: Path, workspace: Path, section: str) -> str:
         return render_file_section("Insights", "insights", markdown_file_list(workspace, "insights"))
     if section == "LEADS":
         return render_leads_section(workspace)
+    if section == "EVALUATIONS":
+        return render_file_section("Session Evaluations", "evaluations", markdown_file_list(workspace, "evaluations"))
     raise SystemExit(f"error: unknown managed section: {section}")
 
 
@@ -1067,6 +1139,25 @@ def new_synthesis(args: argparse.Namespace) -> int:
     ensure_base_workspace(workspace)
     target = workspace / "summaries" / f"{slugify(args.synthesis_id)}.md"
     write_file(target, synthesis_text(args), force=args.force)
+    print(f"ok: wrote {repo_rel(root, target)}")
+    return 0
+
+
+def validate_session_ref(raw: str) -> str:
+    value = raw.strip()
+    path = PurePosixPath(value)
+    if not value or value.startswith("/") or value.startswith("file://") or ".." in path.parts:
+        raise SystemExit("error: --session-ref must be a non-empty repo-relative or opaque reference")
+    return value
+
+
+def add_session_eval(args: argparse.Namespace) -> int:
+    root = resolve_root(args.root)
+    workspace = require_workspace(root, args.topic_class, args.topic)
+    ensure_extended_dirs(workspace)
+    args.session_ref = validate_session_ref(args.session_ref)
+    target = workspace / "evaluations" / f"{slugify(args.eval_id)}.md"
+    write_file(target, session_eval_text(args), force=args.force)
     print(f"ok: wrote {repo_rel(root, target)}")
     return 0
 
@@ -1690,6 +1781,102 @@ def collect_drift_warnings(root: Path, workspace: Path) -> list[str]:
     return warnings
 
 
+def collect_process_warnings(root: Path, workspace: Path) -> list[str]:
+    warnings: list[str] = []
+    for evaluation in markdown_file_list(workspace, "evaluations"):
+        text = evaluation.read_text(encoding="utf-8", errors="replace")
+        rel = repo_rel(root, evaluation)
+        for field in ("evaluation id", "session ref", "bounded task", "question", "task shape", "budget", "stop reason", "steps", "elapsed seconds", "cost"):
+            value = field_value(text, field)
+            missing = missing_value(value)
+            if field in {"budget", "steps", "elapsed seconds", "cost"} and value and value.strip().strip("`").lower() == "unknown":
+                missing = False
+            if missing:
+                warnings.append(f"{rel}: session evaluation missing {field}")
+        session_ref = field_value(text, "session ref") or ""
+        if session_ref.startswith(("/", "file://")) or ".." in PurePosixPath(session_ref).parts:
+            warnings.append(f"{rel}: session evaluation session ref must stay repo-relative or opaque")
+        stop_reason = (field_value(text, "stop reason") or "").lower()
+        artifact_delta = markdown_section(text, "Artifact Delta").lower()
+        for heading in ("Outcome", "Artifact Delta", "Cost Signal", "Resource Use", "Evaluation Protocol", "Next Action"):
+            missing_section = not section_has_content(text, heading)
+            if heading == "Artifact Delta" and stop_reason in {"no-new-evidence", "blocked", "deferred"} and artifact_delta in {"none", "unknown", "no new process signal"}:
+                missing_section = False
+            if missing_section:
+                warnings.append(f"{rel}: session evaluation missing {heading.lower()}")
+        quality = markdown_section(text, "Quality Dimensions")
+        states = {}
+        missing_dimensions = []
+        for dimension in ("grounding", "coverage", "efficiency", "drift", "durable value", "validity"):
+            match = re.search(rf"^- {re.escape(dimension)}:\s*`?([^`\s]+)", quality, re.MULTILINE)
+            states[dimension] = match.group(1).lower() if match else "unknown"
+            if not match:
+                missing_dimensions.append(dimension)
+        if any(state not in {"strong", "adequate", "weak", "unknown"} for state in states.values()):
+            warnings.append(f"{rel}: session evaluation has an invalid quality dimension value")
+        if missing_dimensions:
+            warnings.append(f"{rel}: session evaluation has incomplete quality dimensions: {', '.join(missing_dimensions)}")
+        steps = field_value(text, "steps") or ""
+        elapsed_seconds = field_value(text, "elapsed seconds") or ""
+        cost = field_value(text, "cost") or ""
+        if steps and steps.lower() != "unknown" and not steps.isdigit():
+            warnings.append(f"{rel}: session evaluation steps must be an integer or unknown")
+        if elapsed_seconds and elapsed_seconds.lower() != "unknown" and not elapsed_seconds.isdigit():
+            warnings.append(f"{rel}: session evaluation elapsed seconds must be an integer or unknown")
+        if states.get("efficiency") not in {"unknown", "weak"} and (
+            steps.lower() == "unknown" or elapsed_seconds.lower() == "unknown" or cost.lower() == "unknown"
+        ):
+            warnings.append(f"{rel}: efficiency label lacks measured steps, elapsed time, or cost")
+        refs = section_ref_values(text, "Evidence Refs")
+        if not refs:
+            warnings.append(f"{rel}: session evaluation has no evidence refs")
+        artifact_refs = section_ref_values(text, "Artifact Refs")
+        if not artifact_refs:
+            warnings.append(f"{rel}: session evaluation has no artifact refs")
+        for heading, references in (("Evidence Refs", refs), ("Artifact Refs", artifact_refs)):
+            for reference in references:
+                path_part = reference.split("#", 1)[0].strip().strip("`")
+                if path_part.startswith(("/", "file://")) or ".." in PurePosixPath(path_part).parts:
+                    warnings.append(f"{rel}: {heading.lower()} must stay topic-relative: `{reference}`")
+                    continue
+                target = workspace / path_part
+                if path_part and not target.is_file():
+                    warnings.append(f"{rel}: {heading.lower()} not found: `{reference}`")
+                    continue
+                if "#" in reference:
+                    fragment = reference.split("#", 1)[1].strip()
+                    headings = {
+                        slugify(line.lstrip("#").strip())
+                        for line in target.read_text(encoding="utf-8", errors="replace").splitlines()
+                        if line.startswith("#")
+                    }
+                    if fragment and slugify(fragment) not in headings:
+                        warnings.append(f"{rel}: {heading.lower()} anchor not found: `{reference}`")
+        task_shape = (field_value(text, "task shape") or "").lower()
+        if task_shape not in {"lookup", "survey", "bounded-pass", "parallel-pass", "audit", "synthesis", "handoff", "experiment"}:
+            warnings.append(f"{rel}: session evaluation has missing or invalid task shape")
+        for heading in ("Coverage Refs", "Decision Refs"):
+            for reference in section_ref_values(text, heading):
+                path_part = reference.split("#", 1)[0].strip().strip("`")
+                target = workspace / path_part
+                if path_part and not target.is_file():
+                    warnings.append(f"{rel}: {heading.lower()} not found: `{reference}`")
+        if task_shape in {"survey", "parallel-pass", "synthesis"} and not section_ref_values(text, "Coverage Refs"):
+            warnings.append(f"{rel}: {task_shape} evaluation has no coverage refs")
+        if task_shape in {"synthesis", "handoff"} and not section_ref_values(text, "Decision Refs"):
+            warnings.append(f"{rel}: {task_shape} evaluation has no decision refs")
+        process_only = artifact_delta in {"none", "unknown", "no new process signal"} or bool(
+            re.fullmatch(r"(?:turns?|tokens?|commands?|wall[- ]?clock) only", artifact_delta)
+        )
+        if process_only and (not artifact_refs or stop_reason not in {"no-new-evidence", "blocked", "deferred"}):
+            warnings.append(f"{rel}: session evaluation records process activity without an artifact delta")
+        if stop_reason == "completed" and states.get("durable value") in {"weak", "unknown"}:
+            warnings.append(f"{rel}: completed session evaluation has weak or unknown durable value")
+        if not section_has_content(text, "Limitations"):
+            warnings.append(f"{rel}: session evaluation has no limitation or counterexample")
+    return warnings
+
+
 def collect_synthesis_parentage_warnings(root: Path, workspace: Path) -> list[str]:
     warnings: list[str] = []
     claims = claim_body_by_alias(workspace)
@@ -1763,6 +1950,9 @@ def doctor(args: argparse.Namespace) -> int:
     if args.drift:
         for workspace in workspaces:
             warnings.extend(collect_drift_warnings(root, workspace))
+    if args.process:
+        for workspace in workspaces:
+            warnings.extend(collect_process_warnings(root, workspace))
     if args.wiki:
         warnings.extend(collect_wiki_warnings(root))
 
@@ -1973,6 +2163,39 @@ def build_parser() -> argparse.ArgumentParser:
     synthesis_p.add_argument("--force", action="store_true")
     synthesis_p.set_defaults(func=new_synthesis)
 
+    eval_p = sub.add_parser("add-session-eval", help="record one bounded research session/process evaluation")
+    add_topic_args(eval_p)
+    eval_p.add_argument("--eval-id", required=True)
+    eval_p.add_argument("--title")
+    eval_p.add_argument("--session-ref", required=True)
+    eval_p.add_argument("--task", required=True, help="bounded task being evaluated")
+    eval_p.add_argument("--question", required=True)
+    eval_p.add_argument("--task-shape", choices=["lookup", "survey", "bounded-pass", "parallel-pass", "audit", "synthesis", "handoff", "experiment"], required=True)
+    eval_p.add_argument("--budget", required=True, help="planned bounded resource envelope")
+    eval_p.add_argument("--outcome", required=True)
+    eval_p.add_argument("--artifact-delta", required=True)
+    eval_p.add_argument("--cost-signal", required=True)
+    eval_p.add_argument("--steps", required=True, help="bounded research/tool steps, or unknown")
+    eval_p.add_argument("--elapsed-seconds", required=True, help="wall-clock seconds, or unknown")
+    eval_p.add_argument("--cost", required=True, help="token, currency, or other measured cost, or unknown")
+    eval_p.add_argument("--protocol", required=True, help="evaluation and calibration protocol")
+    eval_p.add_argument(
+        "--stop-reason",
+        choices=["completed", "no-new-evidence", "blocked", "drift-stop", "budget-stop", "handed-off", "deferred"],
+        required=True,
+    )
+    quality_states = ["strong", "adequate", "weak", "unknown"]
+    for dimension in ("grounding", "coverage", "efficiency", "drift", "durable-value", "validity"):
+        eval_p.add_argument(f"--{dimension}", dest=dimension.replace("-", "_"), choices=quality_states, required=True)
+    eval_p.add_argument("--evidence-ref", action="append", default=[])
+    eval_p.add_argument("--artifact-ref", action="append", default=[])
+    eval_p.add_argument("--coverage-ref", action="append", default=[])
+    eval_p.add_argument("--decision-ref", action="append", default=[])
+    eval_p.add_argument("--limitation", action="append", default=[])
+    eval_p.add_argument("--next-action", required=True)
+    eval_p.add_argument("--force", action="store_true")
+    eval_p.set_defaults(func=add_session_eval)
+
     handoff_p = sub.add_parser("render-handoff", help="write an optional downstream handoff artifact")
     add_topic_args(handoff_p)
     handoff_p.add_argument("--kind", choices=sorted(HANDOFF_FILES), required=True)
@@ -1990,6 +2213,7 @@ def build_parser() -> argparse.ArgumentParser:
     doctor_p.add_argument("--topic")
     doctor_p.add_argument("--quality", action="store_true", help="print warning-only quality findings")
     doctor_p.add_argument("--drift", action="store_true", help="print warning-only research drift findings")
+    doctor_p.add_argument("--process", action="store_true", help="print warning-only session/process evaluation findings")
     doctor_p.add_argument("--wiki", action="store_true", help="print warning-only wiki/frontdoor findings")
     doctor_p.set_defaults(func=doctor)
 

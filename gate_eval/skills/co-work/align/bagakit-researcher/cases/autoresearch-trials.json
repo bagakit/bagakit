@@ -1,0 +1,82 @@
+{
+  "schema": "bagakit.researcher-autoresearch/v1",
+  "experiment_id": "researcher-policy-smoke-v1",
+  "description": "Synthetic record-level trials proving baseline/candidate/holdout and Pareto bookkeeping. Numeric vectors are deliberately uncalibrated proxies.",
+  "trials": [
+    {
+      "trial_id": "baseline-query-ledger",
+      "parent_ref": "baseline",
+      "hypothesis": "A source-route ledger increases coverage without a hard quality regression.",
+      "axis": "retrieval-coverage",
+      "changed_surface": "policy/source-route-ledger",
+      "cases": ["lookup-direct-source", "survey-route-map", "bounded-evidence-pass", "parallel-independent-routes", "audit-gaming-and-drift"],
+      "budget": {"max_steps": 80, "max_elapsed_seconds": 600, "max_tokens": 12000, "max_usd": 0.25},
+      "evaluator_ref": "record-contract-v1-uncalibrated",
+      "baseline": {
+        "quality": {"key_source_recall": 0.55, "citation_precision": 0.90, "counterevidence_coverage": 0.30, "insight_utility": 0.35, "depth": 0.35, "handoff_actionability": 0.55},
+        "resource": {"steps": 70, "elapsed_seconds": 500, "tokens": 10000, "usd": 0.20, "duplicate_rate": 0.15, "unsupported_claim_rate": 0.05},
+        "hard": {"grounding": 0.90, "validity": 0.90, "drift": 0.90, "unsupported_claim_rate": 0.05}
+      },
+      "candidate": {
+        "quality": {"key_source_recall": 0.75, "citation_precision": 0.90, "counterevidence_coverage": 0.50, "insight_utility": 0.35, "depth": 0.35, "handoff_actionability": 0.55},
+        "resource": {"steps": 76, "elapsed_seconds": 520, "tokens": 10500, "usd": 0.21, "duplicate_rate": 0.10, "unsupported_claim_rate": 0.05},
+        "hard": {"grounding": 0.90, "validity": 0.90, "drift": 0.90, "unsupported_claim_rate": 0.05}
+      },
+      "holdout": {
+        "quality": {"key_source_recall": 0.70, "citation_precision": 0.90, "counterevidence_coverage": 0.45, "insight_utility": 0.35, "depth": 0.35, "handoff_actionability": 0.55},
+        "resource": {"steps": 78, "elapsed_seconds": 540, "tokens": 10800, "usd": 0.22, "duplicate_rate": 0.11, "unsupported_claim_rate": 0.05},
+        "hard": {"grounding": 0.90, "validity": 0.90, "drift": 0.90, "unsupported_claim_rate": 0.05}
+      }
+    },
+    {
+      "trial_id": "insight-bridge-overfit",
+      "parent_ref": "baseline",
+      "hypothesis": "Generating more cross-source bridges increases insight utility.",
+      "axis": "cross-source-insight",
+      "changed_surface": "policy/bridge-generator",
+      "cases": ["survey-route-map", "parallel-independent-routes", "synthesis-conflict-bridge", "handoff-actionability"],
+      "budget": {"max_steps": 80, "max_elapsed_seconds": 600, "max_tokens": 12000, "max_usd": 0.25},
+      "evaluator_ref": "record-contract-v1-uncalibrated",
+      "baseline": {
+        "quality": {"key_source_recall": 0.55, "citation_precision": 0.90, "counterevidence_coverage": 0.30, "insight_utility": 0.35, "depth": 0.35, "handoff_actionability": 0.55},
+        "resource": {"steps": 70, "elapsed_seconds": 500, "tokens": 10000, "usd": 0.20, "duplicate_rate": 0.15, "unsupported_claim_rate": 0.05},
+        "hard": {"grounding": 0.90, "validity": 0.90, "drift": 0.90, "unsupported_claim_rate": 0.05}
+      },
+      "candidate": {
+        "quality": {"key_source_recall": 0.55, "citation_precision": 0.75, "counterevidence_coverage": 0.35, "insight_utility": 0.65, "depth": 0.55, "handoff_actionability": 0.60},
+        "resource": {"steps": 96, "elapsed_seconds": 680, "tokens": 15000, "usd": 0.31, "duplicate_rate": 0.25, "unsupported_claim_rate": 0.25},
+        "hard": {"grounding": 0.70, "validity": 0.90, "drift": 0.85, "unsupported_claim_rate": 0.25}
+      },
+      "holdout": {
+        "quality": {"key_source_recall": 0.50, "citation_precision": 0.70, "counterevidence_coverage": 0.30, "insight_utility": 0.55, "depth": 0.50, "handoff_actionability": 0.55},
+        "resource": {"steps": 100, "elapsed_seconds": 700, "tokens": 15500, "usd": 0.32, "duplicate_rate": 0.28, "unsupported_claim_rate": 0.27},
+        "hard": {"grounding": 0.70, "validity": 0.90, "drift": 0.80, "unsupported_claim_rate": 0.27}
+      }
+    },
+    {
+      "trial_id": "early-stop-tradeoff",
+      "parent_ref": "baseline",
+      "hypothesis": "Marginal-evidence stopping reduces cost while preserving the quality floor.",
+      "axis": "efficiency",
+      "changed_surface": "policy/marginal-evidence-stop",
+      "cases": ["bounded-evidence-pass", "audit-gaming-and-drift", "experiment-honest-stop"],
+      "budget": {"max_steps": 80, "max_elapsed_seconds": 600, "max_tokens": 12000, "max_usd": 0.25},
+      "evaluator_ref": "record-contract-v1-uncalibrated",
+      "baseline": {
+        "quality": {"key_source_recall": 0.55, "citation_precision": 0.90, "counterevidence_coverage": 0.30, "insight_utility": 0.35, "depth": 0.35, "handoff_actionability": 0.55},
+        "resource": {"steps": 70, "elapsed_seconds": 500, "tokens": 10000, "usd": 0.20, "duplicate_rate": 0.15, "unsupported_claim_rate": 0.05},
+        "hard": {"grounding": 0.90, "validity": 0.90, "drift": 0.90, "unsupported_claim_rate": 0.05}
+      },
+      "candidate": {
+        "quality": {"key_source_recall": 0.55, "citation_precision": 0.90, "counterevidence_coverage": 0.30, "insight_utility": 0.35, "depth": 0.35, "handoff_actionability": 0.55},
+        "resource": {"steps": 50, "elapsed_seconds": 360, "tokens": 7000, "usd": 0.14, "duplicate_rate": 0.10, "unsupported_claim_rate": 0.05},
+        "hard": {"grounding": 0.90, "validity": 0.90, "drift": 0.90, "unsupported_claim_rate": 0.05}
+      },
+      "holdout": {
+        "quality": {"key_source_recall": 0.50, "citation_precision": 0.90, "counterevidence_coverage": 0.25, "insight_utility": 0.30, "depth": 0.30, "handoff_actionability": 0.50},
+        "resource": {"steps": 45, "elapsed_seconds": 340, "tokens": 6500, "usd": 0.13, "duplicate_rate": 0.10, "unsupported_claim_rate": 0.05},
+        "hard": {"grounding": 0.90, "validity": 0.90, "drift": 0.90, "unsupported_claim_rate": 0.05}
+      }
+    }
+  ]
+}

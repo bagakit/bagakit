@@ -41,6 +41,7 @@ Extended workflow members are added only when a command needs them:
 ├── claims.md
 ├── insights/
 ├── leads.md
+├── evaluations/
 └── handoffs/
 ```
 
@@ -364,6 +365,47 @@ Each lead should include:
 - outcome when pursued
 
 Leads prevent proactive exploration from silently changing the topic.
+
+## Session Evaluation Rule
+
+`evaluations/` is an optional process-observation surface for topics where the
+value of the research session itself matters. One evaluation describes one
+bounded task and must keep these dimensions separate:
+
+- grounding: whether findings trace to source evidence
+- coverage: whether important source routes, counterevidence, and gaps were covered
+- efficiency: whether the achieved evidence justified the bounded cost
+- drift: whether the work stayed within the charter and stop rule
+- durable value: whether it produced reusable artifacts, a decision delta, or an honest stop receipt
+- validity: whether the sample, environment, and evaluator support the claim
+
+Each evaluation should preserve the session reference, bounded task, task shape,
+planned budget, outcome, artifact delta, actual cost signal, stop reason,
+evaluation protocol, resource use, evidence refs, artifact refs, limitations,
+and next action. Task shape is routing metadata chosen from `lookup`, `survey`,
+`bounded-pass`, `parallel-pass`, `audit`, `synthesis`, `handoff`, or
+`experiment`; it is not a quality score. `survey`, `parallel-pass`, and
+`synthesis` shapes should point to coverage carriers with `coverage-ref`, while
+`synthesis` and `handoff` shapes should point to decision carriers with
+`decision-ref`. Resource use records bounded `steps`, `elapsed seconds`, and
+`cost`; `unknown` is allowed when instrumentation is unavailable and must
+remain visible. Turns, tokens, elapsed time, source count, or agent count may
+describe cost, but they cannot stand in for artifact or decision value. The
+protocol should say whether the judgment came from deterministic checks, human
+review, a calibrated model judge, or a combination. `doctor --process` is
+warning-first and should be run before a process-quality synthesis or handoff.
+Richness is accepted only when it improves route choice, coverage, acceptance,
+or handoff; extra fields without a decision use should be removed.
+
+## Auto Research Boundary
+
+Researcher runtime remains a provider-agnostic evidence surface. Skill
+improvement experiments belong in a maintainer-owned, non-gating eval surface:
+freeze the task bank and evaluator, mutate one policy surface, compare a
+baseline with candidate and holdout vectors, and keep only hard-safe,
+Pareto-eligible candidates. The experiment runner must not become a runtime
+provider orchestrator, self-promote changes, or turn uncalibrated numeric
+proxies into semantic quality claims.
 
 ## Index Rule
 

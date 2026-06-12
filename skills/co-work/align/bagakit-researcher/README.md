@@ -7,6 +7,8 @@ Standalone local-first research workflow for repositories that need:
 - source cards
 - reusable summaries
 - topic indexes
+- bounded session/process evaluations with artifact, step, time, and cost signals
+- task-shape routing plus coverage and decision carriers for richer passes
 - researcher-local wiki/frontdoor pages derived from topic evidence
 
 ## Runtime Surface Declaration
@@ -35,6 +37,8 @@ Standalone local-first research workflow for repositories that need:
 - optional derived frontdoor:
   - `.bagakit/researcher/index.md`
   - `.bagakit/researcher/wiki/`
+- optional process review:
+  - `.bagakit/researcher/topics/<topic-class>/<topic>/evaluations/`
 
 ## Quick Start
 
@@ -104,6 +108,11 @@ sh scripts/bagakit-researcher.sh doctor --root . --wiki
 - `topics/` is the evidence source of truth; `wiki/` is a derived navigation layer.
 - `surveys/` is a pre-retrieval planning surface; it does not execute search,
   call providers, or replace source cards, summaries, claims, and passes.
+- `evaluations/` records bounded session/process reviews. It records task shape
+  and, for complex routes, coverage and decision carriers. It keeps artifact
+  delta and durable value separate from activity signals such as steps, turns,
+  tokens, elapsed time, cost, or agent count; unavailable resource readings stay
+  explicit as `unknown`.
 - New research should read the wiki/frontdoor first when prior topics exist.
 - A loop that reads the wiki and changes topic evidence should refresh the
   relevant topic index, refresh the wiki, and run `doctor --wiki` before

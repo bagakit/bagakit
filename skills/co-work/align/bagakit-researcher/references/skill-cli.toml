@@ -4,7 +4,7 @@ cli_id = "bagakit-researcher"
 entrypoint = "scripts/bagakit-researcher.sh"
 runner = "shell"
 usage = "sh scripts/bagakit-researcher.sh <command> [args...]"
-summary = "Operate local-first research topics, source cards, summaries, and wiki views."
+summary = "Operate local-first research topics, evidence artifacts, session evaluations, and wiki views."
 surface_refs = [
   ".bagakit/researcher",
 ]
@@ -60,6 +60,10 @@ summary = "Resolve or update a research lead."
 [[command]]
 name = "new-synthesis"
 summary = "Create a synthesis artifact scaffold."
+
+[[command]]
+name = "add-session-eval"
+summary = "Record one bounded research session/process evaluation."
 
 [[command]]
 name = "render-handoff"

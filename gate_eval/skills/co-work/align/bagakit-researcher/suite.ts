@@ -855,6 +855,256 @@ export const SUITE: EvalSuiteDefinition = {
       },
     },
     {
+      id: "session-evaluation-separates-process-from-value",
+      title: "Session Evaluation Separates Process From Value",
+      summary: "Bounded session evaluations should preserve six quality dimensions and warn when activity is recorded without durable value.",
+      focus: ["session-quality", "artifact-delta", "process-efficiency"],
+      run: (context): EvalCaseResult => {
+        const { repoRoot } = context;
+        const fixture = withFixture(context);
+        const topic = "session-quality";
+        try {
+          initTopic(fixture, repoRoot, topic, "Session Quality");
+          addSource(fixture, repoRoot, topic, "a01", "Session Quality Source");
+          addSummary(fixture, repoRoot, topic, "a01", "Session Quality Summary");
+          const validArgs = [
+            "add-session-eval",
+            "--root", fixture.tempRepo,
+            "--topic-class", TOPIC_CLASS,
+            "--topic", topic,
+            "--eval-id", "session-001",
+            "--session-ref", ".codex/sessions/example.jsonl",
+            "--task", "bounded evidence pass",
+            "--question", "Did the pass produce reusable evidence at reasonable cost?",
+            "--task-shape", "bounded-pass",
+            "--budget", "one pass, six source reads, thirty minutes",
+            "--outcome", "one supported claim and one gap",
+            "--artifact-delta", "claims.md plus one source-bound summary",
+            "--cost-signal", "one pass and four source reads",
+            "--steps", "12",
+            "--elapsed-seconds", "180",
+            "--cost", "tokens=1200;usd=0.01",
+            "--protocol", "deterministic artifact checks plus reviewed evidence refs",
+            "--artifact-ref", "summaries/a01.md",
+            "--stop-reason", "completed",
+            "--grounding", "strong",
+            "--coverage", "adequate",
+            "--efficiency", "adequate",
+            "--drift", "strong",
+            "--durable-value", "strong",
+            "--validity", "adequate",
+            "--evidence-ref", "summaries/a01.md",
+            "--limitation", "one representative sample",
+            "--next-action", "recheck on the next comparable pass",
+          ];
+          expectOk(runResearcher(fixture, validArgs, repoRoot), "add-session-eval valid");
+          const invalidArgs = [
+            "add-session-eval",
+            "--root", fixture.tempRepo,
+            "--topic-class", TOPIC_CLASS,
+            "--topic", topic,
+            "--eval-id", "session-002",
+            "--session-ref", ".codex/sessions/no-delta.jsonl",
+            "--task", "replay history",
+            "--question", "Did replay help?",
+            "--task-shape", "bounded-pass",
+            "--budget", "unknown",
+            "--outcome", "completed",
+            "--artifact-delta", "turns only",
+            "--cost-signal", "tokens only",
+            "--steps", "unknown",
+            "--elapsed-seconds", "unknown",
+            "--cost", "unknown",
+            "--protocol", "unknown",
+            "--artifact-ref", "summaries/a01.md",
+            "--stop-reason", "completed",
+            "--grounding", "unknown",
+            "--coverage", "unknown",
+            "--efficiency", "weak",
+            "--drift", "unknown",
+            "--durable-value", "unknown",
+            "--validity", "unknown",
+            "--next-action", "stop",
+          ];
+          expectOk(runResearcher(fixture, invalidArgs, repoRoot), "add-session-eval process-only");
+          const processArgs = ["doctor", "--root", fixture.tempRepo, "--topic-class", TOPIC_CLASS, "--topic", topic, "--process"];
+          const process = runResearcher(fixture, processArgs, repoRoot);
+          expectWarnOk(process, "doctor --process", ["session-002", "process activity without an artifact delta", "no evidence refs", "missing evaluation protocol"]);
+          const workspace = topicRoot(fixture.tempRepo, topic);
+          const evalPath = path.join(workspace, "evaluations", "session-001.md");
+          assert.ok(fs.existsSync(evalPath), "expected session evaluation artifact");
+          const evalText = fs.readFileSync(evalPath, "utf8");
+          assert.ok(evalText.includes("## Quality Dimensions"));
+          assert.ok(evalText.includes("- durable value: `strong`"));
+          assertNoPathLeaks(fixture.tempRepo, [evalPath]);
+          return {
+            assertions: [
+              "add-session-eval records bounded task, artifact delta, cost, and six quality dimensions",
+              "doctor --process warns on activity-only evaluation records",
+              "process warnings remain warning-first while valid evaluations stay usable",
+            ],
+            commands: [commandLine(validArgs), commandLine(invalidArgs), commandLine(processArgs)],
+            artifacts: [{ label: "session-evaluation", path: evalPath }],
+            outputs: { process_warning: `${process.stdout}\n${process.stderr}`.trim() },
+            replacements: fixture.replacements,
+          };
+        } finally {
+          cleanupTempDir(fixture.tempRepo, context.keepTemp);
+        }
+      },
+    },
+    {
+      id: "task-shape-and-carrier-coverage",
+      title: "Task Shape And Carrier Coverage",
+      summary: "Complex research routes should expose coverage and decision carriers while simple bounded routes remain compact.",
+      focus: ["task-shape", "coverage-carriers", "decision-carriers", "richness"],
+      run: (context): EvalCaseResult => {
+        const { repoRoot } = context;
+        const fixture = withFixture(context);
+        const topic = "task-shapes";
+        try {
+          initTopic(fixture, repoRoot, topic, "Task Shapes");
+          addSource(fixture, repoRoot, topic, "a01", "Task Shape Source");
+          addSummary(fixture, repoRoot, topic, "a01", "Task Shape Summary");
+          const validArgs = [
+            "add-session-eval", "--root", fixture.tempRepo, "--topic-class", TOPIC_CLASS, "--topic", topic,
+            "--eval-id", "parallel-001", "--session-ref", ".codex/sessions/parallel.jsonl",
+            "--task", "map independent source routes and produce a handoff", "--question", "Are all material routes covered?",
+            "--task-shape", "parallel-pass", "--budget", "four routes, forty minutes", "--outcome", "coverage map and handoff",
+            "--artifact-delta", "coverage map and decision handoff", "--cost-signal", "four route reads",
+            "--steps", "24", "--elapsed-seconds", "900", "--cost", "tokens=2400;usd=0.02",
+            "--protocol", "deterministic refs plus reviewed route matrix", "--artifact-ref", "summaries/a01.md",
+            "--coverage-ref", "summaries/a01.md", "--decision-ref", "summaries/a01.md", "--stop-reason", "completed",
+            "--grounding", "strong", "--coverage", "adequate", "--efficiency", "adequate", "--drift", "strong",
+            "--durable-value", "strong", "--validity", "adequate", "--evidence-ref", "summaries/a01.md",
+            "--limitation", "one constructed route matrix", "--next-action", "recheck route coverage on a new task",
+          ];
+          expectOk(runResearcher(fixture, validArgs, repoRoot), "add-session-eval parallel shape");
+          const invalidArgs = [
+            ...validArgs.slice(0, validArgs.indexOf("--eval-id") + 1), "synthesis-001",
+            ...validArgs.slice(validArgs.indexOf("--session-ref")),
+          ];
+          invalidArgs[invalidArgs.indexOf(".codex/sessions/parallel.jsonl")] = ".codex/sessions/synthesis.jsonl";
+          invalidArgs[invalidArgs.indexOf("parallel-pass")] = "synthesis";
+          invalidArgs.splice(invalidArgs.indexOf("--coverage-ref"), 2);
+          invalidArgs.splice(invalidArgs.indexOf("--decision-ref"), 2);
+          expectOk(runResearcher(fixture, invalidArgs, repoRoot), "add-session-eval synthesis missing carriers");
+          const processArgs = ["doctor", "--root", fixture.tempRepo, "--topic-class", TOPIC_CLASS, "--topic", topic, "--process"];
+          const process = runResearcher(fixture, processArgs, repoRoot);
+          expectWarnOk(process, "doctor --process task shape", [
+            "synthesis-001", "synthesis evaluation has no coverage refs", "synthesis evaluation has no decision refs",
+          ]);
+          const workspace = topicRoot(fixture.tempRepo, topic);
+          const validPath = path.join(workspace, "evaluations", "parallel-001.md");
+          const validText = fs.readFileSync(validPath, "utf8");
+          assert.ok(validText.includes("- task shape: `parallel-pass`"));
+          assert.ok(validText.includes("## Coverage Refs"));
+          assert.ok(validText.includes("## Decision Refs"));
+          assertNoPathLeaks(fixture.tempRepo, [validPath]);
+          return {
+            assertions: [
+              "complex task shapes record explicit coverage and decision carriers",
+              "doctor --process warns when synthesis lacks both carriers",
+              "task shape enriches routing without becoming another quality score",
+            ],
+            commands: [commandLine(validArgs), commandLine(invalidArgs), commandLine(processArgs)],
+            artifacts: [{ label: "parallel-evaluation", path: validPath }],
+            outputs: { process_warning: `${process.stdout}\n${process.stderr}`.trim() },
+            replacements: fixture.replacements,
+          };
+        } finally {
+          cleanupTempDir(fixture.tempRepo, context.keepTemp);
+        }
+      },
+    },
+    {
+      id: "process-metric-probe-catches-record-defects",
+      title: "Process Metric Probe Catches Record Defects",
+      summary: "Fixed author-labelled fixtures should exercise the public process doctor diagnostics without claiming semantic research grading.",
+      focus: ["metric-validity", "resource-use", "negative-controls"],
+      run: (context): EvalCaseResult => {
+        const { repoRoot } = context;
+        const probe = path.join(repoRoot, "gate_eval", "skills", "co-work", "align", "bagakit-researcher", "run-process-metrics.py");
+        const researcher = path.join(repoRoot, "skills", "co-work", "align", "bagakit-researcher", "scripts", "bagakit-researcher.py");
+        const outputPath = path.join(createTempDir("bagakit-researcher-metric-packet-"), "packet.json");
+        try {
+          const result = runCommand(PYTHON, [probe, "--researcher", researcher, "--output", outputPath], { cwd: repoRoot });
+          expectOk(result, "process metric probe");
+          const packet = JSON.parse(fs.readFileSync(outputPath, "utf8"));
+          assert.deepEqual(packet.counts, {
+            diagnostic_cases: 11,
+            true_positive: 6,
+            false_negative: 0,
+            false_positive: 0,
+            true_negative: 5,
+            semantic_controls: 2,
+          });
+          assert.ok(packet.does_not_prove.includes("semantic grading accuracy"));
+          return {
+            assertions: [
+              "record-level process diagnostics catch all fixed structural counterexamples",
+              "the probe reports zero false negatives and false positives on its author-labelled record oracle",
+              "semantic controls remain explicitly outside record-level proof claims",
+            ],
+            commands: [commandLine(["process metric probe", "--researcher", DISPLAY_SCRIPT])],
+            artifacts: [{ label: "metric-probe-packet", path: outputPath }],
+            outputs: { counts: packet.counts, does_not_prove: packet.does_not_prove },
+            replacements: [],
+          };
+        } finally {
+          cleanupTempDir(path.dirname(outputPath), context.keepTemp);
+        }
+      },
+    },
+    {
+      id: "autoresearch-runner-keeps-pareto-candidates",
+      title: "Auto Research Runner Keeps Pareto Candidates",
+      summary: "A fixed task bank and single-variable trial packet should reject hard regressions, retain nondominated candidates, and state semantic non-proofs.",
+      focus: ["autoresearch", "holdout", "pareto", "non-proof"],
+      run: (context): EvalCaseResult => {
+        const { repoRoot } = context;
+        const runner = path.join(repoRoot, "gate_eval", "skills", "co-work", "align", "bagakit-researcher", "run-autoresearch.py");
+        const cases = path.join(repoRoot, "gate_eval", "skills", "co-work", "align", "bagakit-researcher", "cases", "autoresearch-task-bank.json");
+        const trials = path.join(repoRoot, "gate_eval", "skills", "co-work", "align", "bagakit-researcher", "cases", "autoresearch-trials.json");
+        const outputDir = createTempDir("bagakit-researcher-autoresearch-");
+        try {
+          const args = [runner, "--cases", cases, "--trials", trials, "--out", outputDir];
+          const result = runCommand(PYTHON, args, { cwd: repoRoot });
+          expectOk(result, "autoresearch runner");
+          const summary = JSON.parse(fs.readFileSync(path.join(outputDir, "summary.json"), "utf8"));
+          assert.deepEqual(summary.case_counts, { total: 8, baseline: 6, holdout: 2 });
+          assert.equal(summary.trial_count, 3);
+          assert.deepEqual(summary.nondominated_trial_ids, ["baseline-query-ledger", "early-stop-tradeoff"]);
+          const byId = Object.fromEntries(summary.records.map((entry: { trial_id: string }) => [entry.trial_id, entry]));
+          assert.equal(byId["baseline-query-ledger"].status, "keep-pareto-candidate");
+          assert.equal(byId["early-stop-tradeoff"].status, "keep-pareto-candidate");
+          assert.equal(byId["insight-bridge-overfit"].status, "discard-hard-regression");
+          assert.ok(summary.does_not_prove.includes("semantic source recall or citation entailment"));
+          return {
+            assertions: [
+              "the fixed bank covers eight task shapes with six baseline and two holdout cases",
+              "Pareto comparison keeps coverage and efficiency candidates while rejecting a grounding regression",
+              "the result packet states semantic and calibration non-proofs",
+            ],
+            commands: [commandLine(["autoresearch runner", "--cases", "cases/autoresearch-task-bank.json", "--trials", "cases/autoresearch-trials.json"])],
+            artifacts: [
+              { label: "autoresearch-summary", path: path.join(outputDir, "summary.json") },
+              { label: "autoresearch-records", path: path.join(outputDir, "records.jsonl") },
+            ],
+            outputs: {
+              case_counts: summary.case_counts,
+              nondominated_trial_ids: summary.nondominated_trial_ids,
+              statuses: Object.fromEntries(Object.entries(byId).map(([id, entry]) => [id, (entry as { status: string }).status])),
+              does_not_prove: summary.does_not_prove,
+            },
+            replacements: [],
+          };
+        } finally {
+          cleanupTempDir(outputDir, context.keepTemp);
+        }
+      },
+    },
+    {
       id: "synthesis-parentage-warns-on-floating-claim-refs",
       title: "Synthesis Parentage Warns On Floating Claim Refs",
       summary: "doctor --drift should warn when a synthesis cites missing claims or claims that do not trace back to source-bound evidence.",

@@ -326,6 +326,7 @@ run_researcher list-tracks \
   --topic integrated-plan | grep -q 'track-gamma'
 
 add_source frontier integrated-plan a01 "Integrated Source"
+add_summary frontier integrated-plan a01 "Integrated Source Summary"
 add_summary frontier integrated-plan z99 "Mismatched Summary"
 
 run_researcher add-claim \
@@ -443,6 +444,47 @@ if [[ -e "$TMP_DIR/.bagakit/evolver" || -e "$TMP_DIR/.bagakit/living-knowledge" 
   echo "error: render-handoff mutated non-researcher systems" >&2
   exit 1
 fi
+
+run_researcher add-session-eval \
+  --root "$TMP_DIR" \
+  --topic-class frontier \
+  --topic integrated-plan \
+  --eval-id session-001 \
+  --session-ref .codex/sessions/example.jsonl \
+  --task "bounded evidence pass" \
+  --question "Did the pass produce reusable evidence at reasonable cost?" \
+  --task-shape bounded-pass \
+  --budget "one pass, six source reads, thirty minutes" \
+  --outcome "one supported claim and one gap" \
+  --artifact-delta "claims.md plus one source-bound summary" \
+  --cost-signal "one pass and four source reads" \
+  --steps 12 \
+  --elapsed-seconds 180 \
+  --cost "tokens=1200;usd=0.01" \
+  --protocol "deterministic artifact checks plus reviewed evidence refs" \
+  --artifact-ref "tracks/track-alpha.md" \
+  --artifact-ref "tracks/track-beta.md" \
+  --stop-reason completed \
+  --grounding strong \
+  --coverage adequate \
+  --efficiency adequate \
+  --drift strong \
+  --durable-value strong \
+  --validity adequate \
+  --evidence-ref summaries/a01.md \
+  --limitation "one representative sample" \
+  --next-action "recheck on the next comparable pass" >/dev/null
+assert_file "$INTEGRATED_WS/evaluations/session-001.md"
+run_researcher doctor \
+  --root "$TMP_DIR" \
+  --topic-class frontier \
+  --topic integrated-plan \
+  --process >/dev/null
+run_researcher refresh-index \
+  --root "$TMP_DIR" \
+  --topic-class frontier \
+  --topic integrated-plan >/dev/null
+assert_contains "$INTEGRATED_WS/index.md" 'Session Evaluations'
 
 init_topic frontier clean-topic "Clean Topic"
 CLEAN_WS="$(topic_path frontier clean-topic)"

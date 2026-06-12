@@ -1,0 +1,19 @@
+{
+  "protocol": "process-metrics-v1",
+  "provenance": "Author-labelled counterexamples derived from pass-002. Frozen before repairing the checker. These are not human-calibrated or held-out research tasks.",
+  "cases": [
+    {"id": "complete-record", "warning": false, "semantic_verdict": "usable within the small fixture scope"},
+    {"id": "missing-evidence", "evidence_refs": ["originals/missing.md"], "warning": true, "diagnostic": "evidence ref", "semantic_verdict": "unsupported despite all strong labels"},
+    {"id": "missing-output", "artifact_refs": ["summaries/missing.md"], "warning": true, "diagnostic": "artifact ref", "semantic_verdict": "claimed output unavailable"},
+    {"id": "broken-anchor", "evidence_refs": ["originals/source.md#absent"], "warning": true, "diagnostic": "evidence ref", "semantic_verdict": "evidence span unavailable"},
+    {"id": "activity-rephrased", "artifact_delta": "完成了大量阅读，进行了多轮讨论。", "artifact_refs": [], "warning": true, "diagnostic": "artifact refs", "semantic_verdict": "activity description has no inspectable result"},
+    {"id": "honest-unknown", "budget": "unknown", "steps": "unknown", "elapsed_seconds": "unknown", "cost": "unknown", "cost_signal": "Unmeasured; no cost comparison is made.", "ratings": {"efficiency": "unknown", "validity": "unknown"}, "warning": false, "semantic_verdict": "retain uncertainty; unsuitable for efficiency ranking"},
+    {"id": "honest-no-new-evidence", "stop_reason": "no-new-evidence", "artifact_delta": "none", "artifact_refs": ["passes/stop.md"], "warning": false, "semantic_verdict": "valid bounded stop with an inspectable receipt"},
+    {"id": "tokens-as-subject", "artifact_delta": "Tokens are the subject of the verified source comparison in summaries/result.md.", "warning": false, "semantic_verdict": "valid result whose topic happens to mention tokens"},
+    {"id": "missing-measurement-context", "omit": ["budget", "Resource Use", "Evaluation Protocol"], "warning": true, "diagnostic": "budget", "semantic_verdict": "efficiency and validity labels have no measurement context"},
+    {"id": "invalid-rating", "ratings": {"grounding": "perfect"}, "warning": true, "diagnostic": "invalid quality dimension value", "semantic_verdict": "rating outside the declared vocabulary"},
+    {"id": "duplicate-references", "evidence_refs": ["originals/source.md#evidence", "originals/source.md#evidence"], "warning": false, "semantic_verdict": "same evidence; duplication provides no coverage gain"},
+    {"id": "unsupported-but-linked", "result": "The sampled latency reduction proves every deployment will be faster.", "warning": false, "semantic_control": true, "semantic_verdict": "reject causal and scope overreach; record validation alone cannot detect it"},
+    {"id": "volume-without-answer", "result": "Forty sources have been collected. The user's comparison question remains unanswered.", "artifact_delta": "Forty new documents and a long report.", "warning": false, "semantic_control": true, "semantic_verdict": "reject as an answer; file existence and volume do not prove usefulness"}
+  ]
+}

@@ -29,6 +29,7 @@ Use this skill when a repository needs:
 - preserved source cards for important material
 - reusable per-source summaries
 - explicit claim, insight, and lead records
+- bounded session/process evaluations that separate outcome value from activity
 - warning-first quality and drift checks
 - topic indexes that tell the next operator what already exists
 - explicit separation between research evidence and later promotion
@@ -72,6 +73,8 @@ This skill does:
 - preserve important source cards
 - write reusable summaries
 - keep claims, cross-source insights, and active-mining leads visible
+- record bounded session/process evaluations with artifact delta, cost signal,
+  stop reason, and quality dimensions
 - run warning-first quality and drift checks
 - refresh topic indexes
 - render optional handoff artifacts
@@ -188,6 +191,8 @@ pass file, and initial tracks.
   - cross-source or cross-track interpretations
 - `leads.md`
   - active-mining backlog with expected value, stop rule, and outcome
+- `evaluations/`
+  - optional bounded session/process evaluations; one file per evaluated task
 - `handoffs/`
   - optional downstream handoff artifacts
 
@@ -221,14 +226,18 @@ The normal workflow is:
 7. Execute track work outside researcher; parallel workers should write only their owned track files, source ids, and summaries.
 8. Add source cards under `originals/` and reusable summaries under `summaries/`.
 9. Record sourced claims in `claims.md`, cross-source insights under `insights/`, and active-mining leads in `leads.md`.
-10. Run `doctor --quality` and `doctor --drift` before synthesis or handoff.
-11. If topic artifacts changed, refresh the managed sections of `index.md`
+10. When session/process quality matters, record one bounded evaluation under
+    `evaluations/`; judge artifact delta and durable value separately from
+    turns, tokens, agent count, or elapsed time.
+11. Run `doctor --quality`, `doctor --drift`, and `doctor --process` when
+    session evaluations are present, before synthesis or handoff.
+12. If topic artifacts changed, refresh the managed sections of `index.md`
    without overwriting curated notes.
-12. Refresh the researcher-local wiki/frontdoor only when cross-topic discovery
+13. Refresh the researcher-local wiki/frontdoor only when cross-topic discovery
    matters or the loop changed evidence that the wiki was used to inspect.
-13. If the loop read the wiki and changed topic evidence, close the maintenance
-    duty with `doctor --wiki` before final response or handoff.
-14. Optionally render a handoff artifact under `handoffs/`.
+14. If the loop read the wiki and changed topic evidence, close the maintenance
+   duty with `doctor --wiki` before final response or handoff.
+15. Optionally render a handoff artifact under `handoffs/`.
 
 Researcher may generate retrieval plans and query sketches, but provider
 execution belongs outside this skill.
@@ -402,7 +411,74 @@ sh scripts/bagakit-researcher.sh add-lead \
 Claims distinguish observation, inference, and recommendation. Insights should
 name supporting claims and counterclaims. Leads keep proactive mining bounded.
 
-8. Run warning-first checks:
+8. Record one bounded session/process evaluation when the value of the research
+   process itself needs review:
+
+```bash
+sh scripts/bagakit-researcher.sh add-session-eval \
+  --root . \
+  --topic-class frontier \
+  --topic researcher-skill \
+  --eval-id session-001 \
+  --session-ref .codex/sessions/example.jsonl \
+  --task "Compare two source families and produce one transfer claim" \
+  --question "Did this bounded pass produce reusable evidence at reasonable cost?" \
+  --task-shape bounded-pass \
+  --budget "one pass, six source reads, thirty minutes" \
+  --outcome "One supported claim and one documented gap" \
+  --artifact-delta "claims.md + one source-bound summary" \
+  --cost-signal "one pass, four source reads, no repeated broad search" \
+  --steps 12 \
+  --elapsed-seconds 180 \
+  --cost "tokens=1200;usd=0.01" \
+  --protocol "deterministic artifact checks plus human review of grounding and limitations" \
+  --artifact-ref "summaries/source-001.md" \
+  --coverage-ref "summaries/source-001.md" \
+  --decision-ref "claims.md" \
+  --stop-reason completed \
+  --grounding strong \
+  --coverage adequate \
+  --efficiency adequate \
+  --drift strong \
+  --durable-value strong \
+  --validity adequate \
+  --evidence-ref summaries/source-001.md \
+  --limitation "sample covers one topic and one session" \
+  --next-action "recheck the claim on the next comparable pass"
+```
+
+The eight task shapes are routing metadata, not quality scores: `lookup`,
+`survey`, `bounded-pass`, `parallel-pass`, `audit`, `synthesis`, `handoff`, and
+`experiment`. Use the smallest shape that describes the work. `survey`,
+`parallel-pass`, and `synthesis` evaluations should carry one or more
+`--coverage-ref` values; `synthesis` and `handoff` evaluations should carry one
+or more `--decision-ref` values. These refs make the evidence carriers visible
+without pretending that a record-level check proves semantic completeness.
+
+The six quality dimensions are deliberately separate: grounding (claim/source
+support), coverage (important source routes and gaps), efficiency (bounded cost
+for the achieved evidence), drift (charter and scope adherence), durable value
+(reusable artifact or decision delta), and validity (whether the sample,
+evaluation protocol, and limitations support the claim). Efficiency requires a
+planned budget and separate resource-use observations: steps, elapsed seconds,
+and cost. Validity requires a named evaluation protocol. A process metric
+without artifact or decision delta is a warning signal, not a quality result.
+Richness is useful only when it changes route selection, acceptance, or the
+handoff; unused detail is noise.
+
+## Auto Research Boundary
+
+When improving this skill itself, run strategy experiments from the non-gating
+`gate_eval/skills/co-work/align/bagakit-researcher/` capability surface. Keep
+the task bank and evaluator immutable for a trial, change one policy surface at
+a time, record baseline/candidate/holdout vectors, and retain only candidates
+that pass hard grounding, validity, and drift floors without being Pareto
+dominated. The runner compares records; it does not execute providers, mutate
+this runtime, or promote a candidate automatically. Numeric proxy vectors and
+record-level diagnostics do not prove semantic recall, insight quality, or
+downstream value.
+
+9. Run warning-first checks:
 
 ```bash
 sh scripts/bagakit-researcher.sh doctor \
@@ -410,15 +486,18 @@ sh scripts/bagakit-researcher.sh doctor \
   --topic-class frontier \
   --topic researcher-skill \
   --quality \
-  --drift
+  --drift \
+  --process
 ```
 
 `doctor --quality` checks structural completeness. `doctor --drift` surfaces
 ungrounded claims, weak recommendations, context-only evidence used as a
-decision basis, unchecked leads, and track scope drift. These checks should warn
-before they become hard gates.
+decision basis, unchecked leads, and track scope drift. `doctor --process`
+surfaces missing session-evaluation fields, budgets or protocols, process-only
+cost signals, weak durable-value claims, missing evidence refs, and missing
+limitations. These checks should warn before they become hard gates.
 
-9. Refresh the topic index:
+10. Refresh the topic index:
 
 ```bash
 sh scripts/bagakit-researcher.sh refresh-index \
@@ -431,7 +510,7 @@ sh scripts/bagakit-researcher.sh refresh-index \
 `refresh-index` owns only managed artifact sections. It must not overwrite
 operator-written topic goals, reading order, conclusions, or open questions.
 
-10. Refresh the researcher-local wiki/frontdoor:
+11. Refresh the researcher-local wiki/frontdoor:
 
 ```bash
 sh scripts/bagakit-researcher.sh refresh-wiki \
@@ -446,13 +525,13 @@ knowledge root.
 If this loop read the wiki and changed topic evidence, this refresh is a
 required closeout step; otherwise it is unnecessary cleanup.
 
-11. Confirm the wiki maintenance closeout:
+12. Confirm the wiki maintenance closeout:
 
 ```bash
 sh scripts/bagakit-researcher.sh doctor --root . --wiki
 ```
 
-12. Optionally render one handoff artifact:
+13. Optionally render one handoff artifact:
 
 ```bash
 sh scripts/bagakit-researcher.sh render-handoff \
@@ -466,7 +545,7 @@ Supported handoff kinds are `selector`, `evolver`, and `living-knowledge`.
 Rendering a handoff writes a file under `handoffs/`; it does not mutate the
 target system.
 
-13. Before another new search whose scope or route changed, inspect what already
+14. Before another new search whose scope or route changed, inspect what already
 exists. If the scope is unchanged, continue without repeating the closeout
 checks:
 
