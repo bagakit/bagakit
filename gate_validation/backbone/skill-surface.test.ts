@@ -635,6 +635,51 @@ test("distribute-package resolves explicit selectors directly from the directory
   }
 });
 
+test("package-plugin exports flat skills and portable manifests", () => {
+  const repoRoot = makeTempRepo();
+  mkdirSync(path.join(repoRoot, "skills"), { recursive: true });
+  const skillFrontmatter = (name: string) => `---\nname: ${name}\ndescription: Test ${name} workflow.\n---\n\n# ${name}\n`;
+  writeSkill(repoRoot, "co-work/align", "alpha", { "SKILL.md": skillFrontmatter("alpha") });
+  writeSkill(repoRoot, "evolve/adapt", "beta", { "SKILL.md": skillFrontmatter("beta") });
+
+  try {
+    const result = runCli([
+      "package-plugin",
+      "--root",
+      repoRoot,
+      "--out",
+      "dist/plugins/bagakit",
+      "--version",
+      "1.2.3",
+      "--json",
+    ]);
+    assert.equal(result.status, 0, result.stderr);
+    const payload = JSON.parse(result.stdout) as { skillCount: number; skillIds: string[] };
+    assert.equal(payload.skillCount, 2);
+    assert.deepEqual(payload.skillIds, ["alpha", "beta"]);
+
+    const pluginRoot = path.join(repoRoot, "dist/plugins/bagakit");
+    const portable = JSON.parse(readFileSync(path.join(pluginRoot, "plugin.json"), "utf8")) as Record<string, unknown>;
+    const compatibility = JSON.parse(
+      readFileSync(path.join(pluginRoot, ".codex-plugin/plugin.json"), "utf8"),
+    ) as Record<string, unknown>;
+    assert.equal(portable.name, "bagakit");
+    assert.equal(portable.version, "1.2.3");
+    assert.equal(compatibility.skills, "./skills/");
+    assert.equal(existsSync(path.join(pluginRoot, "skills/alpha/SKILL.md")), true);
+    assert.equal(existsSync(path.join(pluginRoot, "skills/beta/SKILL.md")), true);
+    assert.equal(existsSync(path.join(pluginRoot, "skills/co-work")), false);
+
+    mkdirSync(path.join(pluginRoot, "skills/stale"), { recursive: true });
+    writeFileSync(path.join(pluginRoot, "skills/stale/SKILL.md"), "stale\n");
+    const rebuild = runCli(["package-plugin", "--root", repoRoot, "--out", "dist/plugins/bagakit"]);
+    assert.equal(rebuild.status, 0, rebuild.stderr);
+    assert.equal(existsSync(path.join(pluginRoot, "skills/stale")), false);
+  } finally {
+    rmSync(repoRoot, { recursive: true, force: true });
+  }
+});
+
 test("distribute-package fails when canonical layout checks fail", () => {
   if (!commandAvailable("zip")) {
     return;

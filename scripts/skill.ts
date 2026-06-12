@@ -28,6 +28,7 @@ import {
 } from "./lib/skill/paths.ts";
 import { distributePackages } from "./lib/skill/packaging.ts";
 import { resolveSkillSelector } from "./lib/skill/selectors.ts";
+import { packagePlugin } from "./lib/plugin/packaging.ts";
 
 type JsonSkill = Readonly<{
   family: string;
@@ -95,6 +96,7 @@ Commands:
   link --selector <selector> [--root <repo-root>] [--dest <dir>] [--force] [--json]
   prune-links --dest <dir> [--root <repo-root>] [--dry-run] [--json]
   distribute-package [--root <repo-root>] [--selector <selector>] [--dist <dir>] [--no-clean] [--json]
+  package-plugin [--root <repo-root>] [--out <dir>] [--name <plugin-name>] [--version <semver>] [--no-clean] [--json]
   host-harness-list [--root <repo-root>] [--selector <harness-id|all>] [--json]
   host-harness-init --selector <harness-id> --repo <host-root> [--root <repo-root>] [--force] [--json]
   host-harness-distribute-package [--root <repo-root>] [--selector <harness-id|all>] [--dist <dir>] [--no-clean] [--json]
@@ -124,6 +126,7 @@ Notes:
   - Relative --dest and --dist paths resolve against --root.
   - list, install, install-status, link, and distribute-package discover skills directly from the directory protocol.
   - distribute-package with no selector, or selector "all", packages every discovered installable skill source.
+  - package-plugin exports every discovered skill into a flat portable Plugin under dist/plugins/bagakit.
   - No registry or delivery-profile metadata is consulted by this command surface.
   - Packaging preserves group paths in archives to avoid filename collisions.
   - Host harness sources live flat at host-harnesses/<harness-id>/.
@@ -645,6 +648,39 @@ function cmdDistributePackage(argv: string[]): number {
   return 0;
 }
 
+function cmdPackagePlugin(argv: string[]): number {
+  const { values } = parseArgs({
+    args: argv,
+    options: {
+      ...commonOptions(),
+      out: { type: "string" as const, default: "dist/plugins/bagakit" },
+      name: { type: "string" as const, default: "bagakit" },
+      version: { type: "string" as const, default: "0.1.0" },
+      "no-clean": { type: "boolean" as const, default: false },
+    },
+    strict: true,
+    allowPositionals: false,
+  });
+
+  const repoRoot = resolveRepoRoot(values.root);
+  const outputDir = resolvePathFrom(repoRoot, values.out);
+  const result = packagePlugin({
+    repoRoot,
+    outputDir,
+    pluginName: values.name,
+    version: values.version,
+    description: "Purpose-organized skills for human–Agent collaboration and recursive improvement.",
+    clean: !values["no-clean"],
+  });
+
+  if (values.json) {
+    console.log(JSON.stringify({ ...result, clean: !values["no-clean"] }, null, 2));
+  } else {
+    console.log(`packaged-plugin\t${result.pluginName}@${result.version}\t${result.outputDir}\t${result.skillCount} skills`);
+  }
+  return 0;
+}
+
 function cmdHostHarnessList(argv: string[]): number {
   const { values } = parseArgs({
     args: argv,
@@ -786,6 +822,8 @@ function main(argv: string[]): number {
       return cmdCheckLayout(rest);
     case "distribute-package":
       return cmdDistributePackage(rest);
+    case "package-plugin":
+      return cmdPackagePlugin(rest);
     case "host-harness-list":
       return cmdHostHarnessList(rest);
     case "host-harness-init":

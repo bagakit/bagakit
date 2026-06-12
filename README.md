@@ -317,10 +317,28 @@ If a bare selector matches a group name, group selection wins; use
 If no installable skill sources exist yet, packaging may produce no
 artifacts.
 
+### Plugin Export
+
+Use the Plugin export when distributing the whole Bagakit runtime as one
+installable bundle. The exporter validates the canonical tree, copies each
+installable Skill into a flat `skills/<skill-id>/` directory, and writes both a
+portable `plugin.json` and a Codex compatibility manifest under
+`.codex-plugin/`.
+
+```bash
+make package-plugin
+make package-plugin PLUGIN_VERSION=1.0.0
+```
+
+The generated bundle is written to `dist/plugins/bagakit/`, which is ignored by
+Git. The repository's purpose hierarchy remains the source of truth; the flat
+Plugin layout is only a distribution projection.
+
 Command-language targets:
 
 - `bash scripts/skill.sh install`
 - `bash scripts/skill.sh distribute-package`
+- `bash scripts/skill.sh package-plugin`
 
 ## Local Preview
 

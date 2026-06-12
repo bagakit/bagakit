@@ -3,11 +3,13 @@ SHELL := /usr/bin/env bash
 ROOT := $(shell cd "$(dir $(lastword $(MAKEFILE_LIST)))" && pwd)
 SCRIPTS := $(ROOT)/scripts
 DIST_DIR ?= dist/skill-packages
+PLUGIN_DIR ?= dist/plugins/bagakit
+PLUGIN_VERSION ?= 0.1.0
 SELECTOR ?=
 INSTALL_SELECTOR = $(or $(SELECTOR),all)
 SCOPE ?= all
 
-.PHONY: help install-global update-global install-repo update-repo install-status install-check link-skills update-link package-all package-one validate validate-fast validate-repo validate-all clean
+.PHONY: help install-global update-global install-repo update-repo install-status install-check link-skills update-link package-all package-one package-plugin validate validate-fast validate-repo validate-all clean
 
 help:
 	@echo "Targets:"
@@ -25,6 +27,7 @@ help:
 	@echo "  make update-link DEST=<dir> [SELECTOR=all]                # force-refresh explicit link target"
 	@echo "  make package-all [DIST_DIR=...]         # write .skill archives for discovered installable skill sources"
 	@echo "  make package-one SELECTOR=<selector>    # write .skill archives for one selector"
+	@echo "  make package-plugin [PLUGIN_DIR=...] [PLUGIN_VERSION=...] # export a portable flat Plugin"
 	@echo "  make clean                       # remove generated local artifacts"
 
 install-global:
@@ -76,6 +79,9 @@ package-one:
 		exit 1; \
 	fi
 	cd scripts && bash skill.sh distribute-package --dist "$(DIST_DIR)" --selector "$(SELECTOR)"
+
+package-plugin:
+	cd "$(ROOT)" && bash scripts/skill.sh package-plugin --out "$(PLUGIN_DIR)" --version "$(PLUGIN_VERSION)"
 
 validate:
 	cd scripts && bash gate.sh validate
