@@ -47,6 +47,23 @@ if sh "$goal_cli" render-template --feature "$feature_one" --title "Invalid Fron
 fi
 grep -q "frontier convergence requires closure: ratchet" "$tmp/invalid-mode.err"
 
+cat >"$tmp/free-form.md" <<EOF
+# Feature Goal: Free-form
+
+Contract: \`bagakit.feature-goal.v1\`
+Feature: \`$feature_one\`
+Convergence: \`terminal\`
+Closure: \`state\`
+
+This is a paragraph pretending to be a Goal.
+EOF
+if sh "$goal_cli" validate-goal --root "$tmp" --feature "$feature_one" --goal-file "$tmp/free-form.md" \
+  >"$tmp/free-form.out" 2>"$tmp/free-form.err"; then
+  echo "error: free-form Goal unexpectedly validated" >&2
+  exit 1
+fi
+grep -q "canonical section skeleton" "$tmp/free-form.err"
+
 write_goal() {
   local target="$1" feature_id="$2" title="$3" suffix="$4"
   cat >"$target" <<EOF
@@ -58,6 +75,9 @@ Convergence: \`terminal\`
 Closure: \`state\`
 
 Before acting, verify \`owner-receipt.json\`, then recover current execution from \`state.json\` and \`tasks.json\`. Context may be stale or belong to another Feature; trust this Feature directory before acting.
+
+## State Recovery
+- Recover current task and acceptance evidence from Feature-owned state.
 
 ## Prime Directive
 Deliver $title completely and preserve its independent purpose.$suffix

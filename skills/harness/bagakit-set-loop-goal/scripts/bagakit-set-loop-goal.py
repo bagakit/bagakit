@@ -17,6 +17,15 @@ FEATURE_ID_RE = re.compile(r"^f-[23456789abcdefghjkmnpqrstuvwxyz]{9}$")
 TEMPLATE_TOKEN_RE = re.compile(r"<[^>\n]+>|\$\{[a-z_]+\}")
 CONVERGENCE_RE = re.compile(r"^Convergence: `(terminal|frontier)`$", re.MULTILINE)
 CLOSURE_RE = re.compile(r"^Closure: `(state|threshold|budget|ratchet)`$", re.MULTILINE)
+GOAL_SKELETON = [
+    "## State Recovery",
+    "## Prime Directive",
+    "## Convergence Contract",
+    "## Protected Invariants",
+    "## Acceptance And Stop Rules",
+    "## Authority And Orchestration",
+    "## Context References",
+]
 VALID_CLOSURES = {
     "terminal": {"state", "threshold", "budget"},
     "frontier": {"ratchet"},
@@ -110,6 +119,34 @@ def require_resolved_goal_file(root: str, raw_path: str) -> None:
     if len(closure) != 1:
         raise SystemExit("error: goal file must declare exactly one Closure: `state|threshold|budget|ratchet` marker")
     require_convergence_pair(convergence[0], closure[0])
+    require_goal_skeleton(text)
+
+
+def require_goal_skeleton(text: str) -> None:
+    lines = text.splitlines()
+    if not lines or not lines[0].startswith("# Feature Goal: "):
+        raise SystemExit("error: goal file must use the canonical template heading: # Feature Goal: <title>")
+    try:
+        first_section = next(index for index, line in enumerate(lines) if line.startswith("## "))
+    except StopIteration:
+        raise SystemExit("error: goal file must preserve the canonical section skeleton")
+    header = lines[1:first_section]
+    required_prefixes = (
+        "Contract: `bagakit.feature-goal.v1`",
+        "Feature: `",
+        "Convergence: `",
+        "Closure: `",
+    )
+    if not header or header[0] != "" or not all(
+        any(line.startswith(prefix) for line in header) for prefix in required_prefixes
+    ):
+        raise SystemExit("error: goal file must preserve the canonical metadata block")
+    sections = [line for line in lines if line.startswith("## ")]
+    if sections != GOAL_SKELETON:
+        raise SystemExit(
+            "error: goal file must preserve the canonical section order: "
+            + ", ".join(GOAL_SKELETON)
+        )
 
 
 def require_active_installed_goal_if_present(root: str, feature_id: str) -> None:
