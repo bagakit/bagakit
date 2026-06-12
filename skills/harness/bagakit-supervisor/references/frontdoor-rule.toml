@@ -1,6 +1,6 @@
 version = 1
 skill = "bagakit-supervisor"
-trigger = "An Agent receives a Supervisor Goal, or capable Agent execution may run long, become passive or wasteful, drift from its goal, lose convergence, serialize behind assurance, delegate, recover, or claim completion."
-do = "Own the live delivery plan, deadline, alignment, Writer team, critical path, drift correction, and exact-current-candidate readiness without taking implementation from capable Workers or duplicating planning truth."
+trigger = "An Agent receives a Supervisor Goal or a live delegated run shows drift, stalled convergence, serialization, failed recovery, or a delivery blocker."
+do = "Own the live delivery plan, deadline, alignment, team, critical path, drift correction, and exact-current readiness without taking implementation or duplicating planning truth."
 see = "skills/harness/bagakit-supervisor/SKILL.md"
 fallback = "Use the same harness around one direct Agent; let the Host own mechanics while the Supervisor remains accountable for their delivery-blocking effect."

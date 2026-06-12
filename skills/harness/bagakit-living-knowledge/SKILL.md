@@ -193,9 +193,12 @@ shared docs root instead of under `.bagakit/` or as a repository-root hidden
 exception. Shared durable knowledge pages still belong in the configured shared
 root, and by default that root is `docs/`.
 
-## Recommended Flow
+## Choose Commands By Intent
 
-1. Scaffold or refresh the shared knowledge substrate:
+Run only the commands needed for the task. A recall lookup does not require
+scaffolding, index refresh, ingestion, or diagnostics first.
+
+For initial setup or an explicitly requested substrate refresh, use `apply`:
 
 Run mutating commands with `--root` pointing at the project root. Inside a Git
 worktree, that means the Git top-level directory; `apply` refuses arbitrary
@@ -207,13 +210,15 @@ export BAGAKIT_LIVING_KNOWLEDGE_SKILL_DIR="<repo-relative-installed-skill-dir>"
 sh "$BAGAKIT_LIVING_KNOWLEDGE_SKILL_DIR/scripts/bagakit-living-knowledge.sh" apply --root .
 ```
 
-2. Inspect the resolved path protocol:
+When the resolved paths are needed or a path mismatch is being diagnosed, use
+`paths`:
 
 ```bash
 sh "$BAGAKIT_LIVING_KNOWLEDGE_SKILL_DIR/scripts/bagakit-living-knowledge.sh" paths --root .
 ```
 
-3. Rebuild the shared guidebook index:
+After shared knowledge changes, or when the index is known to be stale, use
+`index`:
 
 ```bash
 sh "$BAGAKIT_LIVING_KNOWLEDGE_SKILL_DIR/scripts/bagakit-living-knowledge.sh" index --root .
@@ -222,14 +227,14 @@ sh "$BAGAKIT_LIVING_KNOWLEDGE_SKILL_DIR/scripts/bagakit-living-knowledge.sh" ind
 This also refreshes `must-sop.md` from optional page frontmatter under the
 shared root.
 
-4. Recall shared knowledge:
+For a prior fact or decision, search and read only the relevant lines:
 
 ```bash
 sh "$BAGAKIT_LIVING_KNOWLEDGE_SKILL_DIR/scripts/bagakit-living-knowledge.sh" recall search --root . "<query>"
 sh "$BAGAKIT_LIVING_KNOWLEDGE_SKILL_DIR/scripts/bagakit-living-knowledge.sh" recall get --root . <path> --from <line> --lines <n>
 ```
 
-5. Ingest reviewed markdown into the shared root:
+To publish reviewed markdown into the shared root, use `ingest`:
 
 ```bash
 sh "$BAGAKIT_LIVING_KNOWLEDGE_SKILL_DIR/scripts/bagakit-living-knowledge.sh" ingest \
@@ -241,12 +246,12 @@ sh "$BAGAKIT_LIVING_KNOWLEDGE_SKILL_DIR/scripts/bagakit-living-knowledge.sh" ing
 Normalize imported sources before shared publication:
 
 - keep the source path repo-relative if it must appear in operator commands
-- do not reuse timestamped capture names such as `howto-learning-20260426.md`
-  as durable shared page names
+- do not reuse timestamped capture names as durable shared page names
 - do not copy source-path or action-time frontmatter such as `source_path` or
   `captured_at` into shared knowledge pages
 
-6. Run diagnostics:
+For substrate setup validation or a suspected consistency problem, use
+`doctor`:
 
 ```bash
 sh "$BAGAKIT_LIVING_KNOWLEDGE_SKILL_DIR/scripts/bagakit-living-knowledge.sh" doctor --root .
