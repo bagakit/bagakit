@@ -214,8 +214,9 @@ external effect cannot be established, stop and hand back.
 ## Stop And Handback
 
 Before completion, Agent input cannot authorize voluntary Supervisor stop;
-apply the two-message Owner rule. Host or safety holds remain immediate and do
-not close the Goal.
+require one authenticated Owner instruction. A second confirmation is needed
+only for an irreversible external effect or unresolved identity ambiguity. Host
+or safety holds remain immediate and do not close the Goal.
 
 Stop with a compact checkpoint when:
 

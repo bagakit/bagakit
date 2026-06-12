@@ -66,6 +66,9 @@ Allowed `status` values:
 - `merged`
 - `expired`
 
+`split` is not a pattern status. If one candidate contains distinct lessons,
+create separate candidates and retain their provenance in the source fields.
+
 ## AI Update Receipt
 
 ```toml

@@ -55,6 +55,10 @@ ensure_host_dirs() {
   ensure_runtime_dirs
 }
 
+created_at_utc() {
+  date -u '+%Y-%m-%dT%H:%M:%SZ'
+}
+
 next_id() {
   prefix="$1"
   dir="$2"
@@ -189,10 +193,12 @@ SURFACE
     validate_one_of input_type "$input_type" typed_note chat_excerpt agent_trace transcript manual_retro
     validate_one_of privacy_class "$privacy_class" public internal private sensitive regulated
     signal_id=$(next_id signal "$root/signals")
+    created_at=$(created_at_utc)
     file="$root/signals/${signal_id}.toml"
     {
       printf 'schema = "decision_signal/v0"\n'
       printf 'signal_id = "%s"\n' "$signal_id"
+      printf 'created_at = "%s"\n' "$created_at"
       printf 'input_type = "%s"\n' "$input_type"
       printf 'privacy_class = "%s"\n' "$privacy_class"
       printf 'status = "raw"\n'
@@ -236,10 +242,12 @@ SURFACE
     validate_one_of reversibility "$reversibility" one_way_door two_way_door
     validate_one_of risk_tier "$risk_tier" low medium high regulated
     decision_id=$(next_id decision "$root/decisions")
+    created_at=$(created_at_utc)
     file="$root/decisions/${decision_id}.toml"
     {
       printf 'schema = "decision_receipt/v0"\n'
       printf 'decision_id = "%s"\n' "$decision_id"
+      printf 'created_at = "%s"\n' "$created_at"
       printf 'decision_type = "%s"\n' "$decision_type"
       printf 'risk_tier = "%s"\n' "$risk_tier"
       printf 'reversibility = "%s"\n' "$reversibility"

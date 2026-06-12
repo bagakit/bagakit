@@ -153,7 +153,7 @@ Supervisor epoch: <identity>
 Supervisor binding: <active-run-unique visible name + Host controller identity + current session/terminal identity>
 User communication: <logical route + cadence + maximum staleness + language + explanation + emphasis + constraints + source revision + last report>
 Delivery clock: <wall-clock target + forecast confidence + critical-path evidence + next calibration event>
-Stop admission: <unfinished|complete + authenticated Owner route + first request + exact challenge + second confirmation + forced hold>
+Stop admission: <unfinished|complete + authenticated Owner route + request + exact challenge + optional second confirmation for irreversible effect or identity ambiguity + forced hold>
 Question: <one current control question + gated decision + stop condition>
 Target: <logical task + attempt/generation + writer capability>
 Artifact candidate: <artifact identity + accepted/reviewed identity>

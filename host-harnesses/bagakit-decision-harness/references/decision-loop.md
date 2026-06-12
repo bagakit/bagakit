@@ -1,17 +1,21 @@
 # Decision Loop
 
-The core loop is:
+The loop is conditional:
 
 ```text
 local text input
 -> Signal
--> Decision Receipt
--> Outcome Review
--> Pattern Candidate
--> Pattern Adoption
--> Human Practice Update
--> AI Update Receipt
+-> Decision Receipt (when the input records a decision)
+-> Outcome Review (when an outcome is available)
+-> Pattern Candidate (when review or repetition reveals a transferable lesson)
+-> Pattern Adoption (only after an explicit user decision)
+-> Human Practice Update (when an adopted pattern changes practice)
+-> AI Update Receipt (when an approved change to AI behavior is warranted)
 ```
+
+No arrow is automatic. Stop after the latest stage whose entry condition and
+acceptance evidence are present; a one-off input may end at Signal or Decision
+Receipt.
 
 ## Intake
 

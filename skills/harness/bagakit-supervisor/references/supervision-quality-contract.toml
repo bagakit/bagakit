@@ -66,9 +66,9 @@ does_not_prove = "The checker cannot query whether an external owner revision is
 
 [[guard]]
 id = "OWNER_AUTHENTICATED_SUPERVISOR_STOP"
-protects = "An unfinished Supervisor rejects Agent-authored stop, replacement, handoff, archive, and controller-release authority; refuses any self-targeted or identity-ambiguous terminal control operation; requires two distinct current Owner confirmations for early voluntary stop; and keeps forced Host or safety containment immediate and distinct from completion."
-oracle = "Semantic cases contrast a spoofed Agent stop, a correctly double-confirmed Owner stop, an immediate forced safety hold, mistaken self-session interruption, and a fresh-identity cancellation of a distinct stale writer."
-does_not_prove = "Semantic cases and message markup cannot authenticate a live Owner, enforce Host cancellation, or prove that two real messages came from one person."
+protects = "An unfinished Supervisor rejects Agent-authored stop, replacement, handoff, archive, and controller-release authority; refuses any self-targeted or identity-ambiguous terminal control operation; accepts one authenticated Owner instruction for ordinary voluntary stop and requires a second confirmation only for an irreversible external effect or unresolved identity ambiguity; and keeps forced Host or safety containment immediate and distinct from completion."
+oracle = "Semantic cases contrast a spoofed Agent stop, a correctly authenticated ordinary Owner stop, a second-confirmation case for an irreversible effect or ambiguous identity, an immediate forced safety hold, mistaken self-session interruption, and a fresh-identity cancellation of a distinct stale writer."
+does_not_prove = "Semantic cases and message markup cannot authenticate a live Owner, enforce Host cancellation, or prove that an instruction came from one person."
 
 [[guard]]
 id = "CONTROLLED_PARALLEL_WRITER_AUTHORITY"

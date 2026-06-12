@@ -24,6 +24,55 @@ A host adapter may provide:
 
 The skill must inspect available capabilities instead of assuming all exist.
 
+## Canonical Execution Adapter
+
+For a host that exposes provider-specific concepts such as profiles, roles,
+runs, sessions, panes, or viewer tabs, normalize them into one execution
+record before the Supervisor makes a control decision. The record is the
+adapter's projection; it is not a second lifecycle store.
+
+The minimum projection is:
+
+- `execution_ref`: stable host execution identity
+- `attempt_id`: current Supervisor attempt identity
+- `worker_id`: authenticated worker or controller identity when available
+- `authority`: writable or read-only capability and current writer binding
+- `target`: owner revision, workspace or launch root, and candidate identity
+- `assignment`: result predicate, return path, and next observation condition
+- `state`: queued, running, waiting, succeeded, failed, cancelled, dead, or stale
+- `evidence`: latest artifact, verification, review, failure, and effect refs
+- `report`: the latest structured Worker result, kept distinct from Host state
+
+Provider fields remain Host-owned metadata. A profile name does not become a
+Supervisor role, a process id does not become a worker identity, a run label
+does not become an attempt identity, and a viewer or transcript does not become
+state. The adapter may retain those fields for diagnosis, but the Supervisor
+must not branch on them when the normalized record already answers the current
+control question.
+
+Use one operation path for the common execution loop:
+
+1. `dispatch` returns the normalized execution record and the first response
+   or assimilation evidence when available.
+2. `wait` waits for a declared result predicate, failure, effect, or bounded
+   staleness event; it does not require periodic narration.
+3. `read_state` refreshes the same record and is the authority for current
+   lifecycle state.
+4. `message`, `cancel`, and `fence` act on `execution_ref` plus `attempt_id`,
+   never on a display name, label, pane, or stale process handle alone.
+5. `report` contributes evidence to the record but cannot change its state or
+   authority without Host observation.
+
+This projection absorbs a hybrid executor such as profile → role → run →
+result without importing its CLI, prompt templates, or viewer model into the
+Supervisor. It also removes duplicate decisions: the Supervisor chooses the
+result predicate and control action; the Host chooses the provider, process,
+session, and observation implementation.
+
+If a host cannot produce the normalized record, mark the missing fields
+unknown and degrade the affected action. Do not recreate a second mini-runner
+inside the Supervisor to fill the gap.
+
 Before `cancel`, `fence`, replacement, release, or any equivalent terminal
 control, the adapter should expose in one fresh state read both the current
 Supervisor controller session/terminal identity and the requested target
@@ -41,11 +90,12 @@ authentication, credentials, concrete delivery, and readback. Do not claim
 delivery from invocation alone. A failed or unknown delivery does not erase the
 Supervisor's conclusion or silently authorize an unbound route.
 
-For unfinished voluntary stop, the Host should expose two distinct current
-Owner messages on one authenticated route, with the second bound to the exact
-Goal, controller, action, checkpoint, and consequence. Message text and markup
-are not authentication; without both receipts, do not release the controller.
-Keep forced Host or safety containment on a separate path from Owner closure.
+For unfinished voluntary stop, the Host should expose one current Owner
+instruction on an authenticated route, bound to the exact Goal, controller,
+action, checkpoint, and consequence. Require a second confirmation only for an
+irreversible external effect or unresolved identity ambiguity. Message text and
+markup are not authentication; keep forced Host or safety containment on a
+separate path from Owner closure.
 
 ## Required Topology Evidence
 

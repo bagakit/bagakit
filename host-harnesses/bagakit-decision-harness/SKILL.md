@@ -26,7 +26,8 @@ The difference:
 
 The harness exists to compound personal decision capability.
 
-It turns local text inputs into:
+Its stages are conditional. A run turns local text inputs into the latest
+stage that has both evidence and a user need:
 
 ```text
 Signal
@@ -37,6 +38,13 @@ Signal
 -> Human Practice Update
 -> AI Update Receipt
 ```
+
+Capture a Signal whenever local input arrives. Create a Decision Receipt only
+when the input records a decision, add an Outcome Review when an outcome is
+available, and propose a Pattern Candidate only when review or repeated
+evidence reveals a transferable lesson. Pattern Adoption remains an explicit
+user decision; add a practice update or AI Update Receipt only when an adopted
+pattern justifies a concrete change. Stop at the latest applicable stage.
 
 The goal is not to make the AI an oracle. The goal is to make every reviewed
 decision raise the starting point for later decisions.
@@ -140,7 +148,7 @@ when the peer skills are unavailable.
 
 3. Keep patterns candidate-based.
    - AI may propose patterns.
-   - The user must accept, reject, merge, split, or expire patterns before they
+   - The user must accept, reject, merge, or expire patterns before they
      become durable guidance.
 
 4. Use metrics as controls.

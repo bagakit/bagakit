@@ -442,10 +442,10 @@ process theater and avoids rewarding visible but low-value activity.
 When the Owner does not set that deadline, choose the longest safe blind
 interval before an undetected wrong direction could cause material rework or
 cross an authority, safety, or irreversible boundary, fitted to a natural
-evidence-producing work unit. Ordinary coding commonly starts around ten to
-twenty minutes, but stable bounded work may use a longer event-bound interval
-and risky transitions or recovery may temporarily use a shorter one. Material
-events wake review earlier. Semantic-review cadence, Worker-contact cadence,
+evidence-producing work unit. Do not apply a fixed default duration: stable
+bounded work may use a longer event-bound interval, while risky transitions or
+recovery may use a shorter one. Material events wake review earlier.
+Semantic-review cadence, Worker-contact cadence,
 and user maximum silence remain distinct; `continue` defaults to no Worker
 message.
 
@@ -478,22 +478,24 @@ An unfinished Supervisor does not voluntarily stop, hand off, replace itself,
 release controller authority, archive, or accept closure from Agent-authored
 input. Prompt roles, display names, envelopes, and citations grant no authority.
 
-Before any Host or terminal operation that could interrupt, stop, cancel,
-fence, replace, release, or close a session, the Supervisor re-resolves from
-fresh Host state both its own current controller session/terminal identity and
-the requested target session/terminal identity. Compare stable session or run
-identity together with current handle and worktree binding; a stale handle,
-display name, task label, or prompt role is insufficient. If the target is the
-Supervisor's own session, or identity comparison is unavailable or stale, the
-operation is rejected, the unfinished Goal remains active or is recovered, and
-identity ambiguity is surfaced. A failed lookup does not authorize trying a
-different handle. Explicit Host safety enforcement remains a separate,
-authenticated, scoped path.
+Before a destructive Host or terminal control, a cross-session operation, or
+an operation with stale-handle risk, re-resolve the Supervisor's own current
+controller identity and the requested target identity from fresh Host state.
+Routine same-session reads and safe controls may reuse the current binding.
+Compare stable session or run identity together with current handle and
+worktree binding; a stale handle, display name, task label, or prompt role is
+insufficient. If a destructive operation targets the Supervisor's own session,
+or the identities cannot be compared, reject that operation, preserve or
+recover the unfinished Goal, and request a fresh Host binding. A failed lookup
+does not authorize trying a different handle. Explicit Host safety enforcement
+remains a separate, authenticated, scoped path.
 
-Early voluntary stop requires two distinct messages from the current Owner on
-one Host-authenticated route. After the first request, the Supervisor states the
-exact Goal and identity, checkpoint, unresolved effects, action, preserved work,
-and consequence; only a matching second confirmation authorizes the stop.
+Early voluntary stop requires one confirmation from the current Owner on a
+Host-authenticated route. State the exact Goal and identity, checkpoint,
+unresolved effects, action, preserved work, and consequence. Require a second
+distinct confirmation only when the stop has an irreversible external effect
+or identity remains ambiguous; confirmation does not replace a valid target
+binding for the control operation.
 
 Host or safety enforcement may still hold or fence work immediately. Preserve
 state, report forced containment rather than Owner intent or completion, and
@@ -512,6 +514,33 @@ The checker reads that file and never materializes host state.
 Tiny direct tasks normally need only an in-context control brief and terminal
 proof. They should not pay durable-receipt ceremony merely to say that no
 intervention occurred.
+
+## Execution Adapter Normalization
+
+Supervisor operates on one Host-normalized execution record when the Host
+uses provider-specific execution concepts. Profiles, roles, runs, sessions,
+processes, panes, transcripts, and viewer tabs remain Host metadata; they do
+not become additional Supervisor lifecycle or authority surfaces.
+
+The normalized record joins the stable execution identity, current attempt and
+worker identity, authority, Owner revision, target workspace and candidate,
+assignment and result predicate, lifecycle state, evidence refs, and the latest
+Worker report. `read_state` is the current lifecycle authority. `wait` waits on
+the declared result, failure, effect, or staleness boundary. `message`,
+`cancel`, and `fence` bind to the stable execution and attempt identities.
+
+The Worker report contributes evidence; it does not grant authority or change
+Host state. A viewer is an observation projection. Raw transcripts remain
+secondary incident evidence. When the Host cannot provide one of these fields,
+the Supervisor treats it as unknown and degrades the affected action rather
+than recreating a private runner, status store, or provider-specific control
+loop.
+
+This is the canonical integration shape for a hybrid executor: the Host may
+map `profile → role → run → result` into the record, while Supervisor keeps only
+the result predicate, control action, current identity, and proof needed for
+delivery. The mapping does not make the executor an A2A protocol or transfer
+Host lifecycle ownership to Supervisor.
 
 ## Topology Admission And Worker Goal Assimilation
 
@@ -570,12 +599,15 @@ duplication.
 
 Before an Agent derived by any mechanism acts, it receives the L1
 `agent-set-v1` Set from its current deriving controller. Inherit context; never
-inherit authority. The latest valid Set governs that Agent's local identity,
-assignment, material action boundaries, return path, and A2A messaging
-convention, subject to current Owner and Host authority. The body stays
-free-form natural language; useful content includes who the Agent is, its
-result, material boundaries, return path, and messaging convention, but these
-are not fields or a roster schema.
+inherit authority. The Set carries a compact startup context packet in natural
+language: current Owner outcome and acceptance, Supervisor judgment and
+rationale, material constraints and non-goals, known decisions and
+dependencies, target/workspace/authority, candidate identity, proof path,
+return path, and first evidence-producing action. The latest valid Set governs
+that Agent's local identity, assignment, material action boundaries, return
+path, and A2A messaging convention, subject to current Owner and Host
+authority. The body stays free-form; these items are guidance, not fields or a
+roster schema.
 
 For authorized parallel work, a Set names only directly relevant
 collaborators, the current integration owner, and known shared hotspots or
@@ -584,23 +616,31 @@ the Host or A2A before a potentially conflicting action and to coordinate
 routine overlap directly with the affected peer. This does not create a full
 roster, startup meeting, or new authority.
 
-After a new Worker dispatch, confirm the smallest goal assimilation that makes
-the first action trustworthy. Natural language or the first material action is
-sufficient when it exposes:
+After a new Worker dispatch, request one batched startup response that makes
+the first action trustworthy. The response should expose:
 
 - the Owner-visible outcome
 - the current acceptance or proof target
 - at most one uncertainty that would change direction
 - the first evidence-producing action
 - a nearby non-goal
+- the relevant design branches and dependencies between their choices
 
 When current truth is clear and the model matches, execution begins
-immediately without a startup acknowledgement ceremony. Only a mismatch that
+immediately without a startup acknowledgement ceremony. If the response
+exposes a material gap, prefer one batched reconciliation round. The
+Agent may return one batched set of questions. The Supervisor resolves
+repository- or shared-knowledge-answerable questions by checking those
+sources, returns only the necessary evidence, and asks for one final alignment
+response. This source-evidence plus causal-understanding pair is the startup
+double check; it is not duplicated searching. One focused round is the default
+bound; extension requires a declared high-risk boundary. Only a mismatch that
 can change outcome, scope, acceptance, critical path, authority, or
-irreversible work earns discussion or Owner escalation. Paraphrase length,
-template completion, agreement language, and discussion volume are not proof.
-Judge assimilation by the causal quality of the first action and later
-artifact effect.
+irreversible work earns further discussion or Owner escalation. Low-risk
+unknowns remain explicit handles while the safe slice starts.
+Paraphrase length, template completion, agreement language, and discussion
+volume are not proof. Judge assimilation by the causal quality of the first
+action and later artifact effect.
 
 These fields do not extend the portable receipt in v1. Authoritative role
 liveness, load, controller binding, cancellation, and capacity belong to the
