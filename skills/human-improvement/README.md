@@ -12,7 +12,9 @@ Current skills:
 - `bagakit-explain`
   - turns unfamiliar or complex topics into visual-first HTML explanations that
     start from zero assumed knowledge, preserve a reusable architecture map,
-    descend to causal roots, and use the learner's language
+    descend to causal roots, and use the learner's language; its conditional
+    technical-architecture route explains real repository boundaries, paths,
+    data/state changes, and recovery with evidence refs
 
 Boundary:
 

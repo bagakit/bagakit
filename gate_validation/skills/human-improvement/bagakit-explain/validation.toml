@@ -31,6 +31,7 @@ required_files = [
   "skills/human-improvement/bagakit-explain/agents/openai.yaml",
   "skills/human-improvement/bagakit-explain/references/frontdoor-rule.toml",
   "skills/human-improvement/bagakit-explain/references/skill-cli.toml",
+  "skills/human-improvement/bagakit-explain/references/technical-architecture-analysis.md",
   "skills/human-improvement/bagakit-explain/scripts/bagakit-explain-cli.sh",
   "gate_validation/skills/human-improvement/README.md",
   "gate_validation/skills/human-improvement/bagakit-explain/validation.toml",

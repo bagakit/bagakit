@@ -26,6 +26,7 @@ case "${1:-}" in
     test -f "$skill_root/agents/openai.yaml"
     test -f "$skill_root/references/frontdoor-rule.toml"
     test -f "$skill_root/references/skill-cli.toml"
+    test -f "$skill_root/references/technical-architecture-analysis.md"
     printf '%s\n' "ok: bagakit-explain skill assets are complete"
     ;;
   ""|-h|--help|help)

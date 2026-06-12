@@ -1,6 +1,6 @@
 ---
 name: bagakit-explain
-description: Create low-text visual HTML explanations that give newcomers an architecture map, causal understanding, and only useful motion in the user's language. Not for courses or mastery claims.
+description: Create low-text visual HTML explanations that give newcomers an architecture map, causal understanding, and only useful motion in the user's language. Includes a conditional technical-architecture analysis route for explanations grounded in real repository evidence. Not for courses or mastery claims.
 ---
 
 # Bagakit Explain
@@ -23,6 +23,12 @@ pictures teach; "few words" applies per scene, not to the number of ideas.
 3. Reach the real causal mechanism, then test it with a changed-case prediction
    or self-explanation; fluent reading is not understanding.
 
+For technical architecture analysis grounded in a real repository, load
+`references/technical-architecture-analysis.md`. It routes the reader's
+question to one primary diagram family, separates observed facts from
+inference and unknowns, and keeps architecture decisions and code changes with
+their owning workflows.
+
 ## Keep the Critical Content
 
 1. Put the one conclusion, judgment, or action the user must retain first.
@@ -44,13 +50,18 @@ pictures teach; "few words" applies per scene, not to the number of ideas.
 
 1. Map the scenes before coding. A complex topic needs the architecture, major
    parts, one end-to-end example, root mechanism, boundary, and changed case.
+   For a technical architecture route, inspect repository entrypoints,
+   runtime boundaries, storage, transports, configuration, and relevant tests
+   before authoring a relationship; never infer runtime causality from file
+   proximity or visual layout.
 2. Choose a visual world from the audience and topic, not a technical-dark
    stereotype; implement an accessible static page that works on desktop and mobile.
 3. Verify and expose the static artifact to the user as a real milestone.
 4. Then review motion. If it qualifies, replace only that visual at the same
    path with accessible inline SVG and reverify; otherwise stop with the static page.
 
-Return the artifact path, language, motion decision, desktop/mobile evidence,
+Return the artifact path, language, primary diagram family when applicable,
+motion decision, evidence refs, desktop/mobile evidence, changed-case result,
 and limits. Artifact completion never proves learner understanding or mastery.
 
 ## HITL Composition Boundary

@@ -1,4 +1,4 @@
 interface:
   display_name: "Explain"
   short_description: "Explain complex topics visually from zero context"
-  default_prompt: "Use $bagakit-explain to introduce this topic from zero context as a low-text visual HTML artifact in my language, with an architecture map and causal depth."
+  default_prompt: "Use $bagakit-explain to introduce this topic from zero context as a low-text visual HTML artifact in my language, with an architecture map and causal depth; when the topic is a real software repository, use the technical architecture analysis playbook and cite observed versus inferred facts."
