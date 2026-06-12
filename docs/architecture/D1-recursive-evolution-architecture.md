@@ -48,8 +48,9 @@ understand or practice during Co-work.
 
 M2 evaluates and improves M1's observation, case generation, search strategy,
 experiment budgeting, evaluation, and adoption methods. Dreaming RSI is a
-planned approach within M2, not a shipped capability or the definition of all
-RSI.
+bounded approach within M2, not the definition of all RSI. The repository now
+ships a harness-neutral session-analysis, replay-lab, and dreaming-ratchet
+slice; it remains bounded by adapters, holdouts, and explicit adoption gates.
 
 ## Recursive Coordinates And Five-Layer View
 
@@ -82,11 +83,11 @@ continue to live in `host-harnesses/` and compose skills at any purpose depth.
 ## Current Implementation And Ownership
 
 M0 has callable skills for alignment, orchestration, domain delivery, and
-human capability development. M1 currently has Entropy Review under Evaluate
-and Skill Evolver under Adapt. Observe and Generate declare intended ownership
-but contain no installable skills yet. `bagakit-evo-traj-analysis`, Skill
-Creator, and autoresearch workflows remain planned. M2 has a family README;
-no installable RSI skill or executable Dreaming RSI loop exists yet.
+human capability development. M1 has Entropy Review under Evaluate, Skill
+Evolver under Adapt, and the harness-neutral `bagakit-session-analysis`,
+`bagakit-replay-lab`, and `bagakit-dreaming-ratchet` slice across Observe,
+Evaluate, and Generate. These skills provide bounded adapters, replay receipts,
+and ratchet decisions; they do not constitute unrestricted autonomous RSI.
 
 `bagakit-skill-evolver` remains the memory, decision, routing, and promotion
 operator. Its explicit-entry contract does not make the entire M1 family

@@ -1,0 +1,6 @@
+version = 1
+skill = "bagakit-replay-lab"
+trigger = "Recorded agent branches need an isolated replay experiment with baseline, holdout, and cost-aware receipts."
+do = "Freeze disjoint splits, run candidates through the environment adapter, and aggregate replay plus holdout evidence without claiming unseen-branch generalization."
+see = "skills/evolve/evaluate/bagakit-replay-lab/SKILL.md"
+surface = ".bagakit/dreaming/runs/<run-id>/replay-receipt.json"

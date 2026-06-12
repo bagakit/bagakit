@@ -1,0 +1,4 @@
+interface:
+  display_name: "Bagakit Replay Lab"
+  short_description: "Evaluate agent candidates on replay and holdout splits"
+  default_prompt: "Use $bagakit-replay-lab to run a frozen replay experiment, compare candidates with a baseline, and produce a regression-aware receipt."

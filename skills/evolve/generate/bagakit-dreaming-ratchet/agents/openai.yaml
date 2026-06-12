@@ -1,0 +1,4 @@
+interface:
+  display_name: "Bagakit Dreaming Ratchet"
+  short_description: "Advance replay-tested agent improvements safely"
+  default_prompt: "Use $bagakit-dreaming-ratchet to turn session evidence into a replay-tested, holdout-gated adoption or rejection receipt with rollback provenance."

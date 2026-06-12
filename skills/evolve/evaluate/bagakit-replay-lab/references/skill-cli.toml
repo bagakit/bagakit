@@ -1,0 +1,16 @@
+version = 1
+skill = "bagakit-replay-lab"
+cli_id = "bagakit-replay-lab"
+entrypoint = "scripts/bagakit-replay-lab-cli.sh"
+runner = "shell"
+usage = "sh scripts/bagakit-replay-lab-cli.sh <command> [args...]"
+summary = "Aggregate provider-agnostic replay results against frozen split manifests."
+surface_refs = [".bagakit/dreaming/runs"]
+
+[[command]]
+name = "describe"
+summary = "Print the replay protocol."
+
+[[command]]
+name = "evaluate"
+summary = "Aggregate baseline and candidate result JSONL into a replay receipt."

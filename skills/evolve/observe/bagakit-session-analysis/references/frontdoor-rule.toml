@@ -1,0 +1,6 @@
+version = 1
+skill = "bagakit-session-analysis"
+trigger = "Agent sessions or traces need branch-aware analysis before another run can learn from them."
+do = "Normalize outcomes and artifacts, mark observed versus unseen branches, and emit a provenance-bound replay candidate packet."
+see = "skills/evolve/observe/bagakit-session-analysis/SKILL.md"
+surface = ".bagakit/dreaming/analyses/<analysis-id>.json"

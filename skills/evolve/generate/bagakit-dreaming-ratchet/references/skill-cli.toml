@@ -1,0 +1,16 @@
+version = 1
+skill = "bagakit-dreaming-ratchet"
+cli_id = "bagakit-dreaming-ratchet"
+entrypoint = "scripts/bagakit-dreaming-ratchet-cli.sh"
+runner = "shell"
+usage = "sh scripts/bagakit-dreaming-ratchet-cli.sh <command> [args...]"
+summary = "Apply the evidence, holdout, retention, independence, and rollback adoption gate."
+surface_refs = [".bagakit/dreaming"]
+
+[[command]]
+name = "describe"
+summary = "Print the dreaming ratchet protocol."
+
+[[command]]
+name = "ratchet"
+summary = "Write an accepted, rejected, or proposed adoption receipt."

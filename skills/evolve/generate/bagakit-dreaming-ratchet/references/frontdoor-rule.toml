@@ -1,0 +1,6 @@
+version = 1
+skill = "bagakit-dreaming-ratchet"
+trigger = "Session evidence should drive replay-tested, reversible agent improvement through a monotonic adoption gate."
+do = "Analyze, compress, dream-replay, fresh-holdout test, and write an adoption or rejection receipt with rollback provenance."
+see = "skills/evolve/generate/bagakit-dreaming-ratchet/SKILL.md"
+surface = ".bagakit/dreaming/"

@@ -1,0 +1,20 @@
+version = 1
+skill = "bagakit-session-analysis"
+cli_id = "bagakit-session-analysis"
+entrypoint = "scripts/bagakit-session-analysis-cli.sh"
+runner = "shell"
+usage = "sh scripts/bagakit-session-analysis-cli.sh <command> [args...]"
+summary = "Normalize harness-neutral session evidence and extract replayable branch candidates."
+surface_refs = [".bagakit/dreaming/analyses"]
+
+[[command]]
+name = "describe"
+summary = "Print the session analysis contract."
+
+[[command]]
+name = "analyze"
+summary = "Validate normalized JSONL and write an immutable analysis packet."
+
+[[command]]
+name = "validate"
+summary = "Validate normalized JSONL through the public analyzer boundary."

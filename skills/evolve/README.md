@@ -1,10 +1,10 @@
 # Evolve
 
 M1 improves the Co-work system through observation, candidate generation,
-evaluation, and adaptation. The current skills are Entropy Review under
-`evaluate` and Skill Evolver under `adapt`. Observation and generation groups
-declare intended ownership; no trajectory analyzer or autoresearch runner is
-implemented by creating these directories.
+evaluation, and adaptation. The evolve groups now include a small,
+harness-neutral trajectory-to-replay slice: session evidence is normalized,
+candidates are replayed on frozen splits, and a ratchet receipt gates adoption.
+This is an experiment protocol, not an autonomous autoresearch runner.
 
 Shared eval mechanics stay in `dev/eval/`; cases and results stay in
 `gate_eval/`. Skill Evolver owns decision memory and promotion state under

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Bagakit Session Analysis"
+  short_description: "Extract replayable evidence from agent sessions"
+  default_prompt: "Use $bagakit-session-analysis to normalize a session trace, identify observed branches, and emit a provenance-bound replay candidate packet."
