@@ -7,26 +7,29 @@ improving human understanding and judgment, system capability, and the quality
 of later collaboration. This purpose organizes the skill tree.
 
 Three levels distinguish work from improvements to work and improvements to
-the improvement process. A directory expresses the primary purpose of a skill;
-it does not prevent other levels from using that skill.
+the improvement process. M0 and M1 expose callable skills; M2 describes the
+control plane that improves M1. Improvement depth and install-unit placement
+are separate decisions. A skill keeps one canonical source even when an M2
+experiment uses it.
 
-## Purpose Tree
+## Purpose And Source Layout
 
 ```text
-skills/
-├── co-work/                         M0: do valuable shared work
-│   ├── align/                       shared goals, evidence, and understanding
-│   ├── orchestrate/
-│   │   ├── agent-cluster/           supervision, A2A, and A2U
-│   │   └── execution/              plans, goals, selection, flows
-│   ├── deliver/                     page delivery; design, engineering, writing, media, games
-│   └── human-improvement/           understanding, practice, retrospectives
-├── evolve/                          M1: improve the M0 system
-│   ├── observe/                     trajectory and harness observation
-│   ├── generate/                    skill and change candidate creation
-│   ├── evaluate/                    comparative review and evaluation
-│   └── adapt/                       adoption, decision memory, promotion
-└── rsi/                             M2: improve the M1 process
+.
+├── skills/
+│   ├── co-work/                     M0: do valuable shared work
+│   │   ├── align/                   shared goals, evidence, and understanding
+│   │   ├── orchestrate/
+│   │   │   ├── agent-cluster/       supervision, A2A, and A2U
+│   │   │   └── execution/           plans, goals, selection, flows
+│   │   ├── deliver/                 pages, design, engineering, writing, media, games
+│   │   └── human-improvement/       understanding, practice, retrospectives
+│   └── evolve/                      M1: reusable improvement operators
+│       ├── observe/                 trajectory and harness observation
+│       ├── generate/                skill and change candidate creation
+│       ├── evaluate/                comparative review and evaluation
+│       └── adapt/                   adoption, decision memory, promotion
+└── rsi/                             M2 control-plane entry; navigation only today
 ```
 
 Co-work is not a mandatory sequential pipeline. Alignment, delivery, and
@@ -47,10 +50,9 @@ output changes future system behavior; it is distinct from helping a person
 understand or practice during Co-work.
 
 M2 evaluates and improves M1's observation, case generation, search strategy,
-experiment budgeting, evaluation, and adoption methods. Dreaming RSI is a
-bounded approach within M2, not the definition of all RSI. The repository now
-ships a harness-neutral session-analysis, replay-lab, and dreaming-ratchet
-slice; it remains bounded by adapters, holdouts, and explicit adoption gates.
+experiment budgeting, evaluation, and adoption methods. Dreaming becomes an
+M2 experiment when it targets those methods and measures subsequent improvement
+effectiveness. The reusable dreaming-ratchet operator remains in M1.
 
 ## Recursive Coordinates And Five-Layer View
 
@@ -99,7 +101,18 @@ Shared mechanics stay with their owners: `dev/eval/` executes and compares
 experiments; `gate_eval/` owns cases and results; `gate_validation/` protects
 release contracts. Source trajectories remain with their runtime owners.
 Evolver stores reviewed references and decisions under `.bagakit/evolver/`.
-A future RSI state root is materialized only with its own runtime contract.
+The top-level `rsi/` entry identifies the M2 control plane outside skill
+installation and packaging. It currently contains navigation only; this
+architecture document owns the design. Callable Agent workflow methods stay
+in `skills/`, maintainer tools in `dev/`, and host-defining units in
+`host-harnesses/`. RSI does not acquire a second eval engine, skill registry,
+or promotion store by having its own directory.
+
+Durable RSI contracts belong in `docs/specs/` and maintainer procedures in
+`docs/stewardship/`. When implemented, M2-owned validation and evals may live
+in dedicated RSI-owned gate surfaces; do not create empty gate trees.
+A future `.bagakit/rsi/` state root requires its own runtime contract and
+`surface.toml`. A directory name grants no evaluation or adoption authority.
 
 ## Feedback And Proof
 

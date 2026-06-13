@@ -17,12 +17,11 @@ skills/
 │   │   └── execution/           planning, goals, flow, selection
 │   ├── deliver/                 Pageville; design, swe, paperwork, media-production, gamemaker
 │   └── human-improvement/       explanation, mastery, and project retrospectives
-├── evolve/                       M1: improve the shared work system
-│   ├── observe/                  trajectory and harness observation
-│   ├── generate/                 skill/change candidate creation
-│   ├── evaluate/                 review and evaluation methods
-│   └── adapt/                    decision memory, adoption, routing, promotion
-└── rsi/                          M2: improve M1 (navigation; no M2 skill yet)
+└── evolve/                       M1: improve the shared work system
+    ├── observe/                  trajectory and harness observation
+    ├── generate/                 skill/change candidate creation
+    ├── evaluate/                 review and evaluation methods
+    └── adapt/                    decision memory, adoption, routing, promotion
 ```
 
 Groups may have different depths. A small group can contain skills directly;
@@ -37,7 +36,8 @@ purpose and recursive architecture are defined in
 
 A2A and A2U retain their own contracts inside Agent-cluster collaboration.
 Human improvement owns understanding and capability outcomes. M1 Adapt owns
-changes to the work system, and M2 owns changes to the improvement process.
+changes to the work system. The M2 control-plane entry is at `rsi/README.md`,
+outside the installable skill tree; it targets the improvement process.
 One skill has one canonical home; other groups compose it by stable skill id.
 
 ## Route ownership (maintainer index)

@@ -80,8 +80,8 @@ planes form a 3 × 3 matrix across M0 Bagakit, M1 Evolver, and M2 RSI.
 │   │   │   └── execution/
 │   │   ├── deliver/              # page delivery and domain capability groups
 │   │   └── human-improvement/
-│   ├── evolve/                   # observe, generate, evaluate, adapt
-│   └── rsi/                      # M2; no installable skill yet
+│   └── evolve/                   # observe, generate, evaluate, adapt
+├── rsi/                          # M2 control-plane entry; navigation only today
 ├── host-harnesses/
 ├── docs/                         # architecture, specs, stewardship
 ├── .bagakit/                     # local runtime state
@@ -99,6 +99,9 @@ planes form a 3 × 3 matrix across M0 Bagakit, M1 Evolver, and M2 RSI.
 - `skills/`
   - installable Bagakit skill sources
   - runtime-ready skill content should live here
+- `rsi/`
+  - M2 control-plane entry outside skill installation and packaging
+  - currently navigation only; architecture truth stays in `docs/architecture/`
 - `host-harnesses/`
   - L4 host harness source units
   - each child defines one dedicated host workspace shape

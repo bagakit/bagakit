@@ -18,7 +18,9 @@ excluded. Existing payload symlink checks still apply within each install unit.
 
 The purpose tree is defined in
 `docs/architecture/D1-recursive-evolution-architecture.md`, with the current
-inventory and navigation in `skills/README.md`.
+inventory and navigation in `skills/README.md`. The top-level `rsi/` entry
+is outside this discovery root and is not a skill install unit. M2 experiments
+reuse canonical skills by id without moving or copying their payloads.
 
 ## Selection And Distribution
 

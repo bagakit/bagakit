@@ -7,6 +7,8 @@ layers, fallback entrypoints, or sibling-repository sources of truth.
 ## Boundaries
 
 - skills/ contains runtime-ready skill sources.
+- rsi/ is the M2 control-plane entry outside skill distribution; architecture
+  truth stays in docs/architecture/.
 - host-harnesses/ contains L4 host-defining harness units.
 - docs/specs/ contains durable contracts; docs/stewardship/ contains maintainer
   procedures.

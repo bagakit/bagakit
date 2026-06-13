@@ -27,6 +27,7 @@ ALLOWED_ROOT_DIRS = {
     "host-harnesses",
     "mem",
     "node_modules",
+    "rsi",
     "scripts",
     "skills",
 }

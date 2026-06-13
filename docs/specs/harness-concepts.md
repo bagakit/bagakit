@@ -79,7 +79,9 @@ using:
 
 - `metadata.bagakit.harness_layer`
 
-Evolver and future RSI skills may additionally declare:
+Skills used for improvement may additionally declare their evolution depth.
+This coordinate does not grant control-plane authority or require an RSI skill
+family; the M2 entry lives at top-level `rsi/`. The optional field is:
 
 - `metadata.bagakit.evolution_depth`
 
