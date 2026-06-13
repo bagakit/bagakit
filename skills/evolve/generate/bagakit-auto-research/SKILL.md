@@ -17,6 +17,37 @@ decision packet for the existing Evolver decision plane.
 This is a bounded orchestration skill. It does not create a second research
 workspace, eval engine, runtime queue, or promotion authority.
 
+## Independence and anti-gaming rules
+
+Treat each component as an independently owned boundary for every round:
+
+| Component | Owns | Candidate may not change or observe |
+| --- | --- | --- |
+| opportunity discovery / Researcher | question, source cards, claims, and limitations | evaluator outcomes or holdout contents while framing the opportunity |
+| candidate generation | one reversible artifact and its manifest | evaluator or task-bank definitions, holdout data, or promotion state |
+| execution | bounded runs, environment, seed, and resource receipts | the evaluator's scoring semantics or split membership |
+| evaluator / task bank | cases, rubric, scoring, and counterexamples | candidate-specific exceptions or score rules |
+| holdout | sealed fresh cases and access log | candidate generation and tuning |
+| promotion | review, routing, and rollback decision | candidate-side writes to durable promotion state |
+
+The ownership table is a hard boundary. A candidate that edits the evaluator
+or task bank, reads or tunes against holdout contents, changes split membership,
+or writes promotion state is rejected regardless of its score. Keep semantic
+quality, independence, semantic proof, and cost as separate fields. Source
+count, source reputation, activity, elapsed time, tokens, dollars, or unlimited
+resource use are cost or provenance signals; none can substitute for semantic
+value. Fixed domain allowlists or benchmark shortcuts are not transferable
+evidence.
+
+Every candidate review runs static negative controls for evaluator/task-bank
+tampering, holdout leakage, source-count or reputation reward proxies,
+unbounded resource-for-score tradeoffs, and fixed-domain-only behavior. Any
+control failure is a hard failure. The mechanism must state a transferable
+principle, a counterexample or boundary case, and a rollback path. If evidence
+only establishes that the contract is clearer, use `accepted-contract-only`
+with `semantic_proof=false`; never claim semantic improvement from text or
+proxy metrics alone.
+
 ## Use it for
 
 - turning a concrete failure pattern or measurable opportunity into one
@@ -51,7 +82,9 @@ Do not use it for:
 2. **Inspect existing evidence.** Read relevant local trajectory, eval, and
    Evolver references first. If the gap is about external facts or prior art,
    explicitly compose `bagakit-researcher`; keep its source cards, summaries,
-   claims, and limitations in the researcher-owned topic workspace.
+   claims, and limitations in the researcher-owned topic workspace. Do not let
+   Researcher inspect evaluator results or holdout contents for candidate
+   tuning.
 3. **Propose one candidate.** Give it a stable id, changed object, mechanism
    hypothesis, expected metric or non-score objective, falsification check,
    source/candidate digest, and rollback reference. Prefer the smallest
@@ -66,14 +99,19 @@ Do not use it for:
    pretending to have run the experiment.
 5. **Run and compare.** Execute bounded trials through the shared eval or
    replay skill. Compare structured `summary.json` and case packets, not raw
-   prose or activity counts. Check gain, protected-task retention, coverage,
-   provenance, evaluator validity, and resource budget separately. A higher
-   replay score cannot override a holdout regression or missing provenance.
+   prose or activity counts. Run the static negative controls before
+   interpreting scores. Check gain, protected-task retention, coverage,
+   provenance, independence, evaluator validity, semantic proof, and resource
+   budget separately. A higher replay score cannot override a holdout
+   regression, boundary violation, proxy-only gain, or missing provenance.
 6. **Close the round.** Write one receipt with the candidate identity, exact
    baseline and candidate refs, holdout/fresh result, limitations,
    stop-reason, and next action. Use `accepted` only when the declared gate
-   passes; otherwise use `rejected`, `needs_more_evidence`, `budget_stop`, or
-   `blocked` as appropriate. Keep failed candidates addressable.
+   passes with semantic evidence and all independence controls green. If only
+   contract behavior was demonstrated, use `accepted-contract-only` and set
+   `semantic_proof=false`; otherwise use `rejected`, `needs_more_evidence`,
+   `budget_stop`, or `blocked` as appropriate. Keep failed candidates
+   addressable.
 7. **Hand off explicitly.** Send an accepted or reviewable candidate packet to
    `bagakit-skill-evolver` when repository-level memory or promotion is wanted.
    Evolver decides routing and promotion. Auto Research never writes promotion
