@@ -85,6 +85,15 @@ an assumed resource bottleneck; do not silently reintroduce it.
 
 ### Convergence controls
 
+Before adding a test, review, preview, or other verification to a plan, use the
+[Gate Decision Tree](references/gate-decision-tree.md). Verification is
+evidence, not automatically a gate. Make it a Task gate only when failure
+forbids that Task from declaring its own accepted outcome; make it a final
+acceptance gate only when failure forbids sign-off or publication of an exact
+integrated candidate. Otherwise keep it non-gating and continue independent
+work. Always name the action that failure blocks and the consumer that needs
+the evidence.
+
 Keep the current Task, remaining acceptance, evidence, and next action clear.
 A session may advance several ready Tasks; a change of executor does not
 invalidate Task evidence or require new identity state. For an expensive,
@@ -138,6 +147,13 @@ Do not merely say “these can run in parallel”: record the edge decision,
 install any authorized revision, then dispatch it. Preserve completed history
 and active Task semantics. Never remove an edge just because a title says
 “review”, “test”, or “acceptance”.
+
+The default gate is the smallest command that proves the current Task's own
+result. A broad regression, user preview, exploratory check, or pending user
+decision is not a Task gate unless the decision tree identifies the specific
+completion, sign-off, or publication action it blocks. Deliver the first useful
+preview at the earliest coherent candidate, then keep independent development
+and candidate-bound evidence moving while feedback or longer checks run.
 
 Resolve the installed skill directory, then initialize once:
 
