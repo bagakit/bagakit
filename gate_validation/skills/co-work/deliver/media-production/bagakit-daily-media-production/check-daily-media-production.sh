@@ -28,23 +28,9 @@ done
 ROOT="$(cd "$ROOT" && pwd)"
 SKILL_DIR="$ROOT/skills/co-work/deliver/media-production/bagakit-daily-media-production"
 CMD="$SKILL_DIR/scripts/bagakit-daily-media-production-cli.sh"
-RUNBOOK="$SKILL_DIR/references/runbook.md"
-RUN_ARTIFACTS="$SKILL_DIR/references/run-artifacts.md"
-ADAPTER_MATRIX="$SKILL_DIR/references/adapter-matrix.md"
-DOMAIN_PACKS="$SKILL_DIR/references/domain-packs.md"
-SKILL_MD="$SKILL_DIR/SKILL.md"
 
 TMP_DIR="$(mktemp -d)"
 trap 'rm -rf "$TMP_DIR"' EXIT
-
-assert_contains() {
-  local file="$1"
-  local needle="$2"
-  if ! grep -Fq -- "$needle" "$file"; then
-    echo "missing expected text in $(basename "$file"): $needle" >&2
-    exit 1
-  fi
-}
 
 write_publishable_run() {
   local run_root="$1"
@@ -406,45 +392,5 @@ run_fail 1 bash "$CMD" init-run \
   --run-id "$RUN_ID" \
   --domain-pack ai-news
 grep -Fq "refusing to overwrite existing file" "$TMP_DIR/err"
-
-assert_contains "$SKILL_MD" "Do not deploy or notify as a successful publication when any blocker remains"
-assert_contains "$SKILL_MD" "published_with_notification_failure"
-assert_contains "$SKILL_MD" "Deployment and notification are separate statuses"
-assert_contains "$SKILL_MD" "Every domain pack must declare:"
-assert_contains "$SKILL_MD" "If these are omitted, collect and synthesize only as a draft"
-assert_contains "$SKILL_MD" "references/domain-packs.md"
-assert_contains "$SKILL_MD" "starter thresholds"
-
-assert_contains "$RUNBOOK" "If the brief is missing source thresholds, collect and synthesize only as a"
-assert_contains "$RUNBOOK" "list-domain-packs"
-assert_contains "$RUNBOOK" "Track deployment status separately from notification status."
-assert_contains "$RUNBOOK" "Publication status values:"
-assert_contains "$RUNBOOK" "validate-run"
-assert_contains "$RUNBOOK" 'Use `references/run-artifacts.md` for compact ledger templates'
-
-assert_contains "$RUN_ARTIFACTS" "Surface Marker"
-assert_contains "$RUN_ARTIFACTS" "Publication status:"
-assert_contains "$RUN_ARTIFACTS" "Notification status:"
-assert_contains "$RUN_ARTIFACTS" "Gate status:"
-assert_contains "$RUN_ARTIFACTS" "Run Validation"
-assert_contains "$RUN_ARTIFACTS" "source_pack"
-assert_contains "$RUN_ARTIFACTS" "references/domain-packs.md"
-assert_contains "$RUN_ARTIFACTS" "source-minimum"
-assert_contains "$RUN_ARTIFACTS" "deployment-url"
-assert_contains "$RUN_ARTIFACTS" "notification_status"
-assert_contains "$RUN_ARTIFACTS" "runs/<run-id>/archive.md"
-
-assert_contains "$ADAPTER_MATRIX" "Adapters are dependencies to check, not payloads to vendor."
-assert_contains "$ADAPTER_MATRIX" 'Do not assume `skill_id` equals `cli_command`.'
-assert_contains "$ADAPTER_MATRIX" "Block publish when:"
-assert_contains "$ADAPTER_MATRIX" "If publish succeeds and notification fails"
-assert_contains "$ADAPTER_MATRIX" "published_with_notification_failure"
-
-assert_contains "$DOMAIN_PACKS" "## Built-In Starter Packs"
-assert_contains "$DOMAIN_PACKS" '`ai-news`'
-assert_contains "$DOMAIN_PACKS" '`release-radar`'
-assert_contains "$DOMAIN_PACKS" '`paper-digest`'
-assert_contains "$DOMAIN_PACKS" "Domain packs are starter contracts."
-assert_contains "$DOMAIN_PACKS" "do not vendor peer internals"
 
 echo "ok: bagakit-daily-media-production behavior smoke passed"

@@ -79,8 +79,6 @@ grep -q "must-guidebook.md" AGENTS.md
 grep -q "must-authority.md" AGENTS.md
 grep -q "must-sop.md" AGENTS.md
 grep -q "must-recall.md" AGENTS.md
-grep -q "path-protocol details" AGENTS.md
-grep -q "Maintaining Reusable Items" docs/norms-maintaining-reusable-items.md
 
 PATHS_OUT="$("$CMD" paths --root .)"
 grep -q "^config: docs/.bagakit-knowledge.toml$" <<<"$PATHS_OUT"
@@ -89,11 +87,8 @@ grep -q "^researcher_root: .bagakit/researcher$" <<<"$PATHS_OUT"
 grep -q "^selector_root: .bagakit/skill-selector$" <<<"$PATHS_OUT"
 grep -q "^evolver_root: .bagakit/evolver$" <<<"$PATHS_OUT"
 
-grep -q "docs" docs/must-guidebook.md
 grep -q ".bagakit/researcher" docs/must-authority.md
 grep -q ".bagakit/.*host-local runtime state" docs/must-authority.md
-grep -q "generated from optional frontmatter" docs/must-sop.md
-grep -q "recall search" docs/must-recall.md
 
 rm -rf .bagakit
 sh "$CMD" doctor --root . >"$TMP_DIR/no-local-runtime-doctor.out" 2>"$TMP_DIR/no-local-runtime-doctor.err"
@@ -142,7 +137,7 @@ GET_OUT="$("$CMD" recall get --root . docs/notes/decision-shared-root.md --from 
 grep -q "^# Shared Root Decision$" <<<"$GET_OUT"
 
 AGENTS_OUT="$("$CMD" recall get --root . AGENTS.md --from 1 --lines 6)"
-grep -q "managed block" <<<"$AGENTS_OUT"
+grep -q "BAGAKIT:LIVING-KNOWLEDGE:START" <<<"$AGENTS_OUT"
 
 mkdir -p app/subtree
 cat > app/subtree/AGENTS.md <<'EOF'

@@ -29,8 +29,8 @@ const auditSkipDirs = new Set([
   "results",
 ]);
 const stringMatchSignals = [
-  new RegExp(String.raw`\bgrep\b.*\s-q\b`),
-  new RegExp(String.raw`\brg\b.*\s-q\b`),
+  new RegExp(String.raw`\bgrep\b.*\s-[A-Za-z]*q[A-Za-z]*\b`),
+  new RegExp(String.raw`\brg\b.*\s-[A-Za-z]*q[A-Za-z]*\b`),
   new RegExp(String.raw`\.includes\s*\(`),
   new RegExp(String.raw`\bcontains\b`),
   new RegExp(String.raw`\bnot_contains\b`),

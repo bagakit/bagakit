@@ -236,3 +236,15 @@ That is the concrete path to improving both:
 
 - quality
 - efficiency
+
+## Follow-Up Status
+
+- `validate-audit` now counts combined grep flags such as `grep -Fq`; the
+  earlier signal missed most shell string checks.
+- `bagakit-daily-media-production-smoke` no longer asserts prose phrases in
+  `SKILL.md` and references; CLI behavior already proves those rules.
+- `bagakit-living-knowledge-smoke` dropped incidental prose checks on
+  generated system pages; `doctor` drift detection owns their content.
+- Most remaining string checks assert CLI diagnostics after an expected
+  failure exit or the documented format of a generated artifact; treat those
+  as boundary proof, not cleanup targets.
