@@ -106,6 +106,13 @@ Implications:
   feature truth
 - external bridges may read tracker truth but do not become tracker truth
 
+`repair-feature-projections` rebuilds the index and owner receipts from existing
+`state.json` and `tasks.json` under the Tracker lock. It preserves canonical
+files byte for byte, rejects duplicate identities or inconsistent directory
+placement, and retains the issuance cursor. It does not repair canonical
+lifecycle, Task plans, or obsolete records; remaining validation errors stay
+visible.
+
 ## Feature Family And Task Boundary
 
 Feature is the stable goal boundary. Task is the extension mechanism inside
@@ -357,6 +364,10 @@ or satisfy a dependency. A successor's optional `transferred_from`
 list contains objects of the form `{"feature_id":"f-..."}`; it is lineage
 context, not Task or Feature dependency truth. Task records only carry the
 `status = transferred` marker and no destination mapping.
+The successor may later archive, discard, or transfer its own Feature. Closed
+successor lifecycle does not invalidate the preserved reciprocal lineage.
+When closeout moves a successor's owner receipt, the same publication refreshes
+derived predecessor receipts to its new location.
 
 Required behavior:
 
@@ -641,6 +652,9 @@ Required invariants:
 
 - `proposal_only` carries no dedicated branch or worktree assignment
 - `current_tree` carries no dedicated branch or worktree assignment
+- assigning `current_tree` may release a prior worktree binding after reviewed
+  Task truth, a current owner receipt, and no active Tasks are verified; it
+  preserves the prior Git worktree and records the old binding in history
 - `worktree` carries branch, worktree name, and worktree path together
 - `assign-feature-workspace --workspace-mode worktree` creates a new dedicated
   worktree; it does not adopt an existing one

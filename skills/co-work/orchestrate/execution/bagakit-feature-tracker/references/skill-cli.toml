@@ -40,6 +40,10 @@ name = "repair-reviewed-task-plan"
 summary = "Repair one damaged reviewed tasks.json under exact state, tasks, Goal, and receipt SHA-256 guards."
 
 [[command]]
+name = "repair-feature-projections"
+summary = "Rebuild the index and derived owner receipts from canonical Feature records without changing lifecycle or Task truth."
+
+[[command]]
 name = "validate-feature-goal"
 summary = "Validate candidate or installed goal.md identity, Feature binding, content presence, and portability."
 

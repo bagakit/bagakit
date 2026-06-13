@@ -4370,6 +4370,54 @@ def cmd_get_owner_receipt(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_repair_feature_projections(args: argparse.Namespace) -> int:
+    paths = HarnessPaths(Path(args.root).resolve())
+    ensure_harness_exists(paths)
+    index_data = load_index(paths)
+    records = []
+    identities = set()
+    for directory in (
+        paths.feats_dir, paths.feats_archived_dir,
+        paths.feats_discarded_dir, paths.feats_transferred_dir,
+    ):
+        for child in sorted(directory.iterdir()) if directory.exists() else []:
+            if not child.is_dir():
+                continue
+            state = load_json(child / "state.json")
+            tasks = load_json(child / "tasks.json")
+            feat_id = str(state.get("feat_id") or "")
+            if feat_id != child.name or tasks.get("feat_id") != feat_id:
+                raise SystemExit(f"error: canonical Feature identity mismatch: {child}")
+            if feat_id in identities:
+                raise SystemExit(f"error: duplicate canonical Feature identity: {feat_id}")
+            if paths.feat_dir(feat_id, status=state.get("status")) != child:
+                raise SystemExit(f"error: canonical Feature directory placement mismatch: {child}")
+            identities.add(feat_id)
+            records.append((state, tasks))
+    index_data["features"] = []
+    for state, _tasks in records:
+        upsert_feat_index_entry(index_data, state)
+    originals = {paths.index_file: paths.index_file.read_bytes()}
+    try:
+        save_index(paths, index_data)
+        for state, tasks in records:
+            receipt_path = paths.feat_owner_receipt(state["feat_id"], status=state["status"])
+            originals[receipt_path] = receipt_path.read_bytes() if receipt_path.exists() else None
+            if has_reviewed_task_plan(tasks) or state.get("goal_contract") is not None:
+                save_json(receipt_path, build_owner_receipt(paths, state, tasks))
+            else:
+                receipt_path.unlink(missing_ok=True)
+    except BaseException:
+        for path, original in originals.items():
+            if original is None:
+                path.unlink(missing_ok=True)
+            else:
+                write_bytes_atomic(path, original)
+        raise
+    print(f"ok: Feature projections repaired records={len(records)}; canonical files unchanged")
+    return 0
+
+
 def cmd_assign_feat_workspace(args: argparse.Namespace) -> int:
     root = Path(args.root).resolve()
     paths = HarnessPaths(root)
@@ -4387,10 +4435,10 @@ def cmd_assign_feat_workspace(args: argparse.Namespace) -> int:
         return 1
 
     current_mode = workspace_mode_of(state)
-    if current_mode == "worktree" or str(state.get("worktree_path") or "").strip():
+    if (current_mode == "worktree" or str(state.get("worktree_path") or "").strip()) and args.workspace_mode != "current_tree":
         eprint(
             f"error: feat already has worktree assignment: {args.feat}. "
-            "manual cleanup is required before reassigning."
+            "use adopt-feature-worktree to bind an existing worktree."
         )
         return 1
 
@@ -4407,6 +4455,9 @@ def cmd_assign_feat_workspace(args: argparse.Namespace) -> int:
             f"error: cannot reassign workspace while feat has in_progress tasks: {args.feat}"
         )
         return 1
+
+    load_current_owner_receipt(paths, state, tasks)
+    old_binding = f"{current_mode}:{state.get('branch') or 'none'}@{state.get('worktree_path') or 'none'}"
 
     branch = ""
     wt_name = ""
@@ -4437,7 +4488,7 @@ def cmd_assign_feat_workspace(args: argparse.Namespace) -> int:
         history_event(
             "workspace_assigned",
             (
-                f"{current_mode} -> {target_mode}; root_branch={current_branch(root) or 'detached'}"
+                f"{old_binding} -> {target_mode}; root_branch={current_branch(root) or 'detached'}"
                 if current_mode != target_mode
                 else f"{target_mode}; root_branch={current_branch(root) or 'detached'}"
             ),
@@ -9460,11 +9511,30 @@ def publish_closeout(
         eprint(f"error: closeout publication failed without changing active state: {exc}")
         return 1
 
+    original_index = paths.index_file.read_bytes()
+    predecessor_receipts: dict[Path, bytes | None] = {}
     try:
         stage_dir.rename(dst_dir)
         save_index(paths, publication.index)
+        for entry in publication.index.get("features", []):
+            replacement = (entry.get("transferred_to") or {}).get("feature_id") or entry.get("replacement_feat_id")
+            if replacement != feat_id:
+                continue
+            predecessor_state, predecessor_tasks = load_feat(paths, entry["feat_id"])
+            receipt_path = paths.feat_owner_receipt(entry["feat_id"], status=entry["status"])
+            predecessor_receipts[receipt_path] = receipt_path.read_bytes() if receipt_path.exists() else None
+            save_json(receipt_path, build_owner_receipt(paths, predecessor_state, predecessor_tasks))
     except BaseException as exc:
         rollback_errors: list[str] = []
+        try:
+            write_bytes_atomic(paths.index_file, original_index)
+            for receipt_path, original in predecessor_receipts.items():
+                if original is None:
+                    receipt_path.unlink(missing_ok=True)
+                else:
+                    write_bytes_atomic(receipt_path, original)
+        except BaseException as rollback_exc:
+            rollback_errors.append(f"projection restore failed: {normalize_error_text(rollback_exc)}")
         if dst_dir.exists() and not stage_dir.exists():
             try:
                 dst_dir.rename(stage_dir)
@@ -10147,8 +10217,6 @@ def validate_feat(paths: HarnessPaths, root: Path, feat_id: str) -> list[str]:
             replacement_entry = get_feat_index_entry(load_index(paths), replacement_id)
             if replacement_entry is None:
                 errors.append(f"{feat_id}: transferred replacement Feature is not indexed: {replacement_id}")
-            elif str(replacement_entry.get("status") or "") in CLOSED_FEAT_STATUS:
-                errors.append(f"{feat_id}: transferred replacement Feature must remain active: {replacement_id}")
             else:
                 try:
                     replacement_state, _replacement_tasks = load_feat(paths, replacement_id)
@@ -11527,6 +11595,10 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--expected-receipt-sha256", required=True)
     sp.set_defaults(func=cmd_repair_reviewed_task_plan)
 
+    sp = sub.add_parser("repair-feature-projections", help="rebuild derived index and owner receipts from canonical Feature records")
+    add_common(sp)
+    sp.set_defaults(func=cmd_repair_feature_projections)
+
     sp = sub.add_parser("validate-feature-goal", help="validate a candidate or installed feature-owned goal.md")
     add_common(sp)
     sp.add_argument("--feature", dest="feat", required=True)
@@ -11793,6 +11865,7 @@ def command_requires_global_tracker_lock(args: argparse.Namespace) -> bool:
         "create-feature-from-planning-entry-handoff",
         "set-task-plan",
         "repair-reviewed-task-plan",
+        "repair-feature-projections",
         "set-feature-goal",
         "assign-feature-workspace",
         "adopt-feature-worktree",
