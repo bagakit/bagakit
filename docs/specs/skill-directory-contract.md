@@ -12,9 +12,11 @@ The inventory `family` field carries the full parent group path. Group
 selectors include its ancestors; a bare subgroup name is not a global alias.
 
 Skill ids are globally unique. A group is organizational ownership, not a new
-runtime state owner or a dependency. Source groups and source roots must be
-real directories; discovery does not follow symlinks. Hidden directories are
-excluded. Existing payload symlink checks still apply within each install unit.
+runtime state owner or a dependency. Group and skill names must not encode
+lifecycle or maturity status such as `core`, `experimental`, or `stable`.
+Source groups and source roots must be real directories; discovery does not
+follow symlinks. Hidden directories are excluded. Existing payload symlink
+checks still apply within each install unit.
 
 The purpose tree is defined in
 `docs/architecture/D1-recursive-evolution-architecture.md`, with the current
