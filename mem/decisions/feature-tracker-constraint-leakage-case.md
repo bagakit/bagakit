@@ -47,5 +47,5 @@ FlowLens 的减熵 Feature 把“整体结果必须净减”误写成了“每�
 ## 关联证据
 
 - FlowLens session：`flowlens/.codex/history.jsonl`，2026-09-14 附近关于 T-014 blocker 与“整体熵减、局部豁免”的讨论。
-- Feature Tracker 计划塑形：`skills/harness/bagakit-feature-tracker/references/plan-shaping/granularity.md`。
+- Feature Tracker 计划塑形：`skills/co-work/orchestrate/execution/bagakit-feature-tracker/references/plan-shaping/granularity.md`。
 - Feature Tracker blocker 语义：`docs/specs/feature-tracker-contract.md` 的“Failure, blocking, and replanning”。

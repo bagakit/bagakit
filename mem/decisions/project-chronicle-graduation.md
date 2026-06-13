@@ -31,14 +31,14 @@
 ## Graduation Evidence
 
 - canonical directory-protocol path:
-  - `skills/harness/bagakit-project-chronicle/SKILL.md`
+  - `skills/co-work/human-improvement/bagakit-project-chronicle/SKILL.md`
 - validation evidence:
   - the system skill quick validator passes
   - `make validate-repo` selects and passes the owner-local layout and CLI smoke
     suites together with the affected repository suites
   - the deterministic non-gating goal-case eval passes for all eight sanitized
     serious-moment cases
-  - `gate_eval/skills/harness/bagakit-project-chronicle/cases/forward-test-receipt.md`
+  - `gate_eval/skills/co-work/human-improvement/bagakit-project-chronicle/cases/forward-test-receipt.md`
     records one epic-fidelity holdout and one single-session route control
 - package evidence:
   - `make package-one SELECTOR=harness/bagakit-project-chronicle` produces the
@@ -50,7 +50,7 @@
   - `make link-skills SELECTOR=harness/bagakit-project-chronicle DEST=<temporary-skills-root>`
     creates the expected flat skill link
   - strict install-status reports the temporary projection as installed and
-    current against `skills/harness/bagakit-project-chronicle`
+    current against `skills/co-work/human-improvement/bagakit-project-chronicle`
 - consistency check across docs, package flow, and gates:
   - `docs/specs/project-chronicle-contract.md`, the frontdoor declaration, the
     installable payload, owner-local validation, and non-gating eval all name

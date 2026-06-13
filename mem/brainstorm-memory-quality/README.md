@@ -57,5 +57,5 @@ The runtime design should favor:
 
 If these rules stabilize across more Bagakit use, promote:
 
-- runtime-facing instructions into `skills/harness/bagakit-brainstorm/`
+- runtime-facing instructions into `skills/co-work/align/bagakit-brainstorm/`
 - stable shared semantics into `docs/specs/`

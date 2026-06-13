@@ -10,6 +10,9 @@ When a migration note conflicts with landed runtime or contract text, follow:
 - `docs/specs/`
 - `docs/stewardship/`
 
+Repository paths inside these records are frozen at writing time and may
+predate the purpose-group skill layout; resolve current paths by skill id.
+
 Current records:
 
 - `absorbed-repos.md`

@@ -48,15 +48,15 @@ Examples:
 
 - `gate_validation/backbone/skill-surface.test.ts`
   - mostly typed assertions over structured fixture payloads
-- `gate_validation/skills/harness/bagakit-flow-runner/test-flow-runner.ts`
+- `gate_validation/skills/co-work/orchestrate/execution/bagakit-flow-runner/test-flow-runner.ts`
   - typed state and payload assertions over runner-owned json
-- `gate_validation/skills/harness/bagakit-feature-tracker/check-feature-tracker-state-contract.sh`
+- `gate_validation/skills/co-work/orchestrate/execution/bagakit-feature-tracker/check-feature-tracker-state-contract.sh`
   - heavy use of json parsing against tracker-owned state
 - `gate_validation/dev/agent_loop/check-agent-loop.sh`
   - mostly checks structured json payloads and host exhaust
-- `gate_eval/skills/harness/bagakit-feature-tracker/suite.ts`
+- `gate_eval/skills/co-work/orchestrate/execution/bagakit-feature-tracker/suite.ts`
   - strongest eval example in the repo: read json state and assert semantics
-- `gate_eval/skills/harness/bagakit-flow-runner/suite.ts`
+- `gate_eval/skills/co-work/orchestrate/execution/bagakit-flow-runner/suite.ts`
   - largely structured-payload based and now includes end-to-end bridge proof
 
 Why these are good:
@@ -75,14 +75,14 @@ These suites still use string checks, but the checks mostly target:
 
 Examples:
 
-- `gate_validation/skills/harness/bagakit-brainstorm/check-bagakit-brainstorm.sh`
+- `gate_validation/skills/co-work/align/bagakit-brainstorm/check-bagakit-brainstorm.sh`
   - many exact status-line checks for `status=` / `archive_status=` / route
     outputs
-- `gate_validation/skills/harness/bagakit-skill-selector/check-selector-planning-entry.sh`
+- `gate_validation/skills/co-work/orchestrate/execution/bagakit-skill-selector/check-selector-planning-entry.sh`
   - route and evidence smoke through CLI outputs
-- `gate_validation/skills/harness/bagakit-skill-selector/check-selector-recipes.sh`
+- `gate_validation/skills/co-work/orchestrate/execution/bagakit-skill-selector/check-selector-recipes.sh`
   - recipe heading/layout checks
-- `gate_validation/skills/harness/bagakit-flow-runner/check-flow-runner-contract.sh`
+- `gate_validation/skills/co-work/orchestrate/execution/bagakit-flow-runner/check-flow-runner-contract.sh`
   - text-level contract checks across spec sections
 
 Why these are still acceptable:
@@ -101,17 +101,17 @@ These are the suites most likely to create the “too事无巨细” feeling.
 
 Examples:
 
-- `gate_validation/skills/harness/bagakit-brainstorm/check-bagakit-brainstorm.sh`
+- `gate_validation/skills/co-work/align/bagakit-brainstorm/check-bagakit-brainstorm.sh`
   - still contains many exact-line output checks over a large status surface
   - checks plenty of user-facing report text and archive reporting text
-- `gate_eval/skills/harness/bagakit-skill-selector/suite.ts`
+- `gate_eval/skills/co-work/orchestrate/execution/bagakit-skill-selector/suite.ts`
   - several `.includes(...)` checks over generated survey/ranking text
   - less severe than raw prose scraping, but still more report-shaped than
     owner-state-shaped
 - `gate_eval/backbone/planning_surface/suite.ts`
   - property comparison through textual/report artifacts rather than more
     normalized comparison packets
-- `gate_validation/skills/swe/bagakit-git-message-craft/`
+- `gate_validation/skills/co-work/deliver/swe/bagakit-git-message-craft/`
   - the former regex-heavy markdown-policy detector was removed because it was
     exactly the kind of surface that drifts into wording policing
 
