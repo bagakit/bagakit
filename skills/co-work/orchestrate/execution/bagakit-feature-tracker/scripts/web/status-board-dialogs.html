@@ -1,0 +1,614 @@
+
+<script>
+(() => {
+  const dialogApi = window.__bagakitStatusDialogs = window.__bagakitStatusDialogs || {
+    focusByDialog: new WeakMap(),
+    syncBody() {
+      const dialogs = Array.from(document.querySelectorAll("dialog"));
+      const open = dialogs.some((item) => item.open === true || item.dataset.open === "true");
+      const fallback = dialogs.some((item) => item.dataset.open === "true" && item.open !== true);
+      document.body.dataset.modalOpen = open ? "true" : "false";
+      if (fallback) document.body.dataset.modalFallback = "true";
+      else delete document.body.dataset.modalFallback;
+    },
+    isOpen(item) {
+      return Boolean(item && (item.open === true || item.dataset.open === "true"));
+    },
+    open(item) {
+      if (!item) return;
+      this.focusByDialog.set(item, document.activeElement);
+      try {
+        if (typeof item.showModal === "function" && !item.open) item.showModal();
+        else item.dataset.open = "true";
+      } catch (_) {
+        item.dataset.open = "true";
+      }
+      item.dataset.open = "true";
+      this.syncBody();
+      const initial = item.querySelector("[autofocus], [data-dialog-initial], .dialog-close, button, [href], input, textarea");
+      window.setTimeout(() => (initial || item).focus(), 0);
+    },
+    close(item) {
+      if (!item) return;
+      if (typeof item.close === "function" && item.open === true) item.close();
+      delete item.dataset.open;
+      this.syncBody();
+      const restore = this.focusByDialog.get(item);
+      this.focusByDialog.delete(item);
+      if (restore && typeof restore.focus === "function") window.setTimeout(() => restore.focus(), 0);
+    },
+  };
+})();
+</script>
+
+<dialog class="feature-review-dialog" id="feature-review-dialog" aria-labelledby="feature-review-dialog-title">
+  <div class="feature-review-dialog-shell">
+    <header class="feature-review-dialog-header">
+      <div><span class="eyebrow">Feature details</span><h2 id="feature-review-dialog-title" tabindex="-1" data-dialog-initial>Current plan and proof</h2></div>
+      <div class="dialog-header-actions"><button type="button" class="theme-toggle" data-theme-toggle aria-label="深色模式" aria-pressed="false"><span class="theme-option theme-option--light" aria-hidden="true">☀ Light</span><span class="theme-option theme-option--dark" aria-hidden="true">☾ Dark</span></button><form method="dialog"><button class="dialog-close" aria-label="Close Feature details">×</button></form></div>
+    </header>
+    <div class="feature-review-dialog-body" id="feature-review-dialog-body"></div>
+  </div>
+</dialog>
+<script>
+(() => {
+  const dialogApi = window.__bagakitStatusDialogs;
+  const dialog = document.getElementById("feature-review-dialog");
+  const body = document.getElementById("feature-review-dialog-body");
+  const title = document.getElementById("feature-review-dialog-title");
+
+  function cardFor(featureId) {
+    if (!featureId) return null;
+    return document.getElementById(featureId)
+      || document.querySelector(`[data-closed-feature-id="${escapeSelector(featureId)}"]`);
+  }
+
+  function templateFor(card) {
+    const template = card && card.querySelector(".feature-review-template");
+    return template ? template.innerHTML : "";
+  }
+
+  function escapeSelector(value) {
+    return typeof CSS !== "undefined" && CSS.escape
+      ? CSS.escape(value)
+      : value.replace(new RegExp("[^a-zA-Z0-9_-]", "g"), "\\$&");
+  }
+
+  function focusReviewTask(taskId) {
+    if (!taskId) return;
+    const task = body.querySelector(`#${escapeSelector(dialog.dataset.featureId + "-task-" + taskId)}`);
+    if (!task) return;
+    dialog.dataset.targetTaskId = taskId;
+    let ancestor = task.parentElement;
+    while (ancestor && ancestor !== body) {
+      if (ancestor.tagName === "DETAILS") ancestor.open = true;
+      ancestor = ancestor.parentElement;
+    }
+    task.open = true;
+    body.querySelectorAll(".review-task.is-targeted, .topology-node.is-targeted, .topology-wave-row.is-targeted")
+      .forEach((item) => item.classList.remove("is-targeted"));
+    task.classList.add("is-targeted");
+    body.querySelectorAll(`[data-task-id="${escapeSelector(taskId)}"]`)
+      .forEach((item) => item.classList.add("is-targeted"));
+    const jumpStatus = body.querySelector("[data-task-jump-status]");
+    if (jumpStatus) jumpStatus.textContent = `已定位到 ${taskId} · 仅滚动 Task 清单`;
+    const topology = body.querySelector(".task-topology");
+    if (topology && window.__bagakitInspectTask) {
+      window.__bagakitInspectTask(topology, task);
+      return;
+    }
+    const scroller = task.closest(".review-tasks-scroll");
+    if (scroller) {
+      window.requestAnimationFrame(() => {
+        const taskTop = task.getBoundingClientRect().top - scroller.getBoundingClientRect().top + scroller.scrollTop;
+        scroller.scrollTo({top: Math.max(0, taskTop - 8), behavior: "smooth"});
+      });
+    } else {
+      task.scrollIntoView({behavior: "smooth", block: "nearest"});
+    }
+    const summary = task.querySelector("summary");
+    if (summary) window.setTimeout(() => summary.focus({preventScroll: true}), 0);
+  }
+
+  function syncReviewNode(current, next) {
+    if (current.nodeType !== next.nodeType || current.nodeName !== next.nodeName ||
+        (current.id && next.id && current.id !== next.id)) {
+      current.replaceWith(next.cloneNode(true));
+      return;
+    }
+    if (current.nodeType === Node.TEXT_NODE) {
+      if (current.nodeValue !== next.nodeValue) current.nodeValue = next.nodeValue;
+      return;
+    }
+    if (current.nodeType !== Node.ELEMENT_NODE) return;
+    if (current.matches(".task-topology") && window.__bagakitSyncTopology) {
+      window.__bagakitSyncTopology(current, next);
+      return;
+    }
+    if (current.tagName === "TEMPLATE") {
+      if (current.innerHTML !== next.innerHTML) current.innerHTML = next.innerHTML;
+      return;
+    }
+    const preserve = new Set(["open"]);
+    for (const attribute of [...current.attributes]) {
+      if (!preserve.has(attribute.name) && !next.hasAttribute(attribute.name)) current.removeAttribute(attribute.name);
+    }
+    for (const attribute of next.attributes) {
+      if (!preserve.has(attribute.name) && current.getAttribute(attribute.name) !== attribute.value) current.setAttribute(attribute.name, attribute.value);
+    }
+    const oldChildren = [...current.childNodes], newChildren = [...next.childNodes];
+    newChildren.forEach((child, index) => {
+      if (oldChildren[index]) syncReviewNode(oldChildren[index], child);
+      else current.append(child.cloneNode(true));
+    });
+    oldChildren.slice(newChildren.length).forEach(child => child.remove());
+  }
+
+  function openFeatureReview(featureId, taskId) {
+    const card = cardFor(featureId);
+    const markup = templateFor(card);
+    if (!card) return;
+    if (!markup && card.hasAttribute("data-closed-feature-id")) {
+      const target = new URL(window.location.href);
+      target.searchParams.set("feature", featureId);
+      window.location.assign(target.toString());
+      return;
+    }
+    if (!markup) return;
+    const previousFeatureId = dialog.dataset.featureId;
+    const preservedTaskId = previousFeatureId === featureId ? dialog.dataset.targetTaskId : "";
+    dialog.dataset.featureId = featureId;
+    dialog.dataset.targetTaskId = taskId || preservedTaskId || "";
+    const alreadyOpen = dialogApi.isOpen(dialog);
+    const fragment = document.createElement("template");
+    fragment.innerHTML = markup;
+    if (previousFeatureId === featureId && body.firstElementChild && fragment.content.firstElementChild) {
+      syncReviewNode(body.firstElementChild, fragment.content.firstElementChild);
+    } else {
+      if (window.__bagakitDisposeTopology) window.__bagakitDisposeTopology(body);
+      body.replaceChildren(fragment.content);
+    }
+    const cardTitle = card.querySelector("h3, strong");
+    title.textContent = cardTitle ? cardTitle.textContent.trim() : "Feature details";
+    if (!alreadyOpen) dialogApi.open(dialog);
+    if (window.__bagakitBindTopologyControls) {
+      try { window.__bagakitBindTopologyControls(body); }
+      catch (error) {
+        const status = body.querySelector("[data-edge-inspector]");
+        if (status) status.textContent = "拓扑加载失败；任务详情仍可查看。请刷新页面。";
+        console.error("Tracker topology initialization failed", error);
+      }
+    }
+    if (taskId) window.setTimeout(() => focusReviewTask(taskId), 0);
+  }
+
+  function closeFeatureReview() {
+    dialogApi.close(dialog);
+  }
+
+  function focusHistoryFeature(featureId) {
+    if (!featureId) return;
+    const item = document.querySelector(`[data-closed-feature-id="${escapeSelector(featureId)}"]`);
+    if (!item) return;
+    const history = item.closest("details");
+    if (history) history.open = true;
+    document.querySelectorAll(".closed-feature--focused").forEach((entry) => entry.classList.remove("closed-feature--focused"));
+    item.classList.add("closed-feature--focused");
+    item.scrollIntoView({behavior: "smooth", block: "center"});
+    item.setAttribute("tabindex", "-1");
+    window.setTimeout(() => item.focus({preventScroll: true}), 0);
+    window.setTimeout(() => openFeatureReview(featureId), 0);
+  }
+
+  document.addEventListener("click", (event) => {
+    const taskTrigger=event.target.closest("[data-task-open]");
+    const taskFeature=taskTrigger?.closest("[data-feature-open]");
+    if(taskFeature){event.preventDefault();openFeatureReview(taskFeature.dataset.featureOpen,taskTrigger.dataset.taskOpen);return;}
+    const trigger = event.target.closest("[data-feature-open]");
+    if (!trigger) return;
+    if (event.target.closest("button, a")) return;
+    event.preventDefault();
+    openFeatureReview(trigger.dataset.featureOpen);
+  });
+
+  document.addEventListener("keydown", (event) => {
+    if(event.target.closest("button,a,input,select,textarea"))return;
+    const trigger = event.target.closest && event.target.closest("[data-feature-open]");
+    if (!trigger || (event.key !== "Enter" && event.key !== " ")) return;
+    event.preventDefault();
+    openFeatureReview(trigger.dataset.featureOpen);
+  });
+
+  dialog.addEventListener("click", (event) => {
+    const taskLink = event.target.closest("[data-task-open]");
+    if (taskLink && body.contains(taskLink)) {
+      event.preventDefault();
+      focusReviewTask(taskLink.dataset.taskOpen);
+      return;
+    }
+    const node = event.target.closest(".topology-node");
+    const waveRow = event.target.closest(".topology-wave-row");
+    if (node && body.contains(node)) {
+      event.preventDefault();
+      event.stopPropagation();
+      focusReviewTask(node.dataset.taskId);
+      return;
+    }
+    if (waveRow && body.contains(waveRow)) {
+      event.preventDefault();
+      event.stopPropagation();
+      focusReviewTask(waveRow.dataset.taskId);
+      return;
+    }
+    if (event.target.closest(".dialog-close")) {
+      event.preventDefault();
+      closeFeatureReview();
+    }
+    const historyLink = event.target.closest("[data-feature-history-open]");
+    if (historyLink && body.contains(historyLink)) {
+      event.preventDefault();
+      event.stopPropagation();
+      focusHistoryFeature(historyLink.dataset.featureHistoryOpen);
+    }
+  });
+
+  async function copyPromptAction(button) {
+    const surface = button.closest(".task-quick-prompts, .tracker-quick-prompts");
+    const source = surface && surface.querySelector(`[data-prompt-source="${escapeSelector(button.dataset.promptCopy || "")}"]`);
+    if (!surface || !source) return;
+    const text = source.content ? source.content.textContent : (source.textContent || "");
+    const status = surface.querySelector(".prompt-copy-status");
+    const original = button.textContent;
+    button.disabled = true;
+    button.setAttribute("aria-busy", "true");
+    let copied = false;
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(text);
+        copied = true;
+      }
+    } catch (_) {}
+    if (!copied) {
+      const fallback = document.createElement("textarea");
+      fallback.value = text;
+      fallback.setAttribute("readonly", "");
+      fallback.style.position = "fixed";
+      fallback.style.opacity = "0";
+      document.body.appendChild(fallback);
+      fallback.select();
+      try { copied = document.execCommand("copy"); } catch (_) {}
+      fallback.remove();
+    }
+    button.disabled = false;
+    button.removeAttribute("aria-busy");
+    if (copied) {
+      button.textContent = "已复制 ✓";
+      if (status) status.textContent = `${button.dataset.promptLabel || original} 已复制，可直接粘贴给 Agent`;
+      window.setTimeout(() => { button.textContent = original; }, 1400);
+    } else {
+      if (status) status.textContent = "浏览器拒绝剪贴板访问，请手动复制";
+    }
+  }
+
+  document.addEventListener("click", (event) => {
+    const promptButton = event.target.closest("[data-prompt-copy]");
+    if (!promptButton) return;
+    event.preventDefault();
+    event.stopPropagation();
+    copyPromptAction(promptButton);
+  });
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && dialogApi.isOpen(dialog)) closeFeatureReview();
+  });
+
+  window.__bagakitOpenFeatureReview = openFeatureReview;
+  window.__bagakitFocusHistoryFeature = focusHistoryFeature;
+  window.__bagakitFeatureReviewTemplateFor = templateFor;
+})();
+</script>
+
+<dialog class="file-preview-dialog" id="file-preview-dialog" aria-labelledby="file-preview-dialog-title">
+  <div class="file-preview-dialog-shell">
+    <header class="file-preview-dialog-header">
+      <div><span class="eyebrow">Canonical preview</span><h2 id="file-preview-dialog-title" tabindex="-1" data-dialog-initial>Tracker file</h2><p><span id="file-preview-dialog-ref"></span><span class="file-preview-language" id="file-preview-language">TEXT</span></p></div>
+      <form method="dialog"><button class="dialog-close" aria-label="Close file preview">×</button></form>
+    </header>
+    <pre class="file-preview-content" id="file-preview-content"><code class="syntax-text"></code></pre>
+  </div>
+</dialog>
+<script>
+(() => {
+  const dialogApi = window.__bagakitStatusDialogs;
+  const dialog = document.getElementById("file-preview-dialog");
+  const title = document.getElementById("file-preview-dialog-title");
+  const ref = document.getElementById("file-preview-dialog-ref");
+  const languageLabel = document.getElementById("file-preview-language");
+  const content = document.querySelector("#file-preview-content code");
+  function escapePreview(value) {
+    return value.replace(/[&<>]/g, (character) => ({"&": "&amp;", "<": "&lt;", ">": "&gt;"})[character]);
+  }
+  function highlightJson(value) {
+    let normalized = value;
+    try { normalized = JSON.stringify(JSON.parse(value), null, 2); } catch (_) {}
+    return escapePreview(normalized).replace(
+      /("(?:\\.|[^"\\])*")(\s*:)?|\b(true|false|null)\b|(-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)/g,
+      (_match, stringToken, keySuffix, literal, number) => {
+        if (stringToken) {
+          const kind = keySuffix ? "syntax-key" : "syntax-string";
+          return `<span class="${kind}">${stringToken}</span>${keySuffix || ""}`;
+        }
+        if (literal) return `<span class="syntax-literal">${literal}</span>`;
+        return `<span class="syntax-number">${number}</span>`;
+      },
+    );
+  }
+  function highlightMarkdown(value) {
+    return escapePreview(value).split("\n").map((line) => {
+      const heading = line.match(/^(#{1,6})(\s+)(.*)$/);
+      if (heading) return `<span class="syntax-heading"><span class="syntax-punctuation">${heading[1]}</span>${heading[2]}${heading[3]}</span>`;
+      const bullet = line.match(/^(\s*)([-*+]|\d+\.)(\s+)(.*)$/);
+      const base = bullet
+        ? `${bullet[1]}<span class="syntax-punctuation">${bullet[2]}</span>${bullet[3]}${bullet[4]}`
+        : line;
+      return base.replace(/`([^`]+)`/g, '<span class="syntax-code">`$1`</span>');
+    }).join("\n");
+  }
+  function highlightPreview(value, language) {
+    if (language === "json") return highlightJson(value);
+    if (language === "markdown") return highlightMarkdown(value);
+    return escapePreview(value);
+  }
+  function closePreview() { dialogApi.close(dialog); }
+  document.addEventListener("click", (event) => {
+    const trigger = event.target.closest("[data-file-preview]");
+    if (trigger) {
+      event.preventDefault();
+      event.stopPropagation();
+      const sourceTemplate = trigger.closest(".file-preview-entry")?.querySelector(".file-preview-source");
+      const source = sourceTemplate?.content?.querySelector("pre");
+      if (!source) return;
+      const language = trigger.dataset.previewLanguage || "text";
+      title.textContent = trigger.dataset.previewLabel || "Tracker file";
+      ref.textContent = trigger.dataset.previewRef || "";
+      languageLabel.textContent = language.toUpperCase();
+      content.className = `syntax-${language}`;
+      content.innerHTML = highlightPreview(source.textContent || "", language);
+      dialogApi.open(dialog);
+      return;
+    }
+    if (event.target.closest("#file-preview-dialog .dialog-close")) {
+      event.preventDefault();
+      closePreview();
+    }
+  });
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && dialogApi.isOpen(dialog)) closePreview();
+  });
+})();
+</script>
+
+<dialog class="claim-dialog" id="claim-dialog">
+  <div class="claim-dialog-shell">
+    <header class="claim-dialog-header">
+      <div><span class="eyebrow">Agent claim draft</span><h2 id="claim-dialog-title" tabindex="-1" data-dialog-initial>认领 Feature</h2></div>
+      <form method="dialog"><button class="dialog-close" aria-label="Close">×</button></form>
+    </header>
+    <p class="claim-note">这是 <code>agent-set-v1</code> 路由草稿：只告诉 Agent 去哪里恢复 SSOT，不复制 Task 或运行状态。它不认证发送者、不投递消息，也不授予 Host 或 Owner 权限。</p>
+    <textarea class="claim-message" id="claim-message" readonly spellcheck="false"></textarea>
+    <div class="claim-actions">
+      <button type="button" class="dialog-action" id="copy-claim">复制认领消息</button>
+      <button type="button" class="dialog-action dialog-action--secondary" id="share-claim">系统分享</button>
+      <span class="claim-status" id="claim-status" aria-live="polite"></span>
+    </div>
+  </div>
+</dialog>
+<script>
+(() => {
+  const dialogApi = window.__bagakitStatusDialogs;
+  const dialog = document.getElementById("claim-dialog");
+  const title = document.getElementById("claim-dialog-title");
+  const message = document.getElementById("claim-message");
+  const status = document.getElementById("claim-status");
+
+  function refreshTime() {
+    const now = new Date().toISOString();
+    message.value = message.value.replace(/ time="[^"]*"/, ` time="${now}"`);
+    return message.value;
+  }
+
+  async function copyMessage() {
+    const text = refreshTime();
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(text);
+      } else {
+        throw new Error("clipboard API unavailable");
+      }
+    } catch (_) {
+      message.focus();
+      message.select();
+      document.execCommand("copy");
+    }
+    status.textContent = "已复制；请通过 Host 发送给目标 Agent";
+  }
+
+  async function copyTitle(button) {
+    const text = button.dataset.copyText || "";
+    if (!text) return;
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(text);
+      } else {
+        throw new Error("clipboard API unavailable");
+      }
+    } catch (_) {
+      const helper = document.createElement("textarea");
+      helper.value = text;
+      helper.setAttribute("readonly", "");
+      helper.style.position = "fixed";
+      helper.style.opacity = "0";
+      document.body.appendChild(helper);
+      helper.select();
+      document.execCommand("copy");
+      helper.remove();
+    }
+    const previous = button.textContent;
+    button.textContent = "Copied";
+    window.setTimeout(() => { button.textContent = previous; }, 1200);
+  }
+
+  document.addEventListener("click", (event) => {
+    const button = event.target.closest(".copy-title, .copy-value, .copy-feature-id");
+    if (!button) return;
+    event.preventDefault();
+    event.stopPropagation();
+    copyTitle(button);
+  });
+
+  document.addEventListener("click", (event) => {
+    const trigger = event.target.closest(".claim-trigger");
+    if (!trigger) return;
+    const card = trigger.closest(".feature-card");
+    const draft = card && card.querySelector(".claim-draft");
+    if (!draft) return;
+    title.textContent = `认领 ${trigger.dataset.featureTitle || "Feature"}`;
+    message.value = draft.value;
+    refreshTime();
+    status.textContent = "";
+    dialogApi.open(dialog);
+  });
+
+  dialog.addEventListener("click", (event) => {
+    if (event.target.closest(".dialog-close")) {
+      event.preventDefault();
+      dialogApi.close(dialog);
+    }
+  });
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && dialogApi.isOpen(dialog)) dialogApi.close(dialog);
+  });
+
+  document.getElementById("copy-claim").addEventListener("click", copyMessage);
+  document.getElementById("share-claim").addEventListener("click", async () => {
+    const text = refreshTime();
+    if (!navigator.share) {
+      await copyMessage();
+      status.textContent = "当前浏览器不支持系统分享，已复制";
+      return;
+    }
+    try {
+      await navigator.share({ title: title.textContent, text });
+      status.textContent = "已交给系统分享；交付与认领效果仍由 Host 确认";
+    } catch (error) {
+      if (error && error.name === "AbortError") return;
+      await copyMessage();
+      status.textContent = "系统分享失败，已复制";
+    }
+  });
+
+  function focusFeature(root, autoOpen = true) {
+    const content = root && root.id === "status-content"
+      ? root
+      : root && root.querySelector
+        ? root.querySelector("#status-content")
+        : document.querySelector("#status-content");
+    const featureId = content && content.dataset.focusFeature;
+    if (!content || !featureId) return;
+    const escapedId = typeof CSS !== "undefined" && CSS.escape
+      ? CSS.escape(featureId)
+      : featureId.replace(new RegExp("[^a-zA-Z0-9_-]", "g"), "\\$&");
+    const card = content.querySelector(`#${escapedId}`);
+    if (card && card.classList.contains("feature-card")) {
+      card.classList.add("feature-card--focused");
+      const reviewDialog = document.getElementById("feature-review-dialog");
+      const dialogApi = window.__bagakitStatusDialogs;
+      if (autoOpen && window.__bagakitOpenFeatureReview &&
+          !(reviewDialog && dialogApi && dialogApi.isOpen(reviewDialog))) {
+        window.setTimeout(() => window.__bagakitOpenFeatureReview(featureId), 0);
+      }
+      window.setTimeout(() => card.scrollIntoView({block: "center", inline: "nearest"}), 0);
+      return;
+    }
+    const closed = content.querySelector(`[data-closed-feature-id="${escapedId}"]`);
+    if (closed) {
+      const history = closed.closest("details");
+      if (history && autoOpen) history.open = true;
+      closed.classList.add("closed-feature--focused");
+      window.setTimeout(() => closed.scrollIntoView({block: "center", inline: "nearest"}), 0);
+      if (autoOpen && window.__bagakitOpenFeatureReview && closed.querySelector(".feature-review-template")) {
+        window.setTimeout(() => window.__bagakitOpenFeatureReview(featureId), 0);
+      }
+    }
+  }
+
+  window.__bagakitFocusFeature = focusFeature;
+  focusFeature(document);
+})();
+</script>
+
+<script>
+(() => {
+  const input = document.getElementById("status-filter-input");
+  const select = document.getElementById("status-filter-select");
+  const clear = document.getElementById("status-filter-clear");
+  const summary = document.getElementById("status-filter-summary");
+  if (!input || !select) return;
+
+  function applyStatusFilter(root = document.getElementById("status-content")) {
+    if (!root) return;
+    const query = input.value.trim().toLocaleLowerCase();
+    const selectedStatus = select.value;
+    let visible = 0;
+    root.querySelectorAll(".feature-card[data-feature-search]").forEach((card) => {
+      const haystack = (card.dataset.featureSearch || "").toLocaleLowerCase();
+      const matchesQuery = !query || haystack.includes(query);
+      const matchesStatus = !selectedStatus || card.dataset.featureStatus === selectedStatus;
+      const shown = matchesQuery && matchesStatus;
+      card.hidden = !shown;
+      if (shown) visible += 1;
+    });
+    root.querySelectorAll(".cross-feature-card").forEach((card) => {
+      card.hidden = Boolean((query && !card.textContent.toLocaleLowerCase().includes(query))
+        || (selectedStatus && card.dataset.featureStatus !== selectedStatus));
+    });
+    root.querySelectorAll(".status-column").forEach((column) => {
+      const cards = Array.from(column.querySelectorAll(".feature-card[data-feature-search]"));
+      const count = column.querySelector("[data-status-count]");
+      const shown = cards.filter((card) => !card.hidden).length;
+      const filtered = Boolean(query || selectedStatus);
+      column.classList.toggle("status-column--filtered-empty", filtered && shown === 0);
+      if (count) count.textContent = String(filtered ? shown : (count.dataset.baseCount || cards.length));
+    });
+    const filtering = Boolean(query || selectedStatus);
+    const focus = root.querySelector(".focus-strip");
+    if (focus) focus.hidden = filtering;
+    if (summary) summary.textContent = filtering
+      ? `${visible} active Feature${visible === 1 ? "" : "s"} shown`
+      : "Showing all active Features";
+    if (clear) clear.hidden = !filtering;
+    window.__bagakitUpdateFeatureRelations?.();
+  }
+
+  document.querySelectorAll(".empty-stage-toggle").forEach((button) => {
+    button.addEventListener("click", () => {
+      const column = button.closest(".status-column");
+      if (!column) return;
+      const collapsed = column.dataset.emptyCollapsed !== "false";
+      column.dataset.emptyCollapsed = String(!collapsed);
+      button.setAttribute("aria-expanded", String(collapsed));
+    });
+  });
+  input.addEventListener("input", () => applyStatusFilter());
+  select.addEventListener("change", () => applyStatusFilter());
+  if (clear) clear.addEventListener("click", () => {
+    input.value = "";
+    select.value = "";
+    input.focus();
+    applyStatusFilter();
+  });
+  window.__bagakitApplyStatusFilter = applyStatusFilter;
+  applyStatusFilter();
+})();
+</script>

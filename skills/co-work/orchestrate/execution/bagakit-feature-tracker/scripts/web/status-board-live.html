@@ -1,0 +1,147 @@
+
+<script>
+(() => {
+  const refreshMs = __REFRESH_MS__;
+  const indicator = document.getElementById("refresh-indicator");
+  const indicatorText = document.getElementById("refresh-indicator-text");
+  const refreshButton = document.getElementById("refresh-now");
+  const dialogApi = window.__bagakitStatusDialogs;
+  let busy = false;
+  let refreshTimer = null;
+
+  function setRefreshState(kind, text) {
+    if (!indicator || !indicatorText) return;
+    indicator.dataset.state = kind;
+    indicatorText.textContent = text;
+  }
+
+  function escapeSelector(value) {
+    return typeof CSS !== "undefined" && CSS.escape
+      ? CSS.escape(value)
+      : value.replace(new RegExp("[^a-zA-Z0-9_-]", "g"), "\\$&");
+  }
+
+  function openFeatureIds() {
+    const featureDialog = document.getElementById("feature-review-dialog");
+    if (!featureDialog || !dialogApi.isOpen(featureDialog)) return [];
+    return featureDialog.dataset.featureId ? [featureDialog.dataset.featureId] : [];
+  }
+
+  function restoreOpenFeatures(ids) {
+    const id = ids[0];
+    if (id && window.__bagakitOpenFeatureReview) window.__bagakitOpenFeatureReview(id);
+  }
+
+  function captureTaskDisclosure() {
+    const featureDialog = document.getElementById("feature-review-dialog");
+    if (!featureDialog || !dialogApi.isOpen(featureDialog)) return null;
+    const list = featureDialog.querySelector(".review-tasks-scroll");
+    return {
+      open: Array.from(featureDialog.querySelectorAll(".review-task"))
+        .filter((task) => task.id)
+        .map((task) => ({id: task.id, open: task.open})),
+      scrollTop: list ? list.scrollTop : 0,
+    };
+  }
+
+  function restoreTaskDisclosure(snapshot) {
+    if (!snapshot) return;
+    const featureDialog = document.getElementById("feature-review-dialog");
+    if (!featureDialog) return;
+    for (const item of (snapshot.open || [])) {
+      const task = featureDialog.querySelector(`#${escapeSelector(item.id)}`);
+      if (task && task.tagName === "DETAILS") task.open = item.open === true;
+    }
+    const list = featureDialog.querySelector(".review-tasks-scroll");
+    if (list) list.scrollTop = Number(snapshot.scrollTop) || 0;
+  }
+
+  function captureTopologyViews() {
+    const views = new Map();
+    for (const topology of document.querySelectorAll("#feature-review-dialog-body .task-topology")) {
+      const view = window.__bagakitTopologyViews?.get(topology);
+      if (view) views.set(view.key || `${topology.dataset.featureId}:${topology.dataset.planRevision}`, view);
+    }
+    return views;
+  }
+  function restoreTopologyViews(views) {
+    for (const topology of document.querySelectorAll("#feature-review-dialog-body .task-topology")) {
+      const view = views.get(`${topology.dataset.featureId}:${topology.dataset.planRevision}`);
+      if (view) window.__bagakitTopologyViews?.restore(topology, view);
+    }
+  }
+
+  function captureBoardScroll() {
+    const board = document.querySelector("#status-content .status-board");
+    return board ? {left: board.scrollLeft, top: board.scrollTop} : null;
+  }
+
+  function restoreBoardScroll(view) {
+    const board = document.querySelector("#status-content .status-board");
+    if (!board || !view) return;
+    const maxLeft = Math.max(0, board.scrollWidth - board.clientWidth);
+    const maxTop = Math.max(0, board.scrollHeight - board.clientHeight);
+    board.scrollLeft = Math.min(Math.max(0, Number(view.left) || 0), maxLeft);
+    board.scrollTop = Math.min(Math.max(0, Number(view.top) || 0), maxTop);
+  }
+
+  function projectionSignature(content) {
+    const clone = content.cloneNode(true);
+    // Claim drafts receive a fresh copy-time placeholder on every server
+    // render. They are not Tracker truth, so they must not make an idle poll
+    // replace the visible status DOM and flash the user's context.
+    clone.querySelectorAll(".claim-draft").forEach((item) => item.remove());
+    return clone.innerHTML
+      .replace(/<textarea[^>]*class="claim-draft"[^>]*>[\s\S]*?<\/textarea>/g, "")
+      .replace(/time="[^"]*"/g, 'time=""');
+  }
+
+  async function refreshStatus() {
+    if (busy) return;
+    busy = true;
+    window.clearTimeout(refreshTimer);
+    try {
+      const response = await fetch(window.location.pathname + window.location.search, {cache: "no-store"});
+      if (!response.ok) throw new Error(`status ${response.status}`);
+      const markup = await response.text();
+      const nextDocument = new DOMParser().parseFromString(markup, "text/html");
+      const currentContent = document.getElementById("status-content");
+      const nextContent = nextDocument.getElementById("status-content");
+      if (!currentContent || !nextContent) throw new Error("status content missing");
+      if (currentContent.dataset.uiRevision !== nextContent.dataset.uiRevision) {
+        // A deploy requires one full reload; never mix new markup with old JS.
+        window.location.reload();
+        return;
+      }
+      const changed = currentContent.dataset.projectionSignature && nextContent.dataset.projectionSignature
+        ? currentContent.dataset.projectionSignature !== nextContent.dataset.projectionSignature
+        : projectionSignature(currentContent) !== projectionSignature(nextContent);
+      if (changed) {
+        const openIds = openFeatureIds();
+        const taskDisclosureBeforeRefresh = captureTaskDisclosure();
+        const topologyViews = captureTopologyViews();
+        const boardScroll = captureBoardScroll();
+        currentContent.replaceWith(nextContent);
+        if (window.__bagakitBindTopologyControls) window.__bagakitBindTopologyControls(nextContent);
+        if (window.__bagakitApplyStatusFilter) window.__bagakitApplyStatusFilter(nextContent);
+        restoreOpenFeatures(openIds);
+        restoreTaskDisclosure(taskDisclosureBeforeRefresh);
+        if (window.__bagakitFocusFeature) window.__bagakitFocusFeature(nextContent, false);
+        restoreTopologyViews(topologyViews);
+        restoreBoardScroll(boardScroll);
+      }
+      setRefreshState(changed ? "updated" : "unchanged", changed
+        ? `Updated ${new Date().toLocaleTimeString()}`
+        : `No changes · ${new Date().toLocaleTimeString()}`);
+    } catch (_) {
+      setRefreshState("error", "Update failed · retrying");
+    } finally {
+      busy = false;
+      refreshTimer = window.setTimeout(refreshStatus, refreshMs);
+    }
+  }
+
+  if (refreshButton) refreshButton.addEventListener("click", refreshStatus);
+  refreshStatus();
+})();
+</script>
