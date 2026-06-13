@@ -89,7 +89,6 @@ planes form a 3 × 3 matrix across M0 Bagakit, M1 Evolver, and M2 RSI.
 ├── gate_validation/              # mirrors skill group paths
 ├── gate_eval/                    # mirrors skill group paths
 ├── mem/
-├── catalog/
 ├── scripts/
 └── blogs/
 ```
@@ -132,9 +131,6 @@ planes form a 3 × 3 matrix across M0 Bagakit, M1 Evolver, and M2 RSI.
   - durable but still-evolving repository memory
   - evidence, experiments, and decisions that should not yet be promoted into
     stable specifications
-- `catalog/`
-  - reserved metadata and transition notes
-  - not consulted by the active skill discovery, link, or package flows
 - `scripts/`
   - repository entrypoints for validation, link install, and package-archive
     generation

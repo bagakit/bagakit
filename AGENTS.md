@@ -14,8 +14,7 @@ layers, fallback entrypoints, or sibling-repository sources of truth.
   procedures.
 - dev/ contains maintainer-only tools; gate_validation/ owns gating validation;
   gate_eval/ owns non-gating evals.
-- .bagakit/ is host-local runtime state; mem/ is evolving memory;
-  catalog/ is non-authoritative metadata.
+- .bagakit/ is host-local runtime state; mem/ is evolving memory.
 - Keep maintainer assets out of runtime skill payloads and keep agent workflow
   semantics in skills/.
 

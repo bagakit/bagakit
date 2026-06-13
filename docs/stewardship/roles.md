@@ -10,8 +10,7 @@ Stewards are responsible for repository-level coherence.
 Typical responsibilities:
 
 - keep source-of-truth boundaries clear
-- review structural changes across `skills/`, `docs/`, `dev/`, `mem/`, and
-  `catalog/`
+- review structural changes across `skills/`, `docs/`, `dev/`, and `mem/`
 - keep `gate_validation/` and `gate_eval/` boundaries coherent
 - keep direct-install rules stricter than convenience-driven compatibility
 - decide when evolving memory is ready to be promoted into stable repository

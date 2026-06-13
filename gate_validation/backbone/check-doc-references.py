@@ -12,7 +12,7 @@ from pathlib import Path
 
 LINK = re.compile(r"\[[^\]]*\]\(([^)#\s]+)(?:#[^)]*)?\)")
 CODE = re.compile(r"`([^`\n]+)`")
-ROOT_PREFIXES = ("docs/", "dev/", "gate_eval/", "gate_validation/", "host-harnesses/", "mem/", "catalog/", "scripts/", "skills/", "blogs/")
+ROOT_PREFIXES = ("docs/", "dev/", "gate_eval/", "gate_validation/", "host-harnesses/", "mem/", "scripts/", "skills/", "blogs/")
 
 def main() -> int:
     parser = argparse.ArgumentParser()

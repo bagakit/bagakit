@@ -19,7 +19,6 @@ ALLOWED_ROOT_DIRS = {
     ".mem_inbox",
     ".tmp",
     "blogs",
-    "catalog",
     "dev",
     "docs",
     "gate_eval",

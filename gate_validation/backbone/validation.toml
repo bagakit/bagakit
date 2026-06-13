@@ -19,7 +19,6 @@ kind = "fs"
 required_dirs = [
   ".github",
   "blogs",
-  "catalog",
   "docs",
   "docs/specs",
   "docs/stewardship",
