@@ -24,6 +24,8 @@ mem/*
 !mem/decisions/**
 !mem/brainstorm-memory-quality/
 !mem/brainstorm-memory-quality/**
+!mem/benchmarks/
+!mem/benchmarks/**
 .codex
 .claude/skills/
 .agents/skills/
