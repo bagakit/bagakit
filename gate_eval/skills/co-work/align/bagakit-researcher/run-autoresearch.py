@@ -34,6 +34,12 @@ RESOURCE_MIN = (
 )
 HARD_FLOORS = {"grounding": 0.8, "validity": 0.8, "drift": 0.8}
 HARD_CAPS = {"unsupported_claim_rate": 0.2}
+BUDGET_RESOURCE_PAIRS = (
+    ("max_steps", "steps"),
+    ("max_elapsed_seconds", "elapsed_seconds"),
+    ("max_tokens", "tokens"),
+    ("max_usd", "usd"),
+)
 
 
 def record(value: Any, label: str) -> dict[str, Any]:
@@ -132,6 +138,19 @@ def hard_regressions(candidate: dict[str, dict[str, float]], baseline: dict[str,
     ]
 
 
+def budget_failures(
+    vector: dict[str, dict[str, float]], budget: dict[str, Any], label: str
+) -> list[str]:
+    """Return resource overruns so a quality gain cannot buy an invalid trial."""
+    failures = []
+    for budget_name, resource_name in BUDGET_RESOURCE_PAIRS:
+        actual = float(vector["resource"][resource_name])
+        limit = float(budget[budget_name])
+        if actual > limit:
+            failures.append(f"{label}.{resource_name} {actual} exceeds {budget_name} {limit}")
+    return failures
+
+
 def vector_delta(candidate: dict[str, dict[str, float]], baseline: dict[str, dict[str, float]]) -> dict[str, float]:
     delta: dict[str, float] = {}
     for name in QUALITY_MAX:
@@ -189,11 +208,27 @@ def run(cases_path: Path, trials_path: Path) -> dict[str, Any]:
         baseline = trial["baseline"]
         holdout = trial["holdout"]
         baseline_failures = hard_failures(baseline)
-        failures = hard_failures(candidate) + hard_regressions(candidate, baseline)
-        holdout_failures = hard_failures(holdout) + hard_regressions(holdout, baseline)
+        baseline_budget_failures = budget_failures(baseline, trial["budget"], "baseline")
+        candidate_budget_failures = budget_failures(candidate, trial["budget"], "candidate")
+        holdout_budget_failures = budget_failures(holdout, trial["budget"], "holdout")
+        failures = (
+            hard_failures(candidate)
+            + hard_regressions(candidate, baseline)
+            + candidate_budget_failures
+        )
+        holdout_failures = (
+            hard_failures(holdout)
+            + hard_regressions(holdout, baseline)
+            + holdout_budget_failures
+        )
         baseline_dominates = dominates(baseline, candidate)
         candidate_dominates_baseline = dominates(candidate, baseline)
-        if not baseline_failures and not failures and not holdout_failures:
+        if (
+            not baseline_failures
+            and not baseline_budget_failures
+            and not failures
+            and not holdout_failures
+        ):
             candidate_vectors.append((trial["trial_id"], candidate))
         records.append(
             {
@@ -205,6 +240,7 @@ def run(cases_path: Path, trials_path: Path) -> dict[str, Any]:
                 "cases": trial["cases"],
                 "budget": trial["budget"],
                 "evaluator_ref": trial["evaluator_ref"],
+                "measurement_boundary": "record-vector-only; semantic improvement is uncalibrated",
                 "quality_vector": candidate["quality"],
                 "resource_vector": candidate["resource"],
                 "baseline_delta": vector_delta(candidate, baseline),
@@ -212,6 +248,14 @@ def run(cases_path: Path, trials_path: Path) -> dict[str, Any]:
                 "hard_failures": failures,
                 "holdout_hard_failures": holdout_failures,
                 "baseline_hard_failures": baseline_failures,
+                "baseline_budget_failures": baseline_budget_failures,
+                "budget_failures": candidate_budget_failures,
+                "holdout_budget_failures": holdout_budget_failures,
+                "within_declared_budget": not (
+                    baseline_budget_failures
+                    or candidate_budget_failures
+                    or holdout_budget_failures
+                ),
                 "baseline_dominates_candidate": baseline_dominates,
                 "candidate_dominates_baseline": candidate_dominates_baseline,
                 "status": "pending",
@@ -224,7 +268,7 @@ def run(cases_path: Path, trials_path: Path) -> dict[str, Any]:
         if not any(other_id != trial_id and dominates(other, vector) for other_id, other in candidate_vectors)
     }
     for result in records:
-        if result["baseline_hard_failures"]:
+        if result["baseline_hard_failures"] or result["baseline_budget_failures"]:
             result["status"] = "discard-invalid-baseline"
         elif result["hard_failures"] or result["holdout_hard_failures"]:
             result["status"] = "discard-hard-regression"
@@ -238,6 +282,11 @@ def run(cases_path: Path, trials_path: Path) -> dict[str, Any]:
     return {
         "schema": SCHEMA,
         "protocol": "autoresearch-record-vector-v1",
+        "measurement_boundary": {
+            "scope": "record-vector-only",
+            "semantic_proof": False,
+            "resource_budget_policy": "candidate and holdout resource vectors must stay within each trial budget",
+        },
         "cases_path": cases_path.name,
         "trials_path": trials_path.name,
         "case_counts": {
@@ -252,6 +301,7 @@ def run(cases_path: Path, trials_path: Path) -> dict[str, Any]:
             "single-variable trial records are schema-valid",
             "candidate vectors can be compared with hard constraints and Pareto dominance",
             "holdout vectors can reject candidates with record-level regressions",
+            "candidate and holdout resource vectors are checked against declared trial budgets",
         ],
         "does_not_prove": [
             "semantic source recall or citation entailment",
