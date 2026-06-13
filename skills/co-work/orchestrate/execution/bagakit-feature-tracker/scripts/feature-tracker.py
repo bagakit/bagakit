@@ -4370,6 +4370,86 @@ def cmd_get_owner_receipt(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_repair_superseded_proposal_lineage(args: argparse.Namespace) -> int:
+    """Remove a false transfer backlink to an explicitly superseded empty proposal."""
+    paths = HarnessPaths(Path(args.root).resolve())
+    ensure_harness_exists(paths)
+    state, tasks = load_feat(paths, args.feat)
+    source, source_tasks = load_feat(paths, args.source)
+    state_path = paths.feat_state(args.feat, status=state.get("status"))
+    tasks_path = paths.feat_tasks(args.feat, status=state.get("status"))
+    source_state_path = paths.feat_state(args.source, status=source.get("status"))
+    source_tasks_path = paths.feat_tasks(args.source, status=source.get("status"))
+    receipt_path = paths.feat_owner_receipt(args.feat, status=state.get("status"))
+    for path, expected, label in (
+        (state_path, args.expected_state_sha256, "state"),
+        (tasks_path, args.expected_tasks_sha256, "tasks"),
+        (source_state_path, args.expected_source_state_sha256, "source-state"),
+        (source_tasks_path, args.expected_source_tasks_sha256, "source-tasks"),
+        (receipt_path, args.expected_receipt_sha256, "receipt"),
+    ):
+        guarded_file_revision(path, expected, label=label)
+    if (
+        source.get("status") != "discarded"
+        or source.get("closed_from_status") != "proposal"
+        or source.get("workspace_mode") != "proposal_only"
+        or source.get("discard_reason") != "superseded"
+        or source.get("replacement_feat_id") != args.feat
+        or source_tasks.get("tasks") != []
+        or source.get("transferred_to") is not None
+        or state.get("status") != "archived"
+    ):
+        raise SystemExit("error: repair requires an archived replacement of a superseded zero-Task proposal")
+    transfers = canonical_transferred_from(state.get("transferred_from"), feat_id=args.feat)
+    if not any(item["feature_id"] == args.source for item in transfers):
+        raise SystemExit("error: the specified false transfer backlink is not present")
+    reason = str(args.reason or "").strip()
+    if not reason:
+        raise SystemExit("error: lineage repair requires a non-empty reason")
+    repaired = copy.deepcopy(state)
+    remaining = [item for item in transfers if item["feature_id"] != args.source]
+    if remaining:
+        repaired["transferred_from"] = remaining
+    else:
+        repaired.pop("transferred_from", None)
+    repaired.setdefault("history", []).append(history_event(
+        "superseded_proposal_lineage_repaired",
+        f"source={args.source}; retained replacement_feat_id on discarded proposal; reason={reason}",
+    ))
+    index_data = load_index(paths)
+    upsert_feat_index_entry(index_data, repaired)
+    originals = {path: path.read_bytes() if path.exists() else None for path in (
+        state_path, tasks_path, source_state_path, source_tasks_path, receipt_path, paths.index_file,
+    )}
+    # Preserve exact bytes before touching canonical state; this directory is evidence only.
+    backup_root = state_path.parent / "artifacts" / "lineage-repair"
+    backup_root.mkdir(parents=True, exist_ok=True)
+    backup = Path(tempfile.mkdtemp(prefix=sha256_file(state_path)[:12] + "-", dir=backup_root))
+    manifest = []
+    for number, (path, payload) in enumerate(originals.items()):
+        if payload is not None:
+            name = f"{number}-{path.name}"
+            write_bytes_atomic(backup / name, payload)
+            manifest.append({"path": relative_display(paths.root, path), "backup": name,
+                             "sha256": sha256_bytes(payload)})
+    save_json(backup / "manifest.json", {"source": args.source, "replacement": args.feat,
+                                        "reason": reason, "files": manifest})
+    try:
+        write_bytes_atomic(state_path, json_payload_bytes(repaired))
+        save_json(receipt_path, build_owner_receipt(paths, repaired, tasks))
+        save_index(paths, index_data)
+    except BaseException:
+        for path in (state_path, receipt_path, paths.index_file):
+            payload = originals[path]
+            if payload is None:
+                path.unlink(missing_ok=True)
+            else:
+                write_bytes_atomic(path, payload)
+        raise
+    print(f"ok: superseded proposal lineage repaired {args.source} -> {args.feat}; backup={relative_display(paths.root, backup)}")
+    return 0
+
+
 def cmd_repair_feature_projections(args: argparse.Namespace) -> int:
     paths = HarnessPaths(Path(args.root).resolve())
     ensure_harness_exists(paths)
@@ -11595,6 +11675,15 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--expected-receipt-sha256", required=True)
     sp.set_defaults(func=cmd_repair_reviewed_task_plan)
 
+    sp = sub.add_parser("repair-superseded-proposal-lineage", help="remove a false transfer backlink to an explicitly superseded zero-Task proposal")
+    add_common(sp)
+    sp.add_argument("--feature", dest="feat", required=True)
+    sp.add_argument("--source", required=True)
+    sp.add_argument("--reason", required=True)
+    for label in ("state", "tasks", "source-state", "source-tasks", "receipt"):
+        sp.add_argument(f"--expected-{label}-sha256", required=True)
+    sp.set_defaults(func=cmd_repair_superseded_proposal_lineage)
+
     sp = sub.add_parser("repair-feature-projections", help="rebuild derived index and owner receipts from canonical Feature records")
     add_common(sp)
     sp.set_defaults(func=cmd_repair_feature_projections)
@@ -11865,6 +11954,7 @@ def command_requires_global_tracker_lock(args: argparse.Namespace) -> bool:
         "create-feature-from-planning-entry-handoff",
         "set-task-plan",
         "repair-reviewed-task-plan",
+        "repair-superseded-proposal-lineage",
         "repair-feature-projections",
         "set-feature-goal",
         "assign-feature-workspace",

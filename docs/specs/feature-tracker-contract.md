@@ -928,3 +928,18 @@ This contract intentionally rejects several easier but lower-quality shortcuts.
   policy-resolved execution planning.
 - Unsupported feature-root prose files must not become shadow tracker truth.
 - External bridge logic does not ship inside the canonical tracker contract.
+
+### Superseded proposal lineage repair
+
+`repair-superseded-proposal-lineage` corrects only a false `transferred_from`
+backlink on an archived replacement when the source is a zero-Task
+`proposal_only` Feature discarded from `proposal` with `reason = superseded`
+and an explicit `replacement_feat_id` naming that same replacement. It requires
+exact SHA-256 guards for both Features' state and Tasks plus the replacement's
+owner receipt, under the existing Tracker lock. It removes only that source
+backlink, appends an audit event, preserves original bytes before publication,
+and refreshes the replacement's derived index and owner receipt. Source state,
+Task truth, lifecycle, gates, prior history and Git workspaces remain unchanged.
+A failed local publication restores the touched state and derived bytes; the
+original backup remains as evidence. This is not a transfer or general state
+setter.

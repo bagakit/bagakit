@@ -40,6 +40,10 @@ name = "repair-reviewed-task-plan"
 summary = "Repair one damaged reviewed tasks.json under exact state, tasks, Goal, and receipt SHA-256 guards."
 
 [[command]]
+name = "repair-superseded-proposal-lineage"
+summary = "Remove a false transfer backlink to a superseded zero-Task proposal under exact source and replacement content guards; preserve lifecycle, Tasks, gates, and prior history."
+
+[[command]]
 name = "repair-feature-projections"
 summary = "Rebuild the index and derived owner receipts from canonical Feature records without changing lifecycle or Task truth."
 
