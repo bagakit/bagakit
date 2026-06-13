@@ -22,6 +22,29 @@ optional_peer_contracts = [
   "skills/co-work/human-improvement/bagakit-mastery-learning/references/mastery-learning-contract.toml",
 ]
 
+[routing_policy]
+selection_order = ["purpose", "required_interactions", "delivery_route", "style"]
+crosswalk_style_is_default = true
+style_override_preserves = ["required_interactions", "judgment", "evidence", "history", "continuity", "export"]
+brief_packaging = "one_brief_with_applicable_sections"
+rule = "Choose capabilities from the human purpose before selecting visual style; stage artifacts may share one brief."
+
+[[delivery_route]]
+id = "lightweight"
+supports = ["explanation", "comparison", "choices", "comments", "manual_handoff"]
+escalate_when = ["case_run_history", "independent_review", "consequential_approval", "adaptive_feedback"]
+optional_renderer_skills = ["answer-me-with-html"]
+required_identity = ["page_id", "projection_version", "question_id"]
+answer_states = ["unanswered", "answered", "confirmed"]
+untouched_default_state = "unanswered"
+completion_evidence = ["interaction_export_reentry_evidence"]
+rule = "A fixed renderer is eligible only when the implementation preserves all selected HITL requirements; untouched defaults remain unanswered."
+
+[[delivery_route]]
+id = "stateful"
+required_for = ["case_run_history", "independent_review", "consequential_approval", "adaptive_feedback"]
+rule = "Use the selected review or course contracts and prove their applicable history, reveal, restore, and continuity behavior regardless of visual style."
+
 [delivery_policy]
 default_for_explicit_page = "built_page"
 default_for_mastery_interactive_course = "built_page"
@@ -215,6 +238,9 @@ required_fields = [
   "template_id",
   "data_contract_refs",
   "operator_mode",
+  "required_interactions",
+  "delivery_route",
+  "style_reason",
   "primary_interaction_surface",
   "feedback_transport",
   "projection_contract_ref",
@@ -471,8 +497,8 @@ completion_evidence = "implementation entrypoint, running page location, and des
 [[composition_boundary]]
 id = "hitl-design-vs-explain"
 peer = "bagakit-explain"
-skill_owns = "novice-first visual explanation, architecture maps, causal mechanisms, boundaries, and changed-case understanding"
-peer_owns = "HITL page actions, evidence capture, judgment policy, case/run history, handoff export, and multi-turn continuity"
+skill_owns = "HITL page actions, evidence capture, judgment policy, case/run history, handoff export, and multi-turn continuity"
+peer_owns = "novice-first visual explanation, architecture maps, causal mechanisms, boundaries, and changed-case understanding"
 default_when = "an unfamiliar human must understand what is happening before a selected HITL action or judgment"
 completion_evidence = "the selected route names its explanation foundation and preserves the HITL action and handoff proof"
 

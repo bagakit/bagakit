@@ -19,6 +19,27 @@ decide what a HITL page must do for the human and the agent, how that page
 should scan in a concrete scene, and what durable artifact should round-trip
 back to the agent.
 
+## Choose Capabilities Before Style
+
+Choose in this order: human purpose, required interactions, delivery route,
+then visual style. Crosswalk styles are defaults; adapt them to the audience,
+material, device, or the user's reference while preserving judgment, evidence,
+history, continuity, and export requirements.
+
+- Use the lightweight route for explanation, option comparison, choices, and
+  comments when fixed components can carry every selected requirement.
+- Use the stateful route for case/run history, independent review, consequential
+  approval, or adaptive feedback. A compact visual style still needs those
+  capabilities.
+- Keep the selected route and its evidence in one brief. Stage artifacts may
+  be sections of that brief; do not create a separate file for every selection.
+
+Read the route rules in `references/composition-crosswalk.md`. An installed
+`answer-me-with-html` can supply fixed rendering when it fits; load its skill
+only when selected. The webpage implementation owner remains responsible for
+the HITL contract and browser proof, including any missing export or identity
+adapter. Renderer availability does not lower the completion bar.
+
 ## Explicit Invocation Contract
 
 When the user explicitly invokes `bagakit-hitl-webutil-design`, treat that as a
@@ -74,6 +95,8 @@ Scenario pages are cross-products, not atomic modules.
 1. Write the page brief.
    - clarify scene, operator mode, success bar, and what the human must return
      to the agent
+   - name required interactions and choose lightweight or stateful delivery
+     before selecting visual style
    - for multi-turn pages, declare the primary interaction surface, one
      continuity route, projection versioning, sync states, and fallback
    - when the page asks for judgment, name the decision question, review mode,
@@ -92,6 +115,8 @@ Scenario pages are cross-products, not atomic modules.
 4. Select one style route.
    - style owns layout, density, pane treatment, scanning behavior, and visual
      language
+   - treat the crosswalk style as a default; record the chosen style and a
+     short reason without changing the required interactions
    - make selected/current case, pane, tab, or mode states legible without
      defaulting to a thin one-sided rail as the only cue; apply the shared
      `bagakit-design-core` selected-state rule and record any semantic
@@ -114,6 +139,9 @@ Scenario pages are cross-products, not atomic modules.
    - for an explicit page, build, or continuation route, compose with
      `bagakit-codex-webpage-design`, start the page, and verify desktop plus
      mobile behavior
+   - on the lightweight route, reuse a suitable fixed renderer and verify one
+     choice or comment through export and Agent reentry; require adaptive
+     feedback and restore proof only when the selected task needs them
    - otherwise stop at the page brief
 
 ## Reference Routing

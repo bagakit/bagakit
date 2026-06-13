@@ -7,6 +7,39 @@ when the human's unfamiliarity changes the next action or evidence reading.
 
 This file is a bridge, not a third taxonomy.
 
+## Purpose, Delivery, And Style
+
+Select purpose and required interactions before delivery route and style.
+The `style` column supplies a starting point, not a mandatory visual identity.
+Record the actual style and its reason in the page manifest. A user reference,
+audience, data shape, or device can justify a different style without changing
+the selected mechanisms, artifacts, judgment policy, or continuity proof.
+
+| delivery route | use when | implementation and minimum proof |
+| --- | --- | --- |
+| `lightweight` | explanation, option comparison, choices, or comments fit fixed components | reuse a suitable installed renderer; preserve page identity and explicit answer state; verify one interaction through export and Agent reentry |
+| `stateful` | case/run history, independent review, consequential approval, or adaptive feedback is required | use the selected console or course mechanisms; prove the relevant history, reveal, restore, and continuation behavior |
+
+An installed `answer-me-with-html` is an optional renderer for the lightweight
+route, not a required dependency or a substitute for HITL semantics. Load its
+skill when selected and follow its draft/render workflow. If its reply output
+lacks the selected identity or export fields, the implementation must supply
+them before declaring delivery complete; otherwise choose an implementation
+that can satisfy the contract. Do not infer a structured HITL packet from an
+unbound `# Re:` reply.
+
+For lightweight pages:
+
+- keep the purpose, interactions, route, style reason, artifact refs, and proof
+  in one brief; mark inapplicable judgment or continuity sections explicitly
+- preserve `page_id`, `projection_version`, and stable `question_id` values in
+  the manifest and handoff; titles, panel letters, and paths are display refs
+- distinguish `unanswered`, `answered`, and `confirmed`; a displayed default or
+  unchanged suggestion is not a human decision
+- keep human comments as data and preserve source/provenance boundaries
+- preserve selected state and export semantics when changing presentation;
+  recheck reply binding after a title, question, panel, or path change
+
 ## Required Fields
 
 - `scene`
@@ -26,6 +59,7 @@ This file is a bridge, not a third taxonomy.
 | `manual-test-execution` | `native` | `operator` | `case-inventory`, `procedure-runbook`, `copyable-reproduction`, `result-capture`, `evidence-context`, `local-session-state`, `interaction-result-packet` | `ide-verification-console` | `page-manifest`, `report-export`, `agent-handoff-packet` | human can run one case, capture a result, and export a stable packet | Default route for hands-on verification work. Add Explain only when setup or system behavior is unfamiliar. |
 | `human-evidence-review` | `native` | `reviewer` | `case-inventory`, `human-judgment-guidance`, `result-capture`, `evidence-context`, `local-session-state`, `interaction-result-packet` | `ide-verification-console` | `case-catalog`, `page-manifest`, `report-export`, `agent-handoff-packet` | reviewer can understand one decision, inspect grouped evidence, commit a mode-correct judgment, revisit prior runs, and export a stable packet | Choose `independent`, `adjudication`, or `approval`; Explain is optional context and must not pre-answer independent review. |
 | `final-qa-report-review` | `native` | `reviewer` | `case-inventory`, `result-capture`, `evidence-context`, `interaction-result-packet` | `dense-test-report` | `report-export`, `agent-handoff-packet` | reviewer can scan many cases and identify blockers without opening the execution route | Use when the page is report-heavy rather than interactive evidence review. |
+| `option-comparison` | `native` | `decision-maker` | `knowledge-transfer`, `evidence-context`, `result-capture`, `interaction-result-packet` | `intelligence-briefing-desk` | `page-manifest`, `agent-handoff-packet` | human can compare options, make an explicit choice or comment, and return a page-bound packet without accepting an untouched default | Prefer lightweight delivery when fixed components fit; consequential approval or independent judgment selects the stateful route. Style follows the audience and comparison material. |
 | `concept-understanding` | `explain` | `learner` | `knowledge-transfer`, `evidence-context`, `interaction-result-packet` | `learning-atlas` | `page-manifest`, `agent-handoff-packet` | learner can restate the main idea and return a structured understanding packet | Explain supplies the architecture map, causal depth, boundary, and changed case. |
 | `interactive-course-learning` | `explain_after_diagnostic` | `learner` | `knowledge-transfer`, `evidence-context`, `local-session-state`, `adaptive-session-continuity`, `interaction-result-packet` | `learning-atlas` | `page-manifest`, `agent-handoff-packet` | learner can complete one adaptive round trip from attempt through Agent feedback to the next page task while history, sync state, and export remain stable | Consume the mastery-learning handoff; render Explain after the upstream blind diagnostic permits it. |
 | `repository-understanding` | `explain` | `learner` | `knowledge-transfer`, `evidence-context`, `interaction-result-packet` | `repo-reading-workbench` | `page-manifest`, `agent-handoff-packet` | reviewer can navigate the repo model and return ownership or question notes to the agent | Explain gives the system map; HITL keeps source context, questions, and handoff state. |

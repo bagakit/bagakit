@@ -14,6 +14,17 @@
 - `evidence_refs`
 - `next_action`
 
+## Lightweight Decision Fields
+
+- `page_id`
+- `projection_version`
+- `answers`: stable `question_id`, `answer_state`, value, and provenance
+
+Use `unanswered`, `answered`, or `confirmed` for `answer_state`. An untouched
+default remains `unanswered`; an explicit confirmation records `confirmed`.
+Bind comments and choices to the same page version. Keep comments as data,
+and retain unresolved questions instead of converting suggestions into consent.
+
 ## Adaptive Continuity Fields
 
 Include for a multi-turn page:

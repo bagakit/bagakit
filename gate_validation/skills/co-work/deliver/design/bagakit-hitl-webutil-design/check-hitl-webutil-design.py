@@ -215,6 +215,9 @@ REQUIRED_PAGE_EXPORT_FIELDS = {
     "template_id",
     "data_contract_refs",
     "operator_mode",
+    "required_interactions",
+    "delivery_route",
+    "style_reason",
     "primary_interaction_surface",
     "feedback_transport",
     "projection_contract_ref",
@@ -232,6 +235,7 @@ REQUIRED_CROSSWALK_FOUNDATIONS = {
     "interactive-course-learning": "explain_after_diagnostic",
     "repository-understanding": "explain",
     "news-intelligence-entry": "explain",
+    "option-comparison": "native",
 }
 
 
@@ -441,6 +445,50 @@ def skill_rel(*parts: str) -> str:
     return POSIX_SEP.join([SKILL_ROOT, *parts])
 
 
+def check_purpose_routing(contract: dict) -> list[str]:
+    """Check the published route contract, not generated-page behavior."""
+    failures: list[str] = []
+    routing = contract.get("routing_policy", {})
+    if not isinstance(routing, dict):
+        return ["routing_policy must be a table"]
+    if routing.get("selection_order") != [
+        "purpose", "required_interactions", "delivery_route", "style"
+    ]:
+        failures.append("routing must choose purpose and interactions before delivery and style")
+    if routing.get("crosswalk_style_is_default") is not True:
+        failures.append("crosswalk style must remain an overridable default")
+    preserved = routing.get("style_override_preserves", [])
+    if not isinstance(preserved, list):
+        return failures + ["style_override_preserves must be an array"]
+    failures.extend(require_superset(
+        set(preserved),
+        {"required_interactions", "judgment", "evidence", "history", "continuity", "export"},
+        "style override invariants",
+    ))
+    try:
+        routes = records_by_id(contract.get("delivery_route"), "delivery_route")
+    except ValueError as exc:
+        return failures + [str(exc)]
+    lightweight = routes.get("lightweight", {})
+    stateful = routes.get("stateful", {})
+    escalation = {"case_run_history", "independent_review", "consequential_approval", "adaptive_feedback"}
+    for record, key, expected, label in [
+        (lightweight, "escalate_when", escalation, "lightweight escalation"),
+        (stateful, "required_for", escalation, "stateful requirements"),
+        (lightweight, "required_identity", {"page_id", "projection_version", "question_id"}, "lightweight identity"),
+        (lightweight, "answer_states", {"unanswered", "answered", "confirmed"}, "lightweight answer states"),
+        (lightweight, "completion_evidence", {"interaction_export_reentry_evidence"}, "lightweight round-trip proof"),
+    ]:
+        values = record.get(key, [])
+        if not isinstance(values, list):
+            failures.append(f"{label} must be an array")
+            continue
+        failures.extend(require_superset(set(values), expected, label))
+    if lightweight.get("untouched_default_state") != "unanswered":
+        failures.append("an untouched lightweight default must remain unanswered")
+    return failures
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--root", default=".", help="repository root")
@@ -520,6 +568,7 @@ def main() -> int:
         failures.append("contract_kind must be skill_workflow_contract")
     if contract.get("owner") != SKILL_ROOT:
         failures.append("contract owner mismatch")
+    failures.extend(check_purpose_routing(contract))
 
     entry = contract.get("entry")
     if not isinstance(entry, dict):
@@ -778,6 +827,14 @@ def main() -> int:
         ).get("hitl-design-vs-explain", {})
         if explain_boundary.get("peer") != "bagakit-explain":
             failures.append("HITL/Explain boundary must name bagakit-explain as peer")
+        # These responsibility strings are the published ownership contract.
+        # Protect the observed role reversal without claiming runtime proof.
+        for field, expected in [
+            ("skill_owns", "HITL page actions, evidence capture, judgment policy, case/run history, handoff export, and multi-turn continuity"),
+            ("peer_owns", "novice-first visual explanation, architecture maps, causal mechanisms, boundaries, and changed-case understanding"),
+        ]:
+            if explain_boundary.get(field) != expected:
+                failures.append(f"HITL/Explain {field} assigns the wrong responsibility")
         if not (root / "skills/co-work/human-improvement/bagakit-explain/SKILL.md").is_file():
             failures.append("HITL/Explain boundary peer skill is missing")
     except ValueError as exc:

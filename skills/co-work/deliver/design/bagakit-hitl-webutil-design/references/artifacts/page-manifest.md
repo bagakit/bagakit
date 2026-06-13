@@ -13,16 +13,28 @@
 - `explanation_foundation`
 - `template_id`
 - `operator_mode`
+- `required_interactions`
+- `delivery_route`
 - `primary_interaction_surface`
 - `feedback_transport`
 - `projection_contract_ref`
 - `mechanisms`
 - `style`
+- `style_reason`
 - `components`
 - `artifacts`
 - `data_contract_refs`
 - `runtime_assumptions`
 - `known_limitations`
+
+## Lightweight Decision Fields
+
+- `projection_version`
+- `questions`: stable `question_id` plus the current display reference
+
+The actual style may differ from the crosswalk default. Its reason explains
+the audience or material fit; required interactions remain unchanged. A fixed
+renderer's title, panel letter, or output path is not a stable question id.
 
 ## Judgment-Page Fields
 
