@@ -1,0 +1,6 @@
+<bagakit-msg type="agent-v1" name="Maple-4P2A" time="2000-01-01T00:00:00+00:00">
+Result: The parser preserves quoted labels on the current version.
+Evidence: The public command returns the original labels for the sample input.
+Boundary: This result covers the sample input only.
+Next: Compare the result with the remaining inputs.
+</bagakit-msg>

@@ -1163,9 +1163,29 @@ followed by the same action again.
 ### Worker-Facing Supervisor Message
 
 The portable Supervisor consumes the L1 Agent message protocol defined by
-`docs/specs/agent-message-contract.md`; it does not own a private XML grammar,
-template, or validator. It uses `agent-set-v1` to Set a newly derived Agent and
-`supervisor-v1` for an ordinary Supervisor message.
+`docs/specs/agent-message-contract.md`; it does not own a private XML grammar
+or envelope validator. This contract owns the role-specific conventions:
+`agent-set-v1` Sets a newly derived Agent, `supervisor-v1` identifies an ordinary
+Supervisor message, and `worker-v1` identifies a Worker report. These are
+caller-provided labels passed through L1, not profiles registered in L1.
+
+Supervisor owns Set timing, startup alignment, contact admission, and Worker
+report policy. Its `assets/worker-report.template.xml` uses the shared L1
+envelope with this body convention:
+
+```text
+Goal: <user-visible result and nearest non-goal; startup or changed understanding only>
+Result: <new externally relevant fact, or none>
+Evidence: <command, test, artifact, version, verdict, or observable state>
+Mismatch or blocker: <one decision-changing issue, or none>
+Next: <immediate evidence-producing action>
+```
+
+Labels may be localized and remain plain text. Ask for reports only on a
+verified result, stable checkpoint, direction-changing mismatch, real blocker,
+assurance deadline, or decision before irreversible work. A clear startup
+alignment leads directly to work; timed narration and repeated goal text do
+not qualify. Report shape never proves readiness or effect.
 
 Any Agent-authored content delivered through a channel that appears as
 appended `user` or prompt input uses the L1 envelope rather than raw text. A
@@ -1188,7 +1208,9 @@ boundary. Supervisor uncertainty, a recent Owner message, visible tool
 activity, or absence of an early diff does not admit a status request,
 interruption, or reslicing.
 
-The body may use direct `<cite>` elements admitted by the L1 contract. A
+The body may use direct `<cite>` elements admitted by the L1 contract. This
+caller uses source labels such as `user`, `worker`, `host`, `reviewer`, `tester`,
+`evidence`, or `supervisor`; their interpretation belongs here, not in L1.
 Supervisor uses `from="user"` only for an exact human excerpt that changes the
 outcome, boundary, evidence, decision, or next action. Any interpretation stays
 in the plain Supervisor-authored body. It may similarly cite one short Worker report, Host observation,

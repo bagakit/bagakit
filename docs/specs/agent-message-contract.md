@@ -4,10 +4,9 @@
 
 This contract defines Bagakit's local L1 Agent-to-Agent message protocol.
 
-It exists so L2 behaviors such as Supervisor, Reviewer, Researcher, and Worker
-can exchange compact, attributable, human-readable messages without each
-inventing its own visible envelope or confusing visible text with Host
-authority.
+It lets calling behaviors exchange compact, attributable, human-readable
+messages through one visible envelope. The protocol is independent of the
+callers' roles and workflows; visible text never establishes Host authority.
 
 This is not a claim of compatibility with any external network A2A protocol.
 
@@ -16,18 +15,21 @@ This is not a claim of compatibility with any external network A2A protocol.
 `bagakit-agent-messaging` owns:
 
 - the visible `bagakit-msg` envelope
-- message profiles, including the derived-Agent Set
 - direct source citation syntax
 - plain-language message discipline
-- the event-driven Worker report profile
 - fail-stop visible-shape validation and exact validated emission
 
 An L2 caller owns:
 
 - why the exchange is needed
+- role-specific profile names, source labels, and body conventions
 - the decision, request, finding, or correction in the body
-- whether a Worker report is useful now
+- when to send, request a reply, or send again
 - what later evidence proves the requested effect
+
+Calling behaviors depend on this protocol. The protocol must not name, load,
+activate, or prescribe any calling behavior. A profile or source label is
+caller-provided text, not an entry in a role registry maintained by L1.
 
 The Host owns:
 
@@ -70,11 +72,9 @@ Every portable Agent message uses:
 Required root attributes:
 
 - `type`
-  - one of `agent-v1`, `agent-set-v1`, `supervisor-v1`, `worker-v1`,
-    `reviewer-v1`, `tester-v1`, `auditor-v1`, or `researcher-v1`
-  - identifies the stable sender role profile; message events such as a
-    checkpoint, audit, correction, or role change belong in the body and do
-    not create new profile values
+  - a non-empty caller-provided profile label; `agent-v1` is the generic example
+  - any role-specific meaning belongs to the caller, not the L1 validator
+  - does not select a skill, assign a role, or grant authority
 - `name`
   - short, human-readable, and stable for the current sender instance
   - identifies the sender, not the current event, task, or action; reuse it
@@ -106,8 +106,8 @@ The citation form is:
 <cite from="user" ref="optional-resolvable-reference">source text</cite>
 ```
 
-- `from` is required and is one of `user`, `supervisor`, `worker`, `host`,
-  `reviewer`, `tester`, or `evidence`
+- `from` is required and is a non-empty caller-provided source label; it may
+  identify a person, Agent, document, artifact, or other source
 - `ref` is optional and non-empty when present
 - citation text is non-empty, short, XML-escaped, and contains no elements
 
@@ -129,9 +129,8 @@ owner or Host. Do not add a conflict, authority, priority, stop, or lifecycle
 field to the envelope; a message may describe a conflict or recommend a hold
 without proving the conflict or granting sender control.
 
-The peer-coordination technique for suspected shared-file, shared-contract,
-or candidate collisions is advisory guidance and lives in the skill payload's
-usage guide, not in this contract.
+Whether to pause work, coordinate with a peer, or take a lifecycle action is
+caller- or Host-owned policy. Message formatting must not initiate it.
 
 ## Plain-Language Rule
 
@@ -157,66 +156,16 @@ Plain language is not childish language and does not remove technical
 precision. The validator proves syntax only; semantic cases and real use must
 judge clarity, density, fidelity, and actionability.
 
-## Derived-Agent Set Profile
+## Context And Result Bodies
 
-Before an Agent derived by any mechanism acts, it receives an `agent-set-v1`
-envelope from its current deriving controller. Inherit context; never inherit
-authority. The latest valid Set for that Agent governs its local identity,
-assignment, material action boundaries, return path, and A2A messaging
-convention. A Set cannot grant authority beyond current Host-authenticated
-Owner truth.
+A caller may use the same envelope to share context or return a result. Context
+can describe the relevant request, boundaries, evidence, and return path. A
+result can describe the new fact, its evidence and limits, and the next relevant
+action. These are plain-language writing aids, not required fields or a workflow.
 
-The body remains free-form plain language. It should include whichever of
-these help the receiver act correctly: who the Agent is, what result it should
-produce, material action boundaries, where results return, and how A2A
-messages are sent. None is a required field, heading, ordering rule, or
-validator keyword.
-
-When several authorized Agents may affect the same result, the Set may name
-only collaborators relevant to this Agent, the current integration owner, and
-known shared hotspots or handoff boundaries. It should tell the Agent to
-refresh relevant peer state through the Host or A2A before a potentially
-conflicting action, coordinate routine overlap directly with the affected
-peer, and surface an unresolved conflict or material boundary change. This
-does not create a static roster, mandatory peer handshake, or authority.
-
-An aligned Agent may act immediately without a startup acknowledgement.
-Re-send a Set only on derivation, a material assignment or boundary change, or
-recovery when the Set is missing. Do not maintain a static full-team roster in
-the portable message protocol.
-
-"Latest valid" depends on visible-shape validation plus Host-authenticated
-sender authority, target binding, and ordering. XML alone cannot make one Set
-current.
-
-## Worker Startup And Report Profile
-
-At dispatch, an L2 caller may ask the Worker to align once and then act. A
-Worker report is admitted on a useful event rather than a timer:
-
-- verified result or stable checkpoint
-- direction-changing mismatch in goal, scope, acceptance, or authority
-- real blocker or bounded assurance deadline
-- decision needed before irreversible or conflicting work
-- completion of an assigned review or test result predicate
-
-The compact body profile is:
-
-```text
-Goal: <user-visible result and nearest non-goal; startup or changed understanding only>
-Result: <new externally relevant fact, or none>
-Evidence: <command, test, artifact, version, verdict, or observable state>
-Mismatch or blocker: <one decision-changing issue, or none>
-Next: <immediate evidence-producing action>
-```
-
-The labels are plain-text semantics inside a `worker-v1` envelope, not nested
-XML fields. A caller may localize the labels without changing their meaning.
-
-Do not require periodic narration, repeated goal paraphrase, implementation
-diaries, or a report that cannot change a decision. A clear startup alignment
-should lead directly to work. A report, acknowledgement, or template-complete
-reply does not prove result quality, readiness, or effect.
+The caller owns any specialized profile, startup alignment, dispatch, report
+admission, or acknowledgement policy. Formatting a context or result message
+does not require another exchange, create a team, or start a control loop.
 
 ## Validation And Actuation
 
@@ -229,7 +178,7 @@ sequence where a failed check can fall through.
 
 Any Agent-authored content delivered through a channel that appears to the
 receiver as appended `user` or prompt input must use the `bagakit-msg`
-envelope, including a Set. Native structured Agent results with reliable Host
+envelope. Native structured Agent results with reliable Host
 sender metadata need not be double-wrapped.
 
 Visible validation does not prove:

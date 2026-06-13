@@ -1,8 +1,8 @@
 # Agent Message Usage Guide
 
-Technique and admission judgment that the shape validator cannot check.
+Writing technique and citation judgment that the shape validator cannot check.
 
-Authority split: the stable grammar, profiles, ownership, and non-proof
+Authority split: the stable grammar, ownership, and non-proof
 boundary live in `docs/specs/agent-message-contract.md` in the canonical
 repository; the operating workflow lives in `SKILL.md`. When this guide and
 the spec disagree, the spec wins.
@@ -12,9 +12,8 @@ the spec disagree, the spec wins.
 1. Channel routing
 2. Plain-language technique
 3. Citation admission
-4. Conflict coordination advice
-5. Worker report admission
-6. Host boundary
+4. Context and result writing
+5. Host boundary
 
 ## Channel Routing
 
@@ -54,11 +53,11 @@ receiver-resolvable artifact or reference and keep the decision delta in the
 message.
 
 ```xml
-<bagakit-msg type="supervisor-v1" name="Cedar-7K2M" time="2000-01-01T00:00:00+00:00">
+<bagakit-msg type="agent-v1" name="Cedar-7K2M" time="2000-01-01T00:00:00+00:00">
 Result: The focused checks pass on the current version.
-Action: Stage only the current task candidate.
-Boundary: Do not continue analysis or edit code.
-Reply: Return the staged manifest or one real blocker.
+Evidence: The quoted-label sample returns the original text.
+Boundary: The remaining inputs have not been checked.
+Reply: Compare this result with your failing input.
 </bagakit-msg>
 ```
 
@@ -70,16 +69,15 @@ Use:
 <cite from="user" ref="optional-resolvable-source">source text</cite>
 ```
 
-Supported `from` values are `user`, `supervisor`, `worker`, `host`, `reviewer`,
-`tester`, and `evidence`.
+`from` is a non-empty caller-provided source label. It can name a person, Agent,
+document, artifact, or other source. L1 does not maintain a role whitelist or
+infer authority from the label.
 
 Good uses:
 
 - `user`: preserve a direction whose wording constrains scope or priority
-- `worker`: recall the Worker's own stated goal, blocker, or commitment
-- `host`: surface a Host-observed state relevant to the next action
-- `reviewer` or `tester`: preserve a bounded verdict or gate result
-- `evidence`: quote a specification, artifact, or externally checkable fact
+- a named Agent: preserve its stated finding or question
+- a named document or artifact: quote a requirement or checkable fact
 
 Use at most a few decision-bearing citations. Keep cited text as an exact short
 excerpt, XML-escaped, and free of nested elements. Put a summary or
@@ -90,43 +88,27 @@ A citation is attributed content inside an Agent-authored message. It does not
 authenticate a user, Host, reviewer, test, or artifact. It never outranks
 current Host-authenticated Owner truth.
 
-## Conflict Coordination Advice (Advisory)
+## Context And Result Writing
 
-This section is optional guidance, not part of the L1 grammar, authority model,
-or validation gate. When a possible shared-file, shared-contract, or candidate
-collision appears, an Agent should preserve valid work, pause only its own
-next conflicting or irreversible action, state the concrete overlap to the
-affected peer, and suggest coordination. It should not command the peer to
-stop, hand off, cancel, release authority, or abandon work through message
-text alone. The current integration owner or Host decides any action-bearing
-hold, fence, cancellation, or lifecycle transition.
+For a caller-selected context message, include the request, boundaries,
+relevant evidence, and return path that help the receiver understand it.
+For a caller-selected result message, say what became true, how it was checked,
+what limits apply, and the next relevant action. The optional
+`assets/agent-report.template.xml` illustrates this writing style.
 
-Do not add an authority, priority, stop, or conflict field to the envelope to
-encode this advice. A message can describe a conflict or recommend a hold
-without proving that the conflict exists or granting the sender control.
+The caller defines any specialized profile and body convention. Use its
+non-empty `type` label unchanged, or use `agent-v1` for a generic exchange.
+Plain-text labels are writing aids, not required XML fields.
 
-## Worker Report Admission
-
-Request a Worker report only when it can change a decision, close a gate,
-preserve a checkpoint, expose a mismatch, or resolve a real blocker. Do not
-poll merely to show supervision activity.
-
-At startup, ask for the Worker's `Goal`, its nearest attractive non-goal when
-useful, and first evidence-producing `Next` step. Afterwards, `Goal` is
-repeated only when understanding changed. `Result` must describe a new
-externally relevant fact, not time spent or files read. `Evidence` binds the
-result to a command, test, artifact, version, verdict, or observable state.
-`Mismatch or blocker` contains at most one issue that can change direction.
-`Next` names the immediate action, not a long plan.
-
-The Worker may wrap the report in a `worker-v1` envelope using
-`assets/worker-report.template.xml`. The labels are a semantic profile rather
-than XML child fields, so the report stays readable without a schema ceremony.
+The caller decides whether a message, reply, startup exchange, or later report
+is needed. Formatting does not initiate dispatch, polling, peer coordination,
+or another exchange. A message can describe a conflict without establishing
+that conflict or granting sender control.
 
 ## Host Boundary
 
-The Host authenticates the sender and binds message type, sender instance,
-target, Owner revision, attempt, controller authority, delivery, and
+The Host authenticates the sender and binds sender instance, target, Owner
+revision, attempt, action authority, delivery, and
 deduplication. Preserve the validated XML unchanged across the transport
 boundary when possible.
 

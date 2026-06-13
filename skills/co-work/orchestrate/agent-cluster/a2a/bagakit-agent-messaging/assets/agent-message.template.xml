@@ -1,6 +1,6 @@
-<bagakit-msg type="supervisor-v1" name="Cedar-7K2M" time="2000-01-01T00:00:00+00:00">
-<cite from="user">Keep final acceptance strict, but do not pause independent development while checks run.</cite>
-Result: Final acceptance stays strict; independent development may continue.
-Action: Continue the next non-conflicting step.
-Reply: Report a verified result or real blocker with evidence and the next action.
+<bagakit-msg type="agent-v1" name="Cedar-7K2M" time="2000-01-01T00:00:00+00:00">
+<cite from="user">Preserve the original source text.</cite>
+Result: The parser now preserves quoted labels.
+Action: Compare this result with your failing input.
+Reply: Return the differing label or confirm that the inputs agree.
 </bagakit-msg>

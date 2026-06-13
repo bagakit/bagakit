@@ -1,6 +1,6 @@
 version = 1
 skill = "bagakit-agent-messaging"
-trigger = "An Agent exchange needs sender recognition, derived-Agent setup, source citation, plain-language action, startup alignment, or a Worker report."
-do = "Use Host metadata first. For external/prompt delivery, set derived Agents before action and use L1 bagakit-msg; cite material source text and keep authentication, authority, transport, and effect with the Host."
+trigger = "An already-selected Agent exchange needs a visible envelope, sender recognition, source citation, or clear context/result writing."
+do = "Use Host channel metadata first. For external/prompt delivery, compose and validate one generic bagakit-msg envelope; keep roles and timing with the caller, and authentication, authority, transport, and effect with the Host."
 see = "skills/co-work/orchestrate/agent-cluster/a2a/bagakit-agent-messaging/SKILL.md"
 fallback = "If the channel is native and Host-authenticated, do not wrap it. If it is external or prompt-like, render the same bagakit-msg envelope without inventing another grammar. If unknown, resolve channel classification with the Host before sending."

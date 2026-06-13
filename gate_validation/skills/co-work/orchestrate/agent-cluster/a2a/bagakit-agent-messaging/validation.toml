@@ -32,7 +32,7 @@ required_files = [
   "skills/co-work/orchestrate/agent-cluster/a2a/bagakit-agent-messaging/SKILL.md",
   "skills/co-work/orchestrate/agent-cluster/a2a/bagakit-agent-messaging/agents/openai.yaml",
   "skills/co-work/orchestrate/agent-cluster/a2a/bagakit-agent-messaging/assets/agent-message.template.xml",
-  "skills/co-work/orchestrate/agent-cluster/a2a/bagakit-agent-messaging/assets/worker-report.template.xml",
+  "skills/co-work/orchestrate/agent-cluster/a2a/bagakit-agent-messaging/assets/agent-report.template.xml",
   "skills/co-work/orchestrate/agent-cluster/a2a/bagakit-agent-messaging/references/usage-guide.md",
   "skills/co-work/orchestrate/agent-cluster/a2a/bagakit-agent-messaging/references/frontdoor-rule.toml",
   "skills/co-work/orchestrate/agent-cluster/a2a/bagakit-agent-messaging/references/skill-cli.toml",
@@ -50,12 +50,12 @@ forbidden_paths = [
 [[suite]]
 id = "bagakit-agent-messaging-runtime"
 owner = "skills/co-work/orchestrate/agent-cluster/a2a/bagakit-agent-messaging"
-description = "Exercise generic Agent sender profiles, direct citations, forbidden nested markup, required identity metadata, XML safety, fail-stop exact emission, and fail-stop escaped composition."
+description = "Exercise caller-provided profiles and citation source labels, forbidden nested markup, required identity metadata, XML safety, fail-stop exact emission, and fail-stop escaped composition."
 default = true
 proof_mode = "runtime"
-protects = ["compact source-attributable Agent messages without visible self-asserted authority or malformed actuation payloads"]
-oracle = ["public CLI cases validate both Agent and Worker templates, mixed cite content, exact issue codes, unsafe XML rejection, zero invalid stdout on emit, and compose round-trips that escape raw text and refuse invalid parts"]
-exercised_surface = ["scripts/agent_message_check.py public CLI", "bagakit-msg Agent profiles", "cite source attribution"]
+protects = ["one role-neutral visible envelope that preserves caller labels and emits only valid XML"]
+oracle = ["public CLI cases validate generic message and result templates, previously unknown profiles and Unicode source labels, exact issue codes, unsafe XML rejection, zero invalid stdout on emit, and escaped compose round-trips"]
+exercised_surface = ["scripts/agent_message_check.py public CLI", "bagakit-msg caller-provided profiles", "cite source attribution"]
 proves = ["The validator enforces its declared visible XML grammar and fail-stop emission behavior."]
 does_not_prove = ["The validator does not authenticate a sender or citation, grant authority, grade plain language, prove delivery or effect, or show that a message was necessary."]
 timeout_seconds = 30

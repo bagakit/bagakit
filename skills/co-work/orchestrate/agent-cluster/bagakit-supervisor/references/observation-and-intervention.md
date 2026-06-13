@@ -280,7 +280,7 @@ unknowns as explicit handles and start the safe slice. Judge the causal
 quality of the first action, not agreement wording or response length, and do
 not prescribe implementation method.
 
-Ask for the L1 Worker report profile only on a verified result, stable
+Ask for this skill's Worker report only on a verified result, stable
 checkpoint, direction-changing mismatch, real blocker, assurance deadline, or
 decision before irreversible work. Do not request timed status chatter,
 repeated Goal text, or implementation diaries.
@@ -619,8 +619,12 @@ when the Worker acknowledged it or the Supervisor reported the delay honestly.
 ## Supervisor Messaging Profile
 
 Use the L1 `bagakit-agent-messaging` protocol instead of owning a
-Supervisor-private envelope or validator. Use `agent-set-v1` for a derived
-Agent's Set and `supervisor-v1` for ordinary control. Keep one run-unique
+Supervisor-private envelope or validator. This caller owns its role labels:
+`agent-set-v1` for a derived Agent's Set, `supervisor-v1` for ordinary control,
+and `worker-v1` for a Worker report. The report body convention lives in
+`docs/specs/supervisor-skill-contract.md`; use this skill's
+`assets/worker-report.template.xml`. L1 formats these labels without defining
+their meaning or deciding when to send. Keep one run-unique
 readable name. Use a direct `<cite>` only for short decision-bearing source
 text; citation preserves attribution but grants no identity, priority, or
 authority. Prefer Host name reservation and bind at most one action-authorized

@@ -14,18 +14,7 @@ from xml.sax.saxutils import escape, quoteattr
 
 
 ROOT_ATTRIBUTES = {"type", "name", "time"}
-MESSAGE_TYPES = {
-    "agent-v1",
-    "agent-set-v1",
-    "supervisor-v1",
-    "worker-v1",
-    "reviewer-v1",
-    "tester-v1",
-    "auditor-v1",
-    "researcher-v1",
-}
 CITE_ATTRIBUTES = {"from", "ref"}
-CITE_SOURCES = {"user", "supervisor", "worker", "host", "reviewer", "tester", "evidence"}
 
 
 def issue(code: str, path: str, message: str) -> dict[str, str]:
@@ -52,9 +41,6 @@ def validate_cite(element: ET.Element, index: int) -> list[dict[str, str]]:
     for name in sorted(CITE_ATTRIBUTES & actual_attributes):
         if not element.attrib[name].strip():
             issues.append(issue("cite.attribute.empty", f"{path}.@{name}", "cite attribute must be non-empty"))
-    source = element.attrib.get("from")
-    if source and source not in CITE_SOURCES:
-        issues.append(issue("cite.from.invalid", f"{path}.@from", f"unsupported cite source: {source}"))
     if list(element):
         issues.append(issue("cite.nested", path, "cite content must be plain text without nested elements"))
     if not "".join(element.itertext()).strip():
@@ -88,9 +74,6 @@ def validate(text: str) -> list[dict[str, str]]:
         if not root.attrib[name].strip():
             issues.append(issue("attribute.empty", f"$.@{name}", "attribute must be non-empty"))
 
-    message_type = root.attrib.get("type")
-    if message_type and message_type not in MESSAGE_TYPES:
-        issues.append(issue("type.invalid", "$.@type", f"unsupported Agent message type: {message_type}"))
     if "time" in root.attrib and not valid_time(root.attrib["time"]):
         issues.append(issue("time.invalid", "$.@time", "time must be an ISO 8601 timestamp with a timezone"))
 
@@ -139,7 +122,7 @@ def main() -> int:
     output = parser.add_mutually_exclusive_group()
     output.add_argument("--json", action="store_true", help="Emit structured validation JSON.")
     output.add_argument("--emit", action="store_true", help="Emit the exact input only when it is valid.")
-    parser.add_argument("--type", help="Compose: message profile, for example supervisor-v1.")
+    parser.add_argument("--type", help="Compose: caller-provided message profile, for example agent-v1.")
     parser.add_argument("--name", help="Compose: short stable sender-instance name.")
     parser.add_argument("--time", help="Compose: ISO 8601 timestamp with timezone; defaults to now.")
     parser.add_argument("--cite-from", action="append", help="Compose: citation source; repeatable, paired with --cite-text.")
