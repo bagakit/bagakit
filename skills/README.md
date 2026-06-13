@@ -18,8 +18,8 @@ skills/
 │   ├── deliver/                 Pageville; design, swe, paperwork, media-production, gamemaker
 │   └── human-improvement/       explanation, mastery, and project retrospectives
 ├── evolve/                       M1: improve the shared work system
-│   ├── observe/                  trajectory and harness observation (planned)
-│   ├── generate/                 skill/change candidate creation (planned)
+│   ├── observe/                  trajectory and harness observation
+│   ├── generate/                 skill/change candidate creation
 │   ├── evaluate/                 review and evaluation methods
 │   └── adapt/                    decision memory, adoption, routing, promotion
 └── rsi/                          M2: improve M1 (navigation; no M2 skill yet)
@@ -30,8 +30,9 @@ a larger group may have subgroups. Group READMEs are navigation, never skill
 entrypoints. No nesting of install units is allowed: discovery stops at
 `SKILL.md` and treats the remaining subtree as that skill's payload.
 
-The directory contract is `docs/specs/skill-directory-contract.md`. The purpose
-and recursive architecture are defined in
+The directory contract is `docs/specs/skill-directory-contract.md`. The
+single-owner routing contract is `docs/specs/skill-routing-contract.md`. The
+purpose and recursive architecture are defined in
 `docs/architecture/D1-recursive-evolution-architecture.md`.
 
 A2A and A2U retain their own contracts inside Agent-cluster collaboration.
@@ -59,6 +60,7 @@ crosses an ownership boundary.
 | Learning contract, diagnostic, transfer, support fading, and retention evidence | `bagakit-mastery-learning` | HITL + Codex only for interactive page delivery | evidence-backed learning state |
 | Generic writing quality, structure, evidence, and publishability | `bagakit-writing-core` | `bagakit-writing-de-ai-tone` for final prose; Intake for pre-draft diagnosis | core review and required lint |
 | AI-tone detection or meaning-preserving rewrite | `bagakit-writing-de-ai-tone` | reach it through Writing Core for publishable prose | detection/rewrite report and second-pass audit |
+| Bounded autoresearch for a skill, Agent, prompt, retrieval rule, or harness change | `bagakit-auto-research` | `bagakit-researcher` for external evidence; `bagakit-replay-lab` or `bagakit-dreaming-ratchet` for replay/holdout proof; `bagakit-skill-evolver` for durable routing | accepted, rejected, or explicitly deferred candidate receipt |
 
 Routing rules:
 
@@ -74,3 +76,6 @@ Routing rules:
 - Writing Core owns generic quality gates. De-AI-tone owns only AI-tone and
   protected-span checks; do not duplicate its lexicon or rerun it as a second
   independent Core gate.
+- Auto Research owns bounded experiment orchestration for M1 candidate
+  generation. Shared eval mechanics, source evidence, replay gates, and
+  durable promotion remain with their existing owners.

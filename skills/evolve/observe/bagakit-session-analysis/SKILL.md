@@ -63,6 +63,12 @@ optional metadata rather than splitting the session by producer.
 5. Hand the packet to `bagakit-replay-lab` for replay. A candidate is not
    adopted from this skill alone.
 
+The analyzer rejects records without an explicit `terminal` boolean, episodes
+without exactly one final terminal record, and non-increasing steps. Optional
+`candidate_update` objects are copied into the packet's `candidate_updates`
+array only when they declare `target`, `mechanism`, `falsification`, and
+`holdout_plan`; incomplete updates remain marked `incomplete` for review.
+
 ## Required evidence fields
 
 Every accepted candidate must retain:

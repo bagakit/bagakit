@@ -8,7 +8,8 @@ metadata:
 
 # Bagakit Writing Intake
 
-`bagakit-writing-intake` is the paperwork Intake layer.
+`bagakit-writing-intake` is the paperwork Intake layer. It does not produce
+final prose, stops at packet emission for final-prose requests. Do not use as the terminal drafting or rewrite owner; hand the packet to the named Core, style, or delivery owner.
 
 It emits an evidence-bound `intake_packet`. It does not produce final prose.
 
@@ -74,6 +75,13 @@ It does not own:
 ## Output Contract
 
 The primary output is a single `intake_packet` plus a short handoff note.
+
+Packet lifecycle is explicit: emit one packet for the current source boundary,
+keep it in the caller's chosen working or run directory, and hand it to the
+named next owner. A packet may be superseded by a newer packet when the source
+boundary or route changes, but it is not silently edited into a different
+diagnosis. Archive or discard the packet according to the caller's retention
+policy; the skill never stores raw private samples in its payload.
 
 Minimum top-level fields:
 

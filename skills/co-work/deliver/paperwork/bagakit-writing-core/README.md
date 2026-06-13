@@ -42,8 +42,10 @@ bash scripts/bagakit-writing-core-cli.sh print-anti-rationalization-table
 ```
 
 For final prose, public-facing summaries, rewritten drafts, titles, abstracts,
-and review reports, core MUST run the de-AI-tone pass unless the user explicitly
-asks for raw notes or detect-only output.
+and review reports, Core MUST run the de-AI-tone pass unless the user
+explicitly asks for raw notes or detect-only output. The owning L2 delivery
+skill makes the final publishability decision and records any accepted Core
+warnings in its own artifact contract.
 
 L2 skills should call these commands explicitly through composition or their
 own `core` dispatch. The core should not silently inherit an L2's personal style

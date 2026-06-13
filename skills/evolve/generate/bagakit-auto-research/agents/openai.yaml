@@ -1,0 +1,4 @@
+interface:
+  display_name: "Bagakit Auto Research"
+  short_description: "Run bounded evidence-backed improvement experiments"
+  default_prompt: "Use $bagakit-auto-research to plan and run a bounded baseline/candidate/holdout improvement loop, then prepare an explicit Evolver handoff."

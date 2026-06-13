@@ -91,20 +91,20 @@ Does not own:
 - `mem/`
   - durable but still-evolving memory, migration notes, and analysis
 
-## Authority Order
+## Authority Rule
 
-When multiple surfaces touch the same topic, use this order:
+There is no global precedence order between these surfaces. The owning
+surface depends on the question:
 
-1. `docs/architecture/`
-   - structure, ownership, and flow
-2. `docs/specs/`
-   - durable contracts, vocabulary, and stable semantics
-3. `docs/stewardship/`
-   - maintainer procedure and operating guidance
-4. `mem/`
-   - evolving comparison or migration context that is not yet stable truth
-5. `skills/`
-   - runtime instructions that ship with one installable skill
+- architecture owns system structure, ownership, and cross-surface flow;
+- specs own stable contracts, vocabulary, and durable semantics;
+- stewardship owns maintainer procedure;
+- `mem/` holds evolving analysis until it is promoted;
+- `skills/` owns runtime instructions that ship with one installable skill.
+
+When two surfaces mention the same topic, keep one owner and make the other a
+short navigation or application note. Do not resolve a conflict by copying a
+second full definition into the other surface.
 
 ## Local Working Areas
 

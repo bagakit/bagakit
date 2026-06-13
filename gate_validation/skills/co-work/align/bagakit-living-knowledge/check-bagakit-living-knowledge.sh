@@ -79,8 +79,7 @@ grep -q "must-guidebook.md" AGENTS.md
 grep -q "must-authority.md" AGENTS.md
 grep -q "must-sop.md" AGENTS.md
 grep -q "must-recall.md" AGENTS.md
-grep -q "docs/.bagakit-knowledge.toml" AGENTS.md
-grep -q "shared path protocol config" AGENTS.md
+grep -q "path-protocol details" AGENTS.md
 grep -q "Maintaining Reusable Items" docs/norms-maintaining-reusable-items.md
 
 PATHS_OUT="$("$CMD" paths --root .)"

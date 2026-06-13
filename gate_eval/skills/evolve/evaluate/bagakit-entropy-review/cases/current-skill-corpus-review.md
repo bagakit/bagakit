@@ -2,20 +2,22 @@
 
 ## 结论
 
-本轮对当前工作树下 31 个 installable skills 做了同口径评估。
+本轮对当前工作树下 36 个 installable skills 做了同口径评估。
 
 结果分布：
 
 - `E0`：1
-- `E1`：8
+- `E1`：9
 - `E2`：12
 - `E3`：10
+- `unknown`：4
 
 处置分布：
 
-- `retain`：9
+- `retain`：10
 - `reduce`：18
 - `mixed`：4
+- `review`：4
 
 这里的分数是**评审关注度**：
 
@@ -29,12 +31,12 @@ family 之间也不计算平均分。
 
 ## 快照与方法
 
-- 日期：`2026-08-25`（快照基线日期；后续库存刷新纳入当前工作树新增 skill）
+- 日期：`2026-09-22`
 - 模式：当前未提交工作树快照
-- skills：31
-- payload files：512
+- skills：36
+- packaged files：569
 - corpus manifest SHA-256：
-  `a26081732ab5f467199be0a8f3804de6bc5de232d0ab133faf1e3075a4af75bd`
+  `3acddb5d758d39e2532b68361235a55b33e247ee0bab0d2c643243537c7aca36`
 - 共同证据窗：完整 `SKILL.md`、package inventory、frontdoor、skill CLI、
   默认路径需要的一跳 references、直接 validation/eval registration；只有当
   material finding 需要时才下钻脚本或 fixture
@@ -56,9 +58,27 @@ family 之间也不计算平均分。
 - `cases/current-skill-corpus-baseline.json`
 - `cases/current-skill-corpus-inventory.json`
 
-本次库存刷新补入了当前工作树已有但原始基线遗漏的
-`co-work/orchestrate/agent-cluster/a2a/bagakit-agent-post`；该条目按同一 default-route frame 重新检查，保持
-`uncalibrated`，不把一次补录当作独立复评或校准证据。
+本次库存刷新把当前工作树中的四个 M1 evolve operators 纳入机器基线：
+`bagakit-session-analysis`、`bagakit-replay-lab`、`bagakit-dreaming-ratchet` 和
+`bagakit-auto-research`。它们暂时使用 `unknown / review / limited` 记录，表示
+尚未有足够的独立行为证据；不把一次登记当作质量、成熟度或校准证据。原有
+`bagakit-agent-post` 也已在同一批次中保留为正式记录。
+
+机器可读 SSOT 中的 `package_file_count` 是 `distribute-package --selector all`
+生成的 36 个 `.skill` 压缩包内的非目录文件总数；它不是 skill 数量。
+
+## Unknown：等待最小证据
+
+以下四个新增 M1 operator 已完成运行入口和 owner gate 登记，但尚未进入本轮
+行为校准，因此不做 E0--E3 评定：
+
+- `evolve/observe/bagakit-session-analysis`
+- `evolve/evaluate/bagakit-replay-lab`
+- `evolve/generate/bagakit-dreaming-ratchet`
+- `evolve/generate/bagakit-auto-research`
+
+共同的最小安全动作是补齐一组可复现的输入、输出和失败 fixture，并由各自 owner
+gate 验证；在此之前维持 `review`，不宣称演化闭环已经完成。
 
 ## E0：未发现实质减熵收益
 

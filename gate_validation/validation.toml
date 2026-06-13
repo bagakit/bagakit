@@ -34,7 +34,7 @@ global_paths = [
   "docs/specs/validation-system.md",
   "docs/specs/runtime-surface-contract.md",
   "docs/specs/skill-cli-contract.md",
-  "docs/specs/directory-protocol.md",
+  "docs/specs/skill-directory-contract.md",
 ]
 
 [[impact_rule]]

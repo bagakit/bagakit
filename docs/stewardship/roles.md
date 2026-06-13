@@ -47,7 +47,8 @@ Typical responsibilities:
 
 - keep runtime payload boundaries clear
 - keep family-level structure coherent
-- coordinate projection to legacy distribution targets during transition
+- keep link, archive, and plugin projections aligned with the canonical source
+  tree when a distribution surface is requested
 - keep agent-facing workflow semantics in skills even when related steward tools
   exist elsewhere in the repo
 - register release-blocking skill validation under `gate_validation/skills/`

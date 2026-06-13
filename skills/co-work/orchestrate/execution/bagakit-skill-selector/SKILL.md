@@ -18,6 +18,18 @@ Use this skill only when it changes a task decision:
 For an obvious one-step route, execute directly. Do not create a selector
 episode just to prove that selector was considered.
 
+## Invocation Contract
+
+- **Input:** a real candidate set, composition request, repeated failure, or
+  explicit reuse request with comparable fit evidence.
+- **Output:** an ephemeral typed preflight or persisted usage episode naming
+  candidates, route, evidence, and disposition.
+- **Error:** an empty/non-comparable candidate set or conflicting operation
+  fails without partial task-state mutation; selector does not invent a route.
+- **Stop:** skip and stop for an obvious one-step route; otherwise close only
+  after the smallest valid disposition (`receipt_only`, `audit_sample`, or
+  `full_episode`).
+
 ## Frontdoor
 
 Installing or listing this skill never invokes it. The host or Agent decides

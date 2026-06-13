@@ -18,7 +18,12 @@ The Goal defines stable intent, principles, and how to obtain current state;
 it never embeds the retrieved state. Feature Tracker remains the only owner of
 lifecycle, tasks, workspace, dependencies, blockers, evidence, and closeout.
 
-Core contract:
+Invocation contract:
+
+- **Input:** an existing Feature Tracker Feature, a classified `terminal` or `frontier` Goal, and its closure oracle/ratchet.
+- **Output:** Feature Tracker-owned `goal.md`, owner receipt, and exact host wrapper; authored/bound/activated status stays distinct.
+- **Error:** missing owner surface, contradiction, stale revision, or invalid template fails closed before Feature state changes.
+- **Stop:** stop after Tracker write plus host activation verification, or return `blocked`/`deferred`; never create a global Goal or close the Feature.
 
 - Depend on `bagakit-feature-tracker`; create or resolve the Feature first.
 - This is an ownership dependency, not a best-effort fallback. `render-template`
@@ -50,26 +55,19 @@ Core contract:
   that need an expected decision or verification payoff. They are not
   convergence evidence.
 - Put current state, next action, decisions, questions, waits, assignments,
-  progress, packets, and execution evidence in Feature Tracker or its Runner.
-- Admit only durable direction or a repeatable recovery rule. Exclude current
-  and historical snapshots even if dated, sourced, or still factually true.
+  progress, packets, and execution evidence in Feature Tracker or its Runner;
+  admit only durable direction or a repeatable recovery rule, never snapshots.
 - Use `bagakit-grill` only when outcome, invariant, acceptance, authority, or
   irreversible-risk meaning remains unresolved after local inspection.
-- Give the user a plain-language alignment recap before first activation or a
-  direction-changing Goal revision.
-- Before any new optimization or implementation, check the request against the
-  Goal and current Feature task truth for drift. Record each accepted new
-  requirement in the appropriate reviewed Feature Task before acting.
+- Give the user a plain-language alignment recap before first activation or a direction-changing Goal revision.
+- Before any new optimization or implementation, check the request against Goal and Feature task truth; record each accepted requirement in the reviewed Feature Task before acting.
 - Install or revise `goal.md` only through Feature Tracker's
   `set-feature-goal` command with an expected revision. Never write Feature
   runtime state directly.
-- Author from `references/goal-template.md` and preserve its required metadata,
-  state-recovery section, and section order. A free-form paragraph or custom
-  layout is invalid even when it contains the convergence markers.
+- Author from `references/goal-template.md` and preserve its metadata, state-recovery section, and order; a free-form paragraph is invalid even with convergence markers.
 - Distinguish authored, Feature-bound, and host-activated. A successful write
-  is not activation. Set the host Agent Goal to the exact wrapper, then verify
-  it through the host or obtain explicit user confirmation before claiming the
-  Goal is active.
+  is not activation: set the exact wrapper through the host and verify it (or
+  obtain explicit user confirmation) before claiming the Goal is active.
 - One host thread has at most one active Feature Goal. Rebind or clear stale
   native Goal text when switching Features. Different Features may run in
   separate threads; there is no repository-global foreground Goal.

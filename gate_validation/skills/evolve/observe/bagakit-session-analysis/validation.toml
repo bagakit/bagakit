@@ -1,0 +1,21 @@
+version = 2
+
+[[suite]]
+id = "bagakit-session-analysis-contract"
+owner = "skills/evolve/observe/bagakit-session-analysis"
+description = "Validate explicit terminal events, increasing episode steps, branch provenance, and candidate update output."
+default = true
+proof_mode = "runtime"
+protects = ["session-analysis normalized JSONL contract"]
+oracle = ["owner smoke exercises valid and invalid records through the public CLI"]
+exercised_surface = ["skills/evolve/observe/bagakit-session-analysis/scripts/analyze_session.py"]
+proves = ["The analyzer rejects open or non-monotonic episodes and emits a candidate_updates packet for complete update input."]
+does_not_prove = ["The check does not prove semantic quality of a proposed candidate or provider-specific adapters."]
+validation_class = "contract"
+timeout_seconds = 60
+groups = ["skills", "evolve", "session-analysis", "runtime"]
+
+[suite.runner]
+kind = "bash_script"
+script = "gate_validation/skills/evolve/observe/bagakit-session-analysis/check-session-analysis.sh"
+args = ["--root", "{repo_root}"]

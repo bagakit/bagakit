@@ -163,6 +163,12 @@ For a planned but not executed run, checklist only the selected stages and
 record unselected side effects as `not_in_scope`; do not create placeholder
 ledgers for every adapter.
 
+The minimum adapter-free path is a local source inventory, evidence review,
+editorial brief, and a project-local draft or dry-run archive. Record
+`adapter_status: not_configured` for skipped external stages and stop before
+deployment or notification. This keeps a usable review artifact without
+pretending that a local draft was published.
+
 For a design-only request, the run spine is a planning contract, not permission
 to call live adapters.
 
@@ -170,6 +176,8 @@ to call live adapters.
 
 Do not deploy or notify as a successful publication when a blocker for the
 selected output remains:
+
+Do not deploy or notify as a successful publication when any blocker remains.
 
 - source minimum is not met
 - source evidence is too stale for the run's recency window

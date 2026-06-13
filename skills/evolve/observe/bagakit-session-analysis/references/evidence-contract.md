@@ -19,7 +19,7 @@ Fields used by the downstream replay and ratchet skills:
 | `step` | integer | Monotonic step within an episode. |
 | `action` | string/object | Action taken by the agent. |
 | `outcome` | enum | `success`, `failure`, or `unknown`. |
-| `terminal` | boolean | Explicitly marks the episode's terminal event; do not infer it from position. |
+| `terminal` | boolean | Required on every record; exactly one `true` record must be the episode's final record. |
 | `source_kind` | string | Optional producer class, such as `chat`, `tool-use`, `coding`, `research`, `workflow`, `embodied`, or `human-in-loop`. |
 | `harness_id` | string | Optional producer/harness identity; never required for analysis. |
 | `actor` | string | Optional `agent`, `tool`, `environment`, `human`, or other event owner. |
@@ -30,7 +30,10 @@ Fields used by the downstream replay and ratchet skills:
 | `artifact_refs` | array | Paths or immutable ids for outputs, diffs, or test receipts. |
 | `evaluator` | object/string | Who or what judged the outcome. |
 | `provenance` | object | Source URI, timestamp, model, and export digest when available. |
+| `candidate_update` | object | Optional update packet attached to a record or alternative. When present it must include `target`, `mechanism`, `falsification`, and `holdout_plan`; the analyzer emits it under `candidate_updates` with a stable id and readiness status. |
 
 The emitted packet contains a `source_digest`, `episodes`, `branch_candidates`,
-`source_kinds`, and `warnings`. A warning is evidence metadata, not a failure;
-adoption gates must decide whether it blocks a candidate.
+`candidate_updates`, `source_kinds`, and `warnings`. A warning is evidence
+metadata, not a failure; adoption gates must decide whether it blocks a
+candidate. Records without an explicit terminal event are invalid, because an
+open episode cannot provide a terminal outcome for replay.

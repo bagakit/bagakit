@@ -290,9 +290,13 @@ bash scripts/skill.sh link --selector co-work/orchestrate --dest <target-skills-
 Make wrapper:
 
 ```bash
-make link-skills DEST=<target-skills-dir> SELECTOR=harness
-make update-link DEST=<target-skills-dir> SELECTOR=harness
+make link-skills DEST=<target-skills-dir> SELECTOR=co-work/orchestrate
+make update-link DEST=<target-skills-dir> SELECTOR=co-work/orchestrate
 ```
+
+Use `SELECTOR=all` when the target should receive every current skill. Host
+harnesses have a separate `host-harness-*` command family and are not selected
+through the skill linker.
 
 ### Package Archives
 
@@ -365,9 +369,6 @@ python3 -m http.server --directory site 8000
   - maintainer procedure for reviewing those claim levels
 - `docs/skill-development.md`
   - current Bagakit skill development baseline
-
-These legacy reference docs may be rehomed or rewritten as the monorepo model
-stabilizes.
 
 ### Refresh Existing Installations After A Move
 

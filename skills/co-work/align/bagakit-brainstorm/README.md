@@ -7,9 +7,9 @@ Brainstorm from Markdown context and convert ideas into an analysis + handoff pa
 - Extracts goals/constraints from Markdown input.
 - Generates multiple idea options with trade-offs.
 - Builds a decision matrix and recommends a path.
-- Produces reusable stage artifacts (`input_and_qa.md`, `finding_and_analyze.md`, `expert_forum.md`, `outcome_and_handoff.md`).
+- Produces reusable stage artifacts (`input_and_qa.md`, `finding_and_analyze.md`, and `outcome_and_handoff.md`); creates `expert_forum.md` for serious/publication review or an explicit user-review gate.
 - Produces a dedicated raw-discussion artifact (`raw_discussion_log.md`) so the summarized forum is not the only preserved discussion surface.
-- Uses forum-centric design: all critical debate and convergence must be centralized in `expert_forum.md`.
+- Uses a dedicated forum artifact when the review mode needs multi-party debate; critical debate and convergence are centralized there when that mode is selected.
 - Uses question-card structure in `input_and_qa.md` so every user-facing clarification question is asked with the same readable shape.
 - Keeps question cards low-noise and user-facing; detailed normalization stays in the raw discussion log.
 - Uses a question ladder so brainstorm does not ask “whatever comes to mind”:
@@ -19,7 +19,7 @@ Brainstorm from Markdown context and convert ideas into an analysis + handoff pa
   - detail expansion
   - final confirmation
 - Adds memory-quality structure for future readability: canonical entity names, resolved references, time anchors, and source refs.
-- Enforces an expert-forum completion gate (`discussion_clear: true`) before brainstorm can be complete.
+- Enforces the expert-forum completion gate (`discussion_clear: true`) only for serious/publication review; lightweight runs keep the forum optional.
 - Keeps runtime artifacts sample-free: evidence/scoring tables ship with headers only, and obvious placeholder/example residue is blocked before completion.
 - Anchors option generation to a compact frontier context and asks each expert to declare domain identity, frontier focus, and judgment boundaries.
 - Supports forum modes: `deep_dive_forum`, `lightning_talk_forum`, `industry_readout_forum`.

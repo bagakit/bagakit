@@ -14,3 +14,7 @@ summary = "Print the replay protocol."
 [[command]]
 name = "evaluate"
 summary = "Aggregate baseline and candidate result JSONL into a replay receipt."
+
+[[command]]
+name = "replay"
+summary = "Alias for evaluate when the input is a frozen replay result set."

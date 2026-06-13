@@ -23,6 +23,11 @@ drafts, and incident logs. Use it when the user says 炼化、精炼、提炼、
 技术文档、`distill`, or `$refine-doc`; it emits a compact brief rather than
 forcing article-length gates.
 
+The two routes use different source authority rules: `article` starts from one
+declared source of truth; `distill` may inventory mixed sources, but preserves
+each source's parentage and surfaces conflicts. Do not silently combine a
+mixed source set into an article authority.
+
 `refine-doc` is a mode and trigger alias, not a second installable skill. Use
 `distill` for fast facts-and-actions; switch to `article` only when publication
 or a full execution handoff is required.

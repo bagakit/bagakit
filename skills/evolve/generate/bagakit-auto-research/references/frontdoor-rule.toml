@@ -1,0 +1,5 @@
+version = 1
+skill = "bagakit-auto-research"
+trigger = "An Agent or skill needs a bounded evidence-backed improvement loop with baseline, candidate, and holdout or fresh comparison."
+do = "Frame one reversible candidate, run the shared eval loop, write a provenance-bound receipt, and hand reviewable evidence to Evolver without promoting it."
+see = "skills/evolve/generate/bagakit-auto-research/SKILL.md"

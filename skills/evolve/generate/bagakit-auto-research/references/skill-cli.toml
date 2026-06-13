@@ -1,0 +1,16 @@
+version = 1
+skill = "bagakit-auto-research"
+cli_id = "bagakit-auto-research"
+entrypoint = "scripts/bagakit-auto-research-cli.sh"
+runner = "shell"
+usage = "sh scripts/bagakit-auto-research-cli.sh <command>"
+summary = "Inspect the bounded autoresearch candidate, evaluation, holdout, and promotion contract."
+surface_refs = [".bagakit/evolver"]
+
+[[command]]
+name = "describe"
+summary = "Print the bounded autoresearch skill description."
+
+[[command]]
+name = "contract"
+summary = "Print the candidate, evaluation, holdout, and promotion contract."

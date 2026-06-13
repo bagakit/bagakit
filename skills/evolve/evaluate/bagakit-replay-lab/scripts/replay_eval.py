@@ -5,10 +5,23 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import math
 from collections import defaultdict
 from pathlib import Path
 from statistics import mean
 from typing import Any
+
+
+def nonempty(value: Any) -> bool:
+    return isinstance(value, str) and bool(value.strip())
+
+
+def finite_number(value: Any) -> bool:
+    return type(value) in (int, float) and math.isfinite(value)
+
+
+def canonical(value: Any) -> str:
+    return json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
 
 
 def main() -> int:
@@ -25,13 +38,23 @@ def main() -> int:
     errors: list[str] = []
     warnings: list[str] = []
     manifest: dict[str, Any] | None = None
+    evaluators: dict[str, str] = {}
+    missing_evaluator_rows = 0
     if args.manifest:
         try:
             manifest = json.loads(args.manifest.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError) as exc:
             errors.append(f"manifest: cannot read ({exc})")
         if manifest is not None:
-            splits = manifest.get("splits", {})
+            if not isinstance(manifest, dict):
+                errors.append("manifest: root must be an object")
+                manifest = None
+            splits = manifest.get("splits", {}) if manifest else {}
+            if manifest is not None and not nonempty(manifest.get("source_digest")):
+                errors.append("manifest: source_digest must be a non-empty string")
+            if not isinstance(splits, dict) or not {"dream", "holdout"}.issubset(splits):
+                errors.append("manifest: splits must include dream and holdout")
+                splits = {}
             seen: dict[str, str] = {}
             for split, episode_ids in splits.items():
                 if split not in {"dream", "holdout", "fresh"} or not isinstance(episode_ids, list):
@@ -39,9 +62,21 @@ def main() -> int:
                     continue
                 for episode_id in episode_ids:
                     key = str(episode_id)
+                    if not nonempty(key):
+                        errors.append(f"manifest: {split} contains an empty episode id")
                     if key in seen:
                         errors.append(f"manifest: episode {key} appears in {seen[key]} and {split}")
                     seen[key] = split
+            protected = manifest.get("protected_episodes", [])
+            if not isinstance(protected, list):
+                errors.append("manifest: protected_episodes must be a list")
+            else:
+                for episode_id in protected:
+                    owner = seen.get(str(episode_id))
+                    if owner is None:
+                        errors.append(f"manifest: protected episode {episode_id} is not in a split")
+                    elif owner == "dream":
+                        errors.append(f"manifest: protected episode {episode_id} cannot be in dream")
     else:
         warnings.append("split manifest not supplied; coverage is unbounded")
     seen_rows: set[tuple[str, str, str]] = set()
@@ -53,15 +88,21 @@ def main() -> int:
         except json.JSONDecodeError as exc:
             errors.append(f"line {line_no}: invalid JSON ({exc.msg})")
             continue
+        if not isinstance(row, dict):
+            errors.append(f"line {line_no}: result must be an object")
+            continue
         missing = [field for field in ("candidate_id", "episode_id", "split", "score") if field not in row]
         if missing:
             errors.append(f"line {line_no}: missing {','.join(missing)}")
             continue
+        if not nonempty(row["candidate_id"]) or not nonempty(row["episode_id"]):
+            errors.append(f"line {line_no}: candidate_id and episode_id must be non-empty strings")
+            continue
         if row["split"] not in {"dream", "holdout", "fresh"}:
             errors.append(f"line {line_no}: unknown split {row['split']}")
             continue
-        if not isinstance(row["score"], (int, float)):
-            errors.append(f"line {line_no}: score must be numeric")
+        if not finite_number(row["score"]):
+            errors.append(f"line {line_no}: score must be a finite number")
             continue
         row_key = (str(row["candidate_id"]), str(row["episode_id"]), row["split"])
         if row_key in seen_rows:
@@ -72,6 +113,20 @@ def main() -> int:
             expected_split = next((split for split, ids in manifest.get("splits", {}).items() if str(row["episode_id"]) in {str(value) for value in ids}), None)
             if expected_split != row["split"]:
                 errors.append(f"line {line_no}: episode is not in manifest split {row['split']}")
+        if "cost" in row and (not finite_number(row["cost"]) or row["cost"] < 0):
+            errors.append(f"line {line_no}: cost must be a finite nonnegative number")
+        if "latency_ms" in row and (not finite_number(row["latency_ms"]) or row["latency_ms"] < 0):
+            errors.append(f"line {line_no}: latency_ms must be a finite nonnegative number")
+        if "evaluator" in row:
+            evaluator = row["evaluator"]
+            if not ((isinstance(evaluator, str) and evaluator.strip()) or isinstance(evaluator, dict)):
+                errors.append(f"line {line_no}: evaluator must be a non-empty string or object")
+            else:
+                evaluators.setdefault(canonical(evaluator), f"line {line_no}")
+        else:
+            missing_evaluator_rows += 1
+        if "seed" in row and not (isinstance(row["seed"], (str, int)) and not isinstance(row["seed"], bool)):
+            errors.append(f"line {line_no}: seed must be a string or integer")
         groups[(str(row["candidate_id"]), row["split"])].append(row)
         rows_by_candidate_episode[(str(row["candidate_id"]), str(row["episode_id"]))] = row
     summary: dict[str, dict[str, dict[str, Any]]] = defaultdict(dict)
@@ -96,7 +151,14 @@ def main() -> int:
                 if delta < 0:
                     regressions.append({"candidate_id": candidate, "split": split, "delta": delta})
     coverage = {candidate: {split: data["episodes"] for split, data in splits.items()} for candidate, splits in summary.items()}
-    protected = set(manifest.get("protected_episodes", [])) if manifest else set()
+    if len(evaluators) > 1:
+        errors.append("results: evaluator identity differs across rows")
+    elif evaluators and missing_evaluator_rows:
+        errors.append("results: evaluator identity must be present on every row")
+    elif manifest is not None and not evaluators:
+        warnings.append("evaluator identity not supplied; adoption requires an evaluator")
+    protected = set(str(value) for value in manifest.get("protected_episodes", [])) if manifest else set()
+    protected_retention: dict[str, Any] = {}
     for candidate in candidates:
         if candidate == args.baseline_id:
             continue
@@ -105,6 +167,16 @@ def main() -> int:
             candidate_row = rows_by_candidate_episode.get((candidate, str(episode_id)))
             if base_row and candidate_row and float(candidate_row["score"]) < float(base_row["score"]):
                 regressions.append({"candidate_id": candidate, "episode_id": str(episode_id), "split": base_row["split"], "delta": float(candidate_row["score"]) - float(base_row["score"]), "protected": True})
+        if protected:
+            actual = sum(
+                (rows_by_candidate_episode.get((candidate, episode_id)) is not None)
+                for episode_id in protected
+            )
+            protected_retention[candidate] = {
+                "expected": len(protected),
+                "actual": actual,
+                "regressions": [item for item in regressions if item.get("candidate_id") == candidate and item.get("protected")],
+            }
     if manifest is not None:
         expected = {split: len(ids) for split, ids in manifest.get("splits", {}).items()}
         for candidate in candidates:
@@ -115,7 +187,7 @@ def main() -> int:
                 if expected_count and rate < args.min_coverage:
                     errors.append(f"coverage: {candidate}/{split} is {rate:.3f}, below {args.min_coverage:.3f}")
     hint = "insufficient"
-    if not errors and "baseline" in summary:
+    if not errors and args.baseline_id in summary:
         holdout_wins = [summary[c]["holdout"]["mean_score"] > baseline.get("holdout", {}).get("mean_score", float("-inf")) for c in candidates if c != "baseline" and "holdout" in summary[c]]
         if holdout_wins and all(holdout_wins) and not regressions:
             hint = "improves"
@@ -130,6 +202,9 @@ def main() -> int:
         "coverage": coverage,
         "manifest": str(args.manifest) if args.manifest else None,
         "manifest_source_digest": manifest.get("source_digest") if manifest else None,
+        "evaluator": next(iter(evaluators), None),
+        "protected_episodes": sorted(protected),
+        "protected_retention": protected_retention,
         "regressions": regressions,
         "errors": errors,
         "warnings": sorted(set(warnings)),

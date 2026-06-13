@@ -136,11 +136,14 @@ the required pose guides. Missing requirements produce a valid `blocked` JSON
 report and exit `0`; readiness is expressed by `status`, not by treating an
 uninstalled stack as a command failure.
 
-### Round 15 route (only when the approved structural-control experiment is selected)
+### Round 15 route (historical preregistration only)
 
-Load the historical round evidence and apply this camera-control rule only for
-that route. Ordinary sprite generation does not need these preregistration,
-committee, or approval steps.
+Load the historical round evidence only when reviewing that external
+structural-control experiment. The Round 15 generator, depth-guide builder,
+and ComfyUI workflow builder are deliberately not shipped in this skill, so
+this section is a receipt and review contract, not an executable route.
+Ordinary sprite generation does not need these preregistration, committee, or
+approval steps.
 
 - keep the Round 14 normalized square foreground-only identity reference
 - authorize `depth` as the only execution route; `normal` and `lineart` remain
@@ -148,11 +151,11 @@ committee, or approval steps.
 - allow only `models/controlnet/control_v11f1p_sd15_depth.pth` as the added
   camera-bearing model, with the pinned manifest identity
 - explicitly forbid `models/controlnet/control_v11p_sd15_depth.pth`
-- allow only `scripts/render_capsule_depth_guides.py` plus
-  `scripts/guide-spec.json` to produce the four depth guides from the frozen
-  pose manifest
-- build Round 15 workflows only through `scripts/build_round15_workflows.py`;
-  freeze depth strength at `0.65`, start at `0.0`, and end at `0.85`
+- require the external experiment receipt to identify the exact depth-guide
+  generator, guide specification, and workflow builder revisions; this skill
+  does not provide or invoke those files
+- freeze depth strength at `0.65`, start at `0.0`, and end at `0.85` in that
+  external receipt
 - require each phase to load its own `round15-depth-{phase}.png`; never share
   one depth map across contact, recoil, passing, and high-point
 - compare each generated workflow against its Round 14 B baseline and reject
@@ -190,10 +193,10 @@ committee, or approval steps.
   remaining at least as usable as A phase by phase
 - before user approval, do not download, install, generate the guides, or run
   image generation
-- after user approval, do only this sequence: obtain the exact depth model,
-  generate `contact`, `recoil`, `passing`, and `high-point` depth guides, then
-  rerun preflight after each declared remediation; if it remains blocked without
-  a new state change, stop and report the missing requirement
+- after user approval, the external experiment owner may obtain the exact
+  depth model and generate the four guides. This skill only records the
+  resulting hashes and preflight receipt; if the external run remains blocked
+  without a new state change, stop and report the missing requirement.
 
 10. Inspect `preview-contact-sheet.png` manually or with an independent reviewer using `references/review-checklist.md`.
 11. Write `review-disposition.md` with the verdict and accepted warnings.

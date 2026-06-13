@@ -1,0 +1,21 @@
+version = 2
+
+[[suite]]
+id = "bagakit-replay-lab-contract"
+owner = "skills/evolve/evaluate/bagakit-replay-lab"
+description = "Validate finite scoring, evaluator consistency, split coverage, protected retention, and replay receipts."
+default = true
+proof_mode = "runtime"
+protects = ["replay result and manifest contract"]
+oracle = ["owner smoke exercises a holdout comparison and rejects non-finite scores or evaluator drift"]
+exercised_surface = ["skills/evolve/evaluate/bagakit-replay-lab/scripts/replay_eval.py"]
+proves = ["The evaluator emits a bounded receipt and rejects malformed numeric or evaluator provenance inputs."]
+does_not_prove = ["The check does not prove simulator correctness, evaluator calibration, or unseen-branch generalization."]
+validation_class = "contract"
+timeout_seconds = 60
+groups = ["skills", "evolve", "replay-lab", "runtime"]
+
+[suite.runner]
+kind = "bash_script"
+script = "gate_validation/skills/evolve/evaluate/bagakit-replay-lab/check-replay-lab.sh"
+args = ["--root", "{repo_root}"]

@@ -1,5 +1,5 @@
 version = 1
 skill = "bagakit-pageville"
-trigger = "Design previews, Feature Tracker projections, HITL pages, or other HTML artifacts need one reusable managed page link and lifecycle."
-do = "Initialize or reuse the Pageville host through the loopback_v0 adapter, publish immutable semantic page versions, return a stable link, and use the retrieval/annotation CLI for human review context."
+trigger = "A local HTML artifact needs one reusable managed page link, immutable versions, or annotation-backed review context."
+do = "Initialize or reuse the local Pageville host through the loopback_v0 adapter, publish immutable semantic page versions, return a stable local-host link, and use the retrieval/annotation CLI for human review context; do not imply public internet delivery."
 see = "skills/co-work/deliver/bagakit-pageville/SKILL.md"

@@ -110,3 +110,4 @@ Specs should be boundary-first and stable-first:
   the stable contract
 
 - `skill-directory-contract.md` — purpose groups, variable-depth discovery, installation, and relocation cleanup.
+- `skill-routing-contract.md` — primary owners, composition boundaries, and cross-skill handoff minimums.

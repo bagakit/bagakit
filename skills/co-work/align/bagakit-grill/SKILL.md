@@ -18,6 +18,19 @@ acceptance condition is clear. Before asking, classify what evidence can resolve
 the node. Ask the user only for `user_answer` routes; use local context,
 research, prototypes, or experiments when they provide the necessary fidelity.
 
+## Invocation Contract
+
+- **Input:** one concrete target with its protected goal/principle, target ref,
+  and at least one decision-bearing uncertainty.
+- **Output:** one Grill run containing DAG state, route-specific evidence refs,
+  and branch disposition/acceptance condition.
+- **Error:** a vague target, missing protected goal, or unavailable evidence
+  producer routes back to Spark or stays blocked; do not invent a branch or
+  mutate the target owner's plan.
+- **Stop:** stop when the acceptance condition and branch disposition are
+  recorded (or explicitly `blocked`/`deferred`); repeated no-branch answers
+  create convergence pressure, not automatic completion.
+
 Bagakit-specific rules:
 
 - Grill only concrete targets. If the target is still vague, use

@@ -34,8 +34,10 @@ Page-producing skills own:
 
 The host never edits a published page in place, infers domain status from
 HTML, or turns annotations into source truth. The v0 adapter is loopback-only
-and read-only at the HTTP surface; deployment location is a host policy, not
-page identity.
+and read-only at the HTTP surface. Its links are stable local-host links for
+the owning project, not public internet URLs; they are reachable only where
+the host's loopback interface is reachable. deployment location is a host
+policy, not page identity.
 
 ## Runtime Surface
 

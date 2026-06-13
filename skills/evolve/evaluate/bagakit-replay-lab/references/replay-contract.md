@@ -8,6 +8,10 @@ The adapter writes JSONL rows with these required fields:
 
 `split` is one of `dream`, `holdout`, or `fresh`. Optional fields are
 `trace_ref`, `cost`, `latency_ms`, `failure_class`, `evaluator`, and `seed`.
+Scores, costs, and latencies must be finite; costs and latencies cannot be
+negative. When an evaluator is supplied, every result row must supply the same
+evaluator identity. A manifest must include `source_digest`, `dream`, and
+`holdout` splits; protected episodes must belong to `holdout` or `fresh`.
 
 Pass a split manifest when running the evaluator:
 
@@ -26,6 +30,7 @@ The evaluator emits a receipt containing:
 - episode counts and score means by candidate and split
 - coverage and missing-result warnings
 - regressions against the baseline on holdout/fresh episodes
+- protected-episode retention counts and regressions
 - a `decision_hint` of `insufficient`, `improves`, or `regresses`
 
 The hint is advisory. The ratchet additionally requires a reproducible

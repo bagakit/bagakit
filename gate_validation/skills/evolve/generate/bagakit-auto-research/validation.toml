@@ -1,0 +1,69 @@
+version = 2
+
+[[suite]]
+id = "bagakit-auto-research-layout"
+owner = "skills/evolve/generate/bagakit-auto-research"
+description = "Require the bounded autoresearch skill, its candidate and receipt contract, frontdoor declaration, and family navigation surfaces."
+default = true
+proof_mode = "structural"
+protects = ["a standalone bounded autoresearch orchestration surface with explicit eval, evidence, holdout, and promotion boundaries"]
+oracle = ["filesystem checks require the public skill sources, candidate/receipt contract, frontdoor declaration, family navigation, and owner validation registration"]
+exercised_surface = ["skills/evolve/generate/bagakit-auto-research", "docs/specs/eval-system-boundary.md", "gate_validation/skills/evolve/generate/bagakit-auto-research"]
+proves = ["The canonical Auto Research skill and its repository-owned structural proof surface exist."]
+does_not_prove = ["Layout does not prove candidate quality, evaluator calibration, provider execution, holdout independence, or promotion correctness."]
+validation_class = "structure"
+groups = ["skills", "harness", "auto-research", "structure"]
+
+[suite.runner]
+kind = "fs"
+required_dirs = [
+  "skills/evolve/generate/bagakit-auto-research",
+  "skills/evolve/generate/bagakit-auto-research/agents",
+  "skills/evolve/generate/bagakit-auto-research/references",
+  "skills/evolve/generate/bagakit-auto-research/scripts",
+  "gate_validation/skills/evolve/generate/bagakit-auto-research",
+]
+required_files = [
+  "skills/README.md",
+  "skills/evolve/README.md",
+  "skills/evolve/generate/README.md",
+  "skills/evolve/generate/bagakit-auto-research/SKILL.md",
+  "skills/evolve/generate/bagakit-auto-research/README.md",
+  "skills/evolve/generate/bagakit-auto-research/agents/openai.yaml",
+  "skills/evolve/generate/bagakit-auto-research/references/auto-research-contract.md",
+  "skills/evolve/generate/bagakit-auto-research/references/frontdoor-rule.toml",
+  "skills/evolve/generate/bagakit-auto-research/references/skill-cli.toml",
+  "skills/evolve/generate/bagakit-auto-research/scripts/bagakit-auto-research-cli.sh",
+  "docs/specs/eval-system-boundary.md",
+  "docs/specs/eval-run-packet.md",
+  "skills/frontdoor.md",
+  "gate_validation/skills/evolve/generate/bagakit-auto-research/validation.toml",
+]
+forbidden_paths = [
+  "skills/evolve/generate/bagakit-auto-research/SKILL_PAYLOAD.json",
+  "skills/evolve/generate/bagakit-auto-research/AGENTS.md",
+  "skills/evolve/generate/bagakit-auto-research/Makefile",
+  "skills/evolve/generate/bagakit-auto-research/docs",
+  "skills/evolve/generate/bagakit-auto-research/gate",
+  "skills/evolve/generate/bagakit-auto-research/.bagakit",
+]
+
+[[suite]]
+id = "bagakit-auto-research-cli"
+owner = "skills/evolve/generate/bagakit-auto-research"
+description = "Exercise the read-only Auto Research inspection CLI and contract surface."
+default = true
+proof_mode = "runtime"
+protects = ["Auto Research public inspection boundary"]
+oracle = ["owner smoke checks help, describe, and contract commands"]
+exercised_surface = ["skills/evolve/generate/bagakit-auto-research/scripts/bagakit-auto-research-cli.sh"]
+proves = ["Auto Research exposes a consistent read-only CLI without claiming experiment execution or promotion authority."]
+does_not_prove = ["The check does not prove candidate generation, evaluator execution, holdout independence, or Evolver promotion."]
+validation_class = "contract"
+timeout_seconds = 60
+groups = ["skills", "evolve", "auto-research", "runtime"]
+
+[suite.runner]
+kind = "bash_script"
+script = "gate_validation/skills/evolve/generate/bagakit-auto-research/check-auto-research.sh"
+args = ["--root", "{repo_root}"]

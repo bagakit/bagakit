@@ -8,6 +8,19 @@ metadata:
 
 # Bagakit Flow Runner
 
+## Invocation Contract
+
+- **Input:** existing normalized work truth (or an explicit runner-owned item),
+  one bounded execution intent, and the current policy/recipe revision.
+- **Output:** runner item state plus checkpoint, next-action, incident, or
+  archive receipt under `.bagakit/flow-runner/`.
+- **Error:** reject missing/stale source truth, invalid item selection, or
+  unsafe snapshot before mutation; record an incident when execution cannot
+  continue.
+- **Stop:** stop after one bounded session or explicit checkpoint/incident;
+  tracker-sourced items return closeout to Feature Tracker and are never closed
+  by Flow Runner.
+
 ## When to Use
 
 - You already have work truth from another surface such as

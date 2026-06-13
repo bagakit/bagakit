@@ -23,6 +23,17 @@ owners.
 Do not name a particular messaging product or tool in this portable skill. Use
 the logical route and special requirements provided by the user or Host.
 
+## Invocation Contract
+
+- **Input:** one semantic breakpoint, current owner facts/evidence, and the
+  task-local audience/cadence/language binding.
+- **Output:** admitted result-first message content plus Host delivery binding;
+  it does not create task state or claim delivery.
+- **Error:** missing current facts, stale binding, or route failure preserves
+  the unsent conclusion and refreshes/returns the binding problem.
+- **Stop:** remain silent for non-semantic polling; stop after admission,
+  delivery handoff, or a bounded blocked update.
+
 ## Bind The User's Communication Requirements
 
 Before relying on a communication path, bind only the requirements that change

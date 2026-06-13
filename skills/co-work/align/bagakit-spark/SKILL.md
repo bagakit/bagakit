@@ -16,6 +16,11 @@ testing belongs to Grill.
 `bagakit-spark` helps one user think deeply about a topic through structured,
 iterative conversation.
 
+Routing authority is centralized in
+[`docs/specs/skill-routing-contract.md`](../../../../docs/specs/skill-routing-contract.md).
+Load that matrix before composing a peer; the compact owner table below is the
+Spark-specific boundary.
+
 It is not a chat style. It is a dialogue loop that:
 
 - asks questions only when the answer changes a real downstream decision
@@ -62,26 +67,15 @@ Do not use this skill when:
 
 ## Boundary
 
-Spark is a conversation orchestration skill.
+Spark owns the dialogue loop, question discipline, branch state, and
+synthesis. Peer ownership remains separate:
 
-It may coordinate peers, but ownership remains separate:
-
-- `bagakit-spark`
-  - owns the dialogue loop, question discipline, branch state, and synthesis
-- `bagakit-consensus-ledger`
-  - owns task-local shared-understanding state, including confirmed consensus,
-    open unknowns, inferred-but-unconfirmed understanding, blind spots, goal
-    dimensions, provenance, tool-neutral evidence requirements, and handoff
-    snapshots
-- `bagakit-brainstorm`
-  - owns raw discussion logs, option analysis, expert forum, and handoff
-    artifacts
-- `bagakit-researcher`
-  - owns source cards, source-bound summaries, claims, insights, leads, topic
-    indexes, and researcher-local wiki maintenance
-- `bagakit-skill-selector`
-  - owns explicit task-level composition evidence when multiple skills are
-    intentionally composed
+| Peer | Owns | Spark receives |
+| --- | --- | --- |
+| `bagakit-consensus-ledger` | shared-understanding state and snapshots | ledger excerpt/refs |
+| `bagakit-brainstorm` | raw discussion, options, forum, handoff | artifact refs |
+| `bagakit-researcher` | source cards, claims, insights, wiki maintenance | source-bound evidence |
+| `bagakit-skill-selector` | explicit composition evidence | route/episode receipt |
 
 Spark must remain standalone-first. If brainstorm or researcher is unavailable,
 continue with visible session notes and explicit research prompts instead of

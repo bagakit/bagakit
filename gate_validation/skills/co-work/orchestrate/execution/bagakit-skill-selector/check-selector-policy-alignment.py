@@ -222,7 +222,7 @@ def main() -> int:
         failures.append("selection policy must publish the decision-bearing entry rule")
     if bootstrap.is_file() and not normalized_contains(
         bootstrap,
-        "Use selector when skill choice, composition, retry/recovery, or reusable selector evidence can change the route.",
+        "Use bagakit-skill-selector only when a real candidate set, independent skill composition, repeated failure/recovery, or explicitly reusable evidence can change the route.",
     ):
         failures.append("bootstrap must publish the selective selector entry rule")
     if runtime_skill.is_file() and "references/policy-contract.toml" not in runtime_skill.read_text(

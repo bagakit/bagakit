@@ -8,6 +8,29 @@ description: Create a low-text visual HTML explanation with an architecture map 
 Build runnable, responsive HTML for a reader with no topic knowledge. Big
 pictures teach; "few words" applies per scene, not to the number of ideas.
 
+## Artifact Contract
+
+Every run starts with a small route packet. It must name `topic`, `audience`,
+`language`, and the `question` answered by the first scene. Add
+`evidence_refs` when the explanation is grounded in a repository, source, or
+measurement, and use `route: technical-architecture` when the repository
+playbook applies. A missing topic, audience, language, or question is a route
+failure; do not decorate an underspecified page.
+
+The build artifact is one self-contained `.html` file written to a
+caller-owned path, normally under `.tmp/`. It must contain a meaningful
+`<title>`, a `lang` attribute, one main reading region, and the conclusion,
+map, mechanism, changed case, evidence boundary, and limits required by the
+route. Explain owns no persistent runtime surface. Compose Pageville after
+validation when a stable review link is needed; Pageville owns the link and
+version, while Explain owns page content.
+
+Write `explanation-receipt.json` beside the HTML or at a caller-specified
+path. It records `artifact_path`, `language`, `primary_diagram_family`,
+`motion_decision`, `evidence_refs`, `desktop_mobile_evidence`,
+`changed_case_result`, and `limits`. The receipt proves artifact construction
+and review evidence; it never proves reader understanding or mastery.
+
 ## Defaults
 
 - use the language of the user's latest substantive request everywhere
@@ -58,7 +81,8 @@ when the reader needs evidence, root cause, measurement, safety, or trade-offs.
    proximity or visual layout.
 2. Choose a visual world from the audience and topic, not a technical-dark
    stereotype; implement an accessible static page that works on desktop and mobile.
-3. Verify and expose the static artifact to the user as a real milestone.
+3. Verify the static artifact with the skill CLI before exposing it to the user
+   as a real milestone.
 4. Then review motion. If it qualifies, replace only that visual at the same
    path with accessible inline SVG and reverify; otherwise stop with the static page.
 

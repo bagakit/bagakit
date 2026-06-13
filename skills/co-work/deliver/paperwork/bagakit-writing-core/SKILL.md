@@ -10,10 +10,12 @@ metadata:
 
 # Bagakit Writing Core
 
-Core owns generic writing quality and the single publishability gate. De-AI-tone
-is its focused peer for AI-tone and protected-span analysis; invoke it through
-Core for final prose, then use the result as one composed gate rather than
-duplicating a second lexicon or rewrite audit.
+Core owns generic writing quality and contributes one composed Core review.
+The selected L2 delivery skill remains the final publishability authority for
+its artifact; Core does not silently replace an article, channel, or personal
+style gate. De-AI-tone is its focused peer for AI-tone and protected-span
+analysis; invoke it through Core for final prose, then use the result as one
+composed finding set rather than duplicating a second lexicon or rewrite audit.
 
 `bagakit-writing-core` is the reusable writing foundation for the `paperwork`
 family.

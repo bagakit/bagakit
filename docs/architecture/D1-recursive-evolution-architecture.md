@@ -85,8 +85,9 @@ continue to live in `host-harnesses/` and compose skills at any purpose depth.
 M0 has callable skills for alignment, orchestration, domain delivery, and
 human capability development. M1 has Entropy Review under Evaluate, Skill
 Evolver under Adapt, and the harness-neutral `bagakit-session-analysis`,
-`bagakit-replay-lab`, and `bagakit-dreaming-ratchet` slice across Observe,
-Evaluate, and Generate. These skills provide bounded adapters, replay receipts,
+`bagakit-replay-lab`, `bagakit-dreaming-ratchet`, and
+`bagakit-auto-research` slice across Observe, Evaluate, and Generate. These
+skills provide bounded adapters, autoresearch orchestration, replay receipts,
 and ratchet decisions; they do not constitute unrestricted autonomous RSI.
 
 `bagakit-skill-evolver` remains the memory, decision, routing, and promotion

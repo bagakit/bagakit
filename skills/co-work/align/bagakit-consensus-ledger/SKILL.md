@@ -29,6 +29,18 @@ Core contract:
   knowledge in their owning skills.
 - Promote only accepted snapshots or handoffs, not the whole working ledger.
 
+## Invocation Contract
+
+- **Input:** an owner directory or explicit standalone ledger id, a goal, and
+  only the dimensions/items that can change the owner's next decision.
+- **Output:** the owner-local `consensus-ledger.json`, its rendered view, or a
+  snapshot receipt; the parent owner remains authoritative for closure.
+- **Error:** reject missing placement, malformed classes/statuses, or invalid
+  refs before writing; never silently create a second owner ledger.
+- **Stop:** stop after render/validate or an explicit snapshot/promotion
+  handoff. Unresolved items remain `known_unknown`/`deferred`; this skill does
+  not ask the next user question or select an evidence producer.
+
 Minimal workflow:
 
 1. Choose placement.

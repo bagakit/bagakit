@@ -1,0 +1,21 @@
+version = 2
+
+[[suite]]
+id = "bagakit-dreaming-ratchet-contract"
+owner = "skills/evolve/generate/bagakit-dreaming-ratchet"
+description = "Validate receipt schema, split gains, protected retention, and addressable rollback before adoption."
+default = true
+proof_mode = "runtime"
+protects = ["dreaming ratchet adoption gate"]
+oracle = ["owner smoke accepts a complete receipt and leaves a missing rollback proposed"]
+exercised_surface = ["skills/evolve/generate/bagakit-dreaming-ratchet/scripts/ratchet.py"]
+proves = ["A candidate is accepted only with manifest-bound replay evidence, protected retention, complete provenance, and a resolvable prior artifact."]
+does_not_prove = ["The check does not prove candidate quality, rollback execution, or external mutation safety."]
+validation_class = "contract"
+timeout_seconds = 60
+groups = ["skills", "evolve", "dreaming-ratchet", "runtime"]
+
+[suite.runner]
+kind = "bash_script"
+script = "gate_validation/skills/evolve/generate/bagakit-dreaming-ratchet/check-dreaming-ratchet.sh"
+args = ["--root", "{repo_root}"]

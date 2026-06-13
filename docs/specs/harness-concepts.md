@@ -186,8 +186,8 @@ two coordinates must not be collapsed into one layer number.
 
 | Concept | Meaning |
 | --- | --- |
-| `skill_registry` | the authoritative registry of canonical installable skills |
-| `contract_registry` | the authoritative registry of shared contract tokens and their consuming surfaces |
+| `skill_registry` | the discovery surface rooted at `skills/`; `scripts/lib/skill/discovery.ts` reads canonical installable units, so no second checked-in skill registry is maintained |
+| `contract_registry` | the set of owning spec files and their validation references; it is a navigation concept, not a second registry or source of contract truth |
 | `contract_token` | one exact id for a shared artifact or control-plane value |
 | `validation_suite` | one maintainable validation unit with a clear owner and class |
 | `contract_validation` | deterministic checks for structure, layout, token alignment, and boundary rules |

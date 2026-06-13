@@ -169,8 +169,10 @@ rewrite examples remain the local overlay.
   packet 必须写清 route memo、样本边界、counterevidence、accepted deviations、
   reviewer ownership、merge rule 和 next action，避免把 reviewer 结论只留在聊天里。
   如果一次评审包含多篇相关文章，再按 Core 的
-  `references/review/PORTFOLIO_REVIEW.md` 记录每篇的 `unique_promise` 和
-  `spine`，把合理的共同约束与模板化重复制区分开。
+  Core 的 `references/review/PORTFOLIO_REVIEW.md` 记录每篇的
+  `unique_promise` 和 `spine`，把合理的共同约束与模板化重复制区分开。
+  这个组合只在 `bagakit-writing-core` 已安装时启用；qihan fallback 不复制
+  这份 portfolio review，也不把它变成第二个 SSOT。
 
 ### D. 交付与回扫
 - **Step 5：交付结构**

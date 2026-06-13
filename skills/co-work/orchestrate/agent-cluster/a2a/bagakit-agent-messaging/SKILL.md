@@ -44,6 +44,17 @@ unchanged, compose with `bagakit-agent-post`; this skill remains transport-free.
 This is Bagakit's local L1 Agent-messaging protocol. It does not claim
 compatibility with an external network A2A standard.
 
+## Invocation Contract
+
+- **Input:** one Host-classified exchange, sender/target metadata, one outcome,
+  and only material source text for citation.
+- **Output:** a validated `bagakit-msg` envelope or Worker report; delivery,
+  consumption, and effect remain Host/caller receipts.
+- **Error:** unknown channel stays unwrapped pending Host classification;
+  invalid XML/profile/citation emits no actuation payload.
+- **Stop:** stop after validation/emission or an explicit non-send decision;
+  never retry or claim delivery from this skill alone.
+
 ## Message Flow
 
 1. Resolve the current sender, target, and authority from the Host.

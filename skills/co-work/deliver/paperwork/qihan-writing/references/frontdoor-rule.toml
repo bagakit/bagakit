@@ -1,5 +1,5 @@
 version = 1
 skill = "qihan-writing"
-trigger = "Technical, research, planning, weekly-review, or Feishu-oriented prose needs qihan-style rewriting or drafting."
+trigger = "The user explicitly requests qihan style, qihan's Chinese-writing overlay, or qihan-specific Feishu formatting."
 do = "Route through the operating surface matrix before drafting, then apply the writing and review references."
 see = "skills/co-work/deliver/paperwork/qihan-writing/references/workflow/OPERATING_SURFACE_MATRIX.md"

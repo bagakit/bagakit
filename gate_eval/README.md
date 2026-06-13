@@ -27,36 +27,19 @@ Serious eval slices in this tree should usually provide:
 - checked-in fixtures and case expectations
 - a runnable entrypoint that emits results under a documented convention
 
-Current implemented slices:
+Current eval ownership is declared by the machine-readable files discovered
+from `gate_eval/validation.toml`:
 
-- `gate_eval/dev/eval/`
-  - self-eval for the shared maintainer eval toolkit and packet contract
-- `backbone/skill/`
-  - deterministic eval for the repo skill surface: listing, linking, layout,
-    and distribution packaging
-- `skills/`
-  - skill-owned non-gating eval slices currently cover selected canonical
-    installable skills; this is the covered set, not a claim that every
-    installable skill already has an eval slice
-  - current slices under eval ownership:
-    - `skills/co-work/align/bagakit-brainstorm/`
-    - `skills/co-work/orchestrate/execution/bagakit-feature-tracker/`
-    - `skills/co-work/orchestrate/execution/bagakit-flow-runner/`
-    - `skills/co-work/align/bagakit-grill/`
-    - `skills/co-work/align/bagakit-living-knowledge/`
-    - `skills/co-work/align/bagakit-researcher/`
-    - `skills/evolve/adapt/bagakit-skill-evolver/`
-    - `skills/co-work/orchestrate/execution/bagakit-skill-selector/`
-    - `skills/co-work/align/bagakit-spark/`
-    - `skills/co-work/orchestrate/agent-cluster/bagakit-supervisor/`
-    - `skills/co-work/deliver/design/bagakit-design-core/`
-    - `skills/co-work/deliver/design/bagakit-codex-webpage-design/`
-    - `skills/co-work/deliver/paperwork/bagakit-paperwork-technical-writing/`
-    - `skills/co-work/deliver/paperwork/bagakit-writing-core/`
-    - `skills/co-work/deliver/paperwork/bagakit-writing-de-ai-tone/`
-    - `skills/co-work/deliver/gamemaker/topdown-image2-sprite-pipeline/`
-    - `skills/co-work/deliver/media-production/bagakit-daily-media-production/`
-    - `skills/co-work/deliver/swe/bagakit-git-message-craft/`
+- `gate_eval/dev/eval/` — self-eval for the shared maintainer eval toolkit;
+- `gate_eval/backbone/skill/` — deterministic eval for discovery, linking,
+  layout, and packaging;
+- `gate_eval/skills/` — skill-owned non-gating evals for selected canonical
+  skills.
+
+The list under `gate_eval/skills/` is intentionally not duplicated here. Use
+the registry and the validator's plan output to see the current covered set;
+an installable skill does not require an eval slice unless its owner declares
+one.
 
 Registration:
 

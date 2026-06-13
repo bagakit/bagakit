@@ -96,9 +96,15 @@ unit or delivery contract.
 
 ## Input Contract
 
-- Required:
+- Article route required:
   - Topic and target reader.
-  - One source of truth (notes, draft, transcript, or prior article).
+  - One authoritative source of truth (notes, draft, transcript, or prior
+    article) whose claims can be traced in the handoff.
+- Distill route required:
+  - Topic and target reader.
+  - A declared source inventory; it may contain mixed pasted text, local files,
+    cloud documents, or chat exports, but each source keeps its own parentage
+    and conflicts are surfaced rather than silently merged.
 - Strongly recommended:
   - Success criteria (for example: publish readability, handoff readiness).
   - Constraints (deadline, length range, tone, prohibited claims).
@@ -107,8 +113,10 @@ unit or delivery contract.
   - Prior audit feedback.
 
 For the distillation route, mixed pasted text, local files, cloud documents, or
-chat exports are valid source sets. Cloud and chat adapters remain optional host
-capabilities and are read-only unless the user separately authorizes a write.
+chat exports are valid source sets under the source inventory above. Cloud and
+chat adapters remain optional host capabilities and are read-only unless the
+user separately authorizes a write. Mixed inputs do not change the article
+route's one-source authority requirement.
 
 ## Output Discipline
 

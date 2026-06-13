@@ -45,7 +45,6 @@ export const SUITE: EvalSuiteDefinition = {
             "input_and_qa.md",
             "raw_discussion_log.md",
             "finding_and_analyze.md",
-            "expert_forum.md",
             "outcome_and_handoff.md",
             "review_quality.md",
             "eval_effect_review.md",

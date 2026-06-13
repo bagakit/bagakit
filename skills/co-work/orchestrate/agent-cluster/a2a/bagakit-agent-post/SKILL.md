@@ -34,6 +34,17 @@ scheduling, and any real-world effect.
 This is a local Bagakit protocol. It does not claim compatibility with an
 external network A2A standard.
 
+## Invocation Contract
+
+- **Input:** host root, an authorized identity/token, a distinct recipient, and
+  a validated envelope when sending.
+- **Output:** identity, mail, delivery, or consumption JSON receipts; the raw
+  envelope is transported unchanged.
+- **Error:** invalid token/chain/recipient/envelope or missing required
+  validator fails before any registry or mail mutation and reports on stderr.
+- **Stop:** stop after the receipt, or after a fail-closed rejection; `ack`
+  proves consumption only and never closes the caller's task.
+
 ## Threat model
 
 The boundary prevents confusion on one machine under one operating-system

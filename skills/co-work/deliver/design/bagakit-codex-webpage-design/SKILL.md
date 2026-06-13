@@ -17,6 +17,11 @@ engineering workflow. It turns intent into a concrete design reference, a
 working frontend page, browser screenshot evidence, and a reviewed parity
 decision.
 
+When a caller needs a reusable local review link, compose `bagakit-pageville`
+after the page and browser checks pass. Pageville owns the loopback link and
+immutable version; this skill owns page implementation and visual evidence.
+The link is a local delivery projection, not proof of public deployment.
+
 For high-craft or reference-led work, Image2 is the default reference
 generator when the user has no stronger reference. Stronger references include
 Figma frames, approved screenshots, brand mockups, real assets, design systems,

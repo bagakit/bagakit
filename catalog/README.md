@@ -13,7 +13,7 @@ Current stance:
 Typical future candidates:
 
 - family-level metadata
-- projection metadata for legacy distribution targets
+- non-authoritative reporting or release metadata
 
 Current active skill discovery and packaging do not read anything from this
 directory.
