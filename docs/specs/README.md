@@ -47,9 +47,10 @@ system, it is not ready for `docs/specs/` yet.
 Those belong in:
 
 - `mem/`
-  - source-import comparisons that are not yet stable Bagakit semantics
+  - one-off migration notes and source-import comparisons that are not yet
+    stable Bagakit semantics
 - `docs/stewardship/`
-  - one-off migration notes and maintainer operating procedure
+  - maintainer operating procedure
 - `skills/`
   - runtime help that must ship inside one skill
 - `docs/architecture/`
@@ -68,36 +69,10 @@ When specs and stewardship touch the same topic:
 - `docs/specs/` keeps the stable rule
 - `docs/stewardship/` keeps the maintainer procedure for using or reviewing it
 
-## Examples
+## Index
 
-Current examples include:
-
-- `runtime-surface-contract.md`
-- `canonical-capability-ladder.md`
-- `consensus-ledger-contract.md`
-- `document-surface-rules.md`
-- `feature-tracker-contract.md`
-- `feature-tracker-id-issuance.md`
-- `feature-tracker-projection-surfaces.md`
-- `frontdoor-index-contract.md`
-- `host-harness-contract.md`
-- `planning-entry-handoff-contract.md`
-- `principle-layer-contract.md`
-- `project-chronicle-contract.md`
-- `output-discipline.md`
-- `selector-data-model.md`
-- `bagakit-driver-contract.md`
-- `skill-cli-contract.md`
-- `evolver-memory.md`
-- `evolver-skill-promotion-review.md`
-- `flow-runner-contract.md`
-- `harness-concepts.md`
-- `living-knowledge-system.md`
-- `selector-evolver-boundary.md`
-- `selector-planning-entry-routes.md`
-- `supervisor-skill-contract.md`
-- `tooling-rules.md`
-- `validation-system.md`
+The directory listing is the index. Each file name names the surface it owns;
+do not maintain a second hand-written list here.
 
 ## Writing Rule
 
@@ -108,6 +83,3 @@ Specs should be boundary-first and stable-first:
 - say how it relates to neighboring surfaces
 - avoid migration-history narration unless that history is required to define
   the stable contract
-
-- `skill-directory-contract.md` — purpose groups, variable-depth discovery, installation, and relocation cleanup.
-- `skill-routing-contract.md` — primary owners, composition boundaries, and cross-skill handoff minimums.
