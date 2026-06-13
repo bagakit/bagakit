@@ -1063,14 +1063,14 @@ export const SUITE: EvalSuiteDefinition = {
       focus: ["autoresearch", "holdout", "pareto", "non-proof"],
       run: (context): EvalCaseResult => {
         const { repoRoot } = context;
-        const runner = path.join(repoRoot, "gate_eval", "skills", "co-work", "align", "bagakit-researcher", "run-autoresearch.py");
+        const runner = path.join(repoRoot, "gate_eval", "skills", "co-work", "align", "bagakit-researcher", "run-researcher-autoresearch.py");
         const cases = path.join(repoRoot, "gate_eval", "skills", "co-work", "align", "bagakit-researcher", "cases", "autoresearch-task-bank.json");
         const trials = path.join(repoRoot, "gate_eval", "skills", "co-work", "align", "bagakit-researcher", "cases", "autoresearch-trials.json");
         const outputDir = createTempDir("bagakit-researcher-autoresearch-");
         try {
           const args = [runner, "--cases", cases, "--trials", trials, "--out", outputDir];
           const result = runCommand(PYTHON, args, { cwd: repoRoot });
-          expectOk(result, "autoresearch runner");
+          expectOk(result, "researcher autoresearch runner");
           const summary = JSON.parse(fs.readFileSync(path.join(outputDir, "summary.json"), "utf8"));
           assert.deepEqual(summary.case_counts, { total: 8, baseline: 6, holdout: 2 });
           assert.equal(summary.trial_count, 3);
@@ -1086,7 +1086,7 @@ export const SUITE: EvalSuiteDefinition = {
               "Pareto comparison keeps coverage and efficiency candidates while rejecting a grounding regression",
               "the result packet states semantic and calibration non-proofs",
             ],
-            commands: [commandLine(["autoresearch runner", "--cases", "cases/autoresearch-task-bank.json", "--trials", "cases/autoresearch-trials.json"])],
+            commands: [commandLine(["researcher autoresearch runner", "--cases", "cases/autoresearch-task-bank.json", "--trials", "cases/autoresearch-trials.json"])],
             artifacts: [
               { label: "autoresearch-summary", path: path.join(outputDir, "summary.json") },
               { label: "autoresearch-records", path: path.join(outputDir, "records.jsonl") },

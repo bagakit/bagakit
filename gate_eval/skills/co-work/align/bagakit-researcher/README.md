@@ -16,7 +16,7 @@ Current coverage:
 - fixed metric-probe fixtures for resource-use fields, record defects, and semantic non-proofs
 - topic listing and doctor visibility
 
-Auto Research capability surface:
+Researcher Auto Research capability surface:
 
 - fixed task bank with eight researcher task shapes and a 25% holdout split
 - non-gating strategy-trial records with quality and resource vectors
@@ -39,10 +39,10 @@ Default result root:
 
 - `gate_eval/skills/co-work/align/bagakit-researcher/results/runs/`
 
-Run the bounded Auto Research record-vector smoke directly:
+Run the bounded Researcher Auto Research record-vector smoke directly:
 
 ```bash
-python3 gate_eval/skills/co-work/align/bagakit-researcher/run-autoresearch.py \
+python3 gate_eval/skills/co-work/align/bagakit-researcher/run-researcher-autoresearch.py \
   --cases gate_eval/skills/co-work/align/bagakit-researcher/cases/autoresearch-task-bank.json \
   --trials gate_eval/skills/co-work/align/bagakit-researcher/cases/autoresearch-trials.json \
   --out .tmp/bagakit-researcher-autoresearch
