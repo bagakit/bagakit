@@ -99,6 +99,11 @@ Owner revision, candidate identity, result predicate, control question, or
 topology unless the exact term is necessary for a decision. Preserve useful
 technical names, commands, versions, and gate names.
 
+State the status, action, and reason literally. Prefer "this point still
+matters" to "this point earns its keep"; describe the parameter to vary rather
+than inventing a dial to turn. Keep an analogy only if it makes a necessary
+relationship easier for this user to understand without changing the claim.
+
 Shape the explanation, not the work. Presentation preferences may reorder or
 compress the message, but never cap decision-relevant evidence, force an
 unsupported cause or time estimate, hide uncertainty, or hand Agent-owned work

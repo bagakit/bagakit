@@ -202,6 +202,21 @@ bad_example = "One step joins several actions, conditions, and outcomes so the r
 non_goal = "Do not turn explanatory or argumentative prose into a mechanical sequence of short commands."
 
 [[rule]]
+id = "literal-wording-before-flourish"
+source = "bagakit-core"
+source_refs = ["references/writing/PRECISION_AND_READER_BURDEN.md"]
+scope = ["clarity", "precision", "reader_burden"]
+severity = "review"
+enforcement_tier = "review"
+proof_mode = "agent_review"
+owner = "bagakit-writing-core"
+applies_when = ["explanatory_prose", "technical_article", "status_update", "rewrite"]
+exempt_when = ["protected_quotation", "established_technical_name", "explicit_literary_request"]
+good_example = "Use the clear literal statement; retain an analogy only when it improves understanding of the same relationship and makes its limits clear."
+bad_example = "An image replaces a precise claim, adds unsupported connotations, or receives credit merely for sounding distinctive."
+non_goal = "Do not blacklist metaphor words, flatten useful voice, or infer the author's motives from a stylistic choice."
+
+[[rule]]
 id = "reader-burden-bounds-complexity"
 source = "ste-comprehension-evidence"
 source_refs = ["https://doi.org/10.1177/154193129604000502", "https://doi.org/10.14288/1.0078187", "references/writing/PRECISION_AND_READER_BURDEN.md"]

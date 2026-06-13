@@ -67,7 +67,9 @@ compatibility with an external network A2A standard.
 4. Write the body in plain language: what happened, what to do now, the
    nearest material boundary, and what evidence or reply will settle it. A few
    short labeled lines beat one dense paragraph; omit any line that adds no
-   value.
+   value. Name the actual state and action rather than substituting imagery:
+   say which parameter to vary, not which "dial to turn". Preserve exact
+   project terms and cited source text.
 5. Validate before actuation when the Host does not render and validate the
    envelope atomically.
 6. After sending, let the caller and Host distinguish delivery, consumption,
@@ -76,7 +78,7 @@ compatibility with an external network A2A standard.
 Start from `assets/agent-message.template.xml`:
 
 ```xml
-<bagakit-msg type="agent-v1" name="Cedar-7K2M" time="2000-01-01T00:00:00+00:00">
+<bagakit-msg type="agent-v1" name="Cedar-7K2M">
 <cite from="user">Preserve the original source text.</cite>
 Result: The parser now preserves quoted labels.
 Action: Compare this result with your failing input.

@@ -1,7 +1,8 @@
 # Precision And Reader Burden
 
 Use this reference when a draft contains procedures, technical descriptions,
-stable domain terms, or a material consequence of misunderstanding.
+stable domain terms, decorative indirection, or a material consequence of
+misunderstanding.
 
 The goal is proportionate clarity. It is not full ASD-STE100 compliance and it
 is not a universal short-sentence style.
@@ -29,6 +30,25 @@ is not a universal short-sentence style.
 Long sentences, passive voice, pronouns, synonyms, and nuanced argument are not
 failures by themselves. Review them only when they increase resolution cost,
 hide responsibility, blur sequence, or change meaning.
+
+## Literal Wording
+
+Core owns `literal-wording-before-flourish`. Judge wording by the reader's work
+and the accuracy of the resulting understanding. An image earns no quality
+credit merely for being fluent, memorable, or distinctive.
+
+When a literal phrase conveys the meaning clearly, use it. Decorative metaphors
+make readers translate an image back into a claim and can imply properties the
+claim does not support. State the parameter, action, result, or reason directly.
+Check that imagery has not changed the actor, action, causal relationship,
+degree, or scope. Preserve established technical names and attributed
+quotations.
+
+For an explanatory analogy, first state the literal relationship. Retain the
+analogy only if it makes that relationship easier for this audience to
+understand, and make its limits clear. If the literal version is equally clear,
+prefer it. Review the reader's understanding, not how distinctive the wording
+sounds; intentional literary effects remain a genre or user choice.
 
 ## Source Basis
 

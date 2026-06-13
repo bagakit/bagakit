@@ -94,6 +94,10 @@ Use one composed final review, scaled to the requested artifact. For a short
 edit, preserve meaning and review the changed passage directly; do not create a
 route memo or longform report merely to activate this skill.
 
+Prefer literal wording when it states the meaning clearly. Keep an analogy
+only when it makes a relationship easier to understand and preserves its
+limits; see `references/writing/PRECISION_AND_READER_BURDEN.md`.
+
 - For an unclear writing route, consult
   `references/workflow/OPERATING_SURFACE_MATRIX.md`. Consume a supplied Intake
   packet through `references/workflow/INTAKE_HANDOFF_AND_CORE_VETO.md`.

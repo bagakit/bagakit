@@ -58,6 +58,16 @@ justify changing these relationships.
 This cross-check does not turn de-AI-tone into an STE checker. Do not apply a
 controlled vocabulary, fixed sentence length, or blanket active-voice rewrite.
 
+## Literal-Wording Pass
+
+When imagery or flourish substitutes for the claim, recover its literal
+meaning before rewriting; use the examples in `patterns.md`. Prefer the
+literal version when it is equally clear or clearer. Do not replace a removed
+metaphor with another decorative phrase or invent a mechanism the source never
+specified. If the source leaves the meaning unclear, identify that gap. Keep
+protected quotations intact and retain explanatory analogies only when their
+mapping and limits help the intended reader.
+
 ## Scene Pack
 
 When the CLI receives `--scene auto`, it may infer an active scene from visible

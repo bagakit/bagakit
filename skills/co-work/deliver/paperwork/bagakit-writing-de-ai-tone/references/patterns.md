@@ -31,6 +31,27 @@ These should normally be removed or rewritten before release.
 - unsupported people-generalization dunking: `人们往往...`, `大多数人...`,
   `很多团队会...`. If the group is only there to make the author look sharper,
   rewrite the sentence around the concrete failure mode, sample, or boundary.
+- mannered prose: metaphor or flourish replaces a clear literal statement
+  without adding explanatory value; use the contextual review below.
+
+## Mannered Prose
+
+Compare the phrase with a literal version that preserves the claim. If the
+literal version is equally clear or clearer, use it. An image can add unearned
+connotations about agency, causality, control, or strength; remove those
+implications rather than replacing the image with another flourish.
+
+Examples in ordinary explanatory prose:
+
+- `a dial worth turning` -> `a parameter worth varying`
+- `this point earns its keep` -> `this point still matters`
+- `给下一轮留下抓手` -> `记录判断依据，供下一轮复用`
+
+Judge the effect on meaning, not the writer's motives or authorship. These are
+contextual examples, not forbidden phrases: a physical dial, an established
+technical term, an attributed quotation, or an analogy that clarifies a
+relationship may be appropriate. This review is semantic; a lint pass alone
+does not establish that prose is direct or precise.
 
 ## P2 Polish Signals
 
