@@ -763,18 +763,26 @@ test("checkCanonicalSkillLayout rejects absolute symlink targets inside installa
   }
 });
 
-test("checkCanonicalSkillLayout rejects local noise inside installable skill sources", () => {
+test("local runtime noise is tolerated on disk and excluded from exported payloads", () => {
   const repoRoot = makeTempRepo();
   mkdirSync(path.join(repoRoot, "skills"), { recursive: true });
   writeSkill(repoRoot, "harness", "alpha", {
+    "SKILL.md": "---\nname: alpha\ndescription: Test alpha workflow.\n---\n\n# alpha\n",
     ".DS_Store": "noise",
-    "__pycache__/module.pyc": "noise",
+    "scripts/__pycache__/module.pyc": "noise",
     "nested/temp.pyc": "noise",
+    "nested/keep.txt": "keep\n",
   });
 
   try {
-    const issues = checkCanonicalSkillLayout(repoRoot);
-    assert.ok(issues.join("\n").includes("installable skill must not contain local noise"));
+    assert.deepEqual(checkCanonicalSkillLayout(repoRoot), []);
+    const result = runCli(["package-plugin", "--root", repoRoot, "--out", "dist/plugins/bagakit"]);
+    assert.equal(result.status, 0, result.stderr);
+    const exported = path.join(repoRoot, "dist/plugins/bagakit/skills/alpha");
+    assert.equal(existsSync(path.join(exported, "nested/keep.txt")), true);
+    assert.equal(existsSync(path.join(exported, ".DS_Store")), false);
+    assert.equal(existsSync(path.join(exported, "scripts/__pycache__")), false);
+    assert.equal(existsSync(path.join(exported, "nested/temp.pyc")), false);
   } finally {
     rmSync(repoRoot, { recursive: true, force: true });
   }

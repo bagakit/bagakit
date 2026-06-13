@@ -3,6 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 
+import { isPayloadEntry } from "./check.ts";
 import type { PackageResult, SkillSource } from "./model.ts";
 import { displayPath } from "./paths.ts";
 
@@ -73,6 +74,7 @@ export function distributePackages(skills: SkillSource[], options: PackageOption
         recursive: true,
         force: true,
         verbatimSymlinks: true,
+        filter: isPayloadEntry,
       });
 
       const archiveDir = path.join(options.distDir, skill.family);

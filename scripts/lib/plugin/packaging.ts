@@ -2,7 +2,7 @@ import { cpSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-import { checkCanonicalSkillLayout } from "../skill/check.ts";
+import { checkCanonicalSkillLayout, isPayloadEntry } from "../skill/check.ts";
 import { loadSkillInventory } from "../skill/discovery.ts";
 import type { SkillSource } from "../skill/model.ts";
 import { displayPath } from "../skill/paths.ts";
@@ -118,6 +118,7 @@ function copySkills(outputDir: string, skills: SkillSource[]): void {
       recursive: true,
       force: true,
       verbatimSymlinks: true,
+      filter: isPayloadEntry,
     });
   }
 }

@@ -71,27 +71,11 @@ function collectPayloadManifestIssues(repoRoot: string, skillDir: string): strin
   return issues;
 }
 
-function collectLocalNoiseIssues(repoRoot: string, skillDir: string): string[] {
-  const issues: string[] = [];
-  const stack = [skillDir];
-  while (stack.length > 0) {
-    const current = stack.pop()!;
-    for (const entry of readdirSync(current, { withFileTypes: true })) {
-      const entryPath = path.join(current, entry.name);
-      if (entry.isDirectory()) {
-        if (entry.name === "__pycache__") {
-          issues.push(`installable skill must not contain local noise: ${toRepoRelative(repoRoot, entryPath)}`);
-          continue;
-        }
-        stack.push(entryPath);
-        continue;
-      }
-      if (entry.name === ".DS_Store" || entry.name.endsWith(".pyc")) {
-        issues.push(`installable skill must not contain local noise: ${toRepoRelative(repoRoot, entryPath)}`);
-      }
-    }
-  }
-  return issues;
+// Running an installed skill writes these into its source directory through the
+// symlink, so they are excluded at copy time instead of rejected on disk.
+export function isPayloadEntry(sourcePath: string): boolean {
+  const name = path.basename(sourcePath);
+  return name !== "__pycache__" && name !== ".DS_Store" && !name.endsWith(".pyc");
 }
 
 export function checkCanonicalSkillLayout(repoRootArg: string): string[] {
@@ -122,7 +106,6 @@ export function checkCanonicalSkillLayout(repoRootArg: string): string[] {
     }
 
     issues.push(...collectPayloadManifestIssues(repoRoot, skill.absoluteDir));
-    issues.push(...collectLocalNoiseIssues(repoRoot, skill.absoluteDir));
     issues.push(...collectSymlinkIssues(repoRoot, skill.absoluteDir));
   }
 

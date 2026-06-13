@@ -57,7 +57,6 @@ forbidden_paths = [
   "skills/co-work/align/bagakit-living-knowledge/playbook/tpl/topic-inbox-readme-template.md",
   "skills/co-work/align/bagakit-living-knowledge/playbook/tpl/topic-memory-readme-template.md",
   "skills/co-work/align/bagakit-living-knowledge/playbook/tpl/topic-project-readme-template.md",
-  "skills/co-work/align/bagakit-living-knowledge/scripts/__pycache__",
   "skills/co-work/align/bagakit-living-knowledge/scripts_dev",
 ]
 

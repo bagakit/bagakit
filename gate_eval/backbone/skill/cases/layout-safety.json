@@ -6,13 +6,12 @@
   "focus": [
     "directory-discovery-detection",
     "payload-manifest-ban",
-    "symlink-safety",
-    "local-noise-rejection"
+    "symlink-safety"
   ],
   "probes": [
     {
       "id": "report-layout-issues",
-      "title": "Report forbidden payloads, local noise, and unsafe symlinks",
+      "title": "Report forbidden payloads and unsafe symlinks",
       "argv": [
         "check-layout",
         "--json"
@@ -22,7 +21,6 @@
         "stdoutJson": {
           "issues": [
             "installable skill must not ship SKILL_PAYLOAD.json: skills/harness/alpha/SKILL_PAYLOAD.json",
-            "installable skill must not contain local noise: skills/harness/alpha/.DS_Store",
             "installable skill symlink target must be relative: skills/harness/alpha/link.txt"
           ]
         }

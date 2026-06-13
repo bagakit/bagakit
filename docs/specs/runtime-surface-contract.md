@@ -155,8 +155,10 @@ Rules:
 - do not create new top-level scratch roots such as `tmp/`, `temp/`,
   `.dist-*`, or `dist_local*`
 - do not put generated scratch directories such as `.tmp/`, `tmp/`, `dist/`,
-  `build/`, `node_modules/`, or `__pycache__/` inside installable skill
-  directories
+  `build/`, or `node_modules/` inside installable skill directories
+- interpreter caches (`__pycache__/`, `*.pyc`) and `.DS_Store` may appear
+  when an installed skill runs through its link; they stay Git-ignored and
+  package exports exclude them
 - prefer the operating-system temp directory for isolated automated tests that
   do not need repo-relative inspection
 - use `.tmp/` for smoke, probe, compare, or review-pack output unless the

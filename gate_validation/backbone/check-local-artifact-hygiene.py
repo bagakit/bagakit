@@ -37,7 +37,6 @@ FORBIDDEN_SKILL_DIR_NAMES = {
     ".pytest_cache",
     ".ruff_cache",
     ".tmp",
-    "__pycache__",
     "build",
     "coverage",
     "dist",
